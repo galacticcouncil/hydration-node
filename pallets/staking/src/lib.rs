@@ -16,11 +16,9 @@
 
 // TODO
 //  * [] - nontransferable nft
-//  * [] - deposit for nft
 //  * [] - don't allow to skate vested tokens
 //  * [] - tests create/increase during UnclaimablePeriods
 //  * [] - user can stake already locked token multiple time so he can lock more than he have
-//  * [] - remove pending_rew from staking
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -288,8 +286,7 @@ pub mod pallet {
 
                                 let pot = Self::pot_account_id();
                                 T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
-                                //TODO: Fix
-                                staking.accumulated_distributed_rewards -= rewards;
+                                staking.accumulated_claimable_rewards = staking.accumulated_claimable_rewards.checked_sub(rewards).ok_or(ArithmeticError::Overflow)?;
 
 								Ok((position_id, position.stake, position.get_total_locked()?, rewards, slashed_points))
 							},
@@ -323,13 +320,9 @@ pub mod pallet {
 		pub fn claim(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let position_id = Self::get_user_position_id(&who)?;
-			ensure!(position_id.is_some(), Error::<T>::PositionNotFound);
-
+			let position_id = Self::get_user_position_id(&who)?.ok_or(Error::<T>::PositionNotFound)?;
 			Staking::<T>::try_mutate(|staking| {
 				Self::reward_stakers(staking)?;
-
-				let position_id = position_id.unwrap();
 
 				Positions::<T>::try_mutate(position_id, |maybe_position| {
 					//TODO: inconsistent state
@@ -377,14 +370,14 @@ pub mod pallet {
 						.checked_add(points_to_slash)
 						.ok_or(ArithmeticError::Overflow)?;
 
-					//TODO:
-					let slashed_unpaid_rewards = if current_period - created_at > T::UnclaimablePeriods::get() {
-						let p = position.accumulated_unpaid_rewards;
-						position.accumulated_unpaid_rewards = Zero::zero();
-						p
-					} else {
-						Zero::zero()
-					};
+					let slashed_unpaid_rewards =
+						if current_period.saturating_sub(created_at) > T::UnclaimablePeriods::get() {
+							let p = position.accumulated_unpaid_rewards;
+							position.accumulated_unpaid_rewards = Zero::zero();
+							p
+						} else {
+							Zero::zero()
+						};
 					position.reward_per_stake = staking.accumulated_reward_per_stake;
 
 					T::Currency::set_lock(
@@ -394,9 +387,8 @@ pub mod pallet {
 						position.get_total_locked()?,
 					)?;
 
-					//return what's left to redistribution, will be removed
-					staking.accumulated_distributed_rewards = staking
-						.accumulated_distributed_rewards
+					staking.accumulated_claimable_rewards = staking
+						.accumulated_claimable_rewards
 						.checked_sub(slashed_unpaid_rewards)
 						.ok_or(ArithmeticError::Overflow)?;
 
@@ -419,13 +411,10 @@ pub mod pallet {
 		pub fn unstake(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let position_id = Self::get_user_position_id(&who)?;
-			ensure!(position_id.is_some(), Error::<T>::PositionNotFound);
-
+			let position_id = Self::get_user_position_id(&who)?.ok_or(Error::<T>::PositionNotFound)?;
 			Staking::<T>::try_mutate(|staking| {
 				Self::reward_stakers(staking)?;
 
-				let position_id = position_id.unwrap();
 				Positions::<T>::try_mutate_exists(position_id, |maybe_position| {
 					//TODO: inconsistent state
 					let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
@@ -461,8 +450,8 @@ pub mod pallet {
 						.checked_sub(claimable_unpaid_rewards)
 						.ok_or(ArithmeticError::Overflow)?;
 
-					staking.accumulated_distributed_rewards = staking
-						.accumulated_distributed_rewards
+					staking.accumulated_claimable_rewards = staking
+						.accumulated_claimable_rewards
 						.checked_sub(return_to_pot)
 						.ok_or(ArithmeticError::Overflow)?;
 
@@ -596,7 +585,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let pending_rewards = T::Currency::free_balance(T::HdxAssetId::get(), &Self::pot_account_id())
-			.checked_sub(staking.accumulated_distributed_rewards)
+			.checked_sub(staking.accumulated_claimable_rewards)
 			.ok_or(ArithmeticError::Overflow)?;
 		if pending_rewards.is_zero() {
 			return Ok(());
@@ -615,9 +604,10 @@ impl<T: Config> Pallet<T> {
 		}
 
 		staking.accumulated_reward_per_stake = accumulated_rps;
-
-		//TODO: fix
-		staking.accumulated_distributed_rewards += pending_rewards;
+		staking.accumulated_claimable_rewards = staking
+			.accumulated_claimable_rewards
+			.checked_add(pending_rewards)
+			.ok_or(ArithmeticError::Overflow)?;
 
 		Ok(())
 	}

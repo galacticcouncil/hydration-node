@@ -35,7 +35,7 @@ macro_rules! assert_hdx_lock {
 /// Parameters:
 /// - `total_stake`
 /// - `accumulated_reward_per_stake`
-/// - `accumulated_distributed_rewards`
+/// - `accumulated_claimable_rewards`
 #[macro_export]
 macro_rules! assert_staking_data {
 	($x: expr, $y: expr, $z: expr) => {
@@ -44,7 +44,7 @@ macro_rules! assert_staking_data {
 			StakingData {
 				total_stake: $x,
 				accumulated_reward_per_stake: $y,
-				accumulated_distributed_rewards: $z,
+				accumulated_claimable_rewards: $z,
 			}
 		);
 	};
