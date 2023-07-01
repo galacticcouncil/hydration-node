@@ -4,12 +4,9 @@ use crate::polkadot_test_net::*;
 
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_runtime::Balance;
-use hydradx_runtime::Omnipool;
-use hydradx_runtime::RuntimeOrigin;
-use hydradx_runtime::Tokens;
+use hydradx_runtime::{adapters::OraclePriceProviderAdapterForOmnipool, Omnipool, RuntimeOrigin, Tokens};
 use hydradx_traits::{OraclePeriod, PriceOracle};
-use primitives::AssetId;
+use primitives::{AssetId, Balance};
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
 
@@ -22,11 +19,12 @@ fn omnipool_oracle_adapter_should_return_price_for_arbitraty_pairs() {
 
 		set_relaychain_block_number(100);
 
-		let price = common_runtime::adapters::OraclePriceProviderAdapterForOmnipool::<
-			AssetId,
-			hydradx_runtime::EmaOracle,
-			hydradx_runtime::LRNA,
-		>::price(HDX, DAI, OraclePeriod::Short);
+		let price =
+			OraclePriceProviderAdapterForOmnipool::<AssetId, hydradx_runtime::EmaOracle, hydradx_runtime::LRNA>::price(
+				HDX,
+				DAI,
+				OraclePeriod::Short,
+			);
 
 		assert!(price.is_some());
 	});
@@ -41,11 +39,12 @@ fn omnipool_oracle_adapter_should_return_price_for_when_lrna_is_asset_a() {
 
 		set_relaychain_block_number(100);
 
-		let price = common_runtime::adapters::OraclePriceProviderAdapterForOmnipool::<
-			AssetId,
-			hydradx_runtime::EmaOracle,
-			hydradx_runtime::LRNA,
-		>::price(LRNA, DAI, OraclePeriod::Short);
+		let price =
+			OraclePriceProviderAdapterForOmnipool::<AssetId, hydradx_runtime::EmaOracle, hydradx_runtime::LRNA>::price(
+				LRNA,
+				DAI,
+				OraclePeriod::Short,
+			);
 
 		assert!(price.is_some());
 	});
@@ -60,11 +59,12 @@ fn omnipool_oracle_adapter_should_return_price_for_when_lrna_is_asset_b() {
 
 		set_relaychain_block_number(100);
 
-		let price = common_runtime::adapters::OraclePriceProviderAdapterForOmnipool::<
-			AssetId,
-			hydradx_runtime::EmaOracle,
-			hydradx_runtime::LRNA,
-		>::price(DAI, LRNA, OraclePeriod::Short);
+		let price =
+			OraclePriceProviderAdapterForOmnipool::<AssetId, hydradx_runtime::EmaOracle, hydradx_runtime::LRNA>::price(
+				DAI,
+				LRNA,
+				OraclePeriod::Short,
+			);
 
 		assert!(price.is_some());
 	});

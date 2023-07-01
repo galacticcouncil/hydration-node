@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "10.0.0"
+version = "10.0.1"
 description = "HydraDX node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -28,7 +28,6 @@ clap = { version = "4.1.8", features = [ "derive" ] }
 futures = "0.3.21"
 
 # local dependencies
-common-runtime = { workspace = true }
 hydradx-runtime = { workspace = true }
 primitives = { workspace = true }
 

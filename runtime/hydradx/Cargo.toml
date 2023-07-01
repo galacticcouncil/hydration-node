@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "162.0.0"
+version = "163.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -22,13 +22,13 @@ smallvec = "1.9.0"
 
 # local dependencies
 primitives = { workspace = true }
-common-runtime = { workspace = true }
 pallet-claims = { workspace = true }
 pallet-genesis-history = { workspace = true }
 pallet-omnipool = { workspace = true }
 pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-dca = { workspace = true }
+hydra-dx-math = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -122,6 +122,7 @@ sp-transaction-pool = { workspace = true }
 sp-version = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
+primitive-types = {  workspace = true }
 
 [features]
 default = ["std"]
@@ -172,7 +173,6 @@ std = [
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "frame-try-runtime/std",
-    "common-runtime/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-aura-ext/std",
     "cumulus-primitives-core/std",

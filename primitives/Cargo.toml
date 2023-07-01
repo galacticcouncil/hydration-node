@@ -1,6 +1,6 @@
 [package]
 name = "primitives"
-version = "5.7.3"
+version = "5.8.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
@@ -14,6 +14,7 @@ static_assertions = "1.1.0"
 
 # Substrate dependencies
 frame-support = { workspace = true }
+sp-core = { workspace = true }
 
 # Polkadot dependencies
 polkadot-primitives = { workspace = true }
@@ -25,4 +26,5 @@ std = [
     "codec/std",
     "scale-info/std",
     "frame-support/std",
+    "sp-core/std",
 ]
