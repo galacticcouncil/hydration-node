@@ -273,6 +273,18 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 					RuntimeOrigin::signed(ALICE),
 					pool_id,
 					vec![asset_a, asset_b],
+					0,
+					Permill::from_percent(0),
+					Permill::from_percent(0),
+				),
+				Error::<Test>::InvalidAmplification
+			);
+
+			assert_noop!(
+				Stableswap::create_pool(
+					RuntimeOrigin::signed(ALICE),
+					pool_id,
+					vec![asset_a, asset_b],
 					amplification_min,
 					Permill::from_percent(0),
 					Permill::from_percent(0),
