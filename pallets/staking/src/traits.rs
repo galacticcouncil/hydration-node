@@ -1,4 +1,5 @@
 use crate::types::Balance;
+use frame_support::dispatch::DispatchResult;
 use pallet_democracy::ReferendumIndex;
 use sp_runtime::FixedU128;
 
@@ -16,4 +17,9 @@ pub trait DemocracyReferendum {
 pub(crate) trait ActionData {
 	fn amount(&self) -> Balance;
 	fn conviction(&self) -> u32;
+}
+
+pub trait FrozenNonFungibles<AccountId, CollectionId, ItemId> {
+	/// Freezes given item so it is not transferable.
+	fn freeze(owner: AccountId, collection: CollectionId, item: ItemId) -> DispatchResult;
 }
