@@ -28,6 +28,7 @@ use pallet_otc::NamedReserveIdentifier;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
 use primitives::constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS};
 
+use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::One,
@@ -38,7 +39,6 @@ use frame_support::{
 use frame_system::{EnsureRoot, RawOrigin};
 use orml_traits::currency::MutationHooks;
 use pallet_dynamic_fees::types::FeeParams;
-use core::ops::RangeInclusive;
 use sp_core::crypto::UncheckedFrom;
 use sp_std::marker::PhantomData;
 
@@ -481,7 +481,6 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }
-
 
 parameter_types! {
 	pub const StableswapAmplificationRange: RangeInclusive<u16> = RangeInclusive::new(2, 10_000);
