@@ -1,20 +1,24 @@
-use super::{AssetId, *};
+use super::*;
+use crate::adapters::ReroutingMultiCurrencyAdapter;
 
-use common_runtime::adapters::ReroutingMultiCurrencyAdapter;
+use hydradx_adapters::{MultiCurrencyTrader, ToFeeReceiver};
+use pallet_transaction_multi_payment::DepositAll;
+use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
+
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	traits::{Everything, Nothing},
+	parameter_types,
+	sp_runtime::traits::{AccountIdConversion, Convert},
+	traits::{ConstU32, Contains, Everything, Get, Nothing},
 	PalletId,
 };
-use hydradx_adapters::{MultiCurrencyTrader, ToFeeReceiver};
+use frame_system::EnsureRoot;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
-pub use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
+use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
-use polkadot_xcm::v3::prelude::*;
-use polkadot_xcm::v3::Weight as XcmWeight;
-use primitives::Price;
-use sp_runtime::traits::{AccountIdConversion, Convert};
+use polkadot_xcm::v3::{prelude::*, Weight as XcmWeight};
+use scale_info::TypeInfo;
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
 	EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
@@ -22,6 +26,9 @@ use xcm_builder::{
 	TakeWeightCredit, WithComputedOrigin,
 };
 use xcm_executor::{Config, XcmExecutor};
+
+#[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
+pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
@@ -204,7 +211,7 @@ impl pallet_xcm::Config for Runtime {
 	type TrustedLockers = ();
 	type SovereignAccountOf = ();
 	type MaxLockers = ConstU32<8>;
-	type WeightInfo = common_runtime::weights::xcm::HydraWeight<Runtime>;
+	type WeightInfo = weights::xcm::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
 }

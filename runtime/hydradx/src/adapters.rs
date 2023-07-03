@@ -1,32 +1,33 @@
-use core::marker::PhantomData;
+use crate::assets::OMNIPOOL_SOURCE;
 
 use codec::FullCodec;
+use core::marker::PhantomData;
 use frame_support::{
+	sp_runtime::{
+		traits::{Convert, MaybeSerializeDeserialize, Zero},
+		ArithmeticError, DispatchError, FixedPointNumber, FixedU128, SaturatedConversion,
+	},
 	traits::{Contains, Get},
 	weights::Weight,
 };
-use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::omnipool::types::BalanceUpdate;
-use hydra_dx_math::support::rational::round_to_rational;
-use hydra_dx_math::support::rational::Rounding;
-use hydradx_traits::AggregatedPriceOracle;
-use hydradx_traits::PriceOracle;
-use hydradx_traits::{liquidity_mining::PriceAdjustment, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
-use orml_xcm_support::OnDepositFail;
-use orml_xcm_support::UnknownAsset as UnknownAssetT;
+use hydra_dx_math::{
+	ema::EmaPrice,
+	omnipool::types::BalanceUpdate,
+	support::rational::{round_to_rational, Rounding},
+};
+use hydradx_traits::{
+	liquidity_mining::PriceAdjustment, AggregatedPriceOracle, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod,
+	PriceOracle,
+};
+use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
-use pallet_ema_oracle::Price;
-use pallet_ema_oracle::{OnActivityHandler, OracleError};
+use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
+use polkadot_xcm::latest::prelude::*;
 use primitive_types::U128;
 use primitives::{AssetId, Balance, BlockNumber};
-use sp_runtime::traits::MaybeSerializeDeserialize;
-use sp_runtime::traits::{Convert, Zero};
-use sp_runtime::SaturatedConversion;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 use sp_std::fmt::Debug;
 use warehouse_liquidity_mining::GlobalFarmData;
-use xcm::latest::prelude::*;
 use xcm_executor::{
 	traits::{Convert as MoreConvert, MatchesFungible, TransactAsset},
 	Assets,
@@ -34,9 +35,6 @@ use xcm_executor::{
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
-
-/// The source of the data for the oracle.
-pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 
 impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AssetId, Balance> for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
@@ -149,14 +147,14 @@ where
 		let w1 = OnActivityHandler::<Runtime>::on_liquidity_changed_weight();
 		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_add_liquidity_limit()
 			.max(<Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_remove_liquidity_limit());
-		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single(); // TODO: implement and use on_finalize_single_liquidity_limit_entry benchmark
+		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single_liquidity_limit_entry();
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 
 	fn on_trade_weight() -> Weight {
 		let w1 = OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(2);
 		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_pool_state_change_limit();
-		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single(); // TODO: implement and use on_finalize_single_trade_limit_entry benchmark
+		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single_trade_limit_entry();
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 }

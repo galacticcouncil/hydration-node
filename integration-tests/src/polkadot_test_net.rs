@@ -11,7 +11,7 @@ use frame_support::{
 };
 pub use hydradx_runtime::{AccountId, NativeExistentialDeposit, Treasury, VestingPalletId};
 use pallet_transaction_multi_payment::Price;
-use primitives::{AssetId, Balance};
+pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance};
 
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
