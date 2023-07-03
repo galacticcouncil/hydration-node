@@ -1,4 +1,4 @@
-use crate::{AccountId, AssetId, Balance, Duster, DustingReward, NativeAssetId, Runtime, Tokens};
+use crate::{assets::DustingReward, AccountId, AssetId, Balance, Duster, NativeAssetId, Runtime, Tokens};
 
 use super::*;
 

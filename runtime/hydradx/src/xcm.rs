@@ -1,20 +1,24 @@
-use super::{AssetId, *};
+use super::*;
+use crate::adapters::ReroutingMultiCurrencyAdapter;
 
-use common_runtime::adapters::ReroutingMultiCurrencyAdapter;
+use hydradx_adapters::{MultiCurrencyTrader, ToFeeReceiver};
+use pallet_transaction_multi_payment::DepositAll;
+use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
+
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	traits::{Everything, Nothing},
+	parameter_types,
+	sp_runtime::traits::{AccountIdConversion, Convert},
+	traits::{ConstU32, Contains, Everything, Get, Nothing},
 	PalletId,
 };
-use hydradx_adapters::{MultiCurrencyTrader, ToFeeReceiver};
+use frame_system::EnsureRoot;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
-pub use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
+use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
-use polkadot_xcm::v3::prelude::*;
-use polkadot_xcm::v3::Weight as XcmWeight;
-use primitives::Price;
-use sp_runtime::traits::{AccountIdConversion, Convert};
+use polkadot_xcm::v3::{prelude::*, Weight as XcmWeight};
+use scale_info::TypeInfo;
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
 	EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
@@ -22,6 +26,9 @@ use xcm_builder::{
 	TakeWeightCredit,
 };
 use xcm_executor::{Config, XcmExecutor};
+
+#[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
+pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
@@ -115,7 +122,7 @@ impl Config for XcmConfig {
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
-	type SafeCallFilter = Everything;
+	type SafeCallFilter = SafeCallFilter;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -198,7 +205,7 @@ impl pallet_xcm::Config for Runtime {
 	type TrustedLockers = ();
 	type SovereignAccountOf = ();
 	type MaxLockers = ConstU32<8>;
-	type WeightInfo = common_runtime::weights::xcm::HydraWeight<Runtime>;
+	type WeightInfo = weights::xcm::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
 }
@@ -309,3 +316,92 @@ pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	OmnipoolProtocolAccount,
 	TreasuryAccount,
 >;
+
+/// A call filter for the XCM Transact instruction. This is a temporary measure until we properly
+/// account for proof size weights.
+///
+/// Calls that are allowed through this filter must:
+/// 1. Have a fixed weight;
+/// 2. Cannot lead to another call being made;
+/// 3. Have a defined proof size weight, e.g. no unbounded vecs in call parameters.
+pub struct SafeCallFilter;
+impl Contains<RuntimeCall> for SafeCallFilter {
+	fn contains(call: &RuntimeCall) -> bool {
+		#[cfg(feature = "runtime-benchmarks")]
+		{
+			if matches!(call, RuntimeCall::System(frame_system::Call::remark_with_event { .. })) {
+				return true;
+			}
+		}
+
+		// check the runtime call filter
+		if !CallFilter::contains(call) {
+			return false;
+		}
+
+		matches!(
+			call,
+			RuntimeCall::System(frame_system::Call::kill_prefix { .. } | frame_system::Call::set_heap_pages { .. })
+				| RuntimeCall::Timestamp(..)
+				| RuntimeCall::Balances(..)
+				| RuntimeCall::Treasury(..)
+				| RuntimeCall::Utility(pallet_utility::Call::as_derivative { .. })
+				| RuntimeCall::Vesting(..)
+				| RuntimeCall::Proxy(..)
+				| RuntimeCall::CollatorSelection(
+					pallet_collator_selection::Call::set_desired_candidates { .. }
+						| pallet_collator_selection::Call::set_candidacy_bond { .. }
+						| pallet_collator_selection::Call::register_as_candidate { .. }
+						| pallet_collator_selection::Call::leave_intent { .. },
+				) | RuntimeCall::Session(pallet_session::Call::purge_keys { .. })
+				| RuntimeCall::Uniques(
+					pallet_uniques::Call::create { .. }
+						| pallet_uniques::Call::force_create { .. }
+						| pallet_uniques::Call::mint { .. }
+						| pallet_uniques::Call::burn { .. }
+						| pallet_uniques::Call::transfer { .. }
+						| pallet_uniques::Call::freeze { .. }
+						| pallet_uniques::Call::thaw { .. }
+						| pallet_uniques::Call::freeze_collection { .. }
+						| pallet_uniques::Call::thaw_collection { .. }
+						| pallet_uniques::Call::transfer_ownership { .. }
+						| pallet_uniques::Call::set_team { .. }
+						| pallet_uniques::Call::approve_transfer { .. }
+						| pallet_uniques::Call::cancel_approval { .. }
+						| pallet_uniques::Call::force_item_status { .. }
+						| pallet_uniques::Call::set_attribute { .. }
+						| pallet_uniques::Call::clear_attribute { .. }
+						| pallet_uniques::Call::set_metadata { .. }
+						| pallet_uniques::Call::clear_metadata { .. }
+						| pallet_uniques::Call::set_collection_metadata { .. }
+						| pallet_uniques::Call::clear_collection_metadata { .. }
+						| pallet_uniques::Call::set_accept_ownership { .. }
+						| pallet_uniques::Call::set_price { .. }
+						| pallet_uniques::Call::buy_item { .. },
+				) | RuntimeCall::Identity(
+				pallet_identity::Call::add_registrar { .. }
+					| pallet_identity::Call::set_identity { .. }
+					| pallet_identity::Call::clear_identity { .. }
+					| pallet_identity::Call::request_judgement { .. }
+					| pallet_identity::Call::cancel_request { .. }
+					| pallet_identity::Call::set_fee { .. }
+					| pallet_identity::Call::set_account_id { .. }
+					| pallet_identity::Call::set_fields { .. }
+					| pallet_identity::Call::provide_judgement { .. }
+					| pallet_identity::Call::kill_identity { .. }
+					| pallet_identity::Call::add_sub { .. }
+					| pallet_identity::Call::rename_sub { .. }
+					| pallet_identity::Call::remove_sub { .. }
+					| pallet_identity::Call::quit_sub { .. },
+			) | RuntimeCall::Omnipool(..)
+				| RuntimeCall::OmnipoolLiquidityMining(..)
+				| RuntimeCall::OTC(..)
+				| RuntimeCall::CircuitBreaker(..)
+				| RuntimeCall::DCA(..)
+				| RuntimeCall::MultiTransactionPayment(..)
+				| RuntimeCall::Currencies(..)
+				| RuntimeCall::Tokens(..)
+				| RuntimeCall::OrmlXcm(..)
+		)
+	}
+}

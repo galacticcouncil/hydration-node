@@ -1,5 +1,7 @@
-use crate::{AccountId, AssetId, Balance, NativeAssetId, Runtime};
-use crate::{BlockNumber, Currencies, MaxVestingSchedules, System, Vesting};
+use crate::{
+	assets::MaxVestingSchedules, AccountId, AssetId, Balance, BlockNumber, Currencies, NativeAssetId, Runtime, System,
+	Vesting,
+};
 
 use super::BSX;
 

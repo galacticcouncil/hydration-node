@@ -206,20 +206,6 @@ fn transfer_should_not_work_when_transfering_omnipool_assets_to_omnipool_account
 }
 
 #[test]
-fn calling_pallet_uniques_extrinsic_should_be_filtered_by_call_filter() {
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		let call = hydradx_runtime::RuntimeCall::Uniques(pallet_uniques::Call::create {
-			collection: 1u128,
-			admin: AccountId::from(ALICE),
-		});
-
-		assert!(!hydradx_runtime::CallFilter::contains(&call));
-	});
-}
-
-#[test]
 fn calling_pallet_xcm_extrinsic_should_be_filtered_by_call_filter() {
 	TestNet::reset();
 
