@@ -9,11 +9,19 @@ use pallet_democracy::{AccountVote, ReferendumIndex, ReferendumInfo};
 pub struct StakingDemocracy<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
-	//TODO: note that this cannot return error if position or vote does not exist - it is not an error!
 	fn on_vote(who: &T::AccountId, ref_index: ReferendumIndex, vote: AccountVote<Balance>) -> DispatchResult {
-		//TODO: handle unwraps
-		let position_id = Pallet::<T>::get_user_position_id(who)?.unwrap();
-		let position = Positions::<T>::get(&position_id).unwrap();
+		let maybe_position_id = Pallet::<T>::get_user_position_id(who)?;
+		let position_id = if maybe_position_id.is_some() {
+			maybe_position_id.unwrap()
+		} else {
+			return Ok(());
+		};
+		let position = Positions::<T>::get(&position_id);
+		let position = if position.is_some() {
+			position.unwrap()
+		} else {
+			return Ok(());
+		};
 
 		let amount = vote.balance();
 		let conviction = if let AccountVote::Standard { vote, .. } = vote {
@@ -53,10 +61,13 @@ impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
 		Ok(())
 	}
 
-	//TODO: note that this cannot return error if position or vote does not exist - it is not an error!
 	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> DispatchResult {
-		//TODO: handle unwraps
-		let position_id = Pallet::<T>::get_user_position_id(who)?.unwrap();
+		let maybe_position_id = Pallet::<T>::get_user_position_id(who)?;
+		let position_id = if maybe_position_id.is_some() {
+			maybe_position_id.unwrap()
+		} else {
+			return Ok(());
+		};
 
 		PositionVotes::<T>::try_mutate_exists(position_id, |value| -> DispatchResult {
 			let voting = value.as_mut().ok_or(Error::<T>::MaxVotesReached)?;
