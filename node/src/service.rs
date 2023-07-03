@@ -19,7 +19,6 @@
 
 #![allow(clippy::all)]
 
-use common_runtime::{AccountId, Balance, Block, Index};
 use cumulus_client_cli::CollatorOptions;
 use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};
 use cumulus_client_consensus_common::{ParachainBlockImport as TParachainBlockImport, ParachainConsensus};
@@ -33,6 +32,7 @@ use cumulus_relay_chain_interface::{RelayChainInterface, RelayChainResult};
 use cumulus_relay_chain_minimal_node::build_minimal_relay_chain_node;
 use jsonrpsee::RpcModule;
 use polkadot_service::CollatorPair;
+use primitives::{AccountId, Balance, Block, Index};
 use sc_consensus::ImportQueue;
 use sc_executor::{NativeElseWasmExecutor, NativeExecutionDispatch, NativeVersion};
 use sc_network::NetworkService;

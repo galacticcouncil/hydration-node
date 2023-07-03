@@ -30,9 +30,12 @@ use hydradx_runtime::{
 	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
 	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
 	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SystemConfig,
-	TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
+	TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
 };
-use primitives::{constants::currency::NATIVE_EXISTENTIAL_DEPOSIT, AssetId, BlockNumber, Price};
+use primitives::{
+	constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
+	AssetId, BlockNumber, Price,
+};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
