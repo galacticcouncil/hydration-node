@@ -30,12 +30,14 @@ use primitives::constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS};
 
 use frame_support::{
 	parameter_types,
-	sp_runtime::Permill,
+	sp_runtime::traits::One,
+	sp_runtime::{FixedU128, Permill},
 	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, RawOrigin};
 use orml_traits::currency::MutationHooks;
+use pallet_dynamic_fees::types::FeeParams;
 
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;
@@ -195,8 +197,6 @@ pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 parameter_types! {
 	pub const LRNA: AssetId = 1;
 	pub const StableAssetId: AssetId = 2;
-	pub ProtocolFee: Permill = Permill::from_rational(5u32,10000u32);
-	pub AssetFee: Permill = Permill::from_rational(25u32,10000u32);
 	pub const MinTradingLimit : Balance = 1_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
@@ -218,8 +218,6 @@ impl pallet_omnipool::Config for Runtime {
 	type HdxAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
 	type StableCoinAssetId = StableAssetId;
-	type ProtocolFee = ProtocolFee;
-	type AssetFee = AssetFee;
 	type MinWithdrawalFee = MinimumWithdrawalFee;
 	type MinimumTradingLimit = MinTradingLimit;
 	type MinimumPoolLiquidity = MinPoolLiquidity;
@@ -248,6 +246,7 @@ impl pallet_omnipool::Config for Runtime {
 		>,
 	);
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
+	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
 }
 
 pub struct CircuitBreakerWhitelist;
@@ -449,4 +448,33 @@ impl pallet_otc::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type WeightInfo = weights::otc::HydraWeight<Runtime>;
+}
+
+// Dynamic fees
+parameter_types! {
+	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
+		min_fee: Permill::from_rational(25u32,10000u32),
+		max_fee: Permill::from_rational(4u32,1000u32),
+		decay: FixedU128::from_rational(5,1000000),
+		amplification: FixedU128::one(),
+	};
+
+	pub ProtocolFeeParams: FeeParams<Permill> = FeeParams{
+		min_fee: Permill::from_rational(5u32,10000u32),
+		max_fee: Permill::from_rational(1u32,1000u32),
+		decay: FixedU128::from_rational(5,1000000),
+		amplification: FixedU128::one(),
+	};
+
+	pub const DynamicFeesOraclePeriod: OraclePeriod = OraclePeriod::Short;
+}
+
+impl pallet_dynamic_fees::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type BlockNumberProvider = System;
+	type Fee = Permill;
+	type AssetId = AssetId;
+	type Oracle = adapters::OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
+	type AssetFeeParameters = AssetFeeParams;
+	type ProtocolFeeParameters = ProtocolFeeParams;
 }

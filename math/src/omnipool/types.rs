@@ -155,6 +155,13 @@ where
 	pub delta_protocol_shares: BalanceUpdate<Balance>,
 }
 
+/// Information about trade fee amounts
+#[derive(Default, Debug, PartialEq, Eq)]
+pub struct TradeFee<Balance> {
+	pub asset_fee: Balance,
+	pub protocol_fee: Balance,
+}
+
 /// Delta changes after a trade is executed
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct TradeStateChange<Balance>
@@ -165,6 +172,7 @@ where
 	pub asset_out: AssetStateChange<Balance>,
 	pub delta_imbalance: BalanceUpdate<Balance>,
 	pub hdx_hub_amount: Balance,
+	pub fee: TradeFee<Balance>,
 }
 
 /// Delta changes after a trade with hub asset is executed.
@@ -175,6 +183,7 @@ where
 {
 	pub asset: AssetStateChange<Balance>,
 	pub delta_imbalance: BalanceUpdate<Balance>,
+	pub fee: TradeFee<Balance>,
 }
 
 /// Delta changes after add or remove liquidity.
