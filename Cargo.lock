@@ -3685,7 +3685,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.2.0"
+version = "7.3.0"
 dependencies = [
  "approx",
  "criterion",
@@ -3799,7 +3799,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "163.0.0"
+version = "164.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3842,6 +3842,7 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy 4.0.0-dev",
  "pallet-duster",
+ "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
  "pallet-genesis-history",
@@ -6395,7 +6396,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6544,7 +6545,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.5"
+version = "1.1.6"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6647,7 +6648,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-fees"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7055,7 +7056,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "2.1.1"
+version = "3.1.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7082,7 +7083,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.0.9"
+version = "2.0.10"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -10099,7 +10100,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.17"
+version = "1.7.19"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10139,6 +10140,7 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy 4.0.0-dev",
  "pallet-duster",
+ "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
  "pallet-liquidity-mining",

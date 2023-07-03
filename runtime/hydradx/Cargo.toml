@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "163.0.0"
+version = "164.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -29,6 +29,7 @@ pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-dca = { workspace = true }
 hydra-dx-math = { workspace = true }
+pallet-dynamic-fees = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -243,6 +244,7 @@ std = [
     "pallet-duster/std",
     "warehouse-liquidity-mining/std",
     "pallet-omnipool-liquidity-mining/std",
+    "pallet-dynamic-fees/std",
     "pallet-staking/std",
 ]
 try-runtime= [
@@ -299,4 +301,5 @@ try-runtime= [
     "pallet-ema-oracle/try-runtime",
     "pallet-otc/try-runtime",
     "pallet-route-executor/try-runtime",
+    "pallet-dynamic-fees/try-runtime",
 ]

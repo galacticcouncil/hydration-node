@@ -16,8 +16,8 @@ use hydra_dx_math::{
 	support::rational::{round_to_rational, Rounding},
 };
 use hydradx_traits::{
-	liquidity_mining::PriceAdjustment, AggregatedPriceOracle, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod,
-	PriceOracle,
+	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, OnLiquidityChangedHandler,
+	OnTradeHandler, OraclePeriod, PriceOracle,
 };
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
@@ -402,5 +402,44 @@ impl<
 			.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
 
 		Ok(asset.clone().into())
+	}
+}
+
+// Dynamic fees volume adapter
+pub struct OracleVolume(Balance, Balance);
+
+impl pallet_dynamic_fees::traits::Volume<Balance> for OracleVolume {
+	fn amount_in(&self) -> Balance {
+		self.0
+	}
+
+	fn amount_out(&self) -> Balance {
+		self.1
+	}
+}
+
+pub struct OracleAssetVolumeProvider<Runtime, Lrna, Period>(PhantomData<(Runtime, Lrna, Period)>);
+
+impl<Runtime, Lrna, Period> pallet_dynamic_fees::traits::VolumeProvider<AssetId, Balance>
+	for OracleAssetVolumeProvider<Runtime, Lrna, Period>
+where
+	Runtime: pallet_ema_oracle::Config,
+	Lrna: Get<AssetId>,
+	Period: Get<OraclePeriod>,
+{
+	type Volume = OracleVolume;
+
+	fn asset_volume(asset_id: AssetId) -> Option<Self::Volume> {
+		let entry =
+			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
+				.ok()?;
+		Some(OracleVolume(entry.volume.a_in, entry.volume.a_out))
+	}
+
+	fn asset_liquidity(asset_id: AssetId) -> Option<Balance> {
+		let entry =
+			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
+				.ok()?;
+		Some(entry.liquidity.a)
 	}
 }

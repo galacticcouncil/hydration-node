@@ -96,7 +96,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 163,
+	spec_version: 164,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -187,6 +187,7 @@ construct_runtime!(
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
 		Router: pallet_route_executor = 67,
+		DynamicFees: pallet_dynamic_fees = 68,
 		Staking: pallet_staking = 69,
 
 		// ORML related modules
