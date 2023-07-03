@@ -1,6 +1,7 @@
 use crate::{Config, MAX_ASSETS_IN_POOL};
 use sp_runtime::Permill;
 use sp_std::collections::btree_set::BTreeSet;
+use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
@@ -19,7 +20,7 @@ pub(crate) type Balance = u128;
 #[derive(Clone, PartialEq, Eq, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
 pub struct PoolInfo<AssetId> {
 	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
-	pub amplification: u16,
+	pub amplification: NonZeroU16,
 	pub trade_fee: Permill,
 	pub withdraw_fee: Permill,
 }

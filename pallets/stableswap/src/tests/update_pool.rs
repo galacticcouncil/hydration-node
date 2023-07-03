@@ -3,6 +3,7 @@ use crate::types::PoolInfo;
 use crate::{Error, Pools};
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::Permill;
+use std::num::NonZeroU16;
 
 #[test]
 fn update_pool_should_work_when_all_parames_are_updated() {
@@ -21,7 +22,7 @@ fn update_pool_should_work_when_all_parames_are_updated() {
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				vec![asset_a, asset_b],
-				100u16,
+				100,
 				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
@@ -29,7 +30,7 @@ fn update_pool_should_work_when_all_parames_are_updated() {
 			assert_ok!(Stableswap::update_pool(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
-				Some(55u16),
+				Some(55),
 				Some(Permill::from_percent(10)),
 				Some(Permill::from_percent(20)),
 			));
@@ -38,7 +39,7 @@ fn update_pool_should_work_when_all_parames_are_updated() {
 				<Pools<Test>>::get(pool_id).unwrap(),
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
-					amplification: 55u16,
+					amplification: NonZeroU16::new(55).unwrap(),
 					trade_fee: Permill::from_percent(10),
 					withdraw_fee: Permill::from_percent(20)
 				}
@@ -63,7 +64,7 @@ fn update_pool_should_work_when_only_amplification_is_updated() {
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				vec![asset_a, asset_b],
-				100u16,
+				100,
 				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
@@ -71,7 +72,7 @@ fn update_pool_should_work_when_only_amplification_is_updated() {
 			assert_ok!(Stableswap::update_pool(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
-				Some(55u16),
+				Some(55),
 				None,
 				None,
 			));
@@ -80,7 +81,7 @@ fn update_pool_should_work_when_only_amplification_is_updated() {
 				<Pools<Test>>::get(pool_id).unwrap(),
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
-					amplification: 55u16,
+					amplification: NonZeroU16::new(55).unwrap(),
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(0)
 				}
@@ -105,7 +106,7 @@ fn update_pool_should_work_when_only_trade_fee_is_updated() {
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				vec![asset_a, asset_b],
-				100u16,
+				100,
 				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
@@ -122,7 +123,7 @@ fn update_pool_should_work_when_only_trade_fee_is_updated() {
 				<Pools<Test>>::get(pool_id).unwrap(),
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
-					amplification: 100u16,
+					amplification: NonZeroU16::new(100).unwrap(),
 					trade_fee: Permill::from_percent(20),
 					withdraw_fee: Permill::from_percent(0)
 				}
@@ -147,7 +148,7 @@ fn update_pool_should_work_when_only_withdraw_fee_is_updated() {
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				vec![asset_a, asset_b],
-				100u16,
+				100,
 				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
@@ -164,7 +165,7 @@ fn update_pool_should_work_when_only_withdraw_fee_is_updated() {
 				<Pools<Test>>::get(pool_id).unwrap(),
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
-					amplification: 100u16,
+					amplification: NonZeroU16::new(100).unwrap(),
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(21)
 				}
@@ -189,7 +190,7 @@ fn update_pool_should_work_when_only_fees_is_updated() {
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				vec![asset_a, asset_b],
-				100u16,
+				100,
 				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
@@ -206,7 +207,7 @@ fn update_pool_should_work_when_only_fees_is_updated() {
 				<Pools<Test>>::get(pool_id).unwrap(),
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
-					amplification: 100u16,
+					amplification: NonZeroU16::new(100).unwrap(),
 					trade_fee: Permill::from_percent(11),
 					withdraw_fee: Permill::from_percent(21)
 				}
@@ -231,7 +232,7 @@ fn update_pool_should_fail_when_nothing_is_to_update() {
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				vec![asset_a, asset_b],
-				100u16,
+				100,
 				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
@@ -245,7 +246,7 @@ fn update_pool_should_fail_when_nothing_is_to_update() {
 				<Pools<Test>>::get(pool_id).unwrap(),
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
-					amplification: 100u16,
+					amplification: NonZeroU16::new(100).unwrap(),
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(0)
 				}
@@ -267,7 +268,7 @@ fn update_pool_should_fail_when_pool_does_not_exists() {
 			let pool_id = retrieve_current_asset_id();
 
 			assert_noop!(
-				Stableswap::update_pool(RuntimeOrigin::signed(ALICE), pool_id, Some(100u16), None, None),
+				Stableswap::update_pool(RuntimeOrigin::signed(ALICE), pool_id, Some(100), None, None),
 				Error::<Test>::PoolNotFound
 			);
 		});
@@ -290,13 +291,13 @@ fn update_pool_should_fail_when_amplification_is_outside_allowed_range() {
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				vec![asset_a, asset_b],
-				100u16,
+				100,
 				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
 
 			assert_noop!(
-				Stableswap::update_pool(RuntimeOrigin::signed(ALICE), pool_id, Some(20_000u16), None, None),
+				Stableswap::update_pool(RuntimeOrigin::signed(ALICE), pool_id, Some(20_000), None, None),
 				Error::<Test>::InvalidAmplification
 			);
 		});

@@ -3,6 +3,7 @@ use crate::types::{AssetLiquidity, PoolInfo};
 use crate::{assert_balance, Error};
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::Permill;
+use std::num::NonZeroU16;
 
 #[test]
 fn remove_liquidity_should_work_when_withdrawing_all_shares() {
@@ -24,7 +25,7 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -101,7 +102,7 @@ fn remove_liquidity_should_apply_fee_when_withdrawing_all_shares() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(10),
 			},
@@ -236,7 +237,7 @@ fn remove_liquidity_should_fail_when_requested_asset_not_in_pool() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(10),
 			},
@@ -302,7 +303,7 @@ fn remove_liquidity_should_fail_when_remaining_shares_below_min_liquidity() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(10),
 			},
@@ -376,7 +377,7 @@ fn verify_remove_liquidity_against_research_impl() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b, asset_c, asset_d].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_float(0.003),
 				withdraw_fee: Permill::from_float(0.003),
 			},

@@ -22,6 +22,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use core::ops::RangeInclusive;
+use std::num::NonZeroU16;
 
 use crate as pallet_stableswap;
 
@@ -135,7 +136,7 @@ parameter_types! {
 	pub const DAIAssetId: AssetId = DAI;
 	pub const MinimumLiquidity: Balance = 1000;
 	pub const MinimumTradingLimit: Balance = 1000;
-	pub const AmplificationRange: RangeInclusive<u16> = RangeInclusive::new(2, 10_000);
+	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 }
 
 impl Config for Test {
@@ -241,7 +242,7 @@ impl ExtBuilder {
 					RuntimeOrigin::signed(who),
 					pool_id,
 					pool.assets.clone().into(),
-					pool.amplification,
+					pool.amplification.get(),
 					pool.trade_fee,
 					pool.withdraw_fee,
 				));

@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-stableswap'
-version = '1.3.0'
+version = '1.4.0'
 description = 'AMM for correlated assets'
 authors = ['GalacticCouncil']
 edition = '2021'

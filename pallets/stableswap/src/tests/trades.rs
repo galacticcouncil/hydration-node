@@ -1,6 +1,7 @@
 use crate::tests::mock::*;
 use crate::types::{AssetLiquidity, PoolInfo};
 use crate::{assert_balance, Error};
+use std::num::NonZeroU16;
 
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::Permill;
@@ -17,7 +18,7 @@ fn sell_should_work_when_correct_input_provided() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -71,7 +72,7 @@ fn buy_should_work_when_correct_input_provided() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -126,7 +127,7 @@ fn sell_with_fee_should_work_when_correct_input_provided() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(10),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -184,7 +185,7 @@ fn sell_should_work_when_fee_is_small() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_rational(3u32, 1000u32),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -242,7 +243,7 @@ fn buy_should_work_when_fee_is_set() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(10),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -305,7 +306,7 @@ fn sell_should_fail_when_insufficient_amount_is_provided() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -395,7 +396,7 @@ fn buy_should_fail_when_insufficient_amount_is_provided() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},

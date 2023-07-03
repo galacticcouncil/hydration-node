@@ -2,6 +2,7 @@ use crate::tests::mock::*;
 use crate::types::{AssetLiquidity, PoolInfo};
 use frame_support::assert_ok;
 use sp_runtime::{FixedU128, Permill};
+use std::num::NonZeroU16;
 
 use hydra_dx_math::stableswap::calculate_d;
 use proptest::prelude::*;
@@ -19,8 +20,8 @@ fn asset_reserve() -> impl Strategy<Value = Balance> {
 	RESERVE_RANGE.0..RESERVE_RANGE.1
 }
 
-fn some_amplification() -> impl Strategy<Value = u16> {
-	2..10000u16
+fn some_amplification() -> impl Strategy<Value = NonZeroU16> {
+	(2..10000u16).prop_map(|v| NonZeroU16::new(v).unwrap())
 }
 
 fn trade_fee() -> impl Strategy<Value = Permill> {
@@ -161,7 +162,7 @@ proptest! {
 
 				let asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
-				let d_prev = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+				let d_prev = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.get().into()).unwrap();
 
 				assert_ok!(Stableswap::sell(
 					RuntimeOrigin::signed(BOB),
@@ -174,7 +175,7 @@ proptest! {
 
 				let asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
-				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.get().into()).unwrap();
 
 				assert!(d >= d_prev);
 				assert!(d - d_prev <= 10u128);
@@ -230,7 +231,7 @@ proptest! {
 
 				let asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
-				let d_prev = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+				let d_prev = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.get().into()).unwrap();
 
 				assert_ok!(Stableswap::buy(
 					RuntimeOrigin::signed(BOB),
@@ -242,7 +243,7 @@ proptest! {
 				));
 				let asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
-				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.get().into()).unwrap();
 
 				assert!(d >= d_prev);
 				assert!(d - d_prev <= 10u128);

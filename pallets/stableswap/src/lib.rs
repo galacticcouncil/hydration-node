@@ -47,6 +47,7 @@ use frame_support::{ensure, require_transactional, transactional};
 use hydradx_traits::{AccountIdFor, Registry};
 use sp_runtime::traits::Zero;
 use sp_runtime::{ArithmeticError, DispatchError, Permill};
+use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
 pub use pallet::*;
@@ -87,6 +88,7 @@ pub mod pallet {
 	use sp_runtime::traits::Zero;
 	use sp_runtime::ArithmeticError;
 	use sp_runtime::Permill;
+	use sp_std::num::NonZeroU16;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
@@ -130,7 +132,7 @@ pub mod pallet {
 
 		/// Amplification inclusive range. Pool's amp can be selected from the range only.
 		#[pallet::constant]
-		type AmplificationRange: Get<RangeInclusive<u16>>;
+		type AmplificationRange: Get<RangeInclusive<NonZeroU16>>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -154,14 +156,14 @@ pub mod pallet {
 		PoolCreated {
 			pool_id: T::AssetId,
 			assets: Vec<T::AssetId>,
-			amplification: u16,
+			amplification: NonZeroU16,
 			trade_fee: Permill,
 			withdraw_fee: Permill,
 		},
 		/// Pool parameters has been updated.
 		PoolUpdated {
 			pool_id: T::AssetId,
-			amplification: u16,
+			amplification: NonZeroU16,
 			trade_fee: Permill,
 			withdraw_fee: Permill,
 		},
@@ -313,6 +315,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
+			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
+
 			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, trade_fee, withdraw_fee)?;
 
 			Self::deposit_event(Event::PoolCreated {
@@ -362,7 +366,11 @@ pub mod pallet {
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
 				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
-				pool.amplification = amplification.unwrap_or(pool.amplification);
+				pool.amplification = if let Some(ampl) = amplification {
+					NonZeroU16::new(ampl).ok_or(Error::<T>::InvalidAmplification)?
+				} else {
+					pool.amplification
+				};
 				ensure!(
 					T::AmplificationRange::get().contains(&pool.amplification),
 					Error::<T>::InvalidAmplification
@@ -477,7 +485,7 @@ pub mod pallet {
 				share_amount,
 				asset_idx,
 				share_issuance,
-				pool.amplification.into(),
+				pool.amplification.get().into(),
 				pool.withdraw_fee,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -675,7 +683,7 @@ impl<T: Config> Pallet<T> {
 			index_in,
 			index_out,
 			amount_in,
-			pool.amplification.into(),
+			pool.amplification.get().into(),
 			pool.trade_fee,
 		)
 		.ok_or_else(|| ArithmeticError::Overflow.into())
@@ -703,7 +711,7 @@ impl<T: Config> Pallet<T> {
 			index_in,
 			index_out,
 			amount_out,
-			pool.amplification.into(),
+			pool.amplification.get().into(),
 			pool.trade_fee,
 		)
 		.ok_or_else(|| ArithmeticError::Overflow.into())
@@ -713,7 +721,7 @@ impl<T: Config> Pallet<T> {
 	fn do_create_pool(
 		share_asset: T::AssetId,
 		assets: &[T::AssetId],
-		amplification: u16,
+		amplification: NonZeroU16,
 		trade_fee: Permill,
 		withdraw_fee: Permill,
 	) -> Result<T::AssetId, DispatchError> {
@@ -795,7 +803,7 @@ impl<T: Config> Pallet<T> {
 		let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves,
-			pool.amplification.into(),
+			pool.amplification.get().into(),
 			share_issuance,
 		)
 		.ok_or(ArithmeticError::Overflow)?;

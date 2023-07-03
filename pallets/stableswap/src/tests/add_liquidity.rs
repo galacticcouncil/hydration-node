@@ -3,6 +3,7 @@ use crate::types::{AssetLiquidity, PoolInfo};
 use crate::{assert_balance, Error};
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::Permill;
+use std::num::NonZeroU16;
 
 #[test]
 fn add_initial_liquidity_should_work_when_called_first_time() {
@@ -134,7 +135,7 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -201,7 +202,7 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -268,7 +269,7 @@ fn add_liquidity_should_fail_when_providing_insufficient_liquidity() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -334,7 +335,7 @@ fn add_liquidity_should_work_when_providing_one_asset_only() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b, asset_c, asset_d].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -402,7 +403,7 @@ fn add_liquidity_should_fail_when_providing_one_asset_not_in_pool() {
 			ALICE,
 			PoolInfo::<AssetId> {
 				assets: vec![asset_a, asset_b, asset_c, asset_d].try_into().unwrap(),
-				amplification: 100u16,
+				amplification: NonZeroU16::new(100).unwrap(),
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
