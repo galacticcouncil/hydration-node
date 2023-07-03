@@ -29,7 +29,7 @@ use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{OraclePeriod, PriceOracle, Registry};
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
 use sp_core::H256;
@@ -250,8 +250,6 @@ impl pallet_omnipool::Config for Test {
 	type PositionItemId = u32;
 	type Currency = Currencies;
 	type HubAssetId = LRNAAssetId;
-	type ProtocolFee = ProtocolFee;
-	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
@@ -269,6 +267,7 @@ impl pallet_omnipool::Config for Test {
 	type PriceBarrier = ();
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
+	type Fee = FeeProvider;
 }
 
 pub struct WithdrawFeePriceOracle;
@@ -1000,4 +999,12 @@ pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> EmaPrice {
 	// d = l.d * r.d
 	let d = l_d.full_mul(r_d);
 	round_to_rational((n, d), Rounding::Nearest).into()
+}
+
+pub struct FeeProvider;
+
+impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
+	fn get(_: &AssetId) -> (Permill, Permill) {
+		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
 }

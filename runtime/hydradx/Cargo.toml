@@ -29,6 +29,7 @@ pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-dca = { workspace = true }
 hydra-dx-math = { workspace = true }
+pallet-dynamic-fees = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -242,6 +243,7 @@ std = [
     "pallet-duster/std",
     "warehouse-liquidity-mining/std",
     "pallet-omnipool-liquidity-mining/std",
+    "pallet-dynamic-fees/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -297,4 +299,5 @@ try-runtime= [
     "pallet-ema-oracle/try-runtime",
     "pallet-otc/try-runtime",
     "pallet-route-executor/try-runtime",
+    "pallet-dynamic-fees/try-runtime",
 ]

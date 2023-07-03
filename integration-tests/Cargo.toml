@@ -30,6 +30,7 @@ pallet-otc = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 pallet-route-executor = { workspace = true}
 pallet-dca = { workspace = true}
+pallet-dynamic-fees = { workspace = true }
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
