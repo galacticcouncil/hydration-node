@@ -23,7 +23,7 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::traits::{ActionData, DemocracyReferendum, PayablePercentage};
+use crate::traits::{ActionData, DemocracyReferendum, PayablePercentage, VestingDetails};
 use crate::types::{Action, Balance, Period, Point, Position, StakingData, Voting};
 use frame_support::ensure;
 use frame_support::{
@@ -159,6 +159,8 @@ pub mod pallet {
 
 		/// Origin to initialize staking
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		type Vesting: VestingDetails<Self::AccountId, Balance>;
 	}
 
 	/// Lock for staked amount by user
@@ -272,11 +274,6 @@ pub mod pallet {
 
 			ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
 
-			ensure!(
-				T::Currency::free_balance(T::HdxAssetId::get(), &who) >= amount,
-				Error::<T>::InsufficientBalance
-			);
-
 			Staking::<T>::try_mutate(|staking| {
 				Self::reward_stakers(staking)?;
 
@@ -287,6 +284,8 @@ pub mod pallet {
 							|maybe_position| -> Result<(T::PositionItemId, Balance, Balance, Balance, Point), DispatchError> {
 								//TODO: inconsistent state
 								let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
+
+                                Self::ensure_stakable_balance(&who, amount, Some(&position))?;
 
 								Self::process_votes(position_id, position)?;
 
@@ -304,6 +303,7 @@ pub mod pallet {
 							},
 						)?
 					} else {
+						Self::ensure_stakable_balance(&who, amount, None)?;
 						let position_id =
 							Self::create_position_and_mint_nft(&who, amount, staking.accumulated_reward_per_stake)?;
 
@@ -495,6 +495,26 @@ impl<T: Config> Pallet<T> {
 	/// Account id holding rewards to pay.
 	pub fn pot_account_id() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
+	}
+
+	pub fn ensure_stakable_balance(
+		who: &T::AccountId,
+		stake: Balance,
+		position: Option<&Position<T::BlockNumber>>,
+	) -> Result<(), DispatchError> {
+		let free_balance = T::Currency::free_balance(T::HdxAssetId::get(), who);
+		let staked = if let Some(p) = position { p.stake } else { Zero::zero() };
+		let vested = T::Vesting::locked(who);
+
+		let stakable = free_balance
+			.checked_sub(vested)
+			.ok_or(ArithmeticError::Overflow)?
+			.checked_sub(staked)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(stakable >= stake, Error::<T>::InsufficientBalance);
+
+		Ok(())
 	}
 
 	pub fn get_user_position_id(who: &T::AccountId) -> Result<Option<T::PositionItemId>, DispatchError> {

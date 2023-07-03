@@ -23,3 +23,8 @@ pub trait FrozenNonFungibles<AccountId, CollectionId, ItemId> {
 	/// Freezes given item so it is not transferable.
 	fn freeze(owner: AccountId, collection: CollectionId, item: ItemId) -> DispatchResult;
 }
+
+pub trait VestingDetails<AccountId, Balance> {
+	/// Returns vested amount for who.
+	fn locked(who: &AccountId) -> Balance;
+}

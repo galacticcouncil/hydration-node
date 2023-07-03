@@ -445,3 +445,45 @@ fn increase_stake_should_not_work_when_increase_is_lt_min_stake() {
 			);
 		});
 }
+
+#[test]
+fn new_stake_should_not_work_when_tokens_are_vestred() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(VESTED_100K, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
+		.start_at_block(1_452_987)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let pending_rewards = 200_000 * ONE;
+			set_pending_rewards(pending_rewards);
+			let staked_amount = 100_000 * ONE;
+
+			//Act & assert
+			assert_noop!(
+				Staking::stake(RuntimeOrigin::signed(VESTED_100K), staked_amount),
+				Error::<Test>::InsufficientBalance
+			);
+		});
+}
+
+#[test]
+fn stake_should_not_work_when_tokens_are_are_alredy_staked() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
+		.with_stakes(vec![(ALICE, 100_000 * ONE, 1_452_987, 100_000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let pending_rewards = 200_000 * ONE;
+			set_pending_rewards(pending_rewards);
+			let staked_amount = 100_000 * ONE;
+
+			//Act & assert
+			assert_noop!(
+				Staking::stake(RuntimeOrigin::signed(ALICE), staked_amount),
+				Error::<Test>::InsufficientBalance
+			);
+		});
+}

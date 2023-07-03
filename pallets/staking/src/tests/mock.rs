@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::traits::VestingDetails;
 use crate::*;
 
 use frame_support::traits::Everything;
@@ -45,6 +46,7 @@ pub const ALICE: AccountId = 1_000;
 pub const BOB: AccountId = 1_001;
 pub const CHARLIE: AccountId = 1_002;
 pub const DAVE: AccountId = 1_003;
+pub const VESTED_100K: AccountId = 1_004;
 
 pub const ONE: u128 = 1_000_000_000_000;
 
@@ -213,6 +215,7 @@ impl pallet_staking::Config for Test {
 	type ActionMultiplier = DummyActionMultiplier;
 	type ReferendumInfo = DummyReferendumStatus;
 	type TechnicalOrigin = EnsureRoot<AccountId>;
+	type Vesting = DummyVesting;
 }
 
 pub struct DummyActionMultiplier;
@@ -230,6 +233,18 @@ pub struct DummyReferendumStatus;
 impl DemocracyReferendum for DummyReferendumStatus {
 	fn is_referendum_finished(_index: pallet_democracy::ReferendumIndex) -> bool {
 		false
+	}
+}
+
+pub struct DummyVesting;
+
+impl VestingDetails<AccountId, Balance> for DummyVesting {
+	fn locked(who: &AccountId) -> Balance {
+		if *who == VESTED_100K {
+			return 100_000 * ONE;
+		}
+
+		Zero::zero()
 	}
 }
 
