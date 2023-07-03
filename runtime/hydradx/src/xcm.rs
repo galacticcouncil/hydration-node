@@ -36,6 +36,7 @@ pub type Barrier = (
 	TakeWeightCredit,
 	// Expected responses are OK.
 	AllowKnownQueryResponses<PolkadotXcm>,
+	// Evaluate the barriers with the effective origin
 	WithComputedOrigin<
 		(
 			AllowTopLevelPaidExecutionFrom<Everything>,
