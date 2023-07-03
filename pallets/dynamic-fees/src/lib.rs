@@ -164,7 +164,7 @@ where
 		let current_fee_entry = Self::current_fees(asset_id).unwrap_or(FeeEntry {
 			asset_fee: asset_fee_params.min_fee,
 			protocol_fee: protocol_fee_params.min_fee,
-			timestamp: block_number,
+			timestamp: T::BlockNumber::default(),
 		});
 
 		// Update only if it has not yet been updated this block
