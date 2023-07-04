@@ -349,32 +349,27 @@ pub(crate) fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification
 
 pub fn calculate_amplification(
 	initial_amplification: u128,
-	future_amplification: u128,
-	initial_timestamp: u128,
-	future_timestamp: u128,
-	current_timestamp: u128,
+	final_amplification: u128,
+	initial_block: u128,
+	final_block: u128,
+	current_block: u128,
 ) -> u128 {
-	// short circuit if timestamp are invalid
-	if current_timestamp < initial_timestamp || future_timestamp < initial_timestamp {
+	// short circuit if block parameters are invalid or start block is not reached yet
+	if current_block < initial_block || final_block <= initial_block {
 		return initial_amplification;
 	}
 
-	// Short circuit if timestamp or amplification are equal
-	if initial_timestamp == future_timestamp || initial_amplification == future_amplification {
-		return future_amplification;
+	// short circuit if already reached desired block
+	if current_block >= final_block {
+		return final_amplification;
 	}
 
-	// short circuit if already reached desired timestamp
-	if current_timestamp >= future_timestamp {
-		return future_amplification;
-	}
-
-	let step = future_amplification
+	let step = final_amplification
 		.abs_diff(initial_amplification)
-		.saturating_mul(current_timestamp.saturating_sub(initial_timestamp))
-		.div(future_timestamp.saturating_sub(initial_timestamp));
+		.saturating_mul(current_block.saturating_sub(initial_block))
+		.div(final_block.saturating_sub(initial_block));
 
-	if future_amplification > initial_amplification {
+	if final_amplification > initial_amplification {
 		initial_amplification.saturating_add(step)
 	} else {
 		initial_amplification.saturating_sub(step)

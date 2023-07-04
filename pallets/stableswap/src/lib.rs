@@ -213,11 +213,13 @@ pub mod pallet {
 			state: Tradability,
 		},
 
-		///
-		AmplificationUpdated {
+		/// AAmplification of a pool has been scheduled to change.
+		AmplificationChanging {
 			pool_id: T::AssetId,
-			amplification: NonZeroU16,
-			block: T::BlockNumber,
+			current_amplification: NonZeroU16,
+			final_amplification: NonZeroU16,
+			start_block: T::BlockNumber,
+			end_block: T::BlockNumber,
 		},
 	}
 
@@ -293,8 +295,8 @@ pub mod pallet {
 		/// Not allowed to perform an operation on given asset.
 		NotAllowed,
 
-		/// Future block timestamp is in the past.
-		InvalidTimestamp,
+		/// Future block number is in the past.
+		InvalidBlock,
 	}
 
 	#[pallet::call]
@@ -391,7 +393,7 @@ pub mod pallet {
 		/// - `origin`: Must be T::AuthorityOrigin
 		/// - `pool_id`: pool to update
 		/// - `future_amplification`: new desired pool amplification
-		/// - `future_timestamp`: future block number when the amplification is updated
+		/// - `future_block`: future block number when the amplification is updated
 		///
 		/// Emits `AmplificationUpdated` event if successful.
 		#[pallet::call_index(2)]
@@ -401,30 +403,35 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
 			future_amplification: u16,
-			future_timestamp: T::BlockNumber,
+			start_block: T::BlockNumber,
+			end_block: T::BlockNumber,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
-
 			let current_block = T::BlockNumberProvider::current_block_number();
-			ensure!(future_timestamp > current_block, Error::<T>::InvalidTimestamp);
+			ensure!(
+				end_block > start_block && end_block > current_block && start_block >= current_block,
+				Error::<T>::InvalidBlock
+			);
 
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
 				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
-				pool.initial_amplification = pool.future_amplification;
-				pool.future_amplification =
+				pool.initial_amplification = pool.final_amplification;
+				pool.final_amplification =
 					NonZeroU16::new(future_amplification).ok_or(Error::<T>::InvalidAmplification)?;
-				pool.initial_amp_timestamp = current_block;
-				pool.future_amp_timestamp = future_timestamp;
+				pool.initial_block = start_block;
+				pool.final_block = end_block;
 
 				ensure!(
-					T::AmplificationRange::get().contains(&pool.future_amplification),
+					T::AmplificationRange::get().contains(&pool.final_amplification),
 					Error::<T>::InvalidAmplification
 				);
-				Self::deposit_event(Event::AmplificationUpdated {
+				Self::deposit_event(Event::AmplificationChanging {
 					pool_id,
-					amplification: pool.future_amplification,
-					block: pool.future_amp_timestamp,
+					current_amplification: pool.initial_amplification,
+					final_amplification: pool.final_amplification,
+					start_block: pool.initial_block,
+					end_block: pool.final_block,
 				});
 				Ok(())
 			})
@@ -525,9 +532,9 @@ pub mod pallet {
 
 			let amplification = hydra_dx_math::stableswap::calculate_amplification(
 				pool.initial_amplification.get().into(),
-				pool.future_amplification.get().into(),
-				pool.initial_amp_timestamp.saturated_into(),
-				pool.future_amp_timestamp.saturated_into(),
+				pool.final_amplification.get().into(),
+				pool.initial_block.saturated_into(),
+				pool.final_block.saturated_into(),
 				T::BlockNumberProvider::current_block_number().saturated_into(),
 			);
 
@@ -731,9 +738,9 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = hydra_dx_math::stableswap::calculate_amplification(
 			pool.initial_amplification.get().into(),
-			pool.future_amplification.get().into(),
-			pool.initial_amp_timestamp.saturated_into(),
-			pool.future_amp_timestamp.saturated_into(),
+			pool.final_amplification.get().into(),
+			pool.initial_block.saturated_into(),
+			pool.final_block.saturated_into(),
 			T::BlockNumberProvider::current_block_number().saturated_into(),
 		);
 
@@ -767,9 +774,9 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = hydra_dx_math::stableswap::calculate_amplification(
 			pool.initial_amplification.get().into(),
-			pool.future_amplification.get().into(),
-			pool.initial_amp_timestamp.saturated_into(),
-			pool.future_amp_timestamp.saturated_into(),
+			pool.final_amplification.get().into(),
+			pool.initial_block.saturated_into(),
+			pool.final_block.saturated_into(),
 			T::BlockNumberProvider::current_block_number().saturated_into(),
 		);
 
@@ -811,9 +818,9 @@ impl<T: Config> Pallet<T> {
 				.try_into()
 				.map_err(|_| Error::<T>::MaxAssetsExceeded)?,
 			initial_amplification: amplification,
-			future_amplification: amplification,
-			initial_amp_timestamp: block_number,
-			future_amp_timestamp: block_number,
+			final_amplification: amplification,
+			initial_block: block_number,
+			final_block: block_number,
 			trade_fee,
 			withdraw_fee,
 		};
@@ -873,9 +880,9 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = hydra_dx_math::stableswap::calculate_amplification(
 			pool.initial_amplification.get().into(),
-			pool.future_amplification.get().into(),
-			pool.initial_amp_timestamp.saturated_into(),
-			pool.future_amp_timestamp.saturated_into(),
+			pool.final_amplification.get().into(),
+			pool.initial_block.saturated_into(),
+			pool.final_block.saturated_into(),
 			T::BlockNumberProvider::current_block_number().saturated_into(),
 		);
 

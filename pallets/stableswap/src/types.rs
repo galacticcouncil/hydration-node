@@ -25,9 +25,9 @@ pub(crate) type Balance = u128;
 pub struct PoolInfo<AssetId, BlockNumber> {
 	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub initial_amplification: NonZeroU16,
-	pub future_amplification: NonZeroU16,
-	pub initial_amp_timestamp: BlockNumber,
-	pub future_amp_timestamp: BlockNumber,
+	pub final_amplification: NonZeroU16,
+	pub initial_block: BlockNumber,
+	pub final_block: BlockNumber,
 	pub trade_fee: Permill,
 	pub withdraw_fee: Permill,
 }
