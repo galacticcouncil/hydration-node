@@ -1,7 +1,6 @@
 use super::*;
-use crate::adapters::ReroutingMultiCurrencyAdapter;
 
-use hydradx_adapters::{MultiCurrencyTrader, ToFeeReceiver};
+use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
