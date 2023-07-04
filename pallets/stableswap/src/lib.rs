@@ -347,6 +347,13 @@ pub mod pallet {
 				withdraw_fee,
 			});
 
+			Self::deposit_event(Event::AmplificationChanging {
+				pool_id,
+				current_amplification: amplification,
+				final_amplification: amplification,
+				start_block: T::BlockNumberProvider::current_block_number(),
+				end_block: T::BlockNumberProvider::current_block_number(),
+			});
 			Ok(())
 		}
 
