@@ -900,10 +900,12 @@ impl<T: Config> Pallet<T> {
 		Ok(share_amount)
 	}
 
+	#[inline]
 	fn is_asset_allowed(pool_id: T::AssetId, asset_id: T::AssetId, operation: Tradability) -> bool {
 		AssetTradability::<T>::get(pool_id, asset_id).contains(operation)
 	}
 
+	#[inline]
 	fn pool_account(pool_id: T::AssetId) -> T::AccountId {
 		T::ShareAccountId::from_assets(&pool_id, Some(POOL_IDENTIFIER))
 	}
