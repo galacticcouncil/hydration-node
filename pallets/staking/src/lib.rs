@@ -16,9 +16,7 @@
 
 // TODO
 //  * [] - nontransferable nft
-//  * [] - don't allow to skate vested tokens
 //  * [] - tests create/increase during UnclaimablePeriods
-//  * [] - user can stake already locked token multiple time so he can lock more than he have
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -504,7 +502,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		let free_balance = T::Currency::free_balance(T::HdxAssetId::get(), who);
 		let staked = if let Some(p) = position { p.stake } else { Zero::zero() };
-		let vested = T::Vesting::locked(who);
+		let vested = T::Vesting::locked(who.clone());
 
 		let stakable = free_balance
 			.checked_sub(vested)

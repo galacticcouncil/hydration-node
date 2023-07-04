@@ -26,5 +26,5 @@ pub trait FrozenNonFungibles<AccountId, CollectionId, ItemId> {
 
 pub trait VestingDetails<AccountId, Balance> {
 	/// Returns vested amount for who.
-	fn locked(who: &AccountId) -> Balance;
+	fn locked(who: AccountId) -> Balance;
 }

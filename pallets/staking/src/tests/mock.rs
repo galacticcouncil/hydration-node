@@ -239,8 +239,8 @@ impl DemocracyReferendum for DummyReferendumStatus {
 pub struct DummyVesting;
 
 impl VestingDetails<AccountId, Balance> for DummyVesting {
-	fn locked(who: &AccountId) -> Balance {
-		if *who == VESTED_100K {
+	fn locked(who: AccountId) -> Balance {
+		if who == VESTED_100K {
 			return 100_000 * ONE;
 		}
 

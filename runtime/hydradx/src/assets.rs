@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use super::*;
-use crate::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter, OraclePriceProviderAdapterForOmnipool};
+use crate::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter, OraclePriceProviderAdapterForOmnipool, VestingInfo};
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::inspect::MultiInspectAdapter;
@@ -38,9 +38,9 @@ use frame_support::{
 use frame_system::{EnsureRoot, RawOrigin};
 use orml_traits::currency::MutationHooks;
 use orml_traits::GetByKey;
-use pallet_staking::SigmoidPercentage;
-use pallet_staking::types::Action;
 use pallet_dynamic_fees::types::FeeParams;
+use pallet_staking::types::Action;
+use pallet_staking::SigmoidPercentage;
 
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;
@@ -529,4 +529,5 @@ impl pallet_staking::Config for Runtime {
 	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
 	type ActionMultiplier = ActionMultiplier;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type Vesting = VestingInfo<Runtime>;
 }

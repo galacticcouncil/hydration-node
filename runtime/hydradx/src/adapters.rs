@@ -36,10 +36,14 @@ use xcm_executor::{
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
 
-impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance> for OmnipoolHookAdapter<Origin, Lrna, Runtime>
+impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
+	for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
-	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<RuntimeOrigin = Origin> + pallet_staking::Config,
+	Runtime: pallet_ema_oracle::Config
+		+ pallet_circuit_breaker::Config
+		+ frame_system::Config<RuntimeOrigin = Origin>
+		+ pallet_staking::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
 {
@@ -441,5 +445,26 @@ where
 			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
 				.ok()?;
 		Some(entry.liquidity.a)
+	}
+}
+
+pub struct VestingInfo<Runtime>(PhantomData<Runtime>);
+
+impl<Runtime> pallet_staking::traits::VestingDetails<AccountId, Balance> for VestingInfo<Runtime>
+where
+	Runtime: pallet_balances::Config<Balance = Balance>,
+	AccountId: codec::EncodeLike<<Runtime as frame_system::Config>::AccountId>,
+{
+	fn locked(who: AccountId) -> Balance {
+		let lock_id = orml_vesting::VESTING_LOCK_ID;
+
+		if let Some(p) = pallet_balances::Locks::<Runtime>::get(who.clone())
+			.iter()
+			.find(|x| x.id == lock_id)
+		{
+			return p.amount;
+		}
+
+		Zero::zero()
 	}
 }
