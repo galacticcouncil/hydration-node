@@ -75,7 +75,13 @@ pub mod pallet {
 			+ TypeInfo;
 
 		/// Balance type
-		type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
+		type Balance: Parameter
+			+ Member
+			+ AtLeast32BitUnsigned
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen;
 
 		/// Asset location type
 		type AssetNativeLocation: Parameter + Member + Default + MaxEncodedLen;
