@@ -292,6 +292,9 @@ pub mod pallet {
 
 		/// Not allowed to perform an operation on given asset.
 		NotAllowed,
+
+		/// Future block timestamp is in the past.
+		InvalidTimestamp,
 	}
 
 	#[pallet::call]
@@ -403,7 +406,7 @@ pub mod pallet {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let current_block = T::BlockNumberProvider::current_block_number();
-			ensure!(future_timestamp > current_block, Error::<T>::InvalidAmplification);
+			ensure!(future_timestamp > current_block, Error::<T>::InvalidTimestamp);
 
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
 				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
