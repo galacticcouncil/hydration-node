@@ -297,6 +297,12 @@ pub mod pallet {
 
 		/// Future block number is in the past.
 		InvalidBlock,
+
+		/// Current amplification change has not completed yet.
+		AmplificationChangeNotCompleted,
+
+		/// New amplification is equal to the previous value.
+		SameAmplification,
 	}
 
 	#[pallet::call]
@@ -402,11 +408,12 @@ pub mod pallet {
 		pub fn update_amplification(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
-			future_amplification: u16,
+			final_amplification: u16,
 			start_block: T::BlockNumber,
 			end_block: T::BlockNumber,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
+
 			let current_block = T::BlockNumberProvider::current_block_number();
 			ensure!(
 				end_block > start_block && end_block > current_block && start_block >= current_block,
@@ -416,9 +423,18 @@ pub mod pallet {
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
 				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
+				ensure!(
+					pool.final_block <= current_block,
+					Error::<T>::AmplificationChangeNotCompleted
+				);
+				ensure!(
+					pool.final_amplification.get() != final_amplification,
+					Error::<T>::SameAmplification
+				);
+
 				pool.initial_amplification = pool.final_amplification;
 				pool.final_amplification =
-					NonZeroU16::new(future_amplification).ok_or(Error::<T>::InvalidAmplification)?;
+					NonZeroU16::new(final_amplification).ok_or(Error::<T>::InvalidAmplification)?;
 				pool.initial_block = start_block;
 				pool.final_block = end_block;
 
