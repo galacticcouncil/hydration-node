@@ -29,8 +29,6 @@ fn update_amplification_should_work_when_correct_params_are_provided() {
 			));
 
 			System::set_block_number(2);
-			let b = System::current_block_number();
-			dbg!(b);
 
 			assert_ok!(Stableswap::update_amplification(
 				RuntimeOrigin::signed(ALICE),
@@ -291,5 +289,45 @@ fn update_amplification_should_fail_when_new_value_is_zero_or_outside_allowed_ra
 				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 20_000, 5000, 10_000),
 				Error::<Test>::InvalidAmplification,
 			);
+		});
+}
+
+#[test]
+fn amplification_should_change_when_block_changes() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::signed(ALICE),
+				pool_id,
+				vec![asset_a, asset_b],
+				2000,
+				Permill::from_percent(10),
+				Permill::from_percent(20),
+			));
+
+			System::set_block_number(1);
+			assert_ok!(Stableswap::update_amplification(
+				RuntimeOrigin::signed(ALICE),
+				pool_id,
+				5000,
+				10,
+				1010,
+			));
+			System::set_block_number(9);
+			let pool = <Pools<Test>>::get(pool_id).unwrap();
+			for idx in 0..1000 {
+				System::set_block_number(System::current_block_number() + 1);
+				let amplification = crate::Pallet::<Test>::get_amplification(&pool);
+				assert_eq!(amplification as u16, pool.initial_amplification.get() + idx * 3);
+			}
 		});
 }

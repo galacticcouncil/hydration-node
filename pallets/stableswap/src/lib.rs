@@ -86,8 +86,8 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
+	use sp_runtime::ArithmeticError;
 	use sp_runtime::Permill;
-	use sp_runtime::{ArithmeticError, SaturatedConversion};
 	use sp_std::num::NonZeroU16;
 
 	#[pallet::pallet]
@@ -546,14 +546,7 @@ pub mod pallet {
 				Error::<T>::InsufficientLiquidityRemaining
 			);
 
-			let amplification = hydra_dx_math::stableswap::calculate_amplification(
-				pool.initial_amplification.get().into(),
-				pool.final_amplification.get().into(),
-				pool.initial_block.saturated_into(),
-				pool.final_block.saturated_into(),
-				T::BlockNumberProvider::current_block_number().saturated_into(),
-			);
-
+			let amplification = Self::get_amplification(&pool);
 			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 				&balances,
 				share_amount,
@@ -752,14 +745,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(balances[index_in] > Balance::zero(), Error::<T>::InsufficientLiquidity);
 		ensure!(balances[index_out] > Balance::zero(), Error::<T>::InsufficientLiquidity);
 
-		let amplification = hydra_dx_math::stableswap::calculate_amplification(
-			pool.initial_amplification.get().into(),
-			pool.final_amplification.get().into(),
-			pool.initial_block.saturated_into(),
-			pool.final_block.saturated_into(),
-			T::BlockNumberProvider::current_block_number().saturated_into(),
-		);
-
+		let amplification = Self::get_amplification(&pool);
 		hydra_dx_math::stableswap::calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 			&balances,
 			index_in,
@@ -788,14 +774,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(balances[index_out] > amount_out, Error::<T>::InsufficientLiquidity);
 		ensure!(balances[index_in] > Balance::zero(), Error::<T>::InsufficientLiquidity);
 
-		let amplification = hydra_dx_math::stableswap::calculate_amplification(
-			pool.initial_amplification.get().into(),
-			pool.final_amplification.get().into(),
-			pool.initial_block.saturated_into(),
-			pool.final_block.saturated_into(),
-			T::BlockNumberProvider::current_block_number().saturated_into(),
-		);
-
+		let amplification = Self::get_amplification(&pool);
 		hydra_dx_math::stableswap::calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 			&balances,
 			index_in,
@@ -894,14 +873,7 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		let amplification = hydra_dx_math::stableswap::calculate_amplification(
-			pool.initial_amplification.get().into(),
-			pool.final_amplification.get().into(),
-			pool.initial_block.saturated_into(),
-			pool.final_block.saturated_into(),
-			T::BlockNumberProvider::current_block_number().saturated_into(),
-		);
-
+		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
 		let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
@@ -934,5 +906,16 @@ impl<T: Config> Pallet<T> {
 
 	fn pool_account(pool_id: T::AssetId) -> T::AccountId {
 		T::ShareAccountId::from_assets(&pool_id, Some(POOL_IDENTIFIER))
+	}
+
+	#[inline]
+	pub(crate) fn get_amplification(pool: &PoolInfo<T::AssetId, T::BlockNumber>) -> u128 {
+		hydra_dx_math::stableswap::calculate_amplification(
+			pool.initial_amplification.get().into(),
+			pool.final_amplification.get().into(),
+			pool.initial_block.saturated_into(),
+			pool.final_block.saturated_into(),
+			T::BlockNumberProvider::current_block_number().saturated_into(),
+		)
 	}
 }
