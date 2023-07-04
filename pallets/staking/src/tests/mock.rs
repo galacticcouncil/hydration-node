@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::traits::VestingDetails;
+use crate::traits::{FrozenNonFungibles, VestingDetails};
 use crate::*;
 
 use frame_support::traits::Everything;
@@ -216,6 +216,7 @@ impl pallet_staking::Config for Test {
 	type ReferendumInfo = DummyReferendumStatus;
 	type TechnicalOrigin = EnsureRoot<AccountId>;
 	type Vesting = DummyVesting;
+	type FreezableNFT = FreezableUniques;
 }
 
 pub struct DummyActionMultiplier;
@@ -245,6 +246,14 @@ impl VestingDetails<AccountId, Balance> for DummyVesting {
 		}
 
 		Zero::zero()
+	}
+}
+
+pub struct FreezableUniques;
+
+impl FrozenNonFungibles<AccountId, u128> for FreezableUniques {
+	fn freeze_collection(owner: AccountId, collection: u128) -> DispatchResult {
+		Uniques::freeze_collection(RuntimeOrigin::signed(owner), collection)
 	}
 }
 

@@ -16,7 +16,9 @@
 // limitations under the License.
 
 use super::*;
-use crate::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter, OraclePriceProviderAdapterForOmnipool, VestingInfo};
+use crate::adapters::{
+	EmaOraclePriceAdapter, FreezableNFT, OmnipoolHookAdapter, OraclePriceProviderAdapterForOmnipool, VestingInfo,
+};
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::inspect::MultiInspectAdapter;
@@ -525,6 +527,7 @@ impl pallet_staking::Config for Runtime {
 	type CollectionId = u128;
 	type NFTCollectionId = ConstU128<4200>;
 	type NFTHandler = Uniques;
+	type FreezableNFT = FreezableNFT<Runtime>;
 	type MaxVotes = ConstU32<100>;
 	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
 	type ActionMultiplier = ActionMultiplier;

@@ -17,6 +17,8 @@
 // TODO
 //  * [] - nontransferable nft
 //  * [] - tests create/increase during UnclaimablePeriods
+//  * [] - integration tests vestring
+//  * [] - integration tests nft
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -52,7 +54,7 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::DemocracyReferendum;
+	use crate::traits::{DemocracyReferendum, FrozenNonFungibles};
 	use crate::types::Voting;
 	use codec::HasCompact;
 	use frame_support::PalletId;
@@ -147,6 +149,8 @@ pub mod pallet {
 		type NFTHandler: Mutate<Self::AccountId>
 			+ Create<Self::AccountId>
 			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
+
+		type FreezableNFT: FrozenNonFungibles<Self::AccountId, Self::CollectionId>;
 
 		#[pallet::constant]
 		type MaxVotes: Get<u32>;
@@ -256,11 +260,8 @@ pub mod pallet {
 			//TODO: tx & lock non_dustable_amount
 			let pallet_account = <Pallet<T>>::pot_account_id();
 
-			<T as pallet::Config>::NFTHandler::create_collection(
-				&<T as pallet::Config>::NFTCollectionId::get(),
-				&pallet_account,
-				&pallet_account,
-			)
+			T::NFTHandler::create_collection(&T::NFTCollectionId::get(), &pallet_account, &pallet_account)?;
+			T::FreezableNFT::freeze_collection(pallet_account, T::NFTCollectionId::get())
 		}
 
 		#[pallet::call_index(1)]

@@ -1,11 +1,12 @@
 use crate::assets::OMNIPOOL_SOURCE;
+use crate::RuntimeOrigin;
 
 use codec::FullCodec;
 use core::marker::PhantomData;
 use frame_support::{
 	sp_runtime::{
 		traits::{Convert, MaybeSerializeDeserialize, Zero},
-		ArithmeticError, DispatchError, FixedPointNumber, FixedU128, SaturatedConversion,
+		ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, FixedU128, SaturatedConversion,
 	},
 	traits::{Contains, Get},
 	weights::Weight,
@@ -25,7 +26,7 @@ use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use polkadot_xcm::latest::prelude::*;
 use primitive_types::U128;
-use primitives::{AccountId, AssetId, Balance, BlockNumber};
+use primitives::{AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_std::fmt::Debug;
 use warehouse_liquidity_mining::GlobalFarmData;
 use xcm_executor::{
@@ -466,5 +467,17 @@ where
 		}
 
 		Zero::zero()
+	}
+}
+
+pub struct FreezableNFT<Runtime>(PhantomData<Runtime>);
+
+impl<Runtime> pallet_staking::traits::FrozenNonFungibles<AccountId, CollectionId> for FreezableNFT<Runtime>
+where
+	Runtime: frame_system::Config + pallet_uniques::Config<CollectionId = CollectionId>,
+	<Runtime as frame_system::Config>::RuntimeOrigin: From<RuntimeOrigin>,
+{
+	fn freeze_collection(owner: AccountId, collection: CollectionId) -> DispatchResult {
+		pallet_uniques::Pallet::<Runtime>::freeze_collection(RuntimeOrigin::signed(owner).into(), collection)
 	}
 }

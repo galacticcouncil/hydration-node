@@ -19,9 +19,9 @@ pub(crate) trait ActionData {
 	fn conviction(&self) -> u32;
 }
 
-pub trait FrozenNonFungibles<AccountId, CollectionId, ItemId> {
+pub trait FrozenNonFungibles<AccountId, CollectionId> {
 	/// Freezes given item so it is not transferable.
-	fn freeze(owner: AccountId, collection: CollectionId, item: ItemId) -> DispatchResult;
+	fn freeze_collection(owner: AccountId, collection: CollectionId) -> DispatchResult;
 }
 
 pub trait VestingDetails<AccountId, Balance> {
