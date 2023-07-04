@@ -7,13 +7,14 @@ use frame_support::{
 	sp_runtime::{FixedU128, Permill},
 	traits::{tokens::fungibles::Mutate, OnFinalize, OnInitialize},
 };
-use hydradx_runtime::{EmaOracle, RuntimeOrigin, OMNIPOOL_SOURCE};
+use hydradx_runtime::{EmaOracle, RuntimeOrigin};
 use hydradx_traits::{
 	AggregatedPriceOracle,
 	OraclePeriod::{self, *},
 };
 use pallet_ema_oracle::OracleError;
 use polkadot_primitives::v2::BlockNumber;
+use primitives::constants::chain::OMNIPOOL_SOURCE;
 use xcm_emulator::TestExt;
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
