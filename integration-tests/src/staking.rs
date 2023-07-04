@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::dispatch::DispatchResult;
 use frame_support::traits::Bounded;
@@ -563,6 +564,7 @@ fn democracy_vote_should_work_correctly_when_account_has_no_stake() {
 		end_referendum();
 	});
 }
+
 #[test]
 fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
 	TestNet::reset();
@@ -596,5 +598,140 @@ fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
 			r
 		));
 		end_referendum();
+	});
+}
+
+#[test]
+fn staking_position_should_not_be_transferable_by_owner() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			10 * UNITS
+		));
+
+		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
+			&sp_runtime::AccountId32::from(ALICE),
+		)
+		.unwrap()
+		.unwrap();
+
+		use sp_core::Get;
+		let staking_collection: u128 = <hydradx_runtime::Runtime as pallet_staking::Config>::NFTCollectionId::get();
+		assert_noop!(
+			pallet_uniques::Pallet::<hydradx_runtime::Runtime>::transfer(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				staking_collection,
+				stake_position_id,
+				BOB.into()
+			),
+			pallet_uniques::Error::<hydradx_runtime::Runtime>::Frozen
+		);
+	});
+}
+
+#[test]
+fn staking_position_should_not_be_thawnable_by_position_owner() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			10 * UNITS
+		));
+
+		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
+			&sp_runtime::AccountId32::from(ALICE),
+		)
+		.unwrap()
+		.unwrap();
+
+		use sp_core::Get;
+		let staking_collection: u128 = <hydradx_runtime::Runtime as pallet_staking::Config>::NFTCollectionId::get();
+		assert_noop!(
+			pallet_uniques::Pallet::<hydradx_runtime::Runtime>::thaw(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				staking_collection,
+				stake_position_id,
+			),
+			pallet_uniques::Error::<hydradx_runtime::Runtime>::NoPermission
+		);
+	});
+}
+
+#[test]
+fn staking_collection_should_not_be_thawnable_by_not_pallet_account() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			10 * UNITS
+		));
+
+		use sp_core::Get;
+		let staking_collection: u128 = <hydradx_runtime::Runtime as pallet_staking::Config>::NFTCollectionId::get();
+		assert_noop!(
+			pallet_uniques::Pallet::<hydradx_runtime::Runtime>::thaw_collection(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				staking_collection,
+			),
+			pallet_uniques::Error::<hydradx_runtime::Runtime>::NoPermission
+		);
 	});
 }

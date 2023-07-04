@@ -15,10 +15,8 @@
 //! # Staking Pallet
 
 // TODO
-//  * [] - nontransferable nft
 //  * [] - tests create/increase during UnclaimablePeriods
 //  * [] - integration tests vestring
-//  * [] - integration tests nft
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
