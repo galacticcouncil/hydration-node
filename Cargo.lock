@@ -3782,14 +3782,26 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "frame-support",
+ "frame-system",
+ "hydra-dx-math",
  "hydradx-traits",
  "lazy_static",
  "log",
+ "orml-traits",
+ "orml-xcm-support",
+ "pallet-circuit-breaker",
+ "pallet-dynamic-fees",
+ "pallet-ema-oracle",
+ "pallet-liquidity-mining",
+ "pallet-omnipool",
+ "pallet-omnipool-liquidity-mining",
  "pallet-transaction-multi-payment",
  "parity-scale-codec",
+ "primitive-types",
+ "primitives",
  "sp-runtime",
  "sp-std",
  "xcm",
@@ -3799,7 +3811,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "164.0.0"
+version = "165.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -9303,7 +9315,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.8.0"
+version = "5.8.1"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -10055,7 +10067,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.18"
+version = "1.7.19"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10075,6 +10087,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal 0.4.1",
+ "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
  "orml-tokens",
