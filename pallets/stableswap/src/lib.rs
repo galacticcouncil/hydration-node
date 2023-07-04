@@ -359,32 +359,22 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_pool())]
 		#[transactional]
-		pub fn update_pool(
+		pub fn update_pool_fees(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
-			amplification: Option<u16>,
 			trade_fee: Option<Permill>,
 			withdraw_fee: Option<Permill>,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				amplification.is_some() || trade_fee.is_some() || withdraw_fee.is_some(),
+				trade_fee.is_some() || withdraw_fee.is_some(),
 				Error::<T>::NothingToUpdate
 			);
 
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
 				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
-				pool.amplification = if let Some(ampl) = amplification {
-					NonZeroU16::new(ampl).ok_or(Error::<T>::InvalidAmplification)?
-				} else {
-					pool.amplification
-				};
-				ensure!(
-					T::AmplificationRange::get().contains(&pool.amplification),
-					Error::<T>::InvalidAmplification
-				);
 				pool.trade_fee = trade_fee.unwrap_or(pool.trade_fee);
 				pool.withdraw_fee = withdraw_fee.unwrap_or(pool.withdraw_fee);
 				Self::deposit_event(Event::PoolUpdated {
