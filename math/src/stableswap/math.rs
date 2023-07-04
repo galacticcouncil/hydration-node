@@ -3,8 +3,8 @@ use crate::types::Balance;
 use num_traits::{CheckedDiv, CheckedMul, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use sp_std::ops::Div;
 use sp_std::prelude::*;
-use std::ops::Div;
 
 pub const MAX_Y_ITERATIONS: u8 = 128;
 pub const MAX_D_ITERATIONS: u8 = 64;
@@ -374,11 +374,11 @@ pub fn calculate_amplification(
 		.saturating_mul(current_timestamp.saturating_sub(initial_timestamp))
 		.div(future_timestamp.saturating_sub(initial_timestamp));
 
-	return if future_amplification > initial_amplification {
+	if future_amplification > initial_amplification {
 		initial_amplification.saturating_add(step)
 	} else {
 		initial_amplification.saturating_sub(step)
-	};
+	}
 }
 
 #[inline]
