@@ -221,3 +221,75 @@ fn update_amplification_should_work_when_current_change_has_not_completed() {
 			);
 		});
 }
+
+#[test]
+fn update_amplification_should_fail_when_new_value_is_same_as_previous_one() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::signed(ALICE),
+				pool_id,
+				vec![asset_a, asset_b],
+				100,
+				Permill::from_percent(10),
+				Permill::from_percent(20),
+			));
+
+			System::set_block_number(5000);
+
+			assert_noop!(
+				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 100, 5000, 10_000),
+				Error::<Test>::SameAmplification,
+			);
+		});
+}
+
+#[test]
+fn update_amplification_should_fail_when_new_value_is_zero_or_outside_allowed_range() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::signed(ALICE),
+				pool_id,
+				vec![asset_a, asset_b],
+				100,
+				Permill::from_percent(10),
+				Permill::from_percent(20),
+			));
+
+			System::set_block_number(5000);
+
+			assert_noop!(
+				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 0, 5000, 10_000),
+				Error::<Test>::InvalidAmplification,
+			);
+
+			assert_noop!(
+				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 1, 5000, 10_000),
+				Error::<Test>::InvalidAmplification,
+			);
+
+			assert_noop!(
+				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 20_000, 5000, 10_000),
+				Error::<Test>::InvalidAmplification,
+			);
+		});
+}
