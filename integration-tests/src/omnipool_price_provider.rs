@@ -4,7 +4,8 @@ use crate::polkadot_test_net::*;
 
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_runtime::{adapters::OraclePriceProviderAdapterForOmnipool, Omnipool, RuntimeOrigin, Tokens};
+use hydradx_adapters::OraclePriceProviderAdapterForOmnipool;
+use hydradx_runtime::{Omnipool, RuntimeOrigin, Tokens};
 use hydradx_traits::{OraclePeriod, PriceOracle};
 use primitives::{AssetId, Balance};
 use sp_runtime::{FixedU128, Permill};
