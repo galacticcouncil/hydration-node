@@ -164,9 +164,8 @@ pub mod pallet {
 			withdraw_fee: Permill,
 		},
 		/// Pool parameters has been updated.
-		PoolUpdated {
+		FeesUpdated {
 			pool_id: T::AssetId,
-			amplification: NonZeroU16,
 			trade_fee: Permill,
 			withdraw_fee: Permill,
 		},
@@ -340,22 +339,19 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Update given stableswap pool's parameters.
+		/// Update pool's fees.
 		///
-		/// Updates one or more parameters of stablesswap pool ( amplification, trade fee, withdraw fee).
-		///
-		/// If all parameters are none, `NothingToUpdate` error is returned.
+		/// Updates pool's trade fee and/or withdraw fee.
 		///
 		/// if pool does not exist, `PoolNotFound` is returned.
 		///
 		/// Parameters:
 		/// - `origin`: Must be T::AuthorityOrigin
 		/// - `pool_id`: pool to update
-		/// - `amplification`: new pool amplification or None
 		/// - `trade_fee`: new trade fee or None
 		/// - `withdraw_fee`: new withdraw fee or None
 		///
-		/// Emits `PoolUpdated` event if successful.
+		/// Emits `FeesUpdated` event if successful.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_pool())]
 		#[transactional]
@@ -377,9 +373,8 @@ pub mod pallet {
 
 				pool.trade_fee = trade_fee.unwrap_or(pool.trade_fee);
 				pool.withdraw_fee = withdraw_fee.unwrap_or(pool.withdraw_fee);
-				Self::deposit_event(Event::PoolUpdated {
+				Self::deposit_event(Event::FeesUpdated {
 					pool_id,
-					amplification: pool.amplification,
 					trade_fee: pool.trade_fee,
 					withdraw_fee: pool.withdraw_fee,
 				});
@@ -387,22 +382,15 @@ pub mod pallet {
 			})
 		}
 
-		/// Update given stableswap pool's parameters.
-		///
-		/// Updates one or more parameters of stablesswap pool ( amplification, trade fee, withdraw fee).
-		///
-		/// If all parameters are none, `NothingToUpdate` error is returned.
-		///
-		/// if pool does not exist, `PoolNotFound` is returned.
+		/// Update pool's amplification.
 		///
 		/// Parameters:
 		/// - `origin`: Must be T::AuthorityOrigin
 		/// - `pool_id`: pool to update
-		/// - `amplification`: new pool amplification or None
-		/// - `trade_fee`: new trade fee or None
-		/// - `withdraw_fee`: new withdraw fee or None
+		/// - `future_amplification`: new desired pool amplification
+		/// - `future_timestamp`: future block number when the amplification is updated
 		///
-		/// Emits `PoolUpdated` event if successful.
+		/// Emits `AmplificationUpdated` event if successful.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_pool())]
 		#[transactional]
@@ -410,25 +398,21 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
 			future_amplification: u16,
-			block: T::BlockNumber,
+			future_timestamp: T::BlockNumber,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			let current_block = T::BlockNumberProvider::current_block_number();
+			ensure!(future_timestamp > current_block, Error::<T>::InvalidAmplification);
 
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
 				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
-				pool.amplification = pool.future_amplification;
+				pool.initial_amplification = pool.future_amplification;
 				pool.future_amplification =
 					NonZeroU16::new(future_amplification).ok_or(Error::<T>::InvalidAmplification)?;
-
-				let current_block = T::BlockNumberProvider::current_block_number();
-				ensure!(
-					block > current_block && block > pool.future_amp_timestamp,
-					Error::<T>::InvalidAmplification
-				);
-
-				pool.amp_timestamp = current_block;
-				pool.future_amp_timestamp = block;
+				pool.initial_amp_timestamp = current_block;
+				pool.future_amp_timestamp = future_timestamp;
 
 				ensure!(
 					T::AmplificationRange::get().contains(&pool.future_amplification),
@@ -537,9 +521,9 @@ pub mod pallet {
 			);
 
 			let amplification = hydra_dx_math::stableswap::calculate_amplification(
-				pool.amplification.get().into(),
+				pool.initial_amplification.get().into(),
 				pool.future_amplification.get().into(),
-				pool.amp_timestamp.saturated_into(),
+				pool.initial_amp_timestamp.saturated_into(),
 				pool.future_amp_timestamp.saturated_into(),
 				T::BlockNumberProvider::current_block_number().saturated_into(),
 			);
@@ -743,9 +727,9 @@ impl<T: Config> Pallet<T> {
 		ensure!(balances[index_out] > Balance::zero(), Error::<T>::InsufficientLiquidity);
 
 		let amplification = hydra_dx_math::stableswap::calculate_amplification(
-			pool.amplification.get().into(),
+			pool.initial_amplification.get().into(),
 			pool.future_amplification.get().into(),
-			pool.amp_timestamp.saturated_into(),
+			pool.initial_amp_timestamp.saturated_into(),
 			pool.future_amp_timestamp.saturated_into(),
 			T::BlockNumberProvider::current_block_number().saturated_into(),
 		);
@@ -779,9 +763,9 @@ impl<T: Config> Pallet<T> {
 		ensure!(balances[index_in] > Balance::zero(), Error::<T>::InsufficientLiquidity);
 
 		let amplification = hydra_dx_math::stableswap::calculate_amplification(
-			pool.amplification.get().into(),
+			pool.initial_amplification.get().into(),
 			pool.future_amplification.get().into(),
-			pool.amp_timestamp.saturated_into(),
+			pool.initial_amp_timestamp.saturated_into(),
 			pool.future_amp_timestamp.saturated_into(),
 			T::BlockNumberProvider::current_block_number().saturated_into(),
 		);
@@ -823,9 +807,9 @@ impl<T: Config> Pallet<T> {
 				.clone()
 				.try_into()
 				.map_err(|_| Error::<T>::MaxAssetsExceeded)?,
-			amplification,
+			initial_amplification: amplification,
 			future_amplification: amplification,
-			amp_timestamp: block_number,
+			initial_amp_timestamp: block_number,
 			future_amp_timestamp: block_number,
 			trade_fee,
 			withdraw_fee,
@@ -885,9 +869,9 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let amplification = hydra_dx_math::stableswap::calculate_amplification(
-			pool.amplification.get().into(),
+			pool.initial_amplification.get().into(),
 			pool.future_amplification.get().into(),
-			pool.amp_timestamp.saturated_into(),
+			pool.initial_amp_timestamp.saturated_into(),
 			pool.future_amp_timestamp.saturated_into(),
 			T::BlockNumberProvider::current_block_number().saturated_into(),
 		);

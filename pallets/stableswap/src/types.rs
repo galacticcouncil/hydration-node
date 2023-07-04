@@ -24,9 +24,9 @@ pub(crate) type Balance = u128;
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct PoolInfo<AssetId, BlockNumber> {
 	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
-	pub amplification: NonZeroU16,
+	pub initial_amplification: NonZeroU16,
 	pub future_amplification: NonZeroU16,
-	pub amp_timestamp: BlockNumber,
+	pub initial_amp_timestamp: BlockNumber,
 	pub future_amp_timestamp: BlockNumber,
 	pub trade_fee: Permill,
 	pub withdraw_fee: Permill,

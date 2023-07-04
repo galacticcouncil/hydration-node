@@ -248,7 +248,7 @@ impl ExtBuilder {
 					RuntimeOrigin::signed(who),
 					pool_id,
 					pool.assets.clone().into(),
-					pool.amplification.get(),
+					pool.initial_amplification.get(),
 					pool.trade_fee,
 					pool.withdraw_fee,
 				));
