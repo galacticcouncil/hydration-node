@@ -355,7 +355,7 @@ pub fn calculate_amplification(
 	current_timestamp: u128,
 ) -> u128 {
 	// short circuit if timestamp are invalid
-	if current_timestamp < initial_timestamp  || future_timestamp < initial_timestamp {
+	if current_timestamp < initial_timestamp || future_timestamp < initial_timestamp {
 		return initial_amplification;
 	}
 
