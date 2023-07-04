@@ -45,8 +45,8 @@ extern crate core;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional};
 use hydradx_traits::{AccountIdFor, Registry};
-use sp_runtime::traits::Zero;
-use sp_runtime::{ArithmeticError, DispatchError, Permill};
+use sp_runtime::traits::{BlockNumberProvider, Zero};
+use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
@@ -85,9 +85,9 @@ pub mod pallet {
 	use core::ops::RangeInclusive;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::Zero;
-	use sp_runtime::ArithmeticError;
+	use sp_runtime::traits::{BlockNumberProvider, Zero};
 	use sp_runtime::Permill;
+	use sp_runtime::{ArithmeticError, SaturatedConversion};
 	use sp_std::num::NonZeroU16;
 
 	#[pallet::pallet]
@@ -98,6 +98,9 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// Provider for the current block number.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
 
 		/// Identifier for the class of asset.
 		type AssetId: Member
@@ -141,7 +144,7 @@ pub mod pallet {
 	/// Existing pools
 	#[pallet::storage]
 	#[pallet::getter(fn pools)]
-	pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolInfo<T::AssetId>>;
+	pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolInfo<T::AssetId, T::BlockNumber>>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -209,6 +212,13 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			asset_id: T::AssetId,
 			state: Tradability,
+		},
+
+		///
+		AmplificationUpdated {
+			pool_id: T::AssetId,
+			amplification: NonZeroU16,
+			block: T::BlockNumber,
 		},
 	}
 
@@ -387,6 +397,62 @@ pub mod pallet {
 			})
 		}
 
+		/// Update given stableswap pool's parameters.
+		///
+		/// Updates one or more parameters of stablesswap pool ( amplification, trade fee, withdraw fee).
+		///
+		/// If all parameters are none, `NothingToUpdate` error is returned.
+		///
+		/// if pool does not exist, `PoolNotFound` is returned.
+		///
+		/// Parameters:
+		/// - `origin`: Must be T::AuthorityOrigin
+		/// - `pool_id`: pool to update
+		/// - `amplification`: new pool amplification or None
+		/// - `trade_fee`: new trade fee or None
+		/// - `withdraw_fee`: new withdraw fee or None
+		///
+		/// Emits `PoolUpdated` event if successful.
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_pool())]
+		#[transactional]
+		pub fn update_amplification(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			future_amplification: u16,
+			block: T::BlockNumber,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
+				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
+
+				pool.amplification = pool.future_amplification;
+				pool.future_amplification =
+					NonZeroU16::new(future_amplification).ok_or(Error::<T>::InvalidAmplification)?;
+
+				let current_block = T::BlockNumberProvider::current_block_number();
+				ensure!(
+					block > current_block && block > pool.future_amp_timestamp,
+					Error::<T>::InvalidAmplification
+				);
+
+				pool.amp_timestamp = current_block;
+				pool.future_amp_timestamp = block;
+
+				ensure!(
+					T::AmplificationRange::get().contains(&pool.future_amplification),
+					Error::<T>::InvalidAmplification
+				);
+				Self::deposit_event(Event::AmplificationUpdated {
+					pool_id,
+					amplification: pool.future_amplification,
+					block: pool.future_amp_timestamp,
+				});
+				Ok(())
+			})
+		}
+
 		/// Add liquidity to selected pool.
 		///
 		/// First call of `add_liquidity` adds "initial liquidity" of all assets.
@@ -403,7 +469,7 @@ pub mod pallet {
 		/// - `assets`: asset id and liquidity amount provided
 		///
 		/// Emits `LiquidityAdded` event when successful.
-		#[pallet::call_index(2)]
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
 		#[transactional]
 		pub fn add_liquidity(
@@ -440,7 +506,7 @@ pub mod pallet {
 		/// - 'share_amount': amount of shares to withdraw
 		///
 		/// Emits `LiquidityRemoved` event when successful.
-		#[pallet::call_index(3)]
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset())]
 		#[transactional]
 		pub fn remove_liquidity_one_asset(
@@ -480,12 +546,20 @@ pub mod pallet {
 				Error::<T>::InsufficientLiquidityRemaining
 			);
 
+			let amplification = hydra_dx_math::stableswap::calculate_amplification(
+				pool.amplification.get().into(),
+				pool.future_amplification.get().into(),
+				pool.amp_timestamp.saturated_into(),
+				pool.future_amp_timestamp.saturated_into(),
+				T::BlockNumberProvider::current_block_number().saturated_into(),
+			);
+
 			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 				&balances,
 				share_amount,
 				asset_idx,
 				share_issuance,
-				pool.amplification.get().into(),
+				amplification,
 				pool.withdraw_fee,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -517,7 +591,7 @@ pub mod pallet {
 		///
 		/// Emits `SellExecuted` event when successful.
 		///
-		#[pallet::call_index(4)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		#[transactional]
 		pub fn sell(
@@ -580,7 +654,7 @@ pub mod pallet {
 		///
 		/// Emits `BuyExecuted` event when successful.
 		///
-		#[pallet::call_index(5)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		#[transactional]
 		pub fn buy(
@@ -631,7 +705,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(6)]
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
 		#[transactional]
 		pub fn set_asset_tradable_state(
@@ -678,12 +752,20 @@ impl<T: Config> Pallet<T> {
 		ensure!(balances[index_in] > Balance::zero(), Error::<T>::InsufficientLiquidity);
 		ensure!(balances[index_out] > Balance::zero(), Error::<T>::InsufficientLiquidity);
 
+		let amplification = hydra_dx_math::stableswap::calculate_amplification(
+			pool.amplification.get().into(),
+			pool.future_amplification.get().into(),
+			pool.amp_timestamp.saturated_into(),
+			pool.future_amp_timestamp.saturated_into(),
+			T::BlockNumberProvider::current_block_number().saturated_into(),
+		);
+
 		hydra_dx_math::stableswap::calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 			&balances,
 			index_in,
 			index_out,
 			amount_in,
-			pool.amplification.get().into(),
+			amplification,
 			pool.trade_fee,
 		)
 		.ok_or_else(|| ArithmeticError::Overflow.into())
@@ -706,12 +788,20 @@ impl<T: Config> Pallet<T> {
 		ensure!(balances[index_out] > amount_out, Error::<T>::InsufficientLiquidity);
 		ensure!(balances[index_in] > Balance::zero(), Error::<T>::InsufficientLiquidity);
 
+		let amplification = hydra_dx_math::stableswap::calculate_amplification(
+			pool.amplification.get().into(),
+			pool.future_amplification.get().into(),
+			pool.amp_timestamp.saturated_into(),
+			pool.future_amp_timestamp.saturated_into(),
+			T::BlockNumberProvider::current_block_number().saturated_into(),
+		);
+
 		hydra_dx_math::stableswap::calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 			&balances,
 			index_in,
 			index_out,
 			amount_out,
-			pool.amplification.get().into(),
+			amplification,
 			pool.trade_fee,
 		)
 		.ok_or_else(|| ArithmeticError::Overflow.into())
@@ -733,6 +823,8 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(!assets.contains(&share_asset), Error::<T>::ShareAssetInPoolAssets);
 
+		let block_number = T::BlockNumberProvider::current_block_number();
+
 		let mut pool_assets = assets.to_vec();
 		pool_assets.sort();
 
@@ -742,6 +834,9 @@ impl<T: Config> Pallet<T> {
 				.try_into()
 				.map_err(|_| Error::<T>::MaxAssetsExceeded)?,
 			amplification,
+			future_amplification: amplification,
+			amp_timestamp: block_number,
+			future_amp_timestamp: block_number,
 			trade_fee,
 			withdraw_fee,
 		};
@@ -799,11 +894,19 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
+		let amplification = hydra_dx_math::stableswap::calculate_amplification(
+			pool.amplification.get().into(),
+			pool.future_amplification.get().into(),
+			pool.amp_timestamp.saturated_into(),
+			pool.future_amp_timestamp.saturated_into(),
+			T::BlockNumberProvider::current_block_number().saturated_into(),
+		);
+
 		let share_issuance = T::Currency::total_issuance(pool_id);
 		let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves,
-			pool.amplification.get().into(),
+			amplification,
 			share_issuance,
 		)
 		.ok_or(ArithmeticError::Overflow)?;

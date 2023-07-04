@@ -4,6 +4,7 @@ use num_traits::{CheckedDiv, CheckedMul, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::prelude::*;
+use std::ops::Div;
 
 pub const MAX_Y_ITERATIONS: u8 = 128;
 pub const MAX_D_ITERATIONS: u8 = 64;
@@ -344,6 +345,40 @@ pub(crate) fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification
 		}
 	}
 	Balance::try_from(y).ok()
+}
+
+pub fn calculate_amplification(
+	initial_amplification: u128,
+	future_amplification: u128,
+	initial_timestamp: u128,
+	future_timestamp: u128,
+	current_timestamp: u128,
+) -> u128 {
+	// short circuit if timestamp are invalid
+	if current_timestamp < initial_timestamp  || future_timestamp < initial_timestamp {
+		return initial_timestamp;
+	}
+
+	// Short circuit if timestamp or amplification are equal
+	if initial_timestamp == future_timestamp || initial_amplification == future_amplification {
+		return future_amplification;
+	}
+
+	// short circuit if already reached desired timestamp
+	if current_timestamp >= future_timestamp {
+		return future_amplification;
+	}
+
+	let step = future_amplification
+		.abs_diff(initial_amplification)
+		.saturating_mul(current_timestamp.saturating_sub(initial_timestamp))
+		.div(future_timestamp.saturating_sub(initial_timestamp));
+
+	return if future_amplification > initial_amplification {
+		initial_amplification.saturating_add(step)
+	} else {
+		initial_amplification.saturating_sub(step)
+	};
 }
 
 #[inline]

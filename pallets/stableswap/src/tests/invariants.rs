@@ -62,9 +62,13 @@ proptest! {
 			.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 			.with_pool(
 				ALICE,
-				PoolInfo::<AssetId> {
+				PoolInfo::<AssetId, u64> {
 					assets: vec![asset_a,asset_b].try_into().unwrap(),
 					amplification,
+
+				future_amplification: amplification,
+				amp_timestamp: 0,
+				future_amp_timestamp: 0,
 					trade_fee,
 					withdraw_fee: Permill::from_percent(0),
 				},
@@ -136,9 +140,13 @@ proptest! {
 			.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 			.with_pool(
 				ALICE,
-				PoolInfo::<AssetId> {
+				PoolInfo::<AssetId, u64> {
 					assets: vec![asset_a,asset_b].try_into().unwrap(),
 					amplification,
+
+				future_amplification: amplification,
+				amp_timestamp: 0,
+				future_amp_timestamp: 0,
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(0),
 				},
@@ -204,9 +212,12 @@ proptest! {
 			.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 			.with_pool(
 				ALICE,
-				PoolInfo::<AssetId> {
+				PoolInfo::<AssetId, u64> {
 					assets: vec![asset_a,asset_b].try_into().unwrap(),
 					amplification,
+				future_amplification: amplification,
+				amp_timestamp: 0,
+				future_amp_timestamp: 0,
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(0),
 				},

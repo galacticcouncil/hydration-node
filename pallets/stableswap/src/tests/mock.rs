@@ -150,6 +150,7 @@ impl Config for Test {
 	type AmplificationRange = AmplificationRange;
 	type MinTradingLimit = MinimumTradingLimit;
 	type WeightInfo = ();
+	type BlockNumberProvider = System;
 }
 
 pub struct InitialLiquidity {
@@ -160,7 +161,7 @@ pub struct InitialLiquidity {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<(Vec<u8>, AssetId)>,
-	created_pools: Vec<(AccountId, PoolInfo<AssetId>, InitialLiquidity)>,
+	created_pools: Vec<(AccountId, PoolInfo<AssetId, u64>, InitialLiquidity)>,
 }
 
 impl Default for ExtBuilder {
@@ -196,7 +197,12 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_pool(mut self, who: AccountId, pool: PoolInfo<AssetId>, initial_liquidity: InitialLiquidity) -> Self {
+	pub fn with_pool(
+		mut self,
+		who: AccountId,
+		pool: PoolInfo<AssetId, u64>,
+		initial_liquidity: InitialLiquidity,
+	) -> Self {
 		self.created_pools.push((who, pool, initial_liquidity));
 		self
 	}

@@ -33,6 +33,9 @@ fn create_two_asset_pool_should_work_when_assets_are_registered() {
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
 					amplification: NonZeroU16::new(100).unwrap(),
+					future_amplification: NonZeroU16::new(100).unwrap(),
+					amp_timestamp: 0,
+					future_amp_timestamp: 0,
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(0)
 				}
@@ -102,6 +105,9 @@ fn create_pool_should_store_assets_correctly_when_input_is_not_sorted() {
 				PoolInfo {
 					assets: vec![asset_a, asset_b, asset_c, asset_d].try_into().unwrap(),
 					amplification: NonZeroU16::new(amplification).unwrap(),
+					future_amplification: NonZeroU16::new(100).unwrap(),
+					amp_timestamp: 0,
+					future_amp_timestamp: 0,
 					trade_fee: Permill::from_percent(5),
 					withdraw_fee: Permill::from_percent(10)
 				}

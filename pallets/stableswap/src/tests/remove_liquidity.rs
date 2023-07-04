@@ -23,9 +23,12 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 		.with_registered_asset("three".as_bytes().to_vec(), asset_c)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
 				amplification: NonZeroU16::new(100).unwrap(),
+				future_amplification: NonZeroU16::new(100).unwrap(),
+				amp_timestamp: 0,
+				future_amp_timestamp: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -100,9 +103,12 @@ fn remove_liquidity_should_apply_fee_when_withdrawing_all_shares() {
 		.with_registered_asset("three".as_bytes().to_vec(), asset_c)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
 				amplification: NonZeroU16::new(100).unwrap(),
+				future_amplification: NonZeroU16::new(100).unwrap(),
+				amp_timestamp: 0,
+				future_amp_timestamp: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(10),
 			},
@@ -235,9 +241,12 @@ fn remove_liquidity_should_fail_when_requested_asset_not_in_pool() {
 		.with_registered_asset("three".as_bytes().to_vec(), asset_c)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
 				amplification: NonZeroU16::new(100).unwrap(),
+				future_amplification: NonZeroU16::new(100).unwrap(),
+				amp_timestamp: 0,
+				future_amp_timestamp: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(10),
 			},
@@ -301,9 +310,12 @@ fn remove_liquidity_should_fail_when_remaining_shares_below_min_liquidity() {
 		.with_registered_asset("three".as_bytes().to_vec(), asset_c)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
 				amplification: NonZeroU16::new(100).unwrap(),
+				future_amplification: NonZeroU16::new(100).unwrap(),
+				amp_timestamp: 0,
+				future_amp_timestamp: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(10),
 			},
@@ -375,9 +387,12 @@ fn verify_remove_liquidity_against_research_impl() {
 		.with_registered_asset("four".as_bytes().to_vec(), asset_d)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b, asset_c, asset_d].try_into().unwrap(),
 				amplification: NonZeroU16::new(100).unwrap(),
+				future_amplification: NonZeroU16::new(100).unwrap(),
+				amp_timestamp: 0,
+				future_amp_timestamp: 0,
 				trade_fee: Permill::from_float(0.003),
 				withdraw_fee: Permill::from_float(0.003),
 			},

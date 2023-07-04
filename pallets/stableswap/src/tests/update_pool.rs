@@ -40,6 +40,9 @@ fn update_pool_should_work_when_all_parames_are_updated() {
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
 					amplification: NonZeroU16::new(55).unwrap(),
+					future_amplification: NonZeroU16::new(100).unwrap(),
+					amp_timestamp: 0,
+					future_amp_timestamp: 0,
 					trade_fee: Permill::from_percent(10),
 					withdraw_fee: Permill::from_percent(20)
 				}
@@ -82,6 +85,9 @@ fn update_pool_should_work_when_only_amplification_is_updated() {
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
 					amplification: NonZeroU16::new(55).unwrap(),
+					future_amplification: NonZeroU16::new(100).unwrap(),
+					amp_timestamp: 0,
+					future_amp_timestamp: 0,
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(0)
 				}
@@ -124,6 +130,9 @@ fn update_pool_should_work_when_only_trade_fee_is_updated() {
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
 					amplification: NonZeroU16::new(100).unwrap(),
+					future_amplification: NonZeroU16::new(100).unwrap(),
+					amp_timestamp: 0,
+					future_amp_timestamp: 0,
 					trade_fee: Permill::from_percent(20),
 					withdraw_fee: Permill::from_percent(0)
 				}
@@ -166,6 +175,9 @@ fn update_pool_should_work_when_only_withdraw_fee_is_updated() {
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
 					amplification: NonZeroU16::new(100).unwrap(),
+					future_amplification: NonZeroU16::new(100).unwrap(),
+					amp_timestamp: 0,
+					future_amp_timestamp: 0,
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(21)
 				}
@@ -208,6 +220,9 @@ fn update_pool_should_work_when_only_fees_is_updated() {
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
 					amplification: NonZeroU16::new(100).unwrap(),
+					future_amplification: NonZeroU16::new(100).unwrap(),
+					amp_timestamp: 0,
+					future_amp_timestamp: 0,
 					trade_fee: Permill::from_percent(11),
 					withdraw_fee: Permill::from_percent(21)
 				}
@@ -247,6 +262,9 @@ fn update_pool_should_fail_when_nothing_is_to_update() {
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
 					amplification: NonZeroU16::new(100).unwrap(),
+					future_amplification: NonZeroU16::new(100).unwrap(),
+					amp_timestamp: 0,
+					future_amp_timestamp: 0,
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(0)
 				}
