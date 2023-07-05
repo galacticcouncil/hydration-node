@@ -427,7 +427,7 @@ pub mod pallet {
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
 				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
-				let current_amplification = Self::get_amplification(&pool);
+				let current_amplification = Self::get_amplification(pool);
 
 				ensure!(
 					current_amplification != final_amplification as u128,
