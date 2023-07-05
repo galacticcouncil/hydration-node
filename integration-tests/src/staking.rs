@@ -1,15 +1,17 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use frame_support::assert_noop;
-use frame_support::assert_ok;
-use frame_support::dispatch::DispatchResult;
-use frame_support::traits::Bounded;
-use frame_support::traits::OnInitialize;
-use frame_support::traits::StorePreimage;
+use frame_support::{
+	assert_noop, assert_ok,
+	dispatch::DispatchResult,
+	traits::{Bounded, OnInitialize, StorePreimage},
+};
 use frame_system::RawOrigin;
-use hydradx_runtime::{Balances, Currencies, Democracy, Omnipool, Preimage, Scheduler, Staking, System, Tokens};
+use hydradx_runtime::{
+	Balances, BlockNumber, Currencies, Democracy, Omnipool, Preimage, Scheduler, Staking, System, Tokens, Vesting,
+};
 use orml_traits::currency::MultiCurrency;
+use orml_vesting::VestingSchedule;
 use pallet_democracy::{AccountVote, Conviction, ReferendumIndex, Vote};
 use primitives::constants::time::DAYS;
 use sp_runtime::AccountId32;
@@ -17,6 +19,16 @@ use xcm_emulator::TestExt;
 
 type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
 type BoundedCallOf<T> = Bounded<CallOf<T>>;
+type Schedule = VestingSchedule<BlockNumber, Balance>;
+
+fn vesting_schedule() -> Schedule {
+	Schedule {
+		start: 0,
+		period: 1,
+		period_count: 10,
+		per_period: 10_000 * UNITS,
+	}
+}
 
 fn set_balance_proposal(who: AccountId, value: u128) -> BoundedCallOf<hydradx_runtime::Runtime> {
 	let inner = pallet_balances::Call::set_balance {
@@ -602,7 +614,7 @@ fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
 }
 
 #[test]
-fn staking_position_should_not_be_transferable_by_owner() {
+fn staking_position_transfer_should_fail_when_origin_is_owner() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
@@ -650,7 +662,7 @@ fn staking_position_should_not_be_transferable_by_owner() {
 }
 
 #[test]
-fn staking_position_should_not_be_thawnable_by_position_owner() {
+fn thaw_staking_position_should_fail_when_origin_is_position_owner() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
@@ -697,7 +709,7 @@ fn staking_position_should_not_be_thawnable_by_position_owner() {
 }
 
 #[test]
-fn staking_collection_should_not_be_thawnable_by_not_pallet_account() {
+fn thaw_staking_collection_should_fail_when_origin_is_not_pallet_account() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
@@ -732,6 +744,83 @@ fn staking_collection_should_not_be_thawnable_by_not_pallet_account() {
 				staking_collection,
 			),
 			pallet_uniques::Error::<hydradx_runtime::Runtime>::NoPermission
+		);
+	});
+}
+
+#[test]
+fn stake_should_fail_when_tokens_are_vested() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			vesting_account(),
+			HDX,
+			(1_000_000 * UNITS) as i128,
+		));
+
+		assert_ok!(Vesting::vested_transfer(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			vesting_schedule()
+		));
+
+		//Act & assert
+		assert_noop!(
+			Staking::stake(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), 11_000 * UNITS),
+			pallet_staking::Error::<hydradx_runtime::Runtime>::InsufficientBalance
+		);
+	});
+}
+
+#[test]
+fn stake_should_fail_when_tokens_are_already_staked() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			HDX,
+			(20_000 * UNITS) as i128,
+		));
+
+		assert_eq!(Currencies::free_balance(HDX, &ALICE.into()), 21_000 * UNITS);
+
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			15_000 * UNITS
+		));
+
+		//Act & assert
+		assert_noop!(
+			Staking::stake(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), 10_000 * UNITS),
+			pallet_staking::Error::<hydradx_runtime::Runtime>::InsufficientBalance
 		);
 	});
 }
