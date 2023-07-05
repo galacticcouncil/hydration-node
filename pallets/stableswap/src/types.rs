@@ -50,6 +50,9 @@ where
 	}
 
 	pub(crate) fn is_valid(&self) -> bool {
+		if self.assets.len() < 2 {
+			return false;
+		}
 		has_unique_elements(&mut self.assets.iter())
 	}
 

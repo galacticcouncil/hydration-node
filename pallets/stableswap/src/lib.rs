@@ -226,8 +226,8 @@ pub mod pallet {
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
-		/// Creating a pool with same assets is not allowed.
-		SameAssets,
+		/// Creating a pool with same assets or less than 2 assets is not allowed.
+		IncorrectAssets,
 
 		/// Maximum number of assets has been exceeded.
 		MaxAssetsExceeded,
@@ -822,7 +822,7 @@ impl<T: Config> Pallet<T> {
 			trade_fee,
 			withdraw_fee,
 		};
-		ensure!(pool.is_valid(), Error::<T>::SameAssets);
+		ensure!(pool.is_valid(), Error::<T>::IncorrectAssets);
 		ensure!(
 			T::AmplificationRange::get().contains(&amplification),
 			Error::<T>::InvalidAmplification
