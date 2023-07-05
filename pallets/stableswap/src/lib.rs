@@ -296,10 +296,7 @@ pub mod pallet {
 		NotAllowed,
 
 		/// Future block number is in the past.
-		InvalidBlock,
-
-		/// Current amplification change has not completed yet.
-		AmplificationChangeNotCompleted,
+		PastBlock,
 
 		/// New amplification is equal to the previous value.
 		SameAmplification,
@@ -424,22 +421,21 @@ pub mod pallet {
 			let current_block = T::BlockNumberProvider::current_block_number();
 			ensure!(
 				end_block > start_block && end_block > current_block && start_block >= current_block,
-				Error::<T>::InvalidBlock
+				Error::<T>::PastBlock
 			);
 
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
 				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
+				let current_amplification = Self::get_amplification(&pool);
+
 				ensure!(
-					pool.final_block <= current_block,
-					Error::<T>::AmplificationChangeNotCompleted
-				);
-				ensure!(
-					pool.final_amplification.get() != final_amplification,
+					current_amplification != final_amplification as u128,
 					Error::<T>::SameAmplification
 				);
 
-				pool.initial_amplification = pool.final_amplification;
+				pool.initial_amplification =
+					NonZeroU16::new(current_amplification.saturated_into()).ok_or(Error::<T>::InvalidAmplification)?;
 				pool.final_amplification =
 					NonZeroU16::new(final_amplification).ok_or(Error::<T>::InvalidAmplification)?;
 				pool.initial_block = start_block;

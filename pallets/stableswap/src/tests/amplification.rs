@@ -79,7 +79,7 @@ fn update_amplification_should_fail_when_end_block_is_before_current_block() {
 
 			assert_noop!(
 				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 1000, 10, 1000),
-				Error::<Test>::InvalidBlock
+				Error::<Test>::PastBlock
 			);
 		});
 }
@@ -110,7 +110,7 @@ fn update_amplification_should_fail_when_end_block_is_smaller_than_start_block()
 
 			assert_noop!(
 				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 1000, 20_000, 10_000),
-				Error::<Test>::InvalidBlock
+				Error::<Test>::PastBlock
 			);
 		});
 }
@@ -141,13 +141,13 @@ fn update_amplification_should_fail_when_start_block_before_current_block() {
 
 			assert_noop!(
 				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 1000, 4000, 10_000),
-				Error::<Test>::InvalidBlock
+				Error::<Test>::PastBlock
 			);
 		});
 }
 
 #[test]
-fn update_amplification_should_work_when_current_change_has_not_completed() {
+fn update_amplification_should_work_when_current_change_is_in_progress() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id: AssetId = 100;
@@ -191,28 +191,23 @@ fn update_amplification_should_work_when_current_change_has_not_completed() {
 				}
 			);
 			System::set_block_number(500);
-			assert_noop!(
-				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 5000, 5010, 6000,),
-				Error::<Test>::AmplificationChangeNotCompleted
-			);
 
-			System::set_block_number(5000);
 			assert_ok!(Stableswap::update_amplification(
 				RuntimeOrigin::signed(ALICE),
 				pool_id,
 				5000,
-				5010,
-				6000,
-			));
+				501,
+				1000
+			),);
 
 			assert_eq!(
 				<Pools<Test>>::get(pool_id).unwrap(),
 				PoolInfo {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
-					initial_amplification: NonZeroU16::new(1000).unwrap(),
+					initial_amplification: NonZeroU16::new(545).unwrap(),
 					final_amplification: NonZeroU16::new(5000).unwrap(),
-					initial_block: 5010,
-					final_block: 6000,
+					initial_block: 501,
+					final_block: 1000,
 					trade_fee: Permill::from_percent(10),
 					withdraw_fee: Permill::from_percent(20)
 				}
