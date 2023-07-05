@@ -59,6 +59,7 @@ pub mod weights;
 pub use trade_execution::*;
 
 use crate::types::{AssetLiquidity, Balance, PoolInfo, Tradability};
+use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
 use weights::WeightInfo;
@@ -85,6 +86,7 @@ pub mod pallet {
 	use core::ops::RangeInclusive;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use hydradx_traits::pools::DustRemovalAccountWhitelist;
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 	use sp_runtime::ArithmeticError;
 	use sp_runtime::Permill;
@@ -124,6 +126,9 @@ pub mod pallet {
 
 		/// The origin which can create a new pool
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
+		type DustAccountHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
 
 		/// Minimum pool liquidity
 		#[pallet::constant]
@@ -832,7 +837,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Pools::<T>::insert(share_asset, pool);
-
+		T::DustAccountHandler::add_account(&Self::pool_account(share_asset))?;
 		Ok(share_asset)
 	}
 
