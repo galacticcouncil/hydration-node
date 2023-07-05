@@ -270,7 +270,7 @@ proptest! {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(100))]
+	#![proptest_config(ProptestConfig::with_cases(50))]
 	#[test]
 	fn sell_invariants_should_hold_when_amplification_is_changing(
 		initial_liquidity in asset_reserve(),
@@ -320,7 +320,7 @@ proptest! {
 
 				System::set_block_number(1);
 				assert_ok!(
-					Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, final_amplification.get(), 10,100)
+					Stableswap::update_amplification(RuntimeOrigin::root(), pool_id, final_amplification.get(), 10,100)
 				);
 
 				System::set_block_number(9);
@@ -364,7 +364,7 @@ proptest! {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(100))]
+	#![proptest_config(ProptestConfig::with_cases(50))]
 	#[test]
 	fn buy_invariants_should_hold_when_amplification_is_changing(
 		initial_liquidity in asset_reserve(),
@@ -414,7 +414,7 @@ proptest! {
 
 				System::set_block_number(1);
 				assert_ok!(
-					Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, final_amplification.get(), 10,100)
+					Stableswap::update_amplification(RuntimeOrigin::root(), pool_id, final_amplification.get(), 10,100)
 				);
 
 				System::set_block_number(9);

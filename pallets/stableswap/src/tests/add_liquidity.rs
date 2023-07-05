@@ -25,7 +25,7 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			let amplification: u16 = 100;
 
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				amplification,
@@ -80,7 +80,7 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 			let amplification: u16 = 100;
 
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				amplification,

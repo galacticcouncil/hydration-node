@@ -20,7 +20,7 @@ fn update_amplification_should_work_when_correct_params_are_provided() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				100,
@@ -31,7 +31,7 @@ fn update_amplification_should_work_when_correct_params_are_provided() {
 			System::set_block_number(2);
 
 			assert_ok!(Stableswap::update_amplification(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				1000,
 				10,
@@ -67,7 +67,7 @@ fn update_amplification_should_fail_when_end_block_is_before_current_block() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				100,
@@ -78,7 +78,7 @@ fn update_amplification_should_fail_when_end_block_is_before_current_block() {
 			System::set_block_number(5000);
 
 			assert_noop!(
-				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 1000, 10, 1000),
+				Stableswap::update_amplification(RuntimeOrigin::root(), pool_id, 1000, 10, 1000),
 				Error::<Test>::PastBlock
 			);
 		});
@@ -98,7 +98,7 @@ fn update_amplification_should_fail_when_end_block_is_smaller_than_start_block()
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				100,
@@ -109,7 +109,7 @@ fn update_amplification_should_fail_when_end_block_is_smaller_than_start_block()
 			System::set_block_number(5000);
 
 			assert_noop!(
-				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 1000, 20_000, 10_000),
+				Stableswap::update_amplification(RuntimeOrigin::root(), pool_id, 1000, 20_000, 10_000),
 				Error::<Test>::PastBlock
 			);
 		});
@@ -129,7 +129,7 @@ fn update_amplification_should_fail_when_start_block_before_current_block() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				100,
@@ -140,7 +140,7 @@ fn update_amplification_should_fail_when_start_block_before_current_block() {
 			System::set_block_number(5000);
 
 			assert_noop!(
-				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 1000, 4000, 10_000),
+				Stableswap::update_amplification(RuntimeOrigin::root(), pool_id, 1000, 4000, 10_000),
 				Error::<Test>::PastBlock
 			);
 		});
@@ -160,7 +160,7 @@ fn update_amplification_should_work_when_current_change_is_in_progress() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				100,
@@ -171,7 +171,7 @@ fn update_amplification_should_work_when_current_change_is_in_progress() {
 			System::set_block_number(1);
 
 			assert_ok!(Stableswap::update_amplification(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				1000,
 				10,
@@ -193,7 +193,7 @@ fn update_amplification_should_work_when_current_change_is_in_progress() {
 			System::set_block_number(500);
 
 			assert_ok!(Stableswap::update_amplification(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				5000,
 				501,
@@ -229,7 +229,7 @@ fn update_amplification_should_fail_when_new_value_is_same_as_previous_one() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				100,
@@ -240,7 +240,7 @@ fn update_amplification_should_fail_when_new_value_is_same_as_previous_one() {
 			System::set_block_number(5000);
 
 			assert_noop!(
-				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 100, 5000, 10_000),
+				Stableswap::update_amplification(RuntimeOrigin::root(), pool_id, 100, 5000, 10_000),
 				Error::<Test>::SameAmplification,
 			);
 		});
@@ -260,7 +260,7 @@ fn update_amplification_should_fail_when_new_value_is_zero_or_outside_allowed_ra
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				100,
@@ -271,17 +271,17 @@ fn update_amplification_should_fail_when_new_value_is_zero_or_outside_allowed_ra
 			System::set_block_number(5000);
 
 			assert_noop!(
-				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 0, 5000, 10_000),
+				Stableswap::update_amplification(RuntimeOrigin::root(), pool_id, 0, 5000, 10_000),
 				Error::<Test>::InvalidAmplification,
 			);
 
 			assert_noop!(
-				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 1, 5000, 10_000),
+				Stableswap::update_amplification(RuntimeOrigin::root(), pool_id, 1, 5000, 10_000),
 				Error::<Test>::InvalidAmplification,
 			);
 
 			assert_noop!(
-				Stableswap::update_amplification(RuntimeOrigin::signed(ALICE), pool_id, 20_000, 5000, 10_000),
+				Stableswap::update_amplification(RuntimeOrigin::root(), pool_id, 20_000, 5000, 10_000),
 				Error::<Test>::InvalidAmplification,
 			);
 		});
@@ -301,7 +301,7 @@ fn amplification_should_change_when_block_changes() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				2000,
@@ -311,7 +311,7 @@ fn amplification_should_change_when_block_changes() {
 
 			System::set_block_number(1);
 			assert_ok!(Stableswap::update_amplification(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				5000,
 				10,

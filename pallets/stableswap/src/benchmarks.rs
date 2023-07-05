@@ -23,7 +23,7 @@ use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::pallet_prelude::DispatchError;
 use frame_support::traits::EnsureOrigin;
-use frame_system::RawOrigin;
+use frame_system::{Pallet as System, RawOrigin};
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use sp_runtime::Permill;
@@ -222,7 +222,6 @@ benchmarks! {
 			withdraw_fee,
 		)?;
 
-		// Worst case is adding additional liquidity and not initial liquidity
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
 			initial,
@@ -234,6 +233,16 @@ benchmarks! {
 		T::Currency::update_balance(asset_in, &seller, amount_sell as i128)?;
 
 		let buy_min_amount = 1_000u128;
+
+		// Worst case is when amplification is changing
+		crate::Pallet::<T>::update_amplification(RawOrigin::Root.into(),
+			pool_id,
+			1000,
+			100u32.into(),
+			1000u32.into(),
+		)?;
+
+		System::<T>::set_block_number(500u32.into());
 
 	}: _(RawOrigin::Signed(seller.clone()), pool_id, asset_in, asset_out, amount_sell, buy_min_amount)
 	verify {
@@ -284,7 +293,6 @@ benchmarks! {
 			withdraw_fee,
 		)?;
 
-		// Worst case is adding additional liquidity and not initial liquidity
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
 			initial,
@@ -296,6 +304,16 @@ benchmarks! {
 
 		let amount_buy = 10_000_000_000_000u128;
 		let sell_max_limit = 20_000_000_000_000_000u128;
+
+		// Worst case is when amplification is changing
+		crate::Pallet::<T>::update_amplification(RawOrigin::Root.into(),
+			pool_id,
+			1000,
+			100u32.into(),
+			1000u32.into(),
+		)?;
+
+		System::<T>::set_block_number(500u32.into());
 
 	}: _(RawOrigin::Signed(buyer.clone()), pool_id, asset_out, asset_in, amount_buy, sell_max_limit)
 	verify {
@@ -350,8 +368,7 @@ benchmarks! {
 		assert_ne!(asset_tradability_old, asset_tradability_new);
 	}
 
-	/*
-	update_pool {
+	update_pool_fees{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let initial_liquidity = 1_000_000_000_000_000u128;
@@ -387,17 +404,70 @@ benchmarks! {
 			Permill::from_percent(1),
 		)?;
 
-		let amplification_new = Some(200_u16);
 		let trade_fee_new = Some(Permill::from_percent(50));
 		let withdraw_fee_new = Some(Permill::from_percent(40));
-	}: _<T::RuntimeOrigin>(successful_origin, pool_id, amplification_new, trade_fee_new, withdraw_fee_new)
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id, trade_fee_new, withdraw_fee_new)
 	verify {
 		let pool = crate::Pallet::<T>::pools(pool_id).unwrap();
-		assert_eq!(pool.initial_amplification, amplification_new.unwrap());
 		assert_eq!(pool.trade_fee, trade_fee_new.unwrap());
 		assert_eq!(pool.withdraw_fee, withdraw_fee_new.unwrap());
 	}
-	 */
+
+	update_amplification{
+		let caller: T::AccountId = account("caller", 0, 1);
+		let lp_provider: T::AccountId = account("provider", 0, 1);
+		let initial_liquidity = 1_000_000_000_000_000u128;
+		let liquidity_added = 300_000_000_000_000u128;
+
+		let mut initial: Vec<AssetLiquidity<T::AssetId>> = vec![];
+		let mut added_liquidity: Vec<AssetLiquidity<T::AssetId>> = vec![];
+
+		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
+		for idx in 0..MAX_ASSETS_IN_POOL {
+			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
+			let asset_id = T::AssetRegistry::create_asset(&name, 1u128)?;
+			asset_ids.push(asset_id);
+			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
+			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
+			initial.push(AssetLiquidity{
+				asset_id,
+				amount: initial_liquidity
+			});
+			added_liquidity.push(AssetLiquidity{
+				asset_id,
+				amount: liquidity_added
+			});
+		}
+		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
+
+		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
+		crate::Pallet::<T>::create_pool(successful_origin.clone(),
+			pool_id,
+			asset_ids,
+			100u16,
+			Permill::from_percent(1),
+			Permill::from_percent(1),
+		)?;
+
+		// Worst case is when amplification is changing
+		crate::Pallet::<T>::update_amplification(RawOrigin::Root.into(),
+			pool_id,
+			1000,
+			100u32.into(),
+			1000u32.into(),
+		)?;
+
+		System::<T>::set_block_number(500u32.into());
+
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id, 5000, 501u32.into(), 1000u32.into())
+	verify {
+		let pool = crate::Pallet::<T>::pools(pool_id).unwrap();
+
+		assert_eq!(pool.initial_amplification, NonZeroU16::new(500).unwrap());
+		assert_eq!(pool.final_amplification, NonZeroU16::new(5000).unwrap());
+		assert_eq!(pool.initial_block, 501u32.into());
+		assert_eq!(pool.final_block, 1000u32.into());
+	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);
 }

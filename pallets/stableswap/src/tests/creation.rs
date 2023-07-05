@@ -20,7 +20,7 @@ fn create_two_asset_pool_should_work_when_assets_are_registered() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				100,
@@ -61,7 +61,7 @@ fn create_multi_asset_pool_should_work_when_assets_are_registered() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b, asset_c, asset_d],
 				100,
@@ -92,7 +92,7 @@ fn create_pool_should_store_assets_correctly_when_input_is_not_sorted() {
 			let amplification = 100u16;
 
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_c, asset_d, asset_b, asset_a],
 				amplification,
@@ -127,7 +127,7 @@ fn create_pool_should_fail_when_same_assets_is_specified() {
 
 			assert_noop!(
 				Stableswap::create_pool(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::root(),
 					pool_id,
 					vec![asset_a, 3, 4, asset_a],
 					amplification,
@@ -148,7 +148,7 @@ fn create_pool_should_fail_when_share_asset_is_not_registered() {
 
 		assert_noop!(
 			Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, 3, 4],
 				amplification,
@@ -172,7 +172,7 @@ fn create_pool_should_fail_when_share_asset_is_among_assets() {
 
 			assert_noop!(
 				Stableswap::create_pool(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::root(),
 					pool_id,
 					vec![asset_a, pool_id],
 					amplification,
@@ -198,7 +198,7 @@ fn create_pool_should_fail_when_asset_is_not_registered() {
 
 			assert_noop!(
 				Stableswap::create_pool(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::root(),
 					pool_id,
 					vec![not_registered, registered],
 					amplification,
@@ -210,7 +210,7 @@ fn create_pool_should_fail_when_asset_is_not_registered() {
 
 			assert_noop!(
 				Stableswap::create_pool(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::root(),
 					pool_id,
 					vec![registered, not_registered],
 					amplification,
@@ -237,7 +237,7 @@ fn create_pool_should_when_same_pool_already_exists() {
 			let amplification = 100u16;
 
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				amplification,
@@ -247,7 +247,7 @@ fn create_pool_should_when_same_pool_already_exists() {
 
 			assert_noop!(
 				Stableswap::create_pool(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::root(),
 					pool_id,
 					vec![asset_a, asset_b],
 					amplification,
@@ -276,7 +276,7 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 
 			assert_noop!(
 				Stableswap::create_pool(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::root(),
 					pool_id,
 					vec![asset_a, asset_b],
 					0,
@@ -288,7 +288,7 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 
 			assert_noop!(
 				Stableswap::create_pool(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::root(),
 					pool_id,
 					vec![asset_a, asset_b],
 					amplification_min,
@@ -300,7 +300,7 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 
 			assert_noop!(
 				Stableswap::create_pool(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::root(),
 					pool_id,
 					vec![asset_a, asset_b],
 					amplification_max,

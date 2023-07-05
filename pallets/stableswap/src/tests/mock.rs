@@ -34,7 +34,7 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
-use frame_system::EnsureSigned;
+use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
 pub use orml_traits::MultiCurrency;
 use sp_core::H256;
@@ -145,7 +145,7 @@ impl Config for Test {
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
 	type AssetRegistry = DummyRegistry<Test>;
-	type AuthorityOrigin = EnsureSigned<AccountId>;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type MinPoolLiquidity = MinimumLiquidity;
 	type AmplificationRange = AmplificationRange;
 	type MinTradingLimit = MinimumTradingLimit;
@@ -235,7 +235,7 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
-			for (who, pool, initial_liquid) in self.created_pools {
+			for (_who, pool, initial_liquid) in self.created_pools {
 				let pool_id = retrieve_current_asset_id();
 				REGISTERED_ASSETS.with(|v| {
 					v.borrow_mut().insert(pool_id, pool_id);
@@ -245,7 +245,7 @@ impl ExtBuilder {
 				});
 
 				assert_ok!(Stableswap::create_pool(
-					RuntimeOrigin::signed(who),
+					RuntimeOrigin::root(),
 					pool_id,
 					pool.assets.clone().into(),
 					pool.initial_amplification.get(),
