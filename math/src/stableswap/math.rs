@@ -251,8 +251,14 @@ pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
 pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance) -> Option<Balance> {
 	let two_u256 = to_u256!(2_u128);
 
-	//let mut xp_hp: [U256; 2] = [to_u256!(xp[0]), to_u256!(xp[1])];
+	// Filter out zero balance assets, and return error if there is one.
+	// Either all assets are zero balance, or none are zero balance.
+	// Otherwise, it breaks the math.
 	let mut xp_hp: Vec<U256> = xp.iter().filter(|v| !(*v).is_zero()).map(|v| to_u256!(*v)).collect();
+	if xp_hp.len() != xp.len() && xp_hp.len() > 0 {
+		return None;
+	}
+
 	xp_hp.sort();
 
 	let ann = calculate_ann(xp_hp.len(), amplification)?;
@@ -307,7 +313,13 @@ pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance) -> Optio
 }
 
 pub(crate) fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification: Balance) -> Option<Balance> {
+	// Filter out zero balance assets, and return error if there is one.
+	// Either all assets are zero balance, or none are zero balance.
+	// Otherwise, it breaks the math.
 	let mut xp_hp: Vec<U256> = xp.iter().filter(|v| !(*v).is_zero()).map(|v| to_u256!(*v)).collect();
+	if xp_hp.len() != xp.len() && xp_hp.len() > 0 {
+		return None;
+	}
 	xp_hp.sort();
 
 	let ann = calculate_ann(xp_hp.len().checked_add(1)?, amplification)?;
