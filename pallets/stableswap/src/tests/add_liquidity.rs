@@ -468,3 +468,66 @@ fn add_liquidity_should_fail_when_providing_one_asset_not_in_pool() {
 			);
 		});
 }
+
+#[test]
+fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, 1, 200 * ONE),
+			(BOB, 2, 200 * ONE),
+			(ALICE, 1, 200 * ONE),
+			(ALICE, 2, 200 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				trade_fee: Permill::from_percent(0),
+				withdraw_fee: Permill::from_percent(0),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetLiquidity {
+						asset_id: asset_a,
+						amount: 100 * ONE,
+					},
+					AssetLiquidity {
+						asset_id: asset_b,
+						amount: 100 * ONE,
+					},
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+			let amount_added = 100 * ONE;
+			assert_noop!(
+				Stableswap::add_liquidity(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					vec![
+						AssetLiquidity {
+							asset_id: asset_a,
+							amount: amount_added
+						},
+						AssetLiquidity {
+							asset_id: asset_a,
+							amount: amount_added
+						}
+					]
+				),
+				Error::<Test>::SameAssets
+			);
+		});
+}
