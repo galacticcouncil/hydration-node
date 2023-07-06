@@ -420,7 +420,7 @@ pub mod pallet {
 
 			let current_block = T::BlockNumberProvider::current_block_number();
 			ensure!(
-				end_block > start_block && end_block > current_block && start_block >= current_block,
+				end_block > start_block && start_block >= current_block,
 				Error::<T>::PastBlock
 			);
 
