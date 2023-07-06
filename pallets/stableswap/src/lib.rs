@@ -58,7 +58,7 @@ pub mod weights;
 
 pub use trade_execution::*;
 
-use crate::types::{AssetLiquidity, Balance, PoolInfo, Tradability};
+use crate::types::{AssetBalance, Balance, PoolInfo, Tradability};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
@@ -179,15 +179,14 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			who: T::AccountId,
 			shares: Balance,
-			assets: Vec<AssetLiquidity<T::AssetId>>,
+			assets: Vec<AssetBalance<T::AssetId>>,
 		},
 		/// Liquidity removed.
 		LiquidityRemoved {
 			pool_id: T::AssetId,
 			who: T::AccountId,
 			shares: Balance,
-			asset: T::AssetId,
-			amount: Balance,
+			amounts: Vec<AssetBalance<T::AssetId>>,
 			fee: Balance,
 		},
 		/// Sell trade executed. Trade fee paid in asset leaving the pool (already subtracted from amount_out).
@@ -305,6 +304,9 @@ pub mod pallet {
 
 		/// New amplification is equal to the previous value.
 		SameAmplification,
+
+		/// Desired amount not reached.
+		MinimumAmountNotReached,
 	}
 
 	#[pallet::call]
@@ -483,7 +485,7 @@ pub mod pallet {
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
-			assets: Vec<AssetLiquidity<T::AssetId>>,
+			assets: Vec<AssetBalance<T::AssetId>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -512,9 +514,87 @@ pub mod pallet {
 		/// - `pool_id`: Pool Id
 		/// - `asset_id`: id of asset to receive
 		/// - 'share_amount': amount of shares to withdraw
+		/// - 'min_amount_out': minimum amount to receive
 		///
 		/// Emits `LiquidityRemoved` event when successful.
 		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset())]
+		#[transactional]
+		pub fn remove_liquidity(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			share_amount: Balance,
+			min_amount_out: Vec<AssetBalance<T::AssetId>>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(share_amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
+			let current_share_balance = T::Currency::free_balance(pool_id, &who);
+			ensure!(current_share_balance >= share_amount, Error::<T>::InsufficientShares);
+			ensure!(
+				current_share_balance == share_amount
+					|| current_share_balance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
+				Error::<T>::InsufficientShareBalance
+			);
+
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			let pool_account = Self::pool_account(pool_id);
+			let balances = pool.balances::<T>(&pool_account);
+			let share_issuance = T::Currency::total_issuance(pool_id);
+
+			ensure!(
+				share_issuance == share_amount
+					|| share_issuance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
+				Error::<T>::InsufficientLiquidityRemaining
+			);
+
+			let amounts =
+				hydra_dx_math::stableswap::calculate_withdraw_liquidity(&balances, share_amount, share_issuance)
+					.ok_or(ArithmeticError::Overflow)?;
+
+			let mut min_amounts = min_amount_out.clone();
+			min_amounts.sort_by_key(|v| v.asset_id);
+			for (idx, asset_id) in pool.assets.into_iter().enumerate() {
+				ensure!(
+					Self::is_asset_allowed(pool_id, asset_id, Tradability::REMOVE_LIQUIDITY),
+					Error::<T>::NotAllowed
+				);
+				let min_amount = min_amounts.get_mut(idx).ok_or(Error::<T>::IncorrectAssets)?;
+				ensure!(min_amount.asset_id == asset_id, Error::<T>::IncorrectAssets);
+				ensure!(amounts[idx] >= min_amount.amount, Error::<T>::MinimumAmountNotReached);
+				T::Currency::transfer(asset_id, &pool_account, &who, amounts[idx])?;
+				min_amount.amount = amounts[idx];
+			}
+			T::Currency::withdraw(pool_id, &who, share_amount)?;
+
+			Self::deposit_event(Event::LiquidityRemoved {
+				pool_id,
+				who,
+				shares: share_amount,
+				amounts: min_amounts,
+				fee: 0,
+			});
+
+			Ok(())
+		}
+
+		/// Remove liquidity from selected pool.
+		///
+		/// Withdraws liquidity of selected asset from a pool.
+		///
+		/// Share amount is burn and LP receives corresponding amount of chosen asset.
+		///
+		/// Withdraw fee is applied to the asset amount.
+		///
+		/// Parameters:
+		/// - `origin`: liquidity provider
+		/// - `pool_id`: Pool Id
+		/// - `asset_id`: id of asset to receive
+		/// - 'share_amount': amount of shares to withdraw
+		/// - 'min_amount_out': minimum amount to receive
+		///
+		/// Emits `LiquidityRemoved` event when successful.
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset())]
 		#[transactional]
 		pub fn remove_liquidity_one_asset(
@@ -522,6 +602,7 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			asset_id: T::AssetId,
 			share_amount: Balance,
+			min_amount_out: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -565,6 +646,8 @@ pub mod pallet {
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
+			ensure!(amount >= min_amount_out, Error::<T>::MinimumAmountNotReached);
+
 			T::Currency::withdraw(pool_id, &who, share_amount)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
@@ -572,8 +655,10 @@ pub mod pallet {
 				pool_id,
 				who,
 				shares: share_amount,
-				asset: asset_id,
-				amount,
+				amounts: vec![AssetBalance {
+					asset_id: asset_id,
+					amount,
+				}],
 				fee,
 			});
 
@@ -592,7 +677,7 @@ pub mod pallet {
 		///
 		/// Emits `SellExecuted` event when successful.
 		///
-		#[pallet::call_index(5)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		#[transactional]
 		pub fn sell(
@@ -655,7 +740,7 @@ pub mod pallet {
 		///
 		/// Emits `BuyExecuted` event when successful.
 		///
-		#[pallet::call_index(6)]
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		#[transactional]
 		pub fn buy(
@@ -706,7 +791,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(7)]
+		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
 		#[transactional]
 		pub fn set_asset_tradable_state(
@@ -845,7 +930,7 @@ impl<T: Config> Pallet<T> {
 	fn do_add_liquidity(
 		who: &T::AccountId,
 		pool_id: T::AssetId,
-		assets: &[AssetLiquidity<T::AssetId>],
+		assets: &[AssetBalance<T::AssetId>],
 	) -> Result<Balance, DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);
