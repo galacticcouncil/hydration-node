@@ -1,6 +1,7 @@
 use crate::tests::mock::*;
 use crate::types::{AssetLiquidity, PoolInfo};
 use crate::{assert_balance, Error};
+use std::num::NonZeroU16;
 
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::Permill;
@@ -15,9 +16,12 @@ fn sell_should_work_when_correct_input_provided() {
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -69,9 +73,12 @@ fn buy_should_work_when_correct_input_provided() {
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -124,9 +131,12 @@ fn sell_with_fee_should_work_when_correct_input_provided() {
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(10),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -182,9 +192,12 @@ fn sell_should_work_when_fee_is_small() {
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_rational(3u32, 1000u32),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -240,9 +253,12 @@ fn buy_should_work_when_fee_is_set() {
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(10),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -303,9 +319,12 @@ fn sell_should_fail_when_insufficient_amount_is_provided() {
 		.with_registered_asset("two".as_bytes().to_vec(), 2000)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -393,9 +412,12 @@ fn buy_should_fail_when_insufficient_amount_is_provided() {
 		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},

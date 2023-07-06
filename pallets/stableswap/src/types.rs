@@ -1,6 +1,10 @@
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
 use crate::{Config, MAX_ASSETS_IN_POOL};
 use sp_runtime::Permill;
 use sp_std::collections::btree_set::BTreeSet;
+use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
@@ -16,10 +20,14 @@ pub(crate) type Balance = u128;
 /// `assets`: pool assets
 /// `amplification`: amp parameter
 /// `fee`: trade fee to be withdrawn on sell/buy
-#[derive(Clone, PartialEq, Eq, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
-pub struct PoolInfo<AssetId> {
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct PoolInfo<AssetId, BlockNumber> {
 	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
-	pub amplification: u16,
+	pub initial_amplification: NonZeroU16,
+	pub final_amplification: NonZeroU16,
+	pub initial_block: BlockNumber,
+	pub final_block: BlockNumber,
 	pub trade_fee: Permill,
 	pub withdraw_fee: Permill,
 }
@@ -33,7 +41,7 @@ where
 	iter.all(move |x| uniq.insert(x))
 }
 
-impl<AssetId> PoolInfo<AssetId>
+impl<AssetId, Blocknumber> PoolInfo<AssetId, Blocknumber>
 where
 	AssetId: Ord + Copy,
 {

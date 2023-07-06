@@ -46,12 +46,13 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_stableswap.
 pub trait WeightInfo {
 	fn create_pool() -> Weight;
-	fn update_pool() -> Weight;
 	fn add_liquidity() -> Weight;
 	fn remove_liquidity_one_asset() -> Weight;
 	fn sell() -> Weight;
 	fn buy() -> Weight;
 	fn set_asset_tradable_state() -> Weight;
+	fn update_pool_fees() -> Weight;
+	fn update_amplification() -> Weight;
 }
 
 pub struct BasiliskWeight<T>(PhantomData<T>);
@@ -61,10 +62,6 @@ impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
 		Weight::from_ref_time(69_401_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(13 as u64))
 			.saturating_add(T::DbWeight::get().writes(12 as u64))
-	}
-
-	fn update_pool() -> Weight {
-		Weight::from_ref_time(0u128 as u64)
 	}
 
 	fn add_liquidity() -> Weight {
@@ -87,8 +84,13 @@ impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(9 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
-
 	fn set_asset_tradable_state() -> Weight {
+		Weight::from_ref_time(0)
+	}
+	fn update_pool_fees() -> Weight {
+		Weight::from_ref_time(0)
+	}
+	fn update_amplification() -> Weight {
 		Weight::from_ref_time(0)
 	}
 }
@@ -99,9 +101,6 @@ impl WeightInfo for () {
 		Weight::from_ref_time(69_401_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(13 as u64))
 			.saturating_add(RocksDbWeight::get().writes(12 as u64))
-	}
-	fn update_pool() -> Weight {
-		Weight::from_ref_time(0u128 as u64)
 	}
 	fn add_liquidity() -> Weight {
 		Weight::from_ref_time(64_481_000 as u64)
@@ -125,6 +124,12 @@ impl WeightInfo for () {
 	}
 
 	fn set_asset_tradable_state() -> Weight {
+		Weight::from_ref_time(0)
+	}
+	fn update_pool_fees() -> Weight {
+		Weight::from_ref_time(0)
+	}
+	fn update_amplification() -> Weight {
 		Weight::from_ref_time(0)
 	}
 }
