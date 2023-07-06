@@ -358,3 +358,30 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 			);
 		});
 }
+
+#[test]
+fn create_pool_should_add_account_to_whilest() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::root(),
+				pool_id,
+				vec![asset_a, asset_b],
+				100,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			));
+
+			let pool_account = pool_account(pool_id);
+			assert!(DUSTER_WHITELIST.with(|v| v.borrow().contains(&pool_account)));
+		});
+}

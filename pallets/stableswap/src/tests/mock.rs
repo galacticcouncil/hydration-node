@@ -29,7 +29,7 @@ use crate as pallet_stableswap;
 use crate::Config;
 
 use frame_support::assert_ok;
-use frame_support::traits::{Everything, GenesisBuild};
+use frame_support::traits::{Contains, Everything, GenesisBuild};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -70,6 +70,7 @@ thread_local! {
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
 	pub static ASSET_IDENTS: RefCell<HashMap<Vec<u8>, u32>> = RefCell::new(HashMap::default());
 	pub static POOL_IDS: RefCell<Vec<AssetId>> = RefCell::new(Vec::new());
+	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
 }
 
 construct_runtime!(
@@ -139,6 +140,34 @@ parameter_types! {
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 }
 
+pub struct Whitelist;
+
+impl Contains<AccountId> for Whitelist {
+	fn contains(account: &AccountId) -> bool {
+		DUSTER_WHITELIST.with(|v| v.borrow().contains(account))
+	}
+}
+
+impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
+	type Error = DispatchError;
+
+	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
+		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
+		Ok(())
+	}
+
+	fn remove_account(account: &AccountId) -> Result<(), Self::Error> {
+		DUSTER_WHITELIST.with(|v| {
+			let mut v = v.borrow_mut();
+
+			let idx = v.iter().position(|x| *x == *account).unwrap();
+			v.remove(idx);
+
+			Ok(())
+		})
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -151,6 +180,7 @@ impl Config for Test {
 	type MinTradingLimit = MinimumTradingLimit;
 	type WeightInfo = ();
 	type BlockNumberProvider = System;
+	type DustAccountHandler = Whitelist;
 }
 
 pub struct InitialLiquidity {
@@ -271,6 +301,7 @@ impl ExtBuilder {
 }
 
 use crate::types::{AssetLiquidity, PoolInfo};
+use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{AccountIdFor, Registry, ShareTokenRegistry};
 use sp_runtime::traits::Zero;
 
