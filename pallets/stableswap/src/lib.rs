@@ -368,7 +368,7 @@ pub mod pallet {
 		///
 		/// Emits `FeesUpdated` event if successful.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_pool())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_pool_fees())]
 		#[transactional]
 		pub fn update_pool_fees(
 			origin: OriginFor<T>,
@@ -407,7 +407,7 @@ pub mod pallet {
 		///
 		/// Emits `AmplificationUpdated` event if successful.
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_pool())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_amplification())]
 		#[transactional]
 		pub fn update_amplification(
 			origin: OriginFor<T>,
@@ -420,7 +420,7 @@ pub mod pallet {
 
 			let current_block = T::BlockNumberProvider::current_block_number();
 			ensure!(
-				end_block > start_block && end_block > current_block && start_block >= current_block,
+				end_block > start_block && start_block >= current_block,
 				Error::<T>::PastBlock
 			);
 
