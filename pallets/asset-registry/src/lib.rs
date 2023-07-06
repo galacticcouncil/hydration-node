@@ -75,10 +75,16 @@ pub mod pallet {
 			+ TypeInfo;
 
 		/// Balance type
-		type Balance: Parameter + Member + AtLeast32BitUnsigned + Default + Copy + MaybeSerializeDeserialize;
+		type Balance: Parameter
+			+ Member
+			+ AtLeast32BitUnsigned
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen;
 
 		/// Asset location type
-		type AssetNativeLocation: Parameter + Member + Default;
+		type AssetNativeLocation: Parameter + Member + Default + MaxEncodedLen;
 
 		/// The maximum length of a name or symbol stored on-chain.
 		type StringLimit: Get<u32>;
@@ -95,7 +101,6 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
