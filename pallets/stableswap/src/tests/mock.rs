@@ -22,6 +22,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use core::ops::RangeInclusive;
+use std::num::NonZeroU16;
 
 use crate as pallet_stableswap;
 
@@ -33,7 +34,7 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
-use frame_system::EnsureSigned;
+use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
 pub use orml_traits::MultiCurrency;
 use sp_core::H256;
@@ -135,7 +136,7 @@ parameter_types! {
 	pub const DAIAssetId: AssetId = DAI;
 	pub const MinimumLiquidity: Balance = 1000;
 	pub const MinimumTradingLimit: Balance = 1000;
-	pub const AmplificationRange: RangeInclusive<u16> = RangeInclusive::new(2, 10_000);
+	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 }
 
 impl Config for Test {
@@ -144,11 +145,12 @@ impl Config for Test {
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
 	type AssetRegistry = DummyRegistry<Test>;
-	type AuthorityOrigin = EnsureSigned<AccountId>;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type MinPoolLiquidity = MinimumLiquidity;
 	type AmplificationRange = AmplificationRange;
 	type MinTradingLimit = MinimumTradingLimit;
 	type WeightInfo = ();
+	type BlockNumberProvider = System;
 }
 
 pub struct InitialLiquidity {
@@ -159,7 +161,7 @@ pub struct InitialLiquidity {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<(Vec<u8>, AssetId)>,
-	created_pools: Vec<(AccountId, PoolInfo<AssetId>, InitialLiquidity)>,
+	created_pools: Vec<(AccountId, PoolInfo<AssetId, u64>, InitialLiquidity)>,
 }
 
 impl Default for ExtBuilder {
@@ -195,7 +197,12 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_pool(mut self, who: AccountId, pool: PoolInfo<AssetId>, initial_liquidity: InitialLiquidity) -> Self {
+	pub fn with_pool(
+		mut self,
+		who: AccountId,
+		pool: PoolInfo<AssetId, u64>,
+		initial_liquidity: InitialLiquidity,
+	) -> Self {
 		self.created_pools.push((who, pool, initial_liquidity));
 		self
 	}
@@ -228,7 +235,7 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
-			for (who, pool, initial_liquid) in self.created_pools {
+			for (_who, pool, initial_liquid) in self.created_pools {
 				let pool_id = retrieve_current_asset_id();
 				REGISTERED_ASSETS.with(|v| {
 					v.borrow_mut().insert(pool_id, pool_id);
@@ -238,10 +245,10 @@ impl ExtBuilder {
 				});
 
 				assert_ok!(Stableswap::create_pool(
-					RuntimeOrigin::signed(who),
+					RuntimeOrigin::root(),
 					pool_id,
 					pool.assets.clone().into(),
-					pool.amplification,
+					pool.initial_amplification.get(),
 					pool.trade_fee,
 					pool.withdraw_fee,
 				));

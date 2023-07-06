@@ -3,6 +3,7 @@ use crate::types::{AssetLiquidity, PoolInfo};
 use crate::{assert_balance, Error};
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::Permill;
+use std::num::NonZeroU16;
 
 #[test]
 fn add_initial_liquidity_should_work_when_called_first_time() {
@@ -24,7 +25,7 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			let amplification: u16 = 100;
 
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				amplification,
@@ -79,7 +80,7 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 			let amplification: u16 = 100;
 
 			assert_ok!(Stableswap::create_pool(
-				RuntimeOrigin::signed(ALICE),
+				RuntimeOrigin::root(),
 				pool_id,
 				vec![asset_a, asset_b],
 				amplification,
@@ -132,9 +133,12 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -199,9 +203,12 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -266,9 +273,12 @@ fn add_liquidity_should_fail_when_providing_insufficient_liquidity() {
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -332,9 +342,12 @@ fn add_liquidity_should_work_when_providing_one_asset_only() {
 		.with_registered_asset("four".as_bytes().to_vec(), asset_d)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b, asset_c, asset_d].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
@@ -400,9 +413,12 @@ fn add_liquidity_should_fail_when_providing_one_asset_not_in_pool() {
 		.with_registered_asset("five".as_bytes().to_vec(), asset_e)
 		.with_pool(
 			ALICE,
-			PoolInfo::<AssetId> {
+			PoolInfo::<AssetId, u64> {
 				assets: vec![asset_a, asset_b, asset_c, asset_d].try_into().unwrap(),
-				amplification: 100u16,
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
 				trade_fee: Permill::from_percent(0),
 				withdraw_fee: Permill::from_percent(0),
 			},
