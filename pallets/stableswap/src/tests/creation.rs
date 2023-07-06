@@ -134,7 +134,54 @@ fn create_pool_should_fail_when_same_assets_is_specified() {
 					Permill::from_percent(0),
 					Permill::from_percent(0),
 				),
-				Error::<Test>::SameAssets
+				Error::<Test>::IncorrectAssets
+			);
+		});
+}
+
+#[test]
+fn create_pool_should_fail_when_same_assets_is_empty() {
+	let pool_id: AssetId = 100;
+	ExtBuilder::default()
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.build()
+		.execute_with(|| {
+			let amplification = 100u16;
+
+			assert_noop!(
+				Stableswap::create_pool(
+					RuntimeOrigin::root(),
+					pool_id,
+					vec![],
+					amplification,
+					Permill::from_percent(0),
+					Permill::from_percent(0),
+				),
+				Error::<Test>::IncorrectAssets
+			);
+		});
+}
+
+#[test]
+fn create_pool_should_fail_when_single_asset_is_provided() {
+	let pool_id: AssetId = 100;
+	ExtBuilder::default()
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.build()
+		.execute_with(|| {
+			let asset_a: AssetId = 1;
+			let amplification = 100u16;
+
+			assert_noop!(
+				Stableswap::create_pool(
+					RuntimeOrigin::root(),
+					pool_id,
+					vec![asset_a],
+					amplification,
+					Permill::from_percent(0),
+					Permill::from_percent(0),
+				),
+				Error::<Test>::IncorrectAssets
 			);
 		});
 }
@@ -223,7 +270,7 @@ fn create_pool_should_fail_when_asset_is_not_registered() {
 }
 
 #[test]
-fn create_pool_should_when_same_pool_already_exists() {
+fn create_pool_should_fail_when_same_share_asset_pool_already_exists() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id: AssetId = 100;

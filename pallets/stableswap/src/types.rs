@@ -50,7 +50,7 @@ where
 	}
 
 	pub(crate) fn is_valid(&self) -> bool {
-		has_unique_elements(&mut self.assets.iter())
+		self.assets.len() >= 2 && has_unique_elements(&mut self.assets.iter())
 	}
 
 	pub fn balances<T: Config>(&self, account: &T::AccountId) -> Vec<Balance>
