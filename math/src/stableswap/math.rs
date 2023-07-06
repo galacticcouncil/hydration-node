@@ -255,7 +255,7 @@ pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance) -> Optio
 	// Either all assets are zero balance, or none are zero balance.
 	// Otherwise, it breaks the math.
 	let mut xp_hp: Vec<U256> = xp.iter().filter(|v| !(*v).is_zero()).map(|v| to_u256!(*v)).collect();
-	if xp_hp.len() != xp.len() && xp_hp.len() > 0 {
+	if xp_hp.len() != xp.len() && !xp_hp.is_empty() {
 		return None;
 	}
 
@@ -317,7 +317,7 @@ pub(crate) fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification
 	// Either all assets are zero balance, or none are zero balance.
 	// Otherwise, it breaks the math.
 	let mut xp_hp: Vec<U256> = xp.iter().filter(|v| !(*v).is_zero()).map(|v| to_u256!(*v)).collect();
-	if xp_hp.len() != xp.len() && xp_hp.len() > 0 {
+	if xp_hp.len() != xp.len() && !xp_hp.is_empty() {
 		return None;
 	}
 	xp_hp.sort();
