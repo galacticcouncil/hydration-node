@@ -168,7 +168,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 			reserve.checked_mul(d1)?.checked_div(d_hp)?.checked_sub(y_hp)?
 		} else {
 			// dx_expected = xp[j] - xp[j] * d1 / d0
-			reserve.checked_sub(xp_hp[idx].checked_mul(d1)?.checked_div(d_hp)?)?
+			reserve.checked_sub(reserve.checked_mul(d1)?.checked_div(d_hp)?)?
 		};
 
 		let expected = Balance::try_from(dx_expected).ok()?;
