@@ -58,7 +58,7 @@ pub mod weights;
 
 pub use trade_execution::*;
 
-use crate::types::{AssetLiquidity, Balance, PoolInfo, Tradability};
+use crate::types::{AssetBalance, Balance, PoolInfo, Tradability};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
@@ -179,15 +179,14 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			who: T::AccountId,
 			shares: Balance,
-			assets: Vec<AssetLiquidity<T::AssetId>>,
+			assets: Vec<AssetBalance<T::AssetId>>,
 		},
 		/// Liquidity removed.
 		LiquidityRemoved {
 			pool_id: T::AssetId,
 			who: T::AccountId,
 			shares: Balance,
-			asset: T::AssetId,
-			amount: Balance,
+			amounts: Vec<AssetBalance<T::AssetId>>,
 			fee: Balance,
 		},
 		/// Sell trade executed. Trade fee paid in asset leaving the pool (already subtracted from amount_out).
@@ -305,6 +304,9 @@ pub mod pallet {
 
 		/// New amplification is equal to the previous value.
 		SameAmplification,
+
+		/// Desired amount not reached.
+		MinimumAmountNotReached,
 	}
 
 	#[pallet::call]
@@ -483,7 +485,7 @@ pub mod pallet {
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
-			assets: Vec<AssetLiquidity<T::AssetId>>,
+			assets: Vec<AssetBalance<T::AssetId>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -512,6 +514,7 @@ pub mod pallet {
 		/// - `pool_id`: Pool Id
 		/// - `asset_id`: id of asset to receive
 		/// - 'share_amount': amount of shares to withdraw
+		/// - 'min_amount_out': minimum amount to receive
 		///
 		/// Emits `LiquidityRemoved` event when successful.
 		#[pallet::call_index(4)]
@@ -522,6 +525,7 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			asset_id: T::AssetId,
 			share_amount: Balance,
+			min_amount_out: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -565,6 +569,8 @@ pub mod pallet {
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
+			ensure!(amount >= min_amount_out, Error::<T>::MinimumAmountNotReached);
+
 			T::Currency::withdraw(pool_id, &who, share_amount)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
@@ -572,8 +578,7 @@ pub mod pallet {
 				pool_id,
 				who,
 				shares: share_amount,
-				asset: asset_id,
-				amount,
+				amounts: vec![AssetBalance { asset_id, amount }],
 				fee,
 			});
 
@@ -848,7 +853,7 @@ impl<T: Config> Pallet<T> {
 	fn do_add_liquidity(
 		who: &T::AccountId,
 		pool_id: T::AssetId,
-		assets: &[AssetLiquidity<T::AssetId>],
+		assets: &[AssetBalance<T::AssetId>],
 	) -> Result<Balance, DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);

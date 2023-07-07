@@ -65,7 +65,7 @@ where
 }
 
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo)]
-pub struct AssetLiquidity<AssetId> {
+pub struct AssetBalance<AssetId> {
 	pub asset_id: AssetId,
 	pub amount: Balance,
 }

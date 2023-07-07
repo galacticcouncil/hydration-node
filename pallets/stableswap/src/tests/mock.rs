@@ -185,7 +185,7 @@ impl Config for Test {
 
 pub struct InitialLiquidity {
 	pub(crate) account: AccountId,
-	pub(crate) assets: Vec<AssetLiquidity<AssetId>>,
+	pub(crate) assets: Vec<AssetBalance<AssetId>>,
 }
 
 pub struct ExtBuilder {
@@ -300,7 +300,7 @@ impl ExtBuilder {
 	}
 }
 
-use crate::types::{AssetLiquidity, PoolInfo};
+use crate::types::{AssetBalance, PoolInfo};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{AccountIdFor, Registry, ShareTokenRegistry};
 use sp_runtime::traits::Zero;

@@ -30,7 +30,7 @@ use sp_runtime::Permill;
 
 use hydradx_traits::Registry;
 
-use crate::types::{AssetLiquidity, Balance};
+use crate::types::{AssetBalance, Balance};
 
 // Stable benchmarks
 // Worst case scenarios in any stableswap calculations are scenarios where "math" does max number of iterations.
@@ -71,8 +71,8 @@ benchmarks! {
 		let initial_liquidity = 1_000_000_000_000_000u128;
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let mut initial: Vec<AssetLiquidity<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetLiquidity<T::AssetId>> = vec![];
+		let mut initial: Vec<AssetBalance<T::AssetId>> = vec![];
+		let mut added_liquidity: Vec<AssetBalance<T::AssetId>> = vec![];
 
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
@@ -81,11 +81,11 @@ benchmarks! {
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
-			initial.push(AssetLiquidity{
+			initial.push(AssetBalance{
 				asset_id,
 				amount: initial_liquidity
 			});
-			added_liquidity.push(AssetLiquidity{
+			added_liquidity.push(AssetBalance{
 				asset_id,
 				amount: liquidity_added
 			});
@@ -121,8 +121,8 @@ benchmarks! {
 		let initial_liquidity = 1_000_000_000_000_000u128;
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let mut initial: Vec<AssetLiquidity<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetLiquidity<T::AssetId>> = vec![];
+		let mut initial: Vec<AssetBalance<T::AssetId>> = vec![];
+		let mut added_liquidity: Vec<AssetBalance<T::AssetId>> = vec![];
 
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
@@ -131,11 +131,11 @@ benchmarks! {
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetLiquidity{
+			initial.push(AssetBalance{
 				asset_id,
 				amount: initial_liquidity
 			});
-			added_liquidity.push(AssetLiquidity{
+			added_liquidity.push(AssetBalance{
 				asset_id,
 				amount: liquidity_added
 			});
@@ -173,7 +173,7 @@ benchmarks! {
 
 		let shares = T::Currency::free_balance(pool_id, &lp_provider);
 
-	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, asset_id_to_withdraw, shares)
+	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, asset_id_to_withdraw, shares, 0)
 	verify {
 		assert_eq!(T::Currency::free_balance(pool_id, &lp_provider), 0u128);
 		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &lp_provider), 1296846466078107);
@@ -185,8 +185,8 @@ benchmarks! {
 		let initial_liquidity = 1_000_000_000_000_000u128;
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let mut initial: Vec<AssetLiquidity<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetLiquidity<T::AssetId>> = vec![];
+		let mut initial: Vec<AssetBalance<T::AssetId>> = vec![];
+		let mut added_liquidity: Vec<AssetBalance<T::AssetId>> = vec![];
 
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
@@ -195,11 +195,11 @@ benchmarks! {
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
-			initial.push(AssetLiquidity{
+			initial.push(AssetBalance{
 				asset_id,
 				amount: initial_liquidity
 			});
-			added_liquidity.push(AssetLiquidity{
+			added_liquidity.push(AssetBalance{
 				asset_id,
 				amount: liquidity_added
 			});
@@ -256,8 +256,8 @@ benchmarks! {
 		let initial_liquidity = 1_000_000_000_000_000u128;
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let mut initial: Vec<AssetLiquidity<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetLiquidity<T::AssetId>> = vec![];
+		let mut initial: Vec<AssetBalance<T::AssetId>> = vec![];
+		let mut added_liquidity: Vec<AssetBalance<T::AssetId>> = vec![];
 
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
@@ -266,11 +266,11 @@ benchmarks! {
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
-			initial.push(AssetLiquidity{
+			initial.push(AssetBalance{
 				asset_id,
 				amount: initial_liquidity
 			});
-			added_liquidity.push(AssetLiquidity{
+			added_liquidity.push(AssetBalance{
 				asset_id,
 				amount: liquidity_added
 			});
@@ -326,8 +326,8 @@ benchmarks! {
 		let initial_liquidity = 1_000_000_000_000_000u128;
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let mut initial: Vec<AssetLiquidity<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetLiquidity<T::AssetId>> = vec![];
+		let mut initial: Vec<AssetBalance<T::AssetId>> = vec![];
+		let mut added_liquidity: Vec<AssetBalance<T::AssetId>> = vec![];
 
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
@@ -336,11 +336,11 @@ benchmarks! {
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
-			initial.push(AssetLiquidity{
+			initial.push(AssetBalance{
 				asset_id,
 				amount: initial_liquidity
 			});
-			added_liquidity.push(AssetLiquidity{
+			added_liquidity.push(AssetBalance{
 				asset_id,
 				amount: liquidity_added
 			});
@@ -374,8 +374,8 @@ benchmarks! {
 		let initial_liquidity = 1_000_000_000_000_000u128;
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let mut initial: Vec<AssetLiquidity<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetLiquidity<T::AssetId>> = vec![];
+		let mut initial: Vec<AssetBalance<T::AssetId>> = vec![];
+		let mut added_liquidity: Vec<AssetBalance<T::AssetId>> = vec![];
 
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
@@ -384,11 +384,11 @@ benchmarks! {
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
-			initial.push(AssetLiquidity{
+			initial.push(AssetBalance{
 				asset_id,
 				amount: initial_liquidity
 			});
-			added_liquidity.push(AssetLiquidity{
+			added_liquidity.push(AssetBalance{
 				asset_id,
 				amount: liquidity_added
 			});
@@ -419,8 +419,8 @@ benchmarks! {
 		let initial_liquidity = 1_000_000_000_000_000u128;
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let mut initial: Vec<AssetLiquidity<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetLiquidity<T::AssetId>> = vec![];
+		let mut initial: Vec<AssetBalance<T::AssetId>> = vec![];
+		let mut added_liquidity: Vec<AssetBalance<T::AssetId>> = vec![];
 
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
@@ -429,11 +429,11 @@ benchmarks! {
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
-			initial.push(AssetLiquidity{
+			initial.push(AssetBalance{
 				asset_id,
 				amount: initial_liquidity
 			});
-			added_liquidity.push(AssetLiquidity{
+			added_liquidity.push(AssetBalance{
 				asset_id,
 				amount: liquidity_added
 			});

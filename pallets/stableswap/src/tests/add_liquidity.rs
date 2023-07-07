@@ -1,5 +1,5 @@
 use crate::tests::mock::*;
-use crate::types::{AssetLiquidity, PoolInfo};
+use crate::types::{AssetBalance, PoolInfo};
 use crate::{assert_balance, Error};
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::Permill;
@@ -41,11 +41,11 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: initial_liquidity_amount
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: initial_liquidity_amount,
 					}
@@ -97,11 +97,11 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					vec![
-						AssetLiquidity {
+						AssetBalance {
 							asset_id: asset_a,
 							amount: initial_liquidity_amount
 						},
-						AssetLiquidity {
+						AssetBalance {
 							asset_id: asset_b,
 							amount: initial_liquidity_amount
 						}
@@ -145,11 +145,11 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -168,11 +168,11 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: amount_added
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: amount_added
 					}
@@ -215,11 +215,11 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -238,11 +238,11 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: amount_added
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: amount_added
 					}
@@ -285,11 +285,11 @@ fn add_liquidity_should_fail_when_providing_insufficient_liquidity() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -306,11 +306,11 @@ fn add_liquidity_should_fail_when_providing_insufficient_liquidity() {
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					vec![
-						AssetLiquidity {
+						AssetBalance {
 							asset_id: asset_a,
 							amount: amount_added
 						},
-						AssetLiquidity {
+						AssetBalance {
 							asset_id: asset_b,
 							amount: amount_added
 						}
@@ -354,19 +354,19 @@ fn add_liquidity_should_work_when_providing_one_asset_only() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 200 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_c,
 						amount: 300 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_d,
 						amount: 400 * ONE,
 					},
@@ -381,7 +381,7 @@ fn add_liquidity_should_work_when_providing_one_asset_only() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetLiquidity {
+				vec![AssetBalance {
 					asset_id: asset_a,
 					amount: amount_added
 				},]
@@ -425,19 +425,19 @@ fn add_liquidity_should_fail_when_providing_one_asset_not_in_pool() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 200 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_c,
 						amount: 300 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_d,
 						amount: 400 * ONE,
 					},
@@ -454,11 +454,11 @@ fn add_liquidity_should_fail_when_providing_one_asset_not_in_pool() {
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					vec![
-						AssetLiquidity {
+						AssetBalance {
 							asset_id: asset_a,
 							amount: amount_added
 						},
-						AssetLiquidity {
+						AssetBalance {
 							asset_id: asset_e,
 							amount: amount_added
 						},
@@ -497,11 +497,11 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -517,11 +517,11 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					vec![
-						AssetLiquidity {
+						AssetBalance {
 							asset_id: asset_a,
 							amount: amount_added
 						},
-						AssetLiquidity {
+						AssetBalance {
 							asset_id: asset_a,
 							amount: amount_added
 						}

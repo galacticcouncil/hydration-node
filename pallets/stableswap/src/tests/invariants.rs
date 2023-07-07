@@ -1,5 +1,5 @@
 use crate::tests::mock::*;
-use crate::types::{AssetLiquidity, PoolInfo};
+use crate::types::{AssetBalance, PoolInfo};
 use frame_support::assert_ok;
 use sp_runtime::{FixedU128, Permill};
 use std::num::NonZeroU16;
@@ -82,11 +82,11 @@ proptest! {
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	vec![
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_a,
 						amount: initial_liquidity
 					},
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_b,
 						amount: initial_liquidity
 					}]},
@@ -103,11 +103,11 @@ proptest! {
 				assert_ok!(Stableswap::add_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
-					vec![AssetLiquidity{
+					vec![AssetBalance{
 						asset_id: asset_a,
 						amount: added_liquidity
 					},
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_b,
 						amount: added_liquidity
 					}
@@ -159,11 +159,11 @@ proptest! {
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_a,
 						amount: initial_liquidity
 					},
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_b,
 						amount: initial_liquidity
 					}
@@ -230,11 +230,11 @@ proptest! {
 				},
 				InitialLiquidity{ account: ALICE,
 					assets:			vec![
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_a,
 						amount: initial_liquidity
 					},
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_b,
 						amount: initial_liquidity
 					}
@@ -302,11 +302,11 @@ proptest! {
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_a,
 						amount: initial_liquidity
 					},
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_b,
 						amount: initial_liquidity
 					}
@@ -396,11 +396,11 @@ proptest! {
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_a,
 						amount: initial_liquidity
 					},
-					AssetLiquidity{
+					AssetBalance{
 						asset_id: asset_b,
 						amount: initial_liquidity
 					}

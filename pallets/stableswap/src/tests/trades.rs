@@ -1,5 +1,5 @@
 use crate::tests::mock::*;
-use crate::types::{AssetLiquidity, PoolInfo};
+use crate::types::{AssetBalance, PoolInfo};
 use crate::{assert_balance, Error};
 use std::num::NonZeroU16;
 
@@ -28,11 +28,11 @@ fn sell_should_work_when_correct_input_provided() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -85,11 +85,11 @@ fn buy_should_work_when_correct_input_provided() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -143,11 +143,11 @@ fn sell_with_fee_should_work_when_correct_input_provided() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -204,11 +204,11 @@ fn sell_should_work_when_fee_is_small() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -265,11 +265,11 @@ fn buy_should_work_when_fee_is_set() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -331,11 +331,11 @@ fn sell_should_fail_when_insufficient_amount_is_provided() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -424,11 +424,11 @@ fn buy_should_fail_when_insufficient_amount_is_provided() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
