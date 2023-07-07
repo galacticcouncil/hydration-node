@@ -110,14 +110,6 @@ pub fn calculate_shares<const N: u8>(
 	}
 }
 
-pub fn calculate_withdraw_liquidity(
-	reserves: &[Balance],
-	shares: Balance,
-	share_asset_issuance: Balance,
-) -> Option<Vec<Balance>> {
-	None
-}
-
 /// Given amount of shares and asset reserves, calculate corresponding amount of selected asset to be withdrawn.
 pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 	reserves: &[Balance],
