@@ -717,6 +717,9 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			let _ = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
+
 			AssetTradability::<T>::mutate(pool_id, asset_id, |current_state| {
 				*current_state = state;
 			});
