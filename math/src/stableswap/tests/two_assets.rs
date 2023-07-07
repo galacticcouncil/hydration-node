@@ -25,6 +25,12 @@ fn test_d_with_zero_reserves() {
 }
 
 #[test]
+fn test_d_with_one_zero_reserves() {
+	let reserves = [1000u128, 0u128];
+	assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, 1), None);
+}
+
+#[test]
 fn test_y_given_in() {
 	let reserves = [1000u128, 2000u128];
 
@@ -94,12 +100,12 @@ fn test_shares() {
 	let amp = 100u128;
 
 	let initial_reserves = &[0u128, 0u128];
-	let updated_reserves = &[1000 * ONE, 0u128];
+	let updated_reserves = &[1000 * ONE, 500u128];
 
 	let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, 0u128);
 
 	assert!(result.is_some());
-	assert_eq!(result.unwrap(), 1_000_000_000_000_000u128);
+	assert_eq!(result.unwrap(), 928031226918u128);
 }
 #[test]
 fn remove_one_asset_should_work() {
