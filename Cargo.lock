@@ -3811,7 +3811,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "165.0.0"
+version = "166.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -6201,7 +6201,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.2.1"
+version = "2.2.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
