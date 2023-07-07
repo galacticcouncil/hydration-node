@@ -497,11 +497,11 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_a,
 						amount: 100 * ONE,
 					},
-					AssetLiquidity {
+					AssetBalance {
 						asset_id: asset_b,
 						amount: 100 * ONE,
 					},
@@ -517,11 +517,11 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					vec![
-						AssetLiquidity {
+						AssetBalance {
 							asset_id: asset_a,
 							amount: amount_added
 						},
-						AssetLiquidity {
+						AssetBalance {
 							asset_id: asset_a,
 							amount: amount_added
 						}

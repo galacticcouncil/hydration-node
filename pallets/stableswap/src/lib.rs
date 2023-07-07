@@ -578,10 +578,7 @@ pub mod pallet {
 				pool_id,
 				who,
 				shares: share_amount,
-				amounts: vec![AssetBalance {
-					asset_id: asset_id,
-					amount,
-				}],
+				amounts: vec![AssetBalance { asset_id, amount }],
 				fee,
 			});
 
