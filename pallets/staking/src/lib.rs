@@ -16,7 +16,7 @@
 
 // TODO
 //  * [] - tests create/increase during UnclaimablePeriods
-//  * [] - integration tests vestring
+//  * [] - lock non-dustable amount which won't be ever distributed in the pot.
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -359,9 +359,10 @@ pub mod pallet {
 					let pot = Self::pot_account_id();
 					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards_to_pay)?;
 
-					let rewards_to_unlock = payable_percentage
-						.checked_mul_int(position.accumulated_locked_rewards)
-						.ok_or(ArithmeticError::Overflow)?;
+					let rewards_to_unlock = math::calculate_saturating_percentage_amount(
+						position.accumulated_locked_rewards,
+						payable_percentage,
+					);
 
 					position.accumulated_locked_rewards = position
 						.accumulated_locked_rewards
@@ -617,6 +618,7 @@ impl<T: Config> Pallet<T> {
 			return Ok(());
 		}
 
+		//TODO: inconsistent state
 		let pending_rewards = T::Currency::free_balance(T::HdxAssetId::get(), &Self::pot_account_id())
 			.checked_sub(staking.accumulated_claimable_rewards)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -701,17 +703,14 @@ impl<T: Config> Pallet<T> {
 		let points = Self::get_points(position, current_period, position_created_at)?;
 		let payable_percentage = T::PayablePercentage::get(points)?;
 
-		let claimable_rewards = payable_percentage
-			.checked_mul_int(max_rewards)
-			.ok_or(ArithmeticError::Overflow)?;
+		let claimable_rewards = math::calculate_saturating_percentage_amount(max_rewards, payable_percentage);
 
 		let unpaid_rewards = max_rewards
 			.checked_sub(claimable_rewards)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		let claimable_unpaid_rewards = payable_percentage
-			.checked_mul_int(position.accumulated_unpaid_rewards)
-			.ok_or(ArithmeticError::Overflow)?;
+		let claimable_unpaid_rewards =
+			math::calculate_saturating_percentage_amount(position.accumulated_unpaid_rewards, payable_percentage);
 
 		Ok((
 			claimable_rewards,

@@ -139,3 +139,13 @@ pub fn calculate_rewards(
 
 	//TODO: tests
 }
+
+/// Fucntion calculates `percentage` value from `amount`.
+///
+/// - `amount` - to calculate value from
+/// - `percentage` - percentage we want from `amount`. Value should be decimal less than 1.
+pub fn calculate_saturating_percentage_amount(amount: u128, percentage: FixedU128) -> Balance {
+	percentage.saturating_mul_int(amount)
+
+	//TODO: test and use prequintill instead of fixedU128
+}
