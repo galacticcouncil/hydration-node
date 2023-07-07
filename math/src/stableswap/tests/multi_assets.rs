@@ -347,3 +347,111 @@ fn calculate_withdraw_should_return_correct_amount_when_removing_provided_shares
 
 	assert_eq!(result, (4993u128, 0u128));
 }
+
+#[test]
+fn calculate_out_given_in_with_fee_should_work_when_reserves_have_different_precision() {
+	let amp = 1000_u128;
+
+	let balances: [Balance; 3] = [1000_000_000, 3000_000_000, 5_000_000_000_000_000_000_000];
+
+	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		1,
+		2,
+		1_000_000,
+		amp,
+		Permill::from_percent(1),
+	);
+	assert_eq!(result.unwrap(), (824_786_715_118_092_963, 8_331_178_940_586_797));
+
+	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		2,
+		1,
+		1_000_000_000_000_000_000,
+		amp,
+		Permill::from_percent(1),
+	);
+	assert_eq!(result.unwrap(), (1_187_653, 11996));
+}
+
+#[test]
+fn calculate_out_given_in_with_zero_fee_should_work_when_reserves_have_different_precision() {
+	let amp = 1000_u128;
+
+	let balances: [Balance; 3] = [1000_000_000, 3000_000_000, 5_000_000_000_000_000_000_000];
+
+	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		1,
+		2,
+		1_000_000,
+		amp,
+		Permill::from_percent(0),
+	);
+	assert_eq!(result.unwrap(), (824_786_715_118_092_963 + 8_331_178_940_586_797, 0));
+
+	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		2,
+		1,
+		1_000_000_000_000_000_000,
+		amp,
+		Permill::from_percent(0),
+	);
+	assert_eq!(result.unwrap(), (1_187_653 + 11996, 0));
+}
+
+#[test]
+fn calculate_in_given_out_with_fee_should_work_when_reserves_have_different_precision() {
+	let amp = 1000_u128;
+
+	let balances: [Balance; 3] = [1000_000_000, 3000_000_000, 5_000_000_000_000_000_000_000];
+
+	let result = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		1,
+		2,
+		1_000_000_000_000_000_000,
+		amp,
+		Permill::from_percent(1),
+	);
+	assert_eq!(result.unwrap(), (1212376, 12004));
+
+	let result = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		2,
+		1,
+		1_000_000,
+		amp,
+		Permill::from_percent(1),
+	);
+	assert_eq!(result.unwrap(), (841869902748480839, 8335345571767138));
+}
+
+#[test]
+fn calculate_in_given_out_with_zero_fee_should_work_when_reserves_have_different_precision() {
+	let amp = 1000_u128;
+
+	let balances: [Balance; 3] = [1000_000_000, 3000_000_000, 5_000_000_000_000_000_000_000];
+
+	let result = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		1,
+		2,
+		1_000_000_000_000_000_000,
+		amp,
+		Permill::from_percent(0),
+	);
+	assert_eq!(result.unwrap(), (1212376 - 12004, 0));
+
+	let result = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		2,
+		1,
+		1_000_000,
+		amp,
+		Permill::from_percent(0),
+	);
+	assert_eq!(result.unwrap(), (841869902748480839 - 8335345571767138, 0));
+}
