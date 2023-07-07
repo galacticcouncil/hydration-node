@@ -352,7 +352,7 @@ fn calculate_withdraw_should_return_correct_amount_when_removing_provided_shares
 fn calculate_out_given_in_with_fee_should_work_when_reserves_have_different_precision() {
 	let amp = 1000_u128;
 
-	let balances: [Balance; 3] = [1000_000_000, 3000_000_000, 5_000_000_000_000_000_000_000];
+	let balances: [Balance; 3] = [1_000_000_000, 3_000_000_000, 5_000_000_000_000_000_000_000];
 
 	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
@@ -379,7 +379,7 @@ fn calculate_out_given_in_with_fee_should_work_when_reserves_have_different_prec
 fn calculate_out_given_in_with_zero_fee_should_work_when_reserves_have_different_precision() {
 	let amp = 1000_u128;
 
-	let balances: [Balance; 3] = [1000_000_000, 3000_000_000, 5_000_000_000_000_000_000_000];
+	let balances: [Balance; 3] = [1_000_000_000, 3_000_000_000, 5_000_000_000_000_000_000_000];
 
 	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
@@ -406,7 +406,7 @@ fn calculate_out_given_in_with_zero_fee_should_work_when_reserves_have_different
 fn calculate_in_given_out_with_fee_should_work_when_reserves_have_different_precision() {
 	let amp = 1000_u128;
 
-	let balances: [Balance; 3] = [1000_000_000, 3000_000_000, 5_000_000_000_000_000_000_000];
+	let balances: [Balance; 3] = [1_000_000_000, 3_000_000_000, 5_000_000_000_000_000_000_000];
 
 	let result = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
@@ -433,7 +433,7 @@ fn calculate_in_given_out_with_fee_should_work_when_reserves_have_different_prec
 fn calculate_in_given_out_with_zero_fee_should_work_when_reserves_have_different_precision() {
 	let amp = 1000_u128;
 
-	let balances: [Balance; 3] = [1000_000_000, 3000_000_000, 5_000_000_000_000_000_000_000];
+	let balances: [Balance; 3] = [1_000_000_000, 3_000_000_000, 5_000_000_000_000_000_000_000];
 
 	let result = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
