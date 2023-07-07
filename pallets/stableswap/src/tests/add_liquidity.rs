@@ -527,7 +527,7 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 						}
 					]
 				),
-				Error::<Test>::SameAssets
+				Error::<Test>::IncorrectAssets
 			);
 		});
 }

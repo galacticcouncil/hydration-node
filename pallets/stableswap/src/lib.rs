@@ -305,9 +305,6 @@ pub mod pallet {
 
 		/// New amplification is equal to the previous value.
 		SameAmplification,
-
-		/// Provided list of assets contains same assets.
-		SameAssets,
 	}
 
 	#[pallet::call]
@@ -868,7 +865,7 @@ impl<T: Config> Pallet<T> {
 			);
 			ensure!(pool.find_asset(asset.asset_id).is_some(), Error::<T>::AssetNotInPool);
 			if added_assets.insert(asset.asset_id, asset.amount).is_some() {
-				return Err(Error::<T>::SameAssets.into());
+				return Err(Error::<T>::IncorrectAssets.into());
 			}
 		}
 
