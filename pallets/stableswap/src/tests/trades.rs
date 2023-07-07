@@ -514,7 +514,7 @@ fn sell_should_work_when_pool_have_asset_with_various_decimals() {
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.with_registered_asset("three".as_bytes().to_vec(), 3)
 		.with_endowed_accounts(vec![
-			(BOB, asset_c, 1 * ONE * 1_000_000),
+			(BOB, asset_c, ONE * 1_000_000),
 			(ALICE, asset_a, 2000 * ONE),
 			(ALICE, asset_b, 4000 * ONE),
 			(ALICE, asset_c, 10000 * ONE * 1_000_000),
@@ -535,11 +535,11 @@ fn sell_should_work_when_pool_have_asset_with_various_decimals() {
 				assets: vec![
 					AssetBalance {
 						asset_id: asset_a,
-						amount: 1000_000_000,
+						amount: 1_000_000_000,
 					},
 					AssetBalance {
 						asset_id: asset_b,
-						amount: 3000_000_000,
+						amount: 3_000_000_000,
 					},
 					AssetBalance {
 						asset_id: asset_c,
@@ -557,7 +557,7 @@ fn sell_should_work_when_pool_have_asset_with_various_decimals() {
 				pool_id,
 				asset_c,
 				asset_b,
-				1 * ONE * 1_000_000,
+				ONE * 1_000_000,
 				0,
 			));
 
@@ -567,8 +567,8 @@ fn sell_should_work_when_pool_have_asset_with_various_decimals() {
 
 			assert_balance!(BOB, asset_c, 0);
 			assert_balance!(BOB, asset_b, expected);
-			assert_balance!(pool_account, asset_c, 5001_000_000_000_000_000_000);
-			assert_balance!(pool_account, asset_b, 3000_000_000 - expected);
+			assert_balance!(pool_account, asset_c, 5_001_000_000_000_000_000_000);
+			assert_balance!(pool_account, asset_b, 3_000_000_000 - expected);
 		});
 }
 
@@ -583,7 +583,7 @@ fn buy_should_work_when_pool_have_asset_with_various_decimals() {
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.with_registered_asset("three".as_bytes().to_vec(), 3)
 		.with_endowed_accounts(vec![
-			(BOB, asset_c, 1 * ONE * 1_000_000),
+			(BOB, asset_c, ONE * 1_000_000),
 			(ALICE, asset_a, 2000 * ONE),
 			(ALICE, asset_b, 4000 * ONE),
 			(ALICE, asset_c, 10000 * ONE * 1_000_000),
@@ -604,11 +604,11 @@ fn buy_should_work_when_pool_have_asset_with_various_decimals() {
 				assets: vec![
 					AssetBalance {
 						asset_id: asset_a,
-						amount: 1000_000_000,
+						amount: 1_000_000_000,
 					},
 					AssetBalance {
 						asset_id: asset_b,
-						amount: 3000_000_000,
+						amount: 3_000_000_000,
 					},
 					AssetBalance {
 						asset_id: asset_c,
@@ -637,6 +637,6 @@ fn buy_should_work_when_pool_have_asset_with_various_decimals() {
 			assert_balance!(BOB, asset_c, 1_174_293_340_450);
 			assert_balance!(BOB, asset_b, expected);
 			assert_balance!(pool_account, asset_c, 5000999998825706659550);
-			assert_balance!(pool_account, asset_b, 3000_000_000 - expected);
+			assert_balance!(pool_account, asset_b, 3_000_000_000 - expected);
 		});
 }
