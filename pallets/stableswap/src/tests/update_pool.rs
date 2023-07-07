@@ -272,10 +272,7 @@ fn set_tradable_state_should_work_when_asset_in_pool() {
 				Tradability::FROZEN,
 			));
 
-			assert_eq!(
-				<AssetTradability<Test>>::get(pool_id, asset_a),
-				Tradability::FROZEN,
-			);
+			assert_eq!(<AssetTradability<Test>>::get(pool_id, asset_a), Tradability::FROZEN,);
 		});
 }
 #[test]
@@ -300,13 +297,10 @@ fn set_tradable_state_should_fail_when_asset_not_in_pool() {
 				Permill::from_percent(0),
 			));
 
-			assert_noop!(Stableswap::set_asset_tradable_state(
-				RuntimeOrigin::root(),
-				pool_id,
-				3,
-				Tradability::FROZEN,
-			),
-			Error::<Test>::AssetNotInPool);
+			assert_noop!(
+				Stableswap::set_asset_tradable_state(RuntimeOrigin::root(), pool_id, 3, Tradability::FROZEN,),
+				Error::<Test>::AssetNotInPool
+			);
 		});
 }
 #[test]
@@ -317,12 +311,9 @@ fn set_tradable_state_should_fail_when_pool_does_not_exist() {
 		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
 		.build()
 		.execute_with(|| {
-			assert_noop!(Stableswap::set_asset_tradable_state(
-				RuntimeOrigin::root(),
-				pool_id,
-				1,
-				Tradability::FROZEN,
-			),
-			Error::<Test>::PoolNotFound);
+			assert_noop!(
+				Stableswap::set_asset_tradable_state(RuntimeOrigin::root(), pool_id, 1, Tradability::FROZEN,),
+				Error::<Test>::PoolNotFound
+			);
 		});
 }
