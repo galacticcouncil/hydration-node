@@ -631,7 +631,6 @@ pub mod pallet {
 			ensure!(amount_out >= min_buy_amount, Error::<T>::BuyLimitNotReached);
 
 			let pool_account = Self::pool_account(pool_id);
-
 			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
 			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
 
@@ -746,8 +745,8 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	fn calculate_out_amount(
 		pool_id: T::AssetId,
-		asset_out: T::AssetId,
 		asset_in: T::AssetId,
+		asset_out: T::AssetId,
 		amount_in: Balance,
 	) -> Result<(Balance, Balance), DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;

@@ -502,3 +502,141 @@ fn buy_should_fail_when_insufficient_amount_is_provided() {
 			);
 		});
 }
+
+#[test]
+fn sell_should_work_when_pool_have_asset_with_various_decimals() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("one".as_bytes().to_vec(), 1)
+		.with_registered_asset("two".as_bytes().to_vec(), 2)
+		.with_registered_asset("three".as_bytes().to_vec(), 3)
+		.with_endowed_accounts(vec![
+			(BOB, asset_c, ONE * 1_000_000),
+			(ALICE, asset_a, 2000 * ONE),
+			(ALICE, asset_b, 4000 * ONE),
+			(ALICE, asset_c, 10000 * ONE * 1_000_000),
+		])
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(1000).unwrap(),
+				final_amplification: NonZeroU16::new(1000).unwrap(),
+				initial_block: 0,
+				trade_fee: Permill::from_percent(0),
+				withdraw_fee: Permill::from_percent(0),
+				final_block: 0,
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetBalance {
+						asset_id: asset_a,
+						amount: 1_000_000_000,
+					},
+					AssetBalance {
+						asset_id: asset_b,
+						amount: 3_000_000_000,
+					},
+					AssetBalance {
+						asset_id: asset_c,
+						amount: 5000 * ONE * 1_000_000,
+					},
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_c,
+				asset_b,
+				ONE * 1_000_000,
+				0,
+			));
+
+			let expected = 1_199_649;
+
+			let pool_account = pool_account(pool_id);
+
+			assert_balance!(BOB, asset_c, 0);
+			assert_balance!(BOB, asset_b, expected);
+			assert_balance!(pool_account, asset_c, 5_001_000_000_000_000_000_000);
+			assert_balance!(pool_account, asset_b, 3_000_000_000 - expected);
+		});
+}
+
+#[test]
+fn buy_should_work_when_pool_have_asset_with_various_decimals() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("one".as_bytes().to_vec(), 1)
+		.with_registered_asset("two".as_bytes().to_vec(), 2)
+		.with_registered_asset("three".as_bytes().to_vec(), 3)
+		.with_endowed_accounts(vec![
+			(BOB, asset_c, ONE * 1_000_000),
+			(ALICE, asset_a, 2000 * ONE),
+			(ALICE, asset_b, 4000 * ONE),
+			(ALICE, asset_c, 10000 * ONE * 1_000_000),
+		])
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(1000).unwrap(),
+				final_amplification: NonZeroU16::new(1000).unwrap(),
+				initial_block: 0,
+				trade_fee: Permill::from_percent(0),
+				withdraw_fee: Permill::from_percent(0),
+				final_block: 0,
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetBalance {
+						asset_id: asset_a,
+						amount: 1_000_000_000,
+					},
+					AssetBalance {
+						asset_id: asset_b,
+						amount: 3_000_000_000,
+					},
+					AssetBalance {
+						asset_id: asset_c,
+						amount: 5000 * ONE * 1_000_000,
+					},
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+
+			assert_ok!(Stableswap::buy(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_b,
+				asset_c,
+				1_199_649,
+				2 * ONE * 1_000_000,
+			));
+
+			let expected = 1_199_649;
+
+			let pool_account = pool_account(pool_id);
+
+			assert_balance!(BOB, asset_c, 1_174_293_340_450);
+			assert_balance!(BOB, asset_b, expected);
+			assert_balance!(pool_account, asset_c, 5000999998825706659550);
+			assert_balance!(pool_account, asset_b, 3_000_000_000 - expected);
+		});
+}

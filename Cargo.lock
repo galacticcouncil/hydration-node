@@ -3685,7 +3685,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.4.1"
+version = "7.4.2"
 dependencies = [
  "approx",
  "criterion",
@@ -7316,7 +7316,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
