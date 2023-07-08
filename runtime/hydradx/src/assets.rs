@@ -16,17 +16,22 @@
 // limitations under the License.
 
 use super::*;
-use crate::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter, OraclePriceProviderAdapterForOmnipool};
 use crate::system::NativeAssetId;
 
-use hydradx_adapters::inspect::MultiInspectAdapter;
+use hydradx_adapters::{
+	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, OmnipoolHookAdapter, OracleAssetVolumeProvider,
+	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter,
+};
 use hydradx_traits::{AccountIdFor, OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_dca::RelayChainBlockHashProvider;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
-use primitives::constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS};
+use primitives::constants::{
+	chain::OMNIPOOL_SOURCE,
+	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
+};
 
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -41,6 +46,7 @@ use orml_traits::currency::MutationHooks;
 use pallet_dynamic_fees::types::FeeParams;
 use sp_core::crypto::UncheckedFrom;
 use sp_std::marker::PhantomData;
+use sp_std::num::NonZeroU16;
 
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;
@@ -194,9 +200,6 @@ impl pallet_uniques::Config for Runtime {
 	type WeightInfo = ();
 }
 
-/// The source of the data for the oracle.
-pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
-
 parameter_types! {
 	pub const LRNA: AssetId = 1;
 	pub const StableAssetId: AssetId = 2;
@@ -344,7 +347,7 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
-	type PriceAdjustment = adapters::PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance>;
+	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance>;
 }
 
 parameter_types! {
@@ -477,13 +480,13 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type BlockNumberProvider = System;
 	type Fee = Permill;
 	type AssetId = AssetId;
-	type Oracle = adapters::OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
+	type Oracle = OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }
 
 parameter_types! {
-	pub const StableswapAmplificationRange: RangeInclusive<u16> = RangeInclusive::new(2, 10_000);
+	pub StableswapAmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 }
 
 pub struct StableswapAccountIdConstructor<T: frame_system::Config>(PhantomData<T>);
@@ -513,11 +516,13 @@ where
 
 impl pallet_stableswap::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type BlockNumberProvider = System;
 	type AssetId = AssetId;
 	type Currency = Currencies;
 	type ShareAccountId = StableswapAccountIdConstructor<Runtime>;
 	type AssetRegistry = AssetRegistry;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type DustAccountHandler = Duster;
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
 	type AmplificationRange = StableswapAmplificationRange;
