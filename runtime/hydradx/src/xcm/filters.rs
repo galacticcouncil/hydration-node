@@ -18,6 +18,7 @@ fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bo
 		| ClearTopic
 		| ExpectAsset(..)
 		| BurnAsset(..)
+		| SetFeesMode { .. }
 		| BuyExecution { .. } => Either::Left(true),
 		InitiateReserveWithdraw { xcm, .. } | DepositReserveAsset { xcm, .. } | TransferReserveAsset { xcm, .. } => {
 			Either::Right(xcm)
@@ -83,5 +84,52 @@ mod tests {
 			},
 		);
 		assert!(!AllowTransferAndSwap::<crate::RuntimeCall>::contains(&(loc, xcm)));
+	}
+
+	#[test]
+	fn allow_transfer_and_swap_should_allow_a_transfer_and_swap() {
+		//Arrange
+		let fees = MultiAsset::from((MultiLocation::here(), 10));
+		let weight_limit = WeightLimit::Unlimited;
+		let give: MultiAssetFilter = fees.clone().into();
+		let want: MultiAssets = fees.clone().into();
+		let assets: MultiAssets = fees.clone().into();
+
+		let max_assets = 2;
+		let beneficiary = Junction::AccountId32 {
+			id: [3; 32],
+			network: None,
+		}
+		.into();
+		let dest = MultiLocation::new(1, Parachain(2047));
+
+		let xcm = Xcm(vec![
+			BuyExecution { fees, weight_limit },
+			ExchangeAsset {
+				give,
+				want,
+				maximal: true,
+			},
+			DepositAsset {
+				assets: Wild(AllCounted(max_assets)),
+				beneficiary,
+			},
+		]);
+
+		let message = Xcm(vec![
+			SetFeesMode { jit_withdraw: true },
+			TransferReserveAsset { assets, dest, xcm },
+		]);
+
+		let loc = MultiLocation::new(
+			0,
+			AccountId32 {
+				network: None,
+				id: [1; 32],
+			},
+		);
+
+		//Act and assert
+		assert!(AllowTransferAndSwap::<crate::RuntimeCall>::contains(&(loc, message)));
 	}
 }
