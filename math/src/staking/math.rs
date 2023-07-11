@@ -1,6 +1,8 @@
-use crate::{types::Balance, MathError};
+use crate::types::Balance;
 use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One};
 use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128, Permill};
+use sp_std::num::NonZeroU128;
+use sp_std::ops::Div;
 
 type Period = u128;
 type Point = u128;
@@ -15,10 +17,9 @@ pub fn calculate_accumulated_rps(
 	current_reward_per_stake: FixedU128,
 	pending_rewards: Balance,
 	total_stake: Balance,
-) -> Result<FixedU128, MathError> {
-	let rps = FixedU128::checked_from_rational(pending_rewards, total_stake).ok_or(MathError::DivisionByZero)?;
-
-	current_reward_per_stake.checked_add(&rps).ok_or(MathError::Overflow)
+) -> Option<FixedU128> {
+	let rps = FixedU128::checked_from_rational(pending_rewards, total_stake)?;
+	current_reward_per_stake.checked_add(&rps)
 }
 
 /// Function calculates amount of points to slash for current stake increase.
@@ -34,16 +35,11 @@ pub fn calculate_slashed_points(
 	current_stake: Balance,
 	stake_increase: Balance,
 	stake_weight: u8,
-) -> Result<Balance, MathError> {
-	let stake_weighted = current_stake
-		.checked_mul(stake_weight.into())
-		.ok_or(MathError::Overflow)?;
-
-	FixedU128::checked_from_rational(stake_increase, stake_weighted)
-		.ok_or(MathError::DivisionByZero)?
+) -> Option<Balance> {
+	let stake_weighted = current_stake.checked_mul(stake_weight.into())?;
+	FixedU128::checked_from_rational(stake_increase, stake_weighted)?
 		.min(FixedU128::one())
 		.checked_mul_int(points)
-		.ok_or(MathError::Overflow)
 }
 
 /// Function calculates period number from block number and period size.
@@ -51,16 +47,8 @@ pub fn calculate_slashed_points(
 /// Parameters:
 /// - `period_length`: length of the one period in blocks
 /// - `block_number`: block number to calculate period for
-pub fn calculate_period_number<BlockNumber: num_traits::CheckedDiv + TryInto<u32> + TryInto<u128>>(
-	period_length: BlockNumber,
-	block_number: BlockNumber,
-) -> Result<Period, MathError> {
-	TryInto::try_into(
-		block_number
-			.checked_div(&period_length)
-			.ok_or(MathError::DivisionByZero)?,
-	)
-	.map_err(|_| MathError::Overflow)
+pub fn calculate_period_number(period_length: NonZeroU128, block_number: u128) -> Period {
+	block_number.div(&period_length.get())
 }
 
 /// Function calculates total amount of `Points` user have accumulated until now.
@@ -82,24 +70,16 @@ pub fn calculate_points(
 	action_points: Point,
 	action_points_weight: Permill,
 	slashed_points: Point,
-) -> Result<Point, MathError> {
+) -> Option<Point> {
 	let time_points = now
-		.checked_sub(position_created_at)
-		.ok_or(MathError::Overflow)?
-		.checked_mul(time_points_per_period.into())
-		.ok_or(MathError::Overflow)?;
-
-	let time_points_weighted = FixedU128::from(time_points_weight)
-		.checked_mul_int(time_points)
-		.ok_or(MathError::Overflow)?;
+		.checked_sub(position_created_at)?
+		.checked_mul(time_points_per_period.into())?;
+	let time_points_weighted = FixedU128::from(time_points_weight).checked_mul_int(time_points)?;
 
 	FixedU128::from(action_points_weight)
-		.checked_mul_int(action_points)
-		.ok_or(MathError::Overflow)?
-		.checked_add(time_points_weighted)
-		.ok_or(MathError::Overflow)?
+		.checked_mul_int(action_points)?
+		.checked_add(time_points_weighted)?
 		.checked_sub(slashed_points)
-		.ok_or(MathError::Overflow)
 }
 
 /// Implementation of sigmoid function returning values from range (0,1)
@@ -109,16 +89,13 @@ pub fn calculate_points(
 /// Parameters:
 /// - `x`: point on the curve
 /// - `a` & `b`: parameters modifying "speed" and slope of the curve
-pub fn sigmoid(x: Point, a: FixedU128, b: u32) -> Result<FixedU128, MathError> {
-	let ax = a.checked_mul(&FixedU128::from(x)).ok_or(MathError::Overflow)?;
-
+pub fn sigmoid(x: Point, a: FixedU128, b: u32) -> Option<FixedU128> {
+	let ax = a.checked_mul(&FixedU128::from(x))?;
 	let ax4 = ax.saturating_pow(4);
 
-	let denom = ax4
-		.checked_add(&FixedU128::from(b as u128))
-		.ok_or(MathError::Overflow)?;
+	let denom = ax4.checked_add(&FixedU128::from(b as u128))?;
 
-	ax4.checked_div(&denom).ok_or(MathError::Overflow)
+	ax4.checked_div(&denom)
 }
 
 /// Function calculates amount of rewards.
@@ -130,12 +107,10 @@ pub fn calculate_rewards(
 	accumulated_reward_per_stake: FixedU128,
 	reward_per_stake: FixedU128,
 	stake: Balance,
-) -> Result<Balance, MathError> {
+) -> Option<Balance> {
 	accumulated_reward_per_stake
-		.checked_sub(&reward_per_stake)
-		.ok_or(MathError::Overflow)?
+		.checked_sub(&reward_per_stake)?
 		.checked_mul_int(stake)
-		.ok_or(MathError::Overflow)
 
 	//TODO: tests
 }
@@ -144,7 +119,7 @@ pub fn calculate_rewards(
 ///
 /// - `amount` - to calculate value from
 /// - `percentage` - percentage we want from `amount`. Value should be decimal less than 1.
-pub fn calculate_saturating_percentage_amount(amount: u128, percentage: FixedU128) -> Balance {
+pub fn calculate_percentage_amount(amount: u128, percentage: FixedU128) -> Balance {
 	percentage.saturating_mul_int(amount)
 
 	//TODO: test and use prequintill instead of fixedU128

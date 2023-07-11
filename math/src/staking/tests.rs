@@ -1,5 +1,6 @@
 use num_traits::Zero;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use std::num::NonZeroU128;
 
 use crate::staking::*;
 
@@ -70,13 +71,25 @@ fn calculate_slashed_points_should_work_when_pramas_stake_weight_is_not_zero() {
 
 #[test]
 fn calculate_period_number_should_work_when_period_length_is_not_zero() {
-	assert_eq!(calculate_period_number(1_u128, 12_341_u128).unwrap(), 12_341_u128);
+	assert_eq!(
+		calculate_period_number(NonZeroU128::try_from(1_u128).unwrap(), 12_341_u128),
+		12_341_u128
+	);
 
-	assert_eq!(calculate_period_number(1_000_u128, 12_341_u128).unwrap(), 12_u128);
+	assert_eq!(
+		calculate_period_number(NonZeroU128::try_from(1_000_u128).unwrap(), 12_341_u128,),
+		12_u128
+	);
 
-	assert_eq!(calculate_period_number(1_000_u128, 1_u128).unwrap(), 0_u128);
+	assert_eq!(
+		calculate_period_number(NonZeroU128::try_from(1_000_u128).unwrap(), 1_u128),
+		0_u128
+	);
 
-	assert_eq!(calculate_period_number(82_u128, 12_341_u128).unwrap(), 150_u128);
+	assert_eq!(
+		calculate_period_number(NonZeroU128::try_from(82_u128).unwrap(), 12_341_u128),
+		150_u128
+	);
 }
 
 #[test]

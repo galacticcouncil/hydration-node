@@ -34,9 +34,10 @@ use sp_core::Get;
 use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One, Scale};
 use sp_runtime::{
 	traits::{BlockNumberProvider, Zero},
-	ArithmeticError, Permill,
+	ArithmeticError, Permill, SaturatedConversion,
 };
-use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
+use sp_runtime::{DispatchError, FixedU128};
+use sp_std::num::NonZeroU128;
 
 #[cfg(test)]
 mod tests;
@@ -286,8 +287,8 @@ pub mod pallet {
 
 								Self::process_votes(position_id, position)?;
 
-                                let current_period = Self::get_current_period()?;
-                                let created_at = Self::get_period_number(position.created_at)?;
+                                let current_period = Self::get_current_period().ok_or(ArithmeticError::Overflow)?;
+                                let created_at = Self::get_period_number(position.created_at).ok_or(Error::<T>::NotInitialized)?; //TOOD: better error
 
 
 								let (rewards, slashed_points) = Self::do_increase_stake(position, staking, amount, current_period, created_at)?;
@@ -341,8 +342,8 @@ pub mod pallet {
 
 					Self::process_votes(position_id, position)?;
 
-					let current_period = Self::get_current_period()?;
-					let created_at = Self::get_period_number(position.created_at)?;
+					let current_period = Self::get_current_period().ok_or(ArithmeticError::Overflow)?;
+					let created_at = Self::get_period_number(position.created_at).ok_or(Error::<T>::NotInitialized)?; //TOOD: better error
 
 					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, payable_percentage) =
 						Self::calculate_rewards(
@@ -359,10 +360,8 @@ pub mod pallet {
 					let pot = Self::pot_account_id();
 					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards_to_pay)?;
 
-					let rewards_to_unlock = math::calculate_saturating_percentage_amount(
-						position.accumulated_locked_rewards,
-						payable_percentage,
-					);
+					let rewards_to_unlock =
+						math::calculate_percentage_amount(position.accumulated_locked_rewards, payable_percentage);
 
 					position.accumulated_locked_rewards = position
 						.accumulated_locked_rewards
@@ -435,8 +434,8 @@ pub mod pallet {
 
 					Self::process_votes(position_id, position)?;
 
-					let current_period = Self::get_current_period()?;
-					let created_at = Self::get_period_number(position.created_at)?;
+					let current_period = Self::get_current_period().ok_or(ArithmeticError::Overflow)?;
+					let created_at = Self::get_period_number(position.created_at).ok_or(Error::<T>::NotInitialized)?; //TOOD: better error
 
 					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, _) = Self::calculate_rewards(
 						position,
@@ -585,7 +584,7 @@ impl<T: Config> Pallet<T> {
 		let points = Self::get_points(&position, current_period, position_created_at)?;
 		let slash_points =
 			math::calculate_slashed_points(points, position.stake, added_stake, T::CurrentStakeWeight::get())
-				.map_err(|_| ArithmeticError::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 
 		position.accumulated_slash_points = position
 			.accumulated_slash_points
@@ -631,7 +630,7 @@ impl<T: Config> Pallet<T> {
 			pending_rewards,
 			staking.total_stake,
 		)
-		.map_err(|_| ArithmeticError::Overflow)?;
+		.ok_or(ArithmeticError::Overflow)?;
 
 		if staking.accumulated_reward_per_stake == accumulated_rps {
 			//No pending rewards or rewards are too small to distribute
@@ -664,18 +663,20 @@ impl<T: Config> Pallet<T> {
 			T::ActionPointsWeight::get(),
 			position.accumulated_slash_points,
 		)
-		.map_err(|_| ArithmeticError::Overflow)
+		.ok_or(ArithmeticError::Overflow)
 	}
 
 	#[inline]
-	fn get_current_period() -> Result<Period, ArithmeticError> {
+	fn get_current_period() -> Option<Period> {
 		Self::get_period_number(T::BlockNumberProvider::current_block_number())
 	}
 
 	#[inline]
-	fn get_period_number(block: T::BlockNumber) -> Result<Period, ArithmeticError> {
-		//TODO: inconsistent state error
-		math::calculate_period_number(T::PeriodLength::get().into(), block).map_err(|_| ArithmeticError::Overflow)
+	fn get_period_number(block: T::BlockNumber) -> Option<Period> {
+		Some(math::calculate_period_number(
+			NonZeroU128::try_from(T::PeriodLength::get().saturated_into::<u128>()).ok()?,
+			block.saturated_into(),
+		))
 	}
 
 	/// This function calculates `claimable`, `claimable_unpaid`, `unpaid` rewards and `payable_percentage`.
@@ -694,7 +695,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(Balance, Balance, Balance, FixedU128), ArithmeticError> {
 		let max_rewards =
 			math::calculate_rewards(accumulated_reward_per_stake, position.reward_per_stake, position.stake)
-				.map_err(|_| ArithmeticError::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 
 		if current_period.saturating_sub(position_created_at) <= T::UnclaimablePeriods::get() {
 			return Ok((Balance::zero(), Balance::zero(), max_rewards, FixedU128::zero()));
@@ -703,14 +704,14 @@ impl<T: Config> Pallet<T> {
 		let points = Self::get_points(position, current_period, position_created_at)?;
 		let payable_percentage = T::PayablePercentage::get(points)?;
 
-		let claimable_rewards = math::calculate_saturating_percentage_amount(max_rewards, payable_percentage);
+		let claimable_rewards = math::calculate_percentage_amount(max_rewards, payable_percentage);
 
 		let unpaid_rewards = max_rewards
 			.checked_sub(claimable_rewards)
 			.ok_or(ArithmeticError::Overflow)?;
 
 		let claimable_unpaid_rewards =
-			math::calculate_saturating_percentage_amount(position.accumulated_unpaid_rewards, payable_percentage);
+			math::calculate_percentage_amount(position.accumulated_unpaid_rewards, payable_percentage);
 
 		Ok((
 			claimable_rewards,
@@ -795,6 +796,6 @@ where
 		let a: FixedU128 = T::get();
 		let b: u32 = 40_000;
 
-		math::sigmoid(p, a, b).map_err(|_| ArithmeticError::Overflow)
+		math::sigmoid(p, a, b).ok_or(ArithmeticError::Overflow)
 	}
 }
