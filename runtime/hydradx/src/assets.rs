@@ -525,7 +525,7 @@ impl pallet_staking::Config for Runtime {
 	type BlockNumberProvider = System;
 	type PositionItemId = u128;
 	type CollectionId = u128;
-	type NFTCollectionId = ConstU128<4200>;
+	type NFTCollectionId = ConstU128<2222>;
 	type Collections = FreezableNFT<Runtime>;
 	type NFTHandler = Uniques;
 	type MaxVotes = ConstU32<100>;
