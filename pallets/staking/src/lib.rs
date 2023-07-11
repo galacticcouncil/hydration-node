@@ -26,7 +26,9 @@ use crate::types::{Action, Balance, Period, Point, Position, StakingData, Voting
 use frame_support::ensure;
 use frame_support::{
 	pallet_prelude::DispatchResult,
+	pallet_prelude::*,
 	traits::nonfungibles::{Create, InspectEnumerable, Mutate},
+	traits::LockIdentifier,
 };
 use hydra_dx_math::staking as math;
 use orml_traits::{GetByKey, MultiCurrency, MultiLockableCurrency};
@@ -50,6 +52,9 @@ pub mod weights;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
+/// Lock for staked amount by user
+pub const STAKING_LOCK_ID: LockIdentifier = *b"stk_stks";
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -57,7 +62,6 @@ pub mod pallet {
 	use crate::types::Voting;
 	use codec::HasCompact;
 	use frame_support::PalletId;
-	use frame_support::{pallet_prelude::*, traits::LockIdentifier};
 	use frame_system::{ensure_signed, pallet_prelude::*};
 	use orml_traits::GetByKey;
 	use sp_runtime::traits::AtLeast32BitUnsigned;
@@ -72,8 +76,10 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type WeightInfo: WeightInfo;
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// Origin to initialize staking
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Identifier for the class of asset.
 		type AssetId: Member
@@ -86,10 +92,10 @@ pub mod pallet {
 			+ TypeInfo;
 
 		/// Multi currency mechanism.
-		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>
-			+ MultiLockableCurrency<Self::AccountId>;
+		type Currency: MultiLockableCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
 		/// Staking period length in blocks.
+		#[pallet::constant]
 		type PeriodLength: Get<Self::BlockNumber>;
 
 		/// Pallet id.
@@ -158,14 +164,10 @@ pub mod pallet {
 
 		type ActionMultiplier: GetByKey<Action, u32>;
 
-		/// Origin to initialize staking
-		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
 		type Vesting: VestingDetails<Self::AccountId, Balance>;
-	}
 
-	/// Lock for staked amount by user
-	pub(super) const STAKING_LOCK_ID: LockIdentifier = *b"stk_stks";
+		type WeightInfo: WeightInfo;
+	}
 
 	#[pallet::storage]
 	/// Global staking state.
@@ -242,15 +244,12 @@ pub mod pallet {
 		AlreadyInitialized,
 	}
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
-
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(1_000)]
 		pub fn initialize_staking(origin: OriginFor<T>, _non_dustable_amount: Balance) -> DispatchResult {
-			T::TechnicalOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(!Self::is_initialized(), Error::<T>::AlreadyInitialized);
 
@@ -486,6 +485,9 @@ pub mod pallet {
 			})
 		}
 	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 }
 
 impl<T: Config> Pallet<T> {
@@ -494,7 +496,7 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account_truncating()
 	}
 
-	pub fn ensure_stakable_balance(
+	fn ensure_stakable_balance(
 		who: &T::AccountId,
 		stake: Balance,
 		position: Option<&Position<T::BlockNumber>>,
@@ -769,6 +771,7 @@ impl<T: Config> Pallet<T> {
 		total.saturating_mul(c as u128)
 	}
 
+	#[inline]
 	fn is_initialized() -> bool {
 		Staking::<T>::exists()
 	}

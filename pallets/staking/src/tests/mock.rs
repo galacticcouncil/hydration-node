@@ -214,9 +214,9 @@ impl pallet_staking::Config for Test {
 	type MaxVotes = ConstU32<10>;
 	type ActionMultiplier = DummyActionMultiplier;
 	type ReferendumInfo = DummyReferendumStatus;
-	type TechnicalOrigin = EnsureRoot<AccountId>;
 	type Vesting = DummyVesting;
 	type FreezableNFT = FreezableUniques;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 }
 
 pub struct DummyActionMultiplier;
