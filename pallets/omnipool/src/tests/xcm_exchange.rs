@@ -2,7 +2,7 @@ use super::*;
 use crate::tests::mock::AssetId as CurrencyId;
 use crate::tests::mock::{Balances, Tokens};
 use crate::xcm_exchange::OmniExchanger;
-use frame_support::parameter_types;
+use frame_support::{assert_noop, parameter_types};
 use polkadot_xcm::latest::prelude::*;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::Convert;
@@ -107,5 +107,35 @@ fn omni_exchanger_allows_buying_supported_assets() {
 			assert!(received_amount == wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
 			assert_eq!(Balances::free_balance(&ExchangeTempAccount::get()), 0);
+		});
+}
+
+#[test]
+fn omni_exchanger_should_not_allow_trading_for_multiple_assets() {
+	// Arrange
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			let give: MultiAssets = MultiAsset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
+			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
+			let want1: MultiAsset = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount));
+			let want2: MultiAsset = MultiAsset::from((GeneralIndex(DAI.into()), wanted_amount));
+			let want: MultiAssets = vec![want1, want2].into();
+
+			// Act and assert
+			assert_noop!(
+				OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert>::exchange_asset(
+					None,
+					give.clone().into(),
+					&want,
+					SELL
+				),
+				give
+			);
 		});
 }
