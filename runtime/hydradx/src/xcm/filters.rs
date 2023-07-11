@@ -79,9 +79,9 @@ mod tests {
 			0,
 			AccountId32 {
 				network: None,
-				id: [0; 32].into(),
+				id: [1; 32],
 			},
 		);
-		assert_eq!(AllowTransferAndSwap::<crate::RuntimeCall>::contains(&(loc, xcm)), false);
+		assert!(!AllowTransferAndSwap::<crate::RuntimeCall>::contains(&(loc, xcm)));
 	}
 }
