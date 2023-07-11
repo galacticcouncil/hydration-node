@@ -25,10 +25,11 @@ use crate::traits::{ActionData, DemocracyReferendum, PayablePercentage, VestingD
 use crate::types::{Action, Balance, Period, Point, Position, StakingData, Voting};
 use frame_support::ensure;
 use frame_support::{
+	defensive,
 	pallet_prelude::DispatchResult,
 	pallet_prelude::*,
 	traits::nonfungibles::{Create, InspectEnumerable, Mutate},
-	traits::LockIdentifier,
+	traits::{DefensiveOption, LockIdentifier},
 };
 use hydra_dx_math::staking as math;
 use orml_traits::{GetByKey, MultiCurrency, MultiLockableCurrency};
@@ -117,7 +118,6 @@ pub mod pallet {
 		/// Weight of the action points in total points calculations.
 		#[pallet::constant]
 		type ActionPointsWeight: Get<Permill>;
-		//TODO: points per action. Will there be different amount of points per different action?
 
 		/// Number of time points users receive for each period.
 		#[pallet::constant]
@@ -128,7 +128,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type UnclaimablePeriods: Get<Period>;
 
-		//TODO: tinkg about better name
 		/// Weight of the actual stake in slash points calculation. Bigger the value lower the calculated slash points.
 		#[pallet::constant]
 		type CurrentStakeWeight: Get<u8>;
@@ -247,6 +246,29 @@ pub mod pallet {
 
 		/// Arithmetic error.
 		Arithmetic,
+
+		/// Action cannot be completed because unexpected error has occurred. This should be reported
+		/// to protocol maintainers.
+		InconsistentState(InconsistentStateError),
+	}
+
+	//NOTE: these errors should never happen.
+	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
+	pub enum InconsistentStateError {
+		/// Position was not found in the storage but NFT does exists.
+		PositionNotFound,
+
+		/// Calculated `pending_rewards` are less than 0.
+		NegativePendingRewards,
+
+		/// Calculated`accumulated_unpaid_rewards` are less than 0.
+		NegativeUnpaidRewards,
+	}
+
+	impl<T> From<InconsistentStateError> for Error<T> {
+		fn from(e: InconsistentStateError) -> Error<T> {
+			Error::<T>::InconsistentState(e)
+		}
 	}
 
 	#[pallet::call]
@@ -284,8 +306,7 @@ pub mod pallet {
 						Positions::<T>::try_mutate(
 							position_id,
 							|maybe_position| -> Result<(T::PositionItemId, Balance, Balance, Balance, Point), DispatchError> {
-								//TODO: inconsistent state
-								let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
+								let position = maybe_position.as_mut().defensive_ok_or::<Error::<T>>(InconsistentStateError::PositionNotFound.into())?;
 
                                 Self::ensure_stakable_balance(&who, amount, Some(&position))?;
 
@@ -340,8 +361,9 @@ pub mod pallet {
 				Self::update_rewards(staking)?;
 
 				Positions::<T>::try_mutate(position_id, |maybe_position| {
-					//TODO: inconsistent state
-					let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
+					let position = maybe_position
+						.as_mut()
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
 
 					Self::process_votes(position_id, position)?;
 
@@ -434,8 +456,9 @@ pub mod pallet {
 				Self::update_rewards(staking)?;
 
 				Positions::<T>::try_mutate_exists(position_id, |maybe_position| {
-					//TODO: inconsistent state
-					let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
+					let position = maybe_position
+						.as_mut()
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
 
 					Self::process_votes(position_id, position)?;
 
@@ -573,11 +596,18 @@ impl<T: Config> Pallet<T> {
 
 		let rewards_to_pay = claimable_rewards.checked_add(claimable_unpaid_rewards)?;
 
-		//TODO: inconsistent state - this should never fail
-		position.accumulated_unpaid_rewards = position
+		position.accumulated_unpaid_rewards = position.accumulated_unpaid_rewards.checked_add(unpaid_rewards)?;
+		position.accumulated_unpaid_rewards = match position
 			.accumulated_unpaid_rewards
-			.checked_add(unpaid_rewards)?
-			.checked_sub(claimable_unpaid_rewards)?;
+			.checked_sub(claimable_unpaid_rewards)
+		{
+			Some(v) => Some(v),
+			None => {
+				let e: Error<T> = Error::<T>::InconsistentState(InconsistentStateError::NegativeUnpaidRewards);
+				defensive!(e);
+				None
+			}
+		}?;
 
 		position.accumulated_locked_rewards = position.accumulated_locked_rewards.checked_add(rewards_to_pay)?;
 
@@ -613,7 +643,8 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let pending_rewards = T::Currency::free_balance(T::HdxAssetId::get(), &Self::pot_account_id())
-			.saturating_sub(staking.accumulated_claimable_rewards);
+			.checked_sub(staking.accumulated_claimable_rewards)
+			.defensive_ok_or::<Error<T>>(InconsistentStateError::NegativePendingRewards.into())?;
 
 		if pending_rewards.is_zero() {
 			return Ok(());
