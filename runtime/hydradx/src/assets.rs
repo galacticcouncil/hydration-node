@@ -508,8 +508,8 @@ impl GetByKey<Action, u32> for ActionMultiplier {
 }
 
 impl pallet_staking::Config for Runtime {
-	type WeightInfo = ();
 	type RuntimeEvent = RuntimeEvent;
+	type AuthorityOrigin = MajorityOfCouncil;
 	type AssetId = AssetId;
 	type Currency = Currencies;
 	type PeriodLength = PeriodLength;
@@ -526,11 +526,11 @@ impl pallet_staking::Config for Runtime {
 	type PositionItemId = u128;
 	type CollectionId = u128;
 	type NFTCollectionId = ConstU128<4200>;
+	type Collections = FreezableNFT<Runtime>;
 	type NFTHandler = Uniques;
-	type FreezableNFT = FreezableNFT<Runtime>;
 	type MaxVotes = ConstU32<100>;
 	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
 	type ActionMultiplier = ActionMultiplier;
-	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type Vesting = VestingInfo<Runtime>;
+	type WeightInfo = ();
 }

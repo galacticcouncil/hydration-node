@@ -472,7 +472,7 @@ where
 
 pub struct FreezableNFT<Runtime>(PhantomData<Runtime>);
 
-impl<Runtime> pallet_staking::traits::FrozenNonFungibles<AccountId, CollectionId> for FreezableNFT<Runtime>
+impl<Runtime> pallet_staking::traits::Freeze<AccountId, CollectionId> for FreezableNFT<Runtime>
 where
 	Runtime: frame_system::Config + pallet_uniques::Config<CollectionId = CollectionId>,
 	<Runtime as frame_system::Config>::RuntimeOrigin: From<RuntimeOrigin>,

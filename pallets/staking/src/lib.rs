@@ -58,7 +58,7 @@ pub const STAKING_LOCK_ID: LockIdentifier = *b"stk_stks";
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{DemocracyReferendum, FrozenNonFungibles};
+	use crate::traits::{DemocracyReferendum, Freeze};
 	use crate::types::Voting;
 	use codec::HasCompact;
 	use frame_support::PalletId;
@@ -150,16 +150,18 @@ pub mod pallet {
 		#[pallet::constant]
 		type NFTCollectionId: Get<Self::CollectionId>;
 
+		/// Provides ability to freeze a collection.
+		type Collections: Freeze<Self::AccountId, Self::CollectionId>;
+
 		/// Non fungible handling - mint,burn, check owner
 		type NFTHandler: Mutate<Self::AccountId>
 			+ Create<Self::AccountId>
 			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
-		type FreezableNFT: FrozenNonFungibles<Self::AccountId, Self::CollectionId>;
-
 		#[pallet::constant]
 		type MaxVotes: Get<u32>;
 
+		/// Democracy referendum state.
 		type ReferendumInfo: DemocracyReferendum;
 
 		type ActionMultiplier: GetByKey<Action, u32>;
@@ -259,7 +261,7 @@ pub mod pallet {
 			let pallet_account = <Pallet<T>>::pot_account_id();
 
 			T::NFTHandler::create_collection(&T::NFTCollectionId::get(), &pallet_account, &pallet_account)?;
-			T::FreezableNFT::freeze_collection(pallet_account, T::NFTCollectionId::get())
+			T::Collections::freeze_collection(pallet_account, T::NFTCollectionId::get())
 		}
 
 		#[pallet::call_index(1)]
