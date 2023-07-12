@@ -137,9 +137,6 @@ mod tests {
 	fn allow_transfer_and_swap_should_filter_too_deep_xcm() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
-		let weight_limit = WeightLimit::Unlimited;
-		let give: MultiAssetFilter = fees.clone().into();
-		let want: MultiAssets = fees.clone().into();
 		let assets: MultiAssets = fees.clone().into();
 
 		let max_assets = 2;
@@ -186,9 +183,6 @@ mod tests {
 	fn allow_transfer_and_swap_should_not_filter_message_with_max_deep() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
-		let weight_limit = WeightLimit::Unlimited;
-		let give: MultiAssetFilter = fees.clone().into();
-		let want: MultiAssets = fees.clone().into();
 		let assets: MultiAssets = fees.clone().into();
 
 		let max_assets = 2;
@@ -236,9 +230,6 @@ mod tests {
 	fn allow_transfer_and_swap_should_filter_messages_with_too_many_instructions() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
-		let weight_limit = WeightLimit::Unlimited;
-		let give: MultiAssetFilter = fees.clone().into();
-		let want: MultiAssets = fees.clone().into();
 		let assets: MultiAssets = fees.clone().into();
 
 		let max_assets = 2;
