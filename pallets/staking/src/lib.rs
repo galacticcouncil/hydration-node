@@ -370,18 +370,56 @@ pub mod pallet {
 					let current_period = Self::get_current_period().ok_or(Error::<T>::Arithmetic)?;
 					let created_at = Self::get_period_number(position.created_at).ok_or(Error::<T>::NotInitialized)?; //TOOD: better error
 
-					let (rewards_to_lock, slashed_points) =
-						Self::do_increase_stake(position, staking, amount, current_period, created_at)
+					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, _) = Self::calculate_rewards(
+						position,
+						staking.accumulated_reward_per_stake,
+						current_period,
+						created_at,
+					)
+					.ok_or(Error::<T>::Arithmetic)?;
+
+					let rewards = claimable_rewards
+						.checked_add(claimable_unpaid_rewards)
+						.ok_or(Error::<T>::Arithmetic)?;
+
+					position.accumulated_unpaid_rewards = position
+						.accumulated_unpaid_rewards
+						.checked_add(unpaid_rewards)
+						.ok_or(Error::<T>::Arithmetic)?;
+					position.accumulated_unpaid_rewards = position
+						.accumulated_unpaid_rewards
+						.checked_sub(claimable_unpaid_rewards)
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::NegativeUnpaidRewards.into())?;
+
+					position.accumulated_locked_rewards = position
+						.accumulated_locked_rewards
+						.checked_add(rewards)
+						.ok_or(Error::<T>::Arithmetic)?;
+
+					position.reward_per_stake = staking.accumulated_reward_per_stake;
+
+					let points =
+						Self::get_points(&position, current_period, created_at).ok_or(Error::<T>::Arithmetic)?;
+					let slash_points =
+						math::calculate_slashed_points(points, position.stake, amount, T::CurrentStakeWeight::get())
 							.ok_or(Error::<T>::Arithmetic)?;
 
-					let pot = Self::pot_account_id();
-					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards_to_lock)?;
+					position.accumulated_slash_points = position
+						.accumulated_slash_points
+						.checked_add(slash_points)
+						.ok_or(Error::<T>::Arithmetic)?;
+
+					position.stake = position.stake.checked_add(amount).ok_or(Error::<T>::Arithmetic)?;
 
 					staking.accumulated_claimable_rewards = staking
 						.accumulated_claimable_rewards
-						.checked_sub(rewards_to_lock)
+						.checked_sub(rewards)
 						.ok_or(Error::<T>::Arithmetic)?;
 
+					staking.add_stake(amount)?;
+
+					let pot = Self::pot_account_id();
+					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
 					T::Currency::set_lock(
 						STAKING_LOCK_ID,
 						T::HdxAssetId::get(),
@@ -389,15 +427,13 @@ pub mod pallet {
 						position.get_total_locked()?,
 					)?;
 
-					staking.add_stake(amount)?;
-
 					Self::deposit_event(Event::StakeAdded {
 						who,
 						position_id,
 						stake: amount,
 						total_stake: position.stake,
-						locked_rewards: rewards_to_lock,
-						slashed_points,
+						locked_rewards: rewards,
+						slashed_points: slash_points,
 					});
 
 					Ok(())
@@ -643,50 +679,6 @@ impl<T: Config> Pallet<T> {
 		T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &position_id, &who)?;
 
 		Ok(position_id)
-	}
-
-	fn do_increase_stake(
-		position: &mut Position<T::BlockNumber>,
-		staking: &StakingData,
-		added_stake: Balance,
-		current_period: Period,
-		position_created_at: Period,
-	) -> Option<(Balance, Point)> {
-		let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, _) = Self::calculate_rewards(
-			position,
-			staking.accumulated_reward_per_stake,
-			current_period,
-			position_created_at,
-		)?;
-
-		let rewards_to_pay = claimable_rewards.checked_add(claimable_unpaid_rewards)?;
-
-		position.accumulated_unpaid_rewards = position.accumulated_unpaid_rewards.checked_add(unpaid_rewards)?;
-		position.accumulated_unpaid_rewards = match position
-			.accumulated_unpaid_rewards
-			.checked_sub(claimable_unpaid_rewards)
-		{
-			Some(v) => Some(v),
-			None => {
-				let e: Error<T> = Error::<T>::InconsistentState(InconsistentStateError::NegativeUnpaidRewards);
-				defensive!(e);
-				None
-			}
-		}?;
-
-		position.accumulated_locked_rewards = position.accumulated_locked_rewards.checked_add(rewards_to_pay)?;
-
-		position.reward_per_stake = staking.accumulated_reward_per_stake;
-
-		let points = Self::get_points(&position, current_period, position_created_at)?;
-		let slash_points =
-			math::calculate_slashed_points(points, position.stake, added_stake, T::CurrentStakeWeight::get())?;
-
-		position.accumulated_slash_points = position.accumulated_slash_points.checked_add(slash_points)?;
-
-		position.stake = position.stake.checked_add(added_stake)?;
-
-		Some((rewards_to_pay, slash_points))
 	}
 
 	fn get_next_position_id() -> Result<T::PositionItemId, DispatchError> {
