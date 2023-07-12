@@ -182,6 +182,55 @@ mod tests {
 		assert!(!AllowTransferAndSwap::<()>::contains(&(loc, message)));
 	}
 
+	#[test]
+	fn allow_transfer_and_swap_should_not_filter_message_with_max_deep() {
+		//Arrange
+		let fees = MultiAsset::from((MultiLocation::here(), 10));
+		let weight_limit = WeightLimit::Unlimited;
+		let give: MultiAssetFilter = fees.clone().into();
+		let want: MultiAssets = fees.clone().into();
+		let assets: MultiAssets = fees.clone().into();
+
+		let max_assets = 2;
+		let beneficiary = Junction::AccountId32 {
+			id: [3; 32],
+			network: None,
+		}
+		.into();
+		let dest = MultiLocation::new(1, Parachain(2047));
+
+		let deposit = Xcm(vec![DepositAsset {
+			assets: Wild(AllCounted(max_assets)),
+			beneficiary,
+		}]);
+
+		let mut message = Xcm(vec![TransferReserveAsset {
+			assets: assets.clone(),
+			dest,
+			xcm: deposit,
+		}]);
+
+		for _ in 0..4 {
+			let xcm = message.clone();
+			message = Xcm(vec![TransferReserveAsset {
+				assets: assets.clone(),
+				dest,
+				xcm,
+			}]);
+		}
+
+		let loc = MultiLocation::new(
+			0,
+			AccountId32 {
+				network: None,
+				id: [1; 32],
+			},
+		);
+
+		//Act and assert
+		assert!(AllowTransferAndSwap::<()>::contains(&(loc, message)));
+	}
+
 	#[ignore]
 	#[test]
 	fn allow_transfer_and_swap_should_filter_messages_with_too_many_instructions() {
@@ -239,4 +288,58 @@ mod tests {
 		//Act and assert
 		assert!(!AllowTransferAndSwap::<()>::contains(&(loc, message)));
 	}
+	/*
+	#[test]
+	fn asd() {
+		//Arrange
+		let fees = MultiAsset::from((MultiLocation::here(), 10));
+		let weight_limit = WeightLimit::Unlimited;
+		let give: MultiAssetFilter = fees.clone().into();
+		let want: MultiAssets = fees.clone().into();
+		let assets: MultiAssets = fees.clone().into();
+
+		let max_assets = 2;
+		let beneficiary = Junction::AccountId32 {
+			id: [3; 32],
+			network: None,
+		}
+		.into();
+		let dest = MultiLocation::new(1, Parachain(2047));
+
+		let deposit = Xcm(vec![DepositAsset {
+			assets: Wild(AllCounted(max_assets)),
+			beneficiary,
+		}]);
+
+		let mut message = Xcm(vec![
+			TransferReserveAsset {
+				assets: assets.clone(),
+				dest,
+				xcm: deposit.clone(),
+			};
+			3
+		]);
+
+		for _ in 0..5 {
+			let xcm = message.clone();
+			message = Xcm(vec![
+				TransferReserveAsset {
+					assets: assets.clone(),
+					dest,
+					xcm: xcm.clone(),
+				};
+				2
+			]);
+		}
+		let loc = MultiLocation::new(
+			0,
+			AccountId32 {
+				network: None,
+				id: [1; 32],
+			},
+		);
+
+		//Act and assert
+		assert!(!AllowTransferAndSwap::<()>::contains(&(loc, message)));
+	}*/
 }
