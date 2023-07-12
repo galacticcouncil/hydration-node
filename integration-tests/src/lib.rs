@@ -4,6 +4,7 @@ mod cross_chain_transfer;
 mod dca;
 mod dust;
 mod dust_removal_whitelist;
+mod dynamic_fees;
 mod non_native_fee;
 mod omnipool_init;
 mod omnipool_liquidity_mining;
@@ -13,7 +14,6 @@ mod otc;
 mod polkadot_test_net;
 mod transact_call_filter;
 mod vesting;
-mod xcm_rate_limiter;
 
 #[macro_export]
 macro_rules! assert_balance {

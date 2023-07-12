@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "0.3.1"
+version = "0.4.0"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -12,14 +12,23 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 log = { version = "0.4.17", default-features = false }
 
 # HydraDX dependencies
+primitives = { workspace = true }
 hydradx-traits = { workspace = true }
+hydra-dx-math = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true }
+pallet-omnipool = { workspace = true }
+pallet-ema-oracle = { workspace = true }
+pallet-circuit-breaker = { workspace = true }
+warehouse-liquidity-mining = { workspace = true }
+pallet-omnipool-liquidity-mining = { workspace = true }
+pallet-dynamic-fees = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
+primitive-types = { workspace = true }
 
 # Polkadot dependencies
 polkadot-parachain = { workspace = true }
@@ -30,6 +39,10 @@ xcm-executor = { workspace = true }
 # Cumulus dependencies
 cumulus-pallet-parachain-system = { workspace = true }
 cumulus-primitives-core = { workspace = true }
+
+# ORML dependencies
+orml-xcm-support = { workspace = true }
+orml-traits = { workspace = true }
 
 [dev-dependencies]
 lazy_static = { features = ["spin_no_std"], version = "1.4.0" }

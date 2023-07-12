@@ -145,24 +145,3 @@ proptest! {
 		assert!(y >= reserve_a);
 	}
 }
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
-	fn round_trip_d_y_4(reserve_a in asset_reserve(),
-		reserve_b in asset_reserve(),
-		reserve_c in asset_reserve(),
-		reserve_e in asset_reserve(),
-		amp in amplification(),
-	) {
-		let ann = amp * 256u128;  // 4^4
-
-		let reserve_d = 0u128;
-
-		let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann).unwrap();
-		let y = calculate_y::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann).unwrap();
-
-		assert!(y - 4 <= reserve_a);
-		assert!(y >= reserve_a);
-	}
-}

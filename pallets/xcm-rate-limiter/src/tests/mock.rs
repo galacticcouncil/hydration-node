@@ -16,13 +16,13 @@
 // limitations under the License.
 
 pub use crate as pallet_xcm_rate_limiter;
+
 use frame_support::traits::{Contains, GenesisBuild};
 pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
-
 use frame_system::EnsureRoot;
-
 use orml_traits::parameter_type_with_key;
+use orml_traits::GetByKey;
 use polkadot_parachain::primitives::RelayChainBlockNumber;
 use sp_core::H256;
 use sp_runtime::traits::BlockNumberProvider;
@@ -224,8 +224,6 @@ parameter_types! {
 	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionCollectionId: u32= 1000;
 
-	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
-	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
@@ -242,8 +240,6 @@ impl pallet_omnipool::Config for Test {
 	type Currency = Tokens;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
-	type ProtocolFee = ProtocolFee;
-	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
@@ -260,6 +256,7 @@ impl pallet_omnipool::Config for Test {
 	type PriceBarrier = ();
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
+	type Fee = FeeProvider;
 }
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::Weight;
@@ -515,5 +512,13 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 
 	fn get_price_weight() -> Weight {
 		Weight::default()
+	}
+}
+
+pub struct FeeProvider;
+
+impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
+	fn get(_: &AssetId) -> (Permill, Permill) {
+		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
 	}
 }

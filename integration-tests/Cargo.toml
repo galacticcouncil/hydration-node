@@ -14,7 +14,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 scraper = { workspace = true }
 primitives = { workspace = true }
 hydradx-runtime = { workspace = true }
-common-runtime = { workspace = true }
+hydradx-adapters = { workspace = true }
 pallet-omnipool = { workspace = true }
 pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
@@ -31,6 +31,7 @@ pallet-otc = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 pallet-route-executor = { workspace = true}
 pallet-dca = { workspace = true}
+pallet-dynamic-fees = { workspace = true }
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -175,7 +176,6 @@ std = [
     "pallet-authorship/std",
     "hydradx-traits/std",
     "pallet-relaychain-info/std",
-    "common-runtime/std",
     "polkadot-runtime/std",
     "hydradx-runtime/std",
 ]
