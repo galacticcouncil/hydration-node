@@ -96,8 +96,9 @@ mod tests {
 	use codec::Encode;
 	use frame_support::pallet_prelude::Weight;
 
+	//TODO: add more
 	#[test]
-	fn allow_transfer_and_swap_should_filter_transact() {
+	fn xcm_execute_filter_should_not_allow_transact() {
 		let call = crate::RuntimeCall::System(frame_system::Call::remark { remark: Vec::new() }).encode();
 		let xcm = Xcm(vec![Transact {
 			origin_kind: OriginKind::Native,
@@ -111,11 +112,11 @@ mod tests {
 				id: [1; 32],
 			},
 		);
-		assert!(XcmExecuteFilterDoesNotAllow(&(loc, xcm)));
+		assert!(xcm_execute_filter_does_not_allow(&(loc, xcm)));
 	}
 
 	#[test]
-	fn allow_transfer_and_swap_should_allow_a_transfer_and_swap() {
+	fn xcm_execute_filter_should_allow_a_transfer_and_swap() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
 		let weight_limit = WeightLimit::Unlimited;
@@ -158,11 +159,11 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(XcmExecuteFilterAllows(&(loc, message)));
+		assert!(xcm_execute_filter_allows(&(loc, message)));
 	}
 
 	#[test]
-	fn allow_transfer_and_swap_should_filter_too_deep_xcm() {
+	fn xcm_execute_filter_should_filter_too_deep_xcm() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
 		let assets: MultiAssets = fees.clone().into();
@@ -204,11 +205,11 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(XcmExecuteFilterDoesNotAllow(&(loc, message)));
+		assert!(xcm_execute_filter_does_not_allow(&(loc, message)));
 	}
 
 	#[test]
-	fn allow_transfer_and_swap_should_not_filter_message_with_max_deep() {
+	fn xcm_execute_filter_should_not_filter_message_with_max_deep() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
 		let assets: MultiAssets = fees.clone().into();
@@ -256,7 +257,7 @@ mod tests {
 	}
 
 	#[test]
-	fn allow_transfer_and_swap_should_filter_messages_with_one_more_instruction_than_allowed() {
+	fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allowed_in_depth() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
 		let weight_limit = WeightLimit::Unlimited;
@@ -325,11 +326,11 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(XcmExecuteFilterDoesNotAllow(&(loc, message)));
+		assert!(xcm_execute_filter_does_not_allow(&(loc, message)));
 	}
 
 	#[test]
-	fn asd() {
+	fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allowed_in_one_level() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
 		let weight_limit = WeightLimit::Unlimited;
@@ -345,19 +346,13 @@ mod tests {
 		.into();
 		let dest = MultiLocation::new(1, Parachain(2047));
 
-		let deposit = Xcm(vec![
+		let message_with_more_instructions_than_allowed = Xcm(vec![
 			DepositAsset {
 				assets: Wild(AllCounted(max_assets)),
 				beneficiary,
 			};
-			100
+			101
 		]);
-
-		let mut message = Xcm(vec![TransferReserveAsset {
-			assets: assets.clone(),
-			dest,
-			xcm: deposit.clone(),
-		}]);
 
 		let loc = MultiLocation::new(
 			0,
@@ -368,14 +363,17 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(XcmExecuteFilterDoesNotAllow(&(loc, message)));
+		assert!(xcm_execute_filter_does_not_allow(&(
+			loc,
+			message_with_more_instructions_than_allowed
+		)));
 	}
 
-	fn XcmExecuteFilterAllows(loc_and_message: &(MultiLocation, Xcm<crate::RuntimeCall>)) -> bool {
+	fn xcm_execute_filter_allows(loc_and_message: &(MultiLocation, Xcm<crate::RuntimeCall>)) -> bool {
 		AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, crate::RuntimeCall>::contains(loc_and_message)
 	}
 
-	fn XcmExecuteFilterDoesNotAllow(loc_and_message: &(MultiLocation, Xcm<()>)) -> bool {
+	fn xcm_execute_filter_does_not_allow(loc_and_message: &(MultiLocation, Xcm<()>)) -> bool {
 		!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, ()>::contains(loc_and_message)
 	}
 }
