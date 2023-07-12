@@ -3,6 +3,7 @@ use crate::types::Balance;
 use num_traits::{CheckedDiv, CheckedMul, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use sp_std::ops::Div;
 use sp_std::prelude::*;
 
 pub const MAX_Y_ITERATIONS: u8 = 128;
@@ -167,7 +168,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 			reserve.checked_mul(d1)?.checked_div(d_hp)?.checked_sub(y_hp)?
 		} else {
 			// dx_expected = xp[j] - xp[j] * d1 / d0
-			reserve.checked_sub(xp_hp[idx].checked_mul(d1)?.checked_div(d_hp)?)?
+			reserve.checked_sub(reserve.checked_mul(d1)?.checked_div(d_hp)?)?
 		};
 
 		let expected = Balance::try_from(dx_expected).ok()?;
@@ -250,8 +251,14 @@ pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
 pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance) -> Option<Balance> {
 	let two_u256 = to_u256!(2_u128);
 
-	//let mut xp_hp: [U256; 2] = [to_u256!(xp[0]), to_u256!(xp[1])];
+	// Filter out zero balance assets, and return error if there is one.
+	// Either all assets are zero balance, or none are zero balance.
+	// Otherwise, it breaks the math.
 	let mut xp_hp: Vec<U256> = xp.iter().filter(|v| !(*v).is_zero()).map(|v| to_u256!(*v)).collect();
+	if xp_hp.len() != xp.len() && !xp_hp.is_empty() {
+		return None;
+	}
+
 	xp_hp.sort();
 
 	let ann = calculate_ann(xp_hp.len(), amplification)?;
@@ -306,7 +313,13 @@ pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance) -> Optio
 }
 
 pub(crate) fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification: Balance) -> Option<Balance> {
+	// Filter out zero balance assets, and return error if there is one.
+	// Either all assets are zero balance, or none are zero balance.
+	// Otherwise, it breaks the math.
 	let mut xp_hp: Vec<U256> = xp.iter().filter(|v| !(*v).is_zero()).map(|v| to_u256!(*v)).collect();
+	if xp_hp.len() != xp.len() && !xp_hp.is_empty() {
+		return None;
+	}
 	xp_hp.sort();
 
 	let ann = calculate_ann(xp_hp.len().checked_add(1)?, amplification)?;
@@ -344,6 +357,35 @@ pub(crate) fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification
 		}
 	}
 	Balance::try_from(y).ok()
+}
+
+pub fn calculate_amplification(
+	initial_amplification: u128,
+	final_amplification: u128,
+	initial_block: u128,
+	final_block: u128,
+	current_block: u128,
+) -> u128 {
+	// short circuit if block parameters are invalid or start block is not reached yet
+	if current_block < initial_block || final_block <= initial_block {
+		return initial_amplification;
+	}
+
+	// short circuit if already reached desired block
+	if current_block >= final_block {
+		return final_amplification;
+	}
+
+	let step = final_amplification
+		.abs_diff(initial_amplification)
+		.saturating_mul(current_block.saturating_sub(initial_block))
+		.div(final_block.saturating_sub(initial_block));
+
+	if final_amplification > initial_amplification {
+		initial_amplification.saturating_add(step)
+	} else {
+		initial_amplification.saturating_sub(step)
+	}
 }
 
 #[inline]

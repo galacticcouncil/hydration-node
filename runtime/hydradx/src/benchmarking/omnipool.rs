@@ -1,10 +1,14 @@
-use crate::{AccountId, AssetId, AssetRegistry, Balance, EmaOracle, Omnipool, Permill, Runtime, System};
+use crate::{AccountId, AssetId, AssetRegistry, Balance, EmaOracle, Omnipool, Runtime, System};
 
 use super::*;
 
 use frame_benchmarking::account;
 use frame_support::{
 	assert_ok,
+	sp_runtime::{
+		traits::{One, SaturatedConversion, Zero},
+		FixedU128, Permill,
+	},
 	traits::{OnFinalize, OnInitialize},
 };
 use frame_system::RawOrigin;
@@ -12,10 +16,6 @@ use hydradx_traits::Registry;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_omnipool::types::Tradability;
-use sp_runtime::{
-	traits::{One, SaturatedConversion, Zero},
-	FixedU128,
-};
 
 pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
 	assert_ok!(

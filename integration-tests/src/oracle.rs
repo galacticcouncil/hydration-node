@@ -2,10 +2,10 @@
 
 use crate::polkadot_test_net::*;
 
-use frame_support::traits::tokens::fungibles::Mutate;
 use frame_support::{
 	assert_ok,
-	traits::{OnFinalize, OnInitialize},
+	sp_runtime::{FixedU128, Permill},
+	traits::{tokens::fungibles::Mutate, OnFinalize, OnInitialize},
 };
 use hydradx_runtime::{EmaOracle, RuntimeOrigin};
 use hydradx_traits::{
@@ -14,7 +14,7 @@ use hydradx_traits::{
 };
 use pallet_ema_oracle::OracleError;
 use polkadot_primitives::v2::BlockNumber;
-use sp_runtime::{FixedU128, Permill};
+use primitives::constants::chain::OMNIPOOL_SOURCE;
 use xcm_emulator::TestExt;
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
@@ -30,8 +30,6 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 		hydradx_runtime::System::set_block_number(b + 1);
 	}
 }
-
-use common_runtime::{adapters::OMNIPOOL_SOURCE, AssetId, CORE_ASSET_ID};
 
 const HDX: AssetId = CORE_ASSET_ID;
 
