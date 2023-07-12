@@ -6,7 +6,7 @@ edition = "2021"
 license = "Apache-2.0"
 homepage = 'https://github.com/galacticcouncil/hydradx-node'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-description = "Circuit breakers for AMMs"
+description = "Rate limiter for tokens arriving via XCM"
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -19,7 +19,6 @@ scale-info = { version = "2.3.1", default-features = false, features = ["derive"
 # Hydradx
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
-pallet-omnipool = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true}
@@ -43,6 +42,7 @@ orml-traits = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
+pallet-omnipool = { workspace = true, features = ["std"] }
 orml-tokens = { workspace = true, features = ["std"] }
 test-utils = { workspace = true }
 pretty_assertions = "1.2.1"
