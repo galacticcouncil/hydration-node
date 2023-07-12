@@ -279,9 +279,10 @@ mod tests {
 		//Act and assert
 		assert!(!AllowTransferAndSwap::<()>::contains(&(loc, message)));
 	}
-	/*
+
+	#[ignore]
 	#[test]
-	fn asd() {
+	fn allow_transfer_and_swap_should_filter_messages_with_too_many_instructions2() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
 		let weight_limit = WeightLimit::Unlimited;
@@ -308,20 +309,36 @@ mod tests {
 				dest,
 				xcm: deposit.clone(),
 			};
-			3
+			5
 		]);
 
-		for _ in 0..5 {
+		for _ in 0..3 {
 			let xcm = message.clone();
-			message = Xcm(vec![
-				TransferReserveAsset {
-					assets: assets.clone(),
-					dest,
-					xcm: xcm.clone(),
-				};
-				2
-			]);
+			message = Xcm(vec![TransferReserveAsset {
+				assets: assets.clone(),
+				dest,
+				xcm: xcm.clone(),
+			}]);
 		}
+
+		//It has 14 instruction
+		let mut instructions_with_max_deep: Vec<cumulus_primitives_core::Instruction<()>> =
+			vec![TransferReserveAsset {
+				assets: assets.clone(),
+				dest,
+				xcm: message.clone(),
+			}];
+
+		let mut rest: Vec<cumulus_primitives_core::Instruction<()>> = vec![
+			DepositAsset {
+				assets: Wild(AllCounted(max_assets)),
+				beneficiary,
+			};
+			87
+		];
+
+		instructions_with_max_deep.append(&mut rest);
+
 		let loc = MultiLocation::new(
 			0,
 			AccountId32 {
@@ -332,5 +349,5 @@ mod tests {
 
 		//Act and assert
 		assert!(!AllowTransferAndSwap::<()>::contains(&(loc, message)));
-	}*/
+	}
 }
