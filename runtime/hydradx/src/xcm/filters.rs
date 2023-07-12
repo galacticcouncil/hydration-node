@@ -111,7 +111,7 @@ mod tests {
 				id: [1; 32],
 			},
 		);
-		assert!(!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, crate::RuntimeCall>::contains(&(loc, xcm)));
+		assert!(XcmExecuteFilterDoesNotAllow(&(loc, xcm)));
 	}
 
 	#[test]
@@ -158,7 +158,7 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, crate::RuntimeCall>::contains(&(loc, message)));
+		assert!(XcmExecuteFilterAllows(&(loc, message)));
 	}
 
 	#[test]
@@ -204,9 +204,7 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, ()>::contains(&(
-			loc, message
-		)));
+		assert!(XcmExecuteFilterDoesNotAllow(&(loc, message)));
 	}
 
 	#[test]
@@ -327,9 +325,7 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, ()>::contains(&(
-			loc, message
-		)));
+		assert!(XcmExecuteFilterDoesNotAllow(&(loc, message)));
 	}
 
 	#[test]
@@ -372,8 +368,14 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, ()>::contains(&(
-			loc, message
-		)));
+		assert!(XcmExecuteFilterDoesNotAllow(&(loc, message)));
+	}
+
+	fn XcmExecuteFilterAllows(loc_and_message: &(MultiLocation, Xcm<crate::RuntimeCall>)) -> bool {
+		AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, crate::RuntimeCall>::contains(loc_and_message)
+	}
+
+	fn XcmExecuteFilterDoesNotAllow(loc_and_message: &(MultiLocation, Xcm<()>)) -> bool {
+		!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, ()>::contains(loc_and_message)
 	}
 }
