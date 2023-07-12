@@ -5,6 +5,93 @@ use pretty_assertions::assert_eq;
 use sp_runtime::FixedU128;
 
 #[test]
+fn claim_should_not_work_when_origin_is_not_position_owner() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, HDX, 150_000 * ONE),
+			(BOB, HDX, 250_000 * ONE),
+			(CHARLIE, HDX, 10_000 * ONE),
+			(DAVE, HDX, 100_000 * ONE),
+		])
+		.with_initialized_staking()
+		.start_at_block(1_452_987)
+		.with_stakes(vec![
+			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
+			(CHARLIE, 10_000 * ONE, 1_455_000, 10_000 * ONE),
+			(DAVE, 10 * ONE, 1_465_000, 1),
+		])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_pending_rewards(10_000 * ONE);
+			set_block_number(1_700_000);
+			let alice_position_id = Staking::get_user_position_id(&ALICE).unwrap().unwrap();
+
+			//Act & assert & assert & assert & assert
+			assert_noop!(
+				Staking::claim(RuntimeOrigin::signed(BOB), alice_position_id),
+				Error::<Test>::Forbidden
+			);
+		});
+}
+
+#[test]
+fn claim_should_work_when_claiming_multiple_times() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, HDX, 150_000 * ONE),
+			(BOB, HDX, 250_000 * ONE),
+			(CHARLIE, HDX, 10_000 * ONE),
+			(DAVE, HDX, 100_000 * ONE),
+		])
+		.start_at_block(1_452_987)
+		.with_initialized_staking()
+		.with_stakes(vec![
+			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
+			(BOB, 120_000 * ONE, 1_452_987, 0),
+			(CHARLIE, 10_000 * ONE, 1_455_000, 10_000 * ONE),
+			(DAVE, 10 * ONE, 1_465_000, 1),
+		])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_pending_rewards(10_000 * ONE);
+			set_block_number(1_700_000);
+			let bob_position_id = Staking::get_user_position_id(&BOB).unwrap().unwrap();
+
+			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
+
+			set_pending_rewards(100_000 * ONE);
+			set_block_number(1_800_000);
+
+			//Act - 2nd claim
+			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
+
+			//Assert
+			assert_unlocked_balance!(&BOB, HDX, 130_382_474_184_859_806_u128);
+			assert_hdx_lock!(BOB, 120_000 * ONE, STAKING_LOCK);
+			assert_eq!(
+				Staking::positions(bob_position_id).unwrap(),
+				Position {
+					stake: 120_000 * ONE,
+					action_points: Zero::zero(),
+					created_at: 1_452_987,
+					reward_per_stake: FixedU128::from_inner(2_567_179_189_756_705_033_u128),
+					accumulated_slash_points: 56,
+					accumulated_locked_rewards: Zero::zero(),
+					accumulated_unpaid_rewards: Zero::zero(),
+				}
+			);
+
+			assert_staking_data!(
+				230_010 * ONE,
+				FixedU128::from_inner(2_567_179_189_756_705_033_u128),
+				262_322_856_849_994_928_u128 + NON_DUSTABLE_BALANCE
+			);
+		});
+}
+
+#[test]
 fn claim_should_not_work_when_staking_is_not_initialized() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -18,10 +105,11 @@ fn claim_should_not_work_when_staking_is_not_initialized() {
 		.execute_with(|| {
 			//Arrange
 			set_pending_rewards(10_000 * ONE);
+			let position_id = 0;
 
 			//Act
 			assert_noop!(
-				Staking::claim(RuntimeOrigin::signed(BOB)),
+				Staking::claim(RuntimeOrigin::signed(BOB), position_id),
 				Error::<Test>::NotInitialized
 			);
 		});
@@ -49,15 +137,16 @@ fn claim_should_work_when_staking_position_exists() {
 			//Arrange
 			set_pending_rewards(10_000 * ONE);
 			set_block_number(1_700_000);
+			let bob_position_id = Staking::get_user_position_id(&BOB).unwrap().unwrap();
 
 			//Act
-			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB)));
+			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
 			assert_unlocked_balance!(&BOB, HDX, 130_334_912_244_857_841_u128);
 			assert_hdx_lock!(BOB, 120_000 * ONE, STAKING_LOCK);
 			assert_eq!(
-				Staking::positions(1).unwrap(),
+				Staking::positions(bob_position_id).unwrap(),
 				Position {
 					stake: 120_000 * ONE,
 					action_points: Zero::zero(),
@@ -72,7 +161,7 @@ fn claim_should_work_when_staking_position_exists() {
 			assert_staking_data!(
 				230_010 * ONE,
 				FixedU128::from_inner(2_088_930_916_047_128_389_u128),
-				209_663_202_319_202_436_u128
+				209_663_202_319_202_436_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }
@@ -99,15 +188,16 @@ fn claim_should_claim_nothing_when_claiming_during_unclaimable_periods() {
 			//Arrange
 			set_pending_rewards(10_000 * ONE);
 			set_block_number(1_470_000);
+			let bob_position_id = Staking::get_user_position_id(&BOB).unwrap().unwrap();
 
 			//Act
-			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB)));
+			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
 			assert_unlocked_balance!(&BOB, HDX, 130_000 * ONE);
 			assert_hdx_lock!(BOB, 120_000 * ONE, STAKING_LOCK);
 			assert_eq!(
-				Staking::positions(1).unwrap(),
+				Staking::positions(bob_position_id).unwrap(),
 				Position {
 					stake: 120_000 * ONE,
 					action_points: Zero::zero(),
@@ -122,7 +212,7 @@ fn claim_should_claim_nothing_when_claiming_during_unclaimable_periods() {
 			assert_staking_data!(
 				230_010 * ONE,
 				FixedU128::from_inner(2_088_930_916_047_128_389_u128),
-				220_000_000_000_000_001_u128
+				220_000_000_000_000_001_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }
@@ -151,15 +241,16 @@ fn claim_should_claim_nothing_when_claiming_during_unclaimable_periods_and_stake
 			//Arrange
 			set_pending_rewards(10_000 * ONE);
 			set_block_number(1_490_000);
+			let bob_position_id = Staking::get_user_position_id(&BOB).unwrap().unwrap();
 
 			//Act
-			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB)));
+			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
 			assert_unlocked_balance!(&BOB, HDX, 80_000 * ONE);
 			assert_hdx_lock!(BOB, 420_000 * ONE, STAKING_LOCK);
 			assert_eq!(
-				Staking::positions(1).unwrap(),
+				Staking::positions(bob_position_id).unwrap(),
 				Position {
 					stake: 420_000 * ONE,
 					action_points: Zero::zero(),
@@ -174,7 +265,7 @@ fn claim_should_claim_nothing_when_claiming_during_unclaimable_periods_and_stake
 			assert_staking_data!(
 				530_010 * ONE,
 				FixedU128::from_inner(2_502_134_933_892_361_376_u128),
-				321_000_000_000_000_001_u128
+				321_000_000_000_000_001_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }
@@ -203,15 +294,16 @@ fn claim_should_work_when_claiming_after_unclaimable_periods() {
 			//Arrange
 			set_pending_rewards(10_000 * ONE);
 			set_block_number(1_640_000);
+			let bob_position_id = Staking::get_user_position_id(&BOB).unwrap().unwrap();
 
 			//Act
-			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB)));
+			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
 			assert_unlocked_balance!(&BOB, HDX, 80_587_506_297_210_440_u128);
 			assert_hdx_lock!(BOB, 420_000 * ONE, STAKING_LOCK);
 			assert_eq!(
-				Staking::positions(1).unwrap(),
+				Staking::positions(bob_position_id).unwrap(),
 				Position {
 					stake: 420_000 * ONE,
 					action_points: Zero::zero(),
@@ -226,13 +318,13 @@ fn claim_should_work_when_claiming_after_unclaimable_periods() {
 			assert_staking_data!(
 				530_010 * ONE,
 				FixedU128::from_inner(2_502_134_933_892_361_376_u128),
-				255_368_022_548_622_160_u128
+				255_368_022_548_622_160_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }
 
 #[test]
-fn claim_should_work_when_claiming_multiple_times() {
+fn claim_should_work_when_staked_was_increased() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HDX, 150_000 * ONE),
@@ -254,23 +346,37 @@ fn claim_should_work_when_claiming_multiple_times() {
 			//Arrange
 			set_pending_rewards(10_000 * ONE);
 			set_block_number(1_700_000);
-			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), 50_000 * ONE));
+			let bob_position_id = Staking::get_user_position_id(&BOB).unwrap().unwrap();
+
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(BOB),
+				bob_position_id,
+				50_000 * ONE
+			));
 
 			set_block_number(1_750_000);
-			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), 50_000 * ONE));
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(BOB),
+				bob_position_id,
+				50_000 * ONE
+			));
 
 			set_pending_rewards(100_000 * ONE);
 			set_block_number(2_100_000);
-			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), 50_000 * ONE));
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(BOB),
+				bob_position_id,
+				50_000 * ONE
+			));
 
 			//Act
-			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB)));
+			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
 			assert_unlocked_balance!(&BOB, HDX, 281_979_585_716_709_787_u128);
 			assert_hdx_lock!(BOB, 281_886_766_680_027_536_u128, STAKING_LOCK);
 			assert_eq!(
-				Staking::positions(1).unwrap(),
+				Staking::positions(bob_position_id).unwrap(),
 				Position {
 					stake: 250_000 * ONE,
 					action_points: Zero::zero(),
@@ -285,7 +391,7 @@ fn claim_should_work_when_claiming_multiple_times() {
 			assert_staking_data!(
 				360_010 * ONE,
 				FixedU128::from_inner(3_061_853_686_489_680_776_u128),
-				333_933_922_975_778_772_u128
+				333_933_922_975_778_772_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }
@@ -313,19 +419,33 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 			//Arrange
 			set_pending_rewards(10_000 * ONE);
 			set_block_number(1_700_000);
-			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), 50_000 * ONE));
+			let bob_position_id = Staking::get_user_position_id(&BOB).unwrap().unwrap();
+
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(BOB),
+				bob_position_id,
+				50_000 * ONE
+			));
 
 			set_block_number(1_750_000);
-			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), 50_000 * ONE));
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(BOB),
+				bob_position_id,
+				50_000 * ONE
+			));
 
 			set_pending_rewards(100_000 * ONE);
 			set_block_number(2_100_000);
-			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), 50_000 * ONE));
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(BOB),
+				bob_position_id,
+				50_000 * ONE
+			));
 
-			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB)));
+			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Act
-			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB)));
+			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 			//Assert
 			assert_unlocked_balance!(&BOB, HDX, 281_979_585_716_709_787_u128);
 			assert_hdx_lock!(BOB, 281_886_766_680_027_536_u128, STAKING_LOCK);
@@ -345,7 +465,7 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 			assert_staking_data!(
 				360_010 * ONE,
 				FixedU128::from_inner(3_123_517_875_338_556_934_u128),
-				340_717_600_391_043_639_u128
+				340_717_600_391_043_639_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }
@@ -371,11 +491,12 @@ fn claim_should_not_work_when_staking_position_doesnt_exists() {
 			//Arrange
 			set_pending_rewards(10_000 * ONE);
 			set_block_number(1_700_000);
+			let non_existing_id = 131_234_123_421;
 
 			//Act & assert & assert & assert & assert
 			assert_noop!(
-				Staking::claim(RuntimeOrigin::signed(BOB)),
-				Error::<Test>::PositionNotFound
+				Staking::claim(RuntimeOrigin::signed(BOB), non_existing_id),
+				Error::<Test>::Forbidden
 			);
 		});
 }

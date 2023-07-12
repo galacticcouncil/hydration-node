@@ -52,6 +52,8 @@ pub const ONE: u128 = 1_000_000_000_000;
 
 pub const STAKING_LOCK: LockIdentifier = crate::STAKING_LOCK_ID;
 
+pub const NON_DUSTABLE_BALANCE: Balance = 1_000 * ONE;
+
 construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -317,7 +319,13 @@ impl ExtBuilder {
 
 			if self.init_staking {
 				let pot = Staking::pot_account_id();
-				assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), pot, HDX, 1_000 * ONE, 0));
+				assert_ok!(Tokens::set_balance(
+					RawOrigin::Root.into(),
+					pot,
+					HDX,
+					NON_DUSTABLE_BALANCE,
+					0
+				));
 				assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 			}
 
@@ -327,7 +335,15 @@ impl ExtBuilder {
 				}
 
 				set_block_number(at);
-				assert_ok!(Staking::stake(RuntimeOrigin::signed(who), staked_amount));
+				if let Some(position_id) = Staking::get_user_position_id(&who).unwrap() {
+					assert_ok!(Staking::increase_stake(
+						RuntimeOrigin::signed(who),
+						position_id,
+						staked_amount
+					));
+				} else {
+					assert_ok!(Staking::stake(RuntimeOrigin::signed(who), staked_amount));
+				}
 			}
 		});
 

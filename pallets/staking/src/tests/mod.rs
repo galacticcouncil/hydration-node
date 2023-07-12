@@ -6,6 +6,7 @@ use frame_support::{assert_noop, assert_ok};
 use orml_tokens::BalanceLock;
 
 mod claim;
+mod increase_stake;
 pub(crate) mod mock;
 mod stake;
 mod unstake;

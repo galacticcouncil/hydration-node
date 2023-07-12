@@ -28,7 +28,7 @@ use frame_support::{
 	defensive,
 	pallet_prelude::DispatchResult,
 	pallet_prelude::*,
-	traits::nonfungibles::{Create, InspectEnumerable, Mutate},
+	traits::nonfungibles::{Create, Inspect, InspectEnumerable, Mutate},
 	traits::{DefensiveOption, LockIdentifier},
 };
 use hydra_dx_math::staking as math;
@@ -155,6 +155,7 @@ pub mod pallet {
 		/// Non fungible handling - mint,burn, check owner
 		type NFTHandler: Mutate<Self::AccountId>
 			+ Create<Self::AccountId>
+			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>
 			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
 		#[pallet::constant]
@@ -194,6 +195,12 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		PositionCreated {
+			who: T::AccountId,
+			position_id: T::PositionItemId,
+			stake: Balance,
+		},
+
 		StakeAdded {
 			who: T::AccountId,
 			position_id: T::PositionItemId,
@@ -248,6 +255,12 @@ pub mod pallet {
 
 		/// Pot's balance is zero.
 		MissingPotBalance,
+
+		/// Account's position already exits.
+		PositionAlreadyExits,
+
+		///
+		Forbidden,
 
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
@@ -305,51 +318,26 @@ pub mod pallet {
 
 			ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
 
+			ensure!(
+				Self::get_user_position_id(&who)?.is_none(),
+				Error::<T>::PositionAlreadyExits
+			);
+
 			Staking::<T>::try_mutate(|staking| {
 				Self::update_rewards(staking)?;
 
-				let (position_id, position_new_total_stake, amount_to_lock, locked_rewards, slashed_points) =
-					if let Some(position_id) = Self::get_user_position_id(&who)? {
-						Positions::<T>::try_mutate(
-							position_id,
-							|maybe_position| -> Result<(T::PositionItemId, Balance, Balance, Balance, Point), DispatchError> {
-								let position = maybe_position.as_mut().defensive_ok_or::<Error::<T>>(InconsistentStateError::PositionNotFound.into())?;
+				Self::ensure_stakable_balance(&who, amount, None)?;
+				let position_id =
+					Self::create_position_and_mint_nft(&who, amount, staking.accumulated_reward_per_stake)?;
 
-                                Self::ensure_stakable_balance(&who, amount, Some(&position))?;
-
-								Self::process_votes(position_id, position)?;
-
-                                let current_period = Self::get_current_period().ok_or(Error::<T>::Arithmetic)?;
-                                let created_at = Self::get_period_number(position.created_at).ok_or(Error::<T>::NotInitialized)?; //TOOD: better error
-
-								let (rewards, slashed_points) = Self::do_increase_stake(position, staking, amount, current_period, created_at).ok_or(Error::<T>::Arithmetic)?;
-
-                                let pot = Self::pot_account_id();
-                                T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
-                                staking.accumulated_claimable_rewards = staking.accumulated_claimable_rewards.checked_sub(rewards).ok_or(Error::<T>::Arithmetic)?;
-
-								Ok((position_id, position.stake, position.get_total_locked()?, rewards, slashed_points))
-							},
-						)?
-					} else {
-						Self::ensure_stakable_balance(&who, amount, None)?;
-						let position_id =
-							Self::create_position_and_mint_nft(&who, amount, staking.accumulated_reward_per_stake)?;
-
-						(position_id, amount, amount, 0, 0)
-					};
-
-				T::Currency::set_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who, amount_to_lock)?;
+				T::Currency::set_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who, amount)?;
 
 				staking.add_stake(amount)?;
 
-				Self::deposit_event(Event::StakeAdded {
+				Self::deposit_event(Event::PositionCreated {
 					who,
 					position_id,
 					stake: amount,
-					total_stake: position_new_total_stake,
-					locked_rewards,
-					slashed_points,
 				});
 
 				Ok(())
@@ -358,12 +346,74 @@ pub mod pallet {
 
 		#[pallet::call_index(2)]
 		#[pallet::weight(1_000)]
-		pub fn claim(origin: OriginFor<T>) -> DispatchResult {
+		pub fn increase_stake(origin: OriginFor<T>, position_id: T::PositionItemId, amount: Balance) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(amount >= T::MinStake::get(), Error::<T>::InsufficientStake);
+
+			ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
+
+			ensure!(Self::is_owner(&who, position_id), Error::<T>::Forbidden);
+
+			Staking::<T>::try_mutate(|staking| {
+				Self::update_rewards(staking)?;
+
+				Positions::<T>::try_mutate(position_id, |maybe_position| {
+					let position = maybe_position
+						.as_mut()
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
+
+					Self::ensure_stakable_balance(&who, amount, Some(&position))?;
+
+					Self::process_votes(position_id, position)?;
+
+					let current_period = Self::get_current_period().ok_or(Error::<T>::Arithmetic)?;
+					let created_at = Self::get_period_number(position.created_at).ok_or(Error::<T>::NotInitialized)?; //TOOD: better error
+
+					let (rewards_to_lock, slashed_points) =
+						Self::do_increase_stake(position, staking, amount, current_period, created_at)
+							.ok_or(Error::<T>::Arithmetic)?;
+
+					let pot = Self::pot_account_id();
+					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards_to_lock)?;
+
+					staking.accumulated_claimable_rewards = staking
+						.accumulated_claimable_rewards
+						.checked_sub(rewards_to_lock)
+						.ok_or(Error::<T>::Arithmetic)?;
+
+					T::Currency::set_lock(
+						STAKING_LOCK_ID,
+						T::HdxAssetId::get(),
+						&who,
+						position.get_total_locked()?,
+					)?;
+
+					staking.add_stake(amount)?;
+
+					Self::deposit_event(Event::StakeAdded {
+						who,
+						position_id,
+						stake: amount,
+						total_stake: position.stake,
+						locked_rewards: rewards_to_lock,
+						slashed_points,
+					});
+
+					Ok(())
+				})
+			})
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(1_000)]
+		pub fn claim(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
 
-			let position_id = Self::get_user_position_id(&who)?.ok_or(Error::<T>::PositionNotFound)?;
+			ensure!(Self::is_owner(&who, position_id), Error::<T>::Forbidden);
+
 			Staking::<T>::try_mutate(|staking| {
 				Self::update_rewards(staking)?;
 
@@ -451,14 +501,15 @@ pub mod pallet {
 			})
 		}
 
-		#[pallet::call_index(3)]
+		#[pallet::call_index(4)]
 		#[pallet::weight(1_000)]
-		pub fn unstake(origin: OriginFor<T>) -> DispatchResult {
+		pub fn unstake(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
 
-			let position_id = Self::get_user_position_id(&who)?.ok_or(Error::<T>::PositionNotFound)?;
+			ensure!(Self::is_owner(&who, position_id), Error::<T>::Forbidden);
+
 			Staking::<T>::try_mutate(|staking| {
 				Self::update_rewards(staking)?;
 
@@ -565,6 +616,13 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(None)
+	}
+
+	fn is_owner(who: &T::AccountId, id: T::PositionItemId) -> bool {
+		match <T as pallet::Config>::NFTHandler::owner(&<T as pallet::Config>::NFTCollectionId::get(), &id) {
+			Some(owner) => owner == *who,
+			None => false,
+		}
 	}
 
 	fn create_position_and_mint_nft(
