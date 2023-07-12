@@ -30,19 +30,12 @@ fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bo
 fn check_instructions_recursively<RuntimeCall>(xcm: &Xcm<RuntimeCall>, depth: u16, instructions: &Cell<usize>) -> bool {
 	if depth >= 6 {
 		return false;
-	}
-
-	// TODO: make configurable?
-	let limit_per_level = 10; // TODO: make configurable?
+	} // TODO: make configurable?
 	let max_instructions = 100usize; // TODO: make configurable?
 	let depth_count = Cell::new(0usize);
 	let mut instructions_count = instructions;
 	let mut iter = xcm.inner().iter();
-	while let (true, Some(inst)) = (
-		/*depth_count.get() < limit_per_level,*/
-		instructions_count.get() <= max_instructions,
-		iter.next(),
-	) {
+	while let (true, Some(inst)) = (instructions_count.get() <= max_instructions, iter.next()) {
 		/*depth_count.set(depth_count.get() + 1);*/
 		instructions_count.set(instructions_count.get() + 1);
 		if instructions_count.get() > max_instructions {
