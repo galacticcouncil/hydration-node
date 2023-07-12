@@ -2,9 +2,12 @@ use core::{cell::Cell, marker::PhantomData};
 
 use frame_support::traits::Contains;
 use polkadot_xcm::v3::prelude::*;
+use sp_core::{ConstU16, Get};
 use sp_runtime::Either;
 
-pub struct AllowTransferAndSwap<RuntimeCall>(PhantomData<RuntimeCall>);
+pub struct AllowTransferAndSwap<MaxXcmDepth, RuntimeCall>(PhantomData<(MaxXcmDepth, RuntimeCall)>)
+where
+	MaxXcmDepth: Get<u16>;
 
 fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bool, &Xcm<()>> {
 	match inst {
@@ -27,10 +30,17 @@ fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bo
 	}
 }
 
-fn check_instructions_recursively<RuntimeCall>(xcm: &Xcm<RuntimeCall>, depth: u16, instructions: &Cell<usize>) -> bool {
-	if depth >= 6 {
+fn check_instructions_recursively<MaxXcmDepth, RuntimeCall>(
+	xcm: &Xcm<RuntimeCall>,
+	depth: u16,
+	instructions: &Cell<usize>,
+) -> bool
+where
+	MaxXcmDepth: Get<u16>,
+{
+	if depth > MaxXcmDepth::get() {
 		return false;
-	} // TODO: make configurable?
+	}
 	let max_instructions = 100usize; // TODO: make configurable?
 	let mut instructions_count = instructions;
 	let mut iter = xcm.inner().iter();
@@ -44,7 +54,7 @@ fn check_instructions_recursively<RuntimeCall>(xcm: &Xcm<RuntimeCall>, depth: u1
 			Either::Left(true) => continue,
 			Either::Left(false) => return false,
 			Either::Right(xcm) => {
-				if check_instructions_recursively(xcm, depth + 1, instructions_count) {
+				if check_instructions_recursively::<MaxXcmDepth, ()>(xcm, depth + 1, instructions_count) {
 					continue;
 				} else {
 					return false;
@@ -55,7 +65,11 @@ fn check_instructions_recursively<RuntimeCall>(xcm: &Xcm<RuntimeCall>, depth: u1
 	true
 }
 
-impl<RuntimeCall> Contains<(MultiLocation, Xcm<RuntimeCall>)> for AllowTransferAndSwap<RuntimeCall> {
+impl<MaxXcmDepth, RuntimeCall> Contains<(MultiLocation, Xcm<RuntimeCall>)>
+	for AllowTransferAndSwap<MaxXcmDepth, RuntimeCall>
+where
+	MaxXcmDepth: Get<u16>,
+{
 	fn contains((loc, xcm): &(MultiLocation, Xcm<RuntimeCall>)) -> bool {
 		// allow root to execute XCM
 		if loc == &MultiLocation::here() {
@@ -63,7 +77,7 @@ impl<RuntimeCall> Contains<(MultiLocation, Xcm<RuntimeCall>)> for AllowTransferA
 		}
 
 		let instructions = Cell::new(0usize);
-		check_instructions_recursively(xcm, 0, &instructions)
+		check_instructions_recursively::<MaxXcmDepth, RuntimeCall>(xcm, 0, &instructions)
 	}
 }
 
@@ -89,7 +103,9 @@ mod tests {
 				id: [1; 32],
 			},
 		);
-		assert!(!AllowTransferAndSwap::<crate::RuntimeCall>::contains(&(loc, xcm)));
+		assert!(!AllowTransferAndSwap::<ConstU16<5>, crate::RuntimeCall>::contains(&(
+			loc, xcm
+		)));
 	}
 
 	#[test]
@@ -136,7 +152,9 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(AllowTransferAndSwap::<crate::RuntimeCall>::contains(&(loc, message)));
+		assert!(AllowTransferAndSwap::<ConstU16<5>, crate::RuntimeCall>::contains(&(
+			loc, message
+		)));
 	}
 
 	#[test]
@@ -182,7 +200,7 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(!AllowTransferAndSwap::<()>::contains(&(loc, message)));
+		assert!(!AllowTransferAndSwap::<ConstU16<5>, ()>::contains(&(loc, message)));
 	}
 
 	#[test]
@@ -228,7 +246,7 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(AllowTransferAndSwap::<()>::contains(&(loc, message)));
+		assert!(AllowTransferAndSwap::<ConstU16<5>, ()>::contains(&(loc, message)));
 	}
 
 	#[test]
@@ -301,7 +319,7 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(!AllowTransferAndSwap::<()>::contains(&(loc, message)));
+		assert!(!AllowTransferAndSwap::<ConstU16<5>, ()>::contains(&(loc, message)));
 	}
 
 	#[test]
@@ -344,6 +362,6 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(!AllowTransferAndSwap::<()>::contains(&(loc, message)));
+		assert!(!AllowTransferAndSwap::<ConstU16<5>, ()>::contains(&(loc, message)));
 	}
 }
