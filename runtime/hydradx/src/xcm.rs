@@ -10,7 +10,7 @@ use hydradx_adapters::{MultiCurrencyTrader, ToFeeReceiver};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 pub use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
 use pallet_xcm::XcmPassthrough;
-use polkadot_parachain::primitives::{RelayChainBlockNumber, Sibling};
+use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::v3::prelude::*;
 use polkadot_xcm::v3::Weight as XcmWeight;
 use primitives::Price;
@@ -136,7 +136,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ExecuteDeferredOrigin = EnsureRoot<AccountId>;
 	type MaxDeferredMessages = ConstU32<100>;
 	type RelayChainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
-	type XcmDeferFilter = XcmRateLimiter;
+	type XcmDeferFilter = ();
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
@@ -206,22 +206,6 @@ impl pallet_xcm::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
 }
-
-parameter_types! {
-	pub DeferDuration: RelayChainBlockNumber = 600; // 1 hour
-	pub MaxDeferDuration: RelayChainBlockNumber = 600 * 24 * 10; // 10 days
-}
-
-impl pallet_xcm_rate_limiter::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type AssetId = AssetId;
-	type DeferDuration = DeferDuration;
-	type MaxDeferDuration = MaxDeferDuration;
-	type RelayBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
-	type CurrencyIdConvert = CurrencyIdConvert;
-	type RateLimitFor = pallet_asset_registry::XcmRateLimitsInRegistry<Runtime>;
-}
-
 pub struct CurrencyIdConvert;
 use primitives::constants::chain::CORE_ASSET_ID;
 
