@@ -31,11 +31,11 @@ fn check_instructions_recursively<RuntimeCall>(xcm: &Xcm<RuntimeCall>, depth: u1
 	if depth >= 6 {
 		return false;
 	} // TODO: make configurable?
-	let limit = 10; // TODO: make configurable?
-	let count = Cell::new(0usize);
+	let limit_per_level = 10; // TODO: make configurable?
+	let depth_count = Cell::new(0usize);
 	let mut iter = xcm.inner().iter();
-	while let (true, Some(inst)) = (count.get() < limit, iter.next()) {
-		count.set(count.get() + 1);
+	while let (true, Some(inst)) = (depth_count.get() < limit_per_level, iter.next()) {
+		depth_count.set(depth_count.get() + 1);
 		match allowed_or_recurse(inst) {
 			Either::Left(true) => continue,
 			Either::Left(false) => return false,
