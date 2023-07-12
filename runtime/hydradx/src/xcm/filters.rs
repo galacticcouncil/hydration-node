@@ -96,7 +96,7 @@ mod tests {
 	use codec::Encode;
 	use frame_support::pallet_prelude::Weight;
 
-	//TODO: add more
+	//TODO: consider what others needs to be filtered out then add them to this test
 	#[test]
 	fn xcm_execute_filter_should_not_allow_transact() {
 		let call = crate::RuntimeCall::System(frame_system::Call::remark { remark: Vec::new() }).encode();
