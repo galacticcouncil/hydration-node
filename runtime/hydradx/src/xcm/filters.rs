@@ -27,20 +27,33 @@ fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bo
 	}
 }
 
-fn check_instructions_recursively<RuntimeCall>(xcm: &Xcm<RuntimeCall>, depth: u16) -> bool {
+fn check_instructions_recursively<RuntimeCall>(xcm: &Xcm<RuntimeCall>, depth: u16, instructions: &Cell<usize>) -> bool {
 	if depth >= 6 {
 		return false;
-	} // TODO: make configurable?
+	}
+
+	// TODO: make configurable?
 	let limit_per_level = 10; // TODO: make configurable?
+	let max_instructions = 100usize; // TODO: make configurable?
 	let depth_count = Cell::new(0usize);
+	let mut instructions_count = instructions;
 	let mut iter = xcm.inner().iter();
-	while let (true, Some(inst)) = (depth_count.get() < limit_per_level, iter.next()) {
-		depth_count.set(depth_count.get() + 1);
+	while let (true, Some(inst)) = (
+		/*depth_count.get() < limit_per_level,*/
+		instructions_count.get() <= max_instructions,
+		iter.next(),
+	) {
+		/*depth_count.set(depth_count.get() + 1);*/
+		instructions_count.set(instructions_count.get() + 1);
+		if instructions_count.get() > max_instructions {
+			return false;
+		}
+
 		match allowed_or_recurse(inst) {
 			Either::Left(true) => continue,
 			Either::Left(false) => return false,
 			Either::Right(xcm) => {
-				if check_instructions_recursively(xcm, depth + 1) {
+				if check_instructions_recursively(xcm, depth + 1, instructions_count) {
 					continue;
 				} else {
 					return false;
@@ -57,7 +70,9 @@ impl<RuntimeCall> Contains<(MultiLocation, Xcm<RuntimeCall>)> for AllowTransferA
 		if loc == &MultiLocation::here() {
 			return true;
 		}
-		check_instructions_recursively(xcm, 0)
+
+		let instructions = Cell::new(0usize);
+		check_instructions_recursively(xcm, 0, &instructions)
 	}
 }
 
@@ -225,64 +240,8 @@ mod tests {
 		assert!(AllowTransferAndSwap::<()>::contains(&(loc, message)));
 	}
 
-	#[ignore]
 	#[test]
-	fn allow_transfer_and_swap_should_filter_messages_with_too_many_instructions() {
-		//Arrange
-		let fees = MultiAsset::from((MultiLocation::here(), 10));
-		let assets: MultiAssets = fees.clone().into();
-
-		let max_assets = 2;
-		let beneficiary = Junction::AccountId32 {
-			id: [3; 32],
-			network: None,
-		}
-		.into();
-		let dest = MultiLocation::new(1, Parachain(2047));
-
-		let deposit = Xcm(vec![DepositAsset {
-			assets: Wild(AllCounted(max_assets)),
-			beneficiary,
-		}]);
-
-		let mut message = Xcm(vec![
-			TransferReserveAsset {
-				assets: assets.clone(),
-				dest,
-				xcm: deposit.clone(),
-			};
-			5
-		]);
-
-		//TODO: continue from here
-		//TODO: remove limit per level and create global limit fe 100, so we can have two tests,
-		// one one 100 instructions on one level, other is with multiple levels, and both should be filtered out
-		for _ in 0..5 {
-			let xcm = message.clone();
-			message = Xcm(vec![
-				TransferReserveAsset {
-					assets: assets.clone(),
-					dest,
-					xcm: xcm.clone(),
-				};
-				2
-			]);
-		}
-		let loc = MultiLocation::new(
-			0,
-			AccountId32 {
-				network: None,
-				id: [1; 32],
-			},
-		);
-
-		//Act and assert
-		assert!(!AllowTransferAndSwap::<()>::contains(&(loc, message)));
-	}
-
-	#[ignore]
-	#[test]
-	fn allow_transfer_and_swap_should_filter_messages_with_too_many_instructions2() {
+	fn allow_transfer_and_swap_should_filter_messages_with_one_more_instruction_than_allowed() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
 		let weight_limit = WeightLimit::Unlimited;
@@ -303,16 +262,13 @@ mod tests {
 			beneficiary,
 		}]);
 
-		let mut message = Xcm(vec![
-			TransferReserveAsset {
-				assets: assets.clone(),
-				dest,
-				xcm: deposit.clone(),
-			};
-			5
-		]);
+		let mut message = Xcm(vec![TransferReserveAsset {
+			assets: assets.clone(),
+			dest,
+			xcm: deposit.clone(),
+		}]);
 
-		for _ in 0..3 {
+		for _ in 0..2 {
 			let xcm = message.clone();
 			message = Xcm(vec![TransferReserveAsset {
 				assets: assets.clone(),
@@ -321,8 +277,8 @@ mod tests {
 			}]);
 		}
 
-		//It has 14 instruction
-		let mut instructions_with_max_deep: Vec<cumulus_primitives_core::Instruction<()>> =
+		//It has 5 instruction
+		let mut instructions_with_inner_xcms: Vec<cumulus_primitives_core::Instruction<()>> =
 			vec![TransferReserveAsset {
 				assets: assets.clone(),
 				dest,
@@ -334,10 +290,59 @@ mod tests {
 				assets: Wild(AllCounted(max_assets)),
 				beneficiary,
 			};
-			87
+			95
 		];
 
-		instructions_with_max_deep.append(&mut rest);
+		instructions_with_inner_xcms.append(&mut rest);
+
+		message = Xcm(vec![TransferReserveAsset {
+			assets: assets.clone(),
+			dest,
+			xcm: Xcm(instructions_with_inner_xcms.clone()),
+		}]);
+
+		let loc = MultiLocation::new(
+			0,
+			AccountId32 {
+				network: None,
+				id: [1; 32],
+			},
+		);
+
+		//Act and assert
+		assert!(!AllowTransferAndSwap::<()>::contains(&(loc, message)));
+	}
+
+	#[test]
+	fn asd() {
+		//Arrange
+		let fees = MultiAsset::from((MultiLocation::here(), 10));
+		let weight_limit = WeightLimit::Unlimited;
+		let give: MultiAssetFilter = fees.clone().into();
+		let want: MultiAssets = fees.clone().into();
+		let assets: MultiAssets = fees.clone().into();
+
+		let max_assets = 2;
+		let beneficiary = Junction::AccountId32 {
+			id: [3; 32],
+			network: None,
+		}
+		.into();
+		let dest = MultiLocation::new(1, Parachain(2047));
+
+		let deposit = Xcm(vec![
+			DepositAsset {
+				assets: Wild(AllCounted(max_assets)),
+				beneficiary,
+			};
+			100
+		]);
+
+		let mut message = Xcm(vec![TransferReserveAsset {
+			assets: assets.clone(),
+			dest,
+			xcm: deposit.clone(),
+		}]);
 
 		let loc = MultiLocation::new(
 			0,
