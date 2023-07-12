@@ -84,7 +84,7 @@ fn staking_should_transfer_hdx_fees_to_pot_account_when_omnipool_trade_is_execut
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
@@ -94,6 +94,7 @@ fn staking_should_transfer_hdx_fees_to_pot_account_when_omnipool_trade_is_execut
 			0,
 		));
 
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Omnipool::sell(
 			hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
 			DAI,
@@ -103,8 +104,7 @@ fn staking_should_transfer_hdx_fees_to_pot_account_when_omnipool_trade_is_execut
 		));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-
-		assert_eq!(Currencies::free_balance(HDX, &staking_account), 1093580529360);
+		assert_eq!(Currencies::free_balance(HDX, &staking_account), 1_093_580_529_360);
 	});
 }
 
@@ -114,7 +114,7 @@ fn democracy_vote_should_record_stake_vote() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -166,7 +166,7 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -225,7 +225,7 @@ fn staking_should_transfer_rewards_when_claimed() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Balances::set_balance(
@@ -287,7 +287,7 @@ fn staking_should_not_reward_when_double_claimed() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Balances::set_balance(
@@ -336,7 +336,7 @@ fn staking_should_not_reward_when_stake_again_and_no_vote_activity() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Balances::set_balance(
@@ -390,7 +390,7 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Balances::set_balance(
@@ -444,7 +444,7 @@ fn staking_should_remove_vote_when_democracy_removes_vote() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -502,7 +502,7 @@ fn staking_should_not_reward_when_refenrendum_is_ongoing() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -551,7 +551,7 @@ fn democracy_vote_should_work_correctly_when_account_has_no_stake() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -583,7 +583,7 @@ fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -619,7 +619,7 @@ fn staking_position_transfer_should_fail_when_origin_is_owner() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -667,7 +667,7 @@ fn thaw_staking_position_should_fail_when_origin_is_position_owner() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -714,7 +714,7 @@ fn thaw_staking_collection_should_fail_when_origin_is_not_pallet_account() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -754,7 +754,7 @@ fn stake_should_fail_when_tokens_are_vested() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -792,7 +792,7 @@ fn stake_should_fail_when_tokens_are_already_staked() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(

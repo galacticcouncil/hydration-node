@@ -316,8 +316,9 @@ impl ExtBuilder {
 			}
 
 			if self.init_staking {
-				//TODO: set real amount
-				assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0));
+				let pot = Staking::pot_account_id();
+				assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), pot, HDX, 1_000 * ONE, 0));
+				assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 			}
 
 			for (who, staked_amount, at, pending_rewards) in self.stakes {

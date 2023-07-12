@@ -223,29 +223,31 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Balance too low
+		/// Balance too low.
 		InsufficientBalance,
-
-		/// Staked amount is too low
+		/// Staked amount is too low.
 		InsufficientStake,
 
-		/// Each user can have max one position
+		/// Each user can have max one position.
 		TooManyPostions,
 
-		/// Position has not been found
+		/// Position has not been found.
 		PositionNotFound,
 
 		///
 		MaxVotesReached,
 
-		/// Staking is no initialized
+		/// Staking is no initialized.
 		NotInitialized,
 
-		/// Staking is already initialized
+		/// Staking is already initialized.
 		AlreadyInitialized,
 
 		/// Arithmetic error.
 		Arithmetic,
+
+		/// Pot's balance is zero.
+		MissingPotBalance,
 
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
@@ -254,6 +256,7 @@ pub mod pallet {
 
 	//NOTE: these errors should never happen.
 	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
+
 	pub enum InconsistentStateError {
 		/// Position was not found in the storage but NFT does exists.
 		PositionNotFound,
@@ -275,15 +278,19 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(1_000)]
-		pub fn initialize_staking(origin: OriginFor<T>, _non_dustable_amount: Balance) -> DispatchResult {
+		pub fn initialize_staking(origin: OriginFor<T>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(!Self::is_initialized(), Error::<T>::AlreadyInitialized);
 
-			Staking::<T>::put(StakingData::default());
-
-			//TODO: tx & lock non_dustable_amount
 			let pallet_account = <Pallet<T>>::pot_account_id();
+			let pot_balance = T::Currency::free_balance(T::HdxAssetId::get(), &pallet_account);
+			ensure!(!pot_balance.is_zero(), Error::<T>::MissingPotBalance);
+
+			let mut s = StakingData::default();
+			//This value if offsetted to prevent pot's dusting.
+			s.accumulated_claimable_rewards = pot_balance;
+			Staking::<T>::put(s);
 
 			T::NFTHandler::create_collection(&T::NFTCollectionId::get(), &pallet_account, &pallet_account)?;
 			T::Collections::freeze_collection(pallet_account, T::NFTCollectionId::get())
