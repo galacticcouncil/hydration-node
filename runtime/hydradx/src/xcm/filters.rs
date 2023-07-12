@@ -5,9 +5,12 @@ use polkadot_xcm::v3::prelude::*;
 use sp_core::{ConstU16, Get};
 use sp_runtime::Either;
 
-pub struct AllowTransferAndSwap<MaxXcmDepth, RuntimeCall>(PhantomData<(MaxXcmDepth, RuntimeCall)>)
+pub struct AllowTransferAndSwap<MaxXcmDepth, MaxInstructions, RuntimeCall>(
+	PhantomData<(MaxXcmDepth, MaxInstructions, RuntimeCall)>,
+)
 where
-	MaxXcmDepth: Get<u16>;
+	MaxXcmDepth: Get<u16>,
+	MaxInstructions: Get<u16>;
 
 fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bool, &Xcm<()>> {
 	match inst {
@@ -30,23 +33,23 @@ fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bo
 	}
 }
 
-fn check_instructions_recursively<MaxXcmDepth, RuntimeCall>(
+fn check_instructions_recursively<MaxXcmDepth, MaxInstructions, RuntimeCall>(
 	xcm: &Xcm<RuntimeCall>,
 	depth: u16,
-	instructions: &Cell<usize>,
+	instructions: &Cell<u16>,
 ) -> bool
 where
 	MaxXcmDepth: Get<u16>,
+	MaxInstructions: Get<u16>,
 {
 	if depth > MaxXcmDepth::get() {
 		return false;
 	}
-	let max_instructions = 100usize; // TODO: make configurable?
 	let mut instructions_count = instructions;
 	let mut iter = xcm.inner().iter();
 	while let Some(inst) = iter.next() {
 		instructions_count.set(instructions_count.get() + 1);
-		if instructions_count.get() > max_instructions {
+		if instructions_count.get() > MaxInstructions::get() {
 			return false;
 		}
 
@@ -54,7 +57,11 @@ where
 			Either::Left(true) => continue,
 			Either::Left(false) => return false,
 			Either::Right(xcm) => {
-				if check_instructions_recursively::<MaxXcmDepth, ()>(xcm, depth + 1, instructions_count) {
+				if check_instructions_recursively::<MaxXcmDepth, MaxInstructions, ()>(
+					xcm,
+					depth + 1,
+					instructions_count,
+				) {
 					continue;
 				} else {
 					return false;
@@ -65,10 +72,11 @@ where
 	true
 }
 
-impl<MaxXcmDepth, RuntimeCall> Contains<(MultiLocation, Xcm<RuntimeCall>)>
-	for AllowTransferAndSwap<MaxXcmDepth, RuntimeCall>
+impl<MaxXcmDepth, MaxInstructions, RuntimeCall> Contains<(MultiLocation, Xcm<RuntimeCall>)>
+	for AllowTransferAndSwap<MaxXcmDepth, MaxInstructions, RuntimeCall>
 where
 	MaxXcmDepth: Get<u16>,
+	MaxInstructions: Get<u16>,
 {
 	fn contains((loc, xcm): &(MultiLocation, Xcm<RuntimeCall>)) -> bool {
 		// allow root to execute XCM
@@ -76,8 +84,8 @@ where
 			return true;
 		}
 
-		let instructions = Cell::new(0usize);
-		check_instructions_recursively::<MaxXcmDepth, RuntimeCall>(xcm, 0, &instructions)
+		let instructions_count = Cell::new(0u16);
+		check_instructions_recursively::<MaxXcmDepth, MaxInstructions, RuntimeCall>(xcm, 0, &instructions_count)
 	}
 }
 
@@ -103,9 +111,7 @@ mod tests {
 				id: [1; 32],
 			},
 		);
-		assert!(!AllowTransferAndSwap::<ConstU16<5>, crate::RuntimeCall>::contains(&(
-			loc, xcm
-		)));
+		assert!(!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, crate::RuntimeCall>::contains(&(loc, xcm)));
 	}
 
 	#[test]
@@ -152,9 +158,7 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(AllowTransferAndSwap::<ConstU16<5>, crate::RuntimeCall>::contains(&(
-			loc, message
-		)));
+		assert!(AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, crate::RuntimeCall>::contains(&(loc, message)));
 	}
 
 	#[test]
@@ -200,7 +204,9 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(!AllowTransferAndSwap::<ConstU16<5>, ()>::contains(&(loc, message)));
+		assert!(!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, ()>::contains(&(
+			loc, message
+		)));
 	}
 
 	#[test]
@@ -246,7 +252,9 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(AllowTransferAndSwap::<ConstU16<5>, ()>::contains(&(loc, message)));
+		assert!(AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, ()>::contains(&(
+			loc, message
+		)));
 	}
 
 	#[test]
@@ -319,7 +327,9 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(!AllowTransferAndSwap::<ConstU16<5>, ()>::contains(&(loc, message)));
+		assert!(!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, ()>::contains(&(
+			loc, message
+		)));
 	}
 
 	#[test]
@@ -362,6 +372,8 @@ mod tests {
 		);
 
 		//Act and assert
-		assert!(!AllowTransferAndSwap::<ConstU16<5>, ()>::contains(&(loc, message)));
+		assert!(!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, ()>::contains(&(
+			loc, message
+		)));
 	}
 }

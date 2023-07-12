@@ -186,6 +186,7 @@ parameter_types! {
 parameter_types! {
 	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
 	pub const MaxXcmDepth: u16 = 5;
+	pub const MaxNumberOfInstructions: u16 = 100;
 }
 
 impl pallet_xcm::Config for Runtime {
@@ -195,7 +196,7 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, RuntimeCall>;
+	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
