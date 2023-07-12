@@ -32,11 +32,9 @@ fn check_instructions_recursively<RuntimeCall>(xcm: &Xcm<RuntimeCall>, depth: u1
 		return false;
 	} // TODO: make configurable?
 	let max_instructions = 100usize; // TODO: make configurable?
-	let depth_count = Cell::new(0usize);
 	let mut instructions_count = instructions;
 	let mut iter = xcm.inner().iter();
-	while let (true, Some(inst)) = (instructions_count.get() <= max_instructions, iter.next()) {
-		/*depth_count.set(depth_count.get() + 1);*/
+	while let Some(inst) = iter.next() {
 		instructions_count.set(instructions_count.get() + 1);
 		if instructions_count.get() > max_instructions {
 			return false;
