@@ -10,15 +10,13 @@ pub struct StakingDemocracy<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
 	fn on_vote(who: &T::AccountId, ref_index: ReferendumIndex, vote: AccountVote<Balance>) -> DispatchResult {
-		let maybe_position_id = Pallet::<T>::get_user_position_id(who)?;
-		let position_id = if maybe_position_id.is_some() {
-			maybe_position_id.unwrap()
+		let position_id = if let Some(position_id) = Pallet::<T>::get_user_position_id(who)? {
+			position_id
 		} else {
 			return Ok(());
 		};
-		let position = Positions::<T>::get(&position_id);
-		let position = if position.is_some() {
-			position.unwrap()
+		let position = if let Some(position) = Positions::<T>::get(position_id) {
+			position
 		} else {
 			return Ok(());
 		};
@@ -62,9 +60,8 @@ impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
 	}
 
 	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> DispatchResult {
-		let maybe_position_id = Pallet::<T>::get_user_position_id(who)?;
-		let position_id = if maybe_position_id.is_some() {
-			maybe_position_id.unwrap()
+		let position_id = if let Some(position_id) = Pallet::<T>::get_user_position_id(who)? {
+			position_id
 		} else {
 			return Ok(());
 		};
@@ -84,12 +81,6 @@ pub struct ReferendumStatus<T>(sp_std::marker::PhantomData<T>);
 impl<T: pallet_democracy::Config> DemocracyReferendum for ReferendumStatus<T> {
 	fn is_referendum_finished(index: ReferendumIndex) -> bool {
 		let maybe_info = pallet_democracy::Pallet::<T>::referendum_info(index);
-		match maybe_info {
-			Some(info) => match info {
-				ReferendumInfo::Finished { .. } => true,
-				_ => false,
-			},
-			_ => false,
-		}
+		matches!(maybe_info, Some(ReferendumInfo::Finished { .. }))
 	}
 }

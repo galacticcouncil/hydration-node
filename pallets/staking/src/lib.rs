@@ -299,9 +299,11 @@ pub mod pallet {
 			let pot_balance = T::Currency::free_balance(T::HdxAssetId::get(), &pallet_account);
 			ensure!(!pot_balance.is_zero(), Error::<T>::MissingPotBalance);
 
-			let mut s = StakingData::default();
-			//This value if offsetted to prevent pot's dusting.
-			s.accumulated_claimable_rewards = pot_balance;
+			let s = StakingData {
+				//This value if offsetted to prevent pot's dusting.
+				accumulated_claimable_rewards: pot_balance,
+				..Default::default()
+			};
 			Staking::<T>::put(s);
 
 			T::NFTHandler::create_collection(&T::NFTCollectionId::get(), &pallet_account, &pallet_account)?;
@@ -362,7 +364,7 @@ pub mod pallet {
 						.as_mut()
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
 
-					Self::ensure_stakable_balance(&who, amount, Some(&position))?;
+					Self::ensure_stakable_balance(&who, amount, Some(position))?;
 
 					Self::process_votes(position_id, position)?;
 
@@ -398,7 +400,7 @@ pub mod pallet {
 					position.reward_per_stake = staking.accumulated_reward_per_stake;
 
 					let points =
-						Self::get_points(&position, current_period, created_at).ok_or(Error::<T>::Arithmetic)?;
+						Self::get_points(position, current_period, created_at).ok_or(Error::<T>::Arithmetic)?;
 					let slash_points =
 						math::calculate_slashed_points(points, position.stake, amount, T::CurrentStakeWeight::get())
 							.ok_or(Error::<T>::Arithmetic)?;
@@ -640,7 +642,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn get_user_position_id(who: &T::AccountId) -> Result<Option<T::PositionItemId>, DispatchError> {
-		let mut user_position_ids = T::NFTHandler::owned_in_collection(&T::NFTCollectionId::get(), &who);
+		let mut user_position_ids = T::NFTHandler::owned_in_collection(&T::NFTCollectionId::get(), who);
 
 		let position_id = user_position_ids.next();
 		if position_id.is_some() {
@@ -678,7 +680,7 @@ impl<T: Config> Pallet<T> {
 			),
 		);
 
-		T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &position_id, &who)?;
+		T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &position_id, who)?;
 
 		Ok(position_id)
 	}

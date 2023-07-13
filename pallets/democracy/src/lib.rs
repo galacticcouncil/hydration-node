@@ -149,6 +149,7 @@
 //! - `cancel_queued` - Cancels a proposal that is queued for enactment.
 //! - `clear_public_proposal` - Removes all public proposals.
 
+#![allow(clippy::all)]
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 

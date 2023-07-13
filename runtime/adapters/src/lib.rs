@@ -667,7 +667,7 @@ where
 	fn locked(who: AccountId) -> Balance {
 		let lock_id = orml_vesting::VESTING_LOCK_ID;
 
-		if let Some(p) = pallet_balances::Locks::<Runtime>::get(who.clone())
+		if let Some(p) = pallet_balances::Locks::<Runtime>::get(who)
 			.iter()
 			.find(|x| x.id == lock_id)
 		{

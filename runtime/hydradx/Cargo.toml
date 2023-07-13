@@ -302,4 +302,5 @@ try-runtime= [
     "pallet-otc/try-runtime",
     "pallet-route-executor/try-runtime",
     "pallet-dynamic-fees/try-runtime",
+    "pallet-staking/try-runtime",
 ]
