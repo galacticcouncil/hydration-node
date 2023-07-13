@@ -41,10 +41,9 @@ where
 		if want.len() != 1 {
 			return Err(give);
 		};
-		let given = give
-			.fungible_assets_iter()
-			.next()
-			.expect("length of 1 checked above; qed"); // TODO: Use let Some(give), else Err, and also log
+		let Some(given) = give.fungible_assets_iter().next() else {
+			return Err(give);
+		};
 
 		let Some(asset_in) = CurrencyIdConvert::convert(given.clone()) else { return Err(give) };
 		let Some(wanted) = want.get(0) else { return Err(give) };
