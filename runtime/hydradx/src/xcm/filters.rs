@@ -45,7 +45,7 @@ where
 	if depth > MaxXcmDepth::get() {
 		return false;
 	}
-	let mut instructions_count = instructions; //TODO: use just a let mut u16
+	let instructions_count = instructions; //TODO: use just a let mut u16
 	let mut iter = xcm.inner().iter();
 	while let Some(inst) = iter.next() {
 		instructions_count.set(instructions_count.get() + 1);
@@ -260,9 +260,6 @@ mod tests {
 	fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allowed_in_depth() {
 		//Arrange
 		let fees = MultiAsset::from((MultiLocation::here(), 10));
-		let weight_limit = WeightLimit::Unlimited;
-		let give: MultiAssetFilter = fees.clone().into();
-		let want: MultiAssets = fees.clone().into();
 		let assets: MultiAssets = fees.clone().into();
 
 		let max_assets = 2;
@@ -332,19 +329,12 @@ mod tests {
 	#[test]
 	fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allowed_in_one_level() {
 		//Arrange
-		let fees = MultiAsset::from((MultiLocation::here(), 10));
-		let weight_limit = WeightLimit::Unlimited;
-		let give: MultiAssetFilter = fees.clone().into();
-		let want: MultiAssets = fees.clone().into();
-		let assets: MultiAssets = fees.clone().into();
-
 		let max_assets = 2;
 		let beneficiary = Junction::AccountId32 {
 			id: [3; 32],
 			network: None,
 		}
 		.into();
-		let dest = MultiLocation::new(1, Parachain(2047));
 
 		let message_with_more_instructions_than_allowed = Xcm(vec![
 			DepositAsset {

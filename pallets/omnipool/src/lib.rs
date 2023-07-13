@@ -95,7 +95,6 @@ pub mod router_execution;
 pub mod traits;
 pub mod types;
 pub mod weights;
-pub mod xcm_exchange;
 
 use crate::traits::{AssetInfo, OmnipoolHooks};
 use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbalance, Tradability};

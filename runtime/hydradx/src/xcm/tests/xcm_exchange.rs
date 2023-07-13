@@ -1,14 +1,15 @@
-use super::*;
-use crate::tests::mock::AssetId as CurrencyId;
-use crate::tests::mock::{Balances, Tokens};
-use crate::xcm_exchange::OmniExchanger;
+use crate::xcm::tests::mock::AccountId;
+use crate::xcm::tests::mock::AssetId as CurrencyId;
+use crate::xcm::tests::mock::*;
+use crate::xcm::tests::mock::{Balances, Tokens};
+use crate::xcm::xcm_exchange::OmniExchanger;
 use frame_support::{assert_noop, parameter_types};
+use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::Convert;
-use sp_runtime::SaturatedConversion;
+use sp_runtime::{FixedU128, SaturatedConversion};
 use xcm_executor::traits::AssetExchange;
-
 parameter_types! {
 	pub ExchangeTempAccount: AccountId = 12345;
 }
@@ -59,9 +60,10 @@ fn omni_exchanger_allows_selling_supported_assets() {
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
 			let want = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
 			// Act
-			let received =
-				OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert>::exchange_asset(None, give, &want, SELL)
-					.expect("should return ok");
+			let received = OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
+				None, give, &want, SELL,
+			)
+			.expect("should return ok");
 			// Assert
 			let mut iter = received.fungible_assets_iter();
 			let asset_received = iter.next().expect("there should be at least one asset");
@@ -91,9 +93,10 @@ fn omni_exchanger_allows_buying_supported_assets() {
 			let want_asset = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount));
 			let want = want_asset.clone().into();
 			// Act
-			let received =
-				OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert>::exchange_asset(None, give, &want, BUY)
-					.expect("should return ok");
+			let received = OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
+				None, give, &want, BUY,
+			)
+			.expect("should return ok");
 			// Assert
 			let mut iter = received.fungible_assets_iter();
 			let asset_received = iter.next().expect("there should be at least one asset");
@@ -129,7 +132,7 @@ fn omni_exchanger_should_not_allow_trading_for_multiple_assets() {
 
 			// Act and assert
 			assert_noop!(
-				OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert>::exchange_asset(
+				OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
 					None,
 					give.clone().into(),
 					&want,

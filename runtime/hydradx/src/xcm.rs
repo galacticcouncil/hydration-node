@@ -26,6 +26,9 @@ use xcm_executor::{Config, XcmExecutor};
 mod filters;
 mod xcm_exchange;
 
+#[cfg(test)]
+mod tests;
+
 pub use filters::*;
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
@@ -112,7 +115,7 @@ impl Config for XcmConfig {
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetLocker = ();
-	type AssetExchanger = OmniExchanger<Runtime, TempAccount, CurrencyIdConvert>;
+	type AssetExchanger = OmniExchanger<Runtime, TempAccount, CurrencyIdConvert, Currencies>;
 	type AssetClaims = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type PalletInstancesInfo = AllPalletsWithSystem;

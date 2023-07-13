@@ -19,6 +19,7 @@ serde = { features = ["derive"], optional = true, version = "1.0.136" }
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 smallvec = "1.9.0"
+primitive-types = {default-features = false, version = '0.12.0'}
 
 # local dependencies
 primitives = { workspace = true }
@@ -64,6 +65,8 @@ pallet-duster = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
 pallet-route-executor = { workspace = true }
+
+hydra-dx-math = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -123,6 +126,9 @@ sp-transaction-pool = { workspace = true }
 sp-version = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = "1.4.0"
 
 [features]
 default = ["std"]

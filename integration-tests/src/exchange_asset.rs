@@ -12,9 +12,13 @@ use xcm_emulator::TestExt;
 
 use frame_support::dispatch::GetDispatchInfo;
 
+pub const SELL: bool = true;
+pub const BUY: bool = false;
+
 fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 	give: MultiAsset,
 	want: M,
+	is_sell: bool,
 ) -> VersionedXcm<RC> {
 	use polkadot_runtime::xcm_config::BaseXcmWeight;
 	use xcm_builder::FixedWeightBounds;
@@ -48,7 +52,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 			ExchangeAsset {
 				give: give.clone(),
 				want: want.clone(),
-				maximal: true,
+				maximal: is_sell,
 			},
 			DepositAsset {
 				assets: Wild(AllCounted(max_assets)),
@@ -65,7 +69,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 		ExchangeAsset {
 			give,
 			want,
-			maximal: true,
+			maximal: is_sell,
 		},
 		DepositAsset {
 			assets: Wild(AllCounted(max_assets)),
@@ -81,7 +85,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 }
 
 #[test]
-fn hydra_should_swap_assets_when_receiving_from_acala() {
+fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 	//Arrange
 	TestNet::reset();
 
@@ -123,6 +127,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
 			MultiAsset::from((GeneralIndex(0), 50 * UNITS)),
 			MultiAsset::from((GeneralIndex(CORE_ASSET_ID.into()), 300 * UNITS)),
+			SELL,
 		);
 		//Act
 		let res = hydradx_runtime::PolkadotXcm::execute(
@@ -158,6 +163,91 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(aca, &hydradx_runtime::Treasury::account_id()),
 			fees
+		);
+	});
+}
+
+//TODO: double check if this buy make sense, especially in the end, bob's aca balanced changed more than the fee
+#[test]
+fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
+	//Arrange
+	TestNet::reset();
+
+	let aca = 1234;
+	let mut price = None;
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			hydradx_runtime::RuntimeOrigin::root(),
+			b"ACA".to_vec(),
+			pallet_asset_registry::AssetType::Token,
+			1_000_000,
+			Some(aca),
+			None,
+			Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+				1,
+				X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))
+			))),
+			None
+		));
+
+		init_omnipool();
+		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+
+		let token_price = FixedU128::from_float(1.0);
+		assert_ok!(hydradx_runtime::Tokens::deposit(aca, &omnipool_account, 3000 * UNITS));
+
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			aca,
+			token_price,
+			Permill::from_percent(100),
+			AccountId::from(BOB),
+		));
+		use hydradx_traits::pools::SpotPriceProvider;
+		price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, aca);
+	});
+
+	Acala::execute_with(|| {
+		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
+			MultiAsset::from((GeneralIndex(0), 50 * UNITS)),
+			MultiAsset::from((GeneralIndex(CORE_ASSET_ID.into()), 300 * UNITS)),
+			BUY,
+		);
+		//Act
+		let res = hydradx_runtime::PolkadotXcm::execute(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			Box::new(xcm),
+			Weight::from_ref_time(399_600_000_000),
+		);
+		assert_ok!(res);
+
+		//Assert
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
+			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN - 100 * UNITS
+		);
+		// TODO: add utility macro?
+		assert!(matches!(
+			last_hydra_events(2).first(),
+			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+				cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+			))
+		));
+	});
+
+	let fees = 862495197993;
+	Hydra::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(aca, &AccountId::from(BOB)),
+			100 * UNITS - fees
+		);
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
+			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS
+		);
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(aca, &hydradx_runtime::Treasury::account_id()),
+			500801282051
 		);
 	});
 }
