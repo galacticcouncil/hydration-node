@@ -7,7 +7,6 @@ use sp_runtime::traits::{Convert, Zero};
 use sp_std::marker::PhantomData;
 use sp_std::vec;
 use xcm_executor::traits::AssetExchange;
-//TODO: copy unit tests from omnipool and adapt them
 
 pub struct OmniExchanger<T, TempAccount, CurrencyIdConvert, Currency>(
 	PhantomData<(T, TempAccount, CurrencyIdConvert, Currency)>,
