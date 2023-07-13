@@ -1,4 +1,5 @@
-use core::{cell::Cell, marker::PhantomData};
+use sp_std::cell::Cell;
+use sp_std::marker::PhantomData;
 
 use frame_support::traits::Contains;
 use polkadot_xcm::v3::prelude::*;
@@ -36,7 +37,7 @@ fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bo
 fn check_instructions_recursively<MaxXcmDepth, MaxInstructions, RuntimeCall>(
 	xcm: &Xcm<RuntimeCall>,
 	depth: u16,
-	instructions: &Cell<u16>, //TODO: don't use std, use core or sp_std for Cell
+	instructions: &Cell<u16>,
 ) -> bool
 where
 	MaxXcmDepth: Get<u16>,
