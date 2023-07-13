@@ -4,11 +4,9 @@ panic = 'unwind'
 [workspace]
 members = [
   'node',
-  'runtime/common',
   'runtime/hydradx',
   'pallets/omnipool',
   'pallets/dca',
-  'runtime/testing-hydradx',
   'primitives',
   'utils/build-script-utils',
   'integration-tests',
@@ -18,7 +16,6 @@ members = [
   'pallets/faucet',
   'traits',
   'pallets/relaychain-info',
-  'pallets/price-oracle',
   'pallets/route-executor',
   'pallets/transaction-multi-payment',
   'pallets/asset-registry',
@@ -32,7 +29,6 @@ members = [
   'utils/test-utils',
   'pallets/dynamic-fees',
   'pallets/duster',
-  'pallets/nft',
   'pallets/otc',
   'math',
 ]
@@ -43,10 +39,8 @@ primitives = { path = "primitives", default-features = false }
 hydradx-traits = { path = "traits", default-features = false }
 hydra-dx-math = { path = "math", default-features = false }
 
-common-runtime = { path = "runtime/common", default-features = false }
 hydradx-adapters = { path = "runtime/adapters", default-features = false }
 hydradx-runtime = { path = "runtime/hydradx", default-features = false }
-testing-hydradx-runtime = { path = "runtime/testing-hydradx", default-features = false }
 
 pallet-asset-registry = { path = "pallets/asset-registry", default-features = false }
 pallet-circuit-breaker = { path = "pallets/circuit-breaker", default-features = false }
@@ -61,11 +55,9 @@ pallet-faucet = { path = "pallets/faucet", default-features = false }
 pallet-genesis-history = { path = "pallets/genesis-history", default-features = false }
 pallet-liquidity-mining = { path = "pallets/liquidity-mining", default-features = false }
 warehouse-liquidity-mining = { package="pallet-liquidity-mining", path = "pallets/liquidity-mining", default-features = false }
-pallet-nft = { path = "pallets/nft", default-features = false }
 pallet-omnipool = { path = "pallets/omnipool", default-features = false }
 pallet-omnipool-liquidity-mining = { path = "pallets/omnipool-liquidity-mining", default-features = false }
 pallet-otc = { path = "pallets/otc", default-features = false}
-pallet-price-oracle = { path = "pallets/price-oracle", default-features = false }
 pallet-relaychain-info = { path = "pallets/relaychain-info", default-features = false }
 pallet-route-executor = { path = "pallets/route-executor", default-features = false }
 pallet-stableswap = { path = "pallets/stableswap", default-features = false }
@@ -211,7 +203,6 @@ pallet-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release
 polkadot-xcm = { package = "xcm", git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
 xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
 
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }

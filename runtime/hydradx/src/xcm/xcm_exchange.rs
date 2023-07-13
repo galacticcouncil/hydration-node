@@ -1,4 +1,3 @@
-use common_runtime::AccountId;
 use hydradx_traits::router::PoolType::Omnipool;
 use orml_traits::MultiCurrency;
 use pallet_route_executor::Trade;

@@ -19,13 +19,11 @@
 #![warn(missing_docs)]
 
 mod chain_spec;
-mod testing_chain_spec;
 
 #[macro_use]
 mod service;
 
 mod cli;
-mod client;
 mod command;
 mod rpc;
 

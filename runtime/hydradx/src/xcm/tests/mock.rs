@@ -19,7 +19,7 @@
 
 use crate::Amount;
 use crate::MaxNumberOfTrades;
-use crate::UNITS;
+
 use frame_support::dispatch::Weight;
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{
@@ -29,7 +29,7 @@ use frame_support::{
 use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_adapters::inspect::MultiInspectAdapter;
 use hydradx_traits::Registry;
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool;
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -178,8 +178,7 @@ impl pallet_omnipool::Config for Test {
 	type Currency = Currencies;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
-	type ProtocolFee = ProtocolFee;
-	type AssetFee = AssetFee;
+	type Fee = FeeProvider;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
@@ -199,6 +198,14 @@ impl pallet_omnipool::Config for Test {
 	);
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
+}
+
+pub struct FeeProvider;
+
+impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
+	fn get(_: &AssetId) -> (Permill, Permill) {
+		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
 }
 
 impl pallet_currencies::Config for Test {

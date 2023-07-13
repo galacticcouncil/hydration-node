@@ -80,12 +80,9 @@ use sp_std::prelude::*;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::Registry;
-use orml_traits::MultiCurrency;
+use orml_traits::{GetByKey, MultiCurrency};
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
-
-#[cfg(any(feature = "runtime-benchmarks", test))]
-mod benchmarks;
 
 #[cfg(test)]
 mod tests;
@@ -116,6 +113,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
+	use orml_traits::GetByKey;
 	use sp_runtime::ArithmeticError;
 
 	#[pallet::pallet]
@@ -161,13 +159,8 @@ pub mod pallet {
 		#[pallet::constant]
 		type StableCoinAssetId: Get<Self::AssetId>;
 
-		/// Protocol fee
-		#[pallet::constant]
-		type ProtocolFee: Get<Permill>;
-
-		/// Asset fee
-		#[pallet::constant]
-		type AssetFee: Get<Permill>;
+		/// Asset and Protocol Fee for given asset
+		type Fee: GetByKey<Self::AssetId, (Permill, Permill)>;
 
 		/// Minimum withdrawal fee
 		#[pallet::constant]
@@ -217,6 +210,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// State of an asset in the omnipool
+	#[pallet::getter(fn assets)]
 	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
 
 	#[pallet::storage]
@@ -230,6 +224,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// LP positions. Maps NFT instance id to corresponding position
+	#[pallet::getter(fn positions)]
 	pub(super) type Positions<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<Balance, T::AssetId>>;
 
@@ -273,6 +268,8 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: Balance,
 			amount_out: Balance,
+			asset_fee_amount: Balance,
+			protocol_fee_amount: Balance,
 		},
 		/// Buy trade executed.
 		BuyExecuted {
@@ -281,6 +278,8 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: Balance,
 			amount_out: Balance,
+			asset_fee_amount: Balance,
+			protocol_fee_amount: Balance,
 		},
 		/// LP Position was created and NFT instance minted.
 		PositionCreated {
@@ -1065,12 +1064,14 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
+			let (asset_fee, protocol_fee) = T::Fee::get(&asset_out);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
 				amount,
-				T::AssetFee::get(),
-				T::ProtocolFee::get(),
+				asset_fee,
+				protocol_fee,
 				current_imbalance.value,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -1168,6 +1169,8 @@ pub mod pallet {
 				asset_out,
 				amount_in: amount,
 				amount_out: *state_changes.asset_out.delta_reserve,
+				asset_fee_amount: state_changes.fee.asset_fee,
+				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
 			Ok(())
@@ -1241,12 +1244,13 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
+			let (asset_fee, protocol_fee) = T::Fee::get(&asset_in);
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
 				amount,
-				T::AssetFee::get(),
-				T::ProtocolFee::get(),
+				asset_fee,
+				protocol_fee,
 				current_imbalance.value,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -1349,6 +1353,8 @@ pub mod pallet {
 				asset_out,
 				amount_in: *state_changes.asset_in.delta_reserve,
 				amount_out: *state_changes.asset_out.delta_reserve,
+				asset_fee_amount: state_changes.fee.asset_fee,
+				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
 			Ok(())
@@ -1649,10 +1655,12 @@ impl<T: Config> Pallet<T> {
 
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
+		let (asset_fee, _) = T::Fee::get(&asset_out);
+
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 			&(&asset_state).into(),
 			amount,
-			T::AssetFee::get(),
+			asset_fee,
 			I129 {
 				value: current_imbalance.value,
 				negative: current_imbalance.negative,
@@ -1707,6 +1715,8 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
+			asset_fee_amount: state_changes.fee.asset_fee,
+			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
@@ -1745,10 +1755,12 @@ impl<T: Config> Pallet<T> {
 
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
+		let (asset_fee, _) = T::Fee::get(&asset_out);
+
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
 			amount,
-			T::AssetFee::get(),
+			asset_fee,
 			I129 {
 				value: current_imbalance.value,
 				negative: current_imbalance.negative,
@@ -1802,6 +1814,8 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
+			asset_fee_amount: state_changes.fee.asset_fee,
+			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;

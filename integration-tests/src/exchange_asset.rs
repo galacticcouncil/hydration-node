@@ -1,7 +1,6 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use common_runtime::CORE_ASSET_ID;
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, pallet_prelude::*};
 use orml_traits::currency::MultiCurrency;
@@ -140,7 +139,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		//Assert
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
-			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN - 100 * UNITS
+			ALICE_INITIAL_NATIVE_BALANCE - 100 * UNITS
 		);
 		// TODO: add utility macro?
 		assert!(matches!(
@@ -224,7 +223,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 		//Assert
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
-			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN - 100 * UNITS
+			ALICE_INITIAL_NATIVE_BALANCE - 100 * UNITS
 		);
 		// TODO: add utility macro?
 		assert!(matches!(

@@ -276,8 +276,6 @@ impl pallet_omnipool::Config for Test {
 	type Currency = Tokens;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
-	type ProtocolFee = ProtocolFee;
-	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
@@ -294,6 +292,7 @@ impl pallet_omnipool::Config for Test {
 	type PriceBarrier = ();
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
+	type Fee = FeeProvider;
 }
 
 pub struct ExtBuilder {
@@ -774,5 +773,13 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 
 	fn get_price_weight() -> Weight {
 		todo!()
+	}
+}
+
+pub struct FeeProvider;
+
+impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
+	fn get(_: &AssetId) -> (Permill, Permill) {
+		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
 	}
 }

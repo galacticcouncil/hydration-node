@@ -50,7 +50,6 @@ benchmarks! {
 		where T::AssetId: From<u32>,
 	}
 
-	#[extra]
 	on_finalize {
 		let n in 0 .. 400;
 		let m in 0 .. 400;
@@ -75,8 +74,21 @@ benchmarks! {
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {}
 
-	#[extra]
-	on_finalize_single {
+	on_finalize_single_liquidity_limit_entry {
+		let block_num: T::BlockNumber = 5u32.into();
+		frame_system::Pallet::<T>::set_block_number(block_num);
+
+		Pallet::<T>::on_initialize(block_num);
+
+		let amount = T::Balance::from(1_000_000u32);
+		let asset_id = T::AssetId::from(1);
+		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, amount)?;
+
+		whitelist_storage_maps::<T>();
+	}: { Pallet::<T>::on_finalize(block_num); }
+	verify {}
+
+	on_finalize_single_trade_limit_entry {
 		let block_num: T::BlockNumber = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
 
@@ -85,13 +97,11 @@ benchmarks! {
 		let amount = T::Balance::from(1_000_000u32);
 		let asset_id = T::AssetId::from(1);
 		Pallet::<T>::initialize_trade_limit(asset_id, amount)?;
-		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, amount)?;
 
 		whitelist_storage_maps::<T>();
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {}
 
-	#[extra]
 	on_finalize_empty {
 		let block_num: T::BlockNumber = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);

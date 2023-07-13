@@ -3,6 +3,7 @@
 pub mod currencies;
 pub mod duster;
 pub mod multi_payment;
+pub mod omnipool;
 pub mod route_executor;
 pub mod tokens;
 pub mod vesting;

@@ -1,3 +1,4 @@
+mod amplification;
 mod invariants;
 mod multi_assets;
 mod two_assets;

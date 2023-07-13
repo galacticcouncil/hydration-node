@@ -45,9 +45,9 @@ pub struct AssetState<Balance> {
 	/// Asset's weight cap
 	/// Note: this should be Permill or FixedU128. But neither implements MaxEncodedLen in 0.9.16.
 	/// TODO: upgrade to 0.9.17 resolves this.
-	pub(super) cap: u128,
+	pub cap: u128,
 	/// Asset's trade state
-	pub(super) tradable: Tradability,
+	pub tradable: Tradability,
 }
 
 impl<Balance> From<AssetReserveState<Balance>> for AssetState<Balance>

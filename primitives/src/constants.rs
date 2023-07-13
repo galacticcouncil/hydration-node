@@ -76,23 +76,14 @@ pub mod chain {
 	/// Core asset id
 	pub const CORE_ASSET_ID: AssetId = 0;
 
-	/// Max fraction of pool to buy in single transaction
-	pub const MAX_OUT_RATIO: u128 = 3;
-
-	/// Max fraction of pool to sell in single transaction
-	pub const MAX_IN_RATIO: u128 = 3;
-
-	/// Trading limit
-	pub const MIN_TRADING_LIMIT: Balance = 1000;
-
-	/// Minimum pool liquidity
-	pub const MIN_POOL_LIQUIDITY: Balance = 1000;
-
 	/// We allow for 0.5 seconds of compute
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
 		WEIGHT_REF_TIME_PER_SECOND.saturating_div(2),
 		polkadot_primitives::v2::MAX_POV_SIZE as u64,
 	);
+
+	/// The source of the data for the oracle.
+	pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 }
 
 #[cfg(test)]

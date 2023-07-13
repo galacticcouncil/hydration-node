@@ -10,11 +10,26 @@ pub type NamedReserveIdentifier = [u8; 8];
 
 const MAX_NUMBER_OF_TRADES: u32 = 5;
 
+/// DCA schedule containing information to execute repeating orders.
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Schedule<AccountId, AssetId, BlockNumber> {
+	/// The owner of the schedule.
 	pub owner: AccountId,
+	/// The time period (in blocks) between two schedule executions.
 	pub period: BlockNumber,
+	/// The total amount (budget) the user wants to spend on the whole DCA.
+	/// Its currency is the sold (amount_in) currency specified in `order`.
 	pub total_amount: Balance,
+	/// The maximum number of retries in case of failing schedules.
+	/// If not specified, the default pallet configuration `MaxPriceDifferenceBetweenBlocks` is used.
+	pub max_retries: Option<u8>,
+	/// The price stability threshold used to check if the price is stable.
+	/// The check is performed by comparing the spot price and short oracle price.
+	/// If not specified, the default pallet configuration `MaxPriceDifferenceBetweenBlocks` is used.
+	pub stability_threshold: Option<Permill>,
+	/// The slippage limit used to calculate the `min_amount_out` and `max_amount_in` trade limits.
+	pub slippage: Option<Permill>,
+	/// The order containing information to execute a specific trade by the router.
 	pub order: Order<AssetId>,
 }
 
@@ -24,16 +39,14 @@ pub enum Order<AssetId> {
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_in: Balance,
-		min_limit: Balance,
-		slippage: Option<Permill>,
+		min_amount_out: Balance,
 		route: BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
 	},
 	Buy {
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_out: Balance,
-		max_limit: Balance,
-		slippage: Option<Permill>,
+		max_amount_in: Balance,
 		route: BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
 	},
 }
@@ -56,14 +69,6 @@ where
 			Order::Buy { asset_out, .. } => asset_out,
 		};
 		*asset_out
-	}
-
-	pub fn get_slippage(&self) -> Option<Permill> {
-		let slippage = match &self {
-			Order::Sell { slippage, .. } => slippage,
-			Order::Buy { slippage, .. } => slippage,
-		};
-		*slippage
 	}
 
 	pub fn get_route_length(&self) -> usize {
