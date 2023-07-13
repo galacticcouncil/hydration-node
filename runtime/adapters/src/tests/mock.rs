@@ -17,17 +17,16 @@
 
 //! Test environment for Assets pallet.
 
-use crate::Amount;
-use crate::MaxNumberOfTrades;
+use primitives::Amount;
 
+use crate::inspect::MultiInspectAdapter;
 use frame_support::dispatch::Weight;
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
-use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_adapters::inspect::MultiInspectAdapter;
+use frame_system::EnsureRoot;
 use hydradx_traits::Registry;
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
@@ -158,6 +157,7 @@ parameter_types! {
 	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionCollectionId: u32= 1000;
 
+	pub const MaxNumberOfTrades: u8 = 5;
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
@@ -271,7 +271,7 @@ parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 }
 
-type Pools = (OmniPoolForRouter);
+type Pools = OmniPoolForRouter;
 
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;

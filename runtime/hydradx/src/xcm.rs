@@ -27,13 +27,7 @@ use xcm_builder::{
 };
 use xcm_executor::{Config, XcmExecutor};
 
-mod filters;
-mod xcm_exchange;
-
-#[cfg(test)]
-mod tests;
-
-pub use filters::*;
+use hydradx_adapters::filters::AllowTransferAndSwap;
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
@@ -226,7 +220,7 @@ impl pallet_xcm::Config for Runtime {
 }
 
 pub struct CurrencyIdConvert;
-use crate::xcm::xcm_exchange::OmniExchanger;
+use hydradx_adapters::xcm_exchange::OmniExchanger;
 use primitives::constants::chain::CORE_ASSET_ID;
 
 impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {

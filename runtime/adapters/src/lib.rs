@@ -51,7 +51,9 @@ use xcm_executor::{
 	Assets,
 };
 
+pub mod filters;
 pub mod inspect;
+pub mod xcm_exchange;
 
 #[cfg(test)]
 mod tests;

@@ -1,8 +1,8 @@
-use crate::xcm::tests::mock::AccountId;
-use crate::xcm::tests::mock::AssetId as CurrencyId;
-use crate::xcm::tests::mock::*;
-use crate::xcm::tests::mock::{Balances, Tokens};
-use crate::xcm::xcm_exchange::OmniExchanger;
+use crate::tests::mock::AccountId;
+use crate::tests::mock::AssetId as CurrencyId;
+use crate::tests::mock::*;
+use crate::tests::mock::{DAI, HDX, NATIVE_AMOUNT};
+use crate::xcm_exchange::OmniExchanger;
 use frame_support::{assert_noop, parameter_types};
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
