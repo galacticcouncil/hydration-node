@@ -36,7 +36,7 @@ fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bo
 fn check_instructions_recursively<MaxXcmDepth, MaxInstructions, RuntimeCall>(
 	xcm: &Xcm<RuntimeCall>,
 	depth: u16,
-	instructions: &Cell<u16>,
+	instructions: &Cell<u16>, //TODO: don't use std, use core or sp_std for Cell
 ) -> bool
 where
 	MaxXcmDepth: Get<u16>,
@@ -45,7 +45,7 @@ where
 	if depth > MaxXcmDepth::get() {
 		return false;
 	}
-	let mut instructions_count = instructions;
+	let mut instructions_count = instructions; //TODO: use just a let mut u16
 	let mut iter = xcm.inner().iter();
 	while let Some(inst) = iter.next() {
 		instructions_count.set(instructions_count.get() + 1);

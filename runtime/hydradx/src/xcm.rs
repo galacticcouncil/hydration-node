@@ -9,7 +9,6 @@ use frame_support::{
 use hydradx_adapters::{MultiCurrencyTrader, ToFeeReceiver};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 pub use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
-use pallet_omnipool::xcm_exchange::OmniExchanger;
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::v3::prelude::*;
@@ -25,6 +24,8 @@ use xcm_builder::{
 use xcm_executor::{Config, XcmExecutor};
 
 mod filters;
+mod xcm_exchange;
+
 pub use filters::*;
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
@@ -215,6 +216,7 @@ impl pallet_xcm::Config for Runtime {
 }
 
 pub struct CurrencyIdConvert;
+use crate::xcm::xcm_exchange::OmniExchanger;
 use primitives::constants::chain::CORE_ASSET_ID;
 
 impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {

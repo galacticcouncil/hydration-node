@@ -163,6 +163,8 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 }
 
 // TODO test with Acala -> Hydra Swap -> Acala
+// TODO: we want to make sure that the different combinations work
+// TODO: implement the most complex version: 4hops, 5 chains involved
 
 // Support different transfers of swap results
 // send HDX back to Acala
