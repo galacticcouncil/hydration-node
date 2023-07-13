@@ -16,7 +16,8 @@
 
 // TODO
 //  * [] - tests create/increase during UnclaimablePeriods
-//  * [] - lock non-dustable amount which won't be ever distributed in the pot.
+//  * [] - add staking initialized event
+//  * [] - add rps updated event
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -43,6 +44,9 @@ use sp_std::num::NonZeroU128;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(any(feature = "runtime-benchmarks", test))]
+mod benchmarks;
 
 pub mod integrations;
 pub mod traits;
@@ -231,11 +235,9 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Balance too low.
 		InsufficientBalance,
+
 		/// Staked amount is too low.
 		InsufficientStake,
-
-		/// Each user can have max one position.
-		TooManyPostions,
 
 		/// Position has not been found.
 		PositionNotFound,
@@ -278,6 +280,9 @@ pub mod pallet {
 
 		/// Calculated`accumulated_unpaid_rewards` are less than 0.
 		NegativeUnpaidRewards,
+
+		/// Multiple positions exits for single account.
+		TooManyPostions,
 	}
 
 	impl<T> From<InconsistentStateError> for Error<T> {
@@ -646,8 +651,10 @@ impl<T: Config> Pallet<T> {
 
 		let position_id = user_position_ids.next();
 		if position_id.is_some() {
-			//TODO: change to inconsistent error
-			ensure!(user_position_ids.next().is_none(), Error::<T>::TooManyPostions);
+			ensure!(
+				user_position_ids.next().is_none(),
+				Error::<T>::InconsistentState(InconsistentStateError::TooManyPostions.into())
+			);
 
 			return Ok(position_id);
 		}
