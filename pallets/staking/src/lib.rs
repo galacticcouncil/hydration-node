@@ -25,7 +25,6 @@ use crate::traits::{ActionData, DemocracyReferendum, PayablePercentage, VestingD
 use crate::types::{Action, Balance, Period, Point, Position, StakingData, Voting};
 use frame_support::ensure;
 use frame_support::{
-	defensive,
 	pallet_prelude::DispatchResult,
 	pallet_prelude::*,
 	traits::nonfungibles::{Create, Inspect, InspectEnumerable, Mutate},
@@ -655,9 +654,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn is_owner(who: &T::AccountId, id: T::PositionItemId) -> bool {
-		match <T as pallet::Config>::NFTHandler::owner(&<T as pallet::Config>::NFTCollectionId::get(), &id) {
-			Some(owner) => owner == *who,
-			None => false,
+		if let Some(owner) =
+			<T as pallet::Config>::NFTHandler::owner(&<T as pallet::Config>::NFTCollectionId::get(), &id)
+		{
+			owner == *who
+		} else {
+			false
 		}
 	}
 
