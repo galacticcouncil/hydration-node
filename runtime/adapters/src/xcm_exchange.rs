@@ -22,19 +22,14 @@ where
 	T::Balance: From<u128> + Zero + Into<u128>,
 {
 	fn exchange_asset(
-		origin: Option<&MultiLocation>,
+		_origin: Option<&MultiLocation>,
 		give: xcm_executor::Assets,
 		want: &MultiAssets,
 		maximal: bool,
 	) -> Result<xcm_executor::Assets, xcm_executor::Assets> {
 		use orml_utilities::with_transaction_result;
 
-		let account = if origin.is_none() {
-			TempAccount::get()
-		} else {
-			// TODO: we want to use temo account alwas becuase there is no sense using specific account for this "accounting/burning/minting/etc" temp work
-			return Err(give);
-		};
+		let account = TempAccount::get();
 		let origin = T::RuntimeOrigin::from(frame_system::RawOrigin::Signed(account.clone())); //TODO: check how else it is done in hydra in a simpler way
 
 		if give.len() != 1 {

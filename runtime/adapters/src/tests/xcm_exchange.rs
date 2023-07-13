@@ -3,7 +3,7 @@ use crate::tests::mock::AssetId as CurrencyId;
 use crate::tests::mock::*;
 use crate::tests::mock::{DAI, HDX, NATIVE_AMOUNT};
 use crate::xcm_exchange::OmniExchanger;
-use frame_support::{assert_noop, parameter_types};
+use frame_support::{assert_noop, assert_ok, parameter_types};
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use pretty_assertions::assert_eq;
@@ -139,6 +139,32 @@ fn omni_exchanger_should_not_allow_trading_for_multiple_assets() {
 					SELL
 				),
 				give
+			);
+		});
+}
+
+#[test]
+fn omni_exchanger_works_with_specified_origin() {
+	// Arrange
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			let give = MultiAsset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
+			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
+			let want = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
+			// Act
+			assert_ok!(
+				OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
+					Some(&MultiLocation::here()),
+					give,
+					&want,
+					SELL,
+				)
 			);
 		});
 }
