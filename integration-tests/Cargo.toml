@@ -14,6 +14,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 scraper = { workspace = true }
 primitives = { workspace = true }
 hydradx-runtime = { workspace = true }
+hydradx-adapters = { workspace = true }
 pallet-omnipool = { workspace = true }
 pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
