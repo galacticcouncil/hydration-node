@@ -1,5 +1,5 @@
-use crate::filters::AllowTransferAndSwap;
 use crate::tests::mock::*;
+use crate::xcm_execute_filter::AllowTransferAndSwap;
 use codec::Encode;
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::Contains;

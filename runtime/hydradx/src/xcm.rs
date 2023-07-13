@@ -27,7 +27,7 @@ use xcm_builder::{
 };
 use xcm_executor::{Config, XcmExecutor};
 
-use hydradx_adapters::filters::AllowTransferAndSwap;
+use hydradx_adapters::xcm_execute_filter::AllowTransferAndSwap;
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
