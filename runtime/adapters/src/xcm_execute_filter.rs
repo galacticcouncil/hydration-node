@@ -46,7 +46,7 @@ where
 	if depth > MaxXcmDepth::get() {
 		return false;
 	}
-	let instructions_count = instructions; //TODO: use just a let mut u16
+	let instructions_count = instructions;
 	let mut iter = xcm.inner().iter();
 	while let Some(inst) = iter.next() {
 		instructions_count.set(instructions_count.get() + 1);
