@@ -37,13 +37,14 @@ where
 		};
 		let origin = T::RuntimeOrigin::from(frame_system::RawOrigin::Signed(account.clone())); //TODO: check how else it is done in hydra in a simpler way
 
-		// TODO: log errors - investigate using defernsive or use log::warn "xcm::exchange-asset"
 		if give.len() != 1 {
+			log::warn!(target: "xcm::exchange-asset", "Only one give asset is supported.");
 			return Err(give);
 		}; // TODO: create an issue for this as it is easy to have multiple ExchangeAsset, and this would be just then an improvement
 
 		//We assume only one asset wanted as translating into buy and sell is ambigous for multiple want assets
 		if want.len() != 1 {
+			log::warn!(target: "xcm::exchange-asset", "Only one want asset is supported.");
 			return Err(give);
 		};
 		let Some(given) = give.fungible_assets_iter().next() else {
