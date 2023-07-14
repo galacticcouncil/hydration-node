@@ -22,9 +22,9 @@ use hydradx_adapters::{
 	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, OmnipoolHookAdapter, OracleAssetVolumeProvider,
 	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter,
 };
+use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
-use pallet_dca::RelayChainBlockHashProvider;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
