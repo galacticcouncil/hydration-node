@@ -17,10 +17,11 @@
 
 use super::*;
 
+use crate::types::{Conviction, Vote};
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_system::{Pallet as System, RawOrigin};
-use orml_traits::{MultiCurrencyExtended, MultiLockableCurrency};
+use orml_traits::MultiCurrencyExtended;
 
 const UNIT: u128 = 1_000_000_000_000;
 
@@ -47,7 +48,27 @@ where
 	T::Currency::update_balance(hdx, &pot, rewards as i128)
 }
 
-fn add_periods<T: Config>(periods: u32) {
+fn generate_max_votes<T: Config>(position_id: T::PositionItemId) {
+	let mut votes = Vec::<(u32, Vote)>::new();
+
+	for i in 0..T::MaxVotes::get() {
+		votes.push((
+			i,
+			Vote {
+				amount: 20_000 * UNIT,
+				conviction: Conviction::Locked6x,
+			},
+		));
+	}
+
+	let voting = Voting::<T::MaxVotes> {
+		votes: votes.try_into().unwrap(),
+	};
+
+	crate::PositionVotes::<T>::insert(position_id, voting);
+}
+
+fn run_periods<T: Config>(periods: u32) {
 	let to = T::PeriodLength::get() * periods.into() + System::<T>::block_number();
 
 	while System::<T>::block_number() < to {
@@ -94,14 +115,88 @@ benchmarks! {
 		init_staking::<T>(1_000 * UNIT)?;
 		Pallet::<T>::stake(RawOrigin::Signed(caller_0).into(), 50_000 * UNIT)?;
 
-		add_staking_rewards::<T>(20_000 * UNIT);
-		add_periods::<T>(2);
+		add_staking_rewards::<T>(20_000 * UNIT)?;
+		run_periods::<T>(2);
 
 	}: _(RawOrigin::Signed(caller_1.clone()), amount)
 	verify {
 		assert!(Pallet::<T>::get_user_position_id(&caller_1)?.is_some())
 	}
 
+	increase_stake {
+		let caller_0: T::AccountId = account("caller", 0, 1);
+		let caller_1: T::AccountId = account("caller", 1, 1);
+		let hdx = T::HdxAssetId::get();
+		let amount = 30_000 * UNIT;
+
+		T::Currency::update_balance(hdx, &caller_0, (100_000 * UNIT) as i128)?;
+		T::Currency::update_balance(hdx, &caller_1, (100_000 * UNIT) as i128)?;
+
+		init_staking::<T>(1_000 * UNIT)?;
+		Pallet::<T>::stake(RawOrigin::Signed(caller_0).into(), 50_000 * UNIT)?;
+		Pallet::<T>::stake(RawOrigin::Signed(caller_1.clone()).into(), 50_000 * UNIT)?;
+
+		let position_id = Pallet::<T>::get_user_position_id(&caller_1).unwrap().unwrap();
+		generate_max_votes::<T>(position_id);
+
+		add_staking_rewards::<T>(20_000 * UNIT)?;
+		run_periods::<T>(2);
+	}: _(RawOrigin::Signed(caller_1.clone()), position_id, amount)
+	verify {
+		let staked_amount = Pallet::<T>::positions(position_id).unwrap().stake;
+		assert_eq!(staked_amount, 80_000 * UNIT)
+	}
+
+
+	claim {
+		let caller_0: T::AccountId = account("caller", 0, 1);
+		let caller_1: T::AccountId = account("caller", 1, 1);
+		let hdx = T::HdxAssetId::get();
+		let amount = 30_000 * UNIT;
+
+		T::Currency::update_balance(hdx, &caller_0, (100_000 * UNIT) as i128)?;
+		T::Currency::update_balance(hdx, &caller_1, (100_000 * UNIT) as i128)?;
+
+		init_staking::<T>(1_000 * UNIT)?;
+		Pallet::<T>::stake(RawOrigin::Signed(caller_0).into(), 50_000 * UNIT)?;
+		Pallet::<T>::stake(RawOrigin::Signed(caller_1.clone()).into(), 50_000 * UNIT)?;
+
+		let position_id = Pallet::<T>::get_user_position_id(&caller_1).unwrap().unwrap();
+		generate_max_votes::<T>(position_id);
+
+		add_staking_rewards::<T>(20_000 * UNIT)?;
+		run_periods::<T>(<u128 as TryInto<u32>>::try_into(T::UnclaimablePeriods::get()).unwrap() + 1_u32);
+
+		let old_caller_1_balance = T::Currency::free_balance(hdx, &caller_1);
+	}: _(RawOrigin::Signed(caller_1.clone()), position_id)
+	verify {
+		assert!(old_caller_1_balance < T::Currency::free_balance(hdx, &caller_1))
+	}
+
+	unstake {
+		let caller_0: T::AccountId = account("caller", 0, 1);
+		let caller_1: T::AccountId = account("caller", 1, 1);
+		let hdx = T::HdxAssetId::get();
+		let amount = 30_000 * UNIT;
+
+		T::Currency::update_balance(hdx, &caller_0, (100_000 * UNIT) as i128)?;
+		T::Currency::update_balance(hdx, &caller_1, (100_000 * UNIT) as i128)?;
+
+		init_staking::<T>(1_000 * UNIT)?;
+		Pallet::<T>::stake(RawOrigin::Signed(caller_0).into(), 50_000 * UNIT)?;
+		Pallet::<T>::stake(RawOrigin::Signed(caller_1.clone()).into(), 50_000 * UNIT)?;
+
+		let position_id = Pallet::<T>::get_user_position_id(&caller_1).unwrap().unwrap();
+		generate_max_votes::<T>(position_id);
+
+		add_staking_rewards::<T>(20_000 * UNIT)?;
+		run_periods::<T>(<u128 as TryInto<u32>>::try_into(T::UnclaimablePeriods::get()).unwrap() + 1_u32);
+
+		let old_caller_1_balance = T::Currency::free_balance(hdx, &caller_1);
+	}: _(RawOrigin::Signed(caller_1.clone()), position_id)
+	verify {
+		assert!(old_caller_1_balance < T::Currency::free_balance(hdx, &caller_1))
+	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);
 }
