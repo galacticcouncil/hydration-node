@@ -47,6 +47,7 @@ pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 3;
 pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
+pub const ACA: AssetId = 6;
 
 decl_test_relay_chain! {
 	pub struct PolkadotRelay {
@@ -196,6 +197,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(b"DOT".to_vec(), 1_000u128, Some(DOT)),
 			(b"ETH".to_vec(), 1_000u128, Some(ETH)),
 			(b"BTC".to_vec(), 1_000u128, Some(BTC)),
+			(b"ACA".to_vec(), 1_000u128, Some(ACA)),
 		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,
@@ -242,6 +244,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 		currencies: vec![
 			(LRNA, Price::from(1)),
 			(DAI, Price::from(1)),
+			(ACA, Price::from(1)),
 			(BTC, Price::from_inner(134_000_000)),
 		],
 		account_currencies: vec![],
@@ -322,7 +325,7 @@ pub fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::RuntimeEvent> {
 }
 
 pub fn expect_hydra_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
-	assert_eq!(last_hydra_events(e.len()), e);
+	pretty_assertions::assert_eq!(last_hydra_events(e.len()), e);
 }
 
 pub fn set_relaychain_block_number(number: BlockNumber) {

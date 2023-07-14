@@ -64,7 +64,6 @@ pub use primitives::{
 	AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index, ItemId, Price, Signature,
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_runtime::traits::BlockNumberProvider;
 
 /// Import HydraDX pallets
 pub use pallet_claims;
@@ -119,36 +118,6 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 	]
 }
 
-// Relay chain Block number provider.
-// Reason why the implementation is different for benchmarks is that it is not possible
-// to set or change the block number in a benchmark using parachain system pallet.
-// That's why we revert to using the system pallet in the benchmark.
-pub struct RelayChainBlockNumberProvider<T>(sp_std::marker::PhantomData<T>);
-
-#[cfg(not(feature = "runtime-benchmarks"))]
-impl<T: cumulus_pallet_parachain_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
-	type BlockNumber = BlockNumber;
-
-	fn current_block_number() -> Self::BlockNumber {
-		let maybe_data = cumulus_pallet_parachain_system::Pallet::<T>::validation_data();
-
-		if let Some(data) = maybe_data {
-			data.relay_parent_number
-		} else {
-			Self::BlockNumber::default()
-		}
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
-	type BlockNumber = <T as frame_system::Config>::BlockNumber;
-
-	fn current_block_number() -> Self::BlockNumber {
-		frame_system::Pallet::<T>::current_block_number()
-	}
-}
-
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -186,6 +155,7 @@ construct_runtime!(
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
+
 		Router: pallet_route_executor = 67,
 		DynamicFees: pallet_dynamic_fees = 68,
 		Stableswap: pallet_stableswap = 70,
