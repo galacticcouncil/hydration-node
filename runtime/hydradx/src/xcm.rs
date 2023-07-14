@@ -13,6 +13,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::EnsureRoot;
+use hydradx_traits::router::PoolType;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_xcm::XcmPassthrough;
@@ -82,6 +83,8 @@ parameter_types! {
 	pub const MaxInstructions: u32 = 100;
 	pub const MaxAssetsForTransfer: usize = 2;
 
+	pub DefaultPoolType: PoolType<AssetId>  = PoolType::Omnipool;
+
 	pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
 	pub TempAccount: AccountId = [42; 32].into();
 }
@@ -116,7 +119,7 @@ impl Config for XcmConfig {
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetLocker = ();
-	type AssetExchanger = OmniExchanger<Runtime, TempAccount, CurrencyIdConvert, Currencies>;
+	type AssetExchanger = XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currencies, DefaultPoolType>;
 	type AssetClaims = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type PalletInstancesInfo = AllPalletsWithSystem;
@@ -220,7 +223,7 @@ impl pallet_xcm::Config for Runtime {
 }
 
 pub struct CurrencyIdConvert;
-use hydradx_adapters::xcm_exchange::OmniExchanger;
+use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
 use primitives::constants::chain::CORE_ASSET_ID;
 
 impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {

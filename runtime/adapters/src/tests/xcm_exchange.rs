@@ -2,16 +2,20 @@ use crate::tests::mock::AccountId;
 use crate::tests::mock::AssetId as CurrencyId;
 use crate::tests::mock::*;
 use crate::tests::mock::{DAI, HDX, NATIVE_AMOUNT};
-use crate::xcm_exchange::OmniExchanger;
+use crate::xcm_exchange::XcmAssetExchanger;
 use frame_support::{assert_noop, assert_ok, parameter_types};
+use hydradx_traits::router::PoolType;
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::Convert;
 use sp_runtime::{FixedU128, SaturatedConversion};
 use xcm_executor::traits::AssetExchange;
+use xcm_executor::Assets;
+
 parameter_types! {
 	pub ExchangeTempAccount: AccountId = 12345;
+	pub DefaultPoolType: PoolType<crate::tests::mock::AssetId>  = PoolType::Omnipool;
 }
 
 const BUY: bool = false;
@@ -58,12 +62,11 @@ fn omni_exchanger_allows_selling_supported_assets() {
 		.execute_with(|| {
 			let give = MultiAsset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
-			let want = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
+			let want: MultiAssets = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
+
 			// Act
-			let received = OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
-				None, give, &want, SELL,
-			)
-			.expect("should return ok");
+			let received = exchange_asset(None, give, &want, SELL).expect("should return ok");
+
 			// Assert
 			let mut iter = received.fungible_assets_iter();
 			let asset_received = iter.next().expect("there should be at least one asset");
@@ -91,12 +94,11 @@ fn omni_exchanger_allows_buying_supported_assets() {
 			let give = give_asset.into();
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
 			let want_asset = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount));
-			let want = want_asset.clone().into();
+			let want: MultiAssets = want_asset.clone().into();
+
 			// Act
-			let received = OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
-				None, give, &want, BUY,
-			)
-			.expect("should return ok");
+			let received = exchange_asset(None, give, &want, BUY).expect("should return ok");
+
 			// Assert
 			let mut iter = received.fungible_assets_iter();
 			let asset_received = iter.next().expect("there should be at least one asset");
@@ -131,15 +133,7 @@ fn omni_exchanger_should_not_allow_trading_for_multiple_assets() {
 			let want: MultiAssets = vec![want1, want2].into();
 
 			// Act and assert
-			assert_noop!(
-				OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
-					None,
-					give.clone().into(),
-					&want,
-					SELL
-				),
-				give
-			);
+			assert_noop!(exchange_asset(None, give.clone().into(), &want, SELL), give);
 		});
 }
 
@@ -157,14 +151,19 @@ fn omni_exchanger_works_with_specified_origin() {
 			let give = MultiAsset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
 			let want = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
-			// Act
-			assert_ok!(
-				OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
-					Some(&MultiLocation::here()),
-					give,
-					&want,
-					SELL,
-				)
-			);
+
+			// Act and assert
+			assert_ok!(exchange_asset(Some(&MultiLocation::here()), give, &want, SELL));
 		});
+}
+
+fn exchange_asset(
+	origin: Option<&MultiLocation>,
+	give: Assets,
+	want: &MultiAssets,
+	is_sell: bool,
+) -> Result<Assets, Assets> {
+	XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies, DefaultPoolType>::exchange_asset(
+		origin, give, want, is_sell,
+	)
 }
