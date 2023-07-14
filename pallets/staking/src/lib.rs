@@ -653,7 +653,7 @@ impl<T: Config> Pallet<T> {
 		if position_id.is_some() {
 			ensure!(
 				user_position_ids.next().is_none(),
-				Error::<T>::InconsistentState(InconsistentStateError::TooManyPostions.into())
+				Error::<T>::InconsistentState(InconsistentStateError::TooManyPostions)
 			);
 
 			return Ok(position_id);
