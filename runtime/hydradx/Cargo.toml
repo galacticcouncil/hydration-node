@@ -165,6 +165,7 @@ runtime-benchmarks = [
     "pallet-otc/runtime-benchmarks",
     "pallet-dca/runtime-benchmarks",
     "pallet-route-executor/runtime-benchmarks",
+    "pallet-staking/runtime-benchmarks",
 ]
 std = [
     "codec/std",

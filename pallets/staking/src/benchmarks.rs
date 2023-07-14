@@ -22,6 +22,7 @@ use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_system::{Pallet as System, RawOrigin};
 use orml_traits::MultiCurrencyExtended;
+use sp_std::vec::Vec;
 
 const UNIT: u128 = 1_000_000_000_000;
 
