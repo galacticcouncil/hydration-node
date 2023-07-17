@@ -155,6 +155,80 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 }
 
 #[test]
+fn hydra_should_receive_non_fee_asset_when_transferred_with_fee_asset() {
+	// Arrange
+	TestNet::reset();
+
+	let shitcoin = 1357;
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ACA,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+		));
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			hydradx_runtime::RuntimeOrigin::root(),
+			shitcoin,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(1))))
+		));
+	});
+
+	Acala::execute_with(|| {
+		// Act
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			hydradx_runtime::RuntimeOrigin::root(),
+			shitcoin,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(1))))
+		));
+		assert_ok!(hydradx_runtime::Tokens::deposit(shitcoin, ALICE, 100 * UNITS));
+
+		assert_ok!(hydradx_runtime::XTokens::transfer_multiasset_with_fee(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			Box::new(MultiAsset::from((GeneralIndex(1), 30 * UNITS)).into()),
+			Box::new(MultiAsset::from((GeneralIndex(0), 30 * UNITS)).into()),
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountId32 { id: BOB, network: None }
+					)
+				)
+				.into()
+			),
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+		));
+
+		// Assert
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
+		);
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(shitcoin, &AccountId::from(ALICE)),
+			100 * UNITS - 30 * UNITS
+		);
+	});
+
+	let fee = 400641025641;
+	Hydra::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
+			30 * UNITS - fee
+		);
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(shitcoin, &AccountId::from(BOB)),
+			30 * UNITS
+		);
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
+			fee // fees should go to treasury
+		);
+	});
+}
+
+
+#[test]
 fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 	TestNet::reset();
 
