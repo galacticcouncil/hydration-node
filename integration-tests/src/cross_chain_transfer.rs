@@ -166,26 +166,36 @@ fn hydra_should_receive_non_fee_asset_when_transferred_with_fee_asset() {
 			ACA,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
-		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
 			hydradx_runtime::RuntimeOrigin::root(),
-			shitcoin,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(1))))
+			b"Shitcoin".to_vec(),
+			pallet_asset_registry::AssetType::Token,
+			100,
+			Some(shitcoin),
+			None,
+			Some(hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(1))))),
+			None,
 		));
 	});
 
 	Acala::execute_with(|| {
 		// Act
-		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
 			hydradx_runtime::RuntimeOrigin::root(),
-			shitcoin,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(1))))
+			b"Shitcoin".to_vec(),
+			pallet_asset_registry::AssetType::Token,
+			100,
+			Some(shitcoin),
+			None,
+			Some(hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(1))))),
+			None,
 		));
-		assert_ok!(hydradx_runtime::Tokens::deposit(shitcoin, ALICE, 100 * UNITS));
+		assert_ok!(hydradx_runtime::Tokens::deposit(shitcoin, &AccountId::from(ALICE), 100 * UNITS));
 
 		assert_ok!(hydradx_runtime::XTokens::transfer_multiasset_with_fee(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			Box::new(MultiAsset::from((GeneralIndex(1), 30 * UNITS)).into()),
-			Box::new(MultiAsset::from((GeneralIndex(0), 30 * UNITS)).into()),
+			Box::new(MultiAsset::from((MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(1))), 30 * UNITS)).into()),
+			Box::new(MultiAsset::from((MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))), 30 * UNITS)).into()),
 			Box::new(
 				MultiLocation::new(
 					1,
