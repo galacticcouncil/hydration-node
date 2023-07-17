@@ -115,6 +115,7 @@ fn craft_exchange_asset_xcm2<RC: Decode + GetDispatchInfo>(
 			assets: want.into(),
 			reserve: want_reserve_chain,
 			xcm: Xcm(vec![
+				//Executed on interlay
 				BuyExecution {
 					fees: half(&reserve_fees),
 					weight_limit: weight_limit.clone(),
@@ -123,6 +124,7 @@ fn craft_exchange_asset_xcm2<RC: Decode + GetDispatchInfo>(
 					assets: Wild(AllCounted(max_assets)),
 					dest,
 					xcm: Xcm(vec![
+						//Executed on acala
 						BuyExecution {
 							fees: half(&destination_fee),
 							weight_limit: weight_limit.clone(),
@@ -149,6 +151,7 @@ fn craft_exchange_asset_xcm2<RC: Decode + GetDispatchInfo>(
 			assets: All.into(),
 			reserve: give_reserve_chain,
 			xcm: Xcm(vec![
+				//Executed on moonbeam
 				BuyExecution {
 					fees: half(&give_reserve_fees),
 					weight_limit: weight_limit.clone(),
