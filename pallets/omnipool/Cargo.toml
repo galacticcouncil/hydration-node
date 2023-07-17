@@ -42,10 +42,11 @@ log = { version = "0.4.17", default-features = false }
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
 pallet-balances = { workspace = true, optional = true }
-sp-core = { workspace = true, optional = true}
+sp-core = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
 
 [dev-dependencies]
+sp-core = { workspace = true, optional = true }
 sp-io = { workspace = true }
 sp-tracing = { workspace = true }
 pallet-balances = { workspace = true }
