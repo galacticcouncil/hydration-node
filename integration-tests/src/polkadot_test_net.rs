@@ -267,7 +267,6 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(LRNA, Price::from(1)),
 			(DAI, Price::from(1)),
 			(BTC, Price::from_inner(134_000_000)),
-			(1234, Price::from(1)),
 		],
 		account_currencies: vec![],
 	}

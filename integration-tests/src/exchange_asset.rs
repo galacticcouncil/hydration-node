@@ -15,6 +15,7 @@ use xcm_emulator::TestExt;
 pub const SELL: bool = true;
 pub const BUY: bool = false;
 
+pub const ACA: u32 = 1234;
 pub const GLMR: u32 = 4567;
 pub const IBTC: u32 = 7890;
 
@@ -23,38 +24,27 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 	//Arrange
 	TestNet::reset();
 
-	let aca = 1234;
 	let mut price = None;
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::AssetRegistry::register(
-			hydradx_runtime::RuntimeOrigin::root(),
-			b"ACA".to_vec(),
-			pallet_asset_registry::AssetType::Token,
-			1_000_000,
-			Some(aca),
-			None,
-			Some(hydradx_runtime::AssetLocation(MultiLocation::new(
-				1,
-				X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))
-			))),
-			None
-		));
+		register_aca();
+
+		add_currency_price(ACA, FixedU128::from(1));
 
 		init_omnipool();
 		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 
 		let token_price = FixedU128::from_float(1.0);
-		assert_ok!(hydradx_runtime::Tokens::deposit(aca, &omnipool_account, 3000 * UNITS));
+		assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
 			hydradx_runtime::RuntimeOrigin::root(),
-			aca,
+			ACA,
 			token_price,
 			Permill::from_percent(100),
 			AccountId::from(BOB),
 		));
 		use hydradx_traits::pools::SpotPriceProvider;
-		price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, aca);
+		price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, ACA);
 	});
 
 	Acala::execute_with(|| {
@@ -88,14 +78,14 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 	let fees = 500801282051;
 	Hydra::execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(aca, &AccountId::from(BOB)),
+			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
 			50 * UNITS - fees
 		);
 		// We receive about 39_101 HDX (HDX is super cheap in our test)
 		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396;
 		assert_eq!(hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)), received);
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(aca, &hydradx_runtime::Treasury::account_id()),
+			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
 			fees
 		);
 	});
@@ -106,38 +96,24 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 	//Arrange
 	TestNet::reset();
 
-	let aca = 1234;
-	let mut price = None;
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::AssetRegistry::register(
-			hydradx_runtime::RuntimeOrigin::root(),
-			b"ACA".to_vec(),
-			pallet_asset_registry::AssetType::Token,
-			1_000_000,
-			Some(aca),
-			None,
-			Some(hydradx_runtime::AssetLocation(MultiLocation::new(
-				1,
-				X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))
-			))),
-			None
-		));
+		register_aca();
+
+		add_currency_price(ACA, FixedU128::from(1));
 
 		init_omnipool();
 		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 
 		let token_price = FixedU128::from_float(1.0);
-		assert_ok!(hydradx_runtime::Tokens::deposit(aca, &omnipool_account, 3000 * UNITS));
+		assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
 			hydradx_runtime::RuntimeOrigin::root(),
-			aca,
+			ACA,
 			token_price,
 			Permill::from_percent(100),
 			AccountId::from(BOB),
 		));
-		use hydradx_traits::pools::SpotPriceProvider;
-		price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, aca);
 	});
 
 	Acala::execute_with(|| {
@@ -172,7 +148,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 	let swapped = 361693915942; // HDX is super cheap in our setup
 	Hydra::execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(aca, &AccountId::from(BOB)),
+			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
 			100 * UNITS - swapped - fees
 		);
 		assert_eq!(
@@ -180,7 +156,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS
 		);
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(aca, &hydradx_runtime::Treasury::account_id()),
+			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
 			fees
 		);
 	});
@@ -196,14 +172,7 @@ fn transfer_and_swap_should_work_with_4_hops() {
 		register_glmr();
 		register_ibtc();
 
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
-			hydradx_runtime::RuntimeOrigin::root(),
-			GLMR,
-			FixedU128::from(1),
-		));
-
-		// make sure the price is propagated
-		hydradx_runtime::MultiTransactionPayment::on_initialize(hydradx_runtime::System::block_number());
+		add_currency_price(GLMR, FixedU128::from(1));
 
 		init_omnipool();
 		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
@@ -247,14 +216,7 @@ fn transfer_and_swap_should_work_with_4_hops() {
 		register_glmr();
 		register_ibtc();
 
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
-			hydradx_runtime::RuntimeOrigin::root(),
-			IBTC,
-			FixedU128::from(1),
-		));
-
-		// make sure the price is propagated
-		hydradx_runtime::MultiTransactionPayment::on_initialize(hydradx_runtime::System::block_number());
+		add_currency_price(IBTC, FixedU128::from(1));
 
 		let alice_init_moon_balance = 3000 * UNITS;
 		assert_ok!(hydradx_runtime::Tokens::deposit(
@@ -318,6 +280,22 @@ fn register_glmr() {
 	));
 }
 
+fn register_aca() {
+	assert_ok!(hydradx_runtime::AssetRegistry::register(
+		hydradx_runtime::RuntimeOrigin::root(),
+		b"ACA".to_vec(),
+		pallet_asset_registry::AssetType::Token,
+		1_000_000,
+		Some(ACA),
+		None,
+		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+			1,
+			X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))
+		))),
+		None
+	));
+}
+
 fn register_ibtc() {
 	assert_ok!(hydradx_runtime::AssetRegistry::register(
 		hydradx_runtime::RuntimeOrigin::root(),
@@ -332,6 +310,17 @@ fn register_ibtc() {
 		))),
 		None
 	));
+}
+
+fn add_currency_price(asset_id: u32, price: FixedU128) {
+	assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+		hydradx_runtime::RuntimeOrigin::root(),
+		asset_id,
+		price,
+	));
+
+	// make sure the price is propagated
+	hydradx_runtime::MultiTransactionPayment::on_initialize(hydradx_runtime::System::block_number());
 }
 
 /// Returns amount if `asset` is fungible, or zero.
