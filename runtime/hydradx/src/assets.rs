@@ -526,5 +526,5 @@ impl pallet_stableswap::Config for Runtime {
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
 	type AmplificationRange = StableswapAmplificationRange;
-	type WeightInfo = ();
+	type WeightInfo = weights::stableswap::HydraWeight<Runtime>;
 }
