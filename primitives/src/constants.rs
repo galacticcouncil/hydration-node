@@ -81,6 +81,9 @@ pub mod chain {
 		WEIGHT_REF_TIME_PER_SECOND.saturating_div(2),
 		polkadot_primitives::v2::MAX_POV_SIZE as u64,
 	);
+
+	/// The source of the data for the oracle.
+	pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 }
 
 #[cfg(test)]

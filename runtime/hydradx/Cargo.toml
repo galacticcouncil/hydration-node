@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "165.0.0"
+version = "168.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -50,6 +50,7 @@ pallet-multisig = { workspace = true }
 pallet-democracy = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-uniques = { workspace = true }
+pallet-xcm-rate-limiter = { workspace = true }
 
 # Warehouse dependencies
 hydradx-adapters = { workspace = true }
@@ -156,7 +157,6 @@ runtime-benchmarks = [
     "cumulus-pallet-xcmp-queue/runtime-benchmarks",
     "pallet-uniques/runtime-benchmarks",
     "pallet-omnipool/runtime-benchmarks",
-    "pallet-transaction-pause/runtime-benchmarks",
     "pallet-circuit-breaker/runtime-benchmarks",
     "pallet-ema-oracle/runtime-benchmarks",
     "pallet-duster/runtime-benchmarks",
@@ -221,6 +221,7 @@ std = [
     "pallet-currencies/std",
     "pallet-omnipool/std",
     "pallet-circuit-breaker/std",
+    "pallet-xcm-rate-limiter/std",
     "pallet-transaction-pause/std",
     "pallet-dca/std",
     "pallet-ema-oracle/std",
@@ -296,6 +297,7 @@ try-runtime= [
     "warehouse-liquidity-mining/try-runtime",
     "pallet-omnipool-liquidity-mining/try-runtime",
     "pallet-circuit-breaker/try-runtime",
+    "pallet-xcm-rate-limiter/try-runtime",
     "pallet-ema-oracle/try-runtime",
     "pallet-otc/try-runtime",
     "pallet-route-executor/try-runtime",

@@ -1,7 +1,8 @@
 use super::*;
-use crate::adapters::ReroutingMultiCurrencyAdapter;
 
-use hydradx_adapters::{MultiCurrencyTrader, ToFeeReceiver};
+use codec::MaxEncodedLen;
+use hydradx_adapters::RelayChainBlockNumberProvider;
+use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
@@ -27,7 +28,7 @@ use xcm_builder::{
 };
 use xcm_executor::{Config, XcmExecutor};
 
-#[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
+#[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
@@ -147,6 +148,10 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
 	type PriceForSiblingDelivery = ();
 	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
+	type ExecuteDeferredOrigin = EnsureRoot<AccountId>;
+	type MaxDeferredMessages = ConstU32<100>;
+	type RelayChainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type XcmDeferFilter = ();
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
@@ -216,7 +221,6 @@ impl pallet_xcm::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
 }
-
 pub struct CurrencyIdConvert;
 use primitives::constants::chain::CORE_ASSET_ID;
 

@@ -1,6 +1,6 @@
 [package]
 name = "primitives"
-version = "5.8.0"
+version = "5.8.2"
 authors = ["GalacticCouncil"]
 edition = "2021"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
@@ -26,5 +26,6 @@ std = [
     "codec/std",
     "scale-info/std",
     "frame-support/std",
+    "polkadot-primitives/std",
     "sp-core/std",
 ]

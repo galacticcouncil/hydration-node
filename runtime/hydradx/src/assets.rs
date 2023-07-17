@@ -16,17 +16,22 @@
 // limitations under the License.
 
 use super::*;
-use crate::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter, OraclePriceProviderAdapterForOmnipool};
 use crate::system::NativeAssetId;
 
-use hydradx_adapters::inspect::MultiInspectAdapter;
+use hydradx_adapters::{
+	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, OmnipoolHookAdapter, OracleAssetVolumeProvider,
+	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter,
+};
+use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
-use pallet_dca::RelayChainBlockHashProvider;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
-use primitives::constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS};
+use primitives::constants::{
+	chain::OMNIPOOL_SOURCE,
+	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
+};
 
 use frame_support::{
 	parameter_types,
@@ -191,9 +196,6 @@ impl pallet_uniques::Config for Runtime {
 	type WeightInfo = ();
 }
 
-/// The source of the data for the oracle.
-pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
-
 parameter_types! {
 	pub const LRNA: AssetId = 1;
 	pub const StableAssetId: AssetId = 2;
@@ -341,7 +343,7 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
-	type PriceAdjustment = adapters::PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance>;
+	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance>;
 }
 
 parameter_types! {
@@ -474,7 +476,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type BlockNumberProvider = System;
 	type Fee = Permill;
 	type AssetId = AssetId;
-	type Oracle = adapters::OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
+	type Oracle = OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }

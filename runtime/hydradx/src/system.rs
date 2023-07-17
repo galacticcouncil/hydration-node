@@ -37,6 +37,7 @@ use frame_support::{
 	},
 	PalletId, RuntimeDebug,
 };
+use hydradx_adapters::RelayChainBlockNumberProvider;
 use scale_info::TypeInfo;
 
 pub struct CallFilter;
