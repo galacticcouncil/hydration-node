@@ -29,6 +29,8 @@ pub const UNITS: Balance = 1_000_000_000_000;
 
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
+pub const MOONBEAM_PARA_ID: u32 = 2_004;
+pub const INTERLAY_PARA_ID: u32 = 2_032;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const ALICE_INITIAL_DAI_BALANCE: Balance = 200 * UNITS;
@@ -72,7 +74,27 @@ decl_test_parachain! {
 		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
 		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
 		DmpMessageHandler = hydradx_runtime::DmpQueue,
-		new_ext = acala_ext(),
+		new_ext = para_ext(ACALA_PARA_ID),
+	}
+}
+
+decl_test_parachain! {
+	pub struct Moonbeam{
+		Runtime = hydradx_runtime::Runtime,
+		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
+		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
+		DmpMessageHandler = hydradx_runtime::DmpQueue,
+		new_ext = para_ext(MOONBEAM_PARA_ID),
+	}
+}
+
+decl_test_parachain! {
+	pub struct Interlay {
+		Runtime = hydradx_runtime::Runtime,
+		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
+		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
+		DmpMessageHandler = hydradx_runtime::DmpQueue,
+		new_ext = para_ext(INTERLAY_PARA_ID),
 	}
 }
 
@@ -81,6 +103,8 @@ decl_test_network! {
 		relay_chain = PolkadotRelay,
 		parachains = vec![
 			(2000, Acala),
+			(2004, Moonbeam),
+			(2032, Interlay),
 			(2034, Hydra),
 		],
 	}
@@ -274,7 +298,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn acala_ext() -> sp_io::TestExternalities {
+pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 	use hydradx_runtime::{Runtime, System};
 
 	let mut t = frame_system::GenesisConfig::default()
@@ -289,7 +313,7 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 
 	<parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&parachain_info::GenesisConfig {
-			parachain_id: ACALA_PARA_ID.into(),
+			parachain_id: para_id.into(),
 		},
 		&mut t,
 	)
