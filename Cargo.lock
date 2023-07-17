@@ -6760,24 +6760,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-faucet"
-version = "0.2.3"
-dependencies = [
- "frame-support",
- "frame-system",
- "orml-tokens",
- "orml-traits",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "test-utils",
-]
-
-[[package]]
 name = "pallet-genesis-history"
 version = "2.0.1"
 dependencies = [
