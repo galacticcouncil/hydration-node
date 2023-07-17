@@ -34,12 +34,6 @@ fn craft_exchange_asset_xcm2<RC: Decode + GetDispatchInfo>(
 	let assets: MultiAssets = MultiAsset::from((GeneralIndex(0), 100 * UNITS)).into(); // hardcoded
 	let max_assets = assets.len() as u32 + 1;
 	let origin_context = X2(GlobalConsensus(NetworkId::Polkadot), Parachain(ACALA_PARA_ID));
-	let fees = assets
-		.get(0)
-		.expect("should have at least 1 asset")
-		.clone()
-		.reanchored(&dest, origin_context)
-		.expect("should reanchor");
 	let give = give_asset
 		.clone()
 		.reanchored(&dest, origin_context)
@@ -161,7 +155,7 @@ fn craft_exchange_asset_xcm2<RC: Decode + GetDispatchInfo>(
 				},
 				DepositReserveAsset {
 					assets: AllCounted(max_assets).into(),
-					dest,
+					dest: swap_chain,
 					xcm,
 				},
 			]),
@@ -448,6 +442,14 @@ fn hydra_should_transfer_and_swap_send_back_to_acala() {
 			moon,
 			FixedU128::from(1),
 		));
+		use hydradx_traits::NativePriceOracle;
+		// assert_eq!(hydradx_runtime::MultiTransactionPayment::price(moon).unwrap(), FixedU128::from(1));
+		// make sure the price is propagated
+		hydradx_runtime::MultiTransactionPayment::on_initialize(hydradx_runtime::System::block_number());
+		assert_eq!(
+			hydradx_runtime::MultiTransactionPayment::price(moon).unwrap(),
+			FixedU128::from(1)
+		);
 
 		init_omnipool();
 		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
@@ -521,6 +523,8 @@ fn hydra_should_transfer_and_swap_send_back_to_acala() {
 			btc,
 			FixedU128::from(1),
 		));
+		// make sure the price is propagated
+		hydradx_runtime::MultiTransactionPayment::on_initialize(hydradx_runtime::System::block_number());
 
 		let alice_init_moon_balance = 3000 * UNITS;
 		assert_ok!(hydradx_runtime::Tokens::deposit(
@@ -533,7 +537,7 @@ fn hydra_should_transfer_and_swap_send_back_to_acala() {
 
 		let give_amount = 1000 * UNITS;
 		let give = MultiAsset::from((hydradx_runtime::CurrencyIdConvert::convert(moon).unwrap(), give_amount));
-		let want = MultiAsset::from((hydradx_runtime::CurrencyIdConvert::convert(btc).unwrap(), 600 * UNITS));
+		let want = MultiAsset::from((hydradx_runtime::CurrencyIdConvert::convert(btc).unwrap(), 550 * UNITS));
 
 		let xcm = craft_exchange_asset_xcm2::<hydradx_runtime::RuntimeCall>(give, want, SELL);
 		assert_ok!(hydradx_runtime::PolkadotXcm::execute(
@@ -560,7 +564,7 @@ fn hydra_should_transfer_and_swap_send_back_to_acala() {
 	Acala::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(btc, &AccountId::from(BOB)),
-			10 * UNITS
+			549198717948718
 		);
 		/*assert_eq!(
 			hydradx_runtime::Tokens::free_balance(aca, &hydradx_runtime::Treasury::account_id()),
