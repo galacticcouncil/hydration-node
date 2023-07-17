@@ -43,8 +43,7 @@ pub mod v1 {
 		);
 
 		PreviousChain::<T>::put(Chain {
-			// genesis hash was generated using the following command: hydradx export-genesis-state | sha256sum
-			genesis_hash: H256::from(hex!("5a103904d5d4ca65c1ff40f59d45266ac3fd23725beae623bbdd6f9c5a78883c")),
+			genesis_hash: H256::from(hex!("d2a620c27ec5cbc5621ff9a522689895074f7cca0d08e7134a7804e1a3ba86fc")),
 			last_block_hash: H256::from(hex!("1c83220b0d0c0c252dddd6a98c9b643e34625419b646c4a6447583c92c01dbcc")),
 		});
 
@@ -58,7 +57,7 @@ pub mod v1 {
 		assert_eq!(
 			PreviousChain::<T>::get(),
 			Chain {
-				genesis_hash: H256::from(hex!("1c83220b0d0c0c252dddd6a98c9b643e34625419b646c4a6447583c92c01dbcc")),
+				genesis_hash: H256::from(hex!("d2a620c27ec5cbc5621ff9a522689895074f7cca0d08e7134a7804e1a3ba86fc")),
 				last_block_hash: H256::from(hex!("1c83220b0d0c0c252dddd6a98c9b643e34625419b646c4a6447583c92c01dbcc")),
 			},
 			"Unexpected storage version."
