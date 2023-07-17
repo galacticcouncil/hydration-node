@@ -192,7 +192,6 @@ parameter_types! {
 }
 
 parameter_types! {
-	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
 	pub const MaxXcmDepth: u16 = 5;
 	pub const MaxNumberOfInstructions: u16 = 100;
 }

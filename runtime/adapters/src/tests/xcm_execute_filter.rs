@@ -76,7 +76,7 @@ fn xcm_execute_filter_should_allow_a_transfer_and_swap() {
 fn xcm_execute_filter_should_filter_too_deep_xcm() {
 	//Arrange
 	let fees = MultiAsset::from((MultiLocation::here(), 10));
-	let assets: MultiAssets = fees.clone().into();
+	let assets: MultiAssets = fees.into();
 
 	let max_assets = 2;
 	let beneficiary = Junction::AccountId32 {
@@ -122,7 +122,7 @@ fn xcm_execute_filter_should_filter_too_deep_xcm() {
 fn xcm_execute_filter_should_not_filter_message_with_max_deep() {
 	//Arrange
 	let fees = MultiAsset::from((MultiLocation::here(), 10));
-	let assets: MultiAssets = fees.clone().into();
+	let assets: MultiAssets = fees.into();
 
 	let max_assets = 2;
 	let beneficiary = Junction::AccountId32 {
@@ -170,7 +170,7 @@ fn xcm_execute_filter_should_not_filter_message_with_max_deep() {
 fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allowed_in_depth() {
 	//Arrange
 	let fees = MultiAsset::from((MultiLocation::here(), 10));
-	let assets: MultiAssets = fees.clone().into();
+	let assets: MultiAssets = fees.into();
 
 	let max_assets = 2;
 	let beneficiary = Junction::AccountId32 {
@@ -188,7 +188,7 @@ fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allo
 	let mut message = Xcm(vec![TransferReserveAsset {
 		assets: assets.clone(),
 		dest,
-		xcm: deposit.clone(),
+		xcm: deposit,
 	}]);
 
 	for _ in 0..2 {
@@ -218,7 +218,7 @@ fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allo
 	instructions_with_inner_xcms.append(&mut rest);
 
 	message = Xcm(vec![TransferReserveAsset {
-		assets: assets.clone(),
+		assets,
 		dest,
 		xcm: Xcm(instructions_with_inner_xcms.clone()),
 	}]);

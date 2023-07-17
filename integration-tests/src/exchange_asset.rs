@@ -365,7 +365,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 		.clone()
 		.reanchored(&dest, origin_context)
 		.expect("should reanchor give");
-	let give: MultiAssetFilter = Definite(give.clone().into());
+	let give: MultiAssetFilter = Definite(give.into());
 	let want: MultiAssets = want_asset.clone().into();
 
 	let fees = give_asset
@@ -379,17 +379,16 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 		.expect("should reanchor");
 
 	let destination_fee = want_asset
-		.clone()
 		.reanchored(&dest, want_reserve_chain.interior)
 		.expect("should reanchor");
 
 	let weight_limit = {
 		let fees = fees.clone();
 		let mut remote_message = Xcm(vec![
-			ReserveAssetDeposited::<RC>(assets.clone()),
+			ReserveAssetDeposited::<RC>(assets),
 			ClearOrigin,
 			BuyExecution {
-				fees: fees.clone(),
+				fees,
 				weight_limit: Limited(Weight::zero()),
 			},
 			ExchangeAsset {
@@ -434,7 +433,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 			weight_limit: weight_limit.clone(),
 		},
 		ExchangeAsset {
-			give: give.clone(),
+			give,
 			want: want.clone(),
 			maximal: is_sell,
 		},
@@ -473,7 +472,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 
 	// executed on local (acala)
 	let message = Xcm(vec![
-		WithdrawAsset(give_asset.clone().into()),
+		WithdrawAsset(give_asset.into()),
 		InitiateReserveWithdraw {
 			assets: All.into(),
 			reserve: give_reserve_chain,
@@ -481,7 +480,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 				//Executed on moonbeam
 				BuyExecution {
 					fees: half(&give_reserve_fees),
-					weight_limit: weight_limit.clone(),
+					weight_limit,
 				},
 				DepositReserveAsset {
 					assets: AllCounted(max_assets).into(),

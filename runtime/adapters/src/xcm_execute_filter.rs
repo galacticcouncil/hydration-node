@@ -16,15 +16,11 @@ where
 fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bool, &Xcm<()>> {
 	match inst {
 		ClearOrigin
-		| ClaimAsset { .. }
 		| ExchangeAsset { .. }
 		| WithdrawAsset(..)
 		| TransferAsset { .. }
 		| DepositAsset { .. }
-		| SetTopic(..)
-		| ClearTopic
 		| ExpectAsset(..)
-		| BurnAsset(..)
 		| SetFeesMode { .. }
 		| BuyExecution { .. } => Either::Left(true),
 		InitiateReserveWithdraw { xcm, .. } | DepositReserveAsset { xcm, .. } | TransferReserveAsset { xcm, .. } => {
@@ -47,8 +43,8 @@ where
 		return false;
 	}
 	let instructions_count = instructions;
-	let mut iter = xcm.inner().iter();
-	while let Some(inst) = iter.next() {
+	let iter = xcm.inner().iter();
+	for inst in iter {
 		instructions_count.set(instructions_count.get() + 1);
 		if instructions_count.get() > MaxInstructions::get() {
 			return false;
