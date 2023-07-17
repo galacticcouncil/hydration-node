@@ -410,6 +410,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 			list_benchmark!(list, extra, pallet_dca, DCA);
+			list_benchmark!(list, extra, pallet_stableswap, Stableswap);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -479,6 +480,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
 			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);
+			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
