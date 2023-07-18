@@ -110,7 +110,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			hydradx_runtime::RuntimeOrigin::root(),
-			1,
+			ACA,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
 	});
@@ -144,11 +144,11 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 	let fee = 400641025641;
 	Hydra::execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			1_030 * UNITS - fee
+			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
+			30 * UNITS - fee
 		);
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
+			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
 			fee // fees should go to treasury
 		);
 	});
