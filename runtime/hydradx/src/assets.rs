@@ -495,6 +495,7 @@ parameter_types! {
 	pub const CurrentStakeWeight: u8 = 2;
 	pub const UnclaimablePeriods: BlockNumber = 4;
 	pub const PointPercentage: FixedU128 = FixedU128::from_rational(15,100);
+	pub const OneHDX: Balance = primitives::constants::currency::UNITS;
 }
 
 pub struct ActionMultiplier;
@@ -532,5 +533,6 @@ impl pallet_staking::Config for Runtime {
 	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
 	type ActionMultiplier = ActionMultiplier;
 	type Vesting = VestingInfo<Runtime>;
+	type RewardedVoteUnit = OneHDX;
 	type WeightInfo = ();
 }

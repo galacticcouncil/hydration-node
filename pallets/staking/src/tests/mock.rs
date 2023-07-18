@@ -220,6 +220,7 @@ impl pallet_staking::Config for Test {
 	type Vesting = DummyVesting;
 	type Collections = FreezableUniques;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type RewardedVoteUnit = ConstU128<ONE>;
 }
 
 pub struct DummyActionMultiplier;

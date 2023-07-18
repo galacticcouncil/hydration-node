@@ -121,8 +121,8 @@ pub mod pallet {
 		#[pallet::constant]
 		type TimePointsPerPeriod: Get<u8>;
 
-		/// Number of periods user can't claim rewards for. User can exit but won't receive rewards
-		/// but if he stay longer, he will receive rewards also for these periods.
+		/// Number of periods user can't claim rewards for. User can exit but won't receive any rewards.
+		/// If he stay longer than `UnclaimablePeriods` he will receive rewards also for these periods.
 		#[pallet::constant]
 		type UnclaimablePeriods: Get<Period>;
 
@@ -150,23 +150,32 @@ pub mod pallet {
 		/// Provides ability to freeze a collection.
 		type Collections: Freeze<Self::AccountId, Self::CollectionId>;
 
-		/// Non fungible handling - mint,burn, check owner
+		/// Non fungible handling - mint, burn, check owner
 		type NFTHandler: Mutate<Self::AccountId>
 			+ Create<Self::AccountId>
 			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>
 			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
+		/// Max amount of votes the user can have at any time.
 		#[pallet::constant]
 		type MaxVotes: Get<u32>;
 
 		/// Democracy referendum state.
 		type ReferendumInfo: DemocracyReferendum;
 
+		/// Amount of action points user will receive for each voted HDX.
 		type ActionMultiplier: GetByKey<Action, u32>;
 
+		/// Provides information about amount of vested tokens.
 		type Vesting: VestingDetails<Self::AccountId, Balance>;
 
+		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// Unit we are distributing action points for.
+		/// e.g if RewardedVoteUnit is 1HDX user will receive `x` action points per each voted 1 HDX.
+		#[pallet::constant]
+		type RewardedVoteUnit: Get<Balance>;
 	}
 
 	#[pallet::storage]
@@ -181,24 +190,26 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn next_position_id)]
-	/// Position ids sequencer
+	/// Position ids sequencer.
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn position_votes)]
-	/// List of position votes
+	/// List of position votes.
 	pub(super) type PositionVotes<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Voting<T::MaxVotes>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// New staking position was created and NFT was minted.
 		PositionCreated {
 			who: T::AccountId,
 			position_id: T::PositionItemId,
 			stake: Balance,
 		},
 
+		/// Staked amount for existing position was increased.
 		StakeAdded {
 			who: T::AccountId,
 			position_id: T::PositionItemId,
@@ -208,6 +219,7 @@ pub mod pallet {
 			slashed_points: Point,
 		},
 
+		/// Rewards was claimed.
 		RewardsClaimed {
 			who: T::AccountId,
 			position_id: T::PositionItemId,
@@ -217,6 +229,7 @@ pub mod pallet {
 			slashed_unpaid_rewards: Balance,
 		},
 
+		/// Staked amount was withdrawn and NFT was burned.
 		Unstaked {
 			who: T::AccountId,
 			position_id: T::PositionItemId,
@@ -225,10 +238,10 @@ pub mod pallet {
 			unlocked_rewards: Balance,
 		},
 
-		StakingInitialized {
-			non_dustable_balance: Balance,
-		},
+		/// Staking was initialized.
+		StakingInitialized { non_dustable_balance: Balance },
 
+		/// Staking's `accumulated_reward_per_stake` was updated.
 		AccumulatedRpsUpdated {
 			accumulated_rps: FixedU128,
 			total_stake: Balance,
@@ -237,16 +250,16 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Balance too low.
+		/// Balance is too low.
 		InsufficientBalance,
 
 		/// Staked amount is too low.
 		InsufficientStake,
 
-		/// Position has not been found.
+		/// Staking position has not been found.
 		PositionNotFound,
 
-		///
+		/// Max amount of votes was reached for staking position.
 		MaxVotesReached,
 
 		/// Staking is no initialized.
@@ -264,7 +277,7 @@ pub mod pallet {
 		/// Account's position already exits.
 		PositionAlreadyExits,
 
-		///
+		/// Signed account is not owner of staking position.
 		Forbidden,
 
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
@@ -274,19 +287,21 @@ pub mod pallet {
 
 	//NOTE: these errors should never happen.
 	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
-
 	pub enum InconsistentStateError {
-		/// Position was not found in the storage but NFT does exists.
+		/// Position was not found in storage but NFT does exists.
 		PositionNotFound,
 
 		/// Calculated `pending_rewards` are less than 0.
 		NegativePendingRewards,
 
-		/// Calculated`accumulated_unpaid_rewards` are less than 0.
+		/// Calculated `accumulated_unpaid_rewards` are less than 0.
 		NegativeUnpaidRewards,
 
 		/// Multiple positions exits for single account.
 		TooManyPostions,
+
+		/// Arithmetic error.
+		Arithmetic,
 	}
 
 	impl<T> From<InconsistentStateError> for Error<T> {
@@ -308,8 +323,8 @@ pub mod pallet {
 			let pot_balance = T::Currency::free_balance(T::HdxAssetId::get(), &pallet_account);
 			ensure!(!pot_balance.is_zero(), Error::<T>::MissingPotBalance);
 
+			//Offsetting `accumulated_claimable_rewards` to prevent `pot` dusting.
 			let s = StakingData {
-				//This value if offsetted to prevent pot's dusting.
 				accumulated_claimable_rewards: pot_balance,
 				..Default::default()
 			};
@@ -381,8 +396,10 @@ pub mod pallet {
 
 					Self::process_votes(position_id, position)?;
 
-					let current_period = Self::get_current_period().ok_or(Error::<T>::Arithmetic)?;
-					let created_at = Self::get_period_number(position.created_at).ok_or(Error::<T>::NotInitialized)?; //TOOD: better error
+					let current_period = Self::get_current_period()
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
+					let created_at = Self::get_period_number(position.created_at)
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
 					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, _) = Self::calculate_rewards(
 						position,
@@ -395,6 +412,9 @@ pub mod pallet {
 					let rewards = claimable_rewards
 						.checked_add(claimable_unpaid_rewards)
 						.ok_or(Error::<T>::Arithmetic)?;
+
+					let pot = Self::pot_account_id();
+					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
 
 					position.accumulated_unpaid_rewards = position
 						.accumulated_unpaid_rewards
@@ -432,8 +452,6 @@ pub mod pallet {
 
 					staking.add_stake(amount)?;
 
-					let pot = Self::pot_account_id();
-					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
 					T::Currency::set_lock(
 						STAKING_LOCK_ID,
 						T::HdxAssetId::get(),
@@ -474,8 +492,10 @@ pub mod pallet {
 
 					Self::process_votes(position_id, position)?;
 
-					let current_period = Self::get_current_period().ok_or(Error::<T>::Arithmetic)?;
-					let created_at = Self::get_period_number(position.created_at).ok_or(Error::<T>::NotInitialized)?; //TOOD: better error
+					let current_period = Self::get_current_period()
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
+					let created_at = Self::get_period_number(position.created_at)
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
 					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, payable_percentage) =
 						Self::calculate_rewards(
@@ -504,9 +524,11 @@ pub mod pallet {
 					position.accumulated_unpaid_rewards = position
 						.accumulated_unpaid_rewards
 						.checked_add(unpaid_rewards)
-						.ok_or(Error::<T>::Arithmetic)?
-						.checked_sub(claimable_unpaid_rewards)
 						.ok_or(Error::<T>::Arithmetic)?;
+					position.accumulated_unpaid_rewards = position
+						.accumulated_unpaid_rewards
+						.checked_sub(claimable_unpaid_rewards)
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::NegativeUnpaidRewards.into())?;
 
 					let points_to_slash =
 						Self::get_points(position, current_period, created_at).ok_or(Error::<T>::Arithmetic)?;
@@ -535,7 +557,7 @@ pub mod pallet {
 					staking.accumulated_claimable_rewards = staking
 						.accumulated_claimable_rewards
 						.checked_sub(slashed_unpaid_rewards)
-						.ok_or(Error::<T>::Arithmetic)?;
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
 					Self::deposit_event(Event::RewardsClaimed {
 						who,
@@ -570,8 +592,10 @@ pub mod pallet {
 
 					Self::process_votes(position_id, position)?;
 
-					let current_period = Self::get_current_period().ok_or(Error::<T>::Arithmetic)?;
-					let created_at = Self::get_period_number(position.created_at).ok_or(Error::<T>::NotInitialized)?; //TOOD: better error
+					let current_period = Self::get_current_period()
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
+					let created_at = Self::get_period_number(position.created_at)
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
 					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, _) = Self::calculate_rewards(
 						position,
@@ -591,19 +615,19 @@ pub mod pallet {
 					staking.total_stake = staking
 						.total_stake
 						.checked_sub(position.stake)
-						.ok_or(Error::<T>::Arithmetic)?;
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
 					let return_to_pot = position
 						.accumulated_unpaid_rewards
 						.checked_add(unpaid_rewards)
 						.ok_or(Error::<T>::Arithmetic)?
 						.checked_sub(claimable_unpaid_rewards)
-						.ok_or(Error::<T>::Arithmetic)?;
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
 					staking.accumulated_claimable_rewards = staking
 						.accumulated_claimable_rewards
 						.checked_sub(return_to_pot)
-						.ok_or(Error::<T>::Arithmetic)?;
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
 					T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
 					T::Currency::remove_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who)?;
@@ -654,6 +678,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Returns staking `PositionItemId` for `who` or `None`.
 	pub fn get_user_position_id(who: &T::AccountId) -> Result<Option<T::PositionItemId>, DispatchError> {
 		let mut user_position_ids = T::NFTHandler::owned_in_collection(&T::NFTCollectionId::get(), who);
 
@@ -712,7 +737,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	/// This function distributes pending rewards if possible and updates `StakingData`
+	/// This function "distributes" pending rewards if possible and updates `StakingData`
 	fn update_rewards(staking: &mut StakingData) -> Result<(), DispatchError> {
 		if staking.total_stake.is_zero() {
 			return Ok(());
@@ -734,7 +759,7 @@ impl<T: Config> Pallet<T> {
 		.ok_or(Error::<T>::Arithmetic)?;
 
 		if staking.accumulated_reward_per_stake == accumulated_rps {
-			//No pending rewards or rewards are too small to distribute
+			//No pending rewards or rewards are too small to distribute.
 			return Ok(());
 		}
 
@@ -752,8 +777,8 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// This function calculates total mount of points `position` accumulated until now.
-	/// Slash points are removed from returned valued.
+	/// This function calculates total amount of points `position` accumulated until now.
+	/// Slash points are subtracted from returned value.
 	#[inline]
 	fn get_points(
 		position: &Position<T::BlockNumber>,
@@ -786,8 +811,8 @@ impl<T: Config> Pallet<T> {
 
 	/// This function calculates `claimable`, `claimable_unpaid`, `unpaid` rewards and `payable_percentage`.
 	///
-	/// `claimable` - amount use can claim from the `pot`
-	/// `claimable_unpaid` - amount to unlock from `accumulated_unpaid_rewards`
+	/// `claimable` - amount of rewards user can claim from the `pot`
+	/// `claimable_unpaid` - amount to unlock from user's `accumulated_unpaid_rewards`
 	/// `unpaid` - amount of rewards which won't be paid to user
 	/// `payable_percentage` - percentage of the rewards that is available to user
 	///
@@ -823,8 +848,8 @@ impl<T: Config> Pallet<T> {
 		))
 	}
 
-	/// Transfer given fee to pot account
-	/// Returns amount of unused fee
+	/// Transfer given fee to pot account.
+	/// Returns amount of unused fee.
 	pub fn process_trade_fee(
 		source: T::AccountId,
 		asset: T::AssetId,
@@ -866,7 +891,7 @@ impl<T: Config> Pallet<T> {
 		let total = data
 			.amount()
 			.saturating_mul(data.conviction() as u128)
-			.div(1_000_000_000_000u128); // TODO: make this as configurable constant?
+			.div(T::RewardedVoteUnit::get());
 		let c = T::ActionMultiplier::get(&action);
 		total.saturating_mul(c as u128)
 	}
