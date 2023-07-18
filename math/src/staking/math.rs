@@ -11,8 +11,8 @@ type Point = u128;
 ///
 /// Parameters:
 /// - `current_reward_per_stake`: current value of `reward_per_stake`
-/// - `pending_rewards`: amount of rewards ready to distribute
-/// - `total_stake`: total amount of tokens staked
+/// - `pending_rewards`: amount of rewards ready for distribution
+/// - `total_stake`: total amount of staked tokens
 pub fn calculate_accumulated_rps(
 	current_reward_per_stake: FixedU128,
 	pending_rewards: Balance,
@@ -55,13 +55,13 @@ pub fn calculate_period_number(period_length: NonZeroU128, block_number: u128) -
 /// Slashed points are subtracted.
 ///
 /// Parameters:
-/// - `created_at`: period number when staking position was created
+/// - `created_at`: period number staking position was created at
 /// - `now`: current period number
 /// - `time_points_per_period`: number of time points per 1 period
 /// - `time_weight`: weight of the time points
 /// - `action_points`: amount of action points accumulated by user
 /// - `action_weight`: weight of the action points
-/// - `slashed_points`: amount of points to slash from max points
+/// - `slashed_points`: amount of points to slash from points
 pub fn calculate_points(
 	position_created_at: Period,
 	now: Period,
@@ -82,13 +82,13 @@ pub fn calculate_points(
 		.checked_sub(slashed_points)
 }
 
-/// Implementation of sigmoid function returning values from range (0,1)
+/// Implementation of sigmoid function returning values from range <0,1)
 ///
 /// f(x) = (ax)^4/(b + (ax)^4)
 ///
 /// Parameters:
 /// - `x`: point on the curve
-/// - `a` & `b`: parameters modifying "speed" and slope of the curve
+/// - `a` & `b`: parameters modifying "speed"/slope of the curve
 pub fn sigmoid(x: Point, a: FixedU128, b: u32) -> Option<FixedU128> {
 	let ax = a.checked_mul(&FixedU128::from(x))?;
 	let ax4 = ax.saturating_pow(4);
@@ -101,7 +101,7 @@ pub fn sigmoid(x: Point, a: FixedU128, b: u32) -> Option<FixedU128> {
 /// Function calculates amount of rewards.
 ///
 /// - `accumulated_reward_per_stake`: global value of reward per stake
-/// - `reward_per_stake`: positon's reward per stake
+/// - `reward_per_stake`: position's reward per stake
 /// - `stake`: staked amount
 pub fn calculate_rewards(
 	accumulated_reward_per_stake: FixedU128,
@@ -111,16 +111,12 @@ pub fn calculate_rewards(
 	accumulated_reward_per_stake
 		.checked_sub(&reward_per_stake)?
 		.checked_mul_int(stake)
-
-	//TODO: tests
 }
 
-/// Fucntion calculates `percentage` value from `amount`.
+/// Function calculates `percentage` value from `amount`.
 ///
 /// - `amount` - to calculate value from
-/// - `percentage` - percentage we want from `amount`. Value should be decimal less than 1.
+/// - `percentage` - percentage we want from `amount`. This value should be less than 1.
 pub fn calculate_percentage_amount(amount: u128, percentage: FixedU128) -> Balance {
 	percentage.saturating_mul_int(amount)
-
-	//TODO: test and use prequintill instead of fixedU128
 }
