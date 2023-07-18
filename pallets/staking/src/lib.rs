@@ -14,11 +14,6 @@
 // limitations under the License.
 //! # Staking Pallet
 
-// TODO
-//  * [] - tests create/increase during UnclaimablePeriods
-//  * [] - add staking initialized event
-//  * [] - add rps updated event
-
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -229,6 +224,15 @@ pub mod pallet {
 			rewards: Balance,
 			unlocked_rewards: Balance,
 		},
+
+		StakingInitialized {
+			non_dustable_balance: Balance,
+		},
+
+		AccumulatedRpsUpdated {
+			accumulated_rps: FixedU128,
+			total_stake: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -310,6 +314,10 @@ pub mod pallet {
 				..Default::default()
 			};
 			Staking::<T>::put(s);
+
+			Self::deposit_event(Event::StakingInitialized {
+				non_dustable_balance: pot_balance,
+			});
 
 			T::NFTHandler::create_collection(&T::NFTCollectionId::get(), &pallet_account, &pallet_account)?;
 			T::Collections::freeze_collection(pallet_account, T::NFTCollectionId::get())
@@ -735,6 +743,11 @@ impl<T: Config> Pallet<T> {
 			.accumulated_claimable_rewards
 			.checked_add(pending_rewards)
 			.ok_or(Error::<T>::Arithmetic)?;
+
+		Self::deposit_event(Event::AccumulatedRpsUpdated {
+			accumulated_rps: staking.accumulated_reward_per_stake,
+			total_stake: staking.total_stake,
+		});
 
 		Ok(())
 	}
