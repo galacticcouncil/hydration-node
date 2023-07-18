@@ -534,5 +534,5 @@ impl pallet_staking::Config for Runtime {
 	type ActionMultiplier = ActionMultiplier;
 	type Vesting = VestingInfo<Runtime>;
 	type RewardedVoteUnit = OneHDX;
-	type WeightInfo = ();
+	type WeightInfo = weights::staking::HydraWeight<Runtime>;
 }

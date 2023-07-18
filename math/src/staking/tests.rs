@@ -191,25 +191,39 @@ fn sigmoid_should_work() {
 
 #[test]
 fn calculate_percentage_amount_should_work() {
-	assert_eq!(calculate_percentage_amount(3_000_000_u128, FixedU128::from_float(0.5)), 1_500_000_u128);
-	
-    assert_eq!(calculate_percentage_amount(3_000_000_u128, FixedU128::from(0)), 0_u128);
-    
-    assert_eq!(calculate_percentage_amount(3_000_000_u128, FixedU128::from(1)), 3_000_000_u128);
-    
-    assert_eq!(calculate_percentage_amount(3_000_000_u128, FixedU128::from_float(0.13264959)), 397_948_u128);
+	assert_eq!(
+		calculate_percentage_amount(3_000_000_u128, FixedU128::from_float(0.5)),
+		1_500_000_u128
+	);
+
+	assert_eq!(calculate_percentage_amount(3_000_000_u128, FixedU128::from(0)), 0_u128);
+
+	assert_eq!(
+		calculate_percentage_amount(3_000_000_u128, FixedU128::from(1)),
+		3_000_000_u128
+	);
+
+	assert_eq!(
+		calculate_percentage_amount(3_000_000_u128, FixedU128::from_float(0.13264959)),
+		397_948_u128
+	);
 }
 
 #[test]
 fn calculate_rewards_should_work() {
-    let accumulated_rps = FixedU128::from_inner(23_423_523_230_000_000_000);
-    let rps = FixedU128::from_inner(23_423_000_000_000_000_000);
-    let amount = 1_000 * ONE;
-	assert_eq!(calculate_rewards(accumulated_rps, rps, amount).unwrap(), 523_230_000_000_u128);
-    
+	let accumulated_rps = FixedU128::from_inner(23_423_523_230_000_000_000);
+	let rps = FixedU128::from_inner(23_423_000_000_000_000_000);
+	let amount = 1_000 * ONE;
+	assert_eq!(
+		calculate_rewards(accumulated_rps, rps, amount).unwrap(),
+		523_230_000_000_u128
+	);
 
-    let accumulated_rps = FixedU128::from_inner(23_423_523_230_000_000_000);
-    let rps = FixedU128::from_inner(19_423_000_000_000_000_000);
-    let amount = 1_000 * ONE;
-	assert_eq!(calculate_rewards(accumulated_rps, rps, amount).unwrap(), 4_000_523_230_000_000_u128);
+	let accumulated_rps = FixedU128::from_inner(23_423_523_230_000_000_000);
+	let rps = FixedU128::from_inner(19_423_000_000_000_000_000);
+	let amount = 1_000 * ONE;
+	assert_eq!(
+		calculate_rewards(accumulated_rps, rps, amount).unwrap(),
+		4_000_523_230_000_000_u128
+	);
 }

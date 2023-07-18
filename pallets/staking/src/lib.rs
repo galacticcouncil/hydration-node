@@ -313,7 +313,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::initialize_staking())]
 		pub fn initialize_staking(origin: OriginFor<T>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -339,7 +339,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(1)]
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::stake())]
 		pub fn stake(origin: OriginFor<T>, amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -374,7 +374,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(2)]
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::increase_stake())]
 		pub fn increase_stake(origin: OriginFor<T>, position_id: T::PositionItemId, amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -474,7 +474,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(3)]
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::claim())]
 		pub fn claim(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -574,7 +574,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(4)]
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::unstake())]
 		pub fn unstake(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 

@@ -46,14 +46,7 @@ use frame_support::{
 };
 use sp_std::marker::PhantomData;
 
-/// Weight functions needed for pallet_staking.
-pub trait WeightInfo {
-	fn initialize_staking() -> Weight;
-	fn stake() -> Weight;
-	fn increase_stake() -> Weight;
-	fn claim() -> Weight;
-	fn unstake() -> Weight;
-}
+use pallet_staking::weights::WeightInfo;
 
 /// Weights for pallet_staking using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
@@ -162,113 +155,5 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::from_ref_time(249_570_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(108 as u64))
 			.saturating_add(T::DbWeight::get().writes(9 as u64))
-	}
-}
-
-// For backwards compatibility and tests
-impl WeightInfo for () {
-	// Storage: Staking Staking (r:1 w:1)
-	// Proof: Staking Staking (max_values: Some(1), max_size: Some(48), added: 543, mode: MaxEncodedLen)
-	// Storage: System Account (r:1 w:0)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Uniques Class (r:1 w:1)
-	// Proof: Uniques Class (max_values: None, max_size: Some(190), added: 2665, mode: MaxEncodedLen)
-	// Storage: Uniques ClassAccount (r:0 w:1)
-	// Proof: Uniques ClassAccount (max_values: None, max_size: Some(80), added: 2555, mode: MaxEncodedLen)
-	fn initialize_staking() -> Weight {
-		// Minimum execution time: 45_493 nanoseconds.
-		Weight::from_ref_time(46_285_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(3 as u64))
-			.saturating_add(RocksDbWeight::get().writes(3 as u64))
-	}
-	// Storage: Staking Staking (r:1 w:1)
-	// Proof: Staking Staking (max_values: Some(1), max_size: Some(48), added: 543, mode: MaxEncodedLen)
-	// Storage: Uniques Account (r:1 w:1)
-	// Proof: Uniques Account (max_values: None, max_size: Some(112), added: 2587, mode: MaxEncodedLen)
-	// Storage: System Account (r:2 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Balances Locks (r:1 w:1)
-	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-	// Storage: Staking NextPositionId (r:1 w:1)
-	// Proof: Staking NextPositionId (max_values: Some(1), max_size: Some(16), added: 511, mode: MaxEncodedLen)
-	// Storage: Uniques Asset (r:1 w:1)
-	// Proof: Uniques Asset (max_values: None, max_size: Some(146), added: 2621, mode: MaxEncodedLen)
-	// Storage: Uniques Class (r:1 w:1)
-	// Proof: Uniques Class (max_values: None, max_size: Some(190), added: 2665, mode: MaxEncodedLen)
-	// Storage: Uniques CollectionMaxSupply (r:1 w:0)
-	// Proof: Uniques CollectionMaxSupply (max_values: None, max_size: Some(36), added: 2511, mode: MaxEncodedLen)
-	// Storage: Staking Positions (r:0 w:1)
-	// Proof: Staking Positions (max_values: None, max_size: Some(132), added: 2607, mode: MaxEncodedLen)
-	fn stake() -> Weight {
-		// Minimum execution time: 93_365 nanoseconds.
-		Weight::from_ref_time(94_660_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(9 as u64))
-			.saturating_add(RocksDbWeight::get().writes(8 as u64))
-	}
-	// Storage: Staking Staking (r:1 w:1)
-	// Proof: Staking Staking (max_values: Some(1), max_size: Some(48), added: 543, mode: MaxEncodedLen)
-	// Storage: Uniques Asset (r:1 w:0)
-	// Proof: Uniques Asset (max_values: None, max_size: Some(146), added: 2621, mode: MaxEncodedLen)
-	// Storage: System Account (r:2 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Staking Positions (r:1 w:1)
-	// Proof: Staking Positions (max_values: None, max_size: Some(132), added: 2607, mode: MaxEncodedLen)
-	// Storage: Balances Locks (r:1 w:1)
-	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-	// Storage: Staking PositionVotes (r:1 w:0)
-	// Proof: Staking PositionVotes (max_values: None, max_size: Some(2134), added: 4609, mode: MaxEncodedLen)
-	// Storage: Democracy ReferendumInfoOf (r:100 w:0)
-	// Proof: Democracy ReferendumInfoOf (max_values: None, max_size: Some(201), added: 2676, mode: MaxEncodedLen)
-	fn increase_stake() -> Weight {
-		// Minimum execution time: 206_722 nanoseconds.
-		Weight::from_ref_time(209_665_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(107 as u64))
-			.saturating_add(RocksDbWeight::get().writes(4 as u64))
-	}
-	// Storage: Staking Staking (r:1 w:1)
-	// Proof: Staking Staking (max_values: Some(1), max_size: Some(48), added: 543, mode: MaxEncodedLen)
-	// Storage: Uniques Asset (r:1 w:0)
-	// Proof: Uniques Asset (max_values: None, max_size: Some(146), added: 2621, mode: MaxEncodedLen)
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Staking Positions (r:1 w:1)
-	// Proof: Staking Positions (max_values: None, max_size: Some(132), added: 2607, mode: MaxEncodedLen)
-	// Storage: Staking PositionVotes (r:1 w:0)
-	// Proof: Staking PositionVotes (max_values: None, max_size: Some(2134), added: 4609, mode: MaxEncodedLen)
-	// Storage: Democracy ReferendumInfoOf (r:100 w:0)
-	// Proof: Democracy ReferendumInfoOf (max_values: None, max_size: Some(201), added: 2676, mode: MaxEncodedLen)
-	// Storage: Balances Locks (r:1 w:1)
-	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-	fn claim() -> Weight {
-		// Minimum execution time: 225_912 nanoseconds.
-		Weight::from_ref_time(227_912_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(107 as u64))
-			.saturating_add(RocksDbWeight::get().writes(5 as u64))
-	}
-	// Storage: Staking Staking (r:1 w:1)
-	// Proof: Staking Staking (max_values: Some(1), max_size: Some(48), added: 543, mode: MaxEncodedLen)
-	// Storage: Uniques Asset (r:1 w:1)
-	// Proof: Uniques Asset (max_values: None, max_size: Some(146), added: 2621, mode: MaxEncodedLen)
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Staking Positions (r:1 w:1)
-	// Proof: Staking Positions (max_values: None, max_size: Some(132), added: 2607, mode: MaxEncodedLen)
-	// Storage: Staking PositionVotes (r:1 w:0)
-	// Proof: Staking PositionVotes (max_values: None, max_size: Some(2134), added: 4609, mode: MaxEncodedLen)
-	// Storage: Democracy ReferendumInfoOf (r:100 w:0)
-	// Proof: Democracy ReferendumInfoOf (max_values: None, max_size: Some(201), added: 2676, mode: MaxEncodedLen)
-	// Storage: Uniques Class (r:1 w:1)
-	// Proof: Uniques Class (max_values: None, max_size: Some(190), added: 2665, mode: MaxEncodedLen)
-	// Storage: Balances Locks (r:1 w:1)
-	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-	// Storage: Uniques Account (r:0 w:1)
-	// Proof: Uniques Account (max_values: None, max_size: Some(112), added: 2587, mode: MaxEncodedLen)
-	// Storage: Uniques ItemPriceOf (r:0 w:1)
-	// Proof: Uniques ItemPriceOf (max_values: None, max_size: Some(113), added: 2588, mode: MaxEncodedLen)
-	fn unstake() -> Weight {
-		// Minimum execution time: 246_989 nanoseconds.
-		Weight::from_ref_time(249_570_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(108 as u64))
-			.saturating_add(RocksDbWeight::get().writes(9 as u64))
 	}
 }
