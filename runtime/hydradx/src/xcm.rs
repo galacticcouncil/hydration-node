@@ -14,6 +14,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::EnsureRoot;
+use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
 use hydradx_traits::router::PoolType;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
@@ -226,7 +227,6 @@ impl pallet_xcm::Config for Runtime {
 	type ReachableDest = ReachableDest;
 }
 pub struct CurrencyIdConvert;
-use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
 use primitives::constants::chain::CORE_ASSET_ID;
 
 impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
