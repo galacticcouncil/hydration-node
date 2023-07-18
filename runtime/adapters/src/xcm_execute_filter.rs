@@ -13,20 +13,20 @@ where
 	MaxXcmDepth: Get<u16>,
 	MaxInstructions: Get<u16>;
 
-fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bool, &Xcm<()>> {
-	match inst {
-		ClearOrigin
-		| ExchangeAsset { .. }
-		| WithdrawAsset(..)
-		| TransferAsset { .. }
-		| DepositAsset { .. }
-		| ExpectAsset(..)
-		| SetFeesMode { .. }
-		| BuyExecution { .. } => Either::Left(true),
-		InitiateReserveWithdraw { xcm, .. } | DepositReserveAsset { xcm, .. } | TransferReserveAsset { xcm, .. } => {
-			Either::Right(xcm)
+impl<MaxXcmDepth, MaxInstructions, RuntimeCall> Contains<(MultiLocation, Xcm<RuntimeCall>)>
+	for AllowTransferAndSwap<MaxXcmDepth, MaxInstructions, RuntimeCall>
+where
+	MaxXcmDepth: Get<u16>,
+	MaxInstructions: Get<u16>,
+{
+	fn contains((loc, xcm): &(MultiLocation, Xcm<RuntimeCall>)) -> bool {
+		// allow root to execute XCM
+		if loc == &MultiLocation::here() {
+			return true;
 		}
-		_ => Either::Left(false),
+
+		let instructions_count = Cell::new(0u16);
+		check_instructions_recursively::<MaxXcmDepth, MaxInstructions, RuntimeCall>(xcm, 0, &instructions_count)
 	}
 }
 
@@ -69,19 +69,19 @@ where
 	true
 }
 
-impl<MaxXcmDepth, MaxInstructions, RuntimeCall> Contains<(MultiLocation, Xcm<RuntimeCall>)>
-	for AllowTransferAndSwap<MaxXcmDepth, MaxInstructions, RuntimeCall>
-where
-	MaxXcmDepth: Get<u16>,
-	MaxInstructions: Get<u16>,
-{
-	fn contains((loc, xcm): &(MultiLocation, Xcm<RuntimeCall>)) -> bool {
-		// allow root to execute XCM
-		if loc == &MultiLocation::here() {
-			return true;
+fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bool, &Xcm<()>> {
+	match inst {
+		ClearOrigin
+		| ExchangeAsset { .. }
+		| WithdrawAsset(..)
+		| TransferAsset { .. }
+		| DepositAsset { .. }
+		| ExpectAsset(..)
+		| SetFeesMode { .. }
+		| BuyExecution { .. } => Either::Left(true),
+		InitiateReserveWithdraw { xcm, .. } | DepositReserveAsset { xcm, .. } | TransferReserveAsset { xcm, .. } => {
+			Either::Right(xcm)
 		}
-
-		let instructions_count = Cell::new(0u16);
-		check_instructions_recursively::<MaxXcmDepth, MaxInstructions, RuntimeCall>(xcm, 0, &instructions_count)
+		_ => Either::Left(false),
 	}
 }
