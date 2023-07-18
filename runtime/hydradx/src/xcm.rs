@@ -14,8 +14,6 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::EnsureRoot;
-use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
-use hydradx_traits::router::PoolType;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_xcm::XcmPassthrough;
@@ -29,8 +27,6 @@ use xcm_builder::{
 	TakeWeightCredit,
 };
 use xcm_executor::{Config, XcmExecutor};
-
-use hydradx_adapters::xcm_execute_filter::AllowTransferAndSwap;
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
@@ -85,10 +81,7 @@ parameter_types! {
 	pub const MaxInstructions: u32 = 100;
 	pub const MaxAssetsForTransfer: usize = 2;
 
-	pub DefaultPoolType: PoolType<AssetId>  = PoolType::Omnipool;
-
 	pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
-	pub TempAccount: AccountId = [42; 32].into();
 }
 
 pub struct XcmConfig;
@@ -121,7 +114,7 @@ impl Config for XcmConfig {
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetLocker = ();
-	type AssetExchanger = XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currencies, DefaultPoolType>;
+	type AssetExchanger = ();
 	type AssetClaims = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type PalletInstancesInfo = AllPalletsWithSystem;
@@ -197,11 +190,6 @@ parameter_types! {
 	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
 }
 
-parameter_types! {
-	pub const MaxXcmDepth: u16 = 5;
-	pub const MaxNumberOfInstructions: u16 = 100;
-}
-
 impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
@@ -209,7 +197,7 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
+	type XcmExecuteFilter = Everything;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;

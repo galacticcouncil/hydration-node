@@ -19,6 +19,10 @@ pub const ACA: u32 = 1234;
 pub const GLMR: u32 = 4567;
 pub const IBTC: u32 = 7890;
 
+//TODO: Unignore these tests when we have the AssetExchange feature configured in hydra.
+//For now they are ignored as first we want to try out AssetExchange in basilisk
+
+#[ignore]
 #[test]
 fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 	//Arrange
@@ -91,6 +95,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 	});
 }
 
+#[ignore]
 #[test]
 fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 	//Arrange
@@ -163,6 +168,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 }
 
 //We swap GLMR for iBTC, sent from ACALA and executed on Hydradx, resultin in 4 hops
+#[ignore]
 #[test]
 fn transfer_and_swap_should_work_with_4_hops() {
 	//Arrange
