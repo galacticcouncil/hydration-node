@@ -283,7 +283,7 @@ fn register_glmr() {
 fn register_aca() {
 	assert_ok!(hydradx_runtime::AssetRegistry::register(
 		hydradx_runtime::RuntimeOrigin::root(),
-		b"ACA".to_vec(),
+		b"ACAL".to_vec(),
 		pallet_asset_registry::AssetType::Token,
 		1_000_000,
 		Some(ACA),

@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "0.4.0"
+version = "0.4.1"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -36,9 +36,14 @@ sp-core = { workspace = true }
 sp-io = { workspace = true }
 
 # Polkadot dependencies
+polkadot-parachain = { workspace = true }
 polkadot-xcm = { workspace = true }
 xcm-builder = { workspace = true }
 xcm-executor = { workspace = true }
+
+# Cumulus dependencies
+cumulus-pallet-parachain-system = { workspace = true }
+cumulus-primitives-core = { workspace = true }
 
 # ORML dependencies
 orml-xcm-support = { workspace = true }
@@ -48,10 +53,6 @@ orml-tokens = { workspace = true }
 
 # Pallets
 pallet-balances = { workspace = true }
-
-# Cumulus dependencies
-cumulus-primitives-core = { workspace = true }
-
 
 [dev-dependencies]
 lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
@@ -66,6 +67,7 @@ runtime-benchmarks = [
 std = [
     "codec/std",
     "frame-support/std",
+    "frame-system/std",
     "hydradx-traits/std",
     "pallet-transaction-multi-payment/std",
     "polkadot-xcm/std",
@@ -73,4 +75,6 @@ std = [
     "sp-std/std",
     "xcm-builder/std",
     "xcm-executor/std",
+    "cumulus-pallet-parachain-system/std",
+    "polkadot-parachain/std",
 ]
