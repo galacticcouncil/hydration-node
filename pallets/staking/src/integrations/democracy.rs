@@ -55,7 +55,7 @@ impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
 			}
 			Ok(())
 		})?;
-		//TODO: event?
+
 		Ok(())
 	}
 
@@ -71,7 +71,7 @@ impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
 			voting.votes.retain(|(idx, _)| *idx != ref_index);
 			Ok(())
 		})?;
-		//TODO: event?
+
 		Ok(())
 	}
 }
