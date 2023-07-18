@@ -72,7 +72,6 @@ orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
 orml-vesting = { workspace = true }
 orml-benchmarking = { workspace = true, optional = true }
-orml-utilities = { workspace = true }
 
 # orml XCM support
 orml-xtokens = { workspace = true }
@@ -126,9 +125,6 @@ sp-version = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
 primitive-types = {  workspace = true }
-
-[dev-dependencies]
-pretty_assertions = "1.4.0"
 
 [features]
 default = ["std"]
