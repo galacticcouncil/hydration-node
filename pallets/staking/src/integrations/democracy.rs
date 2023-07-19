@@ -3,12 +3,18 @@ use crate::traits::DemocracyReferendum;
 use crate::types::{Balance, Conviction, Vote};
 use crate::{Config, Error, Pallet};
 use frame_support::dispatch::DispatchResult;
+use frame_system::Origin;
+use orml_traits::MultiCurrencyExtended;
 use pallet_democracy::traits::DemocracyHooks;
 use pallet_democracy::{AccountVote, ReferendumIndex, ReferendumInfo};
+use sp_core::Get;
 
 pub struct StakingDemocracy<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
+impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T>
+where
+	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+{
 	fn on_vote(who: &T::AccountId, ref_index: ReferendumIndex, vote: AccountVote<Balance>) -> DispatchResult {
 		let position_id = if let Some(position_id) = Pallet::<T>::get_user_position_id(who)? {
 			position_id
@@ -73,6 +79,32 @@ impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
 		})?;
 
 		Ok(())
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn on_vote_worst_case(who: &T::AccountId) {
+		T::Currency::update_balance(
+			T::HdxAssetId::get(),
+			&Pallet::<T>::pot_account_id(),
+			10_000_000_000_000i128,
+		)
+		.unwrap();
+		Pallet::<T>::initialize_staking(Origin::<T>::Root.into()).unwrap();
+		T::Currency::update_balance(T::HdxAssetId::get(), who, 1000_000_000_000_000i128).unwrap();
+		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1000_000_000_000_000u128).unwrap();
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn on_remove_vote_worst_case(who: &T::AccountId) {
+		T::Currency::update_balance(
+			T::HdxAssetId::get(),
+			&Pallet::<T>::pot_account_id(),
+			10_000_000_000_000i128,
+		)
+		.unwrap();
+		Pallet::<T>::initialize_staking(Origin::<T>::Root.into()).unwrap();
+		T::Currency::update_balance(T::HdxAssetId::get(), who, 1000_000_000_000_000i128).unwrap();
+		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1000_000_000_000_000u128).unwrap();
 	}
 }
 
