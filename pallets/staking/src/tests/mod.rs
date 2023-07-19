@@ -8,6 +8,7 @@ use orml_tokens::BalanceLock;
 mod claim;
 mod increase_stake;
 pub(crate) mod mock;
+mod process_votes;
 mod stake;
 mod unstake;
 
