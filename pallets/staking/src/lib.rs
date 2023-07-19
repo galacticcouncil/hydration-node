@@ -864,26 +864,17 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn process_votes(position_id: T::PositionItemId, position: &mut Position<T::BlockNumber>) -> DispatchResult {
-		let voting: Voting<T::MaxVotes> = if PositionVotes::<T>::contains_key(position_id) {
-			PositionVotes::<T>::get(position_id)
-		} else {
-			return Ok(());
-		};
-
-		for (ref_index, vote) in voting.votes {
-			if T::ReferendumInfo::is_referendum_finished(ref_index) {
-				let points = Self::calculate_points_for_action(Action::DemocracyVote, vote);
-				position.action_points = position
-					.action_points
-					.checked_add(points)
-					.ok_or(Error::<T>::Arithmetic)?;
-
-				// TODO: this could be optimized, we can do the other way round - do the check in the retain itself
-				PositionVotes::<T>::mutate(position_id, |voting| {
-					voting.votes.retain(|(idx, _)| *idx != ref_index);
-				});
-			}
-		}
+		PositionVotes::<T>::mutate(position_id, |voting| {
+			voting.votes.retain(|(ref_idx, vote)| {
+				if T::ReferendumInfo::is_referendum_finished(*ref_idx) {
+					let points = Self::calculate_points_for_action(Action::DemocracyVote, vote);
+					position.action_points = position.action_points.saturating_add(points);
+					false
+				} else {
+					true
+				}
+			});
+		});
 		Ok(())
 	}
 
@@ -892,8 +883,7 @@ impl<T: Config> Pallet<T> {
 			.amount()
 			.saturating_mul(data.conviction() as u128)
 			.div(T::RewardedVoteUnit::get());
-		let c = T::ActionMultiplier::get(&action);
-		total.saturating_mul(c as u128)
+		total.saturating_mul(T::ActionMultiplier::get(&action) as u128)
 	}
 
 	#[inline]
