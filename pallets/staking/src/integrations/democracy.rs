@@ -90,8 +90,8 @@ where
 		)
 		.unwrap();
 		Pallet::<T>::initialize_staking(Origin::<T>::Root.into()).unwrap();
-		T::Currency::update_balance(T::HdxAssetId::get(), who, 1000_000_000_000_000i128).unwrap();
-		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1000_000_000_000_000u128).unwrap();
+		T::Currency::update_balance(T::HdxAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
+		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -103,8 +103,8 @@ where
 		)
 		.unwrap();
 		Pallet::<T>::initialize_staking(Origin::<T>::Root.into()).unwrap();
-		T::Currency::update_balance(T::HdxAssetId::get(), who, 1000_000_000_000_000i128).unwrap();
-		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1000_000_000_000_000u128).unwrap();
+		T::Currency::update_balance(T::HdxAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
+		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
 	}
 }
 
