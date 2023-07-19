@@ -14,6 +14,7 @@
 // limitations under the License.
 
 use crate::traits::{Freeze, VestingDetails};
+use crate::types::{Vote, Voting};
 use crate::*;
 
 use frame_support::traits::Everything;
@@ -25,6 +26,7 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, RawOrigin};
 use orml_traits::{parameter_type_with_key, LockIdentifier, MultiCurrencyExtended};
+use pallet_democracy::ReferendumIndex;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -53,6 +55,8 @@ pub const ONE: u128 = 1_000_000_000_000;
 pub const STAKING_LOCK: LockIdentifier = crate::STAKING_LOCK_ID;
 
 pub const NON_DUSTABLE_BALANCE: Balance = 1_000 * ONE;
+
+pub type PositionId = u128;
 
 construct_runtime!(
 	pub enum Test where
@@ -191,6 +195,7 @@ parameter_types! {
 	pub const CurrentStakeWeight: u8 = 2;
 	pub const UnclaimablePeriods: BlockNumber = 10;
 	pub const PointPercentage: FixedU128 = FixedU128::from_rational(15,100);
+	pub const MaxVotes: u32 = 10;
 }
 
 impl pallet_staking::Config for Test {
@@ -208,13 +213,13 @@ impl pallet_staking::Config for Test {
 	type UnclaimablePeriods = UnclaimablePeriods;
 	type CurrentStakeWeight = CurrentStakeWeight;
 	type BlockNumberProvider = MockBlockNumberProvider;
-	type PositionItemId = u128;
+	type PositionItemId = PositionId;
 	type CollectionId = u128;
 	type NFTCollectionId = ConstU128<1>;
 	type NFTHandler = Uniques;
 
 	type PayablePercentage = SigmoidPercentage<PointPercentage>;
-	type MaxVotes = ConstU32<10>;
+	type MaxVotes = MaxVotes;
 	type ActionMultiplier = DummyActionMultiplier;
 	type ReferendumInfo = DummyReferendumStatus;
 	type Vesting = DummyVesting;
@@ -228,7 +233,7 @@ pub struct DummyActionMultiplier;
 impl GetByKey<Action, u32> for DummyActionMultiplier {
 	fn get(k: &Action) -> u32 {
 		match k {
-			Action::DemocracyVote => 1u32,
+			Action::DemocracyVote => 1_u32,
 		}
 	}
 }
@@ -236,8 +241,8 @@ impl GetByKey<Action, u32> for DummyActionMultiplier {
 pub struct DummyReferendumStatus;
 
 impl DemocracyReferendum for DummyReferendumStatus {
-	fn is_referendum_finished(_index: pallet_democracy::ReferendumIndex) -> bool {
-		false
+	fn is_referendum_finished(index: pallet_democracy::ReferendumIndex) -> bool {
+		index % 2 == 0
 	}
 }
 
@@ -272,6 +277,7 @@ pub struct ExtBuilder {
 	//(who, staked maount, created_at, pendig_rewards)
 	stakes: Vec<(AccountId, Balance, BlockNumber, Balance)>,
 	init_staking: bool,
+	with_votings: Vec<(PositionId, Vec<(ReferendumIndex, Vote)>)>,
 }
 
 impl ExtBuilder {
@@ -293,6 +299,11 @@ impl ExtBuilder {
 
 	pub fn with_initialized_staking(mut self) -> Self {
 		self.init_staking = true;
+		self
+	}
+
+	pub fn with_votings(mut self, votings: Vec<(u128, Vec<(ReferendumIndex, Vote)>)>) -> Self {
+		self.with_votings = votings;
 		self
 	}
 }
@@ -346,6 +357,14 @@ impl ExtBuilder {
 				} else {
 					assert_ok!(Staking::stake(RuntimeOrigin::signed(who), staked_amount));
 				}
+			}
+
+			for (position_id, votes) in self.with_votings {
+				let v = Voting::<MaxVotes> {
+					votes: votes.try_into().unwrap(),
+				};
+
+				pallet_staking::PositionVotes::<Test>::insert(position_id, v);
 			}
 		});
 
