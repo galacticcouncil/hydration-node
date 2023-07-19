@@ -19,6 +19,8 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 
 # HydraDX
 hydradx-traits = { workspace = true }
+primitives = { workspace = true }
+pallet-asset-registry = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }

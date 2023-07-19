@@ -38,6 +38,14 @@ pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<Asset
 	}
 }
 
+pub trait BondRegistry<AssetId, AssetName, Balance, AssetDetails, Error>:
+	Registry<AssetId, AssetName, Balance, Error>
+{
+	fn get_asset_details(asset_id: AssetId) -> Result<AssetDetails, Error>;
+
+	fn create_bond_asset(name: &AssetName, existential_deposit: Balance) -> Result<AssetId, Error>;
+}
+
 // Deprecated.
 // TODO: the following macro is commented out for a reason for now - due to failing clippy in CI
 // #[deprecated(since = "0.6.0", note = "Please use `AccountIdFor` instead")]

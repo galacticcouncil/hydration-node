@@ -27,19 +27,20 @@ use serde::{Deserialize, Serialize};
 pub enum AssetType<AssetId> {
 	Token,
 	PoolShare(AssetId, AssetId),
+	Bond,
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AssetDetails<AssetId, Balance, BoundedString> {
 	/// The name of this asset. Limited in length by `StringLimit`.
-	pub(super) name: BoundedString,
+	pub name: BoundedString,
 
-	pub(super) asset_type: AssetType<AssetId>,
+	pub asset_type: AssetType<AssetId>,
 
-	pub(super) existential_deposit: Balance,
+	pub existential_deposit: Balance,
 
-	pub(super) xcm_rate_limit: Option<Balance>,
+	pub xcm_rate_limit: Option<Balance>,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]

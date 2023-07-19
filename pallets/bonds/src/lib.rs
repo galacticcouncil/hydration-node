@@ -20,20 +20,23 @@
 
 use codec::{Decode, Encode};
 use frame_support::{
-	ensure,
-	pallet_prelude::{DispatchResult, Get}
+	ensure, BoundedVec,
+	pallet_prelude::{DispatchResult, Get},
+	traits::Time,
+	PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use frame_system::pallet_prelude::BlockNumberFor;
+use primitives::Moment;
 
+use hydradx_traits::BondRegistry;
 use orml_traits::MultiCurrency;
+use pallet_asset_registry::AssetDetails;
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::{
+	traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub, Zero},
 	ArithmeticError, DispatchError, Permill, RuntimeDebug,
-	traits::{BlockNumberProvider, AtLeast32BitUnsigned, CheckedMul, CheckedAdd, CheckedSub}, Saturating,
 };
-use hydradx_traits::Registry;
 
 #[cfg(test)]
 mod tests;
@@ -45,20 +48,11 @@ pub use weights::WeightInfo;
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
-pub struct Bond<T: Config>
-{
-	pub maturity: BlockNumberFor<T>,
+pub struct Bond<T: Config> {
+	pub maturity: Moment,
+	// underlying asset id
+	pub asset_id: T::AssetId,
 	pub amount: T::Balance,
-}
-
-impl<T: Config> Bond<T> {
-	pub fn maturity(&self) -> BlockNumberFor<T> {
-		self.maturity
-	}
-
-	pub fn amount(&self) -> T::Balance {
-		self.amount
-	}
 }
 
 #[frame_support::pallet]
@@ -103,16 +97,29 @@ pub mod pallet {
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Self::Balance>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
-		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Self::Balance, DispatchError>;
+		type AssetRegistry: BondRegistry<
+			Self::AssetId,
+			Vec<u8>,
+			Self::Balance,
+			AssetDetails<Self::AssetId, Self::Balance, BoundedVec<u8, ConstU32<32>>>,
+			DispatchError,
+		>;
 
 		/// Provider for the current block number.
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		type TimestampProvider: Time<Moment = Moment>;
+
+		/// The pallet id, used for deriving its sovereign account ID.
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
 
 		/// Min number of blocks for maturity.
-		type MinMaturity: Get<Self::BlockNumber>;
+		type MinMaturity: Get<Moment>;
 
 		/// Protocol Fee for
-		type Fee: Get<Permill>;
+		type ProtocolFee: Get<Permill>;
+
+		/// Protocol Fee receiver
+		type FeeReceiver: Get<Self::AccountId>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -120,7 +127,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Registered bonds
-	#[pallet::getter(fn assets)]
+	#[pallet::getter(fn bonds)]
 	pub(super) type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Bond<T>>;
 
 	#[pallet::event]
@@ -128,7 +135,17 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A bond asset was registered
 		BondTokenCreated {
+			issuer: T::AccountId,
 			asset_id: T::AssetId,
+			bond_asset_id: T::AssetId,
+			amount: T::Balance,
+			fee: T::Balance,
+		},
+		/// A bond asset was registered
+		BondsRedeemed {
+			account_id: T::AccountId,
+			bond_id: T::AssetId,
+			amount: T::Balance,
 		},
 	}
 
@@ -139,6 +156,8 @@ pub mod pallet {
 		InsufficientBalance,
 		/// Bond not registered
 		BondNotRegistered,
+		/// Bond is not mature
+		BondNotMature,
 		/// Maturity not long enough
 		InvalidMaturity,
 	}
@@ -152,12 +171,48 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
 			amount: T::Balance,
-			maturity: BlockNumberFor<T>,
+			maturity: Moment,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let block_diff = T::BlockNumberProvider::current_block_number().checked_sub(&maturity).ok_or(ArithmeticError::Overflow)?;
-			ensure!(block_diff >= T::MinMaturity::get(), Error::<T>::InvalidMaturity);
+			let time_diff = T::TimestampProvider::now()
+				.checked_sub(maturity)
+				.ok_or(ArithmeticError::Overflow)?;
+			ensure!(time_diff >= T::MinMaturity::get(), Error::<T>::InvalidMaturity);
+
+			ensure!(
+				T::Currency::free_balance(asset_id, &who) >= amount,
+				Error::<T>::InsufficientBalance
+			);
+
+			let asset_details = T::AssetRegistry::get_asset_details(asset_id)?;
+			let bond_asset_id = T::AssetRegistry::create_bond_asset(&vec![], asset_details.existential_deposit)?;
+
+
+			let fee = T::ProtocolFee::get().mul_ceil(amount);
+			let amount_without_fee = amount.checked_sub(&fee).ok_or(ArithmeticError::Overflow)?;
+			let pallet_account = Self::account_id();
+
+			T::Currency::transfer(asset_id, &who, &pallet_account, amount_without_fee)?;
+			T::Currency::transfer(asset_id, &who, &T::FeeReceiver::get(), fee)?;
+			T::Currency::deposit(bond_asset_id, &who, amount_without_fee)?;
+
+			Bonds::<T>::insert(
+				bond_asset_id,
+				Bond {
+					maturity,
+					asset_id,
+					amount: amount_without_fee,
+				},
+			);
+
+			Self::deposit_event(Event::BondTokenCreated {
+				issuer: who,
+				asset_id,
+				bond_asset_id,
+				amount: amount_without_fee,
+				fee,
+			});
 
 			Ok(())
 		}
@@ -165,24 +220,51 @@ pub mod pallet {
 		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::redeem())]
-		pub fn redeem(
-			origin: OriginFor<T>,
-		) -> DispatchResult {
+		pub fn redeem(origin: OriginFor<T>, bond_id: T::AssetId, amount: T::Balance) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			Bonds::<T>::try_mutate_exists(bond_id, |maybe_bond_data| -> DispatchResult {
+				let bond_data = maybe_bond_data.as_mut().ok_or(Error::<T>::BondNotRegistered)?;
+
+				let now = T::TimestampProvider::now();
+				ensure!(now >= bond_data.maturity, Error::<T>::BondNotMature);
+
+				ensure!(
+					T::Currency::free_balance(bond_id, &who) >= amount,
+					Error::<T>::InsufficientBalance
+				);
+
+				T::Currency::withdraw(bond_id, &who, amount)?;
+
+				let pallet_account = Self::account_id();
+				T::Currency::transfer(bond_data.asset_id, &pallet_account, &who, amount)?;
+
+				bond_data.amount = bond_data.amount.checked_sub(&amount).ok_or(ArithmeticError::Overflow)?;
+
+				if bond_data.amount.is_zero() {
+					*maybe_bond_data = None;
+				}
+
+				Self::deposit_event(Event::BondsRedeemed {
+					account_id: who,
+					bond_id,
+					amount,
+				});
+
+				Ok(())
+			})?;
+
 			Ok(())
 		}
 	}
 }
 
 impl<T: Config> Pallet<T> {
-	/// Returns false if the asset id is not registered as a bond
-	fn is_mature(asset_id: T::AssetId) -> bool {
-		let maybe_bond = Bonds::<T>::get(asset_id);
-		match maybe_bond {
-			Some(bond) => {
-				let block_number = T::BlockNumberProvider::current_block_number();
-				bond.maturity() >= block_number
-			},
-			None => false
-		}
+	/// The account ID of the bonds pot.
+	///
+	/// This actually does computation. If you need to keep using it, then make sure you cache the
+	/// value and only call this once.
+	pub fn account_id() -> T::AccountId {
+		T::PalletId::get().into_account_truncating()
 	}
 }

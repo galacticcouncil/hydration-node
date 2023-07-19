@@ -56,7 +56,7 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn issue() -> Weight {
-        Weight::zero()
+		Weight::zero()
 	}
 
 	fn redeem() -> Weight {
@@ -67,7 +67,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn issue() -> Weight {
-        Weight::zero()
+		Weight::zero()
 	}
 
 	fn redeem() -> Weight {

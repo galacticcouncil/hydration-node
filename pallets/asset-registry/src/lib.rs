@@ -44,9 +44,9 @@ pub use types::AssetType;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-use crate::types::{AssetDetails, AssetMetadata};
+pub use crate::types::{AssetDetails, AssetMetadata};
 use frame_support::BoundedVec;
-use hydradx_traits::{Registry, ShareTokenRegistry};
+use hydradx_traits::{BondRegistry, Registry, ShareTokenRegistry};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -587,6 +587,17 @@ impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, T::Balance, DispatchErro
 			existential_deposit,
 			None,
 		)
+	}
+}
+
+impl<T: Config> BondRegistry<T::AssetId, Vec<u8>, T::Balance, AssetDetailsT<T>, DispatchError> for Pallet<T> {
+	fn get_asset_details(asset_id: T::AssetId) -> Result<AssetDetailsT<T>, DispatchError> {
+		Assets::<T>::try_get(asset_id).map_err(|_| Error::<T>::AssetNotRegistered.into())
+	}
+
+	fn create_bond_asset(name: &Vec<u8>, existential_deposit: T::Balance) -> Result<T::AssetId, DispatchError> {
+		let bounded_name: BoundedVec<u8, T::StringLimit> = Self::to_bounded_name(name.clone())?;
+		Self::register_asset(bounded_name, AssetType::Bond, existential_deposit, None, None)
 	}
 }
 
