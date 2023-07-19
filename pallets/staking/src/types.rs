@@ -111,6 +111,16 @@ impl ActionData for Vote {
 	}
 }
 
+impl<'a> ActionData for &'a Vote {
+	fn amount(&self) -> Balance {
+		self.amount
+	}
+
+	fn conviction(&self) -> u32 {
+		self.conviction as u32
+	}
+}
+
 #[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 #[codec(mel_bound(skip_type_params(MaxVotes)))]
 #[scale_info(skip_type_params(MaxVotes))]
