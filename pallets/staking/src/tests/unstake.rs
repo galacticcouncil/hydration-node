@@ -226,8 +226,8 @@ fn unstake_should_claim_no_additional_rewards_when_called_immediately_after_clai
 
 			assert_staking_data!(
 				110_010 * ONE,
-				FixedU128::from_inner(2_624_680_135_471_373_855_u128),
-				268_848_368_521_588_930_u128 + NON_DUSTABLE_BALANCE
+				FixedU128::from_inner(2_625_787_010_142_549_959_u128),
+				268_383_481_159_694_967_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }

@@ -116,12 +116,11 @@ fn democracy_vote_should_record_stake_vote() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Tokens::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
 			HDX,
-			10_000 * UNITS,
-			0,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -168,12 +167,11 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Tokens::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
 			HDX,
-			10_000 * UNITS,
-			0,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -224,11 +222,11 @@ fn staking_should_transfer_rewards_when_claimed() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
-			10_000 * UNITS,
-			0,
+			HDX,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -290,11 +288,11 @@ fn staking_should_not_reward_when_double_claimed() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
-			10_000 * UNITS,
-			0,
+			HDX,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -330,7 +328,6 @@ fn staking_should_not_reward_when_double_claimed() {
 		));
 		let alice_balance_after_claim = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert!(alice_balance_after_claim > alice_balance);
-
 		// second claim
 		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert_ok!(Staking::claim(
@@ -351,11 +348,11 @@ fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
-			10_000 * UNITS,
-			0,
+			HDX,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -417,11 +414,11 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
-			10_000 * UNITS,
-			0,
+			HDX,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -480,12 +477,11 @@ fn staking_should_remove_vote_when_democracy_removes_vote() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Tokens::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
 			HDX,
-			10_000 * UNITS,
-			0,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -538,12 +534,11 @@ fn staking_should_not_reward_when_refenrendum_is_ongoing() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Tokens::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
 			HDX,
-			10_000 * UNITS,
-			0,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -590,12 +585,11 @@ fn democracy_vote_should_work_correctly_when_account_has_no_stake() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Tokens::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
 			HDX,
-			10_000 * UNITS,
-			0,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -658,12 +652,11 @@ fn staking_position_transfer_should_fail_when_origin_is_owner() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Tokens::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
 			HDX,
-			10_000 * UNITS,
-			0,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -706,12 +699,11 @@ fn thaw_staking_position_should_fail_when_origin_is_position_owner() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Tokens::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
 			HDX,
-			10_000 * UNITS,
-			0,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -753,12 +745,11 @@ fn thaw_staking_collection_should_fail_when_origin_is_not_pallet_account() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Tokens::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
 			HDX,
-			10_000 * UNITS,
-			0,
+			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -793,12 +784,11 @@ fn stake_should_fail_when_tokens_are_vested() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Tokens::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
 			HDX,
-			10_000 * UNITS,
-			0,
+			(10_000 * UNITS) as i128,
 		));
 
 		assert_ok!(Currencies::update_balance(
@@ -831,12 +821,11 @@ fn stake_should_fail_when_tokens_are_already_staked() {
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Tokens::set_balance(
+		assert_ok!(Currencies::update_balance(
 			RawOrigin::Root.into(),
 			staking_account,
 			HDX,
-			10_000 * UNITS,
-			0,
+			(10_000 * UNITS) as i128,
 		));
 
 		assert_ok!(Currencies::update_balance(

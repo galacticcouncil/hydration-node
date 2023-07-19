@@ -525,6 +525,7 @@ pub mod pallet {
 						.accumulated_unpaid_rewards
 						.checked_add(unpaid_rewards)
 						.ok_or(Error::<T>::Arithmetic)?;
+
 					position.accumulated_unpaid_rewards = position
 						.accumulated_unpaid_rewards
 						.checked_sub(claimable_unpaid_rewards)
@@ -556,6 +557,8 @@ pub mod pallet {
 
 					staking.accumulated_claimable_rewards = staking
 						.accumulated_claimable_rewards
+						.checked_sub(rewards_to_pay)
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?
 						.checked_sub(slashed_unpaid_rewards)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
