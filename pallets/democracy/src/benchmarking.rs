@@ -114,6 +114,8 @@ benchmarks! {
 		let caller = funded_account::<T>("caller", 0);
 		let account_vote = account_vote::<T>(100u32.into());
 
+		T::DemocracyHooks::on_vote_worst_case(&caller);
+
 		// We need to create existing direct votes
 		for i in 0 .. T::MaxVotes::get() - 1 {
 			let ref_index = add_referendum::<T>(i).0;
@@ -139,6 +141,8 @@ benchmarks! {
 	vote_existing {
 		let caller = funded_account::<T>("caller", 0);
 		let account_vote = account_vote::<T>(100u32.into());
+
+		T::DemocracyHooks::on_vote_worst_case(&caller);
 
 		// We need to create existing direct votes
 		for i in 0..T::MaxVotes::get() {
@@ -624,6 +628,8 @@ benchmarks! {
 		let caller = funded_account::<T>("caller", 0);
 		let account_vote = account_vote::<T>(100u32.into());
 
+		T::DemocracyHooks::on_remove_vote_worst_case(&caller);
+
 		for i in 0 .. r {
 			let ref_index = add_referendum::<T>(i).0;
 			Democracy::<T>::vote(RawOrigin::Signed(caller.clone()).into(), ref_index, account_vote)?;
@@ -653,6 +659,8 @@ benchmarks! {
 		let caller = funded_account::<T>("caller", r);
 		let caller_lookup = T::Lookup::unlookup(caller.clone());
 		let account_vote = account_vote::<T>(100u32.into());
+
+		T::DemocracyHooks::on_remove_vote_worst_case(&caller);
 
 		for i in 0 .. r {
 			let ref_index = add_referendum::<T>(i).0;
