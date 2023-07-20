@@ -298,6 +298,66 @@ fn issue_bonds_should_work_when_issuing_multiple_bonds() {
 }
 
 #[test]
+fn issue_should_work_when_underlying_asset_is_shared_token() {
+	ExtBuilder::default().build().execute_with(|| {
+		// TODO
+
+		// Arrange
+		System::set_block_number(1);
+		let now = DummyTimestampProvider::<Test>::now();
+		let maturity = now.checked_add(MONTH).unwrap();
+		let amount = ONE;
+		let bond_id = next_asset_id();
+
+		// Act
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+
+		// Assert
+		expect_events(vec![Event::BondTokenCreated {
+			issuer: ALICE,
+			asset_id: HDX,
+			bond_asset_id: bond_id,
+			amount,
+			fee: 0,
+		}
+		.into()]);
+
+		assert_eq!(
+			Bonds::bonds(bond_id).unwrap(),
+			Bond {
+				maturity,
+				asset_id: HDX,
+				amount,
+			}
+		);
+
+		let hdx_asset_details = DummyRegistry::<Test>::get_asset_details(HDX).unwrap();
+		let bond_asset_details = DummyRegistry::<Test>::get_asset_details(bond_id).unwrap();
+
+		assert_eq!(
+			bond_asset_details,
+			AssetDetailsT {
+				name: "".as_bytes().to_vec().try_into().unwrap(),
+				asset_type: pallet_asset_registry::AssetType::Bond,
+				existential_deposit: 1_000,
+				xcm_rate_limit: None,
+			}
+		);
+		assert_eq!(
+			hdx_asset_details.existential_deposit,
+			bond_asset_details.existential_deposit
+		);
+
+		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - amount);
+		assert_eq!(Tokens::free_balance(bond_id, &ALICE), amount);
+
+		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
+
+		assert_eq!(Tokens::free_balance(HDX, &Bonds::account_id()), amount);
+	});
+}
+
+#[test]
 fn issue_bonds_should_fail_when_maturity_is_in_the_past() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
