@@ -99,7 +99,7 @@ benchmarks! {
 	}: _<T::RuntimeOrigin>(successful_origin)
 	verify {
 		assert_eq!(Pallet::<T>::staking(), StakingData {
-			accumulated_claimable_rewards: non_dustable_balance,
+			pot_reserved_balance: non_dustable_balance,
 			..Default::default()
 		});
 	}

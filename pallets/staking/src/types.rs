@@ -66,8 +66,8 @@ pub struct StakingData {
 	pub(crate) total_stake: Balance,
 	/// Accumulated reward per stake.
 	pub(crate) accumulated_reward_per_stake: FixedU128,
-	/// Accumulated amount of rewards allocated for stakers to claim. These rewards are not gone from the `pot`.
-	pub(crate) accumulated_claimable_rewards: Balance,
+	/// Balance of rewards allocated/reserved for stakers in the `pot`.
+	pub(crate) pot_reserved_balance: Balance,
 }
 
 impl StakingData {

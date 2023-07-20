@@ -325,7 +325,7 @@ pub mod pallet {
 
 			//Offsetting `accumulated_claimable_rewards` to prevent `pot` dusting.
 			let s = StakingData {
-				accumulated_claimable_rewards: pot_balance,
+				pot_reserved_balance: pot_balance,
 				..Default::default()
 			};
 			Staking::<T>::put(s);
@@ -445,8 +445,8 @@ pub mod pallet {
 
 					position.stake = position.stake.checked_add(amount).ok_or(Error::<T>::Arithmetic)?;
 
-					staking.accumulated_claimable_rewards = staking
-						.accumulated_claimable_rewards
+					staking.pot_reserved_balance = staking
+						.pot_reserved_balance
 						.checked_sub(rewards)
 						.ok_or(Error::<T>::Arithmetic)?;
 
@@ -555,8 +555,8 @@ pub mod pallet {
 						position.get_total_locked()?,
 					)?;
 
-					staking.accumulated_claimable_rewards = staking
-						.accumulated_claimable_rewards
+					staking.pot_reserved_balance = staking
+						.pot_reserved_balance
 						.checked_sub(rewards_to_pay)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?
 						.checked_sub(slashed_unpaid_rewards)
@@ -627,8 +627,8 @@ pub mod pallet {
 						.checked_sub(claimable_unpaid_rewards)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
-					staking.accumulated_claimable_rewards = staking
-						.accumulated_claimable_rewards
+					staking.pot_reserved_balance = staking
+						.pot_reserved_balance
 						.checked_sub(return_to_pot)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
@@ -747,7 +747,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let pending_rewards = T::Currency::free_balance(T::HdxAssetId::get(), &Self::pot_account_id())
-			.checked_sub(staking.accumulated_claimable_rewards)
+			.checked_sub(staking.pot_reserved_balance)
 			.defensive_ok_or::<Error<T>>(InconsistentStateError::NegativePendingRewards.into())?;
 
 		if pending_rewards.is_zero() {
@@ -767,8 +767,8 @@ impl<T: Config> Pallet<T> {
 		}
 
 		staking.accumulated_reward_per_stake = accumulated_rps;
-		staking.accumulated_claimable_rewards = staking
-			.accumulated_claimable_rewards
+		staking.pot_reserved_balance = staking
+			.pot_reserved_balance
 			.checked_add(pending_rewards)
 			.ok_or(Error::<T>::Arithmetic)?;
 
