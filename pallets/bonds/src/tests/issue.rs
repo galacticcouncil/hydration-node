@@ -17,7 +17,6 @@
 
 use crate::tests::mock::*;
 use crate::*;
-use frame_support::assert_storage_noop;
 use frame_support::{assert_noop, assert_ok};
 pub use pretty_assertions::{assert_eq, assert_ne};
 

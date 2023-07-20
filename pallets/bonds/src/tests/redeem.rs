@@ -17,7 +17,6 @@
 
 use crate::tests::mock::*;
 use crate::*;
-use frame_support::assert_storage_noop;
 use frame_support::{assert_noop, assert_ok};
 pub use pretty_assertions::{assert_eq, assert_ne};
 
@@ -144,7 +143,7 @@ fn fully_redeem_bonds_should_work_when_with_zero_fee() {
 		expect_events(vec![Event::BondsRedeemed {
 			who: ALICE,
 			bond_id,
-			amount: amount,
+			amount,
 		}
 		.into()]);
 

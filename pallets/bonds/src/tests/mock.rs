@@ -195,7 +195,7 @@ where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
 	fn get_asset_details(asset_id: AssetId) -> Result<AssetDetailsT, DispatchError> {
-		let maybe_asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).cloned());
+		let maybe_asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).cloned());
 		maybe_asset.ok_or(sp_runtime::DispatchError::Other("AssetRegistryMockError"))
 	}
 
@@ -269,10 +269,6 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-	pub fn with_endowed_accounts(mut self, accounts: Vec<(u64, AssetId, Balance)>) -> Self {
-		self.endowed_accounts = accounts;
-		self
-	}
 	pub fn add_endowed_accounts(mut self, accounts: Vec<(u64, AssetId, Balance)>) -> Self {
 		for entry in accounts {
 			self.endowed_accounts.push(entry);
