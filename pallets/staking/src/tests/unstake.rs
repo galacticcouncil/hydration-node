@@ -97,7 +97,7 @@ fn unstake_should_work_when_staking_position_exists() {
 			assert_staking_data!(
 				110_010 * ONE,
 				FixedU128::from_inner(2_088_930_916_047_128_389_u128),
-				209_663_202_319_202_436_u128 + NON_DUSTABLE_BALANCE
+				209_328_290_074_344_595_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }
@@ -181,7 +181,7 @@ fn unstake_should_work_when_called_after_unclaimable_periods_and_stake_was_incre
 			assert_staking_data!(
 				110_010 * ONE,
 				FixedU128::from_inner(2_502_134_933_892_361_376_u128),
-				255_367_170_895_881_767_u128 + NON_DUSTABLE_BALANCE
+				254_780_516_251_411_720_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }
@@ -268,10 +268,10 @@ fn unstake_should_work_when_called_by_all_stakers() {
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(DAVE), dave_position_id));
 
 			//Assert
-			assert_unlocked_balance!(&ALICE, HDX, 157_951_370_453_331_101_u128);
+			assert_unlocked_balance!(&ALICE, HDX, 157_965_081_713_348_758_u128);
 			assert_unlocked_balance!(&BOB, HDX, 500_682_646_815_225_830_u128);
-			assert_unlocked_balance!(&CHARLIE, HDX, 17_804_173_029_722_706_u128);
-			assert_unlocked_balance!(&DAVE, HDX, 105_371_923_939_346_989_u128);
+			assert_unlocked_balance!(&CHARLIE, HDX, 18_023_126_771_488_456_u128);
+			assert_unlocked_balance!(&DAVE, HDX, 105_672_178_270_331_647_u128);
 
 			assert_hdx_lock!(ALICE, 0, STAKING_LOCK);
 			assert_hdx_lock!(BOB, 0, STAKING_LOCK);
@@ -290,8 +290,9 @@ fn unstake_should_work_when_called_by_all_stakers() {
 
 			assert_staking_data!(
 				0,
-				FixedU128::from_inner(28_824_441_394_573_800_928_500_u128),
-				21_714_122_066_870_846_u128 + NON_DUSTABLE_BALANCE
+				FixedU128::from_inner(30_435_394_707_147_845_603_253_u128),
+				//NOTE: rounding error, nothing, except non dustable, should stay reserved when all users are gone.
+				3_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }

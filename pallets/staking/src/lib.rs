@@ -629,6 +629,8 @@ pub mod pallet {
 
 					staking.pot_reserved_balance = staking
 						.pot_reserved_balance
+						.checked_sub(rewards_to_pay)
+						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?
 						.checked_sub(return_to_pot)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
