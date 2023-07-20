@@ -49,6 +49,7 @@ use sp_std::marker::PhantomData;
 pub trait WeightInfo {
 	fn issue() -> Weight;
 	fn redeem() -> Weight;
+	fn unlock() -> Weight;
 }
 
 /// Weights for pallet_otc using the hydraDX node and recommended hardware.
@@ -62,6 +63,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn redeem() -> Weight {
 		Weight::zero()
 	}
+
+	fn unlock() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
@@ -71,6 +76,10 @@ impl WeightInfo for () {
 	}
 
 	fn redeem() -> Weight {
+		Weight::zero()
+	}
+
+	fn unlock() -> Weight {
 		Weight::zero()
 	}
 }

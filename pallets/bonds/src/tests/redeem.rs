@@ -199,6 +199,49 @@ fn fully_redeem_bonds_should_work_when_with_non_zero_fee() {
 }
 
 #[test]
+fn redeem_bonds_should_work_when_redeemed_from_non_issuer_account() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let now = DummyTimestampProvider::<Test>::now();
+		let maturity = now.checked_add(MONTH).unwrap();
+		let amount = ONE;
+		let redeem_amount = ONE.checked_div(4).unwrap();
+		let bond_id = next_asset_id();
+
+		// Act
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
+		assert_ok!(Tokens::transfer(
+			RuntimeOrigin::signed(ALICE),
+			BOB,
+			bond_id,
+			redeem_amount
+		));
+
+		System::set_block_number(2 * MONTH);
+
+		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(BOB), bond_id, redeem_amount));
+
+		// Assert
+		expect_events(vec![Event::BondsRedeemed {
+			who: BOB,
+			bond_id,
+			amount: redeem_amount,
+		}
+		.into()]);
+
+		assert_eq!(Tokens::free_balance(HDX, &BOB), redeem_amount);
+		assert_eq!(Tokens::free_balance(bond_id, &BOB), 0);
+
+		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
+
+		assert_eq!(
+			Tokens::free_balance(HDX, &Bonds::account_id()),
+			amount.checked_sub(redeem_amount).unwrap()
+		);
+	});
+}
+
+#[test]
 fn redeem_bonds_should_fail_when_bond_not_exists() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange

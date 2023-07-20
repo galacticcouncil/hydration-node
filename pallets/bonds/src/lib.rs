@@ -115,6 +115,12 @@ pub mod pallet {
 		/// Min number of blocks for maturity.
 		type MinMaturity: Get<Moment>;
 
+		/// The origin which can issue new bonds.
+		type IssueOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// The origin which can issue new bonds.
+		type UnlockOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Protocol Fee for
 		type ProtocolFee: Get<Permill>;
 
@@ -147,6 +153,8 @@ pub mod pallet {
 			bond_id: T::AssetId,
 			amount: T::Balance,
 		},
+		/// Bonds were unlocked
+		BondsUnlocked { bond_id: T::AssetId },
 	}
 
 	#[pallet::error]
@@ -190,7 +198,7 @@ pub mod pallet {
 			// not covered in the tests. Create an asset with empty name should always work
 			let bond_asset_id = T::AssetRegistry::create_bond_asset(&vec![], asset_details.existential_deposit)?;
 
-			let fee = T::ProtocolFee::get().mul_ceil(amount); // TODO
+			let fee = T::ProtocolFee::get().mul_ceil(amount); // TODO: check
 			let amount_without_fee = amount.checked_sub(&fee).ok_or(ArithmeticError::Overflow)?;
 			let pallet_account = Self::account_id();
 
@@ -249,6 +257,28 @@ pub mod pallet {
 
 				Self::deposit_event(Event::BondsRedeemed { who, bond_id, amount });
 
+				Ok(())
+			})?;
+
+			Ok(())
+		}
+
+		///
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::redeem())]
+		pub fn unlock(origin: OriginFor<T>, bond_id: T::AssetId) -> DispatchResult {
+			T::UnlockOrigin::ensure_origin(origin)?;
+
+			RegisteredBonds::<T>::try_mutate_exists(bond_id, |maybe_bond_data| -> DispatchResult {
+				let bond_data = maybe_bond_data.as_mut().ok_or(Error::<T>::BondNotRegistered)?;
+
+				let now = T::TimestampProvider::now();
+				// do nothing if the bonds are already mature
+				if bond_data.maturity > now {
+					bond_data.maturity = now;
+
+					Self::deposit_event(Event::BondsUnlocked { bond_id });
+				}
 				Ok(())
 			})?;
 

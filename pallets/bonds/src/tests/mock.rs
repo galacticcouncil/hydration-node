@@ -20,6 +20,7 @@ use crate::*;
 
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{construct_runtime, parameter_types, traits::ConstU32};
+use frame_system::{EnsureRoot, EnsureSigned};
 use hydradx_traits::{BondRegistry, Registry};
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
@@ -88,6 +89,8 @@ impl Config for Test {
 	type TimestampProvider = DummyTimestampProvider<Test>;
 	type PalletId = BondsPalletId;
 	type MinMaturity = MinMaturity;
+	type IssueOrigin = EnsureSigned<AccountId>;
+	type UnlockOrigin = EnsureRoot<AccountId>;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();
@@ -122,7 +125,7 @@ impl frame_system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<16>;
 }
 
 impl pallet_balances::Config for Test {
