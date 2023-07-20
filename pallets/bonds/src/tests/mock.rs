@@ -40,6 +40,8 @@ pub type AssetId = u32;
 
 pub const HDX: AssetId = 0;
 pub const DAI: AssetId = 1;
+pub const SHARE: AssetId = 2;
+pub const BOND: AssetId = 3;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const INITIAL_BALANCE: Balance = 1_000 * ONE;
