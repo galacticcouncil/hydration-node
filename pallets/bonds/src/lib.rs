@@ -20,10 +20,10 @@
 
 use codec::{Decode, Encode};
 use frame_support::{
-	ensure, BoundedVec,
+	ensure,
 	pallet_prelude::{DispatchResult, Get},
 	traits::Time,
-	PalletId,
+	BoundedVec, PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use primitives::Moment;
@@ -190,7 +190,6 @@ pub mod pallet {
 			// not covered in the tests. Create an asset with empty name should always work
 			let bond_asset_id = T::AssetRegistry::create_bond_asset(&vec![], asset_details.existential_deposit)?;
 
-
 			let fee = T::ProtocolFee::get().mul_ceil(amount); // TODO
 			let amount_without_fee = amount.checked_sub(&fee).ok_or(ArithmeticError::Overflow)?;
 			let pallet_account = Self::account_id();
@@ -248,11 +247,7 @@ pub mod pallet {
 					*maybe_bond_data = None;
 				}
 
-				Self::deposit_event(Event::BondsRedeemed {
-					who,
-					bond_id,
-					amount,
-				});
+				Self::deposit_event(Event::BondsRedeemed { who, bond_id, amount });
 
 				Ok(())
 			})?;

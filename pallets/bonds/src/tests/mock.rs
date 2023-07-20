@@ -19,11 +19,8 @@ use crate as pallet_bonds;
 use crate::*;
 
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
-use frame_support::{
-	construct_runtime, parameter_types,
-	traits::ConstU32,
-};
-use hydradx_traits::{Registry, BondRegistry};
+use frame_support::{construct_runtime, parameter_types, traits::ConstU32};
+use hydradx_traits::{BondRegistry, Registry};
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
@@ -80,8 +77,7 @@ parameter_types! {
 	pub const MinMaturity: Moment = WEEK;
 }
 
-parameter_types! {
-}
+parameter_types! {}
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -173,15 +169,21 @@ impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegi
 	}
 
 	fn create_asset(name: &Vec<u8>, existential_deposit: Balance) -> Result<AssetId, DispatchError> {
-		let name_b = name.clone().try_into().map_err(|_| DispatchError::Other("AssetRegistryMockError"))?;
+		let name_b = name
+			.clone()
+			.try_into()
+			.map_err(|_| DispatchError::Other("AssetRegistryMockError"))?;
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, AssetDetailsT {
-				name: name_b,
-				asset_type: pallet_asset_registry::AssetType::Token,
-				existential_deposit,
-				xcm_rate_limit: None,
-			});
+			v.borrow_mut().insert(
+				l as u32,
+				AssetDetailsT {
+					name: name_b,
+					asset_type: pallet_asset_registry::AssetType::Token,
+					existential_deposit,
+					xcm_rate_limit: None,
+				},
+			);
 			l as u32
 		});
 		Ok(assigned)
@@ -194,19 +196,25 @@ where
 {
 	fn get_asset_details(asset_id: AssetId) -> Result<AssetDetailsT, DispatchError> {
 		let maybe_asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).cloned());
-			maybe_asset.ok_or(sp_runtime::DispatchError::Other("AssetRegistryMockError"))
+		maybe_asset.ok_or(sp_runtime::DispatchError::Other("AssetRegistryMockError"))
 	}
 
 	fn create_bond_asset(name: &Vec<u8>, existential_deposit: Balance) -> Result<AssetId, DispatchError> {
-		let name_b = name.clone().try_into().map_err(|_| DispatchError::Other("AssetRegistryMockError"))?;
+		let name_b = name
+			.clone()
+			.try_into()
+			.map_err(|_| DispatchError::Other("AssetRegistryMockError"))?;
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, AssetDetailsT {
-				name: name_b,
-				asset_type: pallet_asset_registry::AssetType::Bond,
-				existential_deposit,
-				xcm_rate_limit: None,
-			});
+			v.borrow_mut().insert(
+				l as u32,
+				AssetDetailsT {
+					name: name_b,
+					asset_type: pallet_asset_registry::AssetType::Bond,
+					existential_deposit,
+					xcm_rate_limit: None,
+				},
+			);
 			l as u32
 		});
 		Ok(assigned)
@@ -216,13 +224,16 @@ where
 pub struct DummyTimestampProvider<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> Time for DummyTimestampProvider<T>
-	where <<T as frame_system::Config>::BlockNumber as TryInto<u64>>::Error: std::fmt::Debug
+where
+	<<T as frame_system::Config>::BlockNumber as TryInto<u64>>::Error: std::fmt::Debug,
 {
 	type Moment = Moment;
 
-	fn now() -> Self::Moment
-	{
-		TryInto::<Moment>::try_into(frame_system::Pallet::<T>::block_number()).unwrap().checked_add(NOW).unwrap()
+	fn now() -> Self::Moment {
+		TryInto::<Moment>::try_into(frame_system::Pallet::<T>::block_number())
+			.unwrap()
+			.checked_add(NOW)
+			.unwrap()
 	}
 }
 
@@ -313,7 +324,5 @@ pub fn expect_events(e: Vec<RuntimeEvent>) {
 }
 
 pub fn next_asset_id() -> AssetId {
-		REGISTERED_ASSETS.with(|v| {
-			v.borrow().len().try_into().unwrap()
-	})
+	REGISTERED_ASSETS.with(|v| v.borrow().len().try_into().unwrap())
 }

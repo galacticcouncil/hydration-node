@@ -1,3 +1,3 @@
-pub mod mock;
 mod issue;
+pub mod mock;
 mod redeem;
