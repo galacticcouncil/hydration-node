@@ -66,6 +66,9 @@ std = [
 	"sp-io/std",
 	"pallet-balances/std",
 	"orml-tokens/std",
+	"hydradx-traits/std",
+	"pallet-asset-registry/std",
+	"primitives/std",
 	"frame-benchmarking/std",
 ]
 runtime-benchmarks = [

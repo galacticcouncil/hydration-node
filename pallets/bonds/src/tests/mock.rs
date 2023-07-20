@@ -34,20 +34,26 @@ use std::{cell::RefCell, collections::HashMap};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
-type AssetDetailsT = AssetDetails<AssetId, Balance, BoundedVec<u8, ConstU32<32>>>;
+pub type AssetDetailsT = AssetDetails<AssetId, Balance, BoundedVec<u8, ConstU32<32>>>;
 
 pub type AccountId = u64;
 pub type Balance = u128;
 pub type AssetId = u32;
 
 pub const HDX: AssetId = 0;
-pub const DAI: AssetId = 2;
+pub const DAI: AssetId = 1;
 
 pub const ONE: Balance = 1_000_000_000_000;
+pub const INITIAL_BALANCE: Balance = 1_000 * ONE;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 pub const TREASURY: AccountId = 400;
+
+pub const NOW: Moment = 1689844300000;
+pub const DAY: Moment = 86400000;
+pub const WEEK: Moment = 7 * DAY;
+pub const MONTH: Moment = 2629743000;
 
 thread_local! {
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, AssetDetailsT>> = RefCell::new(HashMap::default());
@@ -70,8 +76,8 @@ construct_runtime!(
 parameter_types! {
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub TreasuryAccount: AccountId = TREASURY;
-	pub const BondsPalletId: PalletId = PalletId(*b"bondsplt");
-	pub const MinMaturity: Moment = 1_000;
+	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
+	pub const MinMaturity: Moment = WEEK;
 }
 
 parameter_types! {
@@ -159,8 +165,7 @@ pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T> {
 	fn exists(asset_id: AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id));
-		matches!(asset, Some(_))
+		REGISTERED_ASSETS.with(|v| v.borrow().contains_key(&asset_id))
 	}
 
 	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
@@ -188,23 +193,36 @@ where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
 	fn get_asset_details(asset_id: AssetId) -> Result<AssetDetailsT, DispatchError> {
-		REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id))
-			.ok_or(sp_runtime::DispatchError::Other("AssetRegistryMockError")).cloned()
+		let maybe_asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).cloned());
+			maybe_asset.ok_or(sp_runtime::DispatchError::Other("AssetRegistryMockError"))
 	}
 
 	fn create_bond_asset(name: &Vec<u8>, existential_deposit: Balance) -> Result<AssetId, DispatchError> {
-		Self::get_or_create_asset(name.clone(), existential_deposit)
+		let name_b = name.clone().try_into().map_err(|_| DispatchError::Other("AssetRegistryMockError"))?;
+		let assigned = REGISTERED_ASSETS.with(|v| {
+			let l = v.borrow().len();
+			v.borrow_mut().insert(l as u32, AssetDetailsT {
+				name: name_b,
+				asset_type: pallet_asset_registry::AssetType::Bond,
+				existential_deposit,
+				xcm_rate_limit: None,
+			});
+			l as u32
+		});
+		Ok(assigned)
 	}
 }
 
 pub struct DummyTimestampProvider<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Time for DummyTimestampProvider<T> {
+impl<T: Config> Time for DummyTimestampProvider<T>
+	where <<T as frame_system::Config>::BlockNumber as TryInto<u64>>::Error: std::fmt::Debug
+{
 	type Moment = Moment;
 
-	fn now() -> Self::Moment {
-		// TryInto::<Moment>::try_into(frame_system::Pallet::<T>::block_number()).unwrap().checked_add(1_000_000).unwrap()
-		1u64
+	fn now() -> Self::Moment
+	{
+		TryInto::<Moment>::try_into(frame_system::Pallet::<T>::block_number()).unwrap().checked_add(NOW).unwrap()
 	}
 }
 
@@ -223,9 +241,17 @@ impl Default for ExtBuilder {
 			*v.borrow_mut() = Permill::from_percent(0);
 		});
 
+		// Add HDX as pre-registered asset
+		let hdx_asset_details = AssetDetailsT {
+			name: "HDX".as_bytes().to_vec().try_into().unwrap(),
+			asset_type: pallet_asset_registry::AssetType::Token,
+			existential_deposit: 1_000,
+			xcm_rate_limit: None,
+		};
+
 		Self {
-			endowed_accounts: vec![(ALICE, DAI, 1_000 * ONE), (ALICE, HDX, 1_000 * ONE)],
-			registered_assets: vec![],
+			endowed_accounts: vec![(ALICE, HDX, 1_000 * ONE)],
+			registered_assets: vec![(HDX, hdx_asset_details)],
 			protocol_fee: Permill::from_percent(0),
 		}
 	}
@@ -236,8 +262,10 @@ impl ExtBuilder {
 		self.endowed_accounts = accounts;
 		self
 	}
-	pub fn add_endowed_accounts(mut self, account: (u64, AssetId, Balance)) -> Self {
-		self.endowed_accounts.push(account);
+	pub fn add_endowed_accounts(mut self, accounts: Vec<(u64, AssetId, Balance)>) -> Self {
+		for entry in accounts {
+			self.endowed_accounts.push(entry);
+		}
 		self
 	}
 	pub fn with_registered_asset(mut self, asset: AssetId, asset_details: AssetDetailsT) -> Self {
@@ -252,16 +280,7 @@ impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		let name_b = "HDX".as_bytes().to_vec().try_into().map_err(|_| DispatchError::Other("AssetRegistryMockError")).unwrap();
-		// Add HDX as pre-registered asset
-		let hdx_asset_details = AssetDetailsT {
-			name: name_b,
-			asset_type: pallet_asset_registry::AssetType::Token,
-			existential_deposit: 1_000,
-			xcm_rate_limit: None,
-		};
 		REGISTERED_ASSETS.with(|v| {
-			v.borrow_mut().insert(HDX, hdx_asset_details);
 			self.registered_assets.iter().for_each(|(asset, asset_details)| {
 				v.borrow_mut().insert(*asset, asset_details.clone());
 			});
@@ -291,4 +310,10 @@ impl ExtBuilder {
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
+
+pub fn next_asset_id() -> AssetId {
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow().len().try_into().unwrap()
+	})
 }

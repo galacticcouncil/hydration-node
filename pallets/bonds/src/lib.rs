@@ -128,7 +128,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Registered bonds
 	#[pallet::getter(fn bonds)]
-	pub(super) type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Bond<T>>;
+	pub(super) type RegisteredBonds<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Bond<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -143,7 +143,7 @@ pub mod pallet {
 		},
 		/// A bond asset was registered
 		BondsRedeemed {
-			account_id: T::AccountId,
+			who: T::AccountId,
 			bond_id: T::AssetId,
 			amount: T::Balance,
 		},
@@ -175,21 +175,23 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let time_diff = T::TimestampProvider::now()
-				.checked_sub(maturity)
+			let time_diff = maturity
+				.checked_sub(T::TimestampProvider::now())
 				.ok_or(ArithmeticError::Overflow)?;
 			ensure!(time_diff >= T::MinMaturity::get(), Error::<T>::InvalidMaturity);
+
+			let asset_details = T::AssetRegistry::get_asset_details(asset_id)?;
 
 			ensure!(
 				T::Currency::free_balance(asset_id, &who) >= amount,
 				Error::<T>::InsufficientBalance
 			);
 
-			let asset_details = T::AssetRegistry::get_asset_details(asset_id)?;
+			// not covered in the tests. Create an asset with empty name should always work
 			let bond_asset_id = T::AssetRegistry::create_bond_asset(&vec![], asset_details.existential_deposit)?;
 
 
-			let fee = T::ProtocolFee::get().mul_ceil(amount);
+			let fee = T::ProtocolFee::get().mul_ceil(amount); // TODO
 			let amount_without_fee = amount.checked_sub(&fee).ok_or(ArithmeticError::Overflow)?;
 			let pallet_account = Self::account_id();
 
@@ -197,7 +199,7 @@ pub mod pallet {
 			T::Currency::transfer(asset_id, &who, &T::FeeReceiver::get(), fee)?;
 			T::Currency::deposit(bond_asset_id, &who, amount_without_fee)?;
 
-			Bonds::<T>::insert(
+			RegisteredBonds::<T>::insert(
 				bond_asset_id,
 				Bond {
 					maturity,
@@ -223,7 +225,7 @@ pub mod pallet {
 		pub fn redeem(origin: OriginFor<T>, bond_id: T::AssetId, amount: T::Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			Bonds::<T>::try_mutate_exists(bond_id, |maybe_bond_data| -> DispatchResult {
+			RegisteredBonds::<T>::try_mutate_exists(bond_id, |maybe_bond_data| -> DispatchResult {
 				let bond_data = maybe_bond_data.as_mut().ok_or(Error::<T>::BondNotRegistered)?;
 
 				let now = T::TimestampProvider::now();
@@ -236,17 +238,18 @@ pub mod pallet {
 
 				T::Currency::withdraw(bond_id, &who, amount)?;
 
+				bond_data.amount = bond_data.amount.checked_sub(&amount).ok_or(ArithmeticError::Overflow)?;
+
 				let pallet_account = Self::account_id();
 				T::Currency::transfer(bond_data.asset_id, &pallet_account, &who, amount)?;
 
-				bond_data.amount = bond_data.amount.checked_sub(&amount).ok_or(ArithmeticError::Overflow)?;
-
+				// if there are no bonds left, remove the bond from the storage
 				if bond_data.amount.is_zero() {
 					*maybe_bond_data = None;
 				}
 
 				Self::deposit_event(Event::BondsRedeemed {
-					account_id: who,
+					who,
 					bond_id,
 					amount,
 				});
