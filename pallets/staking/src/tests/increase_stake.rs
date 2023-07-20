@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 use sp_runtime::FixedU128;
 
 #[test]
-fn claim_should_not_work_when_staking_is_not_initialized() {
+fn increase_stake_should_not_work_when_staking_is_not_initialized() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HDX, 150_000 * ONE),
