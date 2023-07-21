@@ -645,6 +645,7 @@ pub mod pallet {
 						unlocked_rewards: position.accumulated_locked_rewards,
 					});
 
+					PositionVotes::<T>::remove(position_id);
 					*maybe_position = None;
 
 					Ok(())

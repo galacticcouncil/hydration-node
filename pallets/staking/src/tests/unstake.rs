@@ -1,3 +1,5 @@
+use crate::types::{Conviction, Vote};
+
 use super::*;
 
 use mock::Staking;
@@ -324,6 +326,97 @@ fn unstake_should_not_work_when_staking_position_doesnt_exists() {
 			assert_noop!(
 				Staking::unstake(RuntimeOrigin::signed(DAVE), non_existing_position_id),
 				Error::<Test>::Forbidden
+			);
+		});
+}
+
+#[test]
+fn unstake_should_clear_votes_when_staking_position_exists() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, HDX, 150_000 * ONE),
+			(BOB, HDX, 250_000 * ONE),
+			(CHARLIE, HDX, 10_000 * ONE),
+			(DAVE, HDX, 100_000 * ONE),
+		])
+		.with_initialized_staking()
+		.start_at_block(1_452_987)
+		.with_stakes(vec![
+			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
+			(BOB, 120_000 * ONE, 1_452_987, 0),
+			(CHARLIE, 10_000 * ONE, 1_455_000, 10_000 * ONE),
+			(DAVE, 10 * ONE, 1_465_000, 1),
+		])
+		.with_votings(vec![(
+			1,
+			vec![
+				(
+					1_u32,
+					Vote {
+						amount: 10_000 * ONE,
+						conviction: Conviction::Locked4x,
+					},
+				),
+				(
+					2_u32,
+					Vote {
+						amount: 10_000 * ONE,
+						conviction: Conviction::Locked2x,
+					},
+				),
+				(
+					3_u32,
+					Vote {
+						amount: 10_000 * ONE,
+						conviction: Conviction::None,
+					},
+				),
+				(
+					4_u32,
+					Vote {
+						amount: 230_000 * ONE,
+						conviction: Conviction::Locked1x,
+					},
+				),
+				(
+					8_u32,
+					Vote {
+						amount: 230_000 * ONE,
+						conviction: Conviction::Locked1x,
+					},
+				),
+				(
+					6_u32,
+					Vote {
+						amount: 2 * ONE,
+						conviction: Conviction::Locked3x,
+					},
+				),
+			],
+		)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_pending_rewards(10_000 * ONE);
+			set_block_number(1_700_000);
+			let bob_position_id = 1;
+
+			assert!(crate::PositionVotes::<Test>::contains_key(bob_position_id));
+			//Act
+			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
+
+			//Assert
+			assert_unlocked_balance!(&BOB, HDX, 260_671_709_925_654_759_u128);
+			assert_hdx_lock!(BOB, 0, STAKING_LOCK);
+			assert_eq!(Staking::positions(bob_position_id), None);
+
+			assert_eq!(Staking::get_user_position_id(&BOB).unwrap(), None);
+			assert!(!crate::PositionVotes::<Test>::contains_key(bob_position_id));
+
+			assert_staking_data!(
+				110_010 * ONE,
+				FixedU128::from_inner(2_088_930_916_047_128_389_u128),
+				209_328_290_074_344_595_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }
