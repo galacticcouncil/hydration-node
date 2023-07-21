@@ -74,7 +74,7 @@ fn issue_bonds_should_work_when_fee_is_zero() {
 
 		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
 
-		assert_eq!(Tokens::free_balance(HDX, &Bonds::account_id()), amount);
+		assert_eq!(Tokens::free_balance(HDX, &Bonds::pallet_account_id()), amount);
 	});
 }
 
@@ -137,7 +137,10 @@ fn issue_bonds_should_work_when_fee_is_non_zero() {
 
 			assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), fee);
 
-			assert_eq!(Tokens::free_balance(HDX, &Bonds::account_id()), amount_without_fee);
+			assert_eq!(
+				Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
+				amount_without_fee
+			);
 		});
 }
 
@@ -290,10 +293,13 @@ fn issue_bonds_should_work_when_issuing_multiple_bonds() {
 			assert_eq!(Tokens::free_balance(DAI, &<Test as Config>::FeeReceiver::get()), fee);
 
 			assert_eq!(
-				Tokens::free_balance(HDX, &Bonds::account_id()),
+				Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
 				amount_without_fee.checked_mul(2).unwrap()
 			);
-			assert_eq!(Tokens::free_balance(DAI, &Bonds::account_id()), amount_without_fee);
+			assert_eq!(
+				Tokens::free_balance(DAI, &Bonds::pallet_account_id()),
+				amount_without_fee
+			);
 		});
 }
 

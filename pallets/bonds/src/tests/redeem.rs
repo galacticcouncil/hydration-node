@@ -62,7 +62,10 @@ fn partially_redeem_bonds_should_work_when_with_zero_fee() {
 
 		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
 
-		assert_eq!(Tokens::free_balance(HDX, &Bonds::account_id()), amount - redeem_amount);
+		assert_eq!(
+			Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
+			amount - redeem_amount
+		);
 	});
 }
 
@@ -117,7 +120,7 @@ fn partially_redeem_bonds_should_work_when_with_non_zero_fee() {
 			assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), fee);
 
 			assert_eq!(
-				Tokens::free_balance(HDX, &Bonds::account_id()),
+				Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
 				amount_without_fee - redeem_amount
 			);
 		});
@@ -154,7 +157,7 @@ fn fully_redeem_bonds_should_work_when_with_zero_fee() {
 
 		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
 
-		assert_eq!(Tokens::free_balance(HDX, &Bonds::account_id()), 0);
+		assert_eq!(Tokens::free_balance(HDX, &Bonds::pallet_account_id()), 0);
 	});
 }
 
@@ -194,7 +197,7 @@ fn fully_redeem_bonds_should_work_when_with_non_zero_fee() {
 
 			assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), fee);
 
-			assert_eq!(Tokens::free_balance(HDX, &Bonds::account_id()), 0);
+			assert_eq!(Tokens::free_balance(HDX, &Bonds::pallet_account_id()), 0);
 		});
 }
 
@@ -235,7 +238,7 @@ fn redeem_bonds_should_work_when_redeemed_from_non_issuer_account() {
 		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
 
 		assert_eq!(
-			Tokens::free_balance(HDX, &Bonds::account_id()),
+			Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
 			amount.checked_sub(redeem_amount).unwrap()
 		);
 	});

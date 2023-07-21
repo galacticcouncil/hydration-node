@@ -18,17 +18,20 @@
 use crate as pallet_bonds;
 use crate::*;
 
-use frame_support::traits::{ConstU128, Everything, GenesisBuild};
-use frame_support::{construct_runtime, parameter_types, traits::ConstU32};
+use frame_support::{
+	construct_runtime, parameter_types,
+	sp_runtime::{
+		testing::Header,
+		traits::{BlakeTwo256, IdentityLookup},
+	},
+	traits::{ConstU128, ConstU32, Everything, GenesisBuild},
+};
 use frame_system::{EnsureRoot, EnsureSigned};
+use sp_core::H256;
+use std::{cell::RefCell, collections::HashMap};
+
 use hydradx_traits::{BondRegistry, Registry};
 use orml_traits::parameter_type_with_key;
-use sp_core::H256;
-use sp_runtime::{
-	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
-};
-use std::{cell::RefCell, collections::HashMap};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
