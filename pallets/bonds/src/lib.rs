@@ -15,6 +15,22 @@
 
 //! # Bonds pallet
 //!
+//! ## Overview
+//!
+//! This pallet provides functionality to issue bonds.
+//! Once the bonds are mature, they can be redeemed for the underlying asset.
+//! The pallet uses `Time` trait to get the timestamp of the last block, provided by the timestamp pallet.
+//!
+//! ## Assumptions
+//!
+//! * When issuing new bonds, new asset of the `AssetType::Bond` is registered for the bonds.
+//! * It's possible to create multiple bonds for the same underlying asset.
+//! * Bonds can be issued for all available asset types.
+//! * The existential deposit of the bond is the same as of the underlying asset.
+//! * A user receives the same amount of bonds as the amount of the underlying asset he provided.
+//! * Maturity of bonds is represented using the Unix time in milliseconds.
+//! * Underlying assets are stored in the pallet account until redeemed.
+//! * Protocol fee is applied to the amount of the underlying asset and transferred to the fee receiver.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -22,21 +38,21 @@ use codec::{Decode, Encode};
 use frame_support::{
 	ensure,
 	pallet_prelude::{DispatchResult, Get},
+	sp_runtime::{
+		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub, Zero},
+		ArithmeticError, DispatchError, Permill, RuntimeDebug,
+	},
 	traits::Time,
 	BoundedVec, PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use primitives::Moment;
+use scale_info::TypeInfo;
+use sp_core::MaxEncodedLen;
 
 use hydradx_traits::BondRegistry;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetDetails;
-use scale_info::TypeInfo;
-use sp_core::MaxEncodedLen;
-use sp_runtime::{
-	traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub, Zero},
-	ArithmeticError, DispatchError, Permill, RuntimeDebug,
-};
+use primitives::Moment;
 
 #[cfg(test)]
 mod tests;
@@ -50,8 +66,7 @@ pub use weights::WeightInfo;
 #[scale_info(skip_type_params(T))]
 pub struct Bond<T: Config> {
 	pub maturity: Moment,
-	// underlying asset id
-	pub asset_id: T::AssetId,
+	pub asset_id: T::AssetId, // underlying asset id
 	pub amount: T::Balance,
 }
 
@@ -96,7 +111,7 @@ pub mod pallet {
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Self::Balance>;
 
-		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
+		/// Asset Registry mechanism - used to register bonds in the asset registry
 		type AssetRegistry: BondRegistry<
 			Self::AssetId,
 			Vec<u8>,
@@ -115,13 +130,16 @@ pub mod pallet {
 		/// Min number of blocks for maturity.
 		type MinMaturity: Get<Moment>;
 
+		/// Min amount of bonds that can be created
+		// type MinAmount: Get<Balance>; TODO: Do we want this param?
+
 		/// The origin which can issue new bonds.
 		type IssueOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// The origin which can issue new bonds.
 		type UnlockOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		/// Protocol Fee for
+		/// Protocol Fee
 		type ProtocolFee: Get<Permill>;
 
 		/// Protocol Fee receiver
@@ -147,7 +165,7 @@ pub mod pallet {
 			amount: T::Balance,
 			fee: T::Balance,
 		},
-		/// A bond asset was registered
+		/// Bonds were redeemed
 		BondsRedeemed {
 			who: T::AccountId,
 			bond_id: T::AssetId,
@@ -172,6 +190,22 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Issue new bonds.
+		/// New asset id is registered and assigned to the bonds.
+		/// The number of bonds the issuer receives is 1:1 to the `amount` of the underlying asset.
+		/// The bond asset is registered with the empty string for the asset name,
+		/// and with the same existential deposit as of the underlying asset.
+		/// Bonds can be redeemed 1:1 for the underlying asset once mature.
+		/// Protocol fee is applied to the amount, and transferred to `T::FeeReceiver`.
+		///
+		/// Parameters:
+		/// - `origin`: issuer of new bonds, needs to be `T::IssueOrigin`
+		/// - `asset_id`: underlying asset id
+		/// - `amount`: the amount of the underlying asset
+		/// - `maturity`: Unix time in milliseconds, when the bonds will be mature. Needs to be set
+		/// more than `T::MinMaturity` from now.
+		///
+		/// Emits `BondTokenCreated` event when successful.
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::issue())]
@@ -200,7 +234,7 @@ pub mod pallet {
 
 			let fee = T::ProtocolFee::get().mul_ceil(amount); // TODO: check
 			let amount_without_fee = amount.checked_sub(&fee).ok_or(ArithmeticError::Overflow)?;
-			let pallet_account = Self::account_id();
+			let pallet_account = Self::pallet_account_id();
 
 			T::Currency::transfer(asset_id, &who, &pallet_account, amount_without_fee)?;
 			T::Currency::transfer(asset_id, &who, &T::FeeReceiver::get(), fee)?;
@@ -226,6 +260,17 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Redeem bonds for the underlying asset.
+		/// The amount of the underlying asset the `origin` receives is 1:1 to the `amount` of the bonds.
+		/// Anyone who holds the bonds is able to redeem them.
+		/// The bonds are partially redeemable.
+		///
+		/// Parameters:
+		/// - `origin`: account id
+		/// - `asset_id`: bond asset id
+		/// - `amount`: the amount of the underlying underlying asset to redeem for the bonds
+		///
+		/// Emits `BondsRedeemed` event when successful.
 		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::redeem())]
@@ -247,7 +292,7 @@ pub mod pallet {
 
 				bond_data.amount = bond_data.amount.checked_sub(&amount).ok_or(ArithmeticError::Overflow)?;
 
-				let pallet_account = Self::account_id();
+				let pallet_account = Self::pallet_account_id();
 				T::Currency::transfer(bond_data.asset_id, &pallet_account, &who, amount)?;
 
 				// if there are no bonds left, remove the bond from the storage
@@ -263,6 +308,14 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Unlock bonds by making them mature.
+		/// The maturity of the bonds is not updated if the bonds are already mature.
+		///
+		/// Parameters:
+		/// - `origin`: needs to be `T::UnlockOrigin`
+		/// - `bond_id`: the asset id of the bonds
+		///
+		/// Emits `BondsUnlocked` event when successful.
 		///
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::redeem())]
@@ -292,7 +345,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// This actually does computation. If you need to keep using it, then make sure you cache the
 	/// value and only call this once.
-	pub fn account_id() -> T::AccountId {
+	pub fn pallet_account_id() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}
 }
