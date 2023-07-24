@@ -1,8 +1,12 @@
-use crate::types::{Conviction, Vote};
+use crate::{
+	integrations::democracy::StakingDemocracy,
+	types::{Conviction, Vote},
+};
 
 use super::*;
 
 use mock::Staking;
+use pallet_democracy::{traits::DemocracyHooks, AccountVote};
 use pretty_assertions::assert_eq;
 
 //NOTE: Referendums with even indexes are finished.
@@ -259,5 +263,99 @@ fn process_votes_should_do_nothing_when_referendum_doesnt_exists() {
 
 			//Assert
 			assert_eq!(position_before, position);
+		});
+}
+
+#[test]
+fn process_votes_should_work_when_on_vote_is_called() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, HDX, 150_000 * ONE),
+			(BOB, HDX, 250_000 * ONE),
+			(CHARLIE, HDX, 10_000 * ONE),
+			(DAVE, HDX, 100_000 * ONE),
+		])
+		.start_at_block(1_452_987)
+		.with_initialized_staking()
+		.with_stakes(vec![
+			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
+			(BOB, 120_000 * ONE, 1_452_987, 0),
+			(CHARLIE, 10_000 * ONE, 1_455_000, 10_000 * ONE),
+			(DAVE, 10 * ONE, 1_465_000, 1),
+		])
+		.with_votings(vec![(
+			1,
+			vec![
+				(
+					1_u32,
+					Vote {
+						amount: 10_000 * ONE,
+						conviction: Conviction::Locked4x,
+					},
+				),
+				(
+					2_u32,
+					Vote {
+						amount: 10_000 * ONE,
+						conviction: Conviction::Locked2x,
+					},
+				),
+				(
+					3_u32,
+					Vote {
+						amount: 10_000 * ONE,
+						conviction: Conviction::None,
+					},
+				),
+				(
+					4_u32,
+					Vote {
+						amount: 230_000 * ONE,
+						conviction: Conviction::Locked1x,
+					},
+				),
+				(
+					8_u32,
+					Vote {
+						amount: 230_000 * ONE,
+						conviction: Conviction::Locked1x,
+					},
+				),
+				(
+					6_u32,
+					Vote {
+						amount: 2 * ONE,
+						conviction: Conviction::Locked3x,
+					},
+				),
+			],
+		)])
+		.build()
+		.execute_with(|| {
+			let position_id = 1;
+			let position_before = Staking::positions(position_id).unwrap();
+
+			//Act
+			assert_ok!(StakingDemocracy::<Test>::on_vote(
+				&BOB,
+				7,
+				AccountVote::Standard {
+					balance: 1_000 * ONE,
+					vote: pallet_democracy::Vote {
+						aye: true,
+						conviction: pallet_democracy::Conviction::None
+					}
+				}
+			));
+
+			//Assert
+			assert_eq!(
+				Position {
+					action_points: 950_008_u128,
+					..position_before
+				},
+				Staking::positions(position_id).unwrap()
+			);
+			assert_eq!(PositionVotes::<Test>::get(position_id).votes.len(), 3);
 		});
 }

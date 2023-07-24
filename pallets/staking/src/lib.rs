@@ -869,7 +869,10 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn process_votes(position_id: T::PositionItemId, position: &mut Position<T::BlockNumber>) -> DispatchResult {
+	pub(crate) fn process_votes(
+		position_id: T::PositionItemId,
+		position: &mut Position<T::BlockNumber>,
+	) -> DispatchResult {
 		PositionVotes::<T>::mutate(position_id, |voting| {
 			voting.votes.retain(|(ref_idx, vote)| {
 				if T::ReferendumInfo::is_referendum_finished(*ref_idx) {
