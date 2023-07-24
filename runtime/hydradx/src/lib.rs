@@ -158,6 +158,7 @@ construct_runtime!(
 
 		Router: pallet_route_executor = 67,
 		DynamicFees: pallet_dynamic_fees = 68,
+		XcmRateLimiter: pallet_xcm_rate_limiter = 69,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
