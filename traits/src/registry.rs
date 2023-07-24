@@ -38,12 +38,8 @@ pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<Asset
 	}
 }
 
-pub trait BondRegistry<AssetId, AssetName, Balance, AssetDetails, Error>:
-	Registry<AssetId, AssetName, Balance, Error>
-{
-	fn get_asset_details(asset_id: AssetId) -> Result<AssetDetails, Error>;
-
-	fn create_bond_asset(name: &AssetName, existential_deposit: Balance) -> Result<AssetId, Error>;
+pub trait BondRegistry<AssetId, AssetName, Balance, Error>: Registry<AssetId, AssetName, Balance, Error> {
+	fn create_bond_asset(existential_deposit: Balance) -> Result<AssetId, Error>;
 }
 
 // Deprecated.

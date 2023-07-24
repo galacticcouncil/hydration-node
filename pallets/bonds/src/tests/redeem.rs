@@ -21,11 +21,10 @@ use frame_support::{assert_noop, assert_ok};
 pub use pretty_assertions::{assert_eq, assert_ne};
 
 #[test]
-fn partially_redeem_bonds_should_work_when_with_zero_fee() {
+fn partially_redeem_bonds_should_work_when_fee_is_zero() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		let now = DummyTimestampProvider::<Test>::now();
-		let maturity = now.checked_add(MONTH).unwrap();
+		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let redeem_amount = ONE.checked_div(4).unwrap();
 		let bond_id = next_asset_id();
@@ -33,7 +32,7 @@ fn partially_redeem_bonds_should_work_when_with_zero_fee() {
 		// Act
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
 
-		System::set_block_number(2 * MONTH);
+		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
 		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount,));
 
@@ -76,20 +75,19 @@ fn partially_redeem_bonds_should_work_when_with_non_zero_fee() {
 		.build()
 		.execute_with(|| {
 			// Arrange
-			let now = DummyTimestampProvider::<Test>::now();
-			let maturity = now.checked_add(MONTH).unwrap();
+			let maturity = NOW + MONTH;
 			let amount = ONE;
-			let fee = PROTOCOL_FEE.with(|v| *v.borrow()).mul_ceil(amount);
+			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
 			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
 			let redeem_amount = amount_without_fee.checked_div(4).unwrap();
 			let bond_id = next_asset_id();
 
 			// Act
-			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-			System::set_block_number(2 * MONTH);
+			Timestamp::set_timestamp(NOW + 2 * MONTH);
 
-			assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount,));
+			assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount));
 
 			// Assert
 			expect_events(vec![Event::BondsRedeemed {
@@ -130,17 +128,16 @@ fn partially_redeem_bonds_should_work_when_with_non_zero_fee() {
 fn fully_redeem_bonds_should_work_when_with_zero_fee() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		let now = DummyTimestampProvider::<Test>::now();
-		let maturity = now.checked_add(MONTH).unwrap();
+		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let bond_id = next_asset_id();
 
 		// Act
-		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-		System::set_block_number(2 * MONTH);
+		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
-		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, amount,));
+		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, amount));
 
 		// Assert
 		expect_events(vec![Event::BondsRedeemed {
@@ -168,19 +165,18 @@ fn fully_redeem_bonds_should_work_when_with_non_zero_fee() {
 		.build()
 		.execute_with(|| {
 			// Arrange
-			let now = DummyTimestampProvider::<Test>::now();
-			let maturity = now.checked_add(MONTH).unwrap();
+			let maturity = NOW + MONTH;
 			let amount = ONE;
-			let fee = PROTOCOL_FEE.with(|v| *v.borrow()).mul_ceil(amount);
+			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
 			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
 			let bond_id = next_asset_id();
 
 			// Act
-			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-			System::set_block_number(2 * MONTH);
+			Timestamp::set_timestamp(NOW + 2 * MONTH);
 
-			assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, amount_without_fee,));
+			assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, amount_without_fee));
 
 			// Assert
 			expect_events(vec![Event::BondsRedeemed {
@@ -205,8 +201,7 @@ fn fully_redeem_bonds_should_work_when_with_non_zero_fee() {
 fn redeem_bonds_should_work_when_redeemed_from_non_issuer_account() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		let now = DummyTimestampProvider::<Test>::now();
-		let maturity = now.checked_add(MONTH).unwrap();
+		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let redeem_amount = ONE.checked_div(4).unwrap();
 		let bond_id = next_asset_id();
@@ -220,7 +215,7 @@ fn redeem_bonds_should_work_when_redeemed_from_non_issuer_account() {
 			redeem_amount
 		));
 
-		System::set_block_number(2 * MONTH);
+		Timestamp::set_timestamp(NOW + (2 * MONTH));
 
 		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(BOB), bond_id, redeem_amount));
 
@@ -269,18 +264,17 @@ fn redeem_bonds_should_fail_when_bond_not_exists() {
 fn redeem_bonds_should_fail_when_not_mature() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		let now = DummyTimestampProvider::<Test>::now();
-		let maturity = now.checked_add(MONTH).unwrap();
+		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let redeem_amount = ONE.checked_div(4).unwrap();
 		let bond_id = next_asset_id();
 
 		// Act
-		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 		// Assert
 		assert_noop!(
-			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount,),
+			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount),
 			Error::<Test>::BondNotMature
 		);
 	});
@@ -290,19 +284,18 @@ fn redeem_bonds_should_fail_when_not_mature() {
 fn redeem_bonds_should_fail_when_insufficient_balance() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		let now = DummyTimestampProvider::<Test>::now();
-		let maturity = now.checked_add(MONTH).unwrap();
+		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let bond_id = next_asset_id();
 
 		// Act
-		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-		System::set_block_number(2 * MONTH);
+		Timestamp::set_timestamp(NOW + (2 * MONTH));
 
 		// Assert
 		assert_noop!(
-			Bonds::redeem(RuntimeOrigin::signed(BOB), bond_id, amount,),
+			Bonds::redeem(RuntimeOrigin::signed(BOB), bond_id, amount),
 			Error::<Test>::InsufficientBalance
 		);
 	});
@@ -313,21 +306,20 @@ fn redeem_bonds_should_fail_when_insufficient_balance() {
 fn redeem_bonds_should_fail_when_the_amount_is_greater_then_total_issued() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		let now = DummyTimestampProvider::<Test>::now();
-		let maturity = now.checked_add(MONTH).unwrap();
+		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let bond_id = next_asset_id();
 		// bypass the pallet and increase the issuance of the bonds
 		assert_ok!(Tokens::deposit(bond_id, &ALICE, amount));
 
 		// Act
-		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-		System::set_block_number(2 * MONTH);
+		Timestamp::set_timestamp(NOW + (2 * MONTH));
 
 		// Assert
 		assert_noop!(
-			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, 2 * amount,),
+			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, 2 * amount),
 			ArithmeticError::Overflow
 		);
 	});

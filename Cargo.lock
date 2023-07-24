@@ -3815,7 +3815,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "167.0.0"
+version = "168.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3833,7 +3833,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.3.4",
+ "hex-literal 0.4.1",
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
@@ -3849,6 +3849,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-bonds",
  "pallet-circuit-breaker",
  "pallet-claims",
  "pallet-collator-rewards",
@@ -6384,8 +6385,7 @@ dependencies = [
  "log",
  "orml-tokens",
  "orml-traits",
- "pallet-asset-registry",
- "pallet-balances",
+ "pallet-timestamp",
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types",

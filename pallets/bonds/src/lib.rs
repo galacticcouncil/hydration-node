@@ -43,19 +43,23 @@ use frame_support::{
 		ArithmeticError, DispatchError, Permill, RuntimeDebug,
 	},
 	traits::Time,
-	BoundedVec, PalletId,
+	PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 
-use hydradx_traits::BondRegistry;
-use orml_traits::MultiCurrency;
-use pallet_asset_registry::AssetDetails;
+use hydradx_traits::{BondRegistry, Registry};
+use orml_traits::{GetByKey, MultiCurrency};
 use primitives::Moment;
+use sp_std::vec;
+use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(any(feature = "runtime-benchmarks", test))]
+mod benchmarks;
 
 pub mod weights;
 
@@ -112,13 +116,10 @@ pub mod pallet {
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Self::Balance>;
 
 		/// Asset Registry mechanism - used to register bonds in the asset registry
-		type AssetRegistry: BondRegistry<
-			Self::AssetId,
-			Vec<u8>,
-			Self::Balance,
-			AssetDetails<Self::AssetId, Self::Balance, BoundedVec<u8, ConstU32<32>>>,
-			DispatchError,
-		>;
+		type AssetRegistry: BondRegistry<Self::AssetId, Vec<u8>, Self::Balance, DispatchError>;
+
+		/// Provider for existential deposits of assets
+		type ExistentialDeposits: GetByKey<Self::AssetId, Self::Balance>;
 
 		/// Provider for the current block number.
 		type TimestampProvider: Time<Moment = Moment>;
@@ -132,6 +133,8 @@ pub mod pallet {
 
 		/// Min amount of bonds that can be created
 		// type MinAmount: Get<Balance>; TODO: Do we want this param?
+
+		// type Deposit: Get<Balance>; TODO: Do we want this param?
 
 		/// The origin which can issue new bonds.
 		type IssueOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -182,6 +185,8 @@ pub mod pallet {
 		InsufficientBalance,
 		/// Bond not registered
 		BondNotRegistered,
+		/// Underlying asset is not registered
+		UnderlyingAssetNotRegistered,
 		/// Bond is not mature
 		BondNotMature,
 		/// Maturity not long enough
@@ -222,15 +227,19 @@ pub mod pallet {
 				.ok_or(ArithmeticError::Overflow)?;
 			ensure!(time_diff >= T::MinMaturity::get(), Error::<T>::InvalidMaturity);
 
-			let asset_details = T::AssetRegistry::get_asset_details(asset_id)?;
-
+			ensure!(
+				T::AssetRegistry::exists(asset_id),
+				Error::<T>::UnderlyingAssetNotRegistered
+			);
 			ensure!(
 				T::Currency::free_balance(asset_id, &who) >= amount,
 				Error::<T>::InsufficientBalance
 			);
 
+			let asset_ed = T::ExistentialDeposits::get(&asset_id);
+
 			// not covered in the tests. Create an asset with empty name should always work
-			let bond_asset_id = T::AssetRegistry::create_bond_asset(&vec![], asset_details.existential_deposit)?;
+			let bond_asset_id = T::AssetRegistry::create_bond_asset(asset_ed)?;
 
 			let fee = T::ProtocolFee::get().mul_ceil(amount); // TODO: check
 			let amount_without_fee = amount.checked_sub(&fee).ok_or(ArithmeticError::Overflow)?;

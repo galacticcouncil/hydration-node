@@ -28,9 +28,12 @@ use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
-use primitives::constants::{
-	chain::OMNIPOOL_SOURCE,
-	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
+use primitives::{
+	constants::{
+		chain::OMNIPOOL_SOURCE,
+		currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
+	},
+	Moment,
 };
 
 use frame_support::{
@@ -40,7 +43,7 @@ use frame_support::{
 	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
 	BoundedVec, PalletId,
 };
-use frame_system::{EnsureRoot, RawOrigin};
+use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use orml_traits::currency::MutationHooks;
 use pallet_dynamic_fees::types::FeeParams;
 
@@ -479,4 +482,28 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type Oracle = OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
+}
+
+// Bonds
+parameter_types! {
+	pub ProtocolFee: Permill = Permill::from_percent(2);
+	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
+	pub const MinMaturity: Moment = primitives::constants::time::unix_time::WEEK;
+}
+
+impl pallet_bonds::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type Currency = Currencies;
+	type AssetRegistry = AssetRegistry;
+	type ExistentialDeposits = AssetRegistry;
+	type TimestampProvider = Timestamp;
+	type PalletId = BondsPalletId;
+	type MinMaturity = MinMaturity;
+	type IssueOrigin = EnsureSigned<AccountId>;
+	type UnlockOrigin = MajorityOfCouncil;
+	type ProtocolFee = ProtocolFee;
+	type FeeReceiver = TreasuryAccount;
+	type WeightInfo = ();
 }

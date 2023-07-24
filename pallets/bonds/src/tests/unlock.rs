@@ -25,16 +25,14 @@ use sp_runtime::DispatchError::BadOrigin;
 fn unlock_should_work_when_bonds_are_not_mature() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		let now = DummyTimestampProvider::<Test>::now();
-		let maturity = now.checked_add(MONTH).unwrap();
+		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let bond_id = next_asset_id();
 
 		// Act
-		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-		System::set_block_number(2 * WEEK);
-		let now = DummyTimestampProvider::<Test>::now();
+		Timestamp::set_timestamp(NOW + 2 * WEEK);
 
 		assert_ok!(Bonds::unlock(RuntimeOrigin::root(), bond_id));
 
@@ -44,7 +42,7 @@ fn unlock_should_work_when_bonds_are_not_mature() {
 		assert_eq!(
 			Bonds::bonds(bond_id).unwrap(),
 			Bond {
-				maturity: now,
+				maturity: NOW + 2 * WEEK,
 				asset_id: HDX,
 				amount,
 			}
@@ -56,15 +54,14 @@ fn unlock_should_work_when_bonds_are_not_mature() {
 fn unlock_should_be_storage_noop_if_bonds_are_already_mature() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		let now = DummyTimestampProvider::<Test>::now();
-		let maturity = now.checked_add(MONTH).unwrap();
+		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let bond_id = next_asset_id();
 
 		// Act
-		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-		System::set_block_number(2 * MONTH);
+		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
 		// Assert
 		assert_storage_noop!(Bonds::unlock(RuntimeOrigin::root(), bond_id).unwrap());
@@ -75,15 +72,14 @@ fn unlock_should_be_storage_noop_if_bonds_are_already_mature() {
 fn unlock_should_fail_when_called_from_wrong_origin() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		let now = DummyTimestampProvider::<Test>::now();
-		let maturity = now.checked_add(MONTH).unwrap();
+		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let bond_id = next_asset_id();
 
 		// Act
-		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-		System::set_block_number(2 * MONTH);
+		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
 		assert_noop!(Bonds::unlock(RuntimeOrigin::signed(ALICE), bond_id), BadOrigin);
 	});
