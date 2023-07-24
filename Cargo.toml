@@ -14,7 +14,6 @@ members = [
   'pallets/xcm-rate-limiter',
   'pallets/omnipool-liquidity-mining',
   'scraper',
-  'pallets/faucet',
   'traits',
   'pallets/relaychain-info',
   'pallets/route-executor',
@@ -52,7 +51,6 @@ pallet-dca = { path = "pallets/dca", default-features = false }
 pallet-duster = { path = "pallets/duster", default-features = false }
 pallet-dynamic-fees = { path = "pallets/dynamic-fees", default-features = false }
 pallet-ema-oracle = { path = "pallets/ema-oracle", default-features = false }
-pallet-faucet = { path = "pallets/faucet", default-features = false }
 pallet-genesis-history = { path = "pallets/genesis-history", default-features = false }
 pallet-liquidity-mining = { path = "pallets/liquidity-mining", default-features = false }
 pallet-nft = { path = "pallets/nft", default-features = false }
