@@ -331,6 +331,14 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_staking_runtime_api::StakingAPI<Block, AccountId> for Runtime {
+		fn retrieve_account_points(
+			who: AccountId,
+		) -> Result<u32, sp_runtime::DispatchError>{
+			Ok(0)
+		}
+	}
+
 	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {
 		fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {

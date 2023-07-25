@@ -67,6 +67,7 @@ warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
+pallet-staking-runtime-api = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -248,6 +249,7 @@ std = [
     "pallet-omnipool-liquidity-mining/std",
     "pallet-dynamic-fees/std",
     "pallet-staking/std",
+    "pallet-staking-runtime-api/std",
 ]
 try-runtime= [
     "frame-try-runtime",
