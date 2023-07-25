@@ -8,8 +8,9 @@ use orml_tokens::BalanceLock;
 mod claim;
 mod increase_stake;
 pub(crate) mod mock;
-mod process_votes;
 mod stake;
+#[allow(clippy::module_inception)]
+mod tests;
 mod unstake;
 
 /// Assert amount of locked tokens. `amount == 0` asserts no lock.
@@ -64,4 +65,15 @@ macro_rules! assert_unlocked_balance {
 		let frozen = Tokens::accounts(&$x, $y).frozen;
 		assert_eq!(Tokens::free_balance($y, &$x).saturating_sub(frozen), $z);
 	};
+}
+
+#[macro_export]
+macro_rules! assert_last_event {
+	( $x:expr ) => {{
+		pretty_assertions::assert_eq!(System::events().last().expect("events expected").event, $x);
+	}};
+}
+
+pub fn has_event(event: mock::RuntimeEvent) -> bool {
+	System::events().iter().any(|record| record.event == event)
 }

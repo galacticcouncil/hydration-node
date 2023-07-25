@@ -126,6 +126,15 @@ fn increase_stake_should_work_when_user_already_staked() {
 			));
 
 			//Assert
+			assert_last_event!(Event::<Test>::StakeAdded {
+				who: ALICE,
+				position_id: alice_position_id,
+				stake: 100_000 * ONE,
+				total_stake: 200_000 * ONE,
+				locked_rewards: 432_086_451_705_829_u128,
+				slashed_points: 12
+			}
+			.into());
 			assert_staking_data!(
 				250_000 * ONE,
 				FixedU128::from_inner(1_033_333_333_333_333_333_u128),
@@ -173,6 +182,15 @@ fn increase_stake_should_slash_no_points_when_increase_is_small() {
 			));
 
 			//Assert
+			assert_last_event!(Event::<Test>::StakeAdded {
+				who: ALICE,
+				position_id: alice_position_id,
+				stake: 10 * ONE,
+				total_stake: 100_010 * ONE,
+				locked_rewards: 432_086_451_705_829_u128,
+				slashed_points: 0
+			}
+			.into());
 			assert_eq!(
 				Staking::positions(alice_position_id).unwrap().accumulated_slash_points,
 				0
@@ -206,6 +224,15 @@ fn increase_stake_should_slash_all_points_when_increase_is_big() {
 			));
 
 			//Assert
+			assert_last_event!(Event::<Test>::StakeAdded {
+				who: ALICE,
+				position_id: alice_position_id,
+				stake: 15_000_000 * ONE,
+				total_stake: 15_100_000 * ONE,
+				locked_rewards: 432_086_451_705_829_u128,
+				slashed_points: 24,
+			}
+			.into());
 			assert_eq!(
 				Staking::positions(alice_position_id).unwrap().accumulated_slash_points,
 				24
@@ -239,6 +266,15 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 			));
 
 			//Assert
+			assert_last_event!(Event::<Test>::StakeAdded {
+				who: ALICE,
+				position_id: alice_position_id,
+				stake: 100_000 * ONE,
+				total_stake: 200_000 * ONE,
+				locked_rewards: 432_086_451_705_829_u128,
+				slashed_points: 12
+			}
+			.into());
 			assert_eq!(
 				Staking::positions(alice_position_id).unwrap().accumulated_slash_points,
 				12
@@ -252,6 +288,15 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 			));
 
 			//Assert
+			assert_last_event!(Event::<Test>::StakeAdded {
+				who: ALICE,
+				position_id: alice_position_id,
+				stake: 100_000 * ONE,
+				total_stake: 300_000 * ONE,
+				locked_rewards: 26_998_317_793_092_u128,
+				slashed_points: 3
+			}
+			.into());
 			assert_eq!(
 				Staking::positions(alice_position_id).unwrap().accumulated_slash_points,
 				15
@@ -267,6 +312,15 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 			));
 
 			//Assert
+			assert_last_event!(Event::<Test>::StakeAdded {
+				who: ALICE,
+				position_id: alice_position_id,
+				stake: 100_000 * ONE,
+				total_stake: 400_000 * ONE,
+				locked_rewards: 506_092_568_094_174_u128,
+				slashed_points: 4
+			}
+			.into());
 			assert_staking_data!(
 				450_000 * ONE,
 				FixedU128::from_inner(1_033_333_333_333_333_333_u128),

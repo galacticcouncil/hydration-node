@@ -44,6 +44,13 @@ fn stake_should_work_when_staking_position_doesnt_exists() {
 			//Act
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(ALICE), 100_000 * ONE));
 			//Assert
+			assert_last_event!(Event::<Test>::PositionCreated {
+				who: ALICE,
+				position_id: 0,
+				stake: 100_000 * ONE
+			}
+			.into());
+
 			//NOTE: first person doesn't distribute rewards because staking is empty.
 			assert_staking_data!(100_000 * ONE, FixedU128::from(0), NON_DUSTABLE_BALANCE);
 			assert_hdx_lock!(ALICE, 100_000 * ONE, STAKING_LOCK);
@@ -57,6 +64,12 @@ fn stake_should_work_when_staking_position_doesnt_exists() {
 			//Act
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), 120_000 * ONE));
 			//Assert
+			assert_last_event!(Event::<Test>::PositionCreated {
+				who: BOB,
+				position_id: 1,
+				stake: 120_000 * ONE
+			}
+			.into());
 			assert_staking_data!(
 				220_000 * ONE,
 				FixedU128::from(2),
@@ -78,6 +91,12 @@ fn stake_should_work_when_staking_position_doesnt_exists() {
 			//Act
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(CHARLIE), 10_000 * ONE));
 			//Assert
+			assert_last_event!(Event::<Test>::PositionCreated {
+				who: CHARLIE,
+				position_id: 2,
+				stake: 10_000 * ONE
+			}
+			.into());
 			assert_staking_data!(
 				230_000 * ONE,
 				FixedU128::from_inner(2_045_454_545_454_545_454_u128),
@@ -103,6 +122,12 @@ fn stake_should_work_when_staking_position_doesnt_exists() {
 
 			//Act
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(DAVE), 10 * ONE));
+			assert_last_event!(Event::<Test>::PositionCreated {
+				who: DAVE,
+				position_id: 3,
+				stake: 10 * ONE
+			}
+			.into());
 			//Assert
 			assert_staking_data!(
 				230_010 * ONE,
@@ -161,6 +186,12 @@ fn stake_should_work_when_there_are_no_rewards_to_distribute() {
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(ALICE), staked_amount));
 
 			//Assert
+			assert_last_event!(Event::<Test>::PositionCreated {
+				who: ALICE,
+				position_id: 0,
+				stake: staked_amount
+			}
+			.into());
 			assert_staking_data!(
 				staked_amount,
 				FixedU128::from(0),
@@ -179,6 +210,12 @@ fn stake_should_work_when_there_are_no_rewards_to_distribute() {
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), staked_amount / 2));
 
 			//Assert
+			assert_last_event!(Event::<Test>::PositionCreated {
+				who: BOB,
+				position_id: 1,
+				stake: staked_amount / 2
+			}
+			.into());
 			assert_staking_data!(
 				staked_amount + staked_amount / 2,
 				FixedU128::from(0),

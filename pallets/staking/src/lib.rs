@@ -744,7 +744,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// This function "distributes" pending rewards if possible and updates `StakingData`
-	fn update_rewards(staking: &mut StakingData) -> Result<(), DispatchError> {
+	pub(crate) fn update_rewards(staking: &mut StakingData) -> Result<(), DispatchError> {
 		if staking.total_stake.is_zero() {
 			return Ok(());
 		}

@@ -7,7 +7,7 @@ use pretty_assertions::assert_eq;
 use sp_runtime::FixedU128;
 
 #[test]
-fn unstake_should_now_work_when_origin_is_not_position_owner() {
+fn unstake_should_not_work_when_origin_is_not_position_owner() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HDX, 150_000 * ONE),
@@ -90,6 +90,15 @@ fn unstake_should_work_when_staking_position_exists() {
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert_last_event!(Event::<Test>::Unstaked {
+				who: BOB,
+				position_id: bob_position_id,
+				unlocked_stake: 120_000 * ONE,
+				rewards: 334_912_244_857_841_u128,
+				unlocked_rewards: 0
+			}
+			.into());
+
 			assert_unlocked_balance!(&BOB, HDX, 250_334_912_244_857_841_u128);
 			assert_hdx_lock!(BOB, 0, STAKING_LOCK);
 			assert_eq!(Staking::positions(bob_position_id), None);
@@ -132,6 +141,14 @@ fn unstake_should_claim_zero_rewards_when_unstaking_during_unclaimable_periods()
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert_last_event!(Event::<Test>::Unstaked {
+				who: BOB,
+				position_id: bob_position_id,
+				unlocked_stake: 120_000 * ONE,
+				rewards: 0,
+				unlocked_rewards: 0
+			}
+			.into());
 			assert_unlocked_balance!(&BOB, HDX, 250_000 * ONE);
 			assert_hdx_lock!(BOB, 0, STAKING_LOCK);
 			assert_eq!(Staking::positions(bob_position_id), None);
@@ -175,6 +192,14 @@ fn unstake_should_work_when_called_after_unclaimable_periods_and_stake_was_incre
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert_last_event!(Event::<Test>::Unstaked {
+				who: BOB,
+				position_id: bob_position_id,
+				unlocked_stake: 420_000 * ONE,
+				rewards: 586_654_644_470_047_u128,
+				unlocked_rewards: 95_992_170_755_783_u128
+			}
+			.into());
 			assert_unlocked_balance!(&BOB, HDX, 500_682_646_815_225_830_u128);
 			assert_hdx_lock!(BOB, 0, STAKING_LOCK);
 			assert_eq!(Staking::positions(bob_position_id), None);
@@ -221,6 +246,14 @@ fn unstake_should_claim_no_additional_rewards_when_called_immediately_after_clai
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert_last_event!(Event::<Test>::Unstaked {
+				who: BOB,
+				position_id: bob_position_id,
+				unlocked_stake: 420_000 * ONE,
+				rewards: 0,
+				unlocked_rewards: 95_140_518_015_390_u128,
+			}
+			.into());
 			assert_unlocked_balance!(&BOB, HDX, bob_balance);
 			assert_hdx_lock!(BOB, 0, STAKING_LOCK);
 			assert_eq!(Staking::positions(bob_position_id), None);
@@ -265,9 +298,42 @@ fn unstake_should_work_when_called_by_all_stakers() {
 
 			//Act
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
+			//Assert
+			assert_last_event!(Event::<Test>::Unstaked {
+				who: BOB,
+				position_id: bob_position_id,
+				unlocked_stake: 420_000 * ONE,
+				rewards: 586_654_644_470_047_u128,
+				unlocked_rewards: 95_992_170_755_783_u128,
+			}
+			.into());
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(ALICE), alice_position_id));
+			assert_last_event!(Event::<Test>::Unstaked {
+				who: ALICE,
+				position_id: alice_position_id,
+				unlocked_stake: 100_000 * ONE,
+				rewards: 7_965_081_713_348_758_u128,
+				unlocked_rewards: 0
+			}
+			.into());
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(CHARLIE), charlie_position_id));
+			assert_last_event!(Event::<Test>::Unstaked {
+				who: CHARLIE,
+				position_id: charlie_position_id,
+				unlocked_stake: 10_000 * ONE,
+				rewards: 8_023_126_771_488_456_u128,
+				unlocked_rewards: 0
+			}
+			.into());
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(DAVE), dave_position_id));
+			assert_last_event!(Event::<Test>::Unstaked {
+				who: DAVE,
+				position_id: dave_position_id,
+				unlocked_stake: 10 * ONE,
+				rewards: 5_672_178_270_331_647_u128,
+				unlocked_rewards: 0
+			}
+			.into());
 
 			//Assert
 			assert_unlocked_balance!(&ALICE, HDX, 157_965_081_713_348_758_u128);

@@ -68,6 +68,16 @@ fn claim_should_work_when_claiming_multiple_times() {
 			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert_last_event!(Event::<Test>::RewardsClaimed {
+				who: BOB,
+				position_id: bob_position_id,
+				paid_rewards: 47_706_747_302_610_u128,
+				unlocked_rewards: 0,
+				slashed_points: 16,
+				slashed_unpaid_rewards: 57_516_815_324_327_787_u128,
+			}
+			.into());
+
 			assert_unlocked_balance!(&BOB, HDX, 130_382_618_992_160_451_u128);
 			assert_hdx_lock!(BOB, 120_000 * ONE, STAKING_LOCK);
 			assert_eq!(
@@ -143,6 +153,16 @@ fn claim_should_work_when_staking_position_exists() {
 			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert_last_event!(Event::<Test>::RewardsClaimed {
+				who: BOB,
+				position_id: bob_position_id,
+				paid_rewards: 334_912_244_857_841_u128,
+				unlocked_rewards: 0,
+				slashed_points: 40,
+				slashed_unpaid_rewards: 10_336_797_680_797_565_u128,
+			}
+			.into());
+
 			assert_unlocked_balance!(&BOB, HDX, 130_334_912_244_857_841_u128);
 			assert_hdx_lock!(BOB, 120_000 * ONE, STAKING_LOCK);
 			assert_eq!(
@@ -300,6 +320,16 @@ fn claim_should_work_when_claiming_after_unclaimable_periods() {
 			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert_last_event!(Event::<Test>::RewardsClaimed {
+				who: BOB,
+				position_id: bob_position_id,
+				paid_rewards: 587_506_297_210_440_u128,
+				unlocked_rewards: 0,
+				slashed_points: 29,
+				slashed_unpaid_rewards: 65_631_977_451_377_841_u128,
+			}
+			.into());
+
 			assert_unlocked_balance!(&BOB, HDX, 80_587_506_297_210_440_u128);
 			assert_hdx_lock!(BOB, 420_000 * ONE, STAKING_LOCK);
 			assert_eq!(
@@ -373,6 +403,16 @@ fn claim_should_work_when_staked_was_increased() {
 			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert_last_event!(Event::<Test>::RewardsClaimed {
+				who: BOB,
+				position_id: bob_position_id,
+				paid_rewards: 17_792_982_258_382_321_u128,
+				unlocked_rewards: 14_186_603_458_327_466_u128,
+				slashed_points: 77,
+				slashed_unpaid_rewards: 39_992_706_885_866_227_u128,
+			}
+			.into());
+
 			assert_unlocked_balance!(&BOB, HDX, 281_979_585_716_709_787_u128);
 			assert_hdx_lock!(BOB, 281_886_766_680_027_536_u128, STAKING_LOCK);
 			assert_eq!(
@@ -446,7 +486,18 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 
 			//Act
 			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
+
 			//Assert
+			assert_last_event!(Event::<Test>::RewardsClaimed {
+				who: BOB,
+				position_id: bob_position_id,
+				paid_rewards: 0,
+				unlocked_rewards: 0,
+				slashed_points: 0,
+				slashed_unpaid_rewards: 27_771_941_672_360_647_u128,
+			}
+			.into());
+
 			assert_unlocked_balance!(&BOB, HDX, 281_979_585_716_709_787_u128);
 			assert_hdx_lock!(BOB, 281_886_766_680_027_536_u128, STAKING_LOCK);
 			assert_eq!(
