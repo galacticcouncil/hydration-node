@@ -2,8 +2,8 @@ use crate::pallet::{PositionVotes, Positions};
 use crate::traits::DemocracyReferendum;
 use crate::types::{Balance, Conviction, Vote};
 use crate::{Config, Error, Pallet};
+use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
-use frame_support::traits::DefensiveOption;
 use orml_traits::MultiCurrencyExtended;
 use pallet_democracy::traits::DemocracyHooks;
 use pallet_democracy::{AccountVote, ReferendumIndex, ReferendumInfo};
@@ -22,11 +22,17 @@ where
 		};
 
 		Positions::<T>::try_mutate(position_id, |maybe_position| {
-			let position = maybe_position
-				.as_mut()
-				.defensive_ok_or(crate::Error::<T>::InconsistentState(
-					crate::InconsistentStateError::PositionNotFound,
-				))?;
+			let position = match maybe_position.as_mut() {
+				Some(position) => position,
+				None => {
+					let e = crate::Error::<T>::InconsistentState(crate::InconsistentStateError::PositionNotFound);
+					defensive!(e);
+
+					//NOTE: This is intetional, use can't recover from this state and we don't want
+					//to block voting.
+					return Ok(());
+				}
+			};
 
 			Pallet::<T>::process_votes(position_id, position)?;
 
