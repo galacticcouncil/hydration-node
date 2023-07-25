@@ -34,6 +34,8 @@ members = [
 ]
 
 [workspace.dependencies]
+async-trait = "0.1"
+futures = "0.3.25"
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
 hydradx-traits = { path = "traits", default-features = false }
@@ -96,6 +98,7 @@ sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "pol
 sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sp-consensus-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+sp-database = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sp-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
@@ -192,6 +195,25 @@ cumulus-relay-chain-minimal-node = { git = "https://github.com/galacticcouncil/c
 cumulus-test-relay-sproof-builder = { git = "https://github.com/galacticcouncil/cumulus.git", branch = "feat/xcmp-defer-xcm-v9-38", default-features = false }
 pallet-collator-selection = { git = "https://github.com/galacticcouncil/cumulus.git", branch = "feat/xcmp-defer-xcm-v9-38", default-features = false }
 parachain-info = { git = "https://github.com/galacticcouncil/cumulus.git", branch = "feat/xcmp-defer-xcm-v9-38", default-features = false }
+
+# Frontier
+fc-consensus = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+fc-db = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+fc-mapping-sync = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+fc-rpc = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+fc-rpc-core = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+
+fp-consensus = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+fp-dynamic-fee = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+fp-rpc = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+fp-self-contained = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+fp-storage = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+
+pallet-base-fee = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+pallet-ethereum = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+pallet-evm = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+pallet-evm-chain-id = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+pallet-evm-precompile-dispatch = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }

@@ -77,6 +77,15 @@ cumulus-pallet-parachain-system = { workspace = true }
 xcm = { workspace = true }
 xcm-executor = { workspace = true }
 
+# Frontier
+fp-rpc = { workspace = true }
+fp-self-contained = { workspace = true }
+pallet-base-fee = { workspace = true }
+pallet-ethereum = { workspace = true }
+pallet-evm = { workspace = true }
+pallet-evm-chain-id = { workspace = true }
+pallet-evm-precompile-dispatch = { workspace = true }
+
 [features]
 default = ["std"]
 
@@ -115,4 +124,10 @@ std = [
     "cumulus-pallet-xcmp-queue/std",
     "xcm/std",
     "xcm-executor/std",
+    "pallet-base-fee/std",
+    "pallet-ethereum/std",
+    "pallet-evm/std",
+    "pallet-evm-precompile-dispatch/std",
+    "pallet-evm-chain-id/std",
+    "pallet-evm/runtime-benchmarks",
 ]
