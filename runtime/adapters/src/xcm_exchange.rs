@@ -8,19 +8,19 @@ use sp_std::marker::PhantomData;
 use sp_std::vec;
 use xcm_executor::traits::AssetExchange;
 
-pub struct XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency, DefaultPoolType>(
-	PhantomData<(Runtime, TempAccount, CurrencyIdConvert, Currency, DefaultPoolType)>,
+pub struct XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency, Pool>(
+	PhantomData<(Runtime, TempAccount, CurrencyIdConvert, Currency, Pool)>,
 );
 
-impl<Runtime, TempAccount, CurrencyIdConvert, Currency, DefaultPoolType> AssetExchange
-	for XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency, DefaultPoolType>
+impl<Runtime, TempAccount, CurrencyIdConvert, Currency, Pool> AssetExchange
+	for XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency, Pool>
 where
 	Runtime: pallet_route_executor::Config,
 	TempAccount: Get<Runtime::AccountId>,
 	CurrencyIdConvert: Convert<MultiAsset, Option<Runtime::AssetId>>,
 	Currency: MultiCurrency<Runtime::AccountId, CurrencyId = Runtime::AssetId, Balance = Runtime::Balance>,
 	Runtime::Balance: From<u128> + Zero + Into<u128>,
-	DefaultPoolType: Get<PoolType<Runtime::AssetId>>,
+	Pool: Get<PoolType<Runtime::AssetId>>,
 {
 	fn exchange_asset(
 		_origin: Option<&MultiLocation>,
@@ -65,7 +65,7 @@ where
 					amount.into(),
 					min_buy_amount.into(),
 					vec![Trade {
-						pool: DefaultPoolType::get(),
+						pool: Pool::get(),
 						asset_in,
 						asset_out,
 					}],
@@ -97,7 +97,7 @@ where
 					amount.into(),
 					max_sell_amount.into(),
 					vec![Trade {
-						pool: DefaultPoolType::get(),
+						pool: Pool::get(),
 						asset_in,
 						asset_out,
 					}],
