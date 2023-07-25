@@ -102,7 +102,7 @@ where
 						asset_out,
 					}],
 				)?;
-				let mut assets = sp_std::vec::Vec::new();
+				let mut assets = sp_std::vec::Vec::with_capacity(2);
 				let left_over = Currency::free_balance(asset_in, &account);
 				if left_over > Runtime::Balance::zero() {
 					Currency::withdraw(asset_in, &account, left_over)?; // burn left over tokens
