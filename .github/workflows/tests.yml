@@ -11,7 +11,7 @@ env:
 
 jobs:
   build:
-    runs-on: medium
+    runs-on: lark
     steps:
       - uses: actions/checkout@v2
         with:
@@ -53,7 +53,7 @@ jobs:
 
   docker:
     needs: [build]
-    runs-on: medium
+    runs-on: lark
     env:
       DOCKER_CLI_EXPERIMENTAL: enabled
     steps:
