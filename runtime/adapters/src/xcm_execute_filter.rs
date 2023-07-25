@@ -43,8 +43,7 @@ where
 		return false;
 	}
 	let instructions_count = instructions;
-	let iter = xcm.inner().iter();
-	for inst in iter {
+	for inst in xcm.inner().iter() {
 		instructions_count.set(instructions_count.get() + 1);
 		if instructions_count.get() > MaxInstructions::get() {
 			return false;
