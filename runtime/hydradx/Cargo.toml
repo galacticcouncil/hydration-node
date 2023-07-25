@@ -126,6 +126,15 @@ sp-trie = { workspace = true }
 sp-io = { workspace = true }
 primitive-types = {  workspace = true }
 
+# Frontier
+fp-rpc = { workspace = true }
+fp-self-contained = { workspace = true }
+pallet-base-fee = { workspace = true }
+pallet-ethereum = { workspace = true }
+pallet-evm = { workspace = true }
+pallet-evm-chain-id = { workspace = true }
+pallet-evm-precompile-dispatch = { workspace = true }
+
 [features]
 default = ["std"]
 runtime-benchmarks = [
@@ -164,6 +173,8 @@ runtime-benchmarks = [
     "pallet-otc/runtime-benchmarks",
     "pallet-dca/runtime-benchmarks",
     "pallet-route-executor/runtime-benchmarks",
+    "pallet-ethereum/runtime-benchmarks",
+    "pallet-evm/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -245,6 +256,13 @@ std = [
     "warehouse-liquidity-mining/std",
     "pallet-omnipool-liquidity-mining/std",
     "pallet-dynamic-fees/std",
+    "fp-rpc/std",
+    "fp-self-contained/std",
+    "pallet-base-fee/std",
+    "pallet-ethereum/std",
+    "pallet-evm/std",
+    "pallet-evm-chain-id/std",
+    "pallet-evm-precompile-dispatch/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -302,4 +320,9 @@ try-runtime= [
     "pallet-otc/try-runtime",
     "pallet-route-executor/try-runtime",
     "pallet-dynamic-fees/try-runtime",
+    "fp-self-contained/try-runtime",
+    "pallet-base-fee/try-runtime",
+    "pallet-ethereum/try-runtime",
+    "pallet-evm/try-runtime",
+    "pallet-evm-chain-id/try-runtime",
 ]
