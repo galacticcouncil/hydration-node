@@ -159,7 +159,7 @@ fn fully_redeem_bonds_should_work_when_with_zero_fee() {
 }
 
 #[test]
-fn fully_redeem_bonds_should_work_when_with_non_zero_fee() {
+fn fully_redeem_bonds_should_work_when_fee_is_zero() {
 	ExtBuilder::default()
 		.with_protocol_fee(Permill::from_percent(10))
 		.build()

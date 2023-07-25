@@ -10144,6 +10144,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-bonds",
  "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",

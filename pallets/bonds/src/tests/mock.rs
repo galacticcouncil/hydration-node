@@ -273,8 +273,10 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
-		r.execute_with(|| System::set_block_number(1));
-		r.execute_with(|| Timestamp::set_timestamp(NOW));
+		r.execute_with(|| {
+			System::set_block_number(1);
+			Timestamp::set_timestamp(NOW);
+		});
 
 		r
 	}

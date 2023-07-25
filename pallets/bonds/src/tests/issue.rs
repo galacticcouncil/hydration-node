@@ -71,7 +71,7 @@ fn issue_bonds_should_work_when_fee_is_non_zero() {
 			// Arrange
 			let maturity = NOW + MONTH;
 			let amount: Balance = 1_000_000;
-			let fee = PROTOCOL_FEE.with(|v| *v.borrow()).mul_ceil(amount);
+			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
 			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
 			let bond_id = next_asset_id();
 
