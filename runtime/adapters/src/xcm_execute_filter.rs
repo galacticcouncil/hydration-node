@@ -54,13 +54,11 @@ where
 			Either::Left(true) => continue,
 			Either::Left(false) => return false,
 			Either::Right(xcm) => {
-				if check_instructions_recursively::<MaxXcmDepth, MaxInstructions, ()>(
+				if !check_instructions_recursively::<MaxXcmDepth, MaxInstructions, ()>(
 					xcm,
 					depth + 1,
 					instructions_count,
 				) {
-					continue;
-				} else {
 					return false;
 				}
 			}
