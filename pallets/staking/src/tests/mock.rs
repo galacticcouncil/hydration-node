@@ -205,7 +205,7 @@ impl pallet_staking::Config for Test {
 	type Currency = Tokens;
 	type PeriodLength = PeriodLength;
 	type PalletId = StakingPalletId;
-	type HdxAssetId = ConstU32<HDX>;
+	type NativeAssetId = ConstU32<HDX>;
 	type MinStake = MinStake;
 	type TimePointsWeight = TimePointsW;
 	type ActionPointsWeight = ActionPointsW;

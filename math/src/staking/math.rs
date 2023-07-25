@@ -55,12 +55,12 @@ pub fn calculate_period_number(period_length: NonZeroU128, block_number: u128) -
 /// Slashed points are subtracted.
 ///
 /// Parameters:
-/// - `created_at`: period number staking position was created at
+/// - `position_created_at`: period number staking position was created at
 /// - `now`: current period number
 /// - `time_points_per_period`: number of time points per 1 period
-/// - `time_weight`: weight of the time points
+/// - `time_points_weight`: weight of the time points
 /// - `action_points`: amount of action points accumulated by user
-/// - `action_weight`: weight of the action points
+/// - `action_points_weight`: weight of the action points
 /// - `slashed_points`: amount of points to slash from points
 pub fn calculate_points(
 	position_created_at: Period,
@@ -82,7 +82,7 @@ pub fn calculate_points(
 		.checked_sub(slashed_points)
 }
 
-/// Implementation of sigmoid function returning values from range <0,1)
+/// Implementation of sigmoid function returning values from range [0,1)
 ///
 /// f(x) = (ax)^4/(b + (ax)^4)
 ///

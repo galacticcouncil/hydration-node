@@ -101,9 +101,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
-		/// HDX Asset ID
+		/// Native Asset ID
 		#[pallet::constant]
-		type HdxAssetId: Get<Self::AssetId>;
+		type NativeAssetId: Get<Self::AssetId>;
 
 		/// Min amount user must stake.
 		#[pallet::constant]
@@ -320,7 +320,7 @@ pub mod pallet {
 			ensure!(!Self::is_initialized(), Error::<T>::AlreadyInitialized);
 
 			let pallet_account = <Pallet<T>>::pot_account_id();
-			let pot_balance = T::Currency::free_balance(T::HdxAssetId::get(), &pallet_account);
+			let pot_balance = T::Currency::free_balance(T::NativeAssetId::get(), &pallet_account);
 			ensure!(!pot_balance.is_zero(), Error::<T>::MissingPotBalance);
 
 			//Offsetting `accumulated_claimable_rewards` to prevent `pot` dusting.
@@ -359,7 +359,7 @@ pub mod pallet {
 				let position_id =
 					Self::create_position_and_mint_nft(&who, amount, staking.accumulated_reward_per_stake)?;
 
-				T::Currency::set_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who, amount)?;
+				T::Currency::set_lock(STAKING_LOCK_ID, T::NativeAssetId::get(), &who, amount)?;
 
 				staking.add_stake(amount)?;
 
@@ -414,7 +414,7 @@ pub mod pallet {
 						.ok_or(Error::<T>::Arithmetic)?;
 
 					let pot = Self::pot_account_id();
-					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
+					T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards)?;
 
 					position.accumulated_unpaid_rewards = position
 						.accumulated_unpaid_rewards
@@ -454,7 +454,7 @@ pub mod pallet {
 
 					T::Currency::set_lock(
 						STAKING_LOCK_ID,
-						T::HdxAssetId::get(),
+						T::NativeAssetId::get(),
 						&who,
 						position.get_total_locked()?,
 					)?;
@@ -511,7 +511,7 @@ pub mod pallet {
 						.ok_or(Error::<T>::Arithmetic)?;
 
 					let pot = Self::pot_account_id();
-					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards_to_pay)?;
+					T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards_to_pay)?;
 
 					let rewards_to_unlock =
 						math::calculate_percentage_amount(position.accumulated_locked_rewards, payable_percentage);
@@ -550,7 +550,7 @@ pub mod pallet {
 
 					T::Currency::set_lock(
 						STAKING_LOCK_ID,
-						T::HdxAssetId::get(),
+						T::NativeAssetId::get(),
 						&who,
 						position.get_total_locked()?,
 					)?;
@@ -613,7 +613,7 @@ pub mod pallet {
 						.ok_or(Error::<T>::Arithmetic)?;
 
 					let pot = Self::pot_account_id();
-					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards_to_pay)?;
+					T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards_to_pay)?;
 
 					staking.total_stake = staking
 						.total_stake
@@ -635,7 +635,7 @@ pub mod pallet {
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
 					T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
-					T::Currency::remove_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who)?;
+					T::Currency::remove_lock(STAKING_LOCK_ID, T::NativeAssetId::get(), &who)?;
 
 					Self::deposit_event(Event::Unstaked {
 						who,
@@ -669,8 +669,8 @@ impl<T: Config> Pallet<T> {
 		stake: Balance,
 		position: Option<&Position<T::BlockNumber>>,
 	) -> Result<(), DispatchError> {
-		let free_balance = T::Currency::free_balance(T::HdxAssetId::get(), who);
-		let staked = if let Some(p) = position { p.stake } else { Zero::zero() };
+		let free_balance = T::Currency::free_balance(T::NativeAssetId::get(), who);
+		let staked = position.map(|p| p.stake).unwrap_or_default();
 		let vested = T::Vesting::locked(who.clone());
 
 		let stakable = free_balance
@@ -749,7 +749,7 @@ impl<T: Config> Pallet<T> {
 			return Ok(());
 		}
 
-		let pending_rewards = T::Currency::free_balance(T::HdxAssetId::get(), &Self::pot_account_id())
+		let pending_rewards = T::Currency::free_balance(T::NativeAssetId::get(), &Self::pot_account_id())
 			.checked_sub(staking.pot_reserved_balance)
 			.defensive_ok_or::<Error<T>>(InconsistentStateError::NegativePendingRewards.into())?;
 
@@ -861,7 +861,7 @@ impl<T: Config> Pallet<T> {
 		asset: T::AssetId,
 		amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		if asset == T::HdxAssetId::get() && Self::is_initialized() {
+		if asset == T::NativeAssetId::get() && Self::is_initialized() {
 			T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
 			Ok(Balance::zero())
 		} else {

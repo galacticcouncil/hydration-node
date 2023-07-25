@@ -515,7 +515,7 @@ impl pallet_staking::Config for Runtime {
 	type Currency = Currencies;
 	type PeriodLength = PeriodLength;
 	type PalletId = StakingPalletId;
-	type HdxAssetId = NativeAssetId;
+	type NativeAssetId = NativeAssetId;
 	type MinStake = MinStake;
 	type TimePointsWeight = TimePointsW;
 	type ActionPointsWeight = ActionPointsW;

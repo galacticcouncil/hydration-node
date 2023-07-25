@@ -240,7 +240,7 @@ fn claim_should_claim_nothing_when_claiming_during_unclaimable_periods_and_stake
 		.execute_with(|| {
 			//Arrange
 			set_pending_rewards(10_000 * ONE);
-			set_block_number(1_490_000);
+			set_block_number(1_452_987_u64 + mock::UnclaimablePeriods::get() * mock::PeriodLength::get());
 			let bob_position_id = Staking::get_user_position_id(&BOB).unwrap().unwrap();
 
 			//Act
@@ -256,7 +256,7 @@ fn claim_should_claim_nothing_when_claiming_during_unclaimable_periods_and_stake
 					action_points: Zero::zero(),
 					created_at: 1_452_987,
 					reward_per_stake: FixedU128::from_inner(2_502_134_933_892_361_376_u128),
-					accumulated_slash_points: 6,
+					accumulated_slash_points: 16,
 					accumulated_locked_rewards: Zero::zero(),
 					accumulated_unpaid_rewards: 66_219_483_748_588_281_u128,
 				}

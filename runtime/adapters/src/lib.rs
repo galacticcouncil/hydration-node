@@ -738,14 +738,11 @@ where
 	fn locked(who: AccountId) -> Balance {
 		let lock_id = orml_vesting::VESTING_LOCK_ID;
 
-		if let Some(p) = pallet_balances::Locks::<Runtime>::get(who)
+		pallet_balances::Locks::<Runtime>::get(who)
 			.iter()
 			.find(|x| x.id == lock_id)
-		{
-			return p.amount;
-		}
-
-		Zero::zero()
+			.map(|p| p.amount)
+			.unwrap_or_default()
 	}
 }
 

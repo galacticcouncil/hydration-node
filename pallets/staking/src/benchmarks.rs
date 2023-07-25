@@ -32,7 +32,7 @@ where
 	T: crate::pallet::Config,
 {
 	let pot = Pallet::<T>::pot_account_id();
-	let hdx = T::HdxAssetId::get();
+	let hdx = T::NativeAssetId::get();
 
 	T::Currency::update_balance(hdx, &pot, non_dustable_balance as i128)?;
 	Pallet::<T>::initialize_staking(RawOrigin::Root.into())
@@ -44,7 +44,7 @@ where
 	T: crate::pallet::Config,
 {
 	let pot = Pallet::<T>::pot_account_id();
-	let hdx = T::HdxAssetId::get();
+	let hdx = T::NativeAssetId::get();
 
 	T::Currency::update_balance(hdx, &pot, rewards as i128)
 }
@@ -90,7 +90,7 @@ benchmarks! {
 
 	initialize_staking {
 		let pot = Pallet::<T>::pot_account_id();
-		let hdx = T::HdxAssetId::get();
+		let hdx = T::NativeAssetId::get();
 		let non_dustable_balance = 1_000 * UNIT;
 
 		T::Currency::update_balance(hdx, &pot, non_dustable_balance as i128)?;
@@ -107,7 +107,7 @@ benchmarks! {
 	stake {
 		let caller_0: T::AccountId = account("caller", 0, 1);
 		let caller_1: T::AccountId = account("caller", 1, 1);
-		let hdx = T::HdxAssetId::get();
+		let hdx = T::NativeAssetId::get();
 		let amount = 30_000 * UNIT;
 
 		T::Currency::update_balance(hdx, &caller_0, (100_000 * UNIT) as i128)?;
@@ -127,7 +127,7 @@ benchmarks! {
 	increase_stake {
 		let caller_0: T::AccountId = account("caller", 0, 1);
 		let caller_1: T::AccountId = account("caller", 1, 1);
-		let hdx = T::HdxAssetId::get();
+		let hdx = T::NativeAssetId::get();
 		let amount = 30_000 * UNIT;
 
 		T::Currency::update_balance(hdx, &caller_0, (100_000 * UNIT) as i128)?;
@@ -152,7 +152,7 @@ benchmarks! {
 	claim {
 		let caller_0: T::AccountId = account("caller", 0, 1);
 		let caller_1: T::AccountId = account("caller", 1, 1);
-		let hdx = T::HdxAssetId::get();
+		let hdx = T::NativeAssetId::get();
 		let amount = 30_000 * UNIT;
 
 		T::Currency::update_balance(hdx, &caller_0, (100_000 * UNIT) as i128)?;
@@ -177,7 +177,7 @@ benchmarks! {
 	unstake {
 		let caller_0: T::AccountId = account("caller", 0, 1);
 		let caller_1: T::AccountId = account("caller", 1, 1);
-		let hdx = T::HdxAssetId::get();
+		let hdx = T::NativeAssetId::get();
 		let amount = 30_000 * UNIT;
 
 		T::Currency::update_balance(hdx, &caller_0, (100_000 * UNIT) as i128)?;

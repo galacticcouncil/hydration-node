@@ -89,13 +89,13 @@ where
 		use sp_core::Get;
 
 		T::Currency::update_balance(
-			T::HdxAssetId::get(),
+			T::NativeAssetId::get(),
 			&Pallet::<T>::pot_account_id(),
 			10_000_000_000_000i128,
 		)
 		.unwrap();
 		Pallet::<T>::initialize_staking(Origin::<T>::Root.into()).unwrap();
-		T::Currency::update_balance(T::HdxAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
+		T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
 		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
 
 		let position_id = Pallet::<T>::get_user_position_id(&who.clone()).unwrap().unwrap();
@@ -124,13 +124,13 @@ where
 		use sp_core::Get;
 
 		T::Currency::update_balance(
-			T::HdxAssetId::get(),
+			T::NativeAssetId::get(),
 			&Pallet::<T>::pot_account_id(),
 			10_000_000_000_000i128,
 		)
 		.unwrap();
 		Pallet::<T>::initialize_staking(Origin::<T>::Root.into()).unwrap();
-		T::Currency::update_balance(T::HdxAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
+		T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
 		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
 	}
 }
