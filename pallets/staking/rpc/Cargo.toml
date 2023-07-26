@@ -1,0 +1,18 @@
+[package]
+name = "pallet-staking-rpc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.0.0" }
+jsonrpsee = { version = "0.16.2", features = ["client", "server", "macros"] }
+tracing = { version = "0.1.29" }
+tracing-core = { version = "0.1.28" }
+
+sp-runtime = { workspace = true}
+sp-api = { workspace = true}
+sp-blockchain = { workspace = true}
+
+pallet-staking-runtime-api = { path = "runtime-api"}

@@ -86,7 +86,7 @@ where
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
 		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>
-		+ pallet_staking_runtime_api::StakingAPI<Block, AccountId>,
+		+ pallet_staking_rpc::StakingRuntimeApi<Block, AccountId>,
 	Executor: NativeExecutionDispatch + 'static,
 {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
@@ -138,7 +138,7 @@ where
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
 		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>
-		+ pallet_staking_runtime_api::StakingAPI<Block, AccountId>,
+		+ pallet_staking_rpc::StakingRuntimeApi<Block, AccountId>,
 	Executor: NativeExecutionDispatch + 'static,
 {
 	let telemetry = config
@@ -252,7 +252,7 @@ where
 		+ sp_session::SessionKeys<Block>
 		+ CollectCollationInfo<Block>
 		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>
-		+ pallet_staking_runtime_api::StakingAPI<Block, AccountId>,
+		+ pallet_staking_rpc::StakingRuntimeApi<Block, AccountId>,
 	Executor: NativeExecutionDispatch + 'static,
 	ConsensusBuilder: FnOnce(
 		Arc<FullClient<RuntimeApi, Executor>>,

@@ -331,11 +331,11 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_staking_runtime_api::StakingAPI<Block, AccountId> for Runtime {
+	impl pallet_staking_runtime_api::StakingApi<Block, AccountId> for Runtime {
 		fn retrieve_account_points(
 			who: AccountId,
-		) -> Result<u32, sp_runtime::DispatchError>{
-			Ok(0)
+		) -> u32{
+			0
 		}
 	}
 

@@ -8,11 +8,11 @@ use sp_runtime::{
 
 sp_api::decl_runtime_apis! {
 	#[api_version(1)]
-	pub trait StakingAPI<AccountId> where
+	pub trait StakingApi<AccountId> where
 		AccountId: Codec + MaybeDisplay + MaybeFromStr ,
 	{
 		fn retrieve_account_points(
 			who: AccountId,
-		) -> Result<u32, sp_runtime::DispatchError>;
+		) -> u32;
 	}
 }

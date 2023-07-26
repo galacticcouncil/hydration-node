@@ -32,7 +32,8 @@ members = [
   'pallets/otc',
   'math',
   'pallets/staking',
-  'pallets/staking/runtime_api',
+  'pallets/staking/rpc/runtime-api',
+  'pallets/staking/rpc',
   'pallets/democracy',
 ]
 
@@ -66,7 +67,8 @@ pallet-stableswap = { path = "pallets/stableswap", default-features = false }
 pallet-transaction-multi-payment = { path = "pallets/transaction-multi-payment", default-features = false }
 pallet-transaction-pause = { path = "pallets/transaction-pause", default-features = false }
 pallet-staking = { path = "pallets/staking", default-features = false }
-pallet-staking-runtime-api = { path = "pallets/staking/runtime_api", default-features = false }
+pallet-staking-rpc = { path = "pallets/staking/rpc", default-features = false }
+pallet-staking-runtime-api = { path = "pallets/staking/rpc/runtime-api", default-features = false }
 pallet-democracy= { path = "pallets/democracy", default-features = false }
 pallet-xcm-rate-limiter = { path = "pallets/xcm-rate-limiter", default-features = false }
 warehouse-liquidity-mining = { package = "pallet-liquidity-mining", path = "pallets/liquidity-mining", default-features = false }

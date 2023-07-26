@@ -96,7 +96,8 @@ polkadot-parachain = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true }
 
-pallet-staking-runtime-api= { workspace = true }
+pallet-staking-runtime-api = { workspace = true }
+pallet-staking-rpc = { workspace = true }
 
 [features]
 default = [
