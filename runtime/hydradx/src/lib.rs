@@ -494,7 +494,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_transaction_multi_payment, benchmarking::multi_payment);
 			orml_add_benchmark!(params, batches, pallet_duster, benchmarking::duster);
 			orml_add_benchmark!(params, batches, pallet_omnipool, benchmarking::omnipool);
-orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
+			orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
