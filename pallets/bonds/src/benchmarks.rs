@@ -19,15 +19,13 @@
 
 use super::*;
 
-use frame_benchmarking::account;
-use frame_benchmarking::benchmarks;
+use frame_benchmarking::{account, benchmarks};
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use orml_traits::MultiCurrency;
 use sp_std::vec::Vec;
 
-use hydradx_traits::Registry;
 use primitives::constants::time::unix_time::MONTH;
+use orml_traits::MultiCurrency;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 pub const ONE: u128 = 1_000_000_000_000;
@@ -36,28 +34,25 @@ pub const HDX: u32 = 0;
 benchmarks! {
 	 where_clause {
 		where
-		T::AssetRegistry: Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError>,
 		T: Config,
 		T: pallet_timestamp::Config,
 		T::AssetId: From<u32> + Into<u32>,
 		T::Balance: From<u32> + From<u128>,
-		T::TimestampProvider: Time<Moment = Moment>,
 		T::Moment: From<u64>
 	}
 
 	issue {
 		pallet_timestamp::Pallet::<T>::set_timestamp(NOW.into());
+
 		let issuer: T::AccountId = account("caller", 0, 1);
 		let amount: T::Balance = (200 * ONE).into();
-		let maturity = 1893452400000u64; // 1.1.2030
 		let maturity = NOW + T::MinMaturity::get();
 
 		T::Currency::deposit(HDX.into(), &issuer, amount)?;
 
 	}: _(RawOrigin::Signed(issuer), HDX.into(), (100 * ONE).into(), maturity)
 	verify {
-		let bond_id = RegisteredBonds::<T>::iter_keys().next().unwrap();
-		assert!(crate::Pallet::<T>::bonds(bond_id).is_some());
+		assert!(Bonds::<T>::iter().collect::<Vec<_>>().len() != 0);
 	}
 
 	redeem {
@@ -76,7 +71,7 @@ benchmarks! {
 
 		pallet_timestamp::Pallet::<T>::set_timestamp((NOW + MONTH).into());
 
-		let bond_id = RegisteredBonds::<T>::iter_keys().next().unwrap();
+		let bond_id = Bonds::<T>::iter_keys().next().unwrap();
 
 	}: _(RawOrigin::Signed(issuer), bond_id, amount_without_fee)
 	verify {
@@ -99,7 +94,7 @@ benchmarks! {
 
 		pallet_timestamp::Pallet::<T>::set_timestamp((NOW + T::MinMaturity::get() / 2).into());
 
-		let bond_id = RegisteredBonds::<T>::iter_keys().next().unwrap();
+		let bond_id = Bonds::<T>::iter_keys().next().unwrap();
 
 	}: _(RawOrigin::Root, bond_id)
 	verify {

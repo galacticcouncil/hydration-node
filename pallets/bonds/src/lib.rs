@@ -23,7 +23,7 @@
 //!
 //! ## Assumptions
 //!
-//! * When issuing new bonds, new asset of the `AssetType::Bond` is registered for the bonds.
+//! * When issuing new bonds, new nameless asset of the `AssetType::Bond` is registered for the bonds.
 //! * It's possible to create multiple bonds for the same underlying asset.
 //! * Bonds can be issued for all available asset types.
 //! * The existential deposit of the bond is the same as of the underlying asset.
@@ -49,11 +49,9 @@ use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 
-use hydradx_traits::{BondRegistry, Registry};
+use hydradx_traits::BondRegistry;
 use orml_traits::{GetByKey, MultiCurrency};
 use primitives::Moment;
-use sp_std::vec;
-use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod tests;
@@ -79,6 +77,7 @@ pub mod pallet {
 	use super::*;
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
+	use sp_std::vec::Vec;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
@@ -112,40 +111,38 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ From<u128>;
 
-		/// Multi currency mechanism
+		/// Multi currency mechanism.
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Self::Balance>;
 
-		/// Asset Registry mechanism - used to register bonds in the asset registry
+		/// Asset Registry mechanism - used to register bonds in the asset registry.
 		type AssetRegistry: BondRegistry<Self::AssetId, Vec<u8>, Self::Balance, DispatchError>;
 
-		/// Provider for existential deposits of assets
+		/// Provider for existential deposits of assets.
 		type ExistentialDeposits: GetByKey<Self::AssetId, Self::Balance>;
 
-		/// Provider for the current block number.
+		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
 
 		/// The pallet id, used for deriving its sovereign account ID.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
-		/// Min number of blocks for maturity.
+		/// Min time for maturity.
+		#[pallet::constant]
 		type MinMaturity: Get<Moment>;
 
-		/// Min amount of bonds that can be created
-		// type MinAmount: Get<Balance>; TODO: Do we want this param?
-
-		// type Deposit: Get<Balance>; TODO: Do we want this param?
-
 		/// The origin which can issue new bonds.
-		type IssueOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type IssueOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
 
-		/// The origin which can issue new bonds.
+		/// The origin which can unlock bonds by making them mature.
 		type UnlockOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		/// Protocol Fee
+		/// Protocol fee.
+		#[pallet::constant]
 		type ProtocolFee: Get<Permill>;
 
-		/// Protocol Fee receiver
+		/// Protocol fee receiver.
+		#[pallet::constant]
 		type FeeReceiver: Get<Self::AccountId>;
 
 		/// Weight information for extrinsics in this pallet.
@@ -153,9 +150,9 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	/// Registered bonds
+	/// Registered bonds. Fully redeemed bonds are removed from the storage.
 	#[pallet::getter(fn bonds)]
-	pub(super) type RegisteredBonds<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Bond<T>>;
+	pub(super) type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Bond<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -181,12 +178,8 @@ pub mod pallet {
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
-		/// Balance too low
-		InsufficientBalance,
 		/// Bond not registered
 		BondNotRegistered,
-		/// Underlying asset is not registered
-		UnderlyingAssetNotRegistered,
 		/// Bond is not mature
 		BondNotMature,
 		/// Maturity not long enough
@@ -197,7 +190,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Issue new bonds.
 		/// New asset id is registered and assigned to the bonds.
-		/// The number of bonds the issuer receives is 1:1 to the `amount` of the underlying asset.
+		/// The number of bonds the issuer receives is 1:1 to the `amount` of the underlying asset
+		/// minus the protocol fee.
 		/// The bond asset is registered with the empty string for the asset name,
 		/// and with the same existential deposit as of the underlying asset.
 		/// Bonds can be redeemed 1:1 for the underlying asset once mature.
@@ -220,26 +214,17 @@ pub mod pallet {
 			amount: T::Balance,
 			maturity: Moment,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let who = T::IssueOrigin::ensure_origin(origin)?;
 
 			let time_diff = maturity
 				.checked_sub(T::TimestampProvider::now())
 				.ok_or(ArithmeticError::Overflow)?;
 			ensure!(time_diff >= T::MinMaturity::get(), Error::<T>::InvalidMaturity);
 
-			ensure!(
-				T::AssetRegistry::exists(asset_id),
-				Error::<T>::UnderlyingAssetNotRegistered
-			);
-			ensure!(
-				T::Currency::free_balance(asset_id, &who) >= amount,
-				Error::<T>::InsufficientBalance
-			);
-
-			let asset_ed = T::ExistentialDeposits::get(&asset_id);
+			let ed = T::ExistentialDeposits::get(&asset_id);
 
 			// not covered in the tests. Create an asset with empty name should always work
-			let bond_asset_id = T::AssetRegistry::create_bond_asset(asset_ed)?;
+			let bond_asset_id = T::AssetRegistry::create_bond_asset(ed)?;
 
 			let fee = T::ProtocolFee::get().mul_ceil(amount); // TODO: check
 			let amount_without_fee = amount.checked_sub(&fee).ok_or(ArithmeticError::Overflow)?;
@@ -249,7 +234,7 @@ pub mod pallet {
 			T::Currency::transfer(asset_id, &who, &T::FeeReceiver::get(), fee)?;
 			T::Currency::deposit(bond_asset_id, &who, amount_without_fee)?;
 
-			RegisteredBonds::<T>::insert(
+			Bonds::<T>::insert(
 				bond_asset_id,
 				Bond {
 					maturity,
@@ -272,12 +257,12 @@ pub mod pallet {
 		/// Redeem bonds for the underlying asset.
 		/// The amount of the underlying asset the `origin` receives is 1:1 to the `amount` of the bonds.
 		/// Anyone who holds the bonds is able to redeem them.
-		/// The bonds are partially redeemable.
+		/// The bonds can be partially redeemed.
 		///
 		/// Parameters:
 		/// - `origin`: account id
 		/// - `asset_id`: bond asset id
-		/// - `amount`: the amount of the underlying underlying asset to redeem for the bonds
+		/// - `amount`: the amount of the bonds to redeem for the underlying asset
 		///
 		/// Emits `BondsRedeemed` event when successful.
 		///
@@ -286,16 +271,11 @@ pub mod pallet {
 		pub fn redeem(origin: OriginFor<T>, bond_id: T::AssetId, amount: T::Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			RegisteredBonds::<T>::try_mutate_exists(bond_id, |maybe_bond_data| -> DispatchResult {
+			Bonds::<T>::try_mutate_exists(bond_id, |maybe_bond_data| -> DispatchResult {
 				let bond_data = maybe_bond_data.as_mut().ok_or(Error::<T>::BondNotRegistered)?;
 
 				let now = T::TimestampProvider::now();
 				ensure!(now >= bond_data.maturity, Error::<T>::BondNotMature);
-
-				ensure!(
-					T::Currency::free_balance(bond_id, &who) >= amount,
-					Error::<T>::InsufficientBalance
-				);
 
 				T::Currency::withdraw(bond_id, &who, amount)?;
 
@@ -304,7 +284,7 @@ pub mod pallet {
 				let pallet_account = Self::pallet_account_id();
 				T::Currency::transfer(bond_data.asset_id, &pallet_account, &who, amount)?;
 
-				// if there are no bonds left, remove the bond from the storage
+				// if there are no bonds left, remove the bonds from the storage
 				if bond_data.amount.is_zero() {
 					*maybe_bond_data = None;
 				}
@@ -331,7 +311,7 @@ pub mod pallet {
 		pub fn unlock(origin: OriginFor<T>, bond_id: T::AssetId) -> DispatchResult {
 			T::UnlockOrigin::ensure_origin(origin)?;
 
-			RegisteredBonds::<T>::try_mutate_exists(bond_id, |maybe_bond_data| -> DispatchResult {
+			Bonds::<T>::try_mutate_exists(bond_id, |maybe_bond_data| -> DispatchResult {
 				let bond_data = maybe_bond_data.as_mut().ok_or(Error::<T>::BondNotRegistered)?;
 
 				let now = T::TimestampProvider::now();
@@ -350,7 +330,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// The account ID of the bonds pot.
+	/// The account ID of the bonds pallet.
 	///
 	/// This actually does computation. If you need to keep using it, then make sure you cache the
 	/// value and only call this once.

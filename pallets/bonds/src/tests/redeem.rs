@@ -17,6 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::*;
+pub type Bonds = Pallet<Test>;
 use frame_support::{assert_noop, assert_ok};
 pub use pretty_assertions::{assert_eq, assert_ne};
 
@@ -27,14 +28,14 @@ fn partially_redeem_bonds_should_work_when_fee_is_zero() {
 		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let redeem_amount = ONE.checked_div(4).unwrap();
-		let bond_id = next_asset_id();
 
-		// Act
-		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity,));
+		let bond_id = next_asset_id();
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
-		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount,));
+		// Act
+		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount));
 
 		// Assert
 		expect_events(vec![Event::BondsRedeemed {
@@ -49,7 +50,7 @@ fn partially_redeem_bonds_should_work_when_fee_is_zero() {
 			Bond {
 				maturity,
 				asset_id: HDX,
-				amount: amount.checked_sub(redeem_amount).unwrap(),
+				amount: amount - redeem_amount,
 			}
 		);
 
@@ -69,7 +70,7 @@ fn partially_redeem_bonds_should_work_when_fee_is_zero() {
 }
 
 #[test]
-fn partially_redeem_bonds_should_work_when_with_non_zero_fee() {
+fn partially_redeem_bonds_should_work_when_fee_is_non_zero() {
 	ExtBuilder::default()
 		.with_protocol_fee(Permill::from_percent(10))
 		.build()
@@ -80,13 +81,13 @@ fn partially_redeem_bonds_should_work_when_with_non_zero_fee() {
 			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
 			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
 			let redeem_amount = amount_without_fee.checked_div(4).unwrap();
-			let bond_id = next_asset_id();
 
-			// Act
+			let bond_id = next_asset_id();
 			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 			Timestamp::set_timestamp(NOW + 2 * MONTH);
 
+			// Act
 			assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount));
 
 			// Assert
@@ -102,7 +103,7 @@ fn partially_redeem_bonds_should_work_when_with_non_zero_fee() {
 				Bond {
 					maturity,
 					asset_id: HDX,
-					amount: amount_without_fee.checked_sub(redeem_amount).unwrap(),
+					amount: amount_without_fee - redeem_amount,
 				}
 			);
 
@@ -125,18 +126,18 @@ fn partially_redeem_bonds_should_work_when_with_non_zero_fee() {
 }
 
 #[test]
-fn fully_redeem_bonds_should_work_when_with_zero_fee() {
+fn fully_redeem_bonds_should_work_when_fee_is_zero() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
 		let maturity = NOW + MONTH;
 		let amount = ONE;
-		let bond_id = next_asset_id();
 
-		// Act
+		let bond_id = next_asset_id();
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
+		// Act
 		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, amount));
 
 		// Assert
@@ -147,7 +148,7 @@ fn fully_redeem_bonds_should_work_when_with_zero_fee() {
 		}
 		.into()]);
 
-		assert!(!RegisteredBonds::<Test>::contains_key(bond_id));
+		assert!(!crate::Bonds::<Test>::contains_key(bond_id));
 
 		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE);
 		assert_eq!(Tokens::free_balance(bond_id, &ALICE), 0);
@@ -159,7 +160,7 @@ fn fully_redeem_bonds_should_work_when_with_zero_fee() {
 }
 
 #[test]
-fn fully_redeem_bonds_should_work_when_fee_is_zero() {
+fn fully_redeem_bonds_should_work_when_fee_is_non_zero() {
 	ExtBuilder::default()
 		.with_protocol_fee(Permill::from_percent(10))
 		.build()
@@ -169,13 +170,13 @@ fn fully_redeem_bonds_should_work_when_fee_is_zero() {
 			let amount = ONE;
 			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
 			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
-			let bond_id = next_asset_id();
 
-			// Act
+			let bond_id = next_asset_id();
 			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 			Timestamp::set_timestamp(NOW + 2 * MONTH);
 
+			// Act
 			assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, amount_without_fee));
 
 			// Assert
@@ -186,7 +187,7 @@ fn fully_redeem_bonds_should_work_when_fee_is_zero() {
 			}
 			.into()]);
 
-			assert!(!RegisteredBonds::<Test>::contains_key(bond_id));
+			assert!(!crate::Bonds::<Test>::contains_key(bond_id));
 
 			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - fee);
 			assert_eq!(Tokens::free_balance(bond_id, &ALICE), 0);
@@ -204,10 +205,10 @@ fn redeem_bonds_should_work_when_redeemed_from_non_issuer_account() {
 		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let redeem_amount = ONE.checked_div(4).unwrap();
-		let bond_id = next_asset_id();
 
-		// Act
+		let bond_id = next_asset_id();
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
+
 		assert_ok!(Tokens::transfer(
 			RuntimeOrigin::signed(ALICE),
 			BOB,
@@ -216,6 +217,8 @@ fn redeem_bonds_should_work_when_redeemed_from_non_issuer_account() {
 		));
 
 		Timestamp::set_timestamp(NOW + (2 * MONTH));
+
+		// Act
 
 		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(BOB), bond_id, redeem_amount));
 
@@ -234,7 +237,7 @@ fn redeem_bonds_should_work_when_redeemed_from_non_issuer_account() {
 
 		assert_eq!(
 			Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
-			amount.checked_sub(redeem_amount).unwrap()
+			amount - redeem_amount
 		);
 	});
 }
@@ -246,15 +249,16 @@ fn redeem_bonds_should_fail_when_bond_not_exists() {
 		let bond_id = next_asset_id();
 
 		// Act & Assert
+
 		// asset not registered
 		assert_noop!(
-			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, ONE,),
+			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, ONE),
 			Error::<Test>::BondNotRegistered
 		);
 
 		// asset registered, but not as a bond token
 		assert_noop!(
-			Bonds::redeem(RuntimeOrigin::signed(ALICE), DAI, ONE,),
+			Bonds::redeem(RuntimeOrigin::signed(ALICE), DAI, ONE),
 			Error::<Test>::BondNotRegistered
 		);
 	});
@@ -267,12 +271,13 @@ fn redeem_bonds_should_fail_when_not_mature() {
 		let maturity = NOW + MONTH;
 		let amount = ONE;
 		let redeem_amount = ONE.checked_div(4).unwrap();
-		let bond_id = next_asset_id();
 
-		// Act
+		let bond_id = next_asset_id();
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-		// Assert
+		Timestamp::set_timestamp(NOW + WEEK);
+
+		// Act & Assert
 		assert_noop!(
 			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount),
 			Error::<Test>::BondNotMature
@@ -286,17 +291,16 @@ fn redeem_bonds_should_fail_when_insufficient_balance() {
 		// Arrange
 		let maturity = NOW + MONTH;
 		let amount = ONE;
-		let bond_id = next_asset_id();
 
-		// Act
+		let bond_id = next_asset_id();
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-		Timestamp::set_timestamp(NOW + (2 * MONTH));
+		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
-		// Assert
+		// Act & Assert
 		assert_noop!(
 			Bonds::redeem(RuntimeOrigin::signed(BOB), bond_id, amount),
-			Error::<Test>::InsufficientBalance
+			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 	});
 }
@@ -308,16 +312,16 @@ fn redeem_bonds_should_fail_when_the_amount_is_greater_then_total_issued() {
 		// Arrange
 		let maturity = NOW + MONTH;
 		let amount = ONE;
+
 		let bond_id = next_asset_id();
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
+
 		// bypass the pallet and increase the issuance of the bonds
 		assert_ok!(Tokens::deposit(bond_id, &ALICE, amount));
 
-		// Act
-		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
+		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
-		Timestamp::set_timestamp(NOW + (2 * MONTH));
-
-		// Assert
+		// Act & Assert
 		assert_noop!(
 			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, 2 * amount),
 			ArithmeticError::Overflow

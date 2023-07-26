@@ -1,27 +1,29 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use crate::assert_balance;
+
 use frame_support::assert_ok;
 use sp_runtime::BoundedVec;
-
-use crate::assert_balance;
-use hydradx_runtime::{AssetRegistry, Bonds, Currencies, Runtime, RuntimeOrigin};
+use xcm_emulator::TestExt;
 use orml_traits::MultiCurrency;
+
+use hydradx_runtime::{AssetRegistry, Bonds, Currencies, Runtime, RuntimeOrigin};
 use pallet_bonds::Bond;
 use primitives::constants::time::unix_time::MONTH;
-use xcm_emulator::TestExt;
 
 #[test]
 fn issue_bonds_should_work_when_issued_for_native_asset() {
 	Hydra::execute_with(|| {
 		// Arrange
-		let maturity = NOW + MONTH;
 		let amount = 100 * UNITS;
 		let fee = <Runtime as pallet_bonds::Config>::ProtocolFee::get().mul_ceil(amount);
 		let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
-		let bond_asset_id = AssetRegistry::next_asset_id().unwrap();
+
+		let maturity = NOW + MONTH;
 
 		// Act
+		let bond_asset_id = AssetRegistry::next_asset_id().unwrap();
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE.into()), HDX, amount, maturity));
 
 		// Assert
@@ -44,6 +46,7 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 		);
 
 		let bond_asset_details = AssetRegistry::assets(bond_asset_id).unwrap();
+
 		assert!(bond_asset_details.asset_type == pallet_asset_registry::AssetType::Bond);
 		assert!(bond_asset_details.name.is_empty());
 		assert_eq!(bond_asset_details.existential_deposit, NativeExistentialDeposit::get());
@@ -61,10 +64,11 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 fn issue_bonds_should_work_when_issued_for_shared_asset() {
 	Hydra::execute_with(|| {
 		// Arrange
-		let maturity = NOW + MONTH;
 		let amount = 100 * UNITS;
 		let fee = <Runtime as pallet_bonds::Config>::ProtocolFee::get().mul_ceil(amount);
 		let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
+
+		let maturity = NOW + MONTH;
 
 		let bounded_name: BoundedVec<u8, <Runtime as pallet_asset_registry::Config>::StringLimit> =
 			"SHARED".as_bytes().to_vec().try_into().unwrap();
@@ -107,6 +111,7 @@ fn issue_bonds_should_work_when_issued_for_shared_asset() {
 		);
 
 		let bond_asset_details = AssetRegistry::assets(bond_asset_id).unwrap();
+
 		assert!(bond_asset_details.asset_type == pallet_asset_registry::AssetType::Bond);
 		assert!(bond_asset_details.name.is_empty());
 		assert_eq!(bond_asset_details.existential_deposit, 1_000);
@@ -128,10 +133,11 @@ fn issue_bonds_should_work_when_issued_for_shared_asset() {
 fn issue_bonds_should_work_when_issued_for_bond_asset() {
 	Hydra::execute_with(|| {
 		// Arrange
-		let maturity = NOW + MONTH;
 		let amount = 100 * UNITS;
 		let fee = <Runtime as pallet_bonds::Config>::ProtocolFee::get().mul_ceil(amount);
 		let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
+
+		let maturity = NOW + MONTH;
 
 		let bounded_name: BoundedVec<u8, <Runtime as pallet_asset_registry::Config>::StringLimit> =
 			"BOND".as_bytes().to_vec().try_into().unwrap();
@@ -174,6 +180,7 @@ fn issue_bonds_should_work_when_issued_for_bond_asset() {
 		);
 
 		let bond_asset_details = AssetRegistry::assets(bond_asset_id).unwrap();
+		
 		assert!(bond_asset_details.asset_type == pallet_asset_registry::AssetType::Bond);
 		assert!(bond_asset_details.name.is_empty());
 		assert_eq!(bond_asset_details.existential_deposit, 1_000);

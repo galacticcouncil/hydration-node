@@ -1,4 +1,4 @@
-mod issue;
 pub mod mock;
+mod issue;
 mod redeem;
 mod unlock;

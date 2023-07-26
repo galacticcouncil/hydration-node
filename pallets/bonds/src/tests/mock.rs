@@ -49,8 +49,6 @@ pub type AssetId = u32;
 
 pub const HDX: AssetId = 0;
 pub const DAI: AssetId = 1;
-pub const SHARE: AssetId = 2;
-pub const BOND: AssetId = 3;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const INITIAL_BALANCE: Balance = 1_000 * ONE;
@@ -62,6 +60,7 @@ pub const TREASURY: AccountId = 400;
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
 thread_local! {
+	// maps AssetId -> existential deposit
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, Balance>> = RefCell::new(HashMap::default());
 	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 }
@@ -143,11 +142,11 @@ impl orml_tokens::Config for Test {
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
+	type CurrencyHooks = ();
 	type MaxLocks = ();
-	type DustRemovalWhitelist = Everything;
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
-	type CurrencyHooks = ();
+	type DustRemovalWhitelist = Everything;
 }
 
 parameter_types! {
@@ -164,12 +163,12 @@ impl pallet_timestamp::Config for Test {
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T> {
-	fn exists(asset_id: AssetId) -> bool {
-		REGISTERED_ASSETS.with(|v| v.borrow().contains_key(&asset_id))
+	fn exists(_asset_id: AssetId) -> bool {
+		unimplemented!()
 	}
 
 	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
+		unimplemented!()
 	}
 
 	fn create_asset(_name: &Vec<u8>, existential_deposit: Balance) -> Result<AssetId, DispatchError> {
@@ -195,22 +194,6 @@ where
 		Ok(assigned)
 	}
 }
-
-// pub struct DummyTimestampProvider<T>(sp_std::marker::PhantomData<T>);
-//
-// impl<T: Config> Time for DummyTimestampProvider<T>
-// where
-// 	<<T as frame_system::Config>::BlockNumber as TryInto<u64>>::Error: std::fmt::Debug,
-// {
-// 	type Moment = Moment;
-//
-// 	fn now() -> Self::Moment {
-// 		TryInto::<Moment>::try_into(frame_system::Pallet::<T>::block_number())
-// 			.unwrap()
-// 			.checked_add(NOW)
-// 			.unwrap()
-// 	}
-// }
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,

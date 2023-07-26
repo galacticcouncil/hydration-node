@@ -17,6 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::*;
+pub type Bonds = Pallet<Test>;
 use frame_support::{assert_noop, assert_ok, assert_storage_noop};
 pub use pretty_assertions::{assert_eq, assert_ne};
 use sp_runtime::DispatchError::BadOrigin;
@@ -27,13 +28,13 @@ fn unlock_should_work_when_bonds_are_not_mature() {
 		// Arrange
 		let maturity = NOW + MONTH;
 		let amount = ONE;
-		let bond_id = next_asset_id();
 
-		// Act
+		let bond_id = next_asset_id();
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
-		Timestamp::set_timestamp(NOW + 2 * WEEK);
+		Timestamp::set_timestamp(NOW + WEEK);
 
+		// Act
 		assert_ok!(Bonds::unlock(RuntimeOrigin::root(), bond_id));
 
 		// Assert
@@ -42,7 +43,7 @@ fn unlock_should_work_when_bonds_are_not_mature() {
 		assert_eq!(
 			Bonds::bonds(bond_id).unwrap(),
 			Bond {
-				maturity: NOW + 2 * WEEK,
+				maturity: NOW + WEEK,
 				asset_id: HDX,
 				amount,
 			}
@@ -56,14 +57,13 @@ fn unlock_should_be_storage_noop_if_bonds_are_already_mature() {
 		// Arrange
 		let maturity = NOW + MONTH;
 		let amount = ONE;
-		let bond_id = next_asset_id();
 
-		// Act
+		let bond_id = next_asset_id();
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
-		// Assert
+		// Act & Assert
 		assert_storage_noop!(Bonds::unlock(RuntimeOrigin::root(), bond_id).unwrap());
 	});
 }
@@ -74,13 +74,13 @@ fn unlock_should_fail_when_called_from_wrong_origin() {
 		// Arrange
 		let maturity = NOW + MONTH;
 		let amount = ONE;
-		let bond_id = next_asset_id();
 
-		// Act
+		let bond_id = next_asset_id();
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
+		// Act & Assert
 		assert_noop!(Bonds::unlock(RuntimeOrigin::signed(ALICE), bond_id), BadOrigin);
 	});
 }
