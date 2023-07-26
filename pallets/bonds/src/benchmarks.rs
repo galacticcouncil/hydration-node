@@ -22,7 +22,6 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use sp_std::vec::Vec;
 
 use orml_traits::MultiCurrency;
 use primitives::constants::time::unix_time::MONTH;
@@ -52,7 +51,7 @@ benchmarks! {
 
 	}: _(RawOrigin::Signed(issuer), HDX.into(), (100 * ONE).into(), maturity)
 	verify {
-		assert!(Bonds::<T>::iter().collect::<Vec<_>>().len() != 0);
+		assert!(Bonds::<T>::iter().next().is_some());
 	}
 
 	redeem {
