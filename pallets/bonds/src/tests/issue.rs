@@ -15,8 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::*;
 use crate::tests::mock::*;
+use crate::*;
 pub type Bonds = Pallet<Test>;
 use frame_support::{assert_noop, assert_ok};
 pub use pretty_assertions::{assert_eq, assert_ne};
@@ -184,14 +184,8 @@ fn issue_bonds_should_work_when_issuing_multiple_bonds() {
 				}
 			);
 
-			assert_eq!(
-				Tokens::free_balance(HDX, &ALICE),
-				INITIAL_BALANCE - 2 * amount
-			);
-			assert_eq!(
-				Tokens::free_balance(DAI, &BOB),
-				INITIAL_BALANCE - amount
-			);
+			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - 2 * amount);
+			assert_eq!(Tokens::free_balance(DAI, &BOB), INITIAL_BALANCE - amount);
 
 			assert_eq!(Tokens::free_balance(first_bond_id, &ALICE), amount_without_fee);
 			assert_eq!(Tokens::free_balance(second_bond_id, &ALICE), amount_without_fee);

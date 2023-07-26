@@ -24,8 +24,8 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use sp_std::vec::Vec;
 
-use primitives::constants::time::unix_time::MONTH;
 use orml_traits::MultiCurrency;
+use primitives::constants::time::unix_time::MONTH;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 pub const ONE: u128 = 1_000_000_000_000;

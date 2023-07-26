@@ -1,12 +1,12 @@
 #![cfg(test)]
 
-use crate::polkadot_test_net::*;
 use crate::assert_balance;
+use crate::polkadot_test_net::*;
 
 use frame_support::assert_ok;
+use orml_traits::MultiCurrency;
 use sp_runtime::BoundedVec;
 use xcm_emulator::TestExt;
-use orml_traits::MultiCurrency;
 
 use hydradx_runtime::{AssetRegistry, Bonds, Currencies, Runtime, RuntimeOrigin};
 use pallet_bonds::Bond;
@@ -180,7 +180,7 @@ fn issue_bonds_should_work_when_issued_for_bond_asset() {
 		);
 
 		let bond_asset_details = AssetRegistry::assets(bond_asset_id).unwrap();
-		
+
 		assert!(bond_asset_details.asset_type == pallet_asset_registry::AssetType::Bond);
 		assert!(bond_asset_details.name.is_empty());
 		assert_eq!(bond_asset_details.existential_deposit, 1_000);
