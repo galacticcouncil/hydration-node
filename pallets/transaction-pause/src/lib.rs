@@ -23,12 +23,14 @@ use frame_support::{
 	dispatch::{CallMetadata, GetCallMetadata},
 	pallet_prelude::*,
 	traits::{Contains, PalletInfoAccess},
+	BoundedVec,
 };
 use frame_system::pallet_prelude::*;
 use sp_runtime::DispatchResult;
 use sp_std::{prelude::*, vec::Vec};
 
 mod benchmarking;
+pub mod migration;
 mod mock;
 mod tests;
 pub mod weights;
@@ -39,6 +41,10 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+
+	// max length of a pallet name or function name
+	pub const MAX_STR_LENGTH: u32 = 40;
+	pub type BoundedName = BoundedVec<u8, ConstU32<MAX_STR_LENGTH>>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -57,6 +63,8 @@ pub mod pallet {
 		CannotPause,
 		/// invalid character encoding
 		InvalidCharacter,
+		/// pallet name or function name is too long
+		NameTooLong,
 	}
 
 	#[pallet::event]
@@ -79,10 +87,9 @@ pub mod pallet {
 	/// map (PalletNameBytes, FunctionNameBytes) => Option<()>
 	#[pallet::storage]
 	#[pallet::getter(fn paused_transactions)]
-	pub type PausedTransactions<T: Config> = StorageMap<_, Twox64Concat, (Vec<u8>, Vec<u8>), (), OptionQuery>;
+	pub type PausedTransactions<T: Config> = StorageMap<_, Twox64Concat, (BoundedName, BoundedName), (), OptionQuery>;
 
 	#[pallet::pallet]
-	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
@@ -95,6 +102,9 @@ pub mod pallet {
 		pub fn pause_transaction(origin: OriginFor<T>, pallet_name: Vec<u8>, function_name: Vec<u8>) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 
+			let pallet_name_b = BoundedName::try_from(pallet_name.clone()).map_err(|_| Error::<T>::NameTooLong)?;
+			let function_name_b = BoundedName::try_from(function_name.clone()).map_err(|_| Error::<T>::NameTooLong)?;
+
 			// not allowed to pause calls of this pallet to ensure safe
 			let pallet_name_string = sp_std::str::from_utf8(&pallet_name).map_err(|_| Error::<T>::InvalidCharacter)?;
 			ensure!(
@@ -102,7 +112,7 @@ pub mod pallet {
 				Error::<T>::CannotPause
 			);
 
-			PausedTransactions::<T>::mutate_exists((pallet_name.clone(), function_name.clone()), |maybe_paused| {
+			PausedTransactions::<T>::mutate_exists((pallet_name_b, function_name_b), |maybe_paused| {
 				if maybe_paused.is_none() {
 					*maybe_paused = Some(());
 					Self::deposit_event(Event::TransactionPaused {
@@ -122,7 +132,11 @@ pub mod pallet {
 			function_name: Vec<u8>,
 		) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
-			if PausedTransactions::<T>::take((&pallet_name, &function_name)).is_some() {
+
+			let pallet_name_b = BoundedName::try_from(pallet_name.clone()).map_err(|_| Error::<T>::NameTooLong)?;
+			let function_name_b = BoundedName::try_from(function_name.clone()).map_err(|_| Error::<T>::NameTooLong)?;
+
+			if PausedTransactions::<T>::take((&pallet_name_b, &function_name_b)).is_some() {
 				Self::deposit_event(Event::TransactionUnpaused {
 					pallet_name_bytes: pallet_name,
 					function_name_bytes: function_name,
@@ -133,7 +147,7 @@ pub mod pallet {
 	}
 }
 
-pub struct PausedTransactionFilter<T>(sp_std::marker::PhantomData<T>);
+pub struct PausedTransactionFilter<T>(PhantomData<T>);
 impl<T: Config> Contains<T::RuntimeCall> for PausedTransactionFilter<T>
 where
 	<T as frame_system::Config>::RuntimeCall: GetCallMetadata,
@@ -143,6 +157,14 @@ where
 			function_name,
 			pallet_name,
 		} = call.get_call_metadata();
-		PausedTransactions::<T>::contains_key((pallet_name.as_bytes(), function_name.as_bytes()))
+
+		let pallet_name_b = BoundedName::try_from(pallet_name.as_bytes().to_vec());
+		let function_name_b = BoundedName::try_from(function_name.as_bytes().to_vec());
+		if pallet_name_b.is_err() || function_name_b.is_err() {
+			return false;
+		}
+
+		// it's safe to call unwrap here thanks to the test above
+		PausedTransactions::<T>::contains_key((pallet_name_b.unwrap_or_default(), function_name_b.unwrap_or_default()))
 	}
 }

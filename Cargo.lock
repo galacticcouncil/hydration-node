@@ -7460,7 +7460,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-pause"
-version = "0.1.3"
+version = "1.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
