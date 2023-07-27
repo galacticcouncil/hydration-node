@@ -19,13 +19,16 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::{
+	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
+	Aura,
+};
 use frame_support::{
 	parameter_types,
 	traits::FindAuthor,
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 	ConsensusEngineId,
 };
-use crate::{Aura, evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated}};
 use pallet_evm::EnsureAddressTruncated;
 use sp_core::U256;
 use sp_runtime::Permill;

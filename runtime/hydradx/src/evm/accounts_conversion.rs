@@ -19,9 +19,12 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::{
+	evm::{ConsensusEngineId, FindAuthor},
+	AccountId, Aura,
+};
 use codec::{Decode, Encode};
 use core::marker::PhantomData;
-use crate::{Aura, AccountId, evm::{ConsensusEngineId, FindAuthor}};
 use pallet_evm::AddressMapping;
 use sp_core::{crypto::ByteArray, H160};
 use sp_runtime::traits::AccountIdConversion;

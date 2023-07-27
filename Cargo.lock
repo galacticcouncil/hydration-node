@@ -15394,11 +15394,6 @@ dependencies = [
 ]
 
 [[patch.unused]]
-name = "orml-asset-registry"
-version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=polkadot-v0.9.38#241d5cdc98cca53b8cf990853943c9ae1193a70e"
-
-[[patch.unused]]
 name = "substrate-test-client"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
@@ -15527,3 +15522,8 @@ source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-de
 name = "westmint-runtime"
 version = "1.0.0"
 source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+
+[[patch.unused]]
+name = "orml-asset-registry"
+version = "0.4.1-dev"
+source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=polkadot-v0.9.38#241d5cdc98cca53b8cf990853943c9ae1193a70e"

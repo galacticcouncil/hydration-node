@@ -91,6 +91,7 @@ pub fn parachain_genesis(
 	wasm_binary: &[u8],
 	_root_key: AccountId,
 	initial_authorities: (Vec<(AccountId, AuraId)>, Balance), // (initial auths, candidacy bond)
+	// evmTODO: endowed accounts for Ethereum?
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
@@ -182,6 +183,12 @@ pub fn parachain_genesis(
 		duster,
 		omnipool_warehouse_lm: Default::default(),
 		omnipool_liquidity_mining: Default::default(),
+		base_fee: Default::default(),
+		evm_chain_id: hydradx_runtime::EVMChainIdConfig {
+			chain_id: u32::from(parachain_id).into(),
+		},
+		ethereum: Default::default(),
+		evm: Default::default(),
 	}
 }
 

@@ -48,9 +48,7 @@ where
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		if handle.code_address() == DISPATCH_ADDR {
-			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(
-				handle,
-			))
+			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
 		} else {
 			None
 		}
