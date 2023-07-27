@@ -8,6 +8,14 @@ use sp_std::marker::PhantomData;
 use sp_std::vec;
 use xcm_executor::traits::AssetExchange;
 
+/// Implements `AssetExchange` to support the `ExchangeAsset` XCM instruction.
+///
+/// Uses pallet-route-executor to execute trades.
+///
+/// Will map exchange instructions with `maximal = true` to sell (selling all of `give` asset) and `false` to buy
+/// (buying exactly `want` amount of asset).
+///
+/// NOTE: Currenty limited to one asset each for `give` and `want`.
 pub struct XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency, Pool>(
 	PhantomData<(Runtime, TempAccount, CurrencyIdConvert, Currency, Pool)>,
 );
