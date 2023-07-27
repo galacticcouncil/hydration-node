@@ -14,6 +14,9 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		log::info!("PreMigrate Collator Rewards Pallet start");
 		pallet_collator_rewards::migration::v1::pre_migrate::<Runtime>();
 		log::info!("PreMigrate Collator Rewards Pallet end");
+		log::info!("PreMigrate Genesis History Pallet start");
+		pallet_genesis_history::migration::v1::pre_migrate::<Runtime>();
+		log::info!("PreMigrate Genesis History Pallet end");
 
 		Ok(vec![])
 	}
@@ -21,9 +24,12 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	fn on_runtime_upgrade() -> Weight {
 		let mut weight: Weight = Weight::zero();
 
-		log::info!("Migrate Collator Rewards Pallet to v1 start");
+    log::info!("Migrate Collator Rewards Pallet to v1 start");
 		weight = weight.saturating_add(pallet_collator_rewards::migration::v1::migrate::<Runtime>());
 		log::info!("Migrate Collator Rewards Pallet to v1 end");
+		log::info!("Migrate Genesis History Pallet to v1 start");
+		weight = weight.saturating_add(pallet_genesis_history::migration::v1::migrate::<Runtime>());
+		log::info!("Migrate Genesis History Pallet to v1 end");
 
 		weight
 	}
@@ -33,6 +39,11 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		log::info!("PostMigrate Collator Rewards Pallet start");
 		pallet_collator_rewards::migration::v1::post_migrate::<Runtime>();
 		log::info!("PostMigrate Collator Rewards Pallet end");
+
+		log::info!("PostMigrate Genesis History Pallet start");
+		pallet_genesis_history::migration::v1::post_migrate::<Runtime>();
+		log::info!("PostMigrate Genesis History Pallet end");
+
 		Ok(())
 	}
 }
