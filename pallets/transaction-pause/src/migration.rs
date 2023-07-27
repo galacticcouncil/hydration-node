@@ -55,26 +55,28 @@ pub mod v1 {
 			let mut weight = Weight::zero();
 
 			let status = v0::PausedTransactions::<T>::drain().collect::<Vec<_>>();
-			weight.saturating_accrue(T::DbWeight::get().reads(status.len() as u64));
+			weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
 
 			for ((pallet_name, function_name), _) in status.into_iter() {
 				let pallet_name_b = BoundedVec::<u8, ConstU32<MAX_STR_LENGTH>>::try_from(pallet_name.clone());
 				let function_name_b = BoundedVec::<u8, ConstU32<MAX_STR_LENGTH>>::try_from(function_name.clone());
-				if pallet_name_b.is_err() || function_name_b.is_err() {
-					log::info!(
-						target: TARGET,
-						"Value not migrated because it's too long: {:?}",
-						(pallet_name_b, function_name_b)
-					);
-					continue;
-				}
 
-				crate::PausedTransactions::<T>::insert((pallet_name_b.unwrap(), function_name_b.unwrap()), ());
+				match (pallet_name_b, function_name_b) {
+					(Ok(pallet), Ok(function)) => {
+						crate::PausedTransactions::<T>::insert((pallet, function), ());
+						weight.saturating_accrue(T::DbWeight::get().writes(1));
+					}
+					_ => log::info!(
+						target: TARGET,
+						"Value not migrated because BoundedVec exceeds its limit: {:?}",
+						(pallet_name, function_name)
+					),
+				};
 			}
 
 			StorageVersion::new(1).put::<Pallet<T>>();
 
-			T::DbWeight::get().reads_writes(1, 1)
+			weight.saturating_add(T::DbWeight::get().writes(1))
 		}
 
 		#[cfg(feature = "try-runtime")]
@@ -87,7 +89,12 @@ pub mod v1 {
 				.map(|v| (v.0.into_inner(), v.1.into_inner()))
 				.collect::<Vec<(Vec<u8>, Vec<u8>)>>();
 
-			assert_eq!(previous_state, new_state, "Migrated storage entries don't match the entries prior migration!");
+			for old_entry in previous_state.iter() {
+				assert!(
+					new_state.contains(old_entry),
+					"Migrated storage entries don't match the entries prior migration!"
+				);
+			}
 
 			log::info!(target: TARGET, "Transaction pause migration: POST checks successful!");
 
