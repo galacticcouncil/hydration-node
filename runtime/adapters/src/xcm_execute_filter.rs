@@ -6,12 +6,11 @@ use polkadot_xcm::v3::prelude::*;
 use sp_core::Get;
 use sp_runtime::Either;
 
+/// Meant to serve as an `XcmExecuteFilter` for `pallet_xcm` by allowing XCM instructions related to transferring and
+/// exchanging assets while disallowing e.g. `Transact`.
 pub struct AllowTransferAndSwap<MaxXcmDepth, MaxInstructions, RuntimeCall>(
 	PhantomData<(MaxXcmDepth, MaxInstructions, RuntimeCall)>,
-)
-where
-	MaxXcmDepth: Get<u16>,
-	MaxInstructions: Get<u16>;
+);
 
 impl<MaxXcmDepth, MaxInstructions, RuntimeCall> Contains<(MultiLocation, Xcm<RuntimeCall>)>
 	for AllowTransferAndSwap<MaxXcmDepth, MaxInstructions, RuntimeCall>
@@ -30,6 +29,9 @@ where
 	}
 }
 
+/// Recurses depth-first through the instructions of an XCM and checks whether they are allowed, limiting both recursion
+/// depth (via `MaxXcmDepth`) and instructions (`MaxInstructions`).
+/// See [`allowed_or_recurse`] for the filter list.
 fn check_instructions_recursively<MaxXcmDepth, MaxInstructions, RuntimeCall>(
 	xcm: &Xcm<RuntimeCall>,
 	depth: u16,
@@ -42,10 +44,9 @@ where
 	if depth > MaxXcmDepth::get() {
 		return false;
 	}
-	let instructions_count = instructions;
 	for inst in xcm.inner().iter() {
-		instructions_count.set(instructions_count.get() + 1);
-		if instructions_count.get() > MaxInstructions::get() {
+		instructions.set(instructions.get() + 1);
+		if instructions.get() > MaxInstructions::get() {
 			return false;
 		}
 
@@ -53,11 +54,7 @@ where
 			Either::Left(true) => continue,
 			Either::Left(false) => return false,
 			Either::Right(xcm) => {
-				if !check_instructions_recursively::<MaxXcmDepth, MaxInstructions, ()>(
-					xcm,
-					depth + 1,
-					instructions_count,
-				) {
+				if !check_instructions_recursively::<MaxXcmDepth, MaxInstructions, ()>(xcm, depth + 1, instructions) {
 					return false;
 				}
 			}
@@ -66,6 +63,8 @@ where
 	true
 }
 
+/// Check if an XCM instruction is allowed (returning `Left(true)`), disallowed (`Left(false)`) or needs recursion to
+/// determine whether it is allowed (`Right(xcm)`).
 fn allowed_or_recurse<RuntimeCall>(inst: &Instruction<RuntimeCall>) -> Either<bool, &Xcm<()>> {
 	match inst {
 		ClearOrigin
