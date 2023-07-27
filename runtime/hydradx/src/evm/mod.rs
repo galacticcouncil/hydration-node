@@ -19,49 +19,33 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use cfg_primitives::{MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO};
-use codec::{Decode, Encode};
-use frame_support::{parameter_types, traits::FindAuthor, weights::Weight, ConsensusEngineId};
-use pallet_evm::{AddressMapping, EnsureAddressTruncated};
-use sp_core::{crypto::ByteArray, H160, U256};
-use sp_runtime::{traits::AccountIdConversion, Permill};
-use sp_std::marker::PhantomData;
+use frame_support::{
+	parameter_types,
+	traits::FindAuthor,
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
+	ConsensusEngineId,
+};
+use crate::{Aura, evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated}};
+use pallet_evm::EnsureAddressTruncated;
+use sp_core::U256;
+use sp_runtime::Permill;
 
-use crate::{AccountId, Aura};
+mod accounts_conversion;
+mod precompiles;
 
-pub mod precompile;
-
-pub struct FindAuthorTruncated<F>(PhantomData<F>);
-impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
-	fn find_author<'a, I>(digests: I) -> Option<H160>
-	where
-		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
-	{
-		if let Some(author_index) = F::find_author(digests) {
-			let authority_id = Aura::authorities()[author_index as usize].clone();
-			return Some(H160::from_slice(&authority_id.to_raw_vec()[4..24]));
-		}
-		None
-	}
-}
-
-#[derive(Encode, Decode, Default)]
-struct EthereumAccount(H160);
-
-impl sp_runtime::TypeId for EthereumAccount {
-	const TYPE_ID: [u8; 4] = *b"ETH\0";
-}
-
-pub struct ExtendedAddressMapping;
-
-impl AddressMapping<AccountId> for ExtendedAddressMapping {
-	fn into_account_id(address: H160) -> AccountId {
-		EthereumAccount(address).into_account_truncating()
-	}
-}
+// Centrifuge / Moonbeam:
+// Current approximation of the gas per second consumption considering
+// EVM execution over compiled WASM (on 4.4Ghz CPU).
+// Given the 500ms Weight, from which 75% only are used for transactions,
+// the total EVM execution gas limit is: GAS_PER_SECOND * 0.500 * 0.75 ~=
+// 15_000_000.
+pub const GAS_PER_SECOND: u64 = 40_000_000;
+// Approximate ratio of the amount of Weight per Gas.
+const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
 pub struct BaseFeeThreshold;
 
+// Increase fees if block is >50% full
 impl pallet_base_fee::BaseFeeThreshold for BaseFeeThreshold {
 	fn lower() -> Permill {
 		Permill::zero()
@@ -76,10 +60,14 @@ impl pallet_base_fee::BaseFeeThreshold for BaseFeeThreshold {
 	}
 }
 
-const WEIGHT_PER_GAS: u64 = 20_000;
 parameter_types! {
-	pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
-	pub PrecompilesValue: precompile::CentrifugePrecompiles<crate::Runtime> = precompile::CentrifugePrecompiles::<_>::new();
+	// evmTODO: set value
+	pub BlockGasLimit: U256 = U256::from(u32::max_value());
+	// Centrifuge uses max block weight limits within the runtime based on calculation of 0.5s for 6s block times;
+	// it's interesting, check out: https://github.com/centrifuge/centrifuge-chain/blob/main/libs/primitives/src/lib.rs#L217:L228
+	// pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
+
+	pub PrecompilesValue: precompiles::HydraDXPrecompiles<crate::Runtime> = precompiles::HydraDXPrecompiles::<_>::new();
 	pub WeightPerGas: Weight = Weight::from_ref_time(WEIGHT_PER_GAS);
 }
 
@@ -94,7 +82,8 @@ impl pallet_evm::Config for crate::Runtime {
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type OnChargeTransaction = ();
-	type PrecompilesType = precompile::CentrifugePrecompiles<Self>;
+	type OnCreate = ();
+	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
 	type Runner = pallet_evm::runner::stack::Runner<Self>;
 	type RuntimeEvent = crate::RuntimeEvent;
