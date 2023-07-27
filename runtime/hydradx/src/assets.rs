@@ -429,7 +429,7 @@ impl pallet_dca::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxNumberOfTrades: u8 = 5;
+	pub const MaxNumberOfTrades: u8 = 3;
 }
 
 impl pallet_route_executor::Config for Runtime {
