@@ -45,7 +45,7 @@ pub type Barrier = (
 			AllowSubscriptionsFrom<Everything>,
 		),
 		UniversalLocation,
-		ConstU32<1>,
+		ConstU32<8>,
 	>,
 );
 
