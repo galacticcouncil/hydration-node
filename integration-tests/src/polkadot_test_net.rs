@@ -407,11 +407,11 @@ pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 
 	for block in blocks.iter() {
 		for tx in block.extrinsics() {
-			let call = &tx.function;
+			let call = &tx.0.function;
 			let call_p = call.get_call_metadata().pallet_name;
 
 			if pallet_whitelist.contains(&call_p) {
-				let acc = &tx.signature.as_ref().unwrap().0;
+				let acc = &tx.0.signature.as_ref().unwrap().0;
 				assert_ok!(call
 					.clone()
 					.dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
