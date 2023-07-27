@@ -18,7 +18,7 @@
 use super::*;
 use frame_support::{
 	log, storage_alias,
-	traits::{Get, StorageVersion},
+	traits::{Get, OnRuntimeUpgrade, StorageVersion},
 	weights::Weight,
 };
 
@@ -35,43 +35,110 @@ pub mod v0 {
 pub mod v1 {
 	use super::*;
 
-	pub fn pre_migrate<T: Config>() {
-		assert_eq!(StorageVersion::get::<Pallet<T>>(), 0, "Storage version too high.");
+	pub struct Migration<T>(PhantomData<T>);
 
-		log::info!(target: TARGET, "Transaction pause migration: PRE checks successful!");
-	}
+	impl<T: Config> OnRuntimeUpgrade for Migration<T> {
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+			assert_eq!(StorageVersion::get::<Pallet<T>>(), 0, "Storage version too high.");
 
-	pub fn migrate<T: Config>() -> Weight {
-		log::info!(target: TARGET, "Running migration to v1 for Transaction pause");
+			let iter = v0::PausedTransactions::<T>::iter_keys();
 
-		let mut weight = Weight::zero();
+			log::info!(target: TARGET, "Transaction pause migration: PRE checks successful!");
 
-		let status = v0::PausedTransactions::<T>::drain().collect::<Vec<_>>();
-		weight.saturating_accrue(T::DbWeight::get().reads(status.len() as u64));
-
-		for ((pallet_name, function_name), _) in status.into_iter() {
-			let pallet_name_b = BoundedVec::<u8, ConstU32<MAX_STR_LENGTH>>::try_from(pallet_name.clone());
-			let function_name_b = BoundedVec::<u8, ConstU32<MAX_STR_LENGTH>>::try_from(function_name.clone());
-			if pallet_name_b.is_err() || function_name_b.is_err() {
-				log::info!(
-					target: TARGET,
-					"Value not migrated because it's too long: {:?}",
-					(pallet_name_b, function_name_b)
-				);
-				continue;
-			}
-
-			PausedTransactions::<T>::insert((pallet_name_b.unwrap(), function_name_b.unwrap()), ());
+			Ok(iter.collect::<Vec<(Vec<u8>, Vec<u8>)>>().encode())
 		}
 
-		StorageVersion::new(1).put::<Pallet<T>>();
+		fn on_runtime_upgrade() -> Weight {
+			log::info!(target: TARGET, "Running migration to v1 for Transaction pause");
 
-		T::DbWeight::get().reads_writes(1, 1)
+			let mut weight = Weight::zero();
+
+			let status = v0::PausedTransactions::<T>::drain().collect::<Vec<_>>();
+			weight.saturating_accrue(T::DbWeight::get().reads(status.len() as u64));
+
+			for ((pallet_name, function_name), _) in status.into_iter() {
+				let pallet_name_b = BoundedVec::<u8, ConstU32<MAX_STR_LENGTH>>::try_from(pallet_name.clone());
+				let function_name_b = BoundedVec::<u8, ConstU32<MAX_STR_LENGTH>>::try_from(function_name.clone());
+				if pallet_name_b.is_err() || function_name_b.is_err() {
+					log::info!(
+						target: TARGET,
+						"Value not migrated because it's too long: {:?}",
+						(pallet_name_b, function_name_b)
+					);
+					continue;
+				}
+
+				crate::PausedTransactions::<T>::insert((pallet_name_b.unwrap(), function_name_b.unwrap()), ());
+			}
+
+			StorageVersion::new(1).put::<Pallet<T>>();
+
+			T::DbWeight::get().reads_writes(1, 1)
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
+			assert_eq!(StorageVersion::get::<Pallet<T>>(), 1, "Unexpected storage version.");
+
+			let previous_state = <Vec<(Vec<u8>, Vec<u8>)> as codec::Decode>::decode(&mut state.as_slice()).unwrap();
+
+			let new_state = crate::PausedTransactions::<T>::iter_keys()
+				.map(|v| (v.0.into_inner(), v.1.into_inner()))
+				.collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+
+			assert_eq!(previous_state, new_state, "Migrated storage entries don't match the entries prior migration!");
+
+			log::info!(target: TARGET, "Transaction pause migration: POST checks successful!");
+
+			Ok(())
+		}
 	}
+}
 
-	pub fn post_migrate<T: Config>() {
-		assert_eq!(StorageVersion::get::<Pallet<T>>(), 1, "Unexpected storage version.");
+#[cfg(test)]
+#[cfg(feature = "try-runtime")]
+mod test {
+	use super::*;
+	use crate::mock::{Runtime as T, *};
 
-		log::info!(target: TARGET, "Transaction pause migration: POST checks successful!");
+	#[test]
+	fn migration_works() {
+		ExtBuilder::default().build().execute_with(|| {
+			assert_eq!(StorageVersion::get::<Pallet<T>>(), 0);
+
+			v0::PausedTransactions::<T>::insert(
+				("first pallet".as_bytes().to_vec(), "first function".as_bytes().to_vec()),
+				(),
+			);
+			v0::PausedTransactions::<T>::insert(
+				(
+					"second pallet".as_bytes().to_vec(),
+					"second function".as_bytes().to_vec(),
+				),
+				(),
+			);
+
+			let state = v1::Migration::<T>::pre_upgrade().unwrap();
+			let _w = v1::Migration::<T>::on_runtime_upgrade();
+			v1::Migration::<T>::post_upgrade(state).unwrap();
+
+			assert_eq!(StorageVersion::get::<Pallet<T>>(), 1);
+
+			assert_eq!(
+				crate::PausedTransactions::<T>::get((
+					BoundedName::try_from("first pallet".as_bytes().to_vec()).unwrap(),
+					BoundedName::try_from("first function".as_bytes().to_vec()).unwrap()
+				)),
+				Some(())
+			);
+			assert_eq!(
+				crate::PausedTransactions::<T>::get((
+					BoundedName::try_from("second pallet".as_bytes().to_vec()).unwrap(),
+					BoundedName::try_from("second function".as_bytes().to_vec()).unwrap()
+				)),
+				Some(())
+			);
+		});
 	}
 }
