@@ -6462,7 +6462,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-collator-rewards"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
