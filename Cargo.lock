@@ -3814,7 +3814,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "167.0.0"
+version = "168.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -6751,12 +6751,12 @@ dependencies = [
 
 [[package]]
 name = "pallet-genesis-history"
-version = "2.0.1"
+version = "2.1.0"
 dependencies = [
  "derive_more",
  "frame-support",
  "frame-system",
- "hex-literal 0.3.4",
+ "hex-literal 0.4.1",
  "parity-scale-codec",
  "scale-info",
  "serde",
