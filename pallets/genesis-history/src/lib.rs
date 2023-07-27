@@ -21,12 +21,10 @@ use codec::{Decode, Encode};
 use frame_support::traits::GenesisBuild;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "std")]
-use sp_core::bytes;
 use sp_core::RuntimeDebug;
-use sp_std::vec::Vec;
 
 use scale_info::TypeInfo;
+use sp_core::{MaxEncodedLen, H256};
 
 #[cfg(test)]
 mod mock;
@@ -34,15 +32,13 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-#[derive(PartialEq, Eq, Clone, PartialOrd, Ord, Default, Encode, Decode, RuntimeDebug, derive_more::From, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Hash))]
-pub struct BlockHash(#[cfg_attr(feature = "std", serde(with = "bytes"))] pub Vec<u8>);
+pub mod migration;
 
-#[derive(Debug, Encode, Decode, Clone, Default, PartialEq, Eq, TypeInfo)]
+#[derive(Encode, Decode, Clone, Default, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Chain {
-	pub genesis_hash: BlockHash,
-	pub last_block_hash: BlockHash,
+	pub genesis_hash: H256,
+	pub last_block_hash: H256,
 }
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -58,7 +54,6 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {}
 
 	#[pallet::pallet]
-	#[pallet::without_storage_info]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
@@ -90,11 +85,11 @@ pub mod pallet {
 	#[cfg(feature = "std")]
 	impl GenesisConfig {
 		pub fn build_storage<T: Config>(&self) -> Result<sp_runtime::Storage, String> {
-			<Self as frame_support::traits::GenesisBuild<T>>::build_storage(self)
+			<Self as GenesisBuild<T>>::build_storage(self)
 		}
 
 		pub fn assimilate_storage<T: Config>(&self, storage: &mut sp_runtime::Storage) -> Result<(), String> {
-			<Self as frame_support::traits::GenesisBuild<T>>::assimilate_storage(self, storage)
+			<Self as GenesisBuild<T>>::assimilate_storage(self, storage)
 		}
 	}
 
