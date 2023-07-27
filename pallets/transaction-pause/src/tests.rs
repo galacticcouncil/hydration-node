@@ -37,6 +37,9 @@ const TOKENS_TRANSFER: &<Runtime as frame_system::Config>::RuntimeCall =
 #[test]
 fn pause_transaction_work() {
 	ExtBuilder::default().build().execute_with(|| {
+		let balances_b_str = BoundedName::try_from(b"Balances".to_vec()).unwrap();
+		let transfer_b_str = BoundedName::try_from(b"transfer".to_vec()).unwrap();
+
 		System::set_block_number(1);
 
 		assert_noop!(
@@ -45,7 +48,7 @@ fn pause_transaction_work() {
 		);
 
 		assert_eq!(
-			TransactionPause::paused_transactions((b"Balances".to_vec(), b"transfer".to_vec())),
+			TransactionPause::paused_transactions((balances_b_str.clone(), transfer_b_str.clone())),
 			None
 		);
 		assert_ok!(TransactionPause::pause_transaction(
@@ -58,7 +61,7 @@ fn pause_transaction_work() {
 			function_name_bytes: b"transfer".to_vec(),
 		}));
 		assert_eq!(
-			TransactionPause::paused_transactions((b"Balances".to_vec(), b"transfer".to_vec())),
+			TransactionPause::paused_transactions((balances_b_str, transfer_b_str)),
 			Some(())
 		);
 
@@ -83,12 +86,33 @@ fn pause_transaction_work() {
 			b"OtherPallet".to_vec(),
 			b"pause_transaction".to_vec()
 		));
+
+		assert_noop!(
+			TransactionPause::pause_transaction(
+				RuntimeOrigin::signed(1),
+				vec![1u8; (MAX_STR_LENGTH + 1) as usize],
+				b"transfer".to_vec()
+			),
+			Error::<Runtime>::NameTooLong
+		);
+
+		assert_noop!(
+			TransactionPause::pause_transaction(
+				RuntimeOrigin::signed(1),
+				b"Balances".to_vec(),
+				vec![1u8; (MAX_STR_LENGTH + 1) as usize],
+			),
+			Error::<Runtime>::NameTooLong
+		);
 	});
 }
 
 #[test]
 fn unpause_transaction_work() {
 	ExtBuilder::default().build().execute_with(|| {
+		let balances_b_str = BoundedName::try_from(b"Balances".to_vec()).unwrap();
+		let transfer_b_str = BoundedName::try_from(b"transfer".to_vec()).unwrap();
+
 		System::set_block_number(1);
 
 		assert_ok!(TransactionPause::pause_transaction(
@@ -97,7 +121,7 @@ fn unpause_transaction_work() {
 			b"transfer".to_vec()
 		));
 		assert_eq!(
-			TransactionPause::paused_transactions((b"Balances".to_vec(), b"transfer".to_vec())),
+			TransactionPause::paused_transactions((balances_b_str.clone(), transfer_b_str.clone())),
 			Some(())
 		);
 
@@ -116,8 +140,26 @@ fn unpause_transaction_work() {
 			function_name_bytes: b"transfer".to_vec(),
 		}));
 		assert_eq!(
-			TransactionPause::paused_transactions((b"Balances".to_vec(), b"transfer".to_vec())),
+			TransactionPause::paused_transactions((balances_b_str, transfer_b_str)),
 			None
+		);
+
+		assert_noop!(
+			TransactionPause::unpause_transaction(
+				RuntimeOrigin::signed(1),
+				vec![1u8; (MAX_STR_LENGTH + 1) as usize],
+				b"transfer".to_vec()
+			),
+			Error::<Runtime>::NameTooLong
+		);
+
+		assert_noop!(
+			TransactionPause::unpause_transaction(
+				RuntimeOrigin::signed(1),
+				b"Balances".to_vec(),
+				vec![1u8; (MAX_STR_LENGTH + 1) as usize],
+			),
+			Error::<Runtime>::NameTooLong
 		);
 	});
 }
