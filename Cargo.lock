@@ -1541,16 +1541,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctor"
-version = "0.1.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d2301688392eb071b0bf1a37be05c469d3cc4dbbd95df672fe28ab021e6a096"
-dependencies = [
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "ctr"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3783,7 +3773,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -3793,19 +3783,28 @@ dependencies = [
  "hydradx-traits",
  "lazy_static",
  "log",
+ "orml-tokens",
  "orml-traits",
+ "orml-utilities",
  "orml-xcm-support",
+ "pallet-balances",
  "pallet-circuit-breaker",
+ "pallet-currencies",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
  "pallet-liquidity-mining",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
+ "pallet-route-executor",
  "pallet-transaction-multi-payment",
  "parity-scale-codec",
  "polkadot-parachain",
+ "pretty_assertions",
  "primitive-types",
  "primitives",
+ "scale-info",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
  "xcm",
@@ -3815,7 +3814,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "168.0.0"
+version = "170.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -6165,15 +6164,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d5d9eb14b174ee9aa2ef96dc2b94637a2d4b6e7cb873c7e171f0c20c6cf3eac"
 
 [[package]]
-name = "output_vt100"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "628223faebab4e3e40667ee0b2336d34a5b960ff60ea743ddfdbcf7770bcfb66"
-dependencies = [
- "winapi",
-]
-
-[[package]]
 name = "p256"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6463,7 +6453,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-collator-rewards"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6762,12 +6752,12 @@ dependencies = [
 
 [[package]]
 name = "pallet-genesis-history"
-version = "2.0.1"
+version = "2.1.0"
 dependencies = [
  "derive_more",
  "frame-support",
  "frame-system",
- "hex-literal 0.3.4",
+ "hex-literal 0.4.1",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -7461,7 +7451,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-pause"
-version = "0.1.3"
+version = "1.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9298,13 +9288,11 @@ dependencies = [
 
 [[package]]
 name = "pretty_assertions"
-version = "1.3.0"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a25e9bcb20aa780fd0bb16b72403a9064d6b3f22f026946029acb941a50af755"
+checksum = "af7cee1a6c8a5b9208b3cb1061f10c0cb689087b3d8ce85fb9d2dd7a29b6ba66"
 dependencies = [
- "ctor",
  "diff",
- "output_vt100",
  "yansi",
 ]
 
@@ -10085,7 +10073,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
