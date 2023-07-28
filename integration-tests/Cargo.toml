@@ -18,6 +18,7 @@ hydradx-adapters = { workspace = true }
 pallet-omnipool = { workspace = true }
 pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
+pallet-stableswap = { workspace = true }
 
 # Warehouse dependencies
 pallet-asset-registry = { workspace = true }

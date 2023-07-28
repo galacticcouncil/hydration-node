@@ -10137,6 +10137,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-stableswap",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
