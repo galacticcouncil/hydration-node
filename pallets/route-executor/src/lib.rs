@@ -109,7 +109,7 @@ pub mod pallet {
 		>;
 
 		/// Weight information for the extrinsics.
-		type WeightInfo: WeightInfo;
+		type WeightInfo: WeightInfo<Self::AssetId>;
 	}
 
 	#[pallet::event]
@@ -156,7 +156,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::sell(route.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::sell(route.to_vec()))]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -235,7 +235,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::buy(route.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::buy(route.to_vec()))]
 		#[transactional]
 		pub fn buy(
 			origin: OriginFor<T>,

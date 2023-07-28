@@ -38,55 +38,40 @@
 #![allow(unused_imports)]
 #![allow(clippy::unnecessary_cast)]
 
+use crate::Trade;
 use frame_support::{
 	traits::Get,
 	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
+use sp_std::vec::Vec;
 
 /// Weight functions needed for pallet_route_executor.
-pub trait WeightInfo {
-	fn sell(n: u32) -> Weight;
-	fn buy(n: u32) -> Weight;
+pub trait WeightInfo<AssetId> {
+	fn sell(route: Vec<Trade<AssetId>>) -> Weight;
+	fn buy(route: Vec<Trade<AssetId>>) -> Weight;
 }
 
 pub struct BasiliskWeight<T>(PhantomData<T>);
 
-impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
-	fn sell(n: u32) -> Weight {
-		Weight::from_ref_time(27_428_000 as u64) // Standard Error: 181_000
-			.saturating_add(Weight::from_ref_time(84_248_000 as u64).saturating_mul(n as u64))
-			.saturating_add(T::DbWeight::get().reads(4 as u64))
-			.saturating_add(T::DbWeight::get().reads((8 as u64).saturating_mul(n as u64)))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+// NOTE: Dummy weights. The actual weights are determined in the runtime weight file
+impl<T: frame_system::Config, AssetId> WeightInfo<AssetId> for BasiliskWeight<T> {
+	fn sell(route: Vec<Trade<AssetId>>) -> Weight {
+		Weight::from_ref_time(99_999_999 as u64)
 	}
-	fn buy(n: u32) -> Weight {
-		Weight::from_ref_time(24_809_000 as u64) // Standard Error: 145_000
-			.saturating_add(Weight::from_ref_time(84_158_000 as u64).saturating_mul(n as u64))
-			.saturating_add(T::DbWeight::get().reads(4 as u64))
-			.saturating_add(T::DbWeight::get().reads((8 as u64).saturating_mul(n as u64)))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+
+	fn buy(route: Vec<Trade<AssetId>>) -> Weight {
+		Weight::from_ref_time(99_999_999 as u64)
 	}
 }
 
-// For backwards compatibility and tests
-impl WeightInfo for () {
-	fn sell(n: u32) -> Weight {
-		Weight::from_ref_time(27_428_000 as u64) // Standard Error: 181_000
-			.saturating_add(Weight::from_ref_time(84_248_000 as u64).saturating_mul(n as u64))
-			.saturating_add(RocksDbWeight::get().reads(4 as u64))
-			.saturating_add(RocksDbWeight::get().reads((8 as u64).saturating_mul(n as u64)))
-			.saturating_add(RocksDbWeight::get().writes(2 as u64))
-			.saturating_add(RocksDbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+//NOTE: Dummy weights. The actual weights are determined in the runtime weight implementation
+impl<AssetId> WeightInfo<AssetId> for () {
+	fn sell(route: Vec<Trade<AssetId>>) -> Weight {
+		Weight::from_ref_time(99_999_999 as u64)
 	}
-	fn buy(n: u32) -> Weight {
-		Weight::from_ref_time(24_809_000 as u64) // Standard Error: 145_000
-			.saturating_add(Weight::from_ref_time(84_158_000 as u64).saturating_mul(n as u64))
-			.saturating_add(RocksDbWeight::get().reads(4 as u64))
-			.saturating_add(RocksDbWeight::get().reads((8 as u64).saturating_mul(n as u64)))
-			.saturating_add(RocksDbWeight::get().writes(2 as u64))
-			.saturating_add(RocksDbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+
+	fn buy(route: Vec<Trade<AssetId>>) -> Weight {
+		Weight::from_ref_time(99_999_999 as u64)
 	}
 }

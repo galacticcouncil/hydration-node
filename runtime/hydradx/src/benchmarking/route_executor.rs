@@ -518,52 +518,40 @@ where
 runtime_benchmarks! {
 	{ Runtime, pallet_route_executor}
 
-	sell {
-		let n in 1..3;
-		set_period::<Runtime>(11);
+	sell_omnipool {
+		initialize_omnipool()?;
 
-		let (asset_in,asset_out,trades) = generate_trades_with_pools(n)?;
+		let asset_in = HDX;
+		let asset_out = DAI;
+		let trades = vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: DAI
+		}];
 
-		let init_asset_in_balance = 100 * UNITS;
-		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, init_asset_in_balance, DAI);
+		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, 100 * UNITS, HDX);
 
-		let amount_to_sell = 80 * UNITS;
+		let amount_to_sell = 10 * UNITS;
 	}: {
 		RouteExecutor::<Runtime>::sell(RawOrigin::Signed(caller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades)?
 	}
-	verify {
-		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller), init_asset_in_balance -  amount_to_sell);
+	verify{
+		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller), 100 * UNITS -  amount_to_sell);
 		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) > 0);
 	}
 
-	sell2 {
-		let n in 1..3;
-		set_period::<Runtime>(11);
+	buy_omnipool {
+		initialize_omnipool()?;
 
-		let (asset_in,asset_out,trades) = generate_trades_with_pools2(n)?;
+		let asset_in = HDX;
+		let asset_out = DAI;
+		let trades = vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: DAI
+		}];
 
-		let init_asset_in_balance = 100 * UNITS;
-		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, init_asset_in_balance, asset_in);
-
-		let amount_to_sell = 80 * UNITS;
-		assert_eq!(asset_in, 10004);
-		assert_eq!(asset_out, 20000);
-	}: {
-		RouteExecutor::<Runtime>::sell(RawOrigin::Signed(caller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades)?
-	}
-	verify {
-		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller), init_asset_in_balance -  amount_to_sell);
-		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) > 0);
-	}
-
-	/*buy {
-		let n in 1..3;
-		set_period::<Runtime>(11);
-
-		let (asset_in,asset_out,trades) = generate_trades_with_pools(n)?;
-
-		let init_asset_in_balance = 100 * UNITS;
-		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, init_asset_in_balance, DAI);
+		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, 100 * UNITS, HDX);
 
 		let amount_to_buy = 10 * UNITS;
 	}: {
@@ -572,7 +560,47 @@ runtime_benchmarks! {
 	verify{
 		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller) < 100 * UNITS);
 		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller), amount_to_buy);
-	}*/
+	}
+
+	sell_stableswap {
+		let (pool_id, asset_in, asset_out) = init_stableswap()?;
+
+		let trades = vec![Trade {
+			pool: PoolType::Stableswap(pool_id),
+			asset_in: asset_in,
+			asset_out: asset_out
+		}];
+
+		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, 100 * UNITS, asset_in);
+
+		let amount_to_sell = 10 * UNITS;
+	}: {
+		RouteExecutor::<Runtime>::sell(RawOrigin::Signed(caller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades)?
+	}
+	verify{
+		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller), 100 * UNITS -  amount_to_sell);
+		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) > 0);
+	}
+
+	buy_stableswap {
+		let (pool_id, asset_in, asset_out) = init_stableswap()?;
+
+		let trades = vec![Trade {
+			pool: PoolType::Stableswap(pool_id),
+			asset_in: asset_in,
+			asset_out: asset_out
+		}];
+
+		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, 100 * UNITS, asset_in);
+
+		let amount_to_buy = 10 * UNITS;
+	}: {
+		RouteExecutor::<Runtime>::buy(RawOrigin::Signed(caller.clone()).into(), asset_in, asset_out, amount_to_buy, u128::MAX, trades)?
+	}
+	verify{
+		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller) < 100 * UNITS);
+		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller), amount_to_buy);
+	}
 
 }
 
