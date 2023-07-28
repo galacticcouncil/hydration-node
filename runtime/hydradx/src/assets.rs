@@ -503,13 +503,8 @@ where
 	}
 
 	fn name(asset: &u32, identifier: Option<&[u8]>) -> Vec<u8> {
-		let mut buf: Vec<u8> = if let Some(ident) = identifier {
-			ident.to_vec()
-		} else {
-			vec![]
-		};
+		let mut buf = identifier.map_or_else(|| vec![], |v| v.to_vec());
 		buf.extend_from_slice(&(asset).to_le_bytes());
-
 		buf
 	}
 }
