@@ -63,7 +63,10 @@ impl<T: frame_system::Config, AssetId> WeightInfo<AssetId> for HydraWeight<T> {
 			.map(|trade| match trade.pool {
 				PoolType::Omnipool => Self::sell_omnipool(),
 				PoolType::Stableswap(_) => Self::sell_stableswap(),
-				_ => Self::sell_omnipool(), //TODO: As safeguard, we use omnipool weights as we can't panic. Once we have new pools we need adjust it
+				//TODO: Since we can't panic, we need return some weight as default.
+				//Since the rest of the pools are not supported by hydra, the route execution will fail
+				//We have integration tests covering the supported and non supported pool types, acting as safety net
+				_ => Self::sell_omnipool(),
 			})
 			.map(|weight| weight.ref_time())
 			.collect::<Vec<u64>>()
@@ -79,7 +82,10 @@ impl<T: frame_system::Config, AssetId> WeightInfo<AssetId> for HydraWeight<T> {
 			.map(|trade| match trade.pool {
 				PoolType::Omnipool => Self::buy_omnipool(),
 				PoolType::Stableswap(_) => Self::buy_stableswap(),
-				_ => Self::sell_omnipool(), //TODO: As safeguard, we use omnipool weights as we can't panic. Once we have new pools we need adjust it
+				//TODO: Since we can't panic, we need return some weight as default.
+				//Since the rest of the pools are not supported by hydra, the route execution will fail
+				//We have integration tests covering the supported and non supported pool types, acting as safety net
+				_ => Self::buy_omnipool(),
 			})
 			.map(|weight| weight.ref_time())
 			.collect::<Vec<u64>>()
