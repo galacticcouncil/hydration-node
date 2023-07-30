@@ -413,7 +413,6 @@ impl Contains<RuntimeCall> for SafeCallFilter {
 				| RuntimeCall::Currencies(..)
 				| RuntimeCall::Tokens(..)
 				| RuntimeCall::OrmlXcm(..)
-				| RuntimeCall::PolkadotXcm(pallet_xcm::Call::send { .. },)
 		)
 	}
 }
