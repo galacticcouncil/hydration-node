@@ -144,7 +144,7 @@ fn schedule_sell_fake<T: Config + pallet_route_executor::Config + pallet_omnipoo
 fn set_period<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(to: u32)
 where
 	T: pallet_ema_oracle::Config,
-	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	OmnipoolCurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: crate::pallet::Config,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 	<T as pallet_route_executor::Config>::AssetId: From<u32>,
@@ -170,7 +170,7 @@ pub fn create_bounded_vec<T: Config>(
 	bounded_vec
 }
 
-type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
+type OmnipoolCurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 type StableswapPallet<T> = pallet_stableswap::Pallet<T>;
 
@@ -215,6 +215,9 @@ pub fn init_stableswap<T: Config + pallet_route_executor::Config + pallet_stable
 where
 	<T as pallet_stableswap::Config>::AssetId: From<u32>,
 	<T as pallet_stableswap::Config>::AssetId: Into<u32>,
+	T: MultiCurrencyExtended<AccountId, Amount = i128>,
+	<T as pallet_stableswap::Config>::AssetId: From<<T as orml_traits::MultiCurrency<AccountId>>::CurrencyId>,
+	<T as pallet_stableswap::Config>::AssetId: Into<<T as orml_traits::MultiCurrency<AccountId>>::CurrencyId>,
 {
 	let caller: AccountId = account("caller", 0, 1);
 	let lp_provider: AccountId = account("provider", 0, 1);
@@ -230,6 +233,7 @@ where
 		//let asset_id = regi_asset(name.clone(), 1_000_000, 10000 + idx as u32)?;
 		let asset_id = <T as pallet_stableswap::Config>::AssetRegistry::create_asset(&name, 1u128)?;
 		asset_ids.push(asset_id);
+		T::update_balance(asset_id.into(), &caller.clone(), 1_000_000_000_000_000i128)?;
 		/*<T as pallet_stableswap::Config>::Currency::update_balance(
 			RawOrigin::Root.into(),
 			caller.clone(),
@@ -310,7 +314,7 @@ fn fund<T: Config + pallet_omnipool::Config>(
 	currency: <T as pallet_omnipool::Config>::AssetId,
 	amount: Balance,
 ) -> DispatchResult {
-	CurrencyOf::<T>::deposit(currency, &to, amount)
+	OmnipoolCurrencyOf::<T>::deposit(currency, &to, amount)
 }
 
 //NOTE: This is necessary for oracle to provide price.
@@ -344,7 +348,7 @@ where
 fn create_account_with_native_balance<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
 ) -> Result<T::AccountId, DispatchError>
 where
-	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	OmnipoolCurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: crate::pallet::Config + pallet_omnipool::Config,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
@@ -357,7 +361,7 @@ where
 
 benchmarks! {
 	 where_clause {  where
-		CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+		OmnipoolCurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 		T: crate::pallet::Config + pallet_omnipool::Config + pallet_ema_oracle::Config + pallet_route_executor::Config,
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
 		<T as pallet_route_executor::Config>::AssetId: From<u32>,
