@@ -3739,7 +3739,7 @@ dependencies = [
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-service",
- "primitives",
+ "primitives 5.8.2",
  "sc-basic-authorship",
  "sc-chain-spec",
  "sc-cli",
@@ -3805,7 +3805,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadot-parachain",
  "primitive-types",
- "primitives",
+ "primitives 5.8.2",
  "sp-runtime",
  "sp-std",
  "xcm",
@@ -3890,7 +3890,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadot-parachain",
  "primitive-types",
- "primitives",
+ "primitives 5.8.2",
  "scale-info",
  "serde",
  "smallvec",
@@ -6451,7 +6451,7 @@ dependencies = [
  "orml-utilities",
  "pallet-balances",
  "parity-scale-codec",
- "primitives",
+ "primitives 5.8.2",
  "rustc-hex",
  "scale-info",
  "serde",
@@ -6583,10 +6583,11 @@ dependencies = [
  "pallet-omnipool",
  "pallet-relaychain-info",
  "pallet-route-executor",
+ "pallet-stableswap",
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types",
- "primitives",
+ "primitives 0.1.0",
  "proptest",
  "rand 0.8.5",
  "scale-info",
@@ -7079,7 +7080,7 @@ dependencies = [
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types",
- "primitives",
+ "primitives 5.8.2",
  "proptest",
  "scale-info",
  "sp-core",
@@ -9333,6 +9334,12 @@ dependencies = [
 
 [[package]]
 name = "primitives"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49d85b897970fed24084136ca6a499103e8b4276a3852002099cc6912f04c87a"
+
+[[package]]
+name = "primitives"
 version = "5.8.2"
 dependencies = [
  "frame-support",
@@ -10154,7 +10161,7 @@ dependencies = [
  "polkadot-runtime",
  "polkadot-runtime-parachains",
  "pretty_assertions",
- "primitives",
+ "primitives 5.8.2",
  "scraper",
  "sp-api",
  "sp-block-builder",

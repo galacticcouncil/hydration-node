@@ -34,6 +34,7 @@ hydradx-traits = { workspace = true }
 hydradx-adapters = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 pallet-ema-oracle =  { workspace = true }
+pallet-stableswap =  { workspace = true }
 pallet-route-executor =  { workspace = true }
 
 hydra-dx-math = { workspace = true }
@@ -47,7 +48,7 @@ frame-system-benchmarking = { workspace = true, optional = true }
 sp-core = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
 
-primitives = { path="../../primitives", default-features = false }
+primitives = {  default-features = false }
 
 
 [dev-dependencies]
@@ -81,13 +82,17 @@ std = [
   "pallet-relaychain-info/std",
   "orml-tokens/std",
   "pallet-omnipool/std",
+  "pallet-stableswap/std",
   "pallet-ema-oracle/std",
   "pallet-route-executor/std",
+  "frame-benchmarking/std",
+
 ]
 
 runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
+  "sp-core",
+  "sp-io",
+
 ]
 try-runtime = ["frame-support/try-runtime"]

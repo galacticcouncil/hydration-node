@@ -40,6 +40,8 @@ type RouteExecutor<T> = pallet_route_executor::Pallet<T>;
 type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 
+//TODO: REMOVE UNSUSED FUNCTIONS
+
 fn generate_trades_with_pools(number_of_trades: u32) -> Result<(AssetId, AssetId, Vec<Trade<AssetId>>), DispatchError> {
 	let (stable_pool_id, stable_asset_in, stable_asset_out) = init_stableswap()?;
 	initialize_omnipool()?;

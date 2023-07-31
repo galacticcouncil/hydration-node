@@ -18,17 +18,17 @@
 use crate as dca;
 use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
+use frame_support::traits::Contains;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
-use frame_support::PalletId;
-
 use frame_support::BoundedVec;
+use frame_support::PalletId;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{OraclePeriod, PriceOracle, Registry};
+use hydradx_traits::{AccountIdFor, OraclePeriod, PriceOracle, Registry};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
@@ -41,6 +41,8 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
+use sp_std::num::NonZeroU16;
+use sp_std::ops::RangeInclusive;
 
 use hydradx_adapters::inspect::MultiInspectAdapter;
 
@@ -90,8 +92,79 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 EmaOracle: pallet_ema_oracle,
+		 Stableswap: pallet_stableswap
 	 }
 );
+
+parameter_types! {
+	pub const MinimumLiquidity: Balance = 1000;
+	pub const MinimumTradingLimit: Balance = 1000;
+	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
+}
+
+pub struct Whitelist;
+
+impl Contains<AccountId> for Whitelist {
+	fn contains(account: &AccountId) -> bool {
+		DUSTER_WHITELIST.with(|v| v.borrow().contains(account))
+	}
+}
+
+impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
+	type Error = DispatchError;
+
+	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
+		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
+		Ok(())
+	}
+
+	fn remove_account(account: &AccountId) -> Result<(), Self::Error> {
+		DUSTER_WHITELIST.with(|v| {
+			let mut v = v.borrow_mut();
+
+			let idx = v.iter().position(|x| *x == *account).unwrap();
+			v.remove(idx);
+
+			Ok(())
+		})
+	}
+}
+
+pub struct AccountIdConstructor;
+
+impl AccountIdFor<u32> for AccountIdConstructor {
+	type AccountId = AccountId;
+
+	fn from_assets(asset: &u32, _identifier: Option<&[u8]>) -> Self::AccountId {
+		(asset * 1000) as u64
+	}
+
+	fn name(asset: &u32, identifier: Option<&[u8]>) -> Vec<u8> {
+		let mut buf: Vec<u8> = if let Some(ident) = identifier {
+			ident.to_vec()
+		} else {
+			vec![]
+		};
+		buf.extend_from_slice(&(asset).to_le_bytes());
+
+		buf
+	}
+}
+
+impl pallet_stableswap::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Currency = Tokens;
+	type ShareAccountId = AccountIdConstructor;
+	type AssetRegistry = DummyRegistry<Test>;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type MinPoolLiquidity = MinimumLiquidity;
+	type AmplificationRange = AmplificationRange;
+	type MinTradingLimit = MinimumTradingLimit;
+	type WeightInfo = ();
+	type BlockNumberProvider = System;
+	type DustAccountHandler = Whitelist;
+}
 
 lazy_static::lazy_static! {
 	pub static ref ORIGINAL_MIN_BUDGET_IN_NATIVE: Balance = 2_000_000;
@@ -123,6 +196,7 @@ thread_local! {
 			135, 250, 171, 69, 205, 241, 47, 227, 168,
 		]
 		.into()));
+	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
 
 }
 
@@ -662,7 +736,7 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::pools::{DustRemovalAccountWhitelist, SpotPriceProvider};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
