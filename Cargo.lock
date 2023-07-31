@@ -6573,6 +6573,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-relaychain-info",
  "pallet-route-executor",
+ "pallet-stableswap",
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types",
