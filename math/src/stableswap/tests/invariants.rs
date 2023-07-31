@@ -145,3 +145,72 @@ proptest! {
 		assert!(y >= reserve_a);
 	}
 }
+
+fn decimals() -> impl Strategy<Value = u32> {
+	prop_oneof![Just(6), Just(8), Just(10), Just(12), Just(18)]
+}
+
+fn reserve(max: Balance, precision: u32) -> impl Strategy<Value = Balance> {
+	let min_reserve = 5 * 10u128.pow(precision) + 10u128.pow(precision);
+	let max_reserve = max * 10u128.pow(precision);
+	min_reserve..max_reserve
+}
+
+prop_compose! {
+	fn generate_reserves(dec_1: u32, dec_2: u32, dec_3: u32)
+	(
+		reserve_1 in reserve(1_000, dec_1),
+		reserve_2 in reserve(1_000, dec_2),
+		reserve_3 in reserve(1_000, dec_3),
+	)
+	-> Vec<Balance> {
+		vec![reserve_1, reserve_2, reserve_3]
+	}
+}
+
+prop_compose! {
+	fn some_pool_reserves()
+	(
+		dec_1 in decimals(),
+		dec_2 in decimals(),
+		dec_3 in decimals(),
+	)
+	(
+		dec_1 in Just(dec_1),
+		r in generate_reserves(dec_1, dec_2, dec_3),
+	)
+	-> (Vec<Balance>, u32) {
+		(r, dec_1)
+	}
+}
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn in_given_out_should_work_when_reserves_have_various_decimals(
+		(reserves, dec_1) in some_pool_reserves(),
+		amp in amplification(),
+	) {
+		let d0 = calculate_d::<D_ITERATIONS>(&reserves, amp).unwrap();
+		let result = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&reserves, 0, 1, 10u128.pow(dec_1), amp);
+		if let Some(amount_in) = result {
+			let d1 = calculate_d::<D_ITERATIONS>(&[reserves[0] + amount_in, reserves[1] - 10u128.pow(dec_1), reserves[2]], amp).unwrap();
+			assert!(d1 >= d0);
+		}
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn out_given_in_should_work_when_reserves_have_various_decimals(
+		(reserves, dec_1) in some_pool_reserves(),
+		amp in amplification(),
+	) {
+		let d0 = calculate_d::<D_ITERATIONS>(&reserves, amp).unwrap();
+		let result = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&reserves, 0, 1, 10u128.pow(dec_1), amp);
+		if let Some(amount_out) = result {
+			let d1 = calculate_d::<D_ITERATIONS>(&[reserves[0] + 10u128.pow(dec_1), reserves[1] - amount_out, reserves[2]], amp).unwrap();
+			assert!(d1 >= d0);
+		}
+	}
+}

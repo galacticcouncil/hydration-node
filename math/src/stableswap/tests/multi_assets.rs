@@ -455,3 +455,175 @@ fn calculate_in_given_out_with_zero_fee_should_work_when_reserves_have_different
 	);
 	assert_eq!(result.unwrap(), (841869902748480839 - 8335345571767138, 0));
 }
+
+#[test]
+fn test_compare_precision_results_01() {
+	let amp = 1000_u128;
+
+	let balances: [Balance; 3] = [
+		1_000_000_000_000_000_000_000,
+		3_000_000_000_000_000_000_000,
+		5_000_000_000_000_000_000_000,
+	];
+
+	let d_before = calculate_d::<D_ITERATIONS>(&balances, amp).unwrap();
+	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		1,
+		2,
+		1_000_000_000_000_000_000,
+		amp,
+		Permill::from_percent(0),
+	);
+	let updated_reserves = [
+		balances[0],
+		balances[1] + 1_000_000_000_000_000_000,
+		balances[2] - result.unwrap().0,
+	];
+	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
+	assert!(d_after >= d_before);
+	assert_eq!(result.unwrap(), (1_000_079_930_281_397_674, 0));
+
+	let (amount_out, fee) = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		2,
+		1,
+		1_000_000_000_000_000_000,
+		amp,
+		Permill::from_percent(0),
+	)
+	.unwrap();
+	assert_eq!((amount_out, fee), (999_919_974_816_739_669, 0));
+	let updated_reserves = [
+		balances[0],
+		balances[1] - amount_out,
+		balances[2] + 1_000_000_000_000_000_000,
+	];
+	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
+	assert!(d_after >= d_before);
+}
+
+#[test]
+fn test_compare_precision_results_02() {
+	let amp = 1000_u128;
+
+	let balances: [Balance; 3] = [1_000_000_000, 3_000_000_000, 5_000_000_000_000_000_000_000];
+
+	let d_before = calculate_d::<D_ITERATIONS>(&balances, amp).unwrap();
+	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		1,
+		2,
+		1_000_000,
+		amp,
+		Permill::from_percent(0),
+	);
+	let updated_reserves = [balances[0], balances[1] + 1_000_000, balances[2] - result.unwrap().0];
+	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
+	assert!(d_after >= d_before);
+	assert_eq!(result.unwrap(), (833_117_894_058_679_760, 0));
+
+	let (amount_out, fee) = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		2,
+		1,
+		1_000_000_000_000_000_000,
+		amp,
+		Permill::from_percent(0),
+	)
+	.unwrap();
+	assert_eq!((amount_out, fee), (1_187_653 + 11996, 0));
+	let updated_reserves = [
+		balances[0],
+		balances[1] - amount_out,
+		balances[2] + 1_000_000_000_000_000_000,
+	];
+	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
+	assert!(d_after >= d_before);
+}
+
+#[test]
+fn test_compare_precision_results_03() {
+	let amp = 1000_u128;
+
+	let balances: [Balance; 3] = [
+		1_000_000_000_000_000_000_000,
+		3_000_000_000_000_000_000_000,
+		5_000_000_000_000_000_000_000,
+	];
+
+	let d_before = calculate_d::<D_ITERATIONS>(&balances, amp).unwrap();
+	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		1,
+		2,
+		1_000_000_000_000_000_000,
+		amp,
+		Permill::from_percent(0),
+	);
+	let updated_reserves = [
+		balances[0],
+		balances[1] + 1_000_000_000_000_000_000,
+		balances[2] - result.unwrap().0,
+	];
+	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
+	assert!(d_after >= d_before);
+	assert_eq!(result.unwrap(), (1_000_079_930_281_397_674, 0));
+
+	let (amount_in, fee) = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		1,
+		2,
+		1_000_079_930_281_397_674,
+		amp,
+		Permill::from_percent(0),
+	)
+	.unwrap();
+	assert_eq!((amount_in, fee), (1000000000000000000, 0));
+	let updated_reserves = [
+		balances[0],
+		balances[1] + amount_in,
+		balances[2] - 1_000_079_930_281_397_674,
+	];
+	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
+	assert!(d_after >= d_before);
+}
+
+#[test]
+fn test_compare_precision_results_04() {
+	let amp = 1000_u128;
+
+	let balances: [Balance; 3] = [1_000_000_000, 3_000_000_000, 5_000_000_000_000_000_000_000];
+
+	let d_before = calculate_d::<D_ITERATIONS>(&balances, amp).unwrap();
+	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		1,
+		2,
+		1_000_000,
+		amp,
+		Permill::from_percent(0),
+	);
+	let updated_reserves = [balances[0], balances[1] + 1_000_000, balances[2] - result.unwrap().0];
+	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
+	assert!(d_after >= d_before);
+	assert_eq!(result.unwrap(), (833_117_894_058_679_760, 0));
+
+	let (amount_in, fee) = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		1,
+		2,
+		833_117_894_058_679_760,
+		amp,
+		Permill::from_percent(0),
+	)
+	.unwrap();
+	assert_eq!((amount_in, fee), (1000001, 0));
+	let updated_reserves = [
+		balances[0],
+		balances[1] + amount_in,
+		balances[2] - 833_117_894_058_679_760,
+	];
+	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
+	assert!(d_after >= d_before);
+}
