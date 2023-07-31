@@ -215,9 +215,10 @@ pub fn init_stableswap<T: Config + pallet_route_executor::Config + pallet_stable
 where
 	<T as pallet_stableswap::Config>::AssetId: From<u32>,
 	<T as pallet_stableswap::Config>::AssetId: Into<u32>,
-	T: MultiCurrencyExtended<AccountId, Amount = i128>,
-	<T as pallet_stableswap::Config>::AssetId: From<<T as orml_traits::MultiCurrency<AccountId>>::CurrencyId>,
-	<T as pallet_stableswap::Config>::AssetId: Into<<T as orml_traits::MultiCurrency<AccountId>>::CurrencyId>,
+	<T as pallet_stableswap::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	//<T as pallet_stableswap::Config>::AssetId: From<<T as orml_traits::MultiCurrency<AccountId>>::CurrencyId>,
+	//<T as pallet_stableswap::Config>::AssetId: Into<<T as orml_traits::MultiCurrency<AccountId>>::CurrencyId>,
+	<T as frame_system::Config>::AccountId: From<u64>,
 {
 	let caller: AccountId = account("caller", 0, 1);
 	let lp_provider: AccountId = account("provider", 0, 1);
@@ -233,7 +234,12 @@ where
 		//let asset_id = regi_asset(name.clone(), 1_000_000, 10000 + idx as u32)?;
 		let asset_id = <T as pallet_stableswap::Config>::AssetRegistry::create_asset(&name, 1u128)?;
 		asset_ids.push(asset_id);
-		T::update_balance(asset_id.into(), &caller.clone(), 1_000_000_000_000_000i128)?;
+		<T as pallet_stableswap::Config>::Currency::update_balance(
+			asset_id,
+			&caller.clone().into(),
+			1_000_000_000_000_000i128,
+		)?;
+		//T::update_balance(asset_id.into(), &lp_provider.clone(), 1_000_000_000_000_000i128)?;
 		/*<T as pallet_stableswap::Config>::Currency::update_balance(
 			RawOrigin::Root.into(),
 			caller.clone(),
@@ -274,10 +280,12 @@ where
 		withdraw_fee,
 	)?;
 
-	/*StableswapPallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(), pool_id, initial)?;*/
+	StableswapPallet::<T>::add_liquidity(RawOrigin::Signed(caller.into()).into(), pool_id, initial)?;
 
 	let seller: AccountId = account("seller", 0, 1);
 	let amount_sell = 100_000_000_000_000u128;
+
+	//T::update_balance(asset_in.into(), &seller.clone(), amount_sell as i128)?;
 
 	/*<T as pallet_stableswap::Config>::Currency::update_balance(
 		RawOrigin::Root.into(),
@@ -362,8 +370,11 @@ where
 benchmarks! {
 	 where_clause {  where
 		OmnipoolCurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-		T: crate::pallet::Config + pallet_omnipool::Config + pallet_ema_oracle::Config + pallet_route_executor::Config,
+		<T as pallet_stableswap::Config>::Currency : MultiCurrencyExtended<T::AccountId, Amount = i128>,
+		T: crate::pallet::Config + pallet_omnipool::Config + pallet_ema_oracle::Config + pallet_route_executor::Config + pallet_stableswap::Config,
+		<T as frame_system::Config>::AccountId : From<u64>,
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
+		<T as pallet_stableswap::Config>::AssetId: From<u32> + Into<u32>,
 		<T as pallet_route_executor::Config>::AssetId: From<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<<T as pallet_route_executor::Config>::AssetId>,
@@ -464,7 +475,7 @@ benchmarks! {
 	}
 
 	on_initialize_with_buy_trade_stableswap{
-		initialize_omnipool::<T>()?;
+		let (pool_id, asset_in, asset_out) = init_stableswap::<T>()?;
 		set_period::<T>(1000);
 		let seller: T::AccountId = account("seller", 3, 1);
 		let other_seller: T::AccountId = account("seller", 3, 1);
