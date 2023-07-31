@@ -84,6 +84,7 @@ impl Contains<RuntimeCall> for CallFilter {
 		}
 
 		match call {
+			RuntimeCall::PolkadotXcm(pallet_xcm::Call::send { .. }) => true,
 			RuntimeCall::PolkadotXcm(_) => false,
 			RuntimeCall::OrmlXcm(_) => false,
 			_ => true,
