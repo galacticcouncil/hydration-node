@@ -34,7 +34,7 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, Zero},
 	Permill, SaturatedConversion,
 };
-use sp_runtime::{DispatchError, FixedU128};
+use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 use sp_std::num::NonZeroU128;
 
 #[cfg(test)]
@@ -889,8 +889,8 @@ impl<T: Config> Pallet<T> {
 
 	fn calculate_points_for_action<V: ActionData>(action: Action, data: V) -> Balance {
 		let total = data
-			.amount()
-			.saturating_mul(data.conviction() as u128)
+			.conviction()
+			.saturating_mul_int(data.amount())
 			.div(T::RewardedVoteUnit::get());
 		total.saturating_mul(T::ActionMultiplier::get(&action) as u128)
 	}

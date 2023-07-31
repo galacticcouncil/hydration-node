@@ -51,7 +51,7 @@ fn process_votes_should_work_when_referendum_is_finished() {
 			//Assert
 			assert_eq!(
 				Position {
-					action_points: 10_000_u128,
+					action_points: 1_000_u128,
 					..position_before
 				},
 				position
@@ -142,7 +142,7 @@ fn process_votes_should_work_when_referendum_is_finished_with_conviction() {
 			//Assert
 			assert_eq!(
 				Position {
-					action_points: 50_000_u128,
+					action_points: 40_000_u128,
 					..position_before
 				},
 				position
@@ -227,7 +227,7 @@ fn process_votes_should_work_when_multiple_votes_exists() {
 			//Assert
 			assert_eq!(
 				Position {
-					action_points: 950_008_u128,
+					action_points: 480_006_u128,
 					..position_before
 				},
 				position
@@ -352,7 +352,7 @@ fn process_votes_should_work_when_on_vote_is_called() {
 			//Assert
 			assert_eq!(
 				Position {
-					action_points: 950_008_u128,
+					action_points: 480_006_u128,
 					..position_before
 				},
 				Staking::positions(position_id).unwrap()

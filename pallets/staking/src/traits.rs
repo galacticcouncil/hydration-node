@@ -14,7 +14,7 @@ pub trait DemocracyReferendum {
 
 pub(crate) trait ActionData {
 	fn amount(&self) -> Balance;
-	fn conviction(&self) -> u32;
+	fn conviction(&self) -> FixedU128;
 }
 
 pub trait Freeze<AccountId, CollectionId> {

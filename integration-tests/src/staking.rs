@@ -189,7 +189,7 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 		assert_ok!(Democracy::vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			r,
-			aye(2 * UNITS)
+			aye(10 * UNITS)
 		));
 		end_referendum();
 
@@ -208,7 +208,7 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 		let stake_position =
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(alice_position_id).unwrap();
 
-		assert_eq!(stake_position.get_action_points(), 2);
+		assert_eq!(stake_position.get_action_points(), 1);
 		assert!(stake_voting.votes.is_empty());
 	});
 }
@@ -244,7 +244,7 @@ fn staking_should_transfer_rewards_when_claimed() {
 		assert_ok!(Democracy::vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			r,
-			aye(2 * UNITS)
+			aye(10 * UNITS)
 		));
 		end_referendum();
 
@@ -274,7 +274,7 @@ fn staking_should_transfer_rewards_when_claimed() {
 		let stake_position =
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(alice_position_id).unwrap();
 
-		assert_eq!(stake_position.get_action_points(), 2);
+		assert_eq!(stake_position.get_action_points(), 1);
 		assert!(stake_voting.votes.is_empty());
 	});
 }

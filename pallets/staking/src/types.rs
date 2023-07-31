@@ -80,13 +80,28 @@ impl StakingData {
 #[derive(Copy, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
 pub enum Conviction {
 	#[default]
-	None = 1,
-	Locked1x = 2,
-	Locked2x = 3,
-	Locked3x = 4,
-	Locked4x = 5,
-	Locked5x = 6,
-	Locked6x = 7,
+	None = 0,
+	Locked1x = 1,
+	Locked2x = 2,
+	Locked3x = 3,
+	Locked4x = 4,
+	Locked5x = 5,
+	Locked6x = 6,
+}
+
+impl Conviction {
+	pub fn multiplier(&self) -> FixedU128 {
+		match self {
+			//0.1
+			Conviction::None => FixedU128::from_inner(100_000_000_000_000_000_u128),
+			Conviction::Locked1x => FixedU128::from(1_u128),
+			Conviction::Locked2x => FixedU128::from(2_u128),
+			Conviction::Locked3x => FixedU128::from(3_u128),
+			Conviction::Locked4x => FixedU128::from(4_u128),
+			Conviction::Locked5x => FixedU128::from(4_u128),
+			Conviction::Locked6x => FixedU128::from(6_u128),
+		}
+	}
 }
 
 #[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -106,8 +121,8 @@ impl ActionData for Vote {
 		self.amount
 	}
 
-	fn conviction(&self) -> u32 {
-		self.conviction as u32
+	fn conviction(&self) -> FixedU128 {
+		self.conviction.multiplier()
 	}
 }
 
@@ -116,8 +131,8 @@ impl<'a> ActionData for &'a Vote {
 		self.amount
 	}
 
-	fn conviction(&self) -> u32 {
-		self.conviction as u32
+	fn conviction(&self) -> FixedU128 {
+		self.conviction.multiplier()
 	}
 }
 
