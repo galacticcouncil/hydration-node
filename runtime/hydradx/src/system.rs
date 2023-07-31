@@ -84,6 +84,7 @@ impl Contains<RuntimeCall> for CallFilter {
 		}
 
 		match call {
+			RuntimeCall::PolkadotXcm(pallet_xcm::Call::send { .. }) => true,
 			RuntimeCall::PolkadotXcm(_) => false,
 			RuntimeCall::OrmlXcm(_) => false,
 			_ => true,
@@ -501,9 +502,10 @@ impl pallet_collator_rewards::Config for Runtime {
 	type RewardPerCollator = RewardPerCollator;
 	type RewardCurrencyId = NativeAssetId;
 	type ExcludedCollators = ExcludedCollators;
-	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collatrs that
+	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collators that
 	// we hand out rewards to.
 	type SessionManager = CollatorSelection;
+	type MaxCandidates = MaxInvulnerables;
 }
 
 impl pallet_transaction_pause::Config for Runtime {

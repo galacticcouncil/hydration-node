@@ -48,7 +48,7 @@ frame-system-benchmarking = { workspace = true, optional = true }
 sp-core = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
 
-primitives = {  default-features = false }
+primitives = { path="../../primitives", default-features = false }
 
 
 [dev-dependencies]
@@ -86,13 +86,12 @@ std = [
   "pallet-ema-oracle/std",
   "pallet-route-executor/std",
   "frame-benchmarking/std",
-
 ]
 
 runtime-benchmarks = [
-  "frame-benchmarking/runtime-benchmarks",
-  "sp-core",
-  "sp-io",
-
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "hydradx-adapters/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]
