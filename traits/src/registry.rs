@@ -16,7 +16,7 @@ pub trait Registry<AssetId, AssetName, Balance, Error> {
 	}
 }
 
-#[deprecated(note = "Use CreateRegistry instead")]
+// Use CreateRegistry if possible
 pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<AssetId, AssetName, Balance, Error> {
 	fn retrieve_shared_asset(name: &AssetName, assets: &[AssetId]) -> Result<AssetId, Error>;
 
