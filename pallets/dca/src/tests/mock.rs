@@ -628,7 +628,8 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Stableswa
 		};
 		let amount_out = CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| *v.borrow());
 
-		Currencies::update_balance(RuntimeOrigin::root(), ASSET_PAIR_ACCOUNT, asset_out, amount_out as i128);
+		Currencies::update_balance(RuntimeOrigin::root(), ASSET_PAIR_ACCOUNT, asset_out, amount_out as i128)
+			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
 			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
@@ -664,7 +665,8 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Stableswa
 		};
 		let amount_in = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;
 
-		Currencies::update_balance(RuntimeOrigin::root(), ASSET_PAIR_ACCOUNT, asset_out, amount_out as i128);
+		Currencies::update_balance(RuntimeOrigin::root(), ASSET_PAIR_ACCOUNT, asset_out, amount_out as i128)
+			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
 			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
