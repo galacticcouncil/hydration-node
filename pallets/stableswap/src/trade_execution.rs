@@ -20,14 +20,16 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					//we are selling shares, how much stuff I get for the share
 					todo!("calculate how much we remove") //TODO: we need a helper function
 				} else if asset_out == pool_id {
-					Self::calculate_shares(
-						asset_in,
+					let shares_amount = Self::calculate_shares(
+						pool_id,
 						&vec![AssetBalance {
 							asset_id: asset_in,
 							amount: amount_in,
 						}],
-					);
-					todo!()
+					)
+					.map_err(ExecutorError::Error)?;
+
+					Ok(shares_amount)
 				} else {
 					let (amount_out, _) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in)
 						.map_err(ExecutorError::Error)?;
