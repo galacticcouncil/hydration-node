@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize};
 pub enum AssetType<AssetId> {
 	Token,
 	PoolShare(AssetId, AssetId),
+	StableSwap,
 	Bond,
 }
 
