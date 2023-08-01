@@ -18,6 +18,7 @@
 use super::*;
 use crate::system::NativeAssetId;
 
+use frame_support::traits::WithdrawReasons;
 use hydradx_adapters::{
 	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, OmnipoolHookAdapter, OracleAssetVolumeProvider,
 	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter,
@@ -72,6 +73,35 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type PostTransfer = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Runtime>;
+}
+
+use orml_traits::currency::{OnDeposit, OnTransfer};
+use sp_runtime::DispatchResult;
+pub struct SufficiencyCheck;
+impl SufficiencyCheck {
+	fn on_funds(asset: AssetId, to: &AccountId) -> DispatchResult {
+		use hydradx_traits::NativePriceOracle;
+		use frame_support::traits::LockableCurrency;
+		if MultiTransactionPayment::price(asset).is_some() {
+			return Ok(());
+		}
+		let ed = <Runtime as pallet_balances::Config>::ExistentialDeposit::get();
+		frame_support::ensure!(Balances::free_balance(to) >= ed, "need ED in account to lock");
+		Balances::set_lock(*b"suffice_", to, ed, WithdrawReasons::all());
+		Ok(())
+	}
+}
+
+impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
+	fn on_transfer(asset: AssetId, _from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
+		Self::on_funds(asset, to)
+	}
+}
+
+impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
+	fn on_deposit(asset: AssetId, to: &AccountId, _amount: Balance) -> DispatchResult {
+		Self::on_funds(asset, to)
+	}
 }
 
 impl orml_tokens::Config for Runtime {
