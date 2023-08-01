@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate::cli::{Cli, RelayChainCli, Subcommand};
-use crate::service::{new_partial, HydraDXExecutorDispatch};
+use crate::service::{evm::new_partial, HydraDXExecutorDispatch};
 use crate::{chain_spec, service};
 
 use codec::Encode;

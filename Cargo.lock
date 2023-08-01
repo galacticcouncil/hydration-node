@@ -2846,6 +2846,137 @@ dependencies = [
 ]
 
 [[package]]
+name = "fc-consensus"
+version = "2.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "async-trait",
+ "fc-db",
+ "fp-consensus",
+ "fp-rpc",
+ "sc-consensus",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-runtime",
+ "thiserror",
+]
+
+[[package]]
+name = "fc-db"
+version = "2.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "fp-storage",
+ "kvdb-rocksdb",
+ "log",
+ "parity-db",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "sc-client-db",
+ "smallvec",
+ "sp-blockchain",
+ "sp-core",
+ "sp-database",
+ "sp-runtime",
+]
+
+[[package]]
+name = "fc-mapping-sync"
+version = "2.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "fc-db",
+ "fp-consensus",
+ "fp-rpc",
+ "futures",
+ "futures-timer",
+ "log",
+ "sc-client-api",
+ "sp-api",
+ "sp-blockchain",
+ "sp-runtime",
+]
+
+[[package]]
+name = "fc-rpc"
+version = "2.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "ethereum",
+ "ethereum-types",
+ "evm",
+ "fc-db",
+ "fc-rpc-core",
+ "fc-storage",
+ "fp-ethereum",
+ "fp-evm",
+ "fp-rpc",
+ "fp-storage",
+ "futures",
+ "hex",
+ "jsonrpsee 0.16.2",
+ "libsecp256k1",
+ "log",
+ "lru 0.8.1",
+ "pallet-evm",
+ "parity-scale-codec",
+ "prometheus",
+ "rand 0.8.5",
+ "rlp",
+ "sc-client-api",
+ "sc-network",
+ "sc-network-common",
+ "sc-rpc",
+ "sc-service",
+ "sc-transaction-pool",
+ "sc-transaction-pool-api",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-storage",
+ "substrate-prometheus-endpoint",
+ "tokio",
+]
+
+[[package]]
+name = "fc-rpc-core"
+version = "1.1.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "ethereum",
+ "ethereum-types",
+ "jsonrpsee 0.16.2",
+ "rustc-hex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "fc-storage"
+version = "1.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "ethereum",
+ "ethereum-types",
+ "fp-rpc",
+ "fp-storage",
+ "parity-scale-codec",
+ "sc-client-api",
+ "sp-api",
+ "sp-blockchain",
+ "sp-io",
+ "sp-runtime",
+ "sp-storage",
+]
+
+[[package]]
 name = "fdlimit"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2998,6 +3129,16 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "fp-dynamic-fee"
+version = "1.0.0"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "async-trait",
+ "sp-core",
+ "sp-inherents",
 ]
 
 [[package]]
@@ -3540,8 +3681,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be4136b2a15dd319360be1c07d9933517ccf0be8f16bf62a3bee4f0d618df427"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -3906,6 +4049,7 @@ dependencies = [
 name = "hydradx"
 version = "10.0.1"
 dependencies = [
+ "async-trait",
  "clap 4.3.9",
  "cumulus-client-cli",
  "cumulus-client-collator",
@@ -3919,6 +4063,15 @@ dependencies = [
  "cumulus-relay-chain-inprocess-interface",
  "cumulus-relay-chain-interface",
  "cumulus-relay-chain-minimal-node",
+ "fc-consensus",
+ "fc-db",
+ "fc-mapping-sync",
+ "fc-rpc",
+ "fc-rpc-core",
+ "fp-consensus",
+ "fp-dynamic-fee",
+ "fp-rpc",
+ "fp-storage",
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "frame-system-rpc-runtime-api",
@@ -3941,6 +4094,7 @@ dependencies = [
  "sc-chain-spec",
  "sc-cli",
  "sc-client-api",
+ "sc-client-db",
  "sc-consensus",
  "sc-consensus-aura",
  "sc-executor",
@@ -4032,6 +4186,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
+ "getrandom 0.2.10",
  "hex-literal 0.3.4",
  "hydra-dx-math",
  "hydradx-adapters",
@@ -15394,11 +15549,6 @@ dependencies = [
 ]
 
 [[patch.unused]]
-name = "orml-asset-registry"
-version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=polkadot-v0.9.38#241d5cdc98cca53b8cf990853943c9ae1193a70e"
-
-[[patch.unused]]
 name = "substrate-test-client"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
@@ -15527,3 +15677,8 @@ source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-de
 name = "westmint-runtime"
 version = "1.0.0"
 source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+
+[[patch.unused]]
+name = "orml-asset-registry"
+version = "0.4.1-dev"
+source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=polkadot-v0.9.38#241d5cdc98cca53b8cf990853943c9ae1193a70e"

@@ -19,6 +19,7 @@ serde = { features = ["derive"], optional = true, version = "1.0.136" }
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 smallvec = "1.9.0"
+getrandom = { version = "0.2.10", features = ["js"] }
 
 # local dependencies
 primitives = { workspace = true }
@@ -263,6 +264,7 @@ std = [
     "pallet-evm/std",
     "pallet-evm-chain-id/std",
     "pallet-evm-precompile-dispatch/std",
+    "getrandom/std",
 ]
 try-runtime= [
     "frame-try-runtime",

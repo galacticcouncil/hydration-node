@@ -34,6 +34,7 @@ members = [
 ]
 
 [workspace.dependencies]
+getrandom = { version = "0.2.10", features = ["js"] }
 async-trait = "0.1"
 futures = "0.3.25"
 hydra-dx-math = { path = "math", default-features = false }
@@ -121,6 +122,7 @@ sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch 
 sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sc-consensus-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
