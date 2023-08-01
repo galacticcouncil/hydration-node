@@ -3915,7 +3915,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.4.0"
+version = "2.5.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6196,7 +6196,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.2.3"
+version = "2.2.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

@@ -19,6 +19,7 @@ use frame_support::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 
+use hydradx_traits::AssetKind;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
@@ -26,8 +27,22 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum AssetType<AssetId> {
 	Token,
+	#[deprecated(note = "Use XYK")]
 	PoolShare(AssetId, AssetId),
+	XYK,
 	StableSwap,
+	Bond,
+}
+
+impl<AssetId> From<AssetKind> for AssetType<AssetId> {
+	fn from(value: AssetKind) -> Self {
+		match value {
+			AssetKind::Token => Self::Token,
+			AssetKind::XYK => Self::XYK,
+			AssetKind::StableSwap => Self::StableSwap,
+			AssetKind::Bond => Self::Bond,
+		}
+	}
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
