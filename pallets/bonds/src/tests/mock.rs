@@ -26,7 +26,6 @@ use frame_support::{
 	},
 	traits::{ConstU32, ConstU64, Everything, GenesisBuild},
 };
-use frame_system::{EnsureRoot, EnsureSigned};
 use sp_core::H256;
 use std::{cell::RefCell, collections::HashMap};
 
@@ -101,8 +100,6 @@ impl Config for Test {
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
 	type MinMaturity = MinMaturity;
-	type IssueOrigin = EnsureSigned<AccountId>;
-	type UnlockOrigin = EnsureRoot<AccountId>;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();

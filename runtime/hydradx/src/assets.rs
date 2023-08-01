@@ -43,7 +43,7 @@ use frame_support::{
 	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
 	BoundedVec, PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use frame_system::{EnsureRoot, RawOrigin};
 use orml_traits::currency::MutationHooks;
 use pallet_dynamic_fees::types::FeeParams;
 
@@ -501,8 +501,6 @@ impl pallet_bonds::Config for Runtime {
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
 	type MinMaturity = MinMaturity;
-	type IssueOrigin = EnsureSigned<AccountId>;
-	type UnlockOrigin = MajorityOfCouncil;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();

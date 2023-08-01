@@ -33,23 +33,25 @@ fn issue_bonds_should_work_when_fee_is_zero() {
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 		// Assert
-		expect_events(vec![Event::BondTokenCreated {
-			issuer: ALICE,
-			asset_id: HDX,
-			bond_asset_id: bond_id,
-			amount,
-			fee: 0,
-		}
-		.into()]);
-
-		assert_eq!(
-			Bonds::bonds(bond_id).unwrap(),
-			Bond {
-				maturity,
+		expect_events(vec![
+			Event::BondTokenCreated {
+				issuer: ALICE,
 				asset_id: HDX,
-				amount,
+				bond_id,
+				maturity,
 			}
-		);
+			.into(),
+			Event::BondsIssued {
+				issuer: ALICE,
+				bond_id,
+				amount,
+				fee: 0,
+			}
+			.into(),
+		]);
+
+		assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+		assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - amount);
 		assert_eq!(Tokens::free_balance(bond_id, &ALICE), amount);
@@ -77,23 +79,25 @@ fn issue_bonds_should_work_when_fee_is_non_zero() {
 			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 			// Assert
-			expect_events(vec![Event::BondTokenCreated {
-				issuer: ALICE,
-				asset_id: HDX,
-				bond_asset_id: bond_id,
-				amount: amount_without_fee,
-				fee,
-			}
-			.into()]);
-
-			assert_eq!(
-				Bonds::bonds(bond_id).unwrap(),
-				Bond {
-					maturity,
+			expect_events(vec![
+				Event::BondTokenCreated {
+					issuer: ALICE,
 					asset_id: HDX,
-					amount: amount_without_fee,
+					bond_id,
+					maturity,
 				}
-			);
+				.into(),
+				Event::BondsIssued {
+					issuer: ALICE,
+					bond_id,
+					amount: amount_without_fee,
+					fee,
+				}
+				.into(),
+			]);
+
+			assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+			assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - amount);
 			assert_eq!(Tokens::free_balance(bond_id, &ALICE), amount_without_fee);
@@ -108,11 +112,9 @@ fn issue_bonds_should_work_when_fee_is_non_zero() {
 }
 
 #[test]
-fn issue_bonds_should_work_when_issuing_multiple_bonds() {
+fn issue_bonds_should_issue_new_bonds_when_bonds_are_already_registered() {
 	ExtBuilder::default()
 		.with_protocol_fee(Permill::from_percent(10))
-		.with_registered_asset(DAI, NATIVE_EXISTENTIAL_DEPOSIT)
-		.add_endowed_accounts(vec![(BOB, DAI, INITIAL_BALANCE)])
 		.build()
 		.execute_with(|| {
 			// Arrange
@@ -121,22 +123,169 @@ fn issue_bonds_should_work_when_issuing_multiple_bonds() {
 			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
 			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
 
+			let bond_id = next_asset_id();
+			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
+
 			// Act
-			let first_bond_id = next_asset_id();
 			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
-
-			let second_bond_id = next_asset_id();
-			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
-
-			let third_bond_id = next_asset_id();
-			assert_ok!(Bonds::issue(RuntimeOrigin::signed(BOB), DAI, amount, maturity));
 
 			// Assert
 			expect_events(vec![
 				Event::BondTokenCreated {
 					issuer: ALICE,
 					asset_id: HDX,
-					bond_asset_id: first_bond_id,
+					bond_id,
+					maturity,
+				}
+				.into(),
+				Event::BondsIssued {
+					issuer: ALICE,
+					bond_id,
+					amount: amount_without_fee,
+					fee,
+				}
+				.into(),
+				Event::BondsIssued {
+					issuer: ALICE,
+					bond_id,
+					amount: amount_without_fee,
+					fee,
+				}
+				.into(),
+			]);
+
+			assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+			assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
+
+			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - 2 * amount);
+
+			assert_eq!(Tokens::free_balance(bond_id, &ALICE), 2 * amount_without_fee);
+
+			assert_eq!(
+				Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()),
+				2 * fee
+			);
+
+			assert_eq!(
+				Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
+				2 * amount_without_fee
+			);
+		});
+}
+
+#[test]
+fn issue_bonds_should_register_new_bonds_when_underlying_asset_is_different() {
+	ExtBuilder::default()
+		.with_protocol_fee(Permill::from_percent(10))
+		.with_registered_asset(DAI, NATIVE_EXISTENTIAL_DEPOSIT)
+		.add_endowed_accounts(vec![(ALICE, DAI, INITIAL_BALANCE)])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			let maturity = NOW + MONTH;
+			let amount: Balance = 1_000_000;
+			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
+			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
+
+			let first_bond_id = next_asset_id();
+			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
+
+			// Act
+			let second_bond_id = next_asset_id();
+			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), DAI, amount, maturity));
+
+			// Assert
+			expect_events(vec![
+				Event::BondTokenCreated {
+					issuer: ALICE,
+					asset_id: HDX,
+					bond_id: first_bond_id,
+					maturity,
+				}
+				.into(),
+				Event::BondsIssued {
+					issuer: ALICE,
+					bond_id: first_bond_id,
+					amount: amount_without_fee,
+					fee,
+				}
+				.into(),
+				Event::BondTokenCreated {
+					issuer: ALICE,
+					asset_id: DAI,
+					bond_id: second_bond_id,
+					maturity,
+				}
+				.into(),
+				Event::BondsIssued {
+					issuer: ALICE,
+					bond_id: second_bond_id,
+					amount: amount_without_fee,
+					fee,
+				}
+				.into(),
+			]);
+
+			assert_eq!(Bonds::bonds(first_bond_id), Some((HDX, maturity)));
+			assert_eq!(Bonds::bond_id((HDX, maturity)), Some(first_bond_id));
+
+			assert_eq!(Bonds::bonds(second_bond_id), Some((DAI, maturity)));
+			assert_eq!(Bonds::bond_id((DAI, maturity)), Some(second_bond_id));
+
+			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - amount);
+			assert_eq!(Tokens::free_balance(DAI, &ALICE), INITIAL_BALANCE - amount);
+
+			assert_eq!(Tokens::free_balance(first_bond_id, &ALICE), amount_without_fee);
+			assert_eq!(Tokens::free_balance(second_bond_id, &ALICE), amount_without_fee);
+
+			assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), fee);
+			assert_eq!(Tokens::free_balance(DAI, &<Test as Config>::FeeReceiver::get()), fee);
+
+			assert_eq!(
+				Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
+				amount_without_fee
+			);
+			assert_eq!(
+				Tokens::free_balance(DAI, &Bonds::pallet_account_id()),
+				amount_without_fee
+			);
+		});
+}
+
+#[test]
+fn issue_bonds_should_register_new_bonds_when_maturity_is_different() {
+	ExtBuilder::default()
+		.with_protocol_fee(Permill::from_percent(10))
+		.with_registered_asset(DAI, NATIVE_EXISTENTIAL_DEPOSIT)
+		.add_endowed_accounts(vec![(ALICE, DAI, INITIAL_BALANCE)])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			let next_month = NOW + MONTH;
+			let next_week = NOW + WEEK;
+			let amount: Balance = 1_000_000;
+			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
+			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
+
+			let first_bond_id = next_asset_id();
+			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, next_month));
+
+			// Act
+			let second_bond_id = next_asset_id();
+			assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, next_week));
+
+			// Assert
+			expect_events(vec![
+				Event::BondTokenCreated {
+					issuer: ALICE,
+					asset_id: HDX,
+					bond_id: first_bond_id,
+					maturity: next_month,
+				}
+				.into(),
+				Event::BondsIssued {
+					issuer: ALICE,
+					bond_id: first_bond_id,
 					amount: amount_without_fee,
 					fee,
 				}
@@ -144,68 +293,165 @@ fn issue_bonds_should_work_when_issuing_multiple_bonds() {
 				Event::BondTokenCreated {
 					issuer: ALICE,
 					asset_id: HDX,
-					bond_asset_id: second_bond_id,
-					amount: amount_without_fee,
-					fee,
+					bond_id: second_bond_id,
+					maturity: next_week,
 				}
 				.into(),
-				Event::BondTokenCreated {
-					issuer: BOB,
-					asset_id: DAI,
-					bond_asset_id: third_bond_id,
+				Event::BondsIssued {
+					issuer: ALICE,
+					bond_id: second_bond_id,
 					amount: amount_without_fee,
 					fee,
 				}
 				.into(),
 			]);
 
-			assert_eq!(
-				Bonds::bonds(first_bond_id).unwrap(),
-				Bond {
-					maturity,
-					asset_id: HDX,
-					amount: amount_without_fee,
-				}
-			);
-			assert_eq!(
-				Bonds::bonds(second_bond_id).unwrap(),
-				Bond {
-					maturity,
-					asset_id: HDX,
-					amount: amount_without_fee,
-				}
-			);
-			assert_eq!(
-				Bonds::bonds(third_bond_id).unwrap(),
-				Bond {
-					maturity,
-					asset_id: DAI,
-					amount: amount_without_fee,
-				}
-			);
+			assert_eq!(Bonds::bonds(first_bond_id), Some((HDX, next_month)));
+			assert_eq!(Bonds::bond_id((HDX, next_month)), Some(first_bond_id));
+
+			assert_eq!(Bonds::bonds(second_bond_id), Some((HDX, next_week)));
+			assert_eq!(Bonds::bond_id((HDX, next_week)), Some(second_bond_id));
 
 			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - 2 * amount);
-			assert_eq!(Tokens::free_balance(DAI, &BOB), INITIAL_BALANCE - amount);
 
 			assert_eq!(Tokens::free_balance(first_bond_id, &ALICE), amount_without_fee);
 			assert_eq!(Tokens::free_balance(second_bond_id, &ALICE), amount_without_fee);
-			assert_eq!(Tokens::free_balance(third_bond_id, &BOB), amount_without_fee);
 
 			assert_eq!(
 				Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()),
 				2 * fee
 			);
-			assert_eq!(Tokens::free_balance(DAI, &<Test as Config>::FeeReceiver::get()), fee);
 
 			assert_eq!(
 				Tokens::free_balance(HDX, &Bonds::pallet_account_id()),
 				2 * amount_without_fee
 			);
-			assert_eq!(
-				Tokens::free_balance(DAI, &Bonds::pallet_account_id()),
-				amount_without_fee
-			);
 		});
+}
+
+#[test]
+fn issue_bonds_should_work_when_bonds_are_mature() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let maturity = NOW + MONTH;
+		let amount = ONE;
+
+		let bond_id = next_asset_id();
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
+
+		// Act
+		Timestamp::set_timestamp(NOW + 2 * MONTH);
+
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
+
+		// Assert
+		expect_events(vec![
+			Event::BondTokenCreated {
+				issuer: ALICE,
+				asset_id: HDX,
+				bond_id,
+				maturity,
+			}
+			.into(),
+			Event::BondsIssued {
+				issuer: ALICE,
+				bond_id,
+				amount,
+				fee: 0,
+			}
+			.into(),
+			Event::BondsIssued {
+				issuer: ALICE,
+				bond_id,
+				amount,
+				fee: 0,
+			}
+			.into(),
+		]);
+
+		assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+		assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
+
+		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - 2 * amount);
+		assert_eq!(Tokens::free_balance(bond_id, &ALICE), 2 * amount);
+
+		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
+
+		assert_eq!(Tokens::free_balance(HDX, &Bonds::pallet_account_id()), 2 * amount);
+	});
+}
+
+#[test]
+fn reissuance_of_bonds_should_register_bonds_again_when_all_old_bonds_are_redeemed() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let previous_maturity = NOW + MONTH;
+		let amount = ONE;
+
+		let previous_bond_id = next_asset_id();
+		assert_ok!(Bonds::issue(
+			RuntimeOrigin::signed(ALICE),
+			HDX,
+			amount,
+			previous_maturity
+		));
+
+		Timestamp::set_timestamp(NOW + 2 * MONTH);
+
+		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), previous_bond_id, amount));
+
+		// make sure that all bonds were redeemed and the bonds removed from the storage
+		assert!(Tokens::total_issuance(previous_bond_id).is_zero());
+		assert_eq!(Bonds::bonds(previous_bond_id), None);
+		assert_eq!(Bonds::bond_id((HDX, previous_maturity)), None);
+
+		// Act
+		let new_maturity = NOW + 3 * MONTH;
+		let bond_id = next_asset_id();
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, new_maturity));
+
+		// Assert
+		expect_events(vec![
+			Event::BondTokenCreated {
+				issuer: ALICE,
+				asset_id: HDX,
+				bond_id: previous_bond_id,
+				maturity: previous_maturity,
+			}
+			.into(),
+			Event::BondsIssued {
+				issuer: ALICE,
+				bond_id: previous_bond_id,
+				amount,
+				fee: 0,
+			}
+			.into(),
+			Event::BondTokenCreated {
+				issuer: ALICE,
+				asset_id: HDX,
+				bond_id,
+				maturity: new_maturity,
+			}
+			.into(),
+			Event::BondsIssued {
+				issuer: ALICE,
+				bond_id,
+				amount,
+				fee: 0,
+			}
+			.into(),
+		]);
+
+		assert_eq!(Bonds::bonds(bond_id), Some((HDX, new_maturity)));
+		assert_eq!(Bonds::bond_id((HDX, new_maturity)), Some(bond_id));
+
+		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - amount);
+		assert_eq!(Tokens::free_balance(bond_id, &ALICE), amount);
+
+		assert_eq!(Tokens::free_balance(HDX, &<Test as Config>::FeeReceiver::get()), 0);
+
+		assert_eq!(Tokens::free_balance(HDX, &Bonds::pallet_account_id()), amount);
+	});
 }
 
 #[test]

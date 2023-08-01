@@ -45,14 +45,8 @@ fn partially_redeem_bonds_should_work_when_fee_is_zero() {
 		}
 		.into()]);
 
-		assert_eq!(
-			Bonds::bonds(bond_id).unwrap(),
-			Bond {
-				maturity,
-				asset_id: HDX,
-				amount: amount - redeem_amount,
-			}
-		);
+		assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+		assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 		assert_eq!(
 			Tokens::free_balance(HDX, &ALICE),
@@ -98,14 +92,8 @@ fn partially_redeem_bonds_should_work_when_fee_is_non_zero() {
 			}
 			.into()]);
 
-			assert_eq!(
-				Bonds::bonds(bond_id).unwrap(),
-				Bond {
-					maturity,
-					asset_id: HDX,
-					amount: amount_without_fee - redeem_amount,
-				}
-			);
+			assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+			assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 			assert_eq!(
 				Tokens::free_balance(HDX, &ALICE),
@@ -149,6 +137,7 @@ fn fully_redeem_bonds_should_work_when_fee_is_zero() {
 		.into()]);
 
 		assert!(!crate::Bonds::<Test>::contains_key(bond_id));
+		assert!(!crate::BondIds::<Test>::contains_key((HDX, maturity)));
 
 		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE);
 		assert_eq!(Tokens::free_balance(bond_id, &ALICE), 0);
@@ -188,6 +177,7 @@ fn fully_redeem_bonds_should_work_when_fee_is_non_zero() {
 			.into()]);
 
 			assert!(!crate::Bonds::<Test>::contains_key(bond_id));
+			assert!(!crate::BondIds::<Test>::contains_key((HDX, maturity)));
 
 			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - fee);
 			assert_eq!(Tokens::free_balance(bond_id, &ALICE), 0);
@@ -324,7 +314,7 @@ fn redeem_bonds_should_fail_when_the_amount_is_greater_then_total_issued() {
 		// Act & Assert
 		assert_noop!(
 			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, 2 * amount),
-			ArithmeticError::Overflow
+			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 	});
 }

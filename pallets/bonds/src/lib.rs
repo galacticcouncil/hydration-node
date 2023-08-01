@@ -17,30 +17,30 @@
 //!
 //! ## Overview
 //!
-//! This pallet provides functionality to issue bonds.
+//! This pallet provides functionality to issue fungible bonds.
 //! Once the bonds are mature, they can be redeemed for the underlying asset.
 //! The pallet uses `Time` trait to get the timestamp of the last block, provided by the timestamp pallet.
 //!
 //! ## Assumptions
 //!
 //! * When issuing new bonds, new nameless asset of the `AssetType::Bond` is registered for the bonds.
+//! * New amount of bonds is issued when the underlying asset and maturity matches already registered bonds.
 //! * It's possible to create multiple bonds for the same underlying asset.
 //! * Bonds can be issued for all available asset types.
-//! * The existential deposit of the bond is the same as of the underlying asset.
-//! * A user receives the same amount of bonds as the amount of the underlying asset he provided.
+//! * The existential deposit of the bonds is the same as of the underlying asset.
+//! * A user receives the same amount of bonds as the amount of the underlying asset he provided, minus the protocol fee.
 //! * Maturity of bonds is represented using the Unix time in milliseconds.
 //! * Underlying assets are stored in the pallet account until redeemed.
 //! * Protocol fee is applied to the amount of the underlying asset and transferred to the fee receiver.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode};
 use frame_support::{
 	ensure,
 	pallet_prelude::{DispatchResult, Get},
 	sp_runtime::{
 		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub, Zero},
-		ArithmeticError, DispatchError, Permill, RuntimeDebug,
+		ArithmeticError, DispatchError, Permill,
 	},
 	traits::Time,
 	PalletId,
@@ -63,14 +63,6 @@ pub mod weights;
 
 pub use pallet::*;
 pub use weights::WeightInfo;
-
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-#[scale_info(skip_type_params(T))]
-pub struct Bond<T: Config> {
-	pub maturity: Moment,
-	pub asset_id: T::AssetId, // underlying asset id
-	pub amount: T::Balance,
-}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -131,12 +123,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinMaturity: Get<Moment>;
 
-		/// The origin which can issue new bonds.
-		type IssueOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
-
-		/// The origin which can unlock bonds by making them mature.
-		type UnlockOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
 		/// Protocol fee.
 		#[pallet::constant]
 		type ProtocolFee: Get<Permill>;
@@ -150,9 +136,16 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
+	/// Registered bond ids. Fully redeemed bonds are removed from the storage.
+	/// Maps (underlying asset ID, maturity) -> bond ID
+	#[pallet::getter(fn bond_id)]
+	pub(super) type BondIds<T: Config> = StorageMap<_, Blake2_128Concat, (T::AssetId, Moment), T::AssetId>;
+
+	#[pallet::storage]
 	/// Registered bonds. Fully redeemed bonds are removed from the storage.
+	/// Maps bond ID -> (underlying asset ID, maturity)
 	#[pallet::getter(fn bonds)]
-	pub(super) type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Bond<T>>;
+	pub(super) type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (T::AssetId, Moment)>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -161,7 +154,13 @@ pub mod pallet {
 		BondTokenCreated {
 			issuer: T::AccountId,
 			asset_id: T::AssetId,
-			bond_asset_id: T::AssetId,
+			bond_id: T::AssetId,
+			maturity: Moment,
+		},
+		/// New bond were issued
+		BondsIssued {
+			issuer: T::AccountId,
+			bond_id: T::AssetId,
 			amount: T::Balance,
 			fee: T::Balance,
 		},
@@ -171,8 +170,6 @@ pub mod pallet {
 			bond_id: T::AssetId,
 			amount: T::Balance,
 		},
-		/// Bonds were unlocked
-		BondsUnlocked { bond_id: T::AssetId },
 	}
 
 	#[pallet::error]
@@ -188,23 +185,27 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Issue new bonds.
+		/// Issue new fungible bonds.
 		/// New asset id is registered and assigned to the bonds.
 		/// The number of bonds the issuer receives is 1:1 to the `amount` of the underlying asset
 		/// minus the protocol fee.
 		/// The bond asset is registered with the empty string for the asset name,
 		/// and with the same existential deposit as of the underlying asset.
-		/// Bonds can be redeemed 1:1 for the underlying asset once mature.
+		/// Bonds can be redeemed for the underlying asset once mature.
 		/// Protocol fee is applied to the amount, and transferred to `T::FeeReceiver`.
+		/// When issuing new bonds with the underlying asset and maturity that matches existing bonds,
+		/// new amount of these existing bonds is issued, instead of registering new bonds.
+		/// It's possible to issue new bonds for bonds that are already mature.
 		///
 		/// Parameters:
-		/// - `origin`: issuer of new bonds, needs to be `T::IssueOrigin`
+		/// - `origin`: issuer of new bonds
 		/// - `asset_id`: underlying asset id
 		/// - `amount`: the amount of the underlying asset
 		/// - `maturity`: Unix time in milliseconds, when the bonds will be mature. Needs to be set
 		/// more than `T::MinMaturity` from now.
 		///
-		/// Emits `BondTokenCreated` event when successful.
+		/// Emits `BondTokenCreated` event when successful and new bonds were registered.
+		/// Emits `BondsIssued` event when successful.
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::issue())]
@@ -214,44 +215,58 @@ pub mod pallet {
 			amount: T::Balance,
 			maturity: Moment,
 		) -> DispatchResult {
-			let who = T::IssueOrigin::ensure_origin(origin)?;
+			let who = ensure_signed(origin)?;
 
-			let time_diff = maturity
-				.checked_sub(T::TimestampProvider::now())
-				.ok_or(ArithmeticError::Overflow)?;
-			ensure!(time_diff >= T::MinMaturity::get(), Error::<T>::InvalidMaturity);
+			BondIds::<T>::try_mutate_exists((asset_id, maturity), |maybe_bond| -> DispatchResult {
+				let fee = T::ProtocolFee::get().mul_ceil(amount); // TODO: check
+				let amount_without_fee = amount.checked_sub(&fee).ok_or(ArithmeticError::Overflow)?;
+				let pallet_account = Self::pallet_account_id();
 
-			let ed = T::ExistentialDeposits::get(&asset_id);
+				let bond_id = match maybe_bond {
+					Some(bond_id) => {
+						// bonds exist
 
-			// not covered in the tests. Create an asset with empty name should always work
-			let bond_asset_id = T::AssetRegistry::create_bond_asset(ed)?;
+						*bond_id
+					}
+					None => {
+						// register new bonds
+						let time_diff = maturity
+							.checked_sub(T::TimestampProvider::now())
+							.ok_or(ArithmeticError::Overflow)?;
+						ensure!(time_diff >= T::MinMaturity::get(), Error::<T>::InvalidMaturity);
 
-			let fee = T::ProtocolFee::get().mul_ceil(amount); // TODO: check
-			let amount_without_fee = amount.checked_sub(&fee).ok_or(ArithmeticError::Overflow)?;
-			let pallet_account = Self::pallet_account_id();
+						let ed = T::ExistentialDeposits::get(&asset_id);
 
-			T::Currency::transfer(asset_id, &who, &pallet_account, amount_without_fee)?;
-			T::Currency::transfer(asset_id, &who, &T::FeeReceiver::get(), fee)?;
-			T::Currency::deposit(bond_asset_id, &who, amount_without_fee)?;
+						// not covered in the tests.
+						let bond_id = T::AssetRegistry::create_bond_asset(ed)?;
 
-			Bonds::<T>::insert(
-				bond_asset_id,
-				Bond {
-					maturity,
-					asset_id,
+						*maybe_bond = Some(bond_id);
+						Bonds::<T>::insert(bond_id, (asset_id, maturity));
+
+						Self::deposit_event(Event::BondTokenCreated {
+							issuer: who.clone(),
+							asset_id,
+							bond_id,
+							maturity,
+						});
+
+						bond_id
+					}
+				};
+
+				T::Currency::transfer(asset_id, &who.clone(), &pallet_account, amount_without_fee)?;
+				T::Currency::transfer(asset_id, &who.clone(), &T::FeeReceiver::get(), fee)?;
+				T::Currency::deposit(bond_id, &who, amount_without_fee)?;
+
+				Self::deposit_event(Event::BondsIssued {
+					issuer: who.clone(),
+					bond_id,
 					amount: amount_without_fee,
-				},
-			);
+					fee,
+				});
 
-			Self::deposit_event(Event::BondTokenCreated {
-				issuer: who,
-				asset_id,
-				bond_asset_id,
-				amount: amount_without_fee,
-				fee,
-			});
-
-			Ok(())
+				Ok(())
+			})
 		}
 
 		/// Redeem bonds for the underlying asset.
@@ -271,58 +286,24 @@ pub mod pallet {
 		pub fn redeem(origin: OriginFor<T>, bond_id: T::AssetId, amount: T::Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			Bonds::<T>::try_mutate_exists(bond_id, |maybe_bond_data| -> DispatchResult {
-				let bond_data = maybe_bond_data.as_mut().ok_or(Error::<T>::BondNotRegistered)?;
+			let (underlying_asset_id, maturity) = Self::bonds(bond_id).ok_or(Error::<T>::BondNotRegistered)?;
 
-				let now = T::TimestampProvider::now();
-				ensure!(now >= bond_data.maturity, Error::<T>::BondNotMature);
+			let now = T::TimestampProvider::now();
+			ensure!(now >= maturity, Error::<T>::BondNotMature);
 
-				T::Currency::withdraw(bond_id, &who, amount)?;
+			T::Currency::withdraw(bond_id, &who, amount)?;
 
-				bond_data.amount = bond_data.amount.checked_sub(&amount).ok_or(ArithmeticError::Overflow)?;
+			let pallet_account = Self::pallet_account_id();
+			T::Currency::transfer(underlying_asset_id, &pallet_account, &who, amount)?;
 
-				let pallet_account = Self::pallet_account_id();
-				T::Currency::transfer(bond_data.asset_id, &pallet_account, &who, amount)?;
+			// if there are no bonds left, remove the bonds entry from the storage
+			let bond_balance = T::Currency::total_issuance(bond_id);
+			if bond_balance.is_zero() {
+				BondIds::<T>::remove((underlying_asset_id, maturity));
+				Bonds::<T>::remove(bond_id);
+			}
 
-				// if there are no bonds left, remove the bonds from the storage
-				if bond_data.amount.is_zero() {
-					*maybe_bond_data = None;
-				}
-
-				Self::deposit_event(Event::BondsRedeemed { who, bond_id, amount });
-
-				Ok(())
-			})?;
-
-			Ok(())
-		}
-
-		/// Unlock bonds by making them mature.
-		/// The maturity of the bonds is not updated if the bonds are already mature.
-		///
-		/// Parameters:
-		/// - `origin`: needs to be `T::UnlockOrigin`
-		/// - `bond_id`: the asset id of the bonds
-		///
-		/// Emits `BondsUnlocked` event when successful.
-		///
-		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::redeem())]
-		pub fn unlock(origin: OriginFor<T>, bond_id: T::AssetId) -> DispatchResult {
-			T::UnlockOrigin::ensure_origin(origin)?;
-
-			Bonds::<T>::try_mutate_exists(bond_id, |maybe_bond_data| -> DispatchResult {
-				let bond_data = maybe_bond_data.as_mut().ok_or(Error::<T>::BondNotRegistered)?;
-
-				let now = T::TimestampProvider::now();
-				// do nothing if the bonds are already mature
-				if bond_data.maturity > now {
-					bond_data.maturity = now;
-
-					Self::deposit_event(Event::BondsUnlocked { bond_id });
-				}
-				Ok(())
-			})?;
+			Self::deposit_event(Event::BondsRedeemed { who, bond_id, amount });
 
 			Ok(())
 		}

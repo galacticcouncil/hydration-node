@@ -51,7 +51,7 @@ benchmarks! {
 
 	}: _(RawOrigin::Signed(issuer), HDX.into(), (100 * ONE).into(), maturity)
 	verify {
-		assert!(Bonds::<T>::iter().next().is_some());
+		assert!(BondIds::<T>::get::<(T::AssetId, Moment)>((HDX.into(), maturity)).is_some());
 	}
 
 	redeem {
@@ -75,30 +75,6 @@ benchmarks! {
 	}: _(RawOrigin::Signed(issuer), bond_id, amount_without_fee)
 	verify {
 		assert!(crate::Pallet::<T>::bonds(bond_id).is_none());
-	}
-
-	unlock {
-		pallet_timestamp::Pallet::<T>::set_timestamp(NOW.into());
-
-		let issuer: T::AccountId = account("caller", 0, 1);
-		let amount: T::Balance = (200 * ONE).into();
-		T::Currency::deposit(HDX.into(), &issuer, amount)?;
-
-		let maturity = NOW + T::MinMaturity::get();
-
-		assert_ok!(crate::Pallet::<T>::issue(RawOrigin::Signed(issuer).into(), HDX.into(), amount, maturity));
-
-		let fee = <T as Config>::ProtocolFee::get().mul_ceil(amount);
-		let amount_without_fee: T::Balance = amount.checked_sub(&fee).unwrap();
-
-		pallet_timestamp::Pallet::<T>::set_timestamp((NOW + T::MinMaturity::get() / 2).into());
-
-		let bond_id = Bonds::<T>::iter_keys().next().unwrap();
-
-	}: _(RawOrigin::Root, bond_id)
-	verify {
-		let bond_data = crate::Pallet::<T>::bonds(bond_id).unwrap();
-		assert_eq!(bond_data.maturity, NOW + T::MinMaturity::get() / 2);
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);
