@@ -1,0 +1,11 @@
+#!/bin/bash
+
+header1="Accept: application/vnd.github.v3+json"
+header2="Authorization: token ${access_token}"
+apiUrl="https://api.github.com/repos/galacticcouncil/HydraDX-node/actions/runners/registration-token"
+
+su ubuntu <<EOF
+cd /home/ubuntu
+bash config.sh --url https://github.com/galacticcouncil/HydraDX-node --token $(curl -X POST -H "$header1" -H "$header2" "$apiUrl" | jq -r '.token') --name ${runner_id} --work _work --labels gcp,${runner_id}
+bash ./run.sh
+EOF
