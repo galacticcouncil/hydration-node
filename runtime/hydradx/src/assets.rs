@@ -80,8 +80,8 @@ use sp_runtime::DispatchResult;
 pub struct SufficiencyCheck;
 impl SufficiencyCheck {
 	fn on_funds(asset: AssetId, to: &AccountId) -> DispatchResult {
-		use hydradx_traits::NativePriceOracle;
 		use frame_support::traits::LockableCurrency;
+		use hydradx_traits::NativePriceOracle;
 		if MultiTransactionPayment::price(asset).is_some() {
 			return Ok(());
 		}
