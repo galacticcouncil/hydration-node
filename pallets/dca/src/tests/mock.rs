@@ -426,7 +426,7 @@ parameter_types! {
 	pub MaxNumberOfTrades: u8 = 3;
 }
 
-type Pools = (OmniPool, Xyk);
+type Pools = (OmniPool, StableswapPool, Xyk);
 
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -443,6 +443,7 @@ pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
 pub const CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY: Balance = 10 * ONE;
 
 pub struct OmniPool;
+pub struct StableswapPool;
 pub struct Xyk;
 
 impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool {
@@ -549,6 +550,121 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		};
 		let amount_in = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;
 
+		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
+			.map_err(ExecutorError::Error)?;
+		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+			.map_err(ExecutorError::Error)?;
+
+		Ok(())
+	}
+}
+
+impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for StableswapPool {
+	type Error = DispatchError;
+
+	fn calculate_sell(
+		pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		amount_in: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::Stableswap(..)) {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		if amount_in == INVALID_CALCULATION_AMOUNT {
+			return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
+		}
+
+		let amount_out = CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| *v.borrow());
+		Ok(amount_out)
+	}
+
+	fn calculate_buy(
+		pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		amount_out: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::Stableswap(..)) {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		if amount_out == INVALID_CALCULATION_AMOUNT {
+			return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
+		}
+
+		Ok(CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY)
+	}
+
+	fn execute_sell(
+		who: OriginForRuntime,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::Stableswap(..)) {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		if asset_in == FORBIDDEN_ASSET {
+			return Err(ExecutorError::Error(pallet_omnipool::Error::<Test>::NotAllowed.into()));
+		}
+
+		SELL_EXECUTIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.push(SellExecution {
+				asset_in,
+				asset_out,
+				amount_in,
+				min_buy_amount: min_limit,
+			});
+		});
+
+		let Ok(who) =  ensure_signed(who) else {
+			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
+		};
+		let amount_out = CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| *v.borrow());
+
+		Currencies::update_balance(RuntimeOrigin::root(), ASSET_PAIR_ACCOUNT, asset_out, amount_out as i128);
+		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
+			.map_err(ExecutorError::Error)?;
+		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+			.map_err(ExecutorError::Error)?;
+
+		Ok(())
+	}
+
+	fn execute_buy(
+		origin: OriginForRuntime,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+		max_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::Stableswap(..)) {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		BUY_EXECUTIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.push(BuyExecution {
+				asset_in,
+				asset_out,
+				amount_out,
+				max_sell_amount: max_limit,
+			});
+		});
+
+		let Ok(who) =  ensure_signed(origin) else {
+			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
+		};
+		let amount_in = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;
+
+		Currencies::update_balance(RuntimeOrigin::root(), ASSET_PAIR_ACCOUNT, asset_out, amount_out as i128);
 		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
 			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)

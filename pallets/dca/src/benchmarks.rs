@@ -90,6 +90,7 @@ fn schedule_buy_fake<T: Config + pallet_route_executor::Config + pallet_omnipool
 	asset_in: <T as pallet_route_executor::Config>::AssetId,
 	asset_out: <T as pallet_route_executor::Config>::AssetId,
 	amount: Balance,
+	pool: PoolType<<T as pallet_route_executor::Config>::AssetId>,
 ) -> Schedule<T::AccountId, <T as pallet_route_executor::Config>::AssetId, T::BlockNumber> {
 	let schedule1: Schedule<T::AccountId, <T as pallet_route_executor::Config>::AssetId, T::BlockNumber> = Schedule {
 		owner,
@@ -104,7 +105,7 @@ fn schedule_buy_fake<T: Config + pallet_route_executor::Config + pallet_omnipool
 			amount_out: amount,
 			max_amount_in: Balance::MAX,
 			route: create_bounded_vec::<T>(vec![Trade {
-				pool: PoolType::Omnipool,
+				pool,
 				asset_in,
 				asset_out,
 			}]),
@@ -118,6 +119,7 @@ fn schedule_sell_fake<T: Config + pallet_route_executor::Config + pallet_omnipoo
 	asset_in: <T as pallet_route_executor::Config>::AssetId,
 	asset_out: <T as pallet_route_executor::Config>::AssetId,
 	amount: Balance,
+	pool: PoolType<<T as pallet_route_executor::Config>::AssetId>,
 ) -> Schedule<T::AccountId, <T as pallet_route_executor::Config>::AssetId, T::BlockNumber> {
 	let schedule1: Schedule<T::AccountId, <T as pallet_route_executor::Config>::AssetId, T::BlockNumber> = Schedule {
 		owner,
@@ -132,7 +134,7 @@ fn schedule_sell_fake<T: Config + pallet_route_executor::Config + pallet_omnipoo
 			amount_in: amount,
 			min_amount_out: Balance::MIN,
 			route: create_bounded_vec::<T>(vec![Trade {
-				pool: PoolType::Omnipool,
+				pool,
 				asset_in,
 				asset_out,
 			}]),
@@ -218,10 +220,9 @@ where
 	<T as pallet_stableswap::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	//<T as pallet_stableswap::Config>::AssetId: From<<T as orml_traits::MultiCurrency<AccountId>>::CurrencyId>,
 	//<T as pallet_stableswap::Config>::AssetId: Into<<T as orml_traits::MultiCurrency<AccountId>>::CurrencyId>,
-	<T as frame_system::Config>::AccountId: From<u64>,
 {
-	let caller: AccountId = account("caller", 0, 1);
-	let lp_provider: AccountId = account("provider", 0, 1);
+	let caller: T::AccountId = account("caller", 0, 1);
+	let lp_provider: T::AccountId = account("provider", 0, 1);
 	let initial_liquidity = 1_000_000_000_000_000u128;
 	let liquidity_added = 300_000_000_000_000u128;
 
@@ -236,10 +237,14 @@ where
 		asset_ids.push(asset_id);
 		<T as pallet_stableswap::Config>::Currency::update_balance(
 			asset_id,
-			&caller.clone().into(),
+			&caller.clone(),
 			1_000_000_000_000_000i128,
 		)?;
-		//T::update_balance(asset_id.into(), &lp_provider.clone(), 1_000_000_000_000_000i128)?;
+		<T as pallet_stableswap::Config>::Currency::update_balance(
+			asset_id,
+			&lp_provider.clone(),
+			1_000_000_000_000_000i128,
+		)?;
 		/*<T as pallet_stableswap::Config>::Currency::update_balance(
 			RawOrigin::Root.into(),
 			caller.clone(),
@@ -353,6 +358,30 @@ where
 	OmnipoolPallet::<T>::sell(RawOrigin::Signed(trader).into(), LRNA.into(), DAI.into(), ONE, 0)
 }
 
+/* //TODO:continue from here, we need to populate oracle with pool data
+fn do_trade_in_stableswap<T: Config + pallet_stableswap::Config + pallet_omnipool::Config>(
+	pool_id: <T as pallet_stableswap::Config>::AssetId,
+	asset_in: <T as pallet_stableswap::Config>::AssetId,
+	asset_out: <T as pallet_stableswap::Config>::AssetId,
+) -> DispatchResult
+where
+	<T as pallet_stableswap::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	<T as pallet_stableswap::Config>::AssetId: From<u32>,
+{
+	let trader = create_funded_account::<T>("tmp_trader", 0, 100 * ONE, asset_in.into());
+
+	fund::<T>(trader.clone(), asset_in.into(), 100 * ONE)?;
+
+	StableswapPallet::<T>::sell(
+		RawOrigin::Signed(trader).into(),
+		pool_id,
+		asset_in.into(),
+		asset_out.into(),
+		ONE,
+		0,
+	)
+}*/
+
 fn create_account_with_native_balance<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
 ) -> Result<T::AccountId, DispatchError>
 where
@@ -372,7 +401,7 @@ benchmarks! {
 		OmnipoolCurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 		<T as pallet_stableswap::Config>::Currency : MultiCurrencyExtended<T::AccountId, Amount = i128>,
 		T: crate::pallet::Config + pallet_omnipool::Config + pallet_ema_oracle::Config + pallet_route_executor::Config + pallet_stableswap::Config,
-		<T as frame_system::Config>::AccountId : From<u64>,
+		<T as pallet_omnipool::Config>::AssetId: From<u32>,
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
 		<T as pallet_stableswap::Config>::AssetId: From<u32> + Into<u32>,
 		<T as pallet_route_executor::Config>::AssetId: From<u32>,
@@ -398,7 +427,7 @@ benchmarks! {
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &other_seller, 20_000_000_000_000_000_000_000i128)?;
 
-		let schedule1 = schedule_buy_fake::<T>(seller.clone(), HDX.into(), DAI.into(), amount_buy);
+		let schedule1 = schedule_buy_fake::<T>(seller.clone(), HDX.into(), DAI.into(), amount_buy, PoolType::Omnipool);
 		let execution_block = 1001u32;
 
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
@@ -443,7 +472,7 @@ benchmarks! {
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &other_seller, 20_000_000_000_000_000_000_000i128)?;
 
-		let schedule1 = schedule_sell_fake::<T>(seller.clone(), HDX.into(), DAI.into(), amount_sell);
+		let schedule1 = schedule_sell_fake::<T>(seller.clone(), HDX.into(), DAI.into(), amount_sell, PoolType::Omnipool);
 		let execution_block = 1001u32;
 
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
@@ -478,35 +507,33 @@ benchmarks! {
 		let (pool_id, asset_in, asset_out) = init_stableswap::<T>()?;
 		set_period::<T>(1000);
 		let seller: T::AccountId = account("seller", 3, 1);
-		let other_seller: T::AccountId = account("seller", 3, 1);
 
 		let amount_buy = 200 * ONE;
 
-		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
-		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
-
-		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &other_seller, 20_000_000_000_000_000_000_000i128)?;
-
-		let schedule1 = schedule_buy_fake::<T>(seller.clone(), HDX.into(), DAI.into(), amount_buy);
+		<T as pallet_omnipool::Config>::Currency::update_balance(asset_in.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
+		let schedule1 = schedule_buy_fake::<T>(seller.clone(), asset_in.into(), asset_out.into(), amount_buy, PoolType::Stableswap(pool_id.into()));
 		let execution_block = 1001u32;
 
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
 
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
-		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
+		let reserved_balance = get_named_reseve_balance::<T>(asset_in.into(), seller.clone());
 
 		let init_reserved_balance = 2000 * ONE;
 		assert_eq!(init_reserved_balance, reserved_balance);
 
-		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller), 0);
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(asset_out.into(), &seller), 0);
 
 		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
 		//We leave only one slot
+		let other_seller: T::AccountId = account("seller2", 3, 1);
+		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &other_seller, 20_000_000_000_000_000_000_000i128)?;
 		let schedule_period = 3;
 		let next_block_to_replan = execution_block + schedule_period;
 		let number_of_all_schedules = T::MaxSchedulePerBlock::get() + T::MaxSchedulePerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
+		let schedule2 = schedule_buy_fake::<T>(other_seller.clone(), HDX.into(), DAI.into(), amount_buy, PoolType::Omnipool);
 		for i in 0..number_of_all_schedules {
-			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule1.clone(), Option::Some(next_block_to_replan.into())));
+			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule2.clone(), Option::Some(next_block_to_replan.into())));
 		}
 
 		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
@@ -514,8 +541,50 @@ benchmarks! {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
-		let new_dai_balance = <T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller);
-		assert_eq!(new_dai_balance, amount_buy);
+		let new_asset_out_balance = <T as pallet_omnipool::Config>::Currency::free_balance(asset_out.into(), &seller);
+		assert_eq!(new_asset_out_balance, amount_buy);
+		assert_eq!((T::MaxSchedulePerBlock::get()) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
+	}
+
+	on_initialize_with_sell_trade_stableswap{
+		let (pool_id, asset_in, asset_out) = init_stableswap::<T>()?;
+		set_period::<T>(1000);
+		let seller: T::AccountId = account("seller", 3, 1);
+
+		let amount_sell = 100 * ONE;
+
+		<T as pallet_stableswap::Config>::Currency::update_balance(asset_in.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
+
+		let schedule1 = schedule_sell_fake::<T>(seller.clone(), asset_in.into(), asset_out.into(), amount_sell, PoolType::Stableswap(pool_id.into()));
+		let execution_block = 1001u32;
+
+		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
+
+		let init_reserved_balance = 2000 * ONE;
+		let reserved_balance = get_named_reseve_balance::<T>(asset_in.into(), seller.clone());
+		assert_eq!(init_reserved_balance, reserved_balance);
+
+		assert_eq!(<T as pallet_stableswap::Config>::Currency::free_balance(asset_out.into(), &seller), 0);
+
+		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
+		//We leave only one slot
+		let other_seller: T::AccountId = account("seller2", 3, 1);
+		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &other_seller, 20_000_000_000_000_000_000_000i128)?;
+		let schedule_period = 3;
+		let next_block_to_replan = execution_block + schedule_period;
+		let number_of_all_schedules = T::MaxSchedulePerBlock::get() + T::MaxSchedulePerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
+		let schedule2 = schedule_buy_fake::<T>(other_seller.clone(), HDX.into(), DAI.into(), amount_sell, PoolType::Omnipool);
+		for i in 0..number_of_all_schedules {
+			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule2.clone(), Option::Some(next_block_to_replan.into())));
+		}
+
+		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());;
+	}: {
+		crate::Pallet::<T>::on_initialize(execution_block.into());
+	}
+	verify {
+		let new_asset_out_balance = <T as pallet_stableswap::Config>::Currency::free_balance(asset_out.into(), &seller);
+		assert!(new_asset_out_balance > 0);
 		assert_eq!((T::MaxSchedulePerBlock::get()) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}
 
