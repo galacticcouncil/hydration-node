@@ -495,3 +495,14 @@ fn issue_bonds_should_fail_when_underlying_asset_not_registered() {
 		);
 	});
 }
+
+#[test]
+fn issue_bonds_should_fail_when_called_from_wrong_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		let asset_id = next_asset_id();
+		assert_noop!(
+			Bonds::issue(RuntimeOrigin::signed(3u64), asset_id, ONE, NOW + MONTH),
+			DispatchError::BadOrigin
+		);
+	});
+}

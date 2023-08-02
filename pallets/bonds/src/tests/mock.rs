@@ -24,8 +24,9 @@ use frame_support::{
 		testing::Header,
 		traits::{BlakeTwo256, IdentityLookup},
 	},
-	traits::{ConstU32, ConstU64, Everything, GenesisBuild},
+	traits::{ConstU32, ConstU64, Everything, GenesisBuild, SortedMembers},
 };
+use frame_system::EnsureSignedBy;
 use sp_core::H256;
 use std::{cell::RefCell, collections::HashMap};
 
@@ -90,6 +91,13 @@ parameter_type_with_key! {
 	};
 }
 
+pub struct AliceOrBob;
+impl SortedMembers<AccountId> for AliceOrBob {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![ALICE, BOB]
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -99,6 +107,7 @@ impl Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
+	type IssueOrigin = EnsureSignedBy<AliceOrBob, AccountId>;
 	type MinMaturity = MinMaturity;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;

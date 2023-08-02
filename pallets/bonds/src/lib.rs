@@ -118,6 +118,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
+		/// The origin which can issue new bonds.
+		type IssueOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
+
 		/// Min time for maturity.
 		#[pallet::constant]
 		type MinMaturity: Get<Moment>;
@@ -197,7 +200,7 @@ pub mod pallet {
 		/// It's possible to issue new bonds for bonds that are already mature.
 		///
 		/// Parameters:
-		/// - `origin`: issuer of new bonds
+		/// - `origin`: issuer of new bonds, needs to be `T::IssueOrigin`
 		/// - `asset_id`: underlying asset id
 		/// - `amount`: the amount of the underlying asset
 		/// - `maturity`: Unix time in milliseconds, when the bonds will be mature. Needs to be set
@@ -214,7 +217,7 @@ pub mod pallet {
 			amount: T::Balance,
 			maturity: Moment,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let who = T::IssueOrigin::ensure_origin(origin)?;
 
 			BondIds::<T>::try_mutate_exists((asset_id, maturity), |maybe_bond| -> DispatchResult {
 				let fee = T::ProtocolFee::get().mul_ceil(amount); // TODO: check
