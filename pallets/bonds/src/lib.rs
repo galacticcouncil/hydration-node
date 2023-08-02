@@ -49,7 +49,7 @@ use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 
-use hydradx_traits::BondRegistry;
+use hydradx_traits::{AssetKind, CreateRegistry};
 use orml_traits::{GetByKey, MultiCurrency};
 use primitives::Moment;
 
@@ -69,7 +69,6 @@ pub mod pallet {
 	use super::*;
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
-	use sp_std::vec::Vec;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
@@ -107,7 +106,7 @@ pub mod pallet {
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Self::Balance>;
 
 		/// Asset Registry mechanism - used to register bonds in the asset registry.
-		type AssetRegistry: BondRegistry<Self::AssetId, Vec<u8>, Self::Balance, DispatchError>;
+		type AssetRegistry: CreateRegistry<Self::AssetId, Self::Balance, Error = DispatchError>;
 
 		/// Provider for existential deposits of assets.
 		type ExistentialDeposits: GetByKey<Self::AssetId, Self::Balance>;
@@ -238,7 +237,7 @@ pub mod pallet {
 						let ed = T::ExistentialDeposits::get(&asset_id);
 
 						// not covered in the tests.
-						let bond_id = T::AssetRegistry::create_bond_asset(ed)?;
+						let bond_id = T::AssetRegistry::create_asset(&[], AssetKind::Bond, ed)?;
 
 						*maybe_bond = Some(bond_id);
 						Bonds::<T>::insert(bond_id, (asset_id, maturity));

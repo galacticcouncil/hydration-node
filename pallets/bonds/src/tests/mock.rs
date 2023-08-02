@@ -29,7 +29,7 @@ use frame_support::{
 use sp_core::H256;
 use std::{cell::RefCell, collections::HashMap};
 
-use hydradx_traits::{BondRegistry, Registry};
+use hydradx_traits::CreateRegistry;
 use orml_traits::parameter_type_with_key;
 pub use primitives::constants::{
 	currency::NATIVE_EXISTENTIAL_DEPOSIT,
@@ -159,30 +159,13 @@ impl pallet_timestamp::Config for Test {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T> {
-	fn exists(_asset_id: AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
-		unimplemented!()
-	}
-
-	fn create_asset(_name: &Vec<u8>, existential_deposit: Balance) -> Result<AssetId, DispatchError> {
-		let assigned = REGISTERED_ASSETS.with(|v| {
-			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, existential_deposit);
-			l as u32
-		});
-		Ok(assigned)
-	}
-}
-
-impl<T: Config> BondRegistry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: Config> CreateRegistry<AssetId, Balance> for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
-	fn create_bond_asset(existential_deposit: Balance) -> Result<AssetId, DispatchError> {
+	type Error = DispatchError;
+
+	fn create_asset(_name: &[u8], _kind: AssetKind, existential_deposit: Balance) -> Result<AssetId, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
 			v.borrow_mut().insert(l as u32, existential_deposit);

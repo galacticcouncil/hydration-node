@@ -16,6 +16,7 @@ pub trait Registry<AssetId, AssetName, Balance, Error> {
 	}
 }
 
+// Use CreateRegistry if possible
 pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<AssetId, AssetName, Balance, Error> {
 	fn retrieve_shared_asset(name: &AssetName, assets: &[AssetId]) -> Result<AssetId, Error>;
 
@@ -38,8 +39,17 @@ pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<Asset
 	}
 }
 
-pub trait BondRegistry<AssetId, AssetName, Balance, Error>: Registry<AssetId, AssetName, Balance, Error> {
-	fn create_bond_asset(existential_deposit: Balance) -> Result<AssetId, Error>;
+#[derive(Eq, PartialEq, Copy, Clone)]
+pub enum AssetKind {
+	Token,
+	XYK,
+	StableSwap,
+	Bond,
+}
+
+pub trait CreateRegistry<AssetId, Balance> {
+	type Error;
+	fn create_asset(name: &[u8], kind: AssetKind, existential_deposit: Balance) -> Result<AssetId, Self::Error>;
 }
 
 // Deprecated.
