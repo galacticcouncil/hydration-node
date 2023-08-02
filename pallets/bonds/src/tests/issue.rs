@@ -70,7 +70,7 @@ fn issue_bonds_should_work_when_fee_is_non_zero() {
 		.execute_with(|| {
 			// Arrange
 			let maturity = NOW + MONTH;
-			let amount: Balance = 1_000_000;
+			let amount: Balance = ONE;
 			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
 			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
 
@@ -119,7 +119,7 @@ fn issue_bonds_should_issue_new_bonds_when_bonds_are_already_registered() {
 		.execute_with(|| {
 			// Arrange
 			let maturity = NOW + MONTH;
-			let amount: Balance = 1_000_000;
+			let amount: Balance = ONE;
 			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
 			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
 
@@ -183,7 +183,7 @@ fn issue_bonds_should_register_new_bonds_when_underlying_asset_is_different() {
 		.execute_with(|| {
 			// Arrange
 			let maturity = NOW + MONTH;
-			let amount: Balance = 1_000_000;
+			let amount: Balance = ONE;
 			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
 			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
 
@@ -263,7 +263,7 @@ fn issue_bonds_should_register_new_bonds_when_maturity_is_different() {
 			// Arrange
 			let next_month = NOW + MONTH;
 			let next_week = NOW + WEEK;
-			let amount: Balance = 1_000_000;
+			let amount: Balance = ONE;
 			let fee = <Test as Config>::ProtocolFee::get().mul_ceil(amount);
 			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
 
