@@ -109,13 +109,13 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					.map_err(ExecutorError::Error);*/
 					todo!()
 				} else if asset_in == pool_id {
-					Self::calculate_shares(
+					/*Self::calculate_shares(
 						asset_in,
 						&vec![AssetBalance {
 							asset_id: asset_out,
 							amount: amount_out,
 						}],
-					);
+					);*/
 
 					todo!()
 				//BUy 1000 USDT, how muhc shares I need to provide to receive 1000 USDT
