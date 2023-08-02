@@ -27,7 +27,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum AssetType<AssetId> {
 	Token,
-	PoolShare(AssetId, AssetId),
+	PoolShare(AssetId, AssetId), // Use XYX instead
 	XYK,
 	StableSwap,
 	Bond,
