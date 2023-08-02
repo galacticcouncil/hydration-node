@@ -801,56 +801,6 @@ impl<T: Config> Pallet<T> {
 		.ok_or_else(|| ArithmeticError::Overflow.into())
 	}
 
-	fn calculate_shares(pool_id: T::AssetId, assets: &[AssetBalance<T::AssetId>]) -> Result<Balance, DispatchError> {
-		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
-		let pool_account = Self::pool_account(pool_id);
-
-		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);
-
-		let mut added_assets = BTreeMap::<T::AssetId, Balance>::new();
-		for asset in assets.iter() {
-			ensure!(
-				Self::is_asset_allowed(pool_id, asset.asset_id, Tradability::ADD_LIQUIDITY),
-				Error::<T>::NotAllowed
-			);
-			ensure!(
-				asset.amount >= T::MinTradingLimit::get(),
-				Error::<T>::InsufficientTradingAmount
-			);
-
-			ensure!(pool.find_asset(asset.asset_id).is_some(), Error::<T>::AssetNotInPool);
-
-			if added_assets.insert(asset.asset_id, asset.amount).is_some() {
-				return Err(Error::<T>::IncorrectAssets.into());
-			}
-		}
-
-		let mut initial_reserves = Vec::new();
-		let mut updated_reserves = Vec::new();
-		for pool_asset in pool.assets.iter() {
-			let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
-			initial_reserves.push(reserve);
-			if let Some(liq_added) = added_assets.get(pool_asset) {
-				updated_reserves.push(reserve.checked_add(*liq_added).ok_or(ArithmeticError::Overflow)?);
-			} else {
-				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push(reserve);
-			}
-		}
-
-		let amplification = Self::get_amplification(&pool);
-		let share_issuance = T::Currency::total_issuance(pool_id);
-		let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
-			&initial_reserves,
-			&updated_reserves,
-			amplification,
-			share_issuance,
-		)
-		.ok_or(ArithmeticError::Overflow)?;
-
-		Ok(share_amount)
-	}
-
 	#[require_transactional]
 	fn do_create_pool(
 		share_asset: T::AssetId,
@@ -904,14 +854,52 @@ impl<T: Config> Pallet<T> {
 		pool_id: T::AssetId,
 		assets: &[AssetBalance<T::AssetId>],
 	) -> Result<Balance, DispatchError> {
+		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);
+		let mut added_assets = BTreeMap::<T::AssetId, Balance>::new();
 		for asset in assets.iter() {
+			ensure!(
+				Self::is_asset_allowed(pool_id, asset.asset_id, Tradability::ADD_LIQUIDITY),
+				Error::<T>::NotAllowed
+			);
+			ensure!(
+				asset.amount >= T::MinTradingLimit::get(),
+				Error::<T>::InsufficientTradingAmount
+			);
 			ensure!(
 				T::Currency::free_balance(asset.asset_id, who) >= asset.amount,
 				Error::<T>::InsufficientBalance
 			);
+			ensure!(pool.find_asset(asset.asset_id).is_some(), Error::<T>::AssetNotInPool);
+			if added_assets.insert(asset.asset_id, asset.amount).is_some() {
+				return Err(Error::<T>::IncorrectAssets.into());
+			}
 		}
 
-		let share_amount = Self::calculate_shares(pool_id, assets)?;
+		let pool_account = Self::pool_account(pool_id);
+		let mut initial_reserves = Vec::new();
+		let mut updated_reserves = Vec::new();
+		for pool_asset in pool.assets.iter() {
+			let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
+			initial_reserves.push(reserve);
+			if let Some(liq_added) = added_assets.get(pool_asset) {
+				updated_reserves.push(reserve.checked_add(*liq_added).ok_or(ArithmeticError::Overflow)?);
+			} else {
+				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
+				updated_reserves.push(reserve);
+			}
+		}
+
+		let amplification = Self::get_amplification(&pool);
+		let share_issuance = T::Currency::total_issuance(pool_id);
+		let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
+			&initial_reserves,
+			&updated_reserves,
+			amplification,
+			share_issuance,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
 		ensure!(!share_amount.is_zero(), Error::<T>::InvalidAssetAmount);
 		let current_share_balance = T::Currency::free_balance(pool_id, who);
 
@@ -922,7 +910,6 @@ impl<T: Config> Pallet<T> {
 
 		T::Currency::deposit(pool_id, who, share_amount)?;
 
-		let pool_account = Self::pool_account(pool_id);
 		for asset in assets.iter() {
 			T::Currency::transfer(asset.asset_id, who, &pool_account, asset.amount)?;
 		}
