@@ -76,8 +76,8 @@ pub const POOL_IDENTIFIER: &[u8] = b"sts";
 
 pub const MAX_ASSETS_IN_POOL: u32 = 5;
 
-pub const D_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_D_ITERATIONS;
-pub const Y_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_Y_ITERATIONS;
+const D_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_D_ITERATIONS;
+const Y_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_Y_ITERATIONS;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -936,5 +936,78 @@ impl<T: Config> Pallet<T> {
 			pool.final_block.saturated_into(),
 			T::BlockNumberProvider::current_block_number().saturated_into(),
 		)
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	fn calculate_shares(pool_id: T::AssetId, assets: &[AssetBalance<T::AssetId>]) -> Result<Balance, DispatchError> {
+		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		let pool_account = Self::pool_account(pool_id);
+
+		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);
+
+		let mut added_assets = BTreeMap::<T::AssetId, Balance>::new();
+		for asset in assets.iter() {
+			ensure!(
+				Self::is_asset_allowed(pool_id, asset.asset_id, Tradability::ADD_LIQUIDITY),
+				Error::<T>::NotAllowed
+			);
+			ensure!(
+				asset.amount >= T::MinTradingLimit::get(),
+				Error::<T>::InsufficientTradingAmount
+			);
+
+			ensure!(pool.find_asset(asset.asset_id).is_some(), Error::<T>::AssetNotInPool);
+
+			if added_assets.insert(asset.asset_id, asset.amount).is_some() {
+				return Err(Error::<T>::IncorrectAssets.into());
+			}
+		}
+
+		let mut initial_reserves = Vec::new();
+		let mut updated_reserves = Vec::new();
+		for pool_asset in pool.assets.iter() {
+			let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
+			initial_reserves.push(reserve);
+			if let Some(liq_added) = added_assets.get(pool_asset) {
+				updated_reserves.push(reserve.checked_add(*liq_added).ok_or(ArithmeticError::Overflow)?);
+			} else {
+				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
+				updated_reserves.push(reserve);
+			}
+		}
+
+		let amplification = Self::get_amplification(&pool);
+		let share_issuance = T::Currency::total_issuance(pool_id);
+		let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
+			&initial_reserves,
+			&updated_reserves,
+			amplification,
+			share_issuance,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		Ok(share_amount)
+	}
+
+	fn calculate_shares_for_amount(
+		pool_id: T::AssetId,
+		asset_id: T::AssetId,
+		amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		let pool_account = Self::pool_account(pool_id);
+		let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
+		let initial_reserves = pool.balances::<T>(&pool_account);
+		let amplification = Self::get_amplification(&pool);
+		let share_issuance = T::Currency::total_issuance(pool_id);
+		hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
+			&initial_reserves,
+			asset_idx,
+			amount,
+			amplification,
+			share_issuance,
+		)
+		.ok_or(ArithmeticError::Overflow.into())
 	}
 }

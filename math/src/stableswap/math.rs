@@ -416,3 +416,43 @@ fn calculate_fee_amount(amount: Balance, fee: Permill, rounding: Rounding) -> Ba
 		Rounding::Up => fee.mul_ceil(amount),
 	}
 }
+
+/// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
+pub fn calculate_shares_for_amount<const N: u8>(
+    initial_reserves: &[Balance],
+    idx_in: usize,
+    amount: Balance,
+    amplification: Balance,
+    share_issuance: Balance,
+) -> Option<Balance> {
+    if idx_in >= initial_reserves.len() {
+        return None;
+    }
+
+    let new_reserve_in = initial_reserves[idx_in].checked_add(amount)?;
+
+    let updated_reserves: Vec<Balance> = initial_reserves
+        .iter()
+        .enumerate()
+        .map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
+        .collect();
+
+    let initial_d = calculate_d::<N>(initial_reserves, amplification)?;
+
+    // We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
+    // calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
+    let updated_d = calculate_d::<N>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
+
+    if updated_d < initial_d {
+        return None;
+    }
+
+    if share_issuance == 0 {
+        // if first liquidity added
+        Some(updated_d)
+    } else {
+        let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, updated_d.checked_sub(initial_d)?, initial_d);
+        let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
+        Balance::try_from(share_amount).ok()
+    }
+}
