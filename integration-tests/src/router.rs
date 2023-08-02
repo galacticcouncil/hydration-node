@@ -244,7 +244,6 @@ fn router_should_add_liquidity_to_stableswap_when_wanting_shareasset_in_stablesw
 	});
 }
 
-#[ignore]
 #[test]
 fn router_should_remove_liquidity_from_stableswap_when_selling_shareasset_in_stable() {
 	TestNet::reset();
@@ -287,12 +286,6 @@ fn router_should_remove_liquidity_from_stableswap_when_selling_shareasset_in_sta
 
 		//Act
 		let amount_to_sell = 100 * UNITS;
-		assert_ok!(Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ALICE.into(),
-			pool_id,
-			amount_to_sell as i128,
-		));
 
 		assert_ok!(Router::sell(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -305,7 +298,8 @@ fn router_should_remove_liquidity_from_stableswap_when_selling_shareasset_in_sta
 
 		//Assert
 		assert_balance!(ALICE.into(), pool_id, 0);
-		assert_balance!(ALICE.into(), stable_asset_2, 92535484778153);
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
+		assert_balance!(ALICE.into(), stable_asset_1, 2903943404);
 	});
 }
 
