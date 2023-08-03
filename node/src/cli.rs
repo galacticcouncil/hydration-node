@@ -1,4 +1,4 @@
-use crate::chain_spec;
+use crate::{chain_spec, evm::EthereumConfig};
 use clap::Parser;
 use std::fmt;
 use std::path::PathBuf;
@@ -23,6 +23,9 @@ pub struct RunCmd {
 	#[clap(flatten)]
 	pub base: cumulus_client_cli::RunCmd,
 }
+
+#[clap(flatten)]
+	pub ethereum_config: EthConfiguration,
 
 #[derive(Debug, Parser)]
 pub struct Cli {

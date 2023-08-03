@@ -346,7 +346,7 @@ pub fn run() -> sc_cli::Result<()> {
 				);
 
 				/// evmTODO ethereum_config
-				crate::service::start_node(config, polkadot_config, collator_options, id)
+				crate::service::start_node(config, polkadot_config, cli.ethereum_config, collator_options, id)
 					.await
 					.map(|r| r.1)
 					.map_err(Into::into)
