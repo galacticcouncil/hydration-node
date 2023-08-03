@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate::cli::{Cli, RelayChainCli, Subcommand};
-use crate::service::{evm::new_partial, HydraDXExecutorDispatch};
+use crate::service::{new_partial, HydraDXExecutorDispatch};
 use crate::{chain_spec, service};
 
 use codec::Encode;
@@ -345,6 +345,7 @@ pub fn run() -> sc_cli::Result<()> {
 					if config.role.is_authority() { "yes" } else { "no" }
 				);
 
+				/// evmTODO ethereum_config
 				crate::service::start_node(config, polkadot_config, collator_options, id)
 					.await
 					.map(|r| r.1)

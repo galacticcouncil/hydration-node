@@ -21,14 +21,14 @@
 
 use std::sync::Arc;
 
-use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
 use fc_db::Backend as FrontierBackend;
 pub use fc_rpc::{
-	EthBlockDataCacheTask, OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override,
-	SchemaV2Override, SchemaV3Override, StorageOverride,
+	EthBlockDataCacheTask, OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
+	SchemaV3Override, StorageOverride,
 };
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
+use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
 use jsonrpsee::RpcModule;
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
@@ -140,8 +140,8 @@ where
 	CT: ConvertTransaction<<B as BlockT>::Extrinsic> + Send + Sync + 'static,
 {
 	use fc_rpc::{
-		Eth, EthApiServer, EthDevSigner, EthFilter, EthFilterApiServer, EthPubSub,
-		EthPubSubApiServer, EthSigner, Net, NetApiServer, Web3, Web3ApiServer,
+		Eth, EthApiServer, EthDevSigner, EthFilter, EthFilterApiServer, EthPubSub, EthPubSubApiServer, EthSigner, Net,
+		NetApiServer, Web3, Web3ApiServer,
 	};
 
 	let Deps {
