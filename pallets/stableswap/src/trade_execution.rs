@@ -4,7 +4,7 @@ use frame_support::ensure;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::CheckedAdd;
-use sp_runtime::{ArithmeticError, DispatchError};
+use sp_runtime::{ArithmeticError, DispatchError, Permill};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -44,39 +44,14 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 					Ok(amount)
 				} else if asset_out == pool_id {
-					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
-					let pool_account = Self::pool_account(pool_id);
-
-					let mut added_assets = BTreeMap::<T::AssetId, Balance>::new();
-					if added_assets.insert(asset_in, amount_in).is_some() {
-						return Err(ExecutorError::Error(Error::<T>::IncorrectAssets.into()));
-					}
-
-					let mut initial_reserves = Vec::new();
-					let mut updated_reserves = Vec::new();
-					for pool_asset in pool.assets.iter() {
-						let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
-						initial_reserves.push(reserve);
-						if let Some(liq_added) = added_assets.get(pool_asset) {
-							updated_reserves.push(
-								reserve
-									.checked_add(*liq_added)
-									.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?,
-							);
-						} else {
-							updated_reserves.push(reserve);
-						}
-					}
-
-					let amplification = Self::get_amplification(&pool);
-					let share_issuance = T::Currency::total_issuance(pool_id);
-					let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
-						&initial_reserves,
-						&updated_reserves,
-						amplification,
-						share_issuance,
+					let share_amount = Self::calculate_shares(
+						pool_id,
+						&vec![AssetBalance {
+							asset_id: asset_in,
+							amount: amount_in,
+						}],
 					)
-					.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+					.map_err(ExecutorError::Error)?;
 
 					Ok(share_amount)
 				} else {
@@ -107,18 +82,38 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						amount_out
 					)
 					.map_err(ExecutorError::Error);*/
-					todo!()
-				} else if asset_in == pool_id {
-					/*Self::calculate_shares(
-						asset_in,
-						&vec![AssetBalance {
-							asset_id: asset_out,
-							amount: amount_out,
-						}],
-					);*/
+					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+					let asset_idx = pool
+						.find_asset(asset_in)
+						.ok_or(ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+					let pool_account = Self::pool_account(pool_id);
+					let balances = pool.balances::<T>(&pool_account);
+					let share_issuance = T::Currency::total_issuance(pool_id);
 
-					todo!()
-				//BUy 1000 USDT, how muhc shares I need to provide to receive 1000 USDT
+					let amplification = Self::get_amplification(&pool);
+					let (liqudity, _) =
+						hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+							&balances,
+							amount_out,
+							asset_idx,
+							share_issuance,
+							amplification,
+							Permill::from_percent(0),
+						)
+						.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+
+					Ok(liqudity)
+				} else if asset_in == pool_id {
+					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+					let withdraw_fee = pool.withdraw_fee;
+
+					let fee_amount = withdraw_fee.mul_ceil(amount_out);
+
+					let shares_amount =
+						Self::calculate_shares_for_amount(pool_id, asset_out, amount_out.saturating_add(fee_amount))
+							.map_err(ExecutorError::Error)?;
+
+					Ok(shares_amount)
 				} else {
 					let (amount_in, _) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out)
 						.map_err(ExecutorError::Error)?;
@@ -173,20 +168,22 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
 				if asset_out == pool_id {
-					//we buy shares. to receive share, we need to add liquditity
 					//TODO: Add check for what we provide is less than max_limit
-					let liquidity_to_provide = Self::calculate_buy(pool_type, asset_in, asset_out, amount_out)?;
+					let shares_amount = max_limit; //Because amount_in is passed as max_limit in router
+
 					Self::add_liquidity(
 						who,
 						pool_id,
 						vec![AssetBalance {
 							asset_id: asset_in,
-							amount: liquidity_to_provide,
+							amount: shares_amount,
 						}],
 					)
 					.map_err(ExecutorError::Error)
 				} else if asset_in == pool_id {
-					todo!("we need the amount of shares we need to remove")
+					let shares_amount = max_limit; //Because amount_in is passed as max_limit in router
+					Self::remove_liquidity_one_asset(who, pool_id, asset_out, shares_amount, 0)
+						.map_err(ExecutorError::Error)
 				} else {
 					Self::buy(who, pool_id, asset_out, asset_in, amount_out, max_limit).map_err(ExecutorError::Error)
 				}

@@ -303,6 +303,126 @@ fn router_should_remove_liquidity_from_stableswap_when_selling_shareasset_in_sta
 	});
 }
 
+//TODO: ignored as due to rounding in stableswap, we never receive the exact amount out
+#[ignore]
+#[test]
+fn buy_router_should_remove_liquidity_from_stableswap_when_selling_shareasset_in_stable() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+		init_omnipool();
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			Omnipool::protocol_account(),
+			pool_id,
+			3000 * UNITS as i128,
+		));
+
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			FixedU128::from_inner(25_650_000_000_000_000_000),
+			Permill::from_percent(100),
+			AccountId::from(BOB),
+		));
+
+		let trades = vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: pool_id,
+			},
+			Trade {
+				pool: PoolType::Stableswap(pool_id),
+				asset_in: pool_id,
+				asset_out: stable_asset_1,
+			},
+		];
+
+		assert_balance!(ALICE.into(), pool_id, 0);
+
+		//Act
+		let amount_to_buy = 1 * UNITS / 1000;
+
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			stable_asset_1,
+			amount_to_buy,
+			u128::MAX,
+			trades
+		));
+
+		//Assert
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+		assert_balance!(ALICE.into(), stable_asset_1, amount_to_buy);
+	});
+}
+
+//TODO: ignored as due to rounding in stableswap, we never receive the exact amount out
+#[ignore]
+#[test]
+fn buy_router_should_add_liquidity_from_stableswap_when_selling_for_shareasset_in_stable() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+		init_omnipool();
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			Omnipool::protocol_account(),
+			stable_asset_1,
+			3000 * UNITS as i128,
+		));
+
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			stable_asset_1,
+			FixedU128::from_inner(25_650_000_000_000_000_000),
+			Permill::from_percent(100),
+			AccountId::from(BOB),
+		));
+
+		let trades = vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: stable_asset_1,
+			},
+			Trade {
+				pool: PoolType::Stableswap(pool_id),
+				asset_in: stable_asset_1,
+				asset_out: pool_id,
+			},
+		];
+
+		assert_balance!(ALICE.into(), pool_id, 0);
+
+		//Act
+		let amount_to_buy = 1 * UNITS / 1000;
+
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			pool_id,
+			amount_to_buy,
+			u128::MAX,
+			trades
+		));
+
+		//Assert
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+		assert_balance!(ALICE.into(), stable_asset_1, amount_to_buy);
+	});
+}
+
 pub fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
