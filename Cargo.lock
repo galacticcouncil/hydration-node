@@ -3773,7 +3773,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -3916,7 +3916,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.5.0"
+version = "2.5.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6428,7 +6428,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.14"
+version = "1.1.15"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6577,7 +6577,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6870,7 +6870,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.2.3"
+version = "4.2.4"
 dependencies = [
  "fixed",
  "frame-support",
@@ -7050,7 +7050,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "3.1.0"
+version = "3.1.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7077,7 +7077,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.0.10"
+version = "2.0.11"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7106,7 +7106,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7319,7 +7319,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "2.1.1"
+version = "2.1.2"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7658,7 +7658,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm-rate-limiter"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-benchmarking",

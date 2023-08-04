@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-dca'
-version = "1.1.7"
+version = "1.1.8"
 description = 'A pallet to manage DCA scheduling'
 authors = ['GalacticCouncil']
 edition = '2021'
