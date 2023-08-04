@@ -18,6 +18,7 @@
 use crate::tests::mock::*;
 use crate::*;
 pub type Bonds = Pallet<Test>;
+use frame_support::sp_runtime::traits::Zero;
 use frame_support::{assert_noop, assert_ok};
 pub use pretty_assertions::{assert_eq, assert_ne};
 
@@ -177,7 +178,7 @@ fn issue_bonds_should_issue_new_bonds_when_bonds_are_already_registered() {
 fn issue_bonds_should_register_new_bonds_when_underlying_asset_is_different() {
 	ExtBuilder::default()
 		.with_protocol_fee(Permill::from_percent(10))
-		.with_registered_asset(DAI, NATIVE_EXISTENTIAL_DEPOSIT)
+		.with_registered_asset(DAI, NATIVE_EXISTENTIAL_DEPOSIT, AssetKind::Token)
 		.add_endowed_accounts(vec![(ALICE, DAI, INITIAL_BALANCE)])
 		.build()
 		.execute_with(|| {
@@ -256,7 +257,7 @@ fn issue_bonds_should_register_new_bonds_when_underlying_asset_is_different() {
 fn issue_bonds_should_register_new_bonds_when_maturity_is_different() {
 	ExtBuilder::default()
 		.with_protocol_fee(Permill::from_percent(10))
-		.with_registered_asset(DAI, NATIVE_EXISTENTIAL_DEPOSIT)
+		.with_registered_asset(DAI, NATIVE_EXISTENTIAL_DEPOSIT, AssetKind::Token)
 		.add_endowed_accounts(vec![(ALICE, DAI, INITIAL_BALANCE)])
 		.build()
 		.execute_with(|| {
@@ -382,46 +383,37 @@ fn issue_bonds_should_work_when_bonds_are_mature() {
 }
 
 #[test]
-fn reissuance_of_bonds_should_register_bonds_again_when_all_old_bonds_are_redeemed() {
+fn reissuance_of_bonds_should_work_again_when_all_bonds_were_redeemed() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		let previous_maturity = NOW + MONTH;
+		let maturity = NOW + MONTH;
 		let amount = ONE;
 
-		let previous_bond_id = next_asset_id();
-		assert_ok!(Bonds::issue(
-			RuntimeOrigin::signed(ALICE),
-			HDX,
-			amount,
-			previous_maturity
-		));
+		let bond_id = next_asset_id();
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 		Timestamp::set_timestamp(NOW + 2 * MONTH);
 
-		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), previous_bond_id, amount));
+		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, amount));
 
 		// make sure that all bonds were redeemed and the bonds removed from the storage
-		assert!(Tokens::total_issuance(previous_bond_id).is_zero());
-		assert_eq!(Bonds::bonds(previous_bond_id), None);
-		assert_eq!(Bonds::bond_id((HDX, previous_maturity)), None);
+		assert!(Tokens::total_issuance(bond_id).is_zero());
 
 		// Act
-		let new_maturity = NOW + 3 * MONTH;
-		let bond_id = next_asset_id();
-		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, new_maturity));
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
 
 		// Assert
 		expect_events(vec![
 			Event::BondTokenCreated {
 				issuer: ALICE,
 				asset_id: HDX,
-				bond_id: previous_bond_id,
-				maturity: previous_maturity,
+				bond_id,
+				maturity,
 			}
 			.into(),
 			Event::BondsIssued {
 				issuer: ALICE,
-				bond_id: previous_bond_id,
+				bond_id,
 				amount,
 				fee: 0,
 			}
@@ -430,7 +422,7 @@ fn reissuance_of_bonds_should_register_bonds_again_when_all_old_bonds_are_redeem
 				issuer: ALICE,
 				asset_id: HDX,
 				bond_id,
-				maturity: new_maturity,
+				maturity,
 			}
 			.into(),
 			Event::BondsIssued {
@@ -442,8 +434,8 @@ fn reissuance_of_bonds_should_register_bonds_again_when_all_old_bonds_are_redeem
 			.into(),
 		]);
 
-		assert_eq!(Bonds::bonds(bond_id), Some((HDX, new_maturity)));
-		assert_eq!(Bonds::bond_id((HDX, new_maturity)), Some(bond_id));
+		assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+		assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - amount);
 		assert_eq!(Tokens::free_balance(bond_id, &ALICE), amount);
@@ -455,21 +447,31 @@ fn reissuance_of_bonds_should_register_bonds_again_when_all_old_bonds_are_redeem
 }
 
 #[test]
+fn issue_bonds_should_fail_when_asset_is_blacklisted() {
+	let bond_id: AssetId = 10;
+	ExtBuilder::default()
+		.with_registered_asset(bond_id, NATIVE_EXISTENTIAL_DEPOSIT, AssetKind::Bond)
+		.build()
+		.execute_with(|| {
+			// Arrange
+			let maturity = NOW + MONTH;
+			let amount = ONE;
+
+			assert_ok!(Tokens::deposit(bond_id, &ALICE, amount));
+
+			// Act & Assert
+			assert_noop!(
+				Bonds::issue(RuntimeOrigin::signed(ALICE), bond_id, amount, maturity),
+				Error::<Test>::InvalidAssetType
+			);
+		});
+}
+
+#[test]
 fn issue_bonds_should_fail_when_maturity_is_in_the_past() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
 			Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, ONE, NOW - DAY),
-			ArithmeticError::Overflow
-		);
-	});
-}
-
-#[test]
-fn issue_bonds_should_fail_when_maturity_is_too_soon() {
-	ExtBuilder::default().build().execute_with(|| {
-		// T::MinMaturity set to one week
-		assert_noop!(
-			Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, ONE, NOW + DAY),
 			Error::<Test>::InvalidMaturity
 		);
 	});
@@ -491,7 +493,7 @@ fn issue_bonds_should_fail_when_underlying_asset_not_registered() {
 		let asset_id = next_asset_id();
 		assert_noop!(
 			Bonds::issue(RuntimeOrigin::signed(ALICE), asset_id, ONE, NOW + MONTH),
-			orml_tokens::Error::<Test>::BalanceTooLow
+			DispatchError::Other("AssetNotFound")
 		);
 	});
 }
@@ -500,6 +502,7 @@ fn issue_bonds_should_fail_when_underlying_asset_not_registered() {
 fn issue_bonds_should_fail_when_called_from_wrong_origin() {
 	ExtBuilder::default().build().execute_with(|| {
 		let asset_id = next_asset_id();
+
 		assert_noop!(
 			Bonds::issue(RuntimeOrigin::signed(3u64), asset_id, ONE, NOW + MONTH),
 			DispatchError::BadOrigin

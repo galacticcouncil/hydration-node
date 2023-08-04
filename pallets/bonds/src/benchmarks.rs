@@ -19,8 +19,8 @@
 
 use super::*;
 
-use frame_benchmarking::{account, benchmarks};
-use frame_support::assert_ok;
+use frame_benchmarking::benchmarks;
+use frame_support::{assert_ok, traits::EnsureOrigin};
 use frame_system::RawOrigin;
 
 use orml_traits::MultiCurrency;
@@ -43,9 +43,10 @@ benchmarks! {
 	issue {
 		pallet_timestamp::Pallet::<T>::set_timestamp(NOW.into());
 
-		let issuer: T::AccountId = account("caller", 0, 1);
+		let origin = T::IssueOrigin::try_successful_origin().unwrap();
+		let issuer = T::IssueOrigin::ensure_origin(origin).unwrap();
 		let amount: T::Balance = (200 * ONE).into();
-		let maturity = NOW + T::MinMaturity::get();
+		let maturity = NOW + MONTH;
 
 		T::Currency::deposit(HDX.into(), &issuer, amount)?;
 
@@ -57,24 +58,25 @@ benchmarks! {
 	redeem {
 		pallet_timestamp::Pallet::<T>::set_timestamp(NOW.into());
 
-		let issuer: T::AccountId = account("caller", 0, 1);
+		let origin = T::IssueOrigin::try_successful_origin().unwrap();
+		let issuer = T::IssueOrigin::ensure_origin(origin).unwrap();
 		let amount: T::Balance = (200 * ONE).into();
 		T::Currency::deposit(HDX.into(), &issuer, amount)?;
 
-		let maturity = NOW + T::MinMaturity::get();
+		let maturity = NOW + MONTH;
 
 		assert_ok!(crate::Pallet::<T>::issue(RawOrigin::Signed(issuer.clone()).into(), HDX.into(), amount, maturity));
 
 		let fee = <T as Config>::ProtocolFee::get().mul_ceil(amount);
 		let amount_without_fee: T::Balance = amount.checked_sub(&fee).unwrap();
 
-		pallet_timestamp::Pallet::<T>::set_timestamp((NOW + MONTH).into());
+		pallet_timestamp::Pallet::<T>::set_timestamp((NOW + 2 * MONTH).into());
 
 		let bond_id = Bonds::<T>::iter_keys().next().unwrap();
 
-	}: _(RawOrigin::Signed(issuer), bond_id, amount_without_fee)
+	}: _(RawOrigin::Signed(issuer.clone()), bond_id, amount_without_fee)
 	verify {
-		assert!(crate::Pallet::<T>::bonds(bond_id).is_none());
+		assert_eq!(T::Currency::free_balance(bond_id, &issuer), 0u32.into());
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);

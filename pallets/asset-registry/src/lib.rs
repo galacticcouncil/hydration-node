@@ -565,6 +565,12 @@ impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for Pal
 		}
 	}
 
+	fn retrieve_asset_type(asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+		let asset_details =
+			Assets::<T>::get(asset_id).ok_or_else(|| Into::<DispatchError>::into(Error::<T>::AssetNotFound))?;
+		Ok(asset_details.asset_type.into())
+	}
+
 	fn create_asset(name: &Vec<u8>, existential_deposit: T::Balance) -> Result<T::AssetId, DispatchError> {
 		Self::get_or_create_asset(name.clone(), AssetType::Token, existential_deposit, None)
 	}

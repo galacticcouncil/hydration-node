@@ -358,7 +358,7 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 }
 
 use crate::Config;
-use hydradx_traits::Registry;
+use hydradx_traits::{AssetKind, Registry};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
@@ -374,6 +374,10 @@ where
 
 	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
 		Ok(T::AssetId::default())
+	}
+
+	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+		unimplemented!()
 	}
 
 	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {

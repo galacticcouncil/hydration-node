@@ -23,17 +23,14 @@ use hydradx_adapters::{
 	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{OraclePeriod, Source};
+use hydradx_traits::{AssetKind, OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
-use primitives::{
-	constants::{
-		chain::OMNIPOOL_SOURCE,
-		currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
-	},
-	Moment,
+use primitives::constants::{
+	chain::OMNIPOOL_SOURCE,
+	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 };
 
 use frame_support::{
@@ -488,7 +485,13 @@ impl pallet_dynamic_fees::Config for Runtime {
 parameter_types! {
 	pub ProtocolFee: Permill = Permill::from_percent(2);
 	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
-	pub const MinMaturity: Moment = primitives::constants::time::unix_time::WEEK;
+}
+
+pub struct AssetTypeBlacklist;
+impl Contains<AssetKind> for AssetTypeBlacklist {
+	fn contains(t: &AssetKind) -> bool {
+		*t == AssetKind::Bond
+	}
 }
 
 impl pallet_bonds::Config for Runtime {
@@ -501,7 +504,7 @@ impl pallet_bonds::Config for Runtime {
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
 	type IssueOrigin = EnsureSigned<AccountId>;
-	type MinMaturity = MinMaturity;
+	type AssetTypeBlacklist = AssetTypeBlacklist;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();

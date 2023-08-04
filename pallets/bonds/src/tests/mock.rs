@@ -61,7 +61,7 @@ pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
 thread_local! {
 	// maps AssetId -> existential deposit
-	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, Balance>> = RefCell::new(HashMap::default());
+	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, (Balance, AssetKind)>> = RefCell::new(HashMap::default());
 	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 }
 
@@ -82,12 +82,11 @@ parameter_types! {
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub TreasuryAccount: AccountId = TREASURY;
 	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
-	pub const MinMaturity: Moment = WEEK;
 }
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |asset_id: AssetId| -> Balance {
-		REGISTERED_ASSETS.with(|v| v.borrow().get(asset_id).cloned()).unwrap_or(Balance::MAX)
+		REGISTERED_ASSETS.with(|v| v.borrow().get(asset_id).cloned()).unwrap_or((Balance::MAX, AssetKind::Token)).0
 	};
 }
 
@@ -95,6 +94,13 @@ pub struct AliceOrBob;
 impl SortedMembers<AccountId> for AliceOrBob {
 	fn sorted_members() -> Vec<AccountId> {
 		vec![ALICE, BOB]
+	}
+}
+
+pub struct AssetTypeBlacklist;
+impl Contains<AssetKind> for AssetTypeBlacklist {
+	fn contains(t: &AssetKind) -> bool {
+		*t == AssetKind::Bond
 	}
 }
 
@@ -108,7 +114,7 @@ impl Config for Test {
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
 	type IssueOrigin = EnsureSignedBy<AliceOrBob, AccountId>;
-	type MinMaturity = MinMaturity;
+	type AssetTypeBlacklist = AssetTypeBlacklist;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();
@@ -177,16 +183,41 @@ where
 	fn create_asset(_name: &[u8], _kind: AssetKind, existential_deposit: Balance) -> Result<AssetId, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, existential_deposit);
+			v.borrow_mut().insert(l as u32, (existential_deposit, AssetKind::Bond));
 			l as u32
 		});
 		Ok(assigned)
 	}
 }
 
+impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T> {
+	fn exists(_name: AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
+		unimplemented!()
+	}
+
+	fn retrieve_asset_type(asset_id: AssetId) -> Result<AssetKind, DispatchError> {
+		REGISTERED_ASSETS
+			.with(|v| v.borrow().get(&asset_id).cloned())
+			.map(|v| v.1)
+			.ok_or(DispatchError::Other("AssetNotFound"))
+	}
+
+	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
+		unimplemented!()
+	}
+
+	fn get_or_create_asset(_name: Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
+		unimplemented!()
+	}
+}
+
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
-	registered_assets: Vec<(AssetId, Balance)>,
+	registered_assets: Vec<(AssetId, (Balance, AssetKind))>,
 	protocol_fee: Permill,
 }
 
@@ -198,7 +229,7 @@ impl Default for ExtBuilder {
 
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, 1_000 * ONE)],
-			registered_assets: vec![(HDX, NATIVE_EXISTENTIAL_DEPOSIT)],
+			registered_assets: vec![(HDX, (NATIVE_EXISTENTIAL_DEPOSIT, AssetKind::Token))],
 			protocol_fee: Permill::from_percent(0),
 		}
 	}
@@ -211,8 +242,8 @@ impl ExtBuilder {
 		}
 		self
 	}
-	pub fn with_registered_asset(mut self, asset: AssetId, ed: Balance) -> Self {
-		self.registered_assets.push((asset, ed));
+	pub fn with_registered_asset(mut self, asset: AssetId, ed: Balance, asset_kind: AssetKind) -> Self {
+		self.registered_assets.push((asset, (ed, asset_kind)));
 		self
 	}
 	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
@@ -224,8 +255,8 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 		REGISTERED_ASSETS.with(|v| {
-			self.registered_assets.iter().for_each(|(asset, existential_deposit)| {
-				v.borrow_mut().insert(*asset, *existential_deposit);
+			self.registered_assets.iter().for_each(|(asset, existential_details)| {
+				v.borrow_mut().insert(*asset, *existential_details);
 			});
 		});
 

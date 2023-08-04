@@ -136,8 +136,8 @@ fn fully_redeem_bonds_should_work_when_fee_is_zero() {
 		}
 		.into()]);
 
-		assert!(!crate::Bonds::<Test>::contains_key(bond_id));
-		assert!(!crate::BondIds::<Test>::contains_key((HDX, maturity)));
+		assert!(crate::Bonds::<Test>::contains_key(bond_id));
+		assert!(crate::BondIds::<Test>::contains_key((HDX, maturity)));
 
 		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE);
 		assert_eq!(Tokens::free_balance(bond_id, &ALICE), 0);
@@ -176,8 +176,8 @@ fn fully_redeem_bonds_should_work_when_fee_is_non_zero() {
 			}
 			.into()]);
 
-			assert!(!crate::Bonds::<Test>::contains_key(bond_id));
-			assert!(!crate::BondIds::<Test>::contains_key((HDX, maturity)));
+			assert!(crate::Bonds::<Test>::contains_key(bond_id));
+			assert!(crate::BondIds::<Test>::contains_key((HDX, maturity)));
 
 			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - fee);
 			assert_eq!(Tokens::free_balance(bond_id, &ALICE), 0);
