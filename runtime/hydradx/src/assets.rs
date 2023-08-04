@@ -67,9 +67,9 @@ pub struct CurrencyHooks;
 impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
 	type OnSlash = ();
-	type PreDeposit = ();
+	type PreDeposit = SufficiencyCheck;
 	type PostDeposit = ();
-	type PreTransfer = ();
+	type PreTransfer = SufficiencyCheck;
 	type PostTransfer = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Runtime>;
@@ -79,10 +79,14 @@ use orml_traits::currency::{OnDeposit, OnTransfer};
 use sp_runtime::DispatchResult;
 pub struct SufficiencyCheck;
 impl SufficiencyCheck {
+	fn is_sufficient(asset: AssetId) -> bool {
+		use hydradx_traits::NativePriceOracle;
+		MultiTransactionPayment::price(asset).is_some()
+	}
+
 	fn on_funds(asset: AssetId, to: &AccountId) -> DispatchResult {
 		use frame_support::traits::LockableCurrency;
-		use hydradx_traits::NativePriceOracle;
-		if MultiTransactionPayment::price(asset).is_some() {
+		if Self::is_sufficient(asset) {
 			return Ok(());
 		}
 		let ed = <Runtime as pallet_balances::Config>::ExistentialDeposit::get();
