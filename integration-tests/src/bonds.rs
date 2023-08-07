@@ -3,7 +3,7 @@
 use crate::assert_balance;
 use crate::polkadot_test_net::*;
 
-use frame_support::assert_ok;
+use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
 use sp_runtime::BoundedVec;
 use xcm_emulator::TestExt;
@@ -97,54 +97,28 @@ fn issue_bonds_should_work_when_issued_for_shared_asset() {
 }
 
 #[test]
-fn issue_bonds_should_work_when_issued_for_bond_asset() {
+fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 	Hydra::execute_with(|| {
 		// Arrange
 		let amount = 100 * UNITS;
-		let fee = <Runtime as pallet_bonds::Config>::ProtocolFee::get().mul_ceil(amount);
-		let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
-
 		let maturity = NOW + MONTH;
 
 		let bounded_name: BoundedVec<u8, <Runtime as pallet_asset_registry::Config>::StringLimit> =
 			"BOND".as_bytes().to_vec().try_into().unwrap();
-		let underlying_asset_id = AssetRegistry::register_asset(
-			bounded_name,
-			pallet_asset_registry::AssetType::PoolShare(HDX, DOT),
-			1_000,
-			None,
-			None,
-		)
-		.unwrap();
+		let underlying_asset_id =
+			AssetRegistry::register_asset(bounded_name, pallet_asset_registry::AssetType::Bond, 1_000, None, None)
+				.unwrap();
 		assert_ok!(Currencies::deposit(underlying_asset_id, &ALICE.into(), amount,));
 
-		// Act
-		let bond_id = AssetRegistry::next_asset_id().unwrap();
-		assert_ok!(Bonds::issue(
-			RuntimeOrigin::signed(ALICE.into()),
-			underlying_asset_id,
-			amount,
-			maturity
-		));
-
-		// Assert
-		assert_eq!(Bonds::bonds(bond_id).unwrap(), (underlying_asset_id, maturity));
-
-		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
-
-		assert!(bond_asset_details.asset_type == pallet_asset_registry::AssetType::Bond);
-		assert!(bond_asset_details.name.is_empty());
-		assert_eq!(bond_asset_details.existential_deposit, 1_000);
-
-		assert_balance!(&ALICE.into(), underlying_asset_id, 0);
-		assert_balance!(&ALICE.into(), bond_id, amount_without_fee);
-
-		assert_balance!(
-			&<Runtime as pallet_bonds::Config>::FeeReceiver::get(),
-			underlying_asset_id,
-			fee
+		// Act & Assert
+		assert_noop!(
+			Bonds::issue(
+				RuntimeOrigin::signed(ALICE.into()),
+				underlying_asset_id,
+				amount,
+				maturity
+			),
+			pallet_bonds::Error::<hydradx_runtime::Runtime>::InvalidAssetType
 		);
-
-		assert_balance!(&Bonds::pallet_account_id(), underlying_asset_id, amount_without_fee);
 	});
 }
