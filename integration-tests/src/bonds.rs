@@ -30,7 +30,7 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 
 		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
 
-		assert!(bond_asset_details.asset_type == pallet_asset_registry::AssetType::Bond);
+		assert_eq!(bond_asset_details.asset_type, pallet_asset_registry::AssetType::Bond);
 		assert!(bond_asset_details.name.is_empty());
 		assert_eq!(bond_asset_details.existential_deposit, NativeExistentialDeposit::get());
 
@@ -79,7 +79,7 @@ fn issue_bonds_should_work_when_issued_for_shared_asset() {
 
 		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
 
-		assert!(bond_asset_details.asset_type == pallet_asset_registry::AssetType::Bond);
+		assert_eq!(bond_asset_details.asset_type, pallet_asset_registry::AssetType::Bond);
 		assert!(bond_asset_details.name.is_empty());
 		assert_eq!(bond_asset_details.existential_deposit, 1_000);
 
