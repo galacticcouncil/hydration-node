@@ -164,16 +164,6 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {}
 }
 
-fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
-	match m.id {
-		AssetId::Concrete(location) => match m.fun {
-			Fungibility::Fungible(amount) => Some((location, amount)),
-			_ => None,
-		},
-		_ => None,
-	}
-}
-
 impl<T: Config> Pallet<T> {
 	fn get_locations_and_amounts(instruction: &Instruction<T::RuntimeCall>) -> Vec<(MultiLocation, u128)> {
 		use Instruction::*;
@@ -184,6 +174,16 @@ impl<T: Config> Pallet<T> {
 			}
 			_ => Vec::new(),
 		}
+	}
+}
+
+fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
+	match m.id {
+		AssetId::Concrete(location) => match m.fun {
+			Fungibility::Fungible(amount) => Some((location, amount)),
+			_ => None,
+		},
+		_ => None,
 	}
 }
 
