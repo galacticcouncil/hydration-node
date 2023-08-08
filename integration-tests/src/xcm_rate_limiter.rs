@@ -42,6 +42,11 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 		));
 
 		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
+
+		//Set it to same as the relay block number should be in XcmDeferFilter
+		//since we use different RelayChainBlockNumberProvider in runtime-benchmark feature
+		//where we return frame_system current time
+		frame_system::Pallet::<hydradx_runtime::Runtime>::set_block_number(4);
 	});
 
 	let amount = 100 * UNITS;
@@ -84,7 +89,7 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 			}
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
-				parachain_block_number: 1,
+				parachain_block_number: 4,
 				relaychain_block_number: 5,
 			}
 			.into(),
@@ -175,6 +180,11 @@ fn deferred_messages_should_be_executable_by_root() {
 		));
 
 		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
+
+		//Set it to same as the relay block number should be in XcmDeferFilter
+		//since we use different RelayChainBlockNumberProvider in runtime-benchmark feature
+		//where we return frame_system current time
+		frame_system::Pallet::<hydradx_runtime::Runtime>::set_block_number(4);
 	});
 
 	let amount = 100 * UNITS;
@@ -218,7 +228,7 @@ fn deferred_messages_should_be_executable_by_root() {
 			}
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
-				parachain_block_number: 1,
+				parachain_block_number: 4,
 				relaychain_block_number: 5,
 			}
 			.into(),
