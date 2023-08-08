@@ -1,5 +1,5 @@
 use crate::tests::mock::*;
-use crate::types::{AssetBalance, PoolInfo};
+use crate::types::{AssetAmount, PoolInfo};
 use frame_support::assert_ok;
 use sp_runtime::{FixedU128, Permill};
 use std::num::NonZeroU16;
@@ -47,6 +47,22 @@ macro_rules! assert_eq_approx {
 	}};
 }
 
+fn stable_swap_equation(d: Balance, amplification: Balance, reserves: &[Balance]) -> bool {
+	let n = reserves.len();
+	let nn = n.pow(n as u32);
+	let sum = reserves.iter().sum();
+	let side1 = amplification
+		.checked_mul(nn as u128)
+		.unwrap()
+		.checked_mul(sum)
+		.unwrap()
+		.checked_add(d);
+	let side2_01 = amplification.checked_mul(nn as u128).unwrap().checked_mul(d).unwrap();
+	let side2_03 = amplification.checked_mul(nn as u128).unwrap().checked_mul(d).unwrap();
+
+	true
+}
+
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
@@ -67,8 +83,8 @@ proptest! {
 				(ALICE, asset_a, initial_liquidity),
 				(ALICE, asset_b, initial_liquidity),
 			])
-			.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-			.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+			.with_registered_asset("one".as_bytes().to_vec(), asset_a,12)
+			.with_registered_asset("two".as_bytes().to_vec(), asset_b,12)
 			.with_pool(
 				ALICE,
 				PoolInfo::<AssetId, u64> {
@@ -82,14 +98,9 @@ proptest! {
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	vec![
-					AssetBalance{
-						asset_id: asset_a,
-						amount: initial_liquidity
-					},
-					AssetBalance{
-						asset_id: asset_b,
-						amount: initial_liquidity
-					}]},
+					AssetAmount::new(asset_a, initial_liquidity),
+					AssetAmount::new(asset_b, initial_liquidity),
+					]},
 			)
 			.build()
 			.execute_with(|| {
@@ -103,14 +114,10 @@ proptest! {
 				assert_ok!(Stableswap::add_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
-					vec![AssetBalance{
-						asset_id: asset_a,
-						amount: added_liquidity
-					},
-					AssetBalance{
-						asset_id: asset_b,
-						amount: added_liquidity
-					}
+					vec![
+
+					AssetAmount::new(asset_a, added_liquidity),
+					AssetAmount::new(asset_b, added_liquidity),
 				]
 				));
 
@@ -144,8 +151,8 @@ proptest! {
 				(ALICE, asset_a, initial_liquidity),
 				(ALICE, asset_b, initial_liquidity),
 			])
-			.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-			.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+			.with_registered_asset("one".as_bytes().to_vec(), asset_a,12)
+			.with_registered_asset("two".as_bytes().to_vec(), asset_b,12)
 			.with_pool(
 				ALICE,
 				PoolInfo::<AssetId, u64> {
@@ -159,14 +166,9 @@ proptest! {
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
-					AssetBalance{
-						asset_id: asset_a,
-						amount: initial_liquidity
-					},
-					AssetBalance{
-						asset_id: asset_b,
-						amount: initial_liquidity
-					}
+
+					AssetAmount::new(asset_a, initial_liquidity),
+					AssetAmount::new(asset_b, initial_liquidity),
 				]},
 			)
 			.build()
@@ -215,8 +217,8 @@ proptest! {
 				(ALICE, asset_a, initial_liquidity),
 				(ALICE, asset_b, initial_liquidity),
 			])
-			.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-			.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+			.with_registered_asset("one".as_bytes().to_vec(), asset_a,12)
+			.with_registered_asset("two".as_bytes().to_vec(), asset_b,12)
 			.with_pool(
 				ALICE,
 				PoolInfo::<AssetId, u64> {
@@ -230,19 +232,13 @@ proptest! {
 				},
 				InitialLiquidity{ account: ALICE,
 					assets:			vec![
-					AssetBalance{
-						asset_id: asset_a,
-						amount: initial_liquidity
-					},
-					AssetBalance{
-						asset_id: asset_b,
-						amount: initial_liquidity
-					}
+
+					AssetAmount::new(asset_a, initial_liquidity),
+					AssetAmount::new(asset_b, initial_liquidity),
 				]},
 			)
 			.build()
 			.execute_with(|| {
-
 				let pool_id = get_pool_id_at(0);
 
 				let pool_account = pool_account(pool_id);
@@ -287,8 +283,8 @@ proptest! {
 				(ALICE, asset_a, initial_liquidity),
 				(ALICE, asset_b, initial_liquidity),
 			])
-			.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-			.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+			.with_registered_asset("one".as_bytes().to_vec(), asset_a,12)
+			.with_registered_asset("two".as_bytes().to_vec(), asset_b,12)
 			.with_pool(
 				ALICE,
 				PoolInfo::<AssetId, u64> {
@@ -302,14 +298,9 @@ proptest! {
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
-					AssetBalance{
-						asset_id: asset_a,
-						amount: initial_liquidity
-					},
-					AssetBalance{
-						asset_id: asset_b,
-						amount: initial_liquidity
-					}
+
+					AssetAmount::new(asset_a, initial_liquidity),
+					AssetAmount::new(asset_b, initial_liquidity),
 				]},
 			)
 			.build()
@@ -381,8 +372,8 @@ proptest! {
 				(ALICE, asset_a, initial_liquidity),
 				(ALICE, asset_b, initial_liquidity),
 			])
-			.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-			.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+			.with_registered_asset("one".as_bytes().to_vec(), asset_a,12)
+			.with_registered_asset("two".as_bytes().to_vec(), asset_b,12)
 			.with_pool(
 				ALICE,
 				PoolInfo::<AssetId, u64> {
@@ -396,14 +387,9 @@ proptest! {
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
-					AssetBalance{
-						asset_id: asset_a,
-						amount: initial_liquidity
-					},
-					AssetBalance{
-						asset_id: asset_b,
-						amount: initial_liquidity
-					}
+
+					AssetAmount::new(asset_a, initial_liquidity),
+					AssetAmount::new(asset_b, initial_liquidity),
 				]},
 			)
 			.build()
@@ -453,6 +439,83 @@ proptest! {
 					assert!(d >= d_prev);
 					assert!(d - d_prev <= 10u128);
 				}
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn remove_liquidity_scenario(
+		initial_liquidity in asset_reserve(),
+		added_liquidity in asset_reserve(),
+		amplification in some_amplification(),
+		trade_fee in trade_fee()
+
+	) {
+		let asset_a: AssetId = 1000;
+		let asset_b: AssetId = 2000;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(BOB, asset_a, added_liquidity),
+				(BOB, asset_b, added_liquidity * 1000),
+				(ALICE, asset_a, initial_liquidity),
+				(ALICE, asset_b, initial_liquidity),
+			])
+			.with_registered_asset("one".as_bytes().to_vec(), asset_a,12)
+			.with_registered_asset("two".as_bytes().to_vec(), asset_b,12)
+			.with_pool(
+				ALICE,
+				PoolInfo::<AssetId, u64> {
+					assets: vec![asset_a,asset_b].try_into().unwrap(),
+					initial_amplification: amplification,
+					final_amplification: amplification,
+					initial_block: 0,
+					final_block: 0,
+					trade_fee,
+					withdraw_fee: Permill::from_percent(0),
+				},
+				InitialLiquidity{ account: ALICE,
+				assets:	vec![
+
+					AssetAmount::new(asset_a, initial_liquidity),
+					AssetAmount::new(asset_b, initial_liquidity),
+					]},
+			)
+			.build()
+			.execute_with(|| {
+				let pool_id = get_pool_id_at(0);
+
+				let pool_account = pool_account(pool_id);
+
+				let asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
+				let asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
+
+				assert_ok!(Stableswap::add_liquidity(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					vec![AssetAmount::new(asset_a, added_liquidity)]
+				));
+
+				let new_asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
+				let new_asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
+
+				let reserves = vec![new_asset_a_reserve, new_asset_b_reserve];
+
+				let d_new = calculate_d::<128u8>(&[new_asset_a_reserve,new_asset_b_reserve], amplification.get().into()).unwrap();
+
+				stable_swap_equation(d_new, amplification.get().into(),&reserves );
+
+			/*
+				assert_eq_approx!(
+					FixedU128::from((asset_a_reserve, asset_b_reserve)),
+					FixedU128::from((new_asset_a_reserve, new_asset_b_reserve)),
+					FixedU128::from_float(0.0000000001),
+					"Price has changed after add liquidity"
+				);
+
+			 */
 			});
 	}
 }

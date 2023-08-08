@@ -1,6 +1,7 @@
+use crate::stableswap::types::{target_precision, AssetReserve};
 use crate::to_u256;
 use crate::types::Balance;
-use num_traits::{CheckedDiv, CheckedMul, Zero};
+use num_traits::{CheckedDiv, CheckedMul, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::Div;
@@ -15,7 +16,7 @@ const PRECISION: u8 = 1;
 /// N - number of iterations to use for Newton's formula to calculate parameter D ( it should be >=1 otherwise it wont converge at all and will always fail
 /// N_Y - number of iterations to use for Newton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
 pub fn calculate_out_given_in<const N: u8, const N_Y: u8>(
-	balances: &[Balance],
+	balances: &[AssetReserve],
 	idx_in: usize,
 	idx_out: usize,
 	amount_in: Balance,
@@ -24,15 +25,19 @@ pub fn calculate_out_given_in<const N: u8, const N_Y: u8>(
 	if idx_in >= balances.len() || idx_out >= balances.len() {
 		return None;
 	}
-	let new_reserve_out = calculate_y_given_in::<N, N_Y>(amount_in, idx_in, idx_out, balances, amplification)?;
-	balances[idx_out].checked_sub(new_reserve_out)
+	let target_precision = target_precision(balances);
+	let reserves = normalize_reserves(balances);
+	let amount_in = normalize_value(amount_in, balances[idx_in].decimals, target_precision, Rounding::Down);
+	let new_reserve_out = calculate_y_given_in::<N, N_Y>(amount_in, idx_in, idx_out, &reserves, amplification)?;
+	let new_reserve_out = normalize_value(new_reserve_out, target_precision, balances[idx_out].decimals, Rounding::Up);
+	balances[idx_out].amount.checked_sub(new_reserve_out)
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
 /// N - number of iterations to use for Newton's formula ( it should be >=1 otherwise it wont converge at all and will always fail
 /// N_Y - number of iterations to use for Newton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
 pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
-	balances: &[Balance],
+	balances: &[AssetReserve],
 	idx_in: usize,
 	idx_out: usize,
 	amount_out: Balance,
@@ -41,13 +46,17 @@ pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
 	if idx_in >= balances.len() || idx_out >= balances.len() {
 		return None;
 	}
-	let new_reserve_in = calculate_y_given_out::<N, N_Y>(amount_out, idx_in, idx_out, balances, amplification)?;
-	new_reserve_in.checked_sub(balances[idx_in])
+	let target_precision = target_precision(balances);
+	let reserves = normalize_reserves(balances);
+	let amount_out = normalize_value(amount_out, balances[idx_out].decimals, target_precision, Rounding::Down);
+	let new_reserve_in = calculate_y_given_out::<N, N_Y>(amount_out, idx_in, idx_out, &reserves, amplification)?;
+	let new_reserve_in = normalize_value(new_reserve_in, target_precision, balances[idx_in].decimals, Rounding::Up);
+	new_reserve_in.checked_sub(balances[idx_in].amount)
 }
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves and apply a fee.
 pub fn calculate_out_given_in_with_fee<const N: u8, const N_Y: u8>(
-	balances: &[Balance],
+	balances: &[AssetReserve],
 	idx_in: usize,
 	idx_out: usize,
 	amount_in: Balance,
@@ -64,7 +73,7 @@ pub fn calculate_out_given_in_with_fee<const N: u8, const N_Y: u8>(
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves with fee applied.
 pub fn calculate_in_given_out_with_fee<const N: u8, const N_Y: u8>(
-	balances: &[Balance],
+	balances: &[AssetReserve],
 	idx_in: usize,
 	idx_out: usize,
 	amount_out: Balance,
@@ -81,20 +90,22 @@ pub fn calculate_in_given_out_with_fee<const N: u8, const N_Y: u8>(
 
 /// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
 pub fn calculate_shares<const N: u8>(
-	initial_reserves: &[Balance],
-	updated_reserves: &[Balance],
+	initial_reserves: &[AssetReserve],
+	updated_reserves: &[AssetReserve],
 	amplification: Balance,
 	share_issuance: Balance,
 ) -> Option<Balance> {
 	if initial_reserves.len() != updated_reserves.len() {
 		return None;
 	}
+	let initial_reserves = normalize_reserves(initial_reserves);
+	let updated_reserves = normalize_reserves(updated_reserves);
 
-	let initial_d = calculate_d::<N>(initial_reserves, amplification)?;
+	let initial_d = calculate_d::<N>(&initial_reserves, amplification)?;
 
 	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
 	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-	let updated_d = calculate_d::<N>(updated_reserves, amplification)?.checked_sub(2_u128)?;
+	let updated_d = calculate_d::<N>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
 
 	if updated_d < initial_d {
 		return None;
@@ -112,7 +123,7 @@ pub fn calculate_shares<const N: u8>(
 
 /// Given amount of shares and asset reserves, calculate corresponding amount of selected asset to be withdrawn.
 pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
-	reserves: &[Balance],
+	reserves: &[AssetReserve],
 	shares: Balance,
 	asset_index: usize,
 	share_asset_issuance: Balance,
@@ -135,12 +146,16 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 	if n_coins <= 1 {
 		return None;
 	}
+	let target_precision = target_precision(reserves);
+	let asset_out_decimals = reserves[asset_index].decimals;
+	let reserves = normalize_reserves(reserves);
+
 	let fixed_fee = FixedU128::from(fee);
 	let fee = fixed_fee
 		.checked_mul(&FixedU128::from(n_coins as u128))?
 		.checked_div(&FixedU128::from(4 * (n_coins - 1) as u128))?;
 
-	let initial_d = calculate_d::<N>(reserves, amplification)?;
+	let initial_d = calculate_d::<N>(&reserves, amplification)?;
 
 	let (shares_hp, issuance_hp, d_hp) = to_u256!(shares, share_asset_issuance, initial_d);
 
@@ -191,7 +206,9 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 
 	let fee = dy_0.checked_sub(dy)?;
 
-	Some((dy, fee))
+	let amount_out = normalize_value(dy, target_precision, asset_out_decimals, Rounding::Down);
+	let fee = normalize_value(fee, target_precision, asset_out_decimals, Rounding::Up);
+	Some((amount_out, fee))
 }
 
 /// amplification * n^n where n is number of assets in pool.
@@ -414,5 +431,60 @@ fn calculate_fee_amount(amount: Balance, fee: Permill, rounding: Rounding) -> Ba
 	match rounding {
 		Rounding::Down => fee.mul_floor(amount),
 		Rounding::Up => fee.mul_ceil(amount),
+	}
+}
+
+fn normalize_reserves(reserves: &[AssetReserve]) -> Vec<Balance> {
+	let t = target_precision(reserves);
+	reserves.iter().map(|v| normalize_value(v.amount, v.decimals, t, Rounding::Down)).collect()
+}
+
+fn normalize_value(amount: Balance, decimals: u8, target_decimals: u8, rounding: Rounding) -> Balance {
+	if target_decimals == decimals {
+		return amount;
+	}
+	let diff = target_decimals.abs_diff(decimals);
+	if target_decimals > decimals {
+		amount.saturating_mul(10u128.pow(diff as u32))
+	} else {
+		match rounding{
+			Rounding::Down => amount.div(10u128.pow(diff as u32)),
+			Rounding::Up => amount.div(10u128.pow(diff as u32)).saturating_add(Balance::one())
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_normalize_value_same_decimals() {
+		let amount = 1_000_000_000_000_000;
+		let decimals = 12;
+		let target_decimals = 12;
+		let expected: Balance = amount;
+		let actual = normalize_value(amount, decimals, target_decimals, Rounding::Down);
+		assert_eq!(actual, expected);
+	}
+
+	#[test]
+	fn test_normalize_value_target_greater_than_decimals() {
+		let amount = 1_000_000_000_000;
+		let decimals = 12;
+		let target_decimals = 18;
+		let expected: Balance = 1_000_000_000_000_000_000;
+		let actual = normalize_value(amount, decimals, target_decimals, Rounding::Up);
+		assert_eq!(actual, expected);
+	}
+
+	#[test]
+	fn test_normalize_value_target_less_than_decimals() {
+		let amount: Balance = 1_000_000_000_000_000_000;
+		let decimals = 18;
+		let target_decimals = 12;
+		let expected: Balance = 1_000_000_000_000;
+		let actual = normalize_value(amount, decimals, target_decimals, Rounding::Up);
+		assert_eq!(actual, expected);
 	}
 }

@@ -1,8 +1,8 @@
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, MAX_ASSETS_IN_POOL};
-use sp_runtime::Permill;
+use crate::{Config, Pallet, MAX_ASSETS_IN_POOL};
+use sp_runtime::{Permill, Saturating};
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
@@ -10,9 +10,11 @@ use sp_std::prelude::*;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::ConstU32;
 use frame_support::BoundedVec;
+use hydra_dx_math::stableswap::types::AssetReserve;
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
+use sp_runtime::traits::Zero;
 
 pub(crate) type Balance = u128;
 
@@ -53,21 +55,59 @@ where
 		self.assets.len() >= 2 && has_unique_elements(&mut self.assets.iter())
 	}
 
-	pub fn balances<T: Config>(&self, account: &T::AccountId) -> Vec<Balance>
+	pub fn balances<T: Config>(&self, account: &T::AccountId) -> Vec<AssetAmount<T::AssetId>>
 	where
 		T::AssetId: From<AssetId>,
 	{
 		self.assets
 			.iter()
-			.map(|asset| T::Currency::free_balance((*asset).into(), account))
+			.map(|asset| (*asset, T::Currency::free_balance((*asset).into(), account)))
+			.map(|(asset, reserve)| {
+				let decimals = Pallet::<T>::retrieve_decimals(asset.into());
+				AssetAmount {
+					asset_id: asset.into(),
+					amount: reserve,
+					decimals,
+				}
+			})
 			.collect()
 	}
 }
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo)]
-pub struct AssetBalance<AssetId> {
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo, Default)]
+pub struct AssetAmount<AssetId> {
 	pub asset_id: AssetId,
 	pub amount: Balance,
+	#[codec(skip)]
+	pub decimals: u8,
+}
+
+impl<AssetId: Default> AssetAmount<AssetId> {
+	pub fn new(asset_id: AssetId, amount: Balance) -> Self {
+		Self {
+			asset_id,
+			amount,
+			..Default::default()
+		}
+	}
+
+	pub fn is_zero(&self) -> bool {
+		self.amount == Balance::zero()
+	}
+}
+
+impl<AssetId> From<AssetAmount<AssetId>> for AssetReserve {
+	fn from(value: AssetAmount<AssetId>) -> Self {
+		Self {
+			amount: value.amount,
+			decimals: value.decimals,
+		}
+	}
+}
+impl<AssetId> From<AssetAmount<AssetId>> for u128 {
+	fn from(value: AssetAmount<AssetId>) -> Self {
+		value.amount
+	}
 }
 
 bitflags::bitflags! {

@@ -43,12 +43,15 @@
 extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
+use frame_support::traits::fungibles::Inspect;
 use frame_support::{ensure, require_transactional, transactional};
 use hydradx_traits::{AccountIdFor, Registry};
 use sp_runtime::traits::{BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
+
+use frame_support::traits::tokens::fungibles::InspectMetadata;
 
 pub use pallet::*;
 
@@ -58,7 +61,8 @@ pub mod weights;
 
 pub use trade_execution::*;
 
-use crate::types::{AssetBalance, Balance, PoolInfo, Tradability};
+use crate::types::{AssetAmount, Balance, PoolInfo, Tradability};
+use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
@@ -122,7 +126,7 @@ pub mod pallet {
 		type ShareAccountId: AccountIdFor<Self::AssetId, AccountId = Self::AccountId>;
 
 		/// Asset registry mechanism
-		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
+		type AssetInspection: InspectMetadata<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>;
 
 		/// The origin which can create a new pool
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -179,14 +183,14 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			who: T::AccountId,
 			shares: Balance,
-			assets: Vec<AssetBalance<T::AssetId>>,
+			assets: Vec<AssetAmount<T::AssetId>>,
 		},
 		/// Liquidity removed.
 		LiquidityRemoved {
 			pool_id: T::AssetId,
 			who: T::AccountId,
 			shares: Balance,
-			amounts: Vec<AssetBalance<T::AssetId>>,
+			amounts: Vec<AssetAmount<T::AssetId>>,
 			fee: Balance,
 		},
 		/// Sell trade executed. Trade fee paid in asset leaving the pool (already subtracted from amount_out).
@@ -485,7 +489,7 @@ pub mod pallet {
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
-			assets: Vec<AssetBalance<T::AssetId>>,
+			assets: Vec<AssetAmount<T::AssetId>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -560,7 +564,7 @@ pub mod pallet {
 
 			let amplification = Self::get_amplification(&pool);
 			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
-				&balances,
+				&balances.into_iter().map(|v| v.into()).collect::<Vec<AssetReserve>>(),
 				share_amount,
 				asset_idx,
 				share_issuance,
@@ -578,7 +582,11 @@ pub mod pallet {
 				pool_id,
 				who,
 				shares: share_amount,
-				amounts: vec![AssetBalance { asset_id, amount }],
+				amounts: vec![AssetAmount {
+					asset_id,
+					amount,
+					..Default::default()
+				}],
 				fee,
 			});
 
@@ -757,12 +765,12 @@ impl<T: Config> Pallet<T> {
 		let pool_account = Self::pool_account(pool_id);
 		let balances = pool.balances::<T>(&pool_account);
 
-		ensure!(balances[index_in] > Balance::zero(), Error::<T>::InsufficientLiquidity);
-		ensure!(balances[index_out] > Balance::zero(), Error::<T>::InsufficientLiquidity);
+		ensure!(!balances[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
+		ensure!(!balances[index_out].is_zero(), Error::<T>::InsufficientLiquidity);
 
 		let amplification = Self::get_amplification(&pool);
 		hydra_dx_math::stableswap::calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
-			&balances,
+			&balances.into_iter().map(|v| v.into()).collect::<Vec<AssetReserve>>(),
 			index_in,
 			index_out,
 			amount_in,
@@ -786,12 +794,15 @@ impl<T: Config> Pallet<T> {
 		let pool_account = Self::pool_account(pool_id);
 		let balances = pool.balances::<T>(&pool_account);
 
-		ensure!(balances[index_out] > amount_out, Error::<T>::InsufficientLiquidity);
-		ensure!(balances[index_in] > Balance::zero(), Error::<T>::InsufficientLiquidity);
+		ensure!(
+			balances[index_out].amount > amount_out,
+			Error::<T>::InsufficientLiquidity
+		);
+		ensure!(!balances[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
 
 		let amplification = Self::get_amplification(&pool);
 		hydra_dx_math::stableswap::calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
-			&balances,
+			&balances.into_iter().map(|v| v.into()).collect::<Vec<AssetReserve>>(),
 			index_in,
 			index_out,
 			amount_out,
@@ -811,7 +822,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
-			T::AssetRegistry::exists(share_asset),
+			<T::AssetInspection as Inspect<T::AccountId>>::asset_exists(share_asset),
 			Error::<T>::ShareAssetNotRegistered
 		);
 
@@ -840,7 +851,10 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InvalidAmplification
 		);
 		for asset in pool.assets.iter() {
-			ensure!(T::AssetRegistry::exists(*asset), Error::<T>::AssetNotRegistered);
+			ensure!(
+				<T::AssetInspection as Inspect<T::AccountId>>::asset_exists(*asset),
+				Error::<T>::AssetNotRegistered
+			);
 		}
 
 		Pools::<T>::insert(share_asset, pool);
@@ -852,7 +866,7 @@ impl<T: Config> Pallet<T> {
 	fn do_add_liquidity(
 		who: &T::AccountId,
 		pool_id: T::AssetId,
-		assets: &[AssetBalance<T::AssetId>],
+		assets: &[AssetAmount<T::AssetId>],
 	) -> Result<Balance, DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);
@@ -870,31 +884,51 @@ impl<T: Config> Pallet<T> {
 				T::Currency::free_balance(asset.asset_id, who) >= asset.amount,
 				Error::<T>::InsufficientBalance
 			);
-			ensure!(pool.find_asset(asset.asset_id).is_some(), Error::<T>::AssetNotInPool);
 			if added_assets.insert(asset.asset_id, asset.amount).is_some() {
 				return Err(Error::<T>::IncorrectAssets.into());
 			}
 		}
 
 		let pool_account = Self::pool_account(pool_id);
-		let mut initial_reserves = Vec::new();
-		let mut updated_reserves = Vec::new();
+		let mut initial_reserves = Vec::with_capacity(pool.assets.len());
+		let mut updated_reserves = Vec::with_capacity(pool.assets.len());
 		for pool_asset in pool.assets.iter() {
+			let decimals = Self::retrieve_decimals(*pool_asset);
 			let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
-			initial_reserves.push(reserve);
-			if let Some(liq_added) = added_assets.get(pool_asset) {
-				updated_reserves.push(reserve.checked_add(*liq_added).ok_or(ArithmeticError::Overflow)?);
+			initial_reserves.push(AssetAmount {
+				asset_id: *pool_asset,
+				amount: reserve,
+				decimals,
+			});
+			if let Some(liq_added) = added_assets.remove(pool_asset) {
+				let inc_reserve = reserve.checked_add(liq_added).ok_or(ArithmeticError::Overflow)?;
+				updated_reserves.push(AssetAmount {
+					asset_id: *pool_asset,
+					amount: inc_reserve,
+					decimals,
+				});
 			} else {
 				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push(reserve);
+				updated_reserves.push(AssetAmount {
+					asset_id: *pool_asset,
+					amount: reserve,
+					decimals,
+				});
 			}
 		}
+		ensure!(added_assets.is_empty(), Error::<T>::AssetNotInPool);
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
 		let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
-			&initial_reserves,
-			&updated_reserves,
+			&initial_reserves
+				.into_iter()
+				.map(|v| v.into())
+				.collect::<Vec<AssetReserve>>(),
+			&updated_reserves
+				.into_iter()
+				.map(|v| v.into())
+				.collect::<Vec<AssetReserve>>(),
 			amplification,
 			share_issuance,
 		)
@@ -936,5 +970,10 @@ impl<T: Config> Pallet<T> {
 			pool.final_block.saturated_into(),
 			T::BlockNumberProvider::current_block_number().saturated_into(),
 		)
+	}
+
+	#[inline]
+	pub(crate) fn retrieve_decimals(asset_id: T::AssetId) -> u8 {
+		T::AssetInspection::decimals(&asset_id)
 	}
 }

@@ -23,7 +23,7 @@ use hydradx_adapters::{
 	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{OraclePeriod, Source};
+use hydradx_traits::{AccountIdFor, OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
@@ -42,6 +42,7 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, RawOrigin};
 use orml_traits::currency::MutationHooks;
+use sp_core::crypto::UncheckedFrom;
 use pallet_dynamic_fees::types::FeeParams;
 
 parameter_types! {
@@ -479,4 +480,48 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type Oracle = OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
+}
+
+use sp_std::marker::PhantomData;
+use sp_std::num::NonZeroU16;
+use core::ops::RangeInclusive;
+
+
+parameter_types! {
+	pub StableswapAmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
+}
+
+pub struct StableswapAccountIdConstructor<T: frame_system::Config>(PhantomData<T>);
+
+impl<T: frame_system::Config> AccountIdFor<AssetId> for StableswapAccountIdConstructor<T>
+where
+	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
+{
+	type AccountId = T::AccountId;
+
+	fn from_assets(asset: &AssetId, identifier: Option<&[u8]>) -> Self::AccountId {
+		let name = Self::name(asset, identifier);
+		T::AccountId::unchecked_from(<T::Hashing as frame_support::sp_runtime::traits::Hash>::hash(&name[..]))
+	}
+
+	fn name(asset: &u32, identifier: Option<&[u8]>) -> Vec<u8> {
+		let mut buf = identifier.map_or_else(|| vec![], |v| v.to_vec());
+		buf.extend_from_slice(&(asset).to_le_bytes());
+		buf
+	}
+}
+
+impl pallet_stableswap::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type BlockNumberProvider = System;
+	type AssetId = AssetId;
+	type Currency = Currencies;
+	type ShareAccountId = StableswapAccountIdConstructor<Runtime>;
+	type AssetRegistry = AssetRegistry;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type DustAccountHandler = Duster;
+	type MinPoolLiquidity = MinPoolLiquidity;
+	type MinTradingLimit = MinTradingLimit;
+	type AmplificationRange = StableswapAmplificationRange;
+	type WeightInfo = ();
 }

@@ -5,6 +5,7 @@ use super::*;
 use crate::stableswap::*;
 use crate::types::Balance;
 use sp_arithmetic::Permill;
+use crate::stableswap::types::AssetReserve;
 
 #[test]
 fn test_d() {
@@ -99,8 +100,8 @@ fn test_case_03() {
 fn test_shares() {
 	let amp = 100u128;
 
-	let initial_reserves = &[0u128, 0u128];
-	let updated_reserves = &[1000 * ONE, 500u128];
+	let initial_reserves = &[AssetReserve::new(0,12);2];
+	let updated_reserves = &[AssetReserve::new(1000 * ONE,12), AssetReserve::new(500, 12)];
 
 	let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, 0u128);
 
@@ -111,7 +112,7 @@ fn test_shares() {
 fn remove_one_asset_should_work() {
 	let amp = 100u128;
 
-	let reserves = &[1000 * ONE, 2000u128];
+	let reserves = &[AssetReserve::new(1000 * ONE, 12), AssetReserve::new(2000u128,12)];
 
 	let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 		reserves,

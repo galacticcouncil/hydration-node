@@ -14,9 +14,9 @@ fn create_two_asset_pool_should_work_when_assets_are_registered() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
@@ -53,11 +53,11 @@ fn create_multi_asset_pool_should_work_when_assets_are_registered() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
-		.with_registered_asset("three".as_bytes().to_vec(), asset_c)
-		.with_registered_asset("four".as_bytes().to_vec(), asset_d)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
+		.with_registered_asset("four".as_bytes().to_vec(), asset_d, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
@@ -82,11 +82,11 @@ fn create_pool_should_store_assets_correctly_when_input_is_not_sorted() {
 	let pool_id: AssetId = 100;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
-		.with_registered_asset("three".as_bytes().to_vec(), asset_c)
-		.with_registered_asset("four".as_bytes().to_vec(), asset_d)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
+		.with_registered_asset("four".as_bytes().to_vec(), asset_d, 12)
 		.build()
 		.execute_with(|| {
 			let amplification = 100u16;
@@ -119,7 +119,7 @@ fn create_pool_should_store_assets_correctly_when_input_is_not_sorted() {
 fn create_pool_should_fail_when_same_assets_is_specified() {
 	let pool_id: AssetId = 100;
 	ExtBuilder::default()
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
 		.build()
 		.execute_with(|| {
 			let asset_a: AssetId = 1;
@@ -143,7 +143,7 @@ fn create_pool_should_fail_when_same_assets_is_specified() {
 fn create_pool_should_fail_when_same_assets_is_empty() {
 	let pool_id: AssetId = 100;
 	ExtBuilder::default()
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
 		.build()
 		.execute_with(|| {
 			let amplification = 100u16;
@@ -166,7 +166,7 @@ fn create_pool_should_fail_when_same_assets_is_empty() {
 fn create_pool_should_fail_when_single_asset_is_provided() {
 	let pool_id: AssetId = 100;
 	ExtBuilder::default()
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
 		.build()
 		.execute_with(|| {
 			let asset_a: AssetId = 1;
@@ -211,7 +211,7 @@ fn create_pool_should_fail_when_share_asset_is_not_registered() {
 fn create_pool_should_fail_when_share_asset_is_among_assets() {
 	let pool_id: AssetId = 100;
 	ExtBuilder::default()
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
 		.build()
 		.execute_with(|| {
 			let asset_a: AssetId = 1;
@@ -235,8 +235,8 @@ fn create_pool_should_fail_when_share_asset_is_among_assets() {
 fn create_pool_should_fail_when_asset_is_not_registered() {
 	let pool_id: AssetId = 100;
 	ExtBuilder::default()
-		.with_registered_asset("one".as_bytes().to_vec(), 1000)
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
+		.with_registered_asset("one".as_bytes().to_vec(), 1000, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
 		.build()
 		.execute_with(|| {
 			let registered: AssetId = 1000;
@@ -276,9 +276,9 @@ fn create_pool_should_fail_when_same_share_asset_pool_already_exists() {
 	let pool_id: AssetId = 100;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			let amplification = 100u16;
@@ -313,9 +313,9 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 	let pool_id: AssetId = 100;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			let amplification_min = 1u16;
@@ -367,9 +367,9 @@ fn create_pool_should_add_account_to_whilest() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
