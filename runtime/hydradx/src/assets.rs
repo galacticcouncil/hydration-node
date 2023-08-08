@@ -84,27 +84,38 @@ impl SufficiencyCheck {
 		MultiTransactionPayment::price(asset).is_some()
 	}
 
-	fn on_funds(asset: AssetId, to: &AccountId) -> DispatchResult {
-		use frame_support::traits::LockableCurrency;
+	fn on_funds(asset: AssetId, paying_account: &AccountId) -> DispatchResult {
+		use frame_support::traits::ReservableCurrency;
 		if Self::is_sufficient(asset) {
 			return Ok(());
 		}
-		let ed = <Runtime as pallet_balances::Config>::ExistentialDeposit::get();
-		frame_support::ensure!(Balances::free_balance(to) >= ed, "need ED in account to lock");
-		Balances::set_lock(*b"suffice_", to, ed, WithdrawReasons::all());
+		let ed = <Runtime as pallet_balances::Config>::ExistentialDeposit::get() * 1.1;
+		let fee_payment_asset = MultiTransactionPayment::fee_asset(paying_account);
+		let ed = ed * MultiTransactionPayment::price(fee_payment_asset) * 1.1;
+		Currencies::transfer(fee_payment_asset, paying_account, treasury, ed)?;
+		frame_system::inc_consumer(to_account);
 		Ok(())
 	}
 }
 
 impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 	fn on_transfer(asset: AssetId, _from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
-		Self::on_funds(asset, to)
+		Self::on_funds(asset, from)
 	}
 }
 
 impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
 	fn on_deposit(asset: AssetId, to: &AccountId, _amount: Balance) -> DispatchResult {
 		Self::on_funds(asset, to)
+	}
+}
+
+impl OnKilledTokenAccount for SufficiencyCheck {
+	// TODO: check races between producer and consumer counts for this process
+	fn on_killed_account(asset: AssetId, acc: &AccountId) {
+		let ed = <Runtime as pallet_balances::Config>::ExistentialDeposit::get() * 1.1;
+		Balances::transfer(treasury, acc, ed);
+		frame_system::dec_consumer(to_account);
 	}
 }
 
