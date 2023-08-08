@@ -35,14 +35,14 @@ fn issue_bonds_should_work_when_fee_is_zero() {
 
 		// Assert
 		expect_events(vec![
-			Event::BondTokenCreated {
+			Event::TokenCreated {
 				issuer: ALICE,
 				asset_id: HDX,
 				bond_id,
 				maturity,
 			}
 			.into(),
-			Event::BondsIssued {
+			Event::Issued {
 				issuer: ALICE,
 				bond_id,
 				amount,
@@ -81,14 +81,14 @@ fn issue_bonds_should_work_when_fee_is_non_zero() {
 
 			// Assert
 			expect_events(vec![
-				Event::BondTokenCreated {
+				Event::TokenCreated {
 					issuer: ALICE,
 					asset_id: HDX,
 					bond_id,
 					maturity,
 				}
 				.into(),
-				Event::BondsIssued {
+				Event::Issued {
 					issuer: ALICE,
 					bond_id,
 					amount: amount_without_fee,
@@ -132,21 +132,21 @@ fn issue_bonds_should_issue_new_bonds_when_bonds_are_already_registered() {
 
 			// Assert
 			expect_events(vec![
-				Event::BondTokenCreated {
+				Event::TokenCreated {
 					issuer: ALICE,
 					asset_id: HDX,
 					bond_id,
 					maturity,
 				}
 				.into(),
-				Event::BondsIssued {
+				Event::Issued {
 					issuer: ALICE,
 					bond_id,
 					amount: amount_without_fee,
 					fee,
 				}
 				.into(),
-				Event::BondsIssued {
+				Event::Issued {
 					issuer: ALICE,
 					bond_id,
 					amount: amount_without_fee,
@@ -197,28 +197,28 @@ fn issue_bonds_should_register_new_bonds_when_underlying_asset_is_different() {
 
 			// Assert
 			expect_events(vec![
-				Event::BondTokenCreated {
+				Event::TokenCreated {
 					issuer: ALICE,
 					asset_id: HDX,
 					bond_id: first_bond_id,
 					maturity,
 				}
 				.into(),
-				Event::BondsIssued {
+				Event::Issued {
 					issuer: ALICE,
 					bond_id: first_bond_id,
 					amount: amount_without_fee,
 					fee,
 				}
 				.into(),
-				Event::BondTokenCreated {
+				Event::TokenCreated {
 					issuer: ALICE,
 					asset_id: DAI,
 					bond_id: second_bond_id,
 					maturity,
 				}
 				.into(),
-				Event::BondsIssued {
+				Event::Issued {
 					issuer: ALICE,
 					bond_id: second_bond_id,
 					amount: amount_without_fee,
@@ -277,28 +277,28 @@ fn issue_bonds_should_register_new_bonds_when_maturity_is_different() {
 
 			// Assert
 			expect_events(vec![
-				Event::BondTokenCreated {
+				Event::TokenCreated {
 					issuer: ALICE,
 					asset_id: HDX,
 					bond_id: first_bond_id,
 					maturity: next_month,
 				}
 				.into(),
-				Event::BondsIssued {
+				Event::Issued {
 					issuer: ALICE,
 					bond_id: first_bond_id,
 					amount: amount_without_fee,
 					fee,
 				}
 				.into(),
-				Event::BondTokenCreated {
+				Event::TokenCreated {
 					issuer: ALICE,
 					asset_id: HDX,
 					bond_id: second_bond_id,
 					maturity: next_week,
 				}
 				.into(),
-				Event::BondsIssued {
+				Event::Issued {
 					issuer: ALICE,
 					bond_id: second_bond_id,
 					amount: amount_without_fee,
@@ -347,21 +347,21 @@ fn issue_bonds_should_work_when_bonds_are_mature() {
 
 		// Assert
 		expect_events(vec![
-			Event::BondTokenCreated {
+			Event::TokenCreated {
 				issuer: ALICE,
 				asset_id: HDX,
 				bond_id,
 				maturity,
 			}
 			.into(),
-			Event::BondsIssued {
+			Event::Issued {
 				issuer: ALICE,
 				bond_id,
 				amount,
 				fee: 0,
 			}
 			.into(),
-			Event::BondsIssued {
+			Event::Issued {
 				issuer: ALICE,
 				bond_id,
 				amount,
@@ -404,28 +404,28 @@ fn reissuance_of_bonds_should_work_again_when_all_bonds_were_redeemed() {
 
 		// Assert
 		expect_events(vec![
-			Event::BondTokenCreated {
+			Event::TokenCreated {
 				issuer: ALICE,
 				asset_id: HDX,
 				bond_id,
 				maturity,
 			}
 			.into(),
-			Event::BondsIssued {
+			Event::Issued {
 				issuer: ALICE,
 				bond_id,
 				amount,
 				fee: 0,
 			}
 			.into(),
-			Event::BondTokenCreated {
+			Event::TokenCreated {
 				issuer: ALICE,
 				asset_id: HDX,
 				bond_id,
 				maturity,
 			}
 			.into(),
-			Event::BondsIssued {
+			Event::Issued {
 				issuer: ALICE,
 				bond_id,
 				amount,
@@ -462,7 +462,7 @@ fn issue_bonds_should_fail_when_asset_is_blacklisted() {
 			// Act & Assert
 			assert_noop!(
 				Bonds::issue(RuntimeOrigin::signed(ALICE), bond_id, amount, maturity),
-				Error::<Test>::InvalidAssetType
+				Error::<Test>::DisallowedAseet
 			);
 		});
 }

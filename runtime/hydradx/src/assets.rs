@@ -487,10 +487,10 @@ parameter_types! {
 	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
 }
 
-pub struct AssetTypeBlacklist;
-impl Contains<AssetKind> for AssetTypeBlacklist {
+pub struct AssetTypeWhitelist;
+impl Contains<AssetKind> for AssetTypeWhitelist {
 	fn contains(t: &AssetKind) -> bool {
-		*t == AssetKind::Bond
+		matches!(t, AssetKind::Token | AssetKind::XYK | AssetKind::StableSwap)
 	}
 }
 
@@ -504,7 +504,7 @@ impl pallet_bonds::Config for Runtime {
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
 	type IssueOrigin = EnsureSigned<AccountId>;
-	type AssetTypeBlacklist = AssetTypeBlacklist;
+	type AssetTypeWhitelist = AssetTypeWhitelist;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();

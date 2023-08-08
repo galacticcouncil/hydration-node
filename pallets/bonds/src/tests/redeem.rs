@@ -38,7 +38,7 @@ fn partially_redeem_bonds_should_work_when_fee_is_zero() {
 		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount));
 
 		// Assert
-		expect_events(vec![Event::BondsRedeemed {
+		expect_events(vec![Event::Redeemed {
 			who: ALICE,
 			bond_id,
 			amount: redeem_amount,
@@ -85,7 +85,7 @@ fn partially_redeem_bonds_should_work_when_fee_is_non_zero() {
 			assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount));
 
 			// Assert
-			expect_events(vec![Event::BondsRedeemed {
+			expect_events(vec![Event::Redeemed {
 				who: ALICE,
 				bond_id,
 				amount: redeem_amount,
@@ -129,7 +129,7 @@ fn fully_redeem_bonds_should_work_when_fee_is_zero() {
 		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, amount));
 
 		// Assert
-		expect_events(vec![Event::BondsRedeemed {
+		expect_events(vec![Event::Redeemed {
 			who: ALICE,
 			bond_id,
 			amount,
@@ -169,7 +169,7 @@ fn fully_redeem_bonds_should_work_when_fee_is_non_zero() {
 			assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, amount_without_fee));
 
 			// Assert
-			expect_events(vec![Event::BondsRedeemed {
+			expect_events(vec![Event::Redeemed {
 				who: ALICE,
 				bond_id,
 				amount: amount_without_fee,
@@ -213,7 +213,7 @@ fn redeem_bonds_should_work_when_redeemed_from_non_issuer_account() {
 		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(BOB), bond_id, redeem_amount));
 
 		// Assert
-		expect_events(vec![Event::BondsRedeemed {
+		expect_events(vec![Event::Redeemed {
 			who: BOB,
 			bond_id,
 			amount: redeem_amount,
@@ -261,13 +261,13 @@ fn redeem_bonds_should_fail_when_bond_not_exists() {
 		// asset not registered
 		assert_noop!(
 			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, ONE),
-			Error::<Test>::BondNotRegistered
+			Error::<Test>::NotRegistered
 		);
 
 		// asset registered, but not as a bond token
 		assert_noop!(
 			Bonds::redeem(RuntimeOrigin::signed(ALICE), DAI, ONE),
-			Error::<Test>::BondNotRegistered
+			Error::<Test>::NotRegistered
 		);
 	});
 }
@@ -288,7 +288,7 @@ fn redeem_bonds_should_fail_when_not_mature() {
 		// Act & Assert
 		assert_noop!(
 			Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount),
-			Error::<Test>::BondNotMature
+			Error::<Test>::NotMature
 		);
 	});
 }
