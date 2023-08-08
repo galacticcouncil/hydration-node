@@ -26,7 +26,7 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE.into()), HDX, amount, maturity));
 
 		// Assert
-		assert_eq!(Bonds::bonds(bond_id).unwrap(), (HDX, maturity));
+		assert_eq!(Bonds::bond(bond_id).unwrap(), (HDX, maturity));
 
 		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
 
@@ -75,7 +75,7 @@ fn issue_bonds_should_work_when_issued_for_shared_asset() {
 		));
 
 		// Assert
-		assert_eq!(Bonds::bonds(bond_id).unwrap(), (shared_asset_id, maturity));
+		assert_eq!(Bonds::bond(bond_id).unwrap(), (shared_asset_id, maturity));
 
 		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
 

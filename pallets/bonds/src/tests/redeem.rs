@@ -45,7 +45,7 @@ fn partially_redeem_bonds_should_work_when_fee_is_zero() {
 		}
 		.into()]);
 
-		assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+		assert_eq!(Bonds::bond(bond_id), Some((HDX, maturity)));
 		assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 		assert_eq!(
@@ -92,7 +92,7 @@ fn partially_redeem_bonds_should_work_when_fee_is_non_zero() {
 			}
 			.into()]);
 
-			assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+			assert_eq!(Bonds::bond(bond_id), Some((HDX, maturity)));
 			assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 			assert_eq!(

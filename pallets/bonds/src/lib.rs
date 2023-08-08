@@ -153,7 +153,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Registered bonds.
 	/// Maps bond ID -> (underlying asset ID, maturity)
-	#[pallet::getter(fn bonds)]
+	#[pallet::getter(fn bond)]
 	pub(super) type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (T::AssetId, Moment)>;
 
 	#[pallet::event]
@@ -295,7 +295,7 @@ pub mod pallet {
 		pub fn redeem(origin: OriginFor<T>, bond_id: T::AssetId, amount: T::Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let (underlying_asset_id, maturity) = Self::bonds(bond_id).ok_or(Error::<T>::NotRegistered)?;
+			let (underlying_asset_id, maturity) = Self::bond(bond_id).ok_or(Error::<T>::NotRegistered)?;
 
 			let now = T::TimestampProvider::now();
 			ensure!(now >= maturity, Error::<T>::NotMature);

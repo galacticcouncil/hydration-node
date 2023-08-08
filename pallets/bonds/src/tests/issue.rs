@@ -51,7 +51,7 @@ fn issue_bonds_should_work_when_fee_is_zero() {
 			.into(),
 		]);
 
-		assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+		assert_eq!(Bonds::bond(bond_id), Some((HDX, maturity)));
 		assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - amount);
@@ -97,7 +97,7 @@ fn issue_bonds_should_work_when_fee_is_non_zero() {
 				.into(),
 			]);
 
-			assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+			assert_eq!(Bonds::bond(bond_id), Some((HDX, maturity)));
 			assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - amount);
@@ -155,7 +155,7 @@ fn issue_bonds_should_issue_new_bonds_when_bonds_are_already_registered() {
 				.into(),
 			]);
 
-			assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+			assert_eq!(Bonds::bond(bond_id), Some((HDX, maturity)));
 			assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - 2 * amount);
@@ -227,10 +227,10 @@ fn issue_bonds_should_register_new_bonds_when_underlying_asset_is_different() {
 				.into(),
 			]);
 
-			assert_eq!(Bonds::bonds(first_bond_id), Some((HDX, maturity)));
+			assert_eq!(Bonds::bond(first_bond_id), Some((HDX, maturity)));
 			assert_eq!(Bonds::bond_id((HDX, maturity)), Some(first_bond_id));
 
-			assert_eq!(Bonds::bonds(second_bond_id), Some((DAI, maturity)));
+			assert_eq!(Bonds::bond(second_bond_id), Some((DAI, maturity)));
 			assert_eq!(Bonds::bond_id((DAI, maturity)), Some(second_bond_id));
 
 			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - amount);
@@ -307,10 +307,10 @@ fn issue_bonds_should_register_new_bonds_when_maturity_is_different() {
 				.into(),
 			]);
 
-			assert_eq!(Bonds::bonds(first_bond_id), Some((HDX, next_month)));
+			assert_eq!(Bonds::bond(first_bond_id), Some((HDX, next_month)));
 			assert_eq!(Bonds::bond_id((HDX, next_month)), Some(first_bond_id));
 
-			assert_eq!(Bonds::bonds(second_bond_id), Some((HDX, next_week)));
+			assert_eq!(Bonds::bond(second_bond_id), Some((HDX, next_week)));
 			assert_eq!(Bonds::bond_id((HDX, next_week)), Some(second_bond_id));
 
 			assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - 2 * amount);
@@ -370,7 +370,7 @@ fn issue_bonds_should_work_when_bonds_are_mature() {
 			.into(),
 		]);
 
-		assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+		assert_eq!(Bonds::bond(bond_id), Some((HDX, maturity)));
 		assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - 2 * amount);
@@ -434,7 +434,7 @@ fn reissuance_of_bonds_should_work_again_when_all_bonds_were_redeemed() {
 			.into(),
 		]);
 
-		assert_eq!(Bonds::bonds(bond_id), Some((HDX, maturity)));
+		assert_eq!(Bonds::bond(bond_id), Some((HDX, maturity)));
 		assert_eq!(Bonds::bond_id((HDX, maturity)), Some(bond_id));
 
 		assert_eq!(Tokens::free_balance(HDX, &ALICE), INITIAL_BALANCE - amount);
