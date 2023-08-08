@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.4.3"
+version = "7.4.4"
 dependencies = [
  "approx",
  "criterion",
@@ -3814,7 +3814,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "169.0.0"
+version = "170.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3915,7 +3915,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.4.0"
+version = "2.5.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6196,7 +6196,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.2.2"
+version = "2.2.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10072,7 +10072,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
