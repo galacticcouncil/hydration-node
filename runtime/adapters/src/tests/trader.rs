@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::*;
+use crate::*;
 use codec::{Decode, Encode};
 use frame_support::{weights::IdentityFee, BoundedVec};
 use sp_runtime::{traits::One, DispatchResult, FixedU128};

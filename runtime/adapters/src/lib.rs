@@ -55,6 +55,8 @@ use xcm_executor::{
 };
 
 pub mod inspect;
+pub mod xcm_exchange;
+pub mod xcm_execute_filter;
 
 #[cfg(test)]
 mod tests;

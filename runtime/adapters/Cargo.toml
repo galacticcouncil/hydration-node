@@ -10,6 +10,7 @@ repository = "https://github.com/galacticcouncil/warehouse/tree/master/adapters"
 [dependencies]
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
 log = { version = "0.4.17", default-features = false }
+scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 
 # HydraDX dependencies
 primitives = { workspace = true }
@@ -24,6 +25,8 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-dynamic-fees = { workspace = true }
 pallet-uniques = { workspace = true }
 pallet-staking = { workspace = true }
+pallet-route-executor = { workspace = true }
+pallet-currencies = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
@@ -31,13 +34,14 @@ frame-system = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 primitive-types = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
 
 # Polkadot dependencies
 polkadot-parachain = { workspace = true }
 polkadot-xcm = { workspace = true }
 xcm-builder = { workspace = true }
 xcm-executor = { workspace = true }
-pallet-balances = { workspace = true }
 
 # Cumulus dependencies
 cumulus-pallet-parachain-system = { workspace = true }
@@ -47,9 +51,15 @@ cumulus-primitives-core = { workspace = true }
 orml-xcm-support = { workspace = true }
 orml-traits = { workspace = true }
 orml-vesting = { workspace = true }
+orml-utilities = { workspace = true }
+orml-tokens = { workspace = true }
+
+# Pallets
+pallet-balances = { workspace = true }
 
 [dev-dependencies]
 lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
+pretty_assertions = "1.4.0"
 
 [features]
 default = ["std"]

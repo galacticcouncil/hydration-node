@@ -121,14 +121,10 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-	pub const Offset: u64 = 0;
-	pub const Period: u64 = 10;
-}
-
-parameter_types! {
 	pub const RewardPerCollator: Balance = COLLATOR_REWARD;
 	pub const RewardCurrencyId: AssetId = NATIVE_TOKEN;
 	pub GcCollators: Vec<AccountId> = vec![GC_COLL_1, GC_COLL_2, GC_COLL_3];
+	pub const MaxCandidates: u32 = 50;
 }
 
 thread_local! {
@@ -155,6 +151,7 @@ impl Config for Test {
 	type RewardCurrencyId = RewardCurrencyId;
 	type ExcludedCollators = GcCollators;
 	type SessionManager = MockSessionManager;
+	type MaxCandidates = MaxCandidates;
 }
 
 #[derive(Default)]

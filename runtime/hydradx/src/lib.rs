@@ -94,7 +94,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 168,
+	spec_version: 171,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -232,17 +232,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsReversedWithSystemFirst,
-	(
-		pallet_preimage::migration::v1::Migration<Runtime>,
-		pallet_democracy::migrations::v1::Migration<Runtime>,
-		pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
-		DmpQueue,
-		XcmpQueue,
-		ParachainSystem,
-		migrations::OnRuntimeUpgradeMigration,
-		migrations::MigrateRegistryLocationToV3<Runtime>,
-		migrations::XcmRateLimitMigration,
-	),
+	(migrations::OnRuntimeUpgradeMigration,),
 >;
 
 impl_runtime_apis! {
