@@ -233,6 +233,24 @@ fn redeem_bonds_should_work_when_redeemed_from_non_issuer_account() {
 }
 
 #[test]
+fn redeem_bonds_should_work_when_maturity_equals_now() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let maturity = NOW + MONTH;
+		let amount = ONE;
+		let redeem_amount = ONE.checked_div(4).unwrap();
+
+		let bond_id = next_asset_id();
+		assert_ok!(Bonds::issue(RuntimeOrigin::signed(ALICE), HDX, amount, maturity));
+
+		Timestamp::set_timestamp(NOW + MONTH);
+
+		// Act & Assert
+		assert_ok!(Bonds::redeem(RuntimeOrigin::signed(ALICE), bond_id, redeem_amount));
+	});
+}
+
+#[test]
 fn redeem_bonds_should_fail_when_bond_not_exists() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
