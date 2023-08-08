@@ -130,6 +130,19 @@ pub mod pallet {
 		#[pallet::constant]
 		type CurrentStakeWeight: Get<u8>;
 
+		/// Unit we are distributing action points for.
+		/// e.g if RewardedVoteUnit is 1HDX user will receive `x` action points per each voted 1 HDX.
+		#[pallet::constant]
+		type RewardedVoteUnit: Get<Balance>;
+
+		/// Max amount of votes the user can have at any time.
+		#[pallet::constant]
+		type MaxVotes: Get<u32>;
+
+		/// NFT collection id
+		#[pallet::constant]
+		type NFTCollectionId: Get<Self::CollectionId>;
+
 		/// Function returning percentage of rewards to pay based on number of points user
 		/// accumulated.
 		type PayablePercentage: PayablePercentage<Point>;
@@ -143,10 +156,6 @@ pub mod pallet {
 		/// Collection id type
 		type CollectionId: TypeInfo + MaxEncodedLen;
 
-		/// NFT collection id
-		#[pallet::constant]
-		type NFTCollectionId: Get<Self::CollectionId>;
-
 		/// Provides ability to freeze a collection.
 		type Collections: Freeze<Self::AccountId, Self::CollectionId>;
 
@@ -155,10 +164,6 @@ pub mod pallet {
 			+ Create<Self::AccountId>
 			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>
 			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
-
-		/// Max amount of votes the user can have at any time.
-		#[pallet::constant]
-		type MaxVotes: Get<u32>;
 
 		/// Democracy referendum state.
 		type ReferendumInfo: DemocracyReferendum;
@@ -171,11 +176,6 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
-
-		/// Unit we are distributing action points for.
-		/// e.g if RewardedVoteUnit is 1HDX user will receive `x` action points per each voted 1 HDX.
-		#[pallet::constant]
-		type RewardedVoteUnit: Get<Balance>;
 	}
 
 	#[pallet::storage]
