@@ -46,7 +46,7 @@ pub use pallet::*;
 
 use crate::types::{AssetDetails, AssetMetadata};
 use frame_support::BoundedVec;
-use hydradx_traits::{Registry, ShareTokenRegistry};
+use hydradx_traits::{AssetKind, CreateRegistry, Registry, ShareTokenRegistry};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -612,5 +612,14 @@ pub struct XcmRateLimitsInRegistry<T>(PhantomData<T>);
 impl<T: Config> GetByKey<T::AssetId, Option<T::Balance>> for XcmRateLimitsInRegistry<T> {
 	fn get(k: &T::AssetId) -> Option<T::Balance> {
 		Pallet::<T>::assets(k).and_then(|details| details.xcm_rate_limit)
+	}
+}
+
+impl<T: Config> CreateRegistry<T::AssetId, T::Balance> for Pallet<T> {
+	type Error = DispatchError;
+
+	fn create_asset(name: &[u8], kind: AssetKind, existential_deposit: T::Balance) -> Result<T::AssetId, Self::Error> {
+		let bounded_name: BoundedVec<u8, T::StringLimit> = Self::to_bounded_name(name.to_vec())?;
+		Pallet::<T>::register_asset(bounded_name, kind.into(), existential_deposit, None, None)
 	}
 }
