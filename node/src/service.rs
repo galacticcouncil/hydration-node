@@ -285,7 +285,6 @@ async fn start_node_impl<RuntimeApi, Executor, RpcExtBuilder, ConsensusBuilder>(
 	build_consensus: ConsensusBuilder,
 ) -> sc_service::error::Result<(Arc<FullClient<RuntimeApi>>, TaskManager)>
 where
-	RpcExtBuilder: Fn(Arc<FullClient<RuntimeApi>>) -> Result<RpcModule<()>, sc_service::Error> + Send + 'static,
 	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi>> + Send + Sync + 'static,
 	RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 		// + sp_api::ApiExt<Block>
@@ -499,7 +498,7 @@ pub async fn start_node(
 ) -> sc_service::error::Result<(Arc<FullClient<hydradx_runtime::RuntimeApi>>, TaskManager)> {
 	let is_authority = parachain_config.role.is_authority();
 
-	start_node_impl::<_, hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch, _>(
+	start_node_impl::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch, _, _>(
 		parachain_config,
 		polkadot_config,
 		ethereum_config,
@@ -515,7 +514,12 @@ pub async fn start_node(
 		      fee_history_cache,
 		      overrides,
 		      block_data_cache| {
-			let mut module = rpc::create_full(client.clone(), pool.clone(), deny_unsafe)?;
+			let deps = crate::rpc::FullDeps {
+				client: client.clone(),
+				pool: pool.clone(),
+				deny_unsafe,
+			};
+			let mut module = rpc::create_full(deps)?;
 			let eth_deps = rpc::Deps {
 				client,
 				pool: pool.clone(),
