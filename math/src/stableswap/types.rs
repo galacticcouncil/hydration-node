@@ -1,5 +1,5 @@
-use num_traits::Zero;
 use crate::types::Balance;
+use num_traits::Zero;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AssetReserve {
@@ -17,6 +17,17 @@ impl AssetReserve {
 	}
 }
 
-pub(crate) fn target_precision(_reserves: &[AssetReserve]) -> u8{
+impl From<AssetReserve> for u128 {
+	fn from(value: AssetReserve) -> Self {
+		value.amount
+	}
+}
+impl From<&AssetReserve> for u128 {
+	fn from(value: &AssetReserve) -> Self {
+		value.amount
+	}
+}
+
+pub(crate) fn target_precision(_reserves: &[AssetReserve]) -> u8 {
 	18u8
 }

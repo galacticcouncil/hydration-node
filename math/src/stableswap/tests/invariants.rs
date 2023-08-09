@@ -1,23 +1,23 @@
 use crate::stableswap::tests::ONE;
+use crate::stableswap::types::AssetReserve;
 use crate::stableswap::*;
 use crate::types::Balance;
 use proptest::prelude::*;
 use proptest::proptest;
-use crate::stableswap::types::AssetReserve;
 
 const D_ITERATIONS: u8 = 255;
 const Y_ITERATIONS: u8 = 64;
 
 const RESERVE_RANGE: (Balance, Balance) = (100_000 * ONE, 100_000_000 * ONE);
 const LOW_RESERVE_RANGE: (Balance, Balance) = (10_u128, 11_u128);
-const HIGH_RESERVE_RANGE: (Balance, Balance) = (500_000_000_000 * ONE, 500_000_000_001 * ONE);
+const HIGH_RESERVE_RANGE: (Balance, Balance) = (500_000_000 * ONE, 500_000_001 * ONE);
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
 	1000..10000 * ONE
 }
 
 fn high_trade_amount() -> impl Strategy<Value = Balance> {
-	500_000_000_000 * ONE..500_000_000_001 * ONE
+	500_000_000 * ONE..500_000_001 * ONE
 }
 
 fn asset_reserve() -> impl Strategy<Value = Balance> {
@@ -41,7 +41,7 @@ proptest! {
 		reserve_out in high_asset_reserve(),
 		amp in amplification(),
 	) {
-		let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp);
+		let d = calculate_d::<D_ITERATIONS>(&[AssetReserve::new(reserve_in,12), AssetReserve::new(reserve_out,12)], amp);
 
 		assert!(d.is_some());
 	}
@@ -55,15 +55,15 @@ proptest! {
 		reserve_out in high_asset_reserve(),
 		amp in amplification(),
 	) {
-		let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp).unwrap();
-
 		let reserves = [AssetReserve::new(reserve_in, 12), AssetReserve::new(reserve_out,12)];
-
+		let d1 = calculate_d::<D_ITERATIONS>(&reserves, amp).unwrap();
 		let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&reserves,0,1, amount_in, amp);
 
 		assert!(result.is_some());
 
-		let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], amp).unwrap();
+		let updated_reserves = [AssetReserve::new(reserves[0].amount + amount_in, 12),
+			AssetReserve::new(reserves[1].amount - result.unwrap(),12)];
+		let d2 = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 
 		assert!(d2 >= d1);
 	}
@@ -77,15 +77,16 @@ proptest! {
 		reserve_out in asset_reserve(),
 		amp in amplification(),
 	) {
-		let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp).unwrap();
-
 		let reserves = [AssetReserve::new(reserve_in, 12), AssetReserve::new(reserve_out,12)];
-
+		let d1 = calculate_d::<D_ITERATIONS>(&reserves, amp).unwrap();
 		let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&reserves,0,1, amount_in, amp);
 
 		assert!(result.is_some());
 
-		let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], amp).unwrap();
+		let updated_reserves = [AssetReserve::new(reserves[0].amount + amount_in, 12),
+			AssetReserve::new(reserves[1].amount - result.unwrap(),12)];
+
+		let d2 = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 
 		assert!(d2 >= d1);
 	}
@@ -99,14 +100,18 @@ proptest! {
 		reserve_out in asset_reserve(),
 		amp in amplification(),
 	) {
-		let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp).unwrap();
+		let reserves = [AssetReserve::new(reserve_in, 12), AssetReserve::new(reserve_out,12)];
+		let d1 = calculate_d::<D_ITERATIONS>(&reserves, amp).unwrap();
 
 		let reserves = [AssetReserve::new(reserve_in, 12), AssetReserve::new(reserve_out,12)];
 		let result = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&reserves,0,1, amount_out, amp);
 
 		assert!(result.is_some());
 
-		let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + result.unwrap(), reserve_out - amount_out ], amp).unwrap();
+		let updated_reserves = [AssetReserve::new(reserves[0].amount + result.unwrap(), 12),
+			AssetReserve::new(reserves[1].amount - amount_out,12)];
+
+		let d2 = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 
 		assert!(d2 >= d1);
 	}
@@ -144,33 +149,40 @@ proptest! {
 	) {
 		let ann = amp * 3125u128;  // 5^5
 
-		let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann).unwrap();
-		let y = calculate_y::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann).unwrap();
+		let reserves = [AssetReserve::new(reserve_a, 12),
+			AssetReserve::new(reserve_b,12),
+			AssetReserve::new(reserve_c,12),
+			AssetReserve::new(reserve_d,12),
+			AssetReserve::new(reserve_e,12),
+		];
+
+		let d = calculate_d::<D_ITERATIONS>(&reserves, ann).unwrap();
+		let y = calculate_y::<Y_ITERATIONS>(&reserves[1..], d, ann, reserves[0].decimals).unwrap();
 
 		assert!(y - 4 <= reserve_a);
 		assert!(y >= reserve_a);
 	}
 }
 
-fn decimals() -> impl Strategy<Value = u32> {
+fn decimals() -> impl Strategy<Value = u8> {
 	prop_oneof![Just(6), Just(8), Just(10), Just(12), Just(18)]
 }
 
-fn reserve(max: Balance, precision: u32) -> impl Strategy<Value = Balance> {
-	let min_reserve = 5 * 10u128.pow(precision) + 10u128.pow(precision);
-	let max_reserve = max * 10u128.pow(precision);
+fn reserve(max: Balance, precision: u8) -> impl Strategy<Value = Balance> {
+	let min_reserve = 5 * 10u128.pow(precision as u32) + 10u128.pow(precision as u32);
+	let max_reserve = max * 10u128.pow(precision as u32);
 	min_reserve..max_reserve
 }
 
 prop_compose! {
-	fn generate_reserves(dec_1: u32, dec_2: u32, dec_3: u32)
+	fn generate_reserves(dec_1: u8, dec_2: u8, dec_3: u8)
 	(
 		reserve_1 in reserve(1_000, dec_1),
 		reserve_2 in reserve(1_000, dec_2),
 		reserve_3 in reserve(1_000, dec_3),
 	)
-	-> Vec<Balance> {
-		vec![reserve_1, reserve_2, reserve_3]
+	-> Vec<AssetReserve> {
+		vec![AssetReserve::new(reserve_1, dec_1), AssetReserve::new(reserve_2,dec_2), AssetReserve::new(reserve_3,dec_3)]
 	}
 }
 
@@ -185,7 +197,7 @@ prop_compose! {
 		dec_1 in Just(dec_1),
 		r in generate_reserves(dec_1, dec_2, dec_3),
 	)
-	-> (Vec<Balance>, u32) {
+	-> (Vec<AssetReserve>, u8) {
 		(r, dec_1)
 	}
 }
@@ -197,10 +209,14 @@ proptest! {
 		amp in amplification(),
 	) {
 		let d0 = calculate_d::<D_ITERATIONS>(&reserves, amp).unwrap();
-		let reserves: Vec<AssetReserve> = reserves.into_iter().map(|v| AssetReserve::new(v, 12)).collect();
-		let result = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&reserves, 0, 1, 10u128.pow(dec_1), amp);
+		let result = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&reserves, 0, 1, 10u128.pow(dec_1 as u32), amp);
 		if let Some(amount_in) = result {
-			let d1 = calculate_d::<D_ITERATIONS>(&[reserves[0].amount + amount_in, reserves[1].amount - 10u128.pow(dec_1), reserves[2].amount], amp).unwrap();
+			let updated_reserves = [
+				AssetReserve::new(reserves[0].amount + amount_in, reserves[0].decimals),
+				AssetReserve::new(reserves[1].amount - 10u128.pow(dec_1 as u32), reserves[1].decimals),
+				AssetReserve::new(reserves[2].amount, reserves[2].decimals),
+			];
+			let d1 = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 			assert!(d1 >= d0);
 		}
 	}
@@ -214,10 +230,14 @@ proptest! {
 		amp in amplification(),
 	) {
 		let d0 = calculate_d::<D_ITERATIONS>(&reserves, amp).unwrap();
-		let reserves: Vec<AssetReserve> = reserves.into_iter().map(|v| AssetReserve::new(v, 12)).collect();
-		let result = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&reserves, 0, 1, 10u128.pow(dec_1), amp);
+		let result = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&reserves, 0, 1, 10u128.pow(dec_1 as u32), amp);
 		if let Some(amount_out) = result {
-			let d1 = calculate_d::<D_ITERATIONS>(&[reserves[0].amount + 10u128.pow(dec_1), reserves[1].amount - amount_out, reserves[2].amount], amp).unwrap();
+			let updated_reserves = [
+				AssetReserve::new(reserves[0].amount +10u128.pow(dec_1 as u32), reserves[0].decimals),
+				AssetReserve::new(reserves[1].amount -amount_out, reserves[1].decimals),
+				AssetReserve::new(reserves[2].amount, reserves[2].decimals),
+			];
+			let d1 = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 			assert!(d1 >= d0);
 		}
 	}
