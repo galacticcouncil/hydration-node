@@ -111,9 +111,9 @@ bitflags::bitflags! {
 	pub struct Tradability: u8 {
 		/// Asset is frozen. No operations are allowed.
 		const FROZEN = 0b0000_0000;
-		/// Asset is allowed to be sold into omnipool
+		/// Asset is allowed to be sold into stable pool
 		const SELL = 0b0000_0001;
-		/// Asset is allowed to be bought into omnipool
+		/// Asset is allowed to be bought into stable pool
 		const BUY = 0b0000_0010;
 		/// Adding liquidity of asset is allowed
 		const ADD_LIQUIDITY = 0b0000_0100;
