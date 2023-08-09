@@ -1,3 +1,4 @@
+use num_traits::Zero;
 use crate::types::Balance;
 
 #[derive(Debug, Clone, Copy)]
@@ -9,6 +10,10 @@ pub struct AssetReserve {
 impl AssetReserve {
 	pub fn new(amount: Balance, decimals: u8) -> Self {
 		Self { amount, decimals }
+	}
+
+	pub fn is_zero(&self) -> bool {
+		self.amount == Balance::zero()
 	}
 }
 

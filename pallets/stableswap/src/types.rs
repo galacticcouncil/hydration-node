@@ -55,7 +55,7 @@ where
 		self.assets.len() >= 2 && has_unique_elements(&mut self.assets.iter())
 	}
 
-	pub fn balances<T: Config>(&self, account: &T::AccountId) -> Vec<AssetAmount<T::AssetId>>
+	pub fn balances<T: Config>(&self, account: &T::AccountId) -> Vec<AssetReserve>
 	where
 		T::AssetId: From<AssetId>,
 	{
@@ -64,8 +64,7 @@ where
 			.map(|asset| (*asset, T::Currency::free_balance((*asset).into(), account)))
 			.map(|(asset, reserve)| {
 				let decimals = Pallet::<T>::retrieve_decimals(asset.into());
-				AssetAmount {
-					asset_id: asset.into(),
+				AssetReserve {
 					amount: reserve,
 					decimals,
 				}
@@ -89,10 +88,6 @@ impl<AssetId: Default> AssetAmount<AssetId> {
 			amount,
 			..Default::default()
 		}
-	}
-
-	pub fn is_zero(&self) -> bool {
-		self.amount == Balance::zero()
 	}
 }
 
