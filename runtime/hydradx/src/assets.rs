@@ -486,7 +486,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 
 // Staking
 parameter_types! {
-	pub const StakingPalletId: PalletId = PalletId(*b"test_stk");
+	pub const StakingPalletId: PalletId = PalletId(*b"stk_stk#");
 	pub const MinStake: Balance = 10_000_000_000_000;
 	pub const PeriodLength: BlockNumber = 10;
 	pub const TimePointsW:Permill =  Permill::from_percent(80);
@@ -529,7 +529,7 @@ impl pallet_staking::Config for Runtime {
 	type NFTCollectionId = ConstU128<2222>;
 	type Collections = FreezableNFT<Runtime, Self::RuntimeOrigin>;
 	type NFTHandler = Uniques;
-	type MaxVotes = ConstU32<100>;
+	type MaxVotes = MaxVotes;
 	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
 	type ActionMultiplier = ActionMultiplier;
 	type Vesting = VestingInfo<Runtime>;

@@ -274,8 +274,8 @@ pub mod pallet {
 		/// Pot's balance is zero.
 		MissingPotBalance,
 
-		/// Account's position already exits.
-		PositionAlreadyExits,
+		/// Account's position already exists.
+		PositionAlreadyExists,
 
 		/// Signed account is not owner of staking position.
 		Forbidden,
@@ -298,7 +298,7 @@ pub mod pallet {
 		NegativeUnpaidRewards,
 
 		/// Multiple positions exits for single account.
-		TooManyPostions,
+		TooManyPositions,
 
 		/// Arithmetic error.
 		Arithmetic,
@@ -312,6 +312,13 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Staking pallet initialization. This call will reserved `pot`'s balance to prevent
+		/// account dusting and start collecting fees from trades as rewards.
+		///
+		/// `pot`’s account has to have a balance which will be reserved to prevent account dusting.
+		///
+		/// Emits `StakingInitialized` event when successful.
+		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::initialize_staking())]
 		pub fn initialize_staking(origin: OriginFor<T>) -> DispatchResult {
@@ -323,12 +330,11 @@ pub mod pallet {
 			let pot_balance = T::Currency::free_balance(T::NativeAssetId::get(), &pallet_account);
 			ensure!(!pot_balance.is_zero(), Error::<T>::MissingPotBalance);
 
-			//Offsetting `accumulated_claimable_rewards` to prevent `pot` dusting.
-			let s = StakingData {
+			//Offsetting `pot_reserved_balance` to prevent `pot` dusting.
+			Staking::<T>::put(StakingData {
 				pot_reserved_balance: pot_balance,
 				..Default::default()
-			};
-			Staking::<T>::put(s);
+			});
 
 			Self::deposit_event(Event::StakingInitialized {
 				non_dustable_balance: pot_balance,
@@ -338,6 +344,20 @@ pub mod pallet {
 			T::Collections::freeze_collection(pallet_account, T::NFTCollectionId::get())
 		}
 
+		/// Stake `amount` into a new staking position.
+		///
+		/// `stake` locks specified `amount` into staking and creates new NFT representing staking
+		/// position.
+		/// Users can stake `NativeAssetId` balance which is not vested or already staked.
+		///
+		/// Staking pallet must be initialized otherwise extrinsic will fail with error.
+		///
+		/// Parameters:
+		/// - `amount`: Amount of native asset to be staked. `amount` can't be vested or already
+		/// staked
+		///
+		/// Emits `PositionCreated` event when successful.
+		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::stake())]
 		pub fn stake(origin: OriginFor<T>, amount: Balance) -> DispatchResult {
@@ -349,7 +369,7 @@ pub mod pallet {
 
 			ensure!(
 				Self::get_user_position_id(&who)?.is_none(),
-				Error::<T>::PositionAlreadyExits
+				Error::<T>::PositionAlreadyExists
 			);
 
 			Staking::<T>::try_mutate(|staking| {
@@ -373,6 +393,22 @@ pub mod pallet {
 			})
 		}
 
+		/// Extrinsic to increase staked amount of existing staking position by specified `amount`.
+		///
+		/// `increase_stake` increases staked amount of position specified by `postion_id` by the
+		/// `amount` specified by the user.
+		/// Staking position must exist and `origin` has to be the owner of the position.
+		/// Users can stake tokens which are not vested or already staked.
+		/// Position's params e.g points are updated to offset stake increase and rewards
+		/// accumulated until this point are paid and locked to the user.
+		///
+		/// Parameters:
+		/// - `position_id`: The identifier of the position which stake will be increased.
+		/// - `amount`: Amount of native asset to be added to staked amount. `amount` can't be vested or
+		/// already staked
+		///
+		/// Emits `StakeAdded` event when successful.
+		///
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::increase_stake())]
 		pub fn increase_stake(origin: OriginFor<T>, position_id: T::PositionItemId, amount: Balance) -> DispatchResult {
@@ -473,6 +509,20 @@ pub mod pallet {
 			})
 		}
 
+		/// Claim rewards accumulated for specific staking position.
+		///
+		/// Function calculates amount of rewards to pay for specified staking position based on
+		/// the amount of points position accumulated. Function also unlocks portion of the rewards locked
+		/// from `increase_stake` based on the amount of the points.
+		///
+		/// This action is penalized by removing all the points and returning allocated unpaid rewards
+		/// for redistribution.
+		///
+		/// Parameters:
+		/// - `position_id`: The identifier of the position to claim rewards for.
+		///
+		/// Emits `RewardsClaimed` event when successful.
+		///
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim())]
 		pub fn claim(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
@@ -576,6 +626,18 @@ pub mod pallet {
 			})
 		}
 
+		/// Function pays rewards, unlocks all the staked assets and destroys staking position
+		/// specified by `position_id`.
+		///
+		/// Function calculates and pays latest rewards, unlocks all the locked rewards and staked
+		/// tokens for staking position and burns NFT representing staking position.
+		/// Unpaid allocated rewards are returned to the Staking for redistribution.
+		///
+		/// Parameters:
+		/// - `position_id`: The identifier of the position to be destroyed.
+		///
+		/// Emits `Unstaked` event when successful.
+		///
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::unstake())]
 		pub fn unstake(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
@@ -692,13 +754,11 @@ impl<T: Config> Pallet<T> {
 		if position_id.is_some() {
 			ensure!(
 				user_position_ids.next().is_none(),
-				Error::<T>::InconsistentState(InconsistentStateError::TooManyPostions)
+				Error::<T>::InconsistentState(InconsistentStateError::TooManyPositions)
 			);
-
-			return Ok(position_id);
 		}
 
-		Ok(None)
+		Ok(position_id)
 	}
 
 	fn is_owner(who: &T::AccountId, id: T::PositionItemId) -> bool {

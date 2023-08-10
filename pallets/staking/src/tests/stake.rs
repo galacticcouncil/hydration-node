@@ -164,7 +164,7 @@ fn stake_should_not_work_when_staking_position_exits() {
 			//Act & assert
 			assert_noop!(
 				Staking::stake(RuntimeOrigin::signed(ALICE), staked_amount),
-				Error::<Test>::PositionAlreadyExits
+				Error::<Test>::PositionAlreadyExists
 			);
 		});
 }
