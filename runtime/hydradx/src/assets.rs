@@ -28,6 +28,7 @@ use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
+use primitives::constants::time::DAYS;
 use primitives::constants::{
 	chain::OMNIPOOL_SOURCE,
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
@@ -36,7 +37,7 @@ use primitives::constants::{
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::One,
-	sp_runtime::{FixedU128, Permill},
+	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
 	BoundedVec, PalletId,
 };
@@ -487,14 +488,14 @@ impl pallet_dynamic_fees::Config for Runtime {
 // Staking
 parameter_types! {
 	pub const StakingPalletId: PalletId = PalletId(*b"staking#");
-	pub const MinStake: Balance = 10_000_000_000_000;
-	pub const PeriodLength: BlockNumber = 10;
-	pub const TimePointsW:Permill =  Permill::from_percent(80);
-	pub const ActionPointsW: Permill = Permill::from_percent(20);
-	pub const TimePointsPerPeriod: u8 = 2;
+	pub const MinStake: Balance = 1_000 * UNITS;
+	pub const PeriodLength: BlockNumber = DAYS;
+	pub const TimePointsW:Permill =  Permill::from_percent(100);
+	pub const ActionPointsW: Perbill = Perbill::from_parts(4_400);
+	pub const TimePointsPerPeriod: u8 = 1;
 	pub const CurrentStakeWeight: u8 = 2;
-	pub const UnclaimablePeriods: BlockNumber = 4;
-	pub const PointPercentage: FixedU128 = FixedU128::from_rational(15,100);
+	pub const UnclaimablePeriods: BlockNumber = 1;
+	pub const PointPercentage: FixedU128 = FixedU128::from_rational(2,100);
 	pub const OneHDX: Balance = primitives::constants::currency::UNITS;
 }
 
@@ -522,7 +523,7 @@ impl pallet_staking::Config for Runtime {
 	type TimePointsPerPeriod = TimePointsPerPeriod;
 	type UnclaimablePeriods = UnclaimablePeriods;
 	type CurrentStakeWeight = CurrentStakeWeight;
-	type PayablePercentage = SigmoidPercentage<PointPercentage>;
+	type PayablePercentage = SigmoidPercentage<PointPercentage, ConstU32<2_000>>;
 	type BlockNumberProvider = System;
 	type PositionItemId = u128;
 	type CollectionId = u128;

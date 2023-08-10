@@ -1,5 +1,5 @@
 use num_traits::Zero;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use sp_arithmetic::{FixedPointNumber, FixedU128, Perbill, Permill};
 use std::num::NonZeroU128;
 
 use crate::staking::*;
@@ -104,7 +104,7 @@ fn calculate_points_should_work() {
 			time_points_per_period,
 			Permill::from_percent(60),
 			action_points,
-			Permill::from_percent(40),
+			Perbill::from_percent(40),
 			0
 		)
 		.unwrap(),
@@ -119,7 +119,7 @@ fn calculate_points_should_work() {
 			time_points_per_period,
 			Permill::from_percent(60),
 			action_points,
-			Permill::from_percent(40),
+			Perbill::from_percent(40),
 			0
 		)
 		.unwrap(),
@@ -134,7 +134,7 @@ fn calculate_points_should_work() {
 			time_points_per_period,
 			Permill::from_percent(80),
 			action_points,
-			Permill::from_percent(10),
+			Perbill::from_percent(10),
 			200
 		)
 		.unwrap(),

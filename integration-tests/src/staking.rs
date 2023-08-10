@@ -131,7 +131,7 @@ fn democracy_vote_should_record_stake_vote() {
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		assert_ok!(Democracy::vote(
@@ -181,7 +181,7 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		let r = begin_referendum();
@@ -189,7 +189,7 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 		assert_ok!(Democracy::vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			r,
-			aye(10 * UNITS)
+			aye(1_000 * UNITS)
 		));
 		end_referendum();
 
@@ -201,14 +201,14 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			alice_position_id,
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(alice_position_id);
 		let stake_position =
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(alice_position_id).unwrap();
 
-		assert_eq!(stake_position.get_action_points(), 1);
+		assert_eq!(stake_position.get_action_points(), 100);
 		assert!(stake_voting.votes.is_empty());
 	});
 }
@@ -236,7 +236,7 @@ fn staking_should_transfer_rewards_when_claimed() {
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		let r = begin_referendum();
@@ -244,7 +244,7 @@ fn staking_should_transfer_rewards_when_claimed() {
 		assert_ok!(Democracy::vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			r,
-			aye(10 * UNITS)
+			aye(1_000 * UNITS)
 		));
 		end_referendum();
 
@@ -256,7 +256,7 @@ fn staking_should_transfer_rewards_when_claimed() {
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			alice_position_id,
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
@@ -274,7 +274,7 @@ fn staking_should_transfer_rewards_when_claimed() {
 		let stake_position =
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(alice_position_id).unwrap();
 
-		assert_eq!(stake_position.get_action_points(), 1);
+		assert_eq!(stake_position.get_action_points(), 100);
 		assert!(stake_voting.votes.is_empty());
 	});
 }
@@ -302,7 +302,7 @@ fn staking_should_not_reward_when_double_claimed() {
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		let r = begin_referendum();
@@ -362,7 +362,7 @@ fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		let r = begin_referendum();
@@ -382,7 +382,7 @@ fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			alice_position_id,
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		// first claim
@@ -428,7 +428,7 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		let r = begin_referendum();
@@ -448,7 +448,7 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			alice_position_id,
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
@@ -492,7 +492,7 @@ fn staking_should_remove_vote_when_democracy_removes_vote() {
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		assert_ok!(Democracy::vote(
@@ -549,7 +549,7 @@ fn staking_should_not_reward_when_refenrendum_is_ongoing() {
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		assert_ok!(Democracy::vote(
@@ -667,7 +667,7 @@ fn staking_position_transfer_should_fail_when_origin_is_owner() {
 
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
@@ -714,7 +714,7 @@ fn thaw_staking_position_should_fail_when_origin_is_position_owner() {
 
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
@@ -760,7 +760,7 @@ fn thaw_staking_collection_should_fail_when_origin_is_not_pallet_account() {
 
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			10 * UNITS
+			1_000 * UNITS
 		));
 
 		use sp_core::Get;

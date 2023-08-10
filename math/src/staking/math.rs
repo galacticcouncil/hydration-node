@@ -1,6 +1,6 @@
 use crate::types::Balance;
 use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One};
-use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128, Permill};
+use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128, Perbill, Permill};
 use sp_std::num::NonZeroU128;
 use sp_std::ops::Div;
 
@@ -68,7 +68,7 @@ pub fn calculate_points(
 	time_points_per_period: u8,
 	time_points_weight: Permill,
 	action_points: Point,
-	action_points_weight: Permill,
+	action_points_weight: Perbill,
 	slashed_points: Point,
 ) -> Option<Point> {
 	let time_points = now

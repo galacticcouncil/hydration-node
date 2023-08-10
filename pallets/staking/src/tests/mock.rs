@@ -190,7 +190,7 @@ parameter_types! {
 	pub const MinStake: Balance = 10 * ONE;
 	pub const PeriodLength: BlockNumber = 10_000;
 	pub const TimePointsW:Permill =  Permill::from_percent(80);
-	pub const ActionPointsW: Permill = Permill::from_percent(20);
+	pub const ActionPointsW: Perbill = Perbill::from_percent(20);
 	pub const TimePointsPerPeriod: u8 = 2;
 	pub const CurrentStakeWeight: u8 = 2;
 	pub const UnclaimablePeriods: BlockNumber = 10;
@@ -218,7 +218,7 @@ impl pallet_staking::Config for Test {
 	type NFTCollectionId = ConstU128<1>;
 	type NFTHandler = Uniques;
 
-	type PayablePercentage = SigmoidPercentage<PointPercentage>;
+	type PayablePercentage = SigmoidPercentage<PointPercentage, ConstU32<40_000>>;
 	type MaxVotes = MaxVotes;
 	type ActionMultiplier = DummyActionMultiplier;
 	type ReferendumInfo = DummyReferendumStatus;

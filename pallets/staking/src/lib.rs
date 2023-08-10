@@ -32,7 +32,7 @@ use sp_core::Get;
 use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One, Scale};
 use sp_runtime::{
 	traits::{BlockNumberProvider, Zero},
-	Permill, SaturatedConversion,
+	Perbill, Permill, SaturatedConversion,
 };
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 use sp_std::num::NonZeroU128;
@@ -115,7 +115,7 @@ pub mod pallet {
 
 		/// Weight of the action points in total points calculations.
 		#[pallet::constant]
-		type ActionPointsWeight: Get<Permill>;
+		type ActionPointsWeight: Get<Perbill>;
 
 		/// Number of time points users receive for each period.
 		#[pallet::constant]
@@ -971,15 +971,15 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-pub struct SigmoidPercentage<T>(sp_std::marker::PhantomData<T>);
+pub struct SigmoidPercentage<T, B>(sp_std::marker::PhantomData<(T, B)>);
 
-impl<T> PayablePercentage<Point> for SigmoidPercentage<T>
+impl<T, B: Get<u32>> PayablePercentage<Point> for SigmoidPercentage<T, B>
 where
 	T: Get<FixedU128>,
 {
 	fn get(p: Point) -> Option<FixedU128> {
 		let a: FixedU128 = T::get();
-		let b: u32 = 40_000;
+		let b: u32 = B::get();
 
 		math::sigmoid(p, a, b)
 	}
