@@ -28,7 +28,7 @@ where
 					let e = crate::Error::<T>::InconsistentState(crate::InconsistentStateError::PositionNotFound);
 					defensive!(e);
 
-					//NOTE: This is intetional, use can't recover from this state and we don't want
+					//NOTE: This is intetional, user can't recover from this state and we don't want
 					//to block voting.
 					return Ok(());
 				}
@@ -81,7 +81,18 @@ where
 		};
 
 		PositionVotes::<T>::try_mutate_exists(position_id, |value| -> DispatchResult {
-			let voting = value.as_mut().ok_or(Error::<T>::MaxVotesReached)?;
+			let voting = match value.as_mut() {
+				Some(voting) => voting,
+				None => {
+					let e = crate::Error::<T>::InconsistentState(crate::InconsistentStateError::PositionNotFound);
+					defensive!(e);
+
+					//NOTE: This is intetional, user can't recover from this state and we don't want
+					//to block voting.
+					return Ok(());
+				}
+			};
+
 			voting.votes.retain(|(idx, _)| *idx != ref_index);
 			Ok(())
 		})?;

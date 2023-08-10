@@ -486,7 +486,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 
 // Staking
 parameter_types! {
-	pub const StakingPalletId: PalletId = PalletId(*b"stk_stk#");
+	pub const StakingPalletId: PalletId = PalletId(*b"staking#");
 	pub const MinStake: Balance = 10_000_000_000_000;
 	pub const PeriodLength: BlockNumber = 10;
 	pub const TimePointsW:Permill =  Permill::from_percent(80);
