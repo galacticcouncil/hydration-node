@@ -81,12 +81,12 @@ pub type HostFunctions = (
 );
 
 pub type FullBackend = TFullBackend<Block>;
-pub type FullClient<RuntimeApi> = TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<HostFunctions>>;
+pub type FullClient<RuntimeApi> = TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<HydraDXExecutorDispatch>>;
 
 pub type ParachainBlockImport<RuntimeApi> = TParachainBlockImport<Block, Arc<FullClient<RuntimeApi>>, FullBackend>;
 
 /// Build the import queue for the parachain runtime.
-pub fn parachain_build_import_queue<RuntimeApi, Executor>(
+pub fn parachain_build_import_queue<RuntimeApi>(
 	client: Arc<FullClient<RuntimeApi>>,
 	backend: Arc<FullBackend>,
 	config: &Configuration,
@@ -106,7 +106,6 @@ where
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
 		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>,
-	Executor: NativeExecutionDispatch + 'static,
 {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 	let block_import = evm::BlockImport::new(
@@ -137,7 +136,7 @@ where
 	.map_err(Into::into)
 }
 
-pub fn new_partial<RuntimeApi, Executor>(
+pub fn new_partial<RuntimeApi>(
 	config: &Configuration,
 ) -> Result<
 	PartialComponents<
@@ -168,7 +167,6 @@ where
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
 		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>,
-	Executor: NativeExecutionDispatch + 'static,
 {
 	let telemetry = config
 		.telemetry_endpoints
@@ -181,7 +179,7 @@ where
 		})
 		.transpose()?;
 
-	let executor = NativeElseWasmExecutor::<Executor>::new(
+	let executor = NativeElseWasmExecutor::<HydraDXExecutorDispatch>::new(
 		config.wasm_method,
 		config.default_heap_pages,
 		config.max_runtime_instances,
@@ -189,7 +187,7 @@ where
 	);
 
 	let (client, backend, keystore_container, task_manager) =
-		sc_service::new_full_parts::<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>(
+		sc_service::new_full_parts::<Block, RuntimeApi, NativeElseWasmExecutor<HydraDXExecutorDispatch>>(
 			config,
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
@@ -219,7 +217,7 @@ where
 		&evm::db_config_dir(config),
 	)?);
 
-	let import_queue = parachain_build_import_queue::<RuntimeApi, Executor>(
+	let import_queue = parachain_build_import_queue::<RuntimeApi>(
 		client.clone(),
 		backend.clone(),
 		config,
@@ -329,7 +327,7 @@ where
 {
 	let parachain_config = prepare_node_config(parachain_config);
 
-	let params = new_partial::<RuntimeApi, Executor>(&parachain_config)?;
+	let params = new_partial::<RuntimeApi>(&parachain_config)?;
 	let (mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) = params.other;
 	let client = params.client.clone();
 	let backend = params.backend.clone();

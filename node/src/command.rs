@@ -143,28 +143,28 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>(&config)?;
+				let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
 				Ok((cmd.run(partials.client, partials.import_queue), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>(&config)?;
+				let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
 				Ok((cmd.run(partials.client, config.database), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>(&config)?;
+				let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
 				Ok((cmd.run(partials.client, config.chain_spec), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial::<hydradx_runtime::RuntimeApi, service::HydraDXExecutorDispatch>(&config)?;
+				let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
 				Ok((cmd.run(partials.client, partials.import_queue), partials.task_manager))
 			})
 		}
@@ -217,7 +217,7 @@ pub fn run() -> sc_cli::Result<()> {
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
 					let partials =
-						new_partial::<hydradx_runtime::RuntimeApi, service::HydraDXExecutorDispatch>(&config)?;
+						new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
 					let db = partials.backend.expose_db();
 					let storage = partials.backend.expose_storage();
 
