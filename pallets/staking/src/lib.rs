@@ -51,7 +51,7 @@ pub mod weights;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-/// Lock for staked amount by user
+/// Lock ID for staked assets.
 pub const STAKING_LOCK_ID: LockIdentifier = *b"stk_stks";
 
 #[frame_support::pallet]
@@ -65,7 +65,7 @@ pub mod pallet {
 	use orml_traits::GetByKey;
 	use sp_runtime::traits::AtLeast32BitUnsigned;
 
-	/// The current storage version.
+	/// Current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::pallet]
@@ -77,7 +77,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Origin to initialize staking
+		/// Origin to initialize staking.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Identifier for the class of asset.
@@ -101,7 +101,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
-		/// Native Asset ID
+		/// Native Asset ID.
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::AssetId>;
 
@@ -139,27 +139,27 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxVotes: Get<u32>;
 
-		/// NFT collection id
+		/// NFT collection id.
 		#[pallet::constant]
 		type NFTCollectionId: Get<Self::CollectionId>;
 
-		/// Function returning percentage of rewards to pay based on number of points user
+		/// Function returning percentage of rewards to pay based on the number of points user
 		/// accumulated.
 		type PayablePercentage: PayablePercentage<Point>;
 
-		/// The block number provider.
+		/// Block number provider.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
 
 		/// Position identifier type.
 		type PositionItemId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
 
-		/// Collection id type
+		/// Collection id type.
 		type CollectionId: TypeInfo + MaxEncodedLen;
 
 		/// Provides ability to freeze a collection.
 		type Collections: Freeze<Self::AccountId, Self::CollectionId>;
 
-		/// Non fungible handling - mint, burn, check owner
+		/// Non fungible handling - mint, burn, check owner.
 		type NFTHandler: Mutate<Self::AccountId>
 			+ Create<Self::AccountId>
 			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>
@@ -189,13 +189,13 @@ pub mod pallet {
 	pub(super) type Positions<T: Config> = StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<T::BlockNumber>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_position_id)]
 	/// Position ids sequencer.
+	#[pallet::getter(fn next_position_id)]
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn position_votes)]
 	/// List of position votes.
+	#[pallet::getter(fn position_votes)]
 	pub(super) type PositionVotes<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Voting<T::MaxVotes>, ValueQuery>;
 
@@ -219,7 +219,7 @@ pub mod pallet {
 			slashed_points: Point,
 		},
 
-		/// Rewards was claimed.
+		/// Rewards were claimed.
 		RewardsClaimed {
 			who: T::AccountId,
 			position_id: T::PositionItemId,
@@ -259,10 +259,10 @@ pub mod pallet {
 		/// Staking position has not been found.
 		PositionNotFound,
 
-		/// Max amount of votes was reached for staking position.
+		/// Maximum amount of votes were reached for staking position.
 		MaxVotesReached,
 
-		/// Staking is no initialized.
+		/// Staking is not initialized.
 		NotInitialized,
 
 		/// Staking is already initialized.
@@ -277,7 +277,7 @@ pub mod pallet {
 		/// Account's position already exists.
 		PositionAlreadyExists,
 
-		/// Signed account is not owner of staking position.
+		/// Signer is not an owner of the staking position.
 		Forbidden,
 
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
@@ -285,7 +285,7 @@ pub mod pallet {
 		InconsistentState(InconsistentStateError),
 	}
 
-	//NOTE: these errors should never happen.
+	// NOTE: these errors should never happen.
 	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
 	pub enum InconsistentStateError {
 		/// Position was not found in storage but NFT does exists.
@@ -375,7 +375,7 @@ pub mod pallet {
 			Staking::<T>::try_mutate(|staking| {
 				Self::update_rewards(staking)?;
 
-				Self::ensure_stakable_balance(&who, amount, None)?;
+				Self::ensure_stakeable_balance(&who, amount, None)?;
 				let position_id =
 					Self::create_position_and_mint_nft(&who, amount, staking.accumulated_reward_per_stake)?;
 
@@ -428,7 +428,7 @@ pub mod pallet {
 						.as_mut()
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
 
-					Self::ensure_stakable_balance(&who, amount, Some(position))?;
+					Self::ensure_stakeable_balance(&who, amount, Some(position))?;
 
 					Self::process_votes(position_id, position)?;
 
@@ -726,7 +726,7 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account_truncating()
 	}
 
-	fn ensure_stakable_balance(
+	fn ensure_stakeable_balance(
 		who: &T::AccountId,
 		stake: Balance,
 		position: Option<&Position<T::BlockNumber>>,
@@ -735,13 +735,13 @@ impl<T: Config> Pallet<T> {
 		let staked = position.map(|p| p.stake).unwrap_or_default();
 		let vested = T::Vesting::locked(who.clone());
 
-		let stakable = free_balance
+		let stakeable = free_balance
 			.checked_sub(vested)
 			.ok_or(Error::<T>::Arithmetic)?
 			.checked_sub(staked)
 			.ok_or(Error::<T>::Arithmetic)?;
 
-		ensure!(stakable >= stake, Error::<T>::InsufficientBalance);
+		ensure!(stakeable >= stake, Error::<T>::InsufficientBalance);
 
 		Ok(())
 	}
@@ -825,7 +825,7 @@ impl<T: Config> Pallet<T> {
 		.ok_or(Error::<T>::Arithmetic)?;
 
 		if staking.accumulated_reward_per_stake == accumulated_rps {
-			//No pending rewards or rewards are too small to distribute.
+			// No pending rewards or rewards are too small to distribute.
 			return Ok(());
 		}
 
