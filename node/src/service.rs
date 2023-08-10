@@ -81,7 +81,7 @@ pub type HostFunctions = (
 );
 
 pub type FullBackend = TFullBackend<Block>;
-pub type FullClient<RuntimeApi> = TFullClient<Block, RuntimeApi, WasmExecutor<HostFunctions>>;
+pub type FullClient<RuntimeApi> = TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<HostFunctions>>;
 
 pub type ParachainBlockImport<RuntimeApi> = TParachainBlockImport<Block, Arc<FullClient<RuntimeApi>>, FullBackend>;
 
