@@ -18,6 +18,7 @@ pub mod proxy;
 pub mod registry;
 pub mod route_executor;
 pub mod scheduler;
+pub mod staking;
 pub mod system;
 pub mod technical_comittee;
 pub mod timestamp;

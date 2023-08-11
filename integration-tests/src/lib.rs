@@ -13,6 +13,7 @@ mod omnipool_price_provider;
 mod oracle;
 mod otc;
 mod polkadot_test_net;
+mod staking;
 mod transact_call_filter;
 mod vesting;
 
