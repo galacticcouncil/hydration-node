@@ -478,7 +478,7 @@ where
 }
 
 /// Start a normal parachain node.
-// #[sc_tracing::logging::prefix_logs_with("Parachain")]
+#[sc_tracing::logging::prefix_logs_with("Parachain")]
 pub async fn start_node(
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
