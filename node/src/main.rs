@@ -25,6 +25,7 @@ mod service;
 
 mod cli;
 mod command;
+mod evm;
 mod rpc;
 
 fn main() -> sc_cli::Result<()> {

@@ -1,4 +1,5 @@
-use crate::{chain_spec, evm::EthereumConfig};
+use crate::chain_spec;
+use crate::evm::EthereumConfig;
 use clap::Parser;
 use std::fmt;
 use std::path::PathBuf;
@@ -23,10 +24,6 @@ pub struct RunCmd {
 	#[clap(flatten)]
 	pub base: cumulus_client_cli::RunCmd,
 }
-
-#[clap(flatten)]
-	pub ethereum_config: EthConfiguration,
-
 #[derive(Debug, Parser)]
 pub struct Cli {
 	#[clap(subcommand)]
@@ -34,6 +31,9 @@ pub struct Cli {
 
 	#[clap(flatten)]
 	pub run: RunCmd,
+
+	#[clap(flatten)]
+	pub ethereum_config: EthereumConfig,
 
 	/// Relaychain arguments
 	#[clap(raw = true)]

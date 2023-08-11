@@ -105,7 +105,10 @@ where
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
-		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>,
+		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>
+		//+ cumulus_primitives_core::CollectCollationInfo<Block>
+		+ EthereumRuntimeRPCApi<Block>
+		+ ConvertTransactionRuntimeApi<Block>,
 {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 	let block_import = evm::BlockImport::new(
@@ -165,6 +168,8 @@ where
 		+ pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>
+		+ EthereumRuntimeRPCApi<Block>
+		+ ConvertTransactionRuntimeApi<Block>
 		+ sp_session::SessionKeys<Block>
 		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>,
 {
@@ -223,7 +228,7 @@ where
 		config,
 		telemetry.as_ref().map(|telemetry| telemetry.handle()),
 		&task_manager,
-		frontier_backend,
+		frontier_backend.clone(),
 	)?;
 
 	let filter_pool: FilterPool = Arc::new(Mutex::new(BTreeMap::new()));
