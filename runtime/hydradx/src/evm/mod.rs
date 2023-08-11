@@ -35,7 +35,6 @@ use sp_runtime::Permill;
 
 mod accounts_conversion;
 mod precompiles;
-mod rpc;
 
 // Centrifuge / Moonbeam:
 // Current approximation of the gas per second consumption considering
