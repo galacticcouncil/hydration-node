@@ -54,8 +54,8 @@ use std::{
 };
 use substrate_prometheus_endpoint::Registry;
 
-use crate::evm::Hash;
-use crate::{evm, rpc};
+pub(crate) mod evm;
+pub(crate) mod rpc;
 
 // native executor instance.
 pub struct HydraDXExecutorDispatch;
@@ -105,7 +105,8 @@ where
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
-		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>,
+		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>
+		+ EthereumRuntimeRPCApi<Block>
 {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 	let block_import = evm::BlockImport::new(
@@ -166,7 +167,8 @@ where
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
-		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>,
+		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>
+		+ EthereumRuntimeRPCApi<Block>
 {
 	let telemetry = config
 		.telemetry_endpoints
@@ -223,7 +225,7 @@ where
 		config,
 		telemetry.as_ref().map(|telemetry| telemetry.handle()),
 		&task_manager,
-		frontier_backend,
+		frontier_backend.clone(),
 	)?;
 
 	let filter_pool: FilterPool = Arc::new(Mutex::new(BTreeMap::new()));
@@ -304,7 +306,7 @@ where
 			Arc<sc_transaction_pool::FullPool<Block, FullClient<RuntimeApi>>>,
 			DenyUnsafe,
 			SubscriptionTaskExecutor,
-			Arc<NetworkService<Block, Hash>>,
+			Arc<NetworkService<Block, evm::Hash>>,
 			Arc<FrontierBackend<Block>>,
 			FilterPool,
 			FeeHistoryCache,
@@ -320,7 +322,7 @@ where
 		&TaskManager,
 		Arc<dyn RelayChainInterface>,
 		Arc<sc_transaction_pool::FullPool<Block, FullClient<RuntimeApi>>>,
-		Arc<NetworkService<Block, Hash>>,
+		Arc<NetworkService<Block, evm::Hash>>,
 		SyncCryptoStorePtr,
 		bool,
 	) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error>,
@@ -512,7 +514,7 @@ pub async fn start_node(
 		      fee_history_cache,
 		      overrides,
 		      block_data_cache| {
-			let deps = crate::rpc::FullDeps {
+			let deps = rpc::FullDeps {
 				client: client.clone(),
 				pool: pool.clone(),
 				deny_unsafe,

@@ -16,6 +16,4 @@
 // limitations under the License.
 
 pub mod chain_spec;
-pub mod evm;
-pub mod rpc;
 pub mod service;

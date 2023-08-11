@@ -24,20 +24,21 @@ pub struct RunCmd {
 	pub base: cumulus_client_cli::RunCmd,
 }
 
-#[clap(flatten)]
-	pub ethereum_config: EthConfiguration,
 
 #[derive(Debug, Parser)]
 pub struct Cli {
 	#[clap(subcommand)]
 	pub subcommand: Option<Subcommand>,
-
+		
 	#[clap(flatten)]
 	pub run: RunCmd,
-
+	
 	/// Relaychain arguments
 	#[clap(raw = true)]
 	pub relaychain_args: Vec<String>,
+
+	#[clap(flatten)]
+	pub ethereum_config: EthConfiguration,
 }
 
 #[derive(Debug)]
