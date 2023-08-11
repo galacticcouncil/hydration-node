@@ -37,7 +37,7 @@ where
 	}
 }
 
-pub trait OmnipoolHooks<Origin, AssetId, Balance>
+pub trait OmnipoolHooks<Origin, AccountId, AssetId, Balance>
 where
 	Balance: Default + Clone,
 {
@@ -53,9 +53,12 @@ where
 
 	fn on_liquidity_changed_weight() -> Weight;
 	fn on_trade_weight() -> Weight;
+
+	/// Returns unused amount
+	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error>;
 }
 
-impl<Origin, AssetId, Balance> OmnipoolHooks<Origin, AssetId, Balance> for ()
+impl<Origin, AccountId, AssetId, Balance> OmnipoolHooks<Origin, AccountId, AssetId, Balance> for ()
 where
 	Balance: Default + Clone,
 {
@@ -83,6 +86,10 @@ where
 
 	fn on_trade_weight() -> Weight {
 		Weight::zero()
+	}
+
+	fn on_trade_fee(_fee_account: AccountId, _asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
+		Ok(amount)
 	}
 }
 

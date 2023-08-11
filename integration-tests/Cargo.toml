@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.8.3"
+version = "1.9.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -32,6 +32,7 @@ pallet-relaychain-info = { workspace = true }
 pallet-route-executor = { workspace = true}
 pallet-dca = { workspace = true}
 pallet-dynamic-fees = { workspace = true }
+pallet-staking = { workspace = true}
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -178,4 +179,5 @@ std = [
     "pallet-relaychain-info/std",
     "polkadot-runtime/std",
     "hydradx-runtime/std",
+    "pallet-staking/std",
 ]
