@@ -1,4 +1,4 @@
-use crate::{chain_spec, evm::EthereumConfig};
+use crate::{chain_spec, service::evm::EthereumConfig};
 use clap::Parser;
 use std::fmt;
 use std::path::PathBuf;
@@ -32,13 +32,13 @@ pub struct Cli {
 		
 	#[clap(flatten)]
 	pub run: RunCmd,
-	
+
 	/// Relaychain arguments
 	#[clap(raw = true)]
 	pub relaychain_args: Vec<String>,
 
 	#[clap(flatten)]
-	pub ethereum_config: EthConfiguration,
+	pub ethereum_config: crate::service::evm::EthereumConfig,
 }
 
 #[derive(Debug)]

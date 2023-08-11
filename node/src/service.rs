@@ -55,7 +55,7 @@ use std::{
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-pub(crate) mod rpc;
+use crate::rpc;
 
 // native executor instance.
 pub struct HydraDXExecutorDispatch;

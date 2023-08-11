@@ -188,7 +188,7 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>(&config)?;
+				let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
 				Ok((cmd.run(partials.client, partials.backend, None), partials.task_manager))
 			})
 		}
@@ -207,8 +207,7 @@ pub fn run() -> sc_cli::Result<()> {
 				}
 				BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
 					let partials = crate::service::new_partial::<
-						hydradx_runtime::RuntimeApi,
-						service::HydraDXExecutorDispatch,
+						hydradx_runtime::RuntimeApi
 					>(&config)?;
 					cmd.run(partials.client)
 				}),
