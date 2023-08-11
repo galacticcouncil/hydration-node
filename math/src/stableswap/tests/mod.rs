@@ -1,5 +1,6 @@
 mod amplification;
 mod invariants;
+mod invariants_new;
 mod multi_assets;
 mod two_assets;
 
