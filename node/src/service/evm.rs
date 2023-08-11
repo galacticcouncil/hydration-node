@@ -26,7 +26,10 @@ use std::{
 	time::Duration,
 };
 
-use crate::service::{FullClient, rpc::{RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override, SchemaV3Override, StorageOverride}};
+use crate::service::{
+	rpc::{RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override, SchemaV3Override, StorageOverride},
+	FullClient,
+};
 use cumulus_client_consensus_common::ParachainBlockImportMarker;
 use fc_consensus::FrontierBlockImport;
 use fc_db::Backend as FrontierBackend;
@@ -36,8 +39,8 @@ use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_storage::EthereumStorageSchema;
 use futures::{future, StreamExt};
-use primitives::Block;
 use polkadot_cli::Cli;
+use primitives::Block;
 use sc_cli::SubstrateCli;
 use sc_client_api::{backend::AuxStore, Backend, BlockOf, BlockchainEvents, StateBackend, StorageProvider};
 use sc_consensus::{BlockCheckParams, BlockImport as BlockImportT, BlockImportParams, ImportResult};
@@ -183,12 +186,7 @@ pub fn spawn_frontier_tasks<RuntimeApi, Executor>(
 	task_manager.spawn_essential_handle().spawn(
 		"frontier-fee-history",
 		None,
-		EthTask::fee_history_task(
-			client,
-			overrides,
-			fee_history_cache,
-			2048, // TODO: fee_history_cache_limit
-		),
+		EthTask::fee_history_task(client, overrides, fee_history_cache, fee_history_cache_limit),
 	);
 }
 

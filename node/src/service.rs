@@ -28,17 +28,16 @@ use cumulus_client_service::{
 };
 use cumulus_primitives_core::{CollectCollationInfo, ParaId};
 use cumulus_relay_chain_inprocess_interface::build_inprocess_relay_chain;
-use cumulus_relay_chain_interface::{RelayChainError, RelayChainInterface, RelayChainResult};
+use cumulus_relay_chain_interface::{RelayChainInterface, RelayChainResult};
 use cumulus_relay_chain_minimal_node::build_minimal_relay_chain_node;
 use fc_db::Backend as FrontierBackend;
 use fc_rpc::{EthBlockDataCacheTask, OverrideHandle};
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
 use fp_rpc::{ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
-use jsonrpsee::RpcModule;
 use polkadot_service::CollatorPair;
 use primitives::{AccountId, Balance, Block, Index};
 use sc_consensus::ImportQueue;
-use sc_executor::{NativeElseWasmExecutor, NativeExecutionDispatch, NativeVersion, WasmExecutor};
+use sc_executor::{NativeElseWasmExecutor, NativeExecutionDispatch, NativeVersion};
 use sc_network::NetworkService;
 use sc_network_common::service::NetworkBlock;
 use sc_rpc::SubscriptionTaskExecutor;
@@ -71,15 +70,6 @@ impl NativeExecutionDispatch for HydraDXExecutorDispatch {
 	}
 }
 
-#[cfg(not(feature = "runtime-benchmarks"))]
-pub type HostFunctions = sp_io::SubstrateHostFunctions;
-
-#[cfg(feature = "runtime-benchmarks")]
-pub type HostFunctions = (
-	sp_io::SubstrateHostFunctions,
-	frame_benchmarking::benchmarking::HostFunctions,
-);
-
 pub type FullBackend = TFullBackend<Block>;
 pub type FullClient<RuntimeApi> = TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<HydraDXExecutorDispatch>>;
 
@@ -106,7 +96,7 @@ where
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
 		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>
-		+ EthereumRuntimeRPCApi<Block>
+		+ EthereumRuntimeRPCApi<Block>,
 {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 	let block_import = evm::BlockImport::new(
@@ -168,7 +158,7 @@ where
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
 		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>
-		+ EthereumRuntimeRPCApi<Block>
+		+ EthereumRuntimeRPCApi<Block>,
 {
 	let telemetry = config
 		.telemetry_endpoints
@@ -519,7 +509,7 @@ pub async fn start_node(
 				pool: pool.clone(),
 				deny_unsafe,
 			};
-			let mut module = rpc::create_full(deps)?;
+			let module = rpc::create_full(deps)?;
 			let eth_deps = rpc::Deps {
 				client,
 				pool: pool.clone(),

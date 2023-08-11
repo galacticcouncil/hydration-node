@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate::cli::{Cli, RelayChainCli, Subcommand};
-use crate::service::{new_partial, HydraDXExecutorDispatch};
+use crate::service::new_partial;
 use crate::{chain_spec, service};
 
 use codec::Encode;
@@ -206,17 +206,14 @@ pub fn run() -> sc_cli::Result<()> {
 					}
 				}
 				BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
-					let partials = crate::service::new_partial::<
-						hydradx_runtime::RuntimeApi
-					>(&config)?;
+					let partials = crate::service::new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
 					cmd.run(partials.client)
 				}),
 				#[cfg(not(feature = "runtime-benchmarks"))]
 				BenchmarkCmd::Storage(_) => Err("Storage benchmarking can be enabled with `--features runtime-benchmarks`.".into()),
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
-					let partials =
-						new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
+					let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
 					let db = partials.backend.expose_db();
 					let storage = partials.backend.expose_storage();
 
@@ -344,7 +341,7 @@ pub fn run() -> sc_cli::Result<()> {
 					if config.role.is_authority() { "yes" } else { "no" }
 				);
 
-				/// evmTODO ethereum_config
+				// evmTODO ethereum_config
 				crate::service::start_node(config, polkadot_config, cli.ethereum_config, collator_options, id)
 					.await
 					.map(|r| r.1)
