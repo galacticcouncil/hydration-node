@@ -31,7 +31,7 @@
 // --execution=wasm
 // --wasm-execution=compiled
 // --heap-pages=4096
-// --template=.maintain/pallet-weight-template.hbs
+// --template=.maintain/pallet-weight-template-no-back.hbs
 // --pallet=pallet-bonds
 // --output=bonds.rs
 // --extrinsic=*
@@ -46,11 +46,7 @@ use frame_support::{
 };
 use sp_std::marker::PhantomData;
 
-/// Weight functions needed for pallet_bonds.
-pub trait WeightInfo {
-	fn issue() -> Weight;
-	fn redeem() -> Weight;
-}
+use pallet_bonds::weights::WeightInfo;
 
 /// Weights for pallet_bonds using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
@@ -103,57 +99,5 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::from_ref_time(116_103_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(7 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
-	}
-}
-
-// For backwards compatibility and tests
-impl WeightInfo for () {
-	// Storage: AssetRegistry Assets (r:1 w:1)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: Bonds BondIds (r:1 w:1)
-	// Proof: Bonds BondIds (max_values: None, max_size: Some(32), added: 2507, mode: MaxEncodedLen)
-	// Storage: Timestamp Now (r:1 w:0)
-	// Proof: Timestamp Now (max_values: Some(1), max_size: Some(8), added: 503, mode: MaxEncodedLen)
-	// Storage: AssetRegistry NextAssetId (r:1 w:1)
-	// Proof: AssetRegistry NextAssetId (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
-	// Storage: System Account (r:3 w:3)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:1 w:1)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Tokens TotalIssuance (r:1 w:1)
-	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: Bonds Bonds (r:0 w:1)
-	// Proof: Bonds Bonds (max_values: None, max_size: Some(32), added: 2507, mode: MaxEncodedLen)
-	// Storage: AssetRegistry AssetIds (r:0 w:1)
-	// Proof: AssetRegistry AssetIds (max_values: None, max_size: Some(53), added: 2528, mode: MaxEncodedLen)
-	fn issue() -> Weight {
-		// Minimum execution time: 154_679 nanoseconds.
-		Weight::from_ref_time(159_169_000)
-			.saturating_add(RocksDbWeight::get().reads(11))
-			.saturating_add(RocksDbWeight::get().writes(10))
-	}
-	// Storage: Bonds Bonds (r:1 w:0)
-	// Proof: Bonds Bonds (max_values: None, max_size: Some(32), added: 2507, mode: MaxEncodedLen)
-	// Storage: Timestamp Now (r:1 w:0)
-	// Proof: Timestamp Now (max_values: Some(1), max_size: Some(8), added: 503, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:1 w:1)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:1 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: Tokens TotalIssuance (r:1 w:1)
-	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
-	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	fn redeem() -> Weight {
-		// Minimum execution time: 114_799 nanoseconds.
-		Weight::from_ref_time(116_103_000)
-			.saturating_add(RocksDbWeight::get().reads(7))
-			.saturating_add(RocksDbWeight::get().writes(5))
 	}
 }

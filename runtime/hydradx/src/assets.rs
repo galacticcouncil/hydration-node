@@ -511,7 +511,7 @@ impl pallet_bonds::Config for Runtime {
 	type AssetTypeWhitelist = AssetTypeWhitelist;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
-	type WeightInfo = ();
+	type WeightInfo = weights::bonds::HydraWeight<Runtime>;
 }
 
 // Staking
