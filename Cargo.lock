@@ -3773,7 +3773,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -3817,7 +3817,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "171.0.0"
+version = "172.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3835,7 +3835,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.3.4",
+ "hex-literal 0.4.1",
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
@@ -3851,6 +3851,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-bonds",
  "pallet-circuit-breaker",
  "pallet-claims",
  "pallet-collator-rewards",
@@ -3919,7 +3920,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.5.0"
+version = "2.5.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6200,7 +6201,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.2.4"
+version = "2.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6368,6 +6369,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-bonds"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitive-types",
+ "primitives",
+ "proptest",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-tracing",
+]
+
+[[package]]
 name = "pallet-bounties"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
@@ -6406,7 +6432,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.15"
+version = "1.1.16"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6555,7 +6581,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6868,7 +6894,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.2.3"
+version = "4.2.4"
 dependencies = [
  "fixed",
  "frame-support",
@@ -7048,7 +7074,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "3.2.0"
+version = "3.2.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7075,7 +7101,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.0.10"
+version = "2.0.11"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7104,7 +7130,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7317,7 +7343,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "2.1.1"
+version = "2.1.2"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7680,7 +7706,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm-rate-limiter"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-benchmarking",
@@ -9368,7 +9394,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.8.2"
+version = "5.8.3"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -10120,7 +10146,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10154,6 +10180,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-bonds",
  "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",

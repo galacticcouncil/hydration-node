@@ -302,7 +302,7 @@ impl ExtBuilder {
 
 use crate::types::{AssetBalance, PoolInfo};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::{AccountIdFor, Registry, ShareTokenRegistry};
+use hydradx_traits::{AccountIdFor, AssetKind, Registry, ShareTokenRegistry};
 use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
@@ -323,6 +323,10 @@ where
 		} else {
 			Err(pallet_stableswap::Error::<Test>::AssetNotRegistered.into())
 		}
+	}
+
+	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+		unimplemented!()
 	}
 
 	fn create_asset(name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {

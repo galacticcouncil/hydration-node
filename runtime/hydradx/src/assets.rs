@@ -23,7 +23,7 @@ use hydradx_adapters::{
 	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, VestingInfo,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{OraclePeriod, Source};
+use hydradx_traits::{AssetKind, OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
@@ -41,7 +41,7 @@ use frame_support::{
 	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
 	BoundedVec, PalletId,
 };
-use frame_system::{EnsureRoot, RawOrigin};
+use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use orml_traits::currency::MutationHooks;
 use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
@@ -483,6 +483,35 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type Oracle = OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
+}
+
+// Bonds
+parameter_types! {
+	pub ProtocolFee: Permill = Permill::from_percent(2);
+	pub const BondsPalletId: PalletId = PalletId(*b"pltbonds");
+}
+
+pub struct AssetTypeWhitelist;
+impl Contains<AssetKind> for AssetTypeWhitelist {
+	fn contains(t: &AssetKind) -> bool {
+		matches!(t, AssetKind::Token | AssetKind::XYK | AssetKind::StableSwap)
+	}
+}
+
+impl pallet_bonds::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type Currency = Currencies;
+	type AssetRegistry = AssetRegistry;
+	type ExistentialDeposits = AssetRegistry;
+	type TimestampProvider = Timestamp;
+	type PalletId = BondsPalletId;
+	type IssueOrigin = EnsureSigned<AccountId>;
+	type AssetTypeWhitelist = AssetTypeWhitelist;
+	type ProtocolFee = ProtocolFee;
+	type FeeReceiver = TreasuryAccount;
+	type WeightInfo = weights::bonds::HydraWeight<Runtime>;
 }
 
 // Staking

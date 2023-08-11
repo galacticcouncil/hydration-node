@@ -44,7 +44,7 @@ pub use types::AssetType;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-use crate::types::{AssetDetails, AssetMetadata};
+pub use crate::types::{AssetDetails, AssetMetadata};
 use frame_support::BoundedVec;
 use hydradx_traits::{AssetKind, CreateRegistry, Registry, ShareTokenRegistry};
 
@@ -563,6 +563,12 @@ impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for Pal
 		} else {
 			Err(Error::<T>::AssetNotFound.into())
 		}
+	}
+
+	fn retrieve_asset_type(asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+		let asset_details =
+			Assets::<T>::get(asset_id).ok_or_else(|| Into::<DispatchError>::into(Error::<T>::AssetNotFound))?;
+		Ok(asset_details.asset_type.into())
 	}
 
 	fn create_asset(name: &Vec<u8>, existential_deposit: T::Balance) -> Result<T::AssetId, DispatchError> {

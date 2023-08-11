@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "171.0.0"
+version = "172.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -14,7 +14,7 @@ substrate-build-script-utils = { workspace = true }
 substrate-wasm-builder = { workspace = true }
 
 [dependencies]
-hex-literal = "0.3.4"
+hex-literal = "0.4.1"
 serde = { features = ["derive"], optional = true, version = "1.0.136" }
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
@@ -30,6 +30,7 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-dca = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-dynamic-fees = { workspace = true }
+pallet-bonds = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -166,6 +167,7 @@ runtime-benchmarks = [
     "pallet-dca/runtime-benchmarks",
     "pallet-route-executor/runtime-benchmarks",
     "pallet-staking/runtime-benchmarks",
+    "pallet-bonds/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -248,6 +250,7 @@ std = [
     "pallet-omnipool-liquidity-mining/std",
     "pallet-dynamic-fees/std",
     "pallet-staking/std",
+    "pallet-bonds/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -306,4 +309,5 @@ try-runtime= [
     "pallet-route-executor/try-runtime",
     "pallet-dynamic-fees/try-runtime",
     "pallet-staking/try-runtime",
+    "pallet-bonds/try-runtime",
 ]

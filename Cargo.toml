@@ -30,6 +30,7 @@ members = [
   'pallets/dynamic-fees',
   'pallets/duster',
   'pallets/otc',
+  'pallets/bonds',
   'math',
   'pallets/staking',
   'pallets/democracy',
@@ -68,6 +69,7 @@ pallet-staking = { path = "pallets/staking", default-features = false }
 pallet-democracy= { path = "pallets/democracy", default-features = false }
 pallet-xcm-rate-limiter = { path = "pallets/xcm-rate-limiter", default-features = false }
 warehouse-liquidity-mining = { package = "pallet-liquidity-mining", path = "pallets/liquidity-mining", default-features = false }
+pallet-bonds = { path = "pallets/bonds", default-features = false}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

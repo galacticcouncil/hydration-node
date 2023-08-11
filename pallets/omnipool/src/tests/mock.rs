@@ -31,7 +31,7 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureRoot;
-use hydradx_traits::Registry;
+use hydradx_traits::{AssetKind, Registry};
 use orml_traits::parameter_type_with_key;
 use primitive_types::{U128, U256};
 use sp_core::H256;
@@ -526,6 +526,10 @@ where
 
 	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
 		Ok(T::AssetId::default())
+	}
+
+	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+		unimplemented!()
 	}
 
 	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
