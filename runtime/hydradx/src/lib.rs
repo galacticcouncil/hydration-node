@@ -31,7 +31,6 @@ mod benchmarking;
 mod migrations;
 pub mod weights;
 
-pub mod adapters;
 mod assets;
 mod governance;
 mod system;
@@ -44,7 +43,7 @@ pub use xcm::*;
 
 use codec::{Decode, Encode};
 use sp_api::impl_runtime_apis;
-use sp_core::OpaqueMetadata;
+use sp_core::{ConstU128, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT},
@@ -95,7 +94,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 171,
+	spec_version: 172,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -158,7 +157,8 @@ construct_runtime!(
 
 		Router: pallet_route_executor = 67,
 		DynamicFees: pallet_dynamic_fees = 68,
-		Bonds: pallet_bonds = 70,
+		Staking: pallet_staking = 69,
+		Bonds: pallet_bonds = 71,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -405,6 +405,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
 			list_benchmark!(list, extra, pallet_ema_oracle, EmaOracle);
+			list_benchmark!(list, extra, pallet_staking, Staking);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
@@ -471,6 +472,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_claims, Claims);
 			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);
 			add_benchmark!(params, batches, pallet_bonds, Bonds);
+			add_benchmark!(params, batches, pallet_staking, Staking);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);

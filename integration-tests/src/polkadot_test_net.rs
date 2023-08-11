@@ -196,6 +196,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	let eth_amount = 63_750_000_000_000_000_000u128;
 	let btc_amount = 1_000_000_000u128;
 	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+	let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 
 	let existential_deposit = NativeExistentialDeposit::get();
 
@@ -211,6 +212,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(DAVE), 1_000 * UNITS),
 			(omnipool_account.clone(), native_amount),
 			(vesting_account(), 10_000 * UNITS),
+			(staking_account, UNITS),
 		],
 	}
 	.assimilate_storage(&mut t)

@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "0.4.3"
+version = "0.5.1"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -23,6 +23,8 @@ pallet-circuit-breaker = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-dynamic-fees = { workspace = true }
+pallet-uniques = { workspace = true }
+pallet-staking = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-currencies = { workspace = true }
 
@@ -48,6 +50,7 @@ cumulus-primitives-core = { workspace = true }
 # ORML dependencies
 orml-xcm-support = { workspace = true }
 orml-traits = { workspace = true }
+orml-vesting = { workspace = true }
 orml-utilities = { workspace = true }
 orml-tokens = { workspace = true }
 

@@ -19,8 +19,8 @@ use super::*;
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
-	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, OmnipoolHookAdapter, OracleAssetVolumeProvider,
-	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter,
+	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, OmnipoolHookAdapter, OracleAssetVolumeProvider,
+	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, VestingInfo,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{AssetKind, OraclePeriod, Source};
@@ -28,6 +28,7 @@ use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
+use primitives::constants::time::DAYS;
 use primitives::constants::{
 	chain::OMNIPOOL_SOURCE,
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
@@ -36,13 +37,16 @@ use primitives::constants::{
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::One,
-	sp_runtime::{FixedU128, Permill},
+	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use orml_traits::currency::MutationHooks;
+use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
+use pallet_staking::types::Action;
+use pallet_staking::SigmoidPercentage;
 
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;
@@ -508,4 +512,57 @@ impl pallet_bonds::Config for Runtime {
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();
+}
+
+// Staking
+parameter_types! {
+	pub const StakingPalletId: PalletId = PalletId(*b"staking#");
+	pub const MinStake: Balance = 1_000 * UNITS;
+	pub const PeriodLength: BlockNumber = DAYS;
+	pub const TimePointsW:Permill =  Permill::from_percent(100);
+	pub const ActionPointsW: Perbill = Perbill::from_parts(4_400);
+	pub const TimePointsPerPeriod: u8 = 1;
+	pub const CurrentStakeWeight: u8 = 2;
+	pub const UnclaimablePeriods: BlockNumber = 1;
+	pub const PointPercentage: FixedU128 = FixedU128::from_rational(2,100);
+	pub const OneHDX: Balance = primitives::constants::currency::UNITS;
+}
+
+pub struct ActionMultiplier;
+
+impl GetByKey<Action, u32> for ActionMultiplier {
+	fn get(k: &Action) -> u32 {
+		match k {
+			Action::DemocracyVote => 1u32,
+		}
+	}
+}
+
+impl pallet_staking::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AuthorityOrigin = MajorityOfCouncil;
+	type AssetId = AssetId;
+	type Currency = Currencies;
+	type PeriodLength = PeriodLength;
+	type PalletId = StakingPalletId;
+	type NativeAssetId = NativeAssetId;
+	type MinStake = MinStake;
+	type TimePointsWeight = TimePointsW;
+	type ActionPointsWeight = ActionPointsW;
+	type TimePointsPerPeriod = TimePointsPerPeriod;
+	type UnclaimablePeriods = UnclaimablePeriods;
+	type CurrentStakeWeight = CurrentStakeWeight;
+	type PayablePercentage = SigmoidPercentage<PointPercentage, ConstU32<2_000>>;
+	type BlockNumberProvider = System;
+	type PositionItemId = u128;
+	type CollectionId = u128;
+	type NFTCollectionId = ConstU128<2222>;
+	type Collections = FreezableNFT<Runtime, Self::RuntimeOrigin>;
+	type NFTHandler = Uniques;
+	type MaxVotes = MaxVotes;
+	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
+	type ActionMultiplier = ActionMultiplier;
+	type Vesting = VestingInfo<Runtime>;
+	type RewardedVoteUnit = OneHDX;
+	type WeightInfo = weights::staking::HydraWeight<Runtime>;
 }

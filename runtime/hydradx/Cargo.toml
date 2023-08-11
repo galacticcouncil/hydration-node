@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "171.0.0"
+version = "172.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -67,6 +67,7 @@ pallet-duster = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
 pallet-route-executor = { workspace = true }
+pallet-staking = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -165,6 +166,7 @@ runtime-benchmarks = [
     "pallet-otc/runtime-benchmarks",
     "pallet-dca/runtime-benchmarks",
     "pallet-route-executor/runtime-benchmarks",
+    "pallet-staking/runtime-benchmarks",
     "pallet-bonds/runtime-benchmarks",
 ]
 std = [
@@ -247,6 +249,7 @@ std = [
     "warehouse-liquidity-mining/std",
     "pallet-omnipool-liquidity-mining/std",
     "pallet-dynamic-fees/std",
+    "pallet-staking/std",
     "pallet-bonds/std",
 ]
 try-runtime= [
@@ -305,5 +308,6 @@ try-runtime= [
     "pallet-otc/try-runtime",
     "pallet-route-executor/try-runtime",
     "pallet-dynamic-fees/try-runtime",
+    "pallet-staking/try-runtime",
     "pallet-bonds/try-runtime",
 ]
