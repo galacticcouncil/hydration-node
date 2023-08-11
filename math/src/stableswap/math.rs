@@ -29,13 +29,10 @@ pub fn calculate_out_given_in<const N: u8, const N_Y: u8>(
 	let reserves = normalize_reserves(balances);
 	let amount_in = normalize_value(amount_in, balances[idx_in].decimals, target_precision, Rounding::Down);
 	let new_reserve_out = calculate_y_given_in::<N, N_Y>(amount_in, idx_in, idx_out, &reserves, amplification)?;
-	let new_reserve_out = normalize_value(
-		new_reserve_out,
-		target_precision,
-		balances[idx_out].decimals,
-		Rounding::Up,
-	);
-	balances[idx_out].amount.checked_sub(new_reserve_out)
+
+	let amount_out = reserves[idx_out].checked_sub(new_reserve_out)?;
+	let amount_out = normalize_value(amount_out, target_precision, balances[idx_out].decimals, Rounding::Down);
+	Some(amount_out)
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
@@ -55,13 +52,9 @@ pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
 	let reserves = normalize_reserves(balances);
 	let amount_out = normalize_value(amount_out, balances[idx_out].decimals, target_precision, Rounding::Down);
 	let new_reserve_in = calculate_y_given_out::<N, N_Y>(amount_out, idx_in, idx_out, &reserves, amplification)?;
-	let new_reserve_in = normalize_value(
-		new_reserve_in,
-		target_precision,
-		balances[idx_in].decimals,
-		Rounding::Up,
-	);
-	new_reserve_in.checked_sub(balances[idx_in].amount)
+	let amount_in = new_reserve_in.checked_sub(reserves[idx_in])?;
+	let amount_in = normalize_value(amount_in, target_precision, balances[idx_in].decimals, Rounding::Up);
+	Some(amount_in)
 }
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves and apply a fee.
@@ -283,7 +276,7 @@ pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
 	calculate_y_internal::<N_Y>(&xp, d, amplification)
 }
 
-fn calculate_d_internal<const N: u8>(xp: &[Balance], amplification: Balance) -> Option<Balance> {
+pub(crate) fn calculate_d_internal<const N: u8>(xp: &[Balance], amplification: Balance) -> Option<Balance> {
 	let two_u256 = to_u256!(2_u128);
 
 	// Filter out zero balance assets, and return error if there is one.
@@ -464,7 +457,7 @@ fn calculate_fee_amount(amount: Balance, fee: Permill, rounding: Rounding) -> Ba
 	}
 }
 
-fn normalize_reserves(reserves: &[AssetReserve]) -> Vec<Balance> {
+pub(crate) fn normalize_reserves(reserves: &[AssetReserve]) -> Vec<Balance> {
 	let t = target_precision(reserves);
 	reserves
 		.iter()

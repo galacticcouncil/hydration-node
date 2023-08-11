@@ -87,8 +87,8 @@ proptest! {
 			AssetReserve::new(reserves[1].amount - result.unwrap(),12)];
 
 		let d2 = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
-
 		assert!(d2 >= d1);
+		assert!(d2 - d1 <= 10000000u128);
 	}
 }
 
