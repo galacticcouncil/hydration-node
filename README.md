@@ -68,7 +68,7 @@ Start local testnet with 4 relay chain validators and HydraDX as a parachain wit
 
 ```
 cd ./rococo-local
-zombienet --provider native config-zombienet.json
+zombienet spawn config-zombienet.json
 ```
 
 ### Use testing runtime
