@@ -7,8 +7,8 @@ use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::Div;
 use sp_std::prelude::*;
 
-pub const MAX_Y_ITERATIODS: u8 = 128;
-pub const MAX_D_ITERATIODS: u8 = 64;
+pub const MAX_Y_ITERATIONS: u8 = 128;
+pub const MAX_D_ITERATIONS: u8 = 64;
 
 const PRECISION: u8 = 1;
 

@@ -167,7 +167,7 @@ proptest! {
 	) {
 		let amount_in = normalize_value(
 			to_precision(amount, pool[idx_in].decimals),
-			pool[idx_out].decimals,
+			pool[idx_in].decimals,
 			18u8,
 			Rounding::Down,
 		);
@@ -196,7 +196,6 @@ proptest! {
 			.collect();
 		let d1 = calculate_d_internal::<D_ITERATIONS>(&updated_balances, amp).unwrap();
 		assert!(d1 >= d0);
-		//dbg!(d1 - d0);
 		//assert!(d1 - d0 <= 10u128)
 	}
 }

@@ -3873,7 +3873,6 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
- "pallet-stableswap",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
