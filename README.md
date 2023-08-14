@@ -71,25 +71,6 @@ cd ./rococo-local
 zombienet spawn config-zombienet.json
 ```
 
-### Use testing runtime
-
-In the case of starting a testnet using the `polkadot-launch` tool, 
-we don't have an option to communicate to its internal commands that we would like to use the testing runtime.
-To overcome this limitation, rename the binary so it starts with the `testing` prefix, e.g. `testing-hydradx`.
-Such a binary always uses the testing runtime, even if the `--runtime testing` option is not specified.
-
-Start local testnet with testing runtime
-```
-cd ./rococo-local
-polkadot-launch testing-config.json
-```
-
-Start local testnet with testing runtime using Zombienet
-```
-cd ./rococo-local
-zombienet --provider native testing-config-zombienet.json
-```
-
 ### Interaction with the node
 
 Go to the polkadot apps at https://dotapps.io
