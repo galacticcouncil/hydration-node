@@ -1,4 +1,5 @@
 pub mod balances;
+pub mod bonds;
 pub mod circuit_breaker;
 pub mod claims;
 pub mod collator_selection;

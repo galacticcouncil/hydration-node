@@ -20,7 +20,7 @@ use frame_support::{
 	traits::{Everything, GenesisBuild, Nothing},
 };
 use frame_system as system;
-use hydradx_traits::Registry;
+use hydradx_traits::{AssetKind, Registry};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
@@ -146,6 +146,10 @@ impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegi
 
 	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
 		Ok(0)
+	}
+
+	fn retrieve_asset_type(_asset_id: AssetId) -> Result<AssetKind, DispatchError> {
+		unimplemented!()
 	}
 
 	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {

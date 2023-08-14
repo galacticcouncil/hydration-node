@@ -157,8 +157,9 @@ construct_runtime!(
 
 		Router: pallet_route_executor = 67,
 		DynamicFees: pallet_dynamic_fees = 68,
-		XcmRateLimiter: pallet_xcm_rate_limiter = 69,
-		Staking: pallet_staking = 70,
+		Staking: pallet_staking = 69,
+		XcmRateLimiter: pallet_xcm_rate_limiter = 70,
+		Bonds: pallet_bonds = 71,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -400,6 +401,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 			list_benchmark!(list, extra, pallet_dca, DCA);
+			list_benchmark!(list, extra, pallet_bonds, Bonds);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -470,6 +472,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
 			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);
+			add_benchmark!(params, batches, pallet_bonds, Bonds);
 			add_benchmark!(params, batches, pallet_staking, Staking);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);

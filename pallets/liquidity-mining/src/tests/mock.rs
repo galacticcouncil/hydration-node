@@ -27,7 +27,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Registry, AMM};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Registry, AssetKind, AMM};
 use orml_traits::GetByKey;
 use sp_core::H256;
 use sp_runtime::{
@@ -438,6 +438,10 @@ impl Registry<AssetId, Vec<u8>, Balance, DispatchError> for AssetRegistry {
 
 	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
+	}
+
+	fn retrieve_asset_type(_asset_id: AssetId) -> Result<AssetKind, DispatchError> {
+		unimplemented!()
 	}
 
 	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
