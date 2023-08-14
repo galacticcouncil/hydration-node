@@ -43,7 +43,6 @@ use frame_support::{
 use frame_system::{EnsureRoot, RawOrigin};
 use orml_traits::currency::MutationHooks;
 use pallet_dynamic_fees::types::FeeParams;
-use sp_core::crypto::UncheckedFrom;
 
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;
