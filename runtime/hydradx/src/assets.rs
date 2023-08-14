@@ -518,7 +518,8 @@ impl pallet_bonds::Config for Runtime {
 parameter_types! {
 	pub const StakingPalletId: PalletId = PalletId(*b"staking#");
 	pub const MinStake: Balance = 1_000 * UNITS;
-	pub const PeriodLength: BlockNumber = DAYS;
+	//This value is only for rococo, it should be 1 day in prod
+	pub const PeriodLength: BlockNumber = 1;
 	pub const TimePointsW:Permill =  Permill::from_percent(100);
 	pub const ActionPointsW: Perbill = Perbill::from_parts(4_400);
 	pub const TimePointsPerPeriod: u8 = 1;
