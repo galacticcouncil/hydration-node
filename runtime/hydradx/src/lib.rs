@@ -158,7 +158,6 @@ construct_runtime!(
 
 		Router: pallet_route_executor = 67,
 		DynamicFees: pallet_dynamic_fees = 68,
-		Stableswap: pallet_stableswap = 70,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

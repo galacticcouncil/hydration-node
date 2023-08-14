@@ -30,7 +30,6 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-dca = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-dynamic-fees = { workspace = true }
-pallet-stableswap = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
