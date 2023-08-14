@@ -23,7 +23,7 @@ use hydradx_adapters::{
 	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{AccountIdFor, OraclePeriod, Source};
+use hydradx_traits::{OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
