@@ -1,7 +1,9 @@
 use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
-use crate::{assert_balance, Error};
+use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok};
+use hydra_dx_math::stableswap::types::AssetReserve;
+use hydra_dx_math::stableswap::{calculate_d, stable_swap_equation};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 
@@ -436,5 +438,56 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 				),
 				Error::<Test>::IncorrectAssets
 			);
+		});
+}
+
+#[test]
+fn add_initial_liquidity_should_work_when_asset_have_different_decimals() {
+	let pool_id: AssetId = 100u32;
+	let asset_a: u32 = 1;
+	let asset_b: u32 = 2;
+	let dec_a: u8 = 18;
+	let dec_b: u8 = 6;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, to_precision!(200, dec_a)),
+			(BOB, asset_b, to_precision!(200, dec_b)),
+			(ALICE, asset_a, to_precision!(200, dec_a)),
+			(ALICE, asset_b, to_precision!(200, dec_b)),
+		])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 18)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, dec_a)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, dec_b)
+		.build()
+		.execute_with(|| {
+			let amplification: u16 = 100;
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::root(),
+				pool_id,
+				vec![asset_a, asset_b],
+				amplification,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			));
+
+			let initial_liquidity_amount_a = to_precision!(100, dec_a);
+			let initial_liquidity_amount_b = to_precision!(100, dec_b);
+
+			let pool_account = pool_account(pool_id);
+
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				vec![
+					AssetAmount::new(asset_a, initial_liquidity_amount_a),
+					AssetAmount::new(asset_b, initial_liquidity_amount_b),
+				]
+			));
+
+			assert_balance!(BOB, asset_a, to_precision!(100, dec_a));
+			assert_balance!(BOB, asset_b, to_precision!(100, dec_b));
+			assert_balance!(BOB, pool_id, 200 * ONE * 1_000_000);
+			assert_balance!(pool_account, asset_a, to_precision!(100, dec_a));
+			assert_balance!(pool_account, asset_b, to_precision!(100, dec_b));
 		});
 }

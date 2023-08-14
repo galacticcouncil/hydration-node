@@ -4,8 +4,8 @@ use frame_support::assert_ok;
 use sp_runtime::{FixedU128, Permill};
 use std::num::NonZeroU16;
 
-use super::stable_swap_equation;
 use hydra_dx_math::stableswap::calculate_d;
+use hydra_dx_math::stableswap::stable_swap_equation;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use proptest::prelude::*;
 use proptest::proptest;
@@ -48,25 +48,6 @@ macro_rules! assert_eq_approx {
 		}
 	}};
 }
-
-/*
-fn stable_swap_equation(d: Balance, amplification: Balance, reserves: &[Balance]) -> bool {
-	let n = reserves.len();
-	let nn = n.pow(n as u32);
-	let sum = reserves.iter().sum();
-	let side1 = amplification
-		.checked_mul(nn as u128)
-		.unwrap()
-		.checked_mul(sum)
-		.unwrap()
-		.checked_add(d);
-	let side2_01 = amplification.checked_mul(nn as u128).unwrap().checked_mul(d).unwrap();
-	let side2_03 = amplification.checked_mul(nn as u128).unwrap().checked_mul(d).unwrap();
-
-	true
-}
- */
-
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
@@ -559,6 +540,7 @@ proptest! {
 					];
 
 					let d_prev = calculate_d::<128u8>(&reserves, amplification).unwrap();
+					assert!(stable_swap_equation(d_prev, amplification,&reserves));
 
 					assert_ok!(Stableswap::buy(
 						RuntimeOrigin::signed(BOB),
@@ -577,6 +559,7 @@ proptest! {
 					];
 
 					let d = calculate_d::<128u8>(&reserves, amplification).unwrap();
+					assert!(stable_swap_equation(d, amplification,&reserves));
 
 					assert!(d >= d_prev);
 					//assert!(d - d_prev <= 10u128);
@@ -643,23 +626,12 @@ proptest! {
 				let new_asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
 
 				let reserves = vec![
-						AssetReserve::new(asset_a_reserve, 12),
-						AssetReserve::new(asset_b_reserve, 12),
+						AssetReserve::new(new_asset_a_reserve, 12),
+						AssetReserve::new(new_asset_b_reserve, 12),
 					];
 
 				let d_new = calculate_d::<128u8>(&reserves, amplification.get().into()).unwrap();
-
-				stable_swap_equation(d_new, amplification.get().into(),&reserves);
-
-			/*
-				assert_eq_approx!(
-					FixedU128::from((asset_a_reserve, asset_b_reserve)),
-					FixedU128::from((new_asset_a_reserve, new_asset_b_reserve)),
-					FixedU128::from_float(0.0000000001),
-					"Price has changed after add liquidity"
-				);
-
-			 */
+				assert!(stable_swap_equation(d_new, amplification.get().into(),&reserves));
 			});
 	}
 }
