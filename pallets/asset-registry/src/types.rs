@@ -31,6 +31,7 @@ pub enum AssetType<AssetId> {
 	XYK,
 	StableSwap,
 	Bond,
+    External,
 }
 
 impl<AssetId> From<AssetKind> for AssetType<AssetId> {
@@ -40,6 +41,7 @@ impl<AssetId> From<AssetKind> for AssetType<AssetId> {
 			AssetKind::XYK => Self::XYK,
 			AssetKind::StableSwap => Self::StableSwap,
 			AssetKind::Bond => Self::Bond,
+			AssetKind::External => Self::External,
 		}
 	}
 }
@@ -52,6 +54,7 @@ impl<AssetId> From<AssetType<AssetId>> for AssetKind {
 			AssetType::XYK => Self::XYK,
 			AssetType::StableSwap => Self::StableSwap,
 			AssetType::Bond => Self::Bond,
+			AssetType::External => Self::External,
 		}
 	}
 }
@@ -60,16 +63,19 @@ impl<AssetId> From<AssetType<AssetId>> for AssetKind {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AssetDetails<AssetId, Balance, BoundedString> {
 	/// The name of this asset. Limited in length by `StringLimit`.
-	pub name: BoundedString,
+	pub name: Option<BoundedString>,
 
 	pub asset_type: AssetType<AssetId>,
 
 	pub existential_deposit: Balance,
 
 	pub xcm_rate_limit: Option<Balance>,
+
+	pub metadata: Option<AssetMetadata<BoundedString>>,
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Default, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AssetMetadata<BoundedString> {
 	/// The ticker symbol for this asset. Limited in length by `StringLimit`.
 	pub(super) symbol: BoundedString,

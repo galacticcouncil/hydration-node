@@ -33,7 +33,8 @@ mod mock;
 mod tests;
 
 mod benchmarking;
-pub mod migration;
+//TODO
+//pub mod migration;
 mod types;
 pub mod weights;
 
@@ -162,16 +163,10 @@ pub mod pallet {
 	pub type LocationAssets<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetNativeLocation, T::AssetId, OptionQuery>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn asset_metadata)]
-	/// Metadata of an asset.
-	pub type AssetMetadataMap<T: Config> =
-		StorageMap<_, Twox64Concat, T::AssetId, AssetMetadata<BoundedVec<u8, T::StringLimit>>, OptionQuery>;
-
 	#[allow(clippy::type_complexity)]
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub registered_assets: Vec<(Vec<u8>, T::Balance, Option<T::AssetId>)>,
+		pub registered_assets: Vec<(Option<Vec<u8>>, T::Balance, Option<T::AssetId>)>,
 		pub native_asset_name: Vec<u8>,
 		pub native_existential_deposit: T::Balance,
 	}
@@ -197,20 +192,27 @@ pub mod pallet {
 
 			AssetIds::<T>::insert(&native_asset_name, T::NativeAssetId::get());
 			let details = AssetDetails {
-				name: native_asset_name,
+				name: Some(native_asset_name),
 				asset_type: AssetType::Token,
 				existential_deposit: self.native_existential_deposit,
 
 				xcm_rate_limit: None,
+				metadata: None,
 			};
 
 			Assets::<T>::insert(T::NativeAssetId::get(), details);
 
 			self.registered_assets.iter().for_each(|(name, ed, id)| {
-				let bounded_name = Pallet::<T>::to_bounded_name(name.to_vec())
-					.map_err(|_| panic!("Invalid asset name!"))
-					.unwrap();
-				let _ = Pallet::<T>::register_asset(bounded_name, AssetType::Token, *ed, *id, None)
+				let bounded_name = if let Some(name) = name {
+					Some(
+						Pallet::<T>::to_bounded_name(name.to_vec())
+							.map_err(|_| panic!("Invalid asset name!"))
+							.unwrap(),
+					)
+				} else {
+					None
+				};
+				let _ = Pallet::<T>::register_asset(bounded_name, AssetType::Token, *ed, *id, None, None)
 					.map_err(|_| panic!("Failed to register asset"));
 			})
 		}
@@ -222,14 +224,14 @@ pub mod pallet {
 		/// Asset was registered.
 		Registered {
 			asset_id: T::AssetId,
-			asset_name: BoundedVec<u8, T::StringLimit>,
+			asset_name: Option<BoundedVec<u8, T::StringLimit>>,
 			asset_type: AssetType<T::AssetId>,
 		},
 
 		/// Asset was updated.
 		Updated {
 			asset_id: T::AssetId,
-			asset_name: BoundedVec<u8, T::StringLimit>,
+			asset_name: Option<BoundedVec<u8, T::StringLimit>>,
 			asset_type: AssetType<T::AssetId>,
 			existential_deposit: T::Balance,
 			xcm_rate_limit: Option<T::Balance>,
@@ -265,7 +267,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::register())]
 		pub fn register(
 			origin: OriginFor<T>,
-			name: Vec<u8>,
+			name: Option<Vec<u8>>,
 			asset_type: AssetType<T::AssetId>,
 			existential_deposit: T::Balance,
 			asset_id: Option<T::AssetId>,
@@ -275,30 +277,43 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::RegistryOrigin::ensure_origin(origin)?;
 
-			let bounded_name = Self::to_bounded_name(name)?;
-
-			ensure!(
-				Self::asset_ids(&bounded_name).is_none(),
-				Error::<T>::AssetAlreadyRegistered
-			);
-
-			let asset_id =
-				Self::register_asset(bounded_name, asset_type, existential_deposit, asset_id, xcm_rate_limit)?;
-
-			if let Some(meta) = metadata {
-				let symbol = Self::to_bounded_name(meta.symbol)?;
-				AssetMetadataMap::<T>::insert(
-					asset_id,
-					AssetMetadata {
-						symbol: symbol.clone(),
-						decimals: meta.decimals,
-					},
+			let bounded_name = if let Some(n) = name {
+				let bounded_name = Self::to_bounded_name(n)?;
+				ensure!(
+					Self::asset_ids(&bounded_name).is_none(),
+					Error::<T>::AssetAlreadyRegistered
 				);
 
+				Some(bounded_name)
+			} else {
+				None
+			};
+
+			let meta = match metadata {
+				Some(m) => {
+					let symbol = Self::to_bounded_name(m.symbol)?;
+					Some(AssetMetadata {
+						symbol: symbol.clone(),
+						decimals: m.decimals,
+					})
+				}
+				None => None,
+			};
+
+			let asset_id = Self::register_asset(
+				bounded_name,
+				asset_type,
+				existential_deposit,
+				asset_id,
+				xcm_rate_limit,
+				meta.clone(),
+			)?;
+
+			if let Some(m) = meta {
 				Self::deposit_event(Event::MetadataSet {
 					asset_id,
-					symbol,
-					decimals: meta.decimals,
+					symbol: m.symbol,
+					decimals: m.decimals,
 				});
 			}
 
@@ -332,7 +347,7 @@ pub mod pallet {
 		pub fn update(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
-			name: Vec<u8>,
+			name: Option<Vec<u8>>,
 			asset_type: AssetType<T::AssetId>,
 			existential_deposit: Option<T::Balance>,
 			xcm_rate_limit: Option<T::Balance>,
@@ -342,28 +357,34 @@ pub mod pallet {
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
 				let mut detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-				let bounded_name = Self::to_bounded_name(name)?;
+				let new_bounded_name = if let Some(name) = name {
+					let new_bounded_name = Self::to_bounded_name(name)?;
 
-				if bounded_name != detail.name {
-					// Make sure that there is no such name already registered
-					ensure!(
-						Self::asset_ids(&bounded_name).is_none(),
-						Error::<T>::AssetAlreadyRegistered
-					);
+					if Some(new_bounded_name.clone()) != detail.name {
+						ensure!(
+							Self::asset_ids(&new_bounded_name).is_none(),
+							Error::<T>::AssetAlreadyRegistered
+						);
+						// update also name map - remove old one first
+						if let Some(old_name) = &detail.name {
+							AssetIds::<T>::remove(old_name);
+						}
+						AssetIds::<T>::insert(&new_bounded_name, asset_id);
+					}
 
-					// update also name map - remove old one first
-					AssetIds::<T>::remove(&detail.name);
-					AssetIds::<T>::insert(&bounded_name, asset_id);
-				}
+					Some(new_bounded_name)
+				} else {
+					None
+				};
 
-				detail.name = bounded_name.clone();
+				detail.name = new_bounded_name.clone();
 				detail.asset_type = asset_type;
 				detail.existential_deposit = existential_deposit.unwrap_or(detail.existential_deposit);
 				detail.xcm_rate_limit = xcm_rate_limit;
 
 				Self::deposit_event(Event::Updated {
 					asset_id,
-					asset_name: bounded_name,
+					asset_name: new_bounded_name,
 					asset_type,
 					existential_deposit: detail.existential_deposit,
 					xcm_rate_limit: detail.xcm_rate_limit,
@@ -390,24 +411,25 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::RegistryOrigin::ensure_origin(origin)?;
 
-			ensure!(Self::assets(asset_id).is_some(), Error::<T>::AssetNotFound);
+			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
+				let mut detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+				let b_symbol = Self::to_bounded_name(symbol)?;
 
-			let b_symbol = Self::to_bounded_name(symbol)?;
+				let metadata = AssetMetadata::<BoundedVec<u8, T::StringLimit>> {
+					symbol: b_symbol.clone(),
+					decimals,
+				};
 
-			let metadata = AssetMetadata::<BoundedVec<u8, T::StringLimit>> {
-				symbol: b_symbol.clone(),
-				decimals,
-			};
+				detail.metadata = Some(metadata);
 
-			AssetMetadataMap::<T>::insert(asset_id, metadata);
+				Self::deposit_event(Event::MetadataSet {
+					asset_id,
+					symbol: b_symbol,
+					decimals,
+				});
 
-			Self::deposit_event(Event::MetadataSet {
-				asset_id,
-				symbol: b_symbol,
-				decimals,
-			});
-
-			Ok(())
+				Ok(())
+			})
 		}
 
 		/// Set asset native location.
@@ -460,11 +482,12 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Does not perform any  check whether an asset for given name already exists. This has to be prior to calling this function.
 	pub fn register_asset(
-		name: BoundedVec<u8, T::StringLimit>,
+		name: Option<BoundedVec<u8, T::StringLimit>>,
 		asset_type: AssetType<T::AssetId>,
 		existential_deposit: T::Balance,
 		selected_asset_id: Option<T::AssetId>,
 		xcm_rate_limit: Option<T::Balance>,
+		metadata: Option<AssetMetadata<BoundedVec<u8, T::StringLimit>>>,
 	) -> Result<T::AssetId, DispatchError> {
 		let asset_id = if let Some(selected_id) = selected_asset_id {
 			ensure!(
@@ -501,13 +524,16 @@ impl<T: Config> Pallet<T> {
 			})?
 		};
 
-		AssetIds::<T>::insert(&name, asset_id);
+		if let Some(n) = name.clone() {
+			AssetIds::<T>::insert(&n, asset_id);
+		}
 
 		let details = AssetDetails {
 			name: name.clone(),
 			asset_type,
 			existential_deposit,
 			xcm_rate_limit,
+			metadata,
 		};
 
 		// Store the details
@@ -536,7 +562,14 @@ impl<T: Config> Pallet<T> {
 		if let Some(asset_id) = AssetIds::<T>::get(&bounded_name) {
 			Ok(asset_id)
 		} else {
-			Self::register_asset(bounded_name, asset_type, existential_deposit, asset_id, None)
+			Self::register_asset(
+				Some(bounded_name),
+				asset_type,
+				existential_deposit,
+				asset_id,
+				None,
+				None,
+			)
 		}
 	}
 
@@ -624,8 +657,17 @@ impl<T: Config> GetByKey<T::AssetId, Option<T::Balance>> for XcmRateLimitsInRegi
 impl<T: Config> CreateRegistry<T::AssetId, T::Balance> for Pallet<T> {
 	type Error = DispatchError;
 
-	fn create_asset(name: &[u8], kind: AssetKind, existential_deposit: T::Balance) -> Result<T::AssetId, Self::Error> {
-		let bounded_name: BoundedVec<u8, T::StringLimit> = Self::to_bounded_name(name.to_vec())?;
-		Pallet::<T>::register_asset(bounded_name, kind.into(), existential_deposit, None, None)
+	fn create_asset(
+		name: Option<&[u8]>,
+		kind: AssetKind,
+		existential_deposit: T::Balance,
+	) -> Result<T::AssetId, Self::Error> {
+		let bounded_name = if let Some(name) = name {
+			Some(Self::to_bounded_name(name.to_vec())?)
+		} else {
+			None
+		};
+
+		Pallet::<T>::register_asset(bounded_name, kind.into(), existential_deposit, None, None, None)
 	}
 }

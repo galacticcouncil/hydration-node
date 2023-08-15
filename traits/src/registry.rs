@@ -47,11 +47,13 @@ pub enum AssetKind {
 	XYK,
 	StableSwap,
 	Bond,
+    External,
 }
 
 pub trait CreateRegistry<AssetId, Balance> {
 	type Error;
-	fn create_asset(name: &[u8], kind: AssetKind, existential_deposit: Balance) -> Result<AssetId, Self::Error>;
+	fn create_asset(name: Option<&[u8]>, kind: AssetKind, existential_deposit: Balance)
+		-> Result<AssetId, Self::Error>;
 }
 
 // Deprecated.
