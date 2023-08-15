@@ -52,13 +52,12 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_std::vec::Vec;
 
 use hydradx_traits::{AssetKind, CreateRegistry, Registry};
 use orml_traits::{GetByKey, MultiCurrency};
-use primitives::Moment;
+use primitives::{AssetId, Moment};
 
 #[cfg(test)]
 mod tests;
@@ -74,7 +73,6 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 
 	#[pallet::pallet]
@@ -85,16 +83,6 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
-		/// Identifier for the class of asset.
-		type AssetId: Member
-			+ Parameter
-			+ Default
-			+ Copy
-			+ HasCompact
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
-			+ TypeInfo;
 
 		/// Balance type.
 		type Balance: Parameter
@@ -110,14 +98,14 @@ pub mod pallet {
 			+ From<u128>;
 
 		/// Multi currency mechanism.
-		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Self::Balance>;
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Self::Balance>;
 
 		/// Asset Registry mechanism - used to register bonds in the asset registry.
-		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Self::Balance, DispatchError>
-			+ CreateRegistry<Self::AssetId, Self::Balance, Error = DispatchError>;
+		type AssetRegistry: Registry<AssetId, Vec<u8>, Self::Balance, DispatchError>
+			+ CreateRegistry<AssetId, Self::Balance, Error = DispatchError>;
 
 		/// Provider for existential deposits of assets.
-		type ExistentialDeposits: GetByKey<Self::AssetId, Self::Balance>;
+		type ExistentialDeposits: GetByKey<AssetId, Self::Balance>;
 
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
@@ -148,13 +136,13 @@ pub mod pallet {
 	/// Registered bond ids.
 	/// Maps (underlying asset ID, maturity) -> bond ID
 	#[pallet::getter(fn bond_id)]
-	pub(super) type BondIds<T: Config> = StorageMap<_, Blake2_128Concat, (T::AssetId, Moment), T::AssetId>;
+	pub(super) type BondIds<T: Config> = StorageMap<_, Blake2_128Concat, (AssetId, Moment), AssetId>;
 
 	#[pallet::storage]
 	/// Registered bonds.
 	/// Maps bond ID -> (underlying asset ID, maturity)
 	#[pallet::getter(fn bond)]
-	pub(super) type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (T::AssetId, Moment)>;
+	pub(super) type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, AssetId, (AssetId, Moment)>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -162,21 +150,21 @@ pub mod pallet {
 		/// A bond asset was registered
 		TokenCreated {
 			issuer: T::AccountId,
-			asset_id: T::AssetId,
-			bond_id: T::AssetId,
+			asset_id: AssetId,
+			bond_id: AssetId,
 			maturity: Moment,
 		},
 		/// New bond were issued
 		Issued {
 			issuer: T::AccountId,
-			bond_id: T::AssetId,
+			bond_id: AssetId,
 			amount: T::Balance,
 			fee: T::Balance,
 		},
 		/// Bonds were redeemed
 		Redeemed {
 			who: T::AccountId,
-			bond_id: T::AssetId,
+			bond_id: AssetId,
 			amount: T::Balance,
 		},
 	}
@@ -219,12 +207,7 @@ pub mod pallet {
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::issue())]
-		pub fn issue(
-			origin: OriginFor<T>,
-			asset_id: T::AssetId,
-			amount: T::Balance,
-			maturity: Moment,
-		) -> DispatchResult {
+		pub fn issue(origin: OriginFor<T>, asset_id: AssetId, amount: T::Balance, maturity: Moment) -> DispatchResult {
 			let who = T::IssueOrigin::ensure_origin(origin)?;
 
 			ensure!(
@@ -244,8 +227,8 @@ pub mod pallet {
 
 					let ed = T::ExistentialDeposits::get(&asset_id);
 
-					let bond_id = <T::AssetRegistry as CreateRegistry<T::AssetId, T::Balance>>::create_asset(
-						&[],
+					let bond_id = <T::AssetRegistry as CreateRegistry<AssetId, T::Balance>>::create_asset(
+						&Self::bond_name(asset_id, maturity),
 						AssetKind::Bond,
 						ed,
 					)?;
@@ -292,7 +275,7 @@ pub mod pallet {
 		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::redeem())]
-		pub fn redeem(origin: OriginFor<T>, bond_id: T::AssetId, amount: T::Balance) -> DispatchResult {
+		pub fn redeem(origin: OriginFor<T>, bond_id: AssetId, amount: T::Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let (underlying_asset_id, maturity) = Self::bond(bond_id).ok_or(Error::<T>::NotRegistered)?;
@@ -319,5 +302,16 @@ impl<T: Config> Pallet<T> {
 	/// value and only call this once.
 	pub fn pallet_account_id() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
+	}
+
+	/// Return bond token name
+	pub fn bond_name(asset_id: AssetId, when: Moment) -> Vec<u8> {
+		let mut buf: Vec<u8> = Vec::new();
+
+		buf.extend_from_slice(&asset_id.to_le_bytes());
+		buf.extend_from_slice(b".");
+		buf.extend_from_slice(&when.to_le_bytes());
+
+		buf
 	}
 }

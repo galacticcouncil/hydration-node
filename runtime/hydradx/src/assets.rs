@@ -500,7 +500,6 @@ impl Contains<AssetKind> for AssetTypeWhitelist {
 
 impl pallet_bonds::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AssetId = AssetId;
 	type Balance = Balance;
 	type Currency = Currencies;
 	type AssetRegistry = AssetRegistry;
