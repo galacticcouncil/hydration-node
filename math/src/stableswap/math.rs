@@ -16,7 +16,7 @@ const PRECISION: u8 = 1;
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
 /// D - number of iterations to use for Newton's formula to calculate parameter D ( it should be >=1 otherwise it wont converge at all and will always fail
-/// Y - number of iterations to use for Dewton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
+/// Y - number of iterations to use for Newton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
 pub fn calculate_out_given_in<const D: u8, const Y: u8>(
 	balances: &[AssetReserve],
 	idx_in: usize,
