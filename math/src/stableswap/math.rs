@@ -562,7 +562,7 @@ mod tests {
 		let decimals = 12;
 		let target_decimals = 18;
 		let expected: Balance = 1_000_000_000_000_000_000;
-		let actual = normalize_value(amount, decimals, target_decimals, Rounding::Up);
+		let actual = normalize_value(amount, decimals, target_decimals, Rounding::Down);
 		assert_eq!(actual, expected);
 	}
 
