@@ -548,7 +548,7 @@ mod tests {
 
 	#[test]
 	fn test_normalize_value_same_decimals() {
-		let amount = 1_000_000_000_000_000;
+		let amount = 1_000_000_000_000;
 		let decimals = 12;
 		let target_decimals = 12;
 		let expected: Balance = amount;
