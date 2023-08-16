@@ -24,7 +24,7 @@ fn amplification() -> impl Strategy<Value = Balance> {
 }
 
 fn trade_pair(size: usize) -> impl Strategy<Value = (usize, usize)> {
-	((0..size, 0..size))
+	(0..size, 0..size)
 		.prop_filter("cannot be equal", |(i, j)| i != j)
 		.prop_map(|(i, j)| (i, j))
 }
