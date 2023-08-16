@@ -1,4 +1,4 @@
-use crate::stableswap::types::{target_precision, AssetReserve};
+use crate::stableswap::types::AssetReserve;
 use crate::to_u256;
 use crate::types::Balance;
 use num_traits::{CheckedDiv, CheckedMul, One, Zero};
@@ -9,6 +9,8 @@ use sp_std::prelude::*;
 
 pub const MAX_Y_ITERATIONS: u8 = 128;
 pub const MAX_D_ITERATIONS: u8 = 64;
+
+const TARGET_PRECISION: u8 = 18;
 
 const PRECISION: u8 = 1;
 
@@ -25,13 +27,12 @@ pub fn calculate_out_given_in<const D: u8, const Y: u8>(
 	if idx_in >= balances.len() || idx_out >= balances.len() {
 		return None;
 	}
-	let target_precision = target_precision(balances);
 	let reserves = normalize_reserves(balances);
-	let amount_in = normalize_value(amount_in, balances[idx_in].decimals, target_precision, Rounding::Down);
+	let amount_in = normalize_value(amount_in, balances[idx_in].decimals, TARGET_PRECISION, Rounding::Down);
 	let new_reserve_out = calculate_y_given_in::<D, Y>(amount_in, idx_in, idx_out, &reserves, amplification)?;
 
 	let amount_out = reserves[idx_out].checked_sub(new_reserve_out)?;
-	let amount_out = normalize_value(amount_out, target_precision, balances[idx_out].decimals, Rounding::Down);
+	let amount_out = normalize_value(amount_out, TARGET_PRECISION, balances[idx_out].decimals, Rounding::Down);
 	Some(amount_out)
 }
 
@@ -48,12 +49,11 @@ pub fn calculate_in_given_out<const D: u8, const Y: u8>(
 	if idx_in >= balances.len() || idx_out >= balances.len() {
 		return None;
 	}
-	let target_precision = target_precision(balances);
 	let reserves = normalize_reserves(balances);
-	let amount_out = normalize_value(amount_out, balances[idx_out].decimals, target_precision, Rounding::Down);
+	let amount_out = normalize_value(amount_out, balances[idx_out].decimals, TARGET_PRECISION, Rounding::Down);
 	let new_reserve_in = calculate_y_given_out::<D, Y>(amount_out, idx_in, idx_out, &reserves, amplification)?;
 	let amount_in = new_reserve_in.checked_sub(reserves[idx_in])?;
-	let amount_in = normalize_value(amount_in, target_precision, balances[idx_in].decimals, Rounding::Up);
+	let amount_in = normalize_value(amount_in, TARGET_PRECISION, balances[idx_in].decimals, Rounding::Up);
 	Some(amount_in)
 }
 
@@ -139,7 +139,7 @@ pub fn calculate_shares_for_amount<const D: u8>(
 	let amount = normalize_value(
 		amount,
 		initial_reserves[asset_idx].decimals,
-		target_precision(&initial_reserves),
+		TARGET_PRECISION,
 		Rounding::Down,
 	);
 	let n_coins = initial_reserves.len();
@@ -217,7 +217,6 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 	if n_coins <= 1 {
 		return None;
 	}
-	let target_precision = target_precision(reserves);
 	let asset_out_decimals = reserves[asset_index].decimals;
 	let reserves = normalize_reserves(reserves);
 
@@ -277,8 +276,8 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 
 	let fee = dy_0.checked_sub(dy)?;
 
-	let amount_out = normalize_value(dy, target_precision, asset_out_decimals, Rounding::Down);
-	let fee = normalize_value(fee, target_precision, asset_out_decimals, Rounding::Down);
+	let amount_out = normalize_value(dy, TARGET_PRECISION, asset_out_decimals, Rounding::Down);
+	let fee = normalize_value(fee, TARGET_PRECISION, asset_out_decimals, Rounding::Down);
 	Some((amount_out, fee))
 }
 
@@ -411,10 +410,9 @@ pub fn calculate_y<const D: u8>(
 	amplification: Balance,
 	asset_precision: u8,
 ) -> Option<Balance> {
-	let prec = target_precision(reserves);
 	let balances = normalize_reserves(reserves);
 	let y = calculate_y_internal::<D>(&balances, d, amplification)?;
-	Some(normalize_value(y, prec, asset_precision, Rounding::Down))
+	Some(normalize_value(y, TARGET_PRECISION, asset_precision, Rounding::Down))
 }
 
 fn calculate_y_internal<const D: u8>(xp: &[Balance], d: Balance, amplification: Balance) -> Option<Balance> {
@@ -523,10 +521,9 @@ fn calculate_fee_amount(amount: Balance, fee: Permill, rounding: Rounding) -> Ba
 }
 
 pub(crate) fn normalize_reserves(reserves: &[AssetReserve]) -> Vec<Balance> {
-	let t = target_precision(reserves);
 	reserves
 		.iter()
-		.map(|v| normalize_value(v.amount, v.decimals, t, Rounding::Down))
+		.map(|v| normalize_value(v.amount, v.decimals, TARGET_PRECISION, Rounding::Down))
 		.collect()
 }
 

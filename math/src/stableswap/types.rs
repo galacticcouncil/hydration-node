@@ -27,7 +27,3 @@ impl From<&AssetReserve> for u128 {
 		value.amount
 	}
 }
-
-pub(crate) fn target_precision(_reserves: &[AssetReserve]) -> u8 {
-	18u8
-}
