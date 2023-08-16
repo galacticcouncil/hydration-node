@@ -104,7 +104,7 @@ fn calculate_share_for_amount_should_return_correct_shares() {
 
 	let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
-		result  + 3000,
+		result + 3000,
 		0,
 		issuance,
 		amp,
@@ -129,15 +129,9 @@ fn calculate_share_for_amount_should_return_correct_shares_when_fee_applied() {
 
 	assert_eq!(result, 40002502575973340332);
 
-	let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
-		&balances,
-		result + 3000,
-		0,
-		issuance,
-		amp,
-		fee,
-	)
-	.unwrap();
+	let result =
+		calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(&balances, result + 3000, 0, issuance, amp, fee)
+			.unwrap();
 	assert_eq!(result, (amount, 0));
 }
 

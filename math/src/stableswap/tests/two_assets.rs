@@ -6,11 +6,13 @@ use crate::stableswap::types::AssetReserve;
 use crate::stableswap::*;
 use sp_arithmetic::Permill;
 
-/*
 #[test]
 fn test_d() {
 	let reserves = [1000u128, 1000u128];
-	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1), Some(2000u128 + 2u128));
+	assert_eq!(
+		calculate_d_internal::<D_ITERATIONS>(&reserves, 1),
+		Some(2000u128 + 2u128)
+	);
 
 	let reserves = [1_000_000_000_000_000_000_000u128, 1_000_000_000_000_000_000_000u128];
 	assert_eq!(
@@ -95,8 +97,6 @@ fn test_case_03() {
 
 	assert!(d.is_some());
 }
-
- */
 
 #[test]
 fn test_shares() {
