@@ -60,9 +60,9 @@ where
 	{
 		self.assets
 			.iter()
-			.map(|asset| (*asset, T::Currency::free_balance((*asset).into(), account)))
-			.map(|(asset, reserve)| {
-				let decimals = Pallet::<T>::retrieve_decimals(asset.into());
+			.map(|asset| {
+				let reserve = T::Currency::free_balance((*asset).into(), account);
+				let decimals = Pallet::<T>::retrieve_decimals((*asset).into());
 				AssetReserve {
 					amount: reserve,
 					decimals,
