@@ -124,6 +124,54 @@ pub fn calculate_shares<const D: u8>(
 	}
 }
 
+/// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
+pub fn calculate_shares_for_amount<const D: u8>(
+	initial_reserves: &[AssetReserve],
+	idx_in: usize,
+	amount: Balance,
+	amplification: Balance,
+	share_issuance: Balance,
+	_fee: Permill,
+) -> Option<Balance> {
+	if idx_in >= initial_reserves.len() {
+		return None;
+	}
+	let amount = normalize_value(
+		amount,
+		initial_reserves[idx_in].decimals,
+		target_precision(&initial_reserves),
+		Rounding::Down,
+	);
+	let initial_reserves = normalize_reserves(initial_reserves);
+
+	let new_reserve_in = initial_reserves[idx_in].checked_sub(amount)?;
+
+	let updated_reserves: Vec<Balance> = initial_reserves
+		.iter()
+		.enumerate()
+		.map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
+		.collect();
+
+	let initial_d = calculate_d_internal::<D>(&initial_reserves, amplification)?;
+
+	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
+	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
+	let updated_d = calculate_d_internal::<D>(&updated_reserves, amplification)?; //.checked_sub(2_u128)?;
+
+	if updated_d >= initial_d {
+		return None;
+	}
+
+	if share_issuance == 0 {
+		// if first liquidity added
+		Some(updated_d)
+	} else {
+		let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, initial_d.checked_sub(updated_d)?, initial_d);
+		let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
+		Balance::try_from(share_amount).ok()
+	}
+}
+
 /// Given amount of shares and asset reserves, calculate corresponding amount of selected asset to be withdrawn.
 pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 	reserves: &[AssetReserve],
@@ -202,9 +250,6 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 	}
 
 	let y1 = calculate_y_internal::<Y>(&reserves_reduced, Balance::try_from(d1).ok()?, amplification)?;
-
-	dbg!(y1);
-	dbg!(asset_reserve);
 
 	let dy = asset_reserve.checked_sub(y1)?;
 

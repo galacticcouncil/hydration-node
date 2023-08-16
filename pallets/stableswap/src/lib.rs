@@ -45,7 +45,7 @@ extern crate core;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::traits::fungibles::Inspect;
 use frame_support::{ensure, require_transactional, transactional};
-use hydradx_traits::{AccountIdFor, Registry};
+use hydradx_traits::AccountIdFor;
 use sp_runtime::traits::{BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
@@ -593,6 +593,68 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset())]
+		#[transactional]
+		pub fn withdraw_asset_amount(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			asset_id: T::AssetId,
+			amount: Balance,
+			max_share_amount: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(
+				Self::is_asset_allowed(pool_id, asset_id, Tradability::REMOVE_LIQUIDITY),
+				Error::<T>::NotAllowed
+			);
+
+			ensure!(amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
+			let pool_account = Self::pool_account(pool_id);
+			let balances = pool.balances::<T>(&pool_account);
+			let share_issuance = T::Currency::total_issuance(pool_id);
+			let amplification = Self::get_amplification(&pool);
+
+			let shares = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
+				&balances,
+				asset_idx,
+				amount,
+				amplification,
+				share_issuance,
+				pool.withdraw_fee,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(shares <= max_share_amount, Error::<T>::SellLimitExceeded);
+
+			let current_share_balance = T::Currency::free_balance(pool_id, &who);
+
+			ensure!(
+				current_share_balance == shares
+					|| current_share_balance.saturating_sub(shares) >= T::MinPoolLiquidity::get(),
+				Error::<T>::InsufficientShareBalance
+			);
+			T::Currency::withdraw(pool_id, &who, shares)?;
+			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
+
+			Self::deposit_event(Event::LiquidityRemoved {
+				pool_id,
+				who,
+				shares,
+				amounts: vec![AssetAmount {
+					asset_id,
+					amount,
+					..Default::default()
+				}],
+				fee: 0u128, // TODO: Fix
+			});
+
+			Ok(())
+		}
+
 		/// Execute a swap of `asset_in` for `asset_out` by specifying how much to put in.
 		///
 		/// Parameters:
@@ -605,7 +667,7 @@ pub mod pallet {
 		///
 		/// Emits `SellExecuted` event when successful.
 		///
-		#[pallet::call_index(5)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		#[transactional]
 		pub fn sell(
@@ -667,7 +729,7 @@ pub mod pallet {
 		///
 		/// Emits `BuyExecuted` event when successful.
 		///
-		#[pallet::call_index(6)]
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		#[transactional]
 		pub fn buy(
@@ -718,7 +780,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(7)]
+		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
 		#[transactional]
 		pub fn set_asset_tradable_state(

@@ -89,6 +89,32 @@ fn calculate_in_given_out_should_fail_when_asset_idx_is_incorrect() {
 }
 
 #[test]
+fn calculate_share_for_amount_should_return_correct_shares() {
+	let amp = 100_u128;
+
+	let balances = [AssetReserve::new(10_000_000_000_000_000, 12); MAX_BALANCES];
+
+	let amount: Balance = 100_000_000_000_000;
+	let issuance: Balance = 20_000_000_000_000_000_000_000;
+
+	let result =
+		calculate_shares_for_amount::<D_ITERATIONS>(&balances, 0, amount, amp, issuance, Permill::zero()).unwrap();
+
+	assert_eq!(result, 40000002575489444433);
+
+	let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		result + 100,
+		0,
+		issuance,
+		amp,
+		Permill::zero(),
+	)
+	.unwrap();
+	assert_eq!(result, (amount, 0));
+}
+
+#[test]
 fn calculate_shares_should_work_when_correct_input_provided() {
 	let amp = 100_u128;
 

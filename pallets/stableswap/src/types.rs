@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{Config, Pallet, MAX_ASSETS_IN_POOL};
-use sp_runtime::{Permill, Saturating};
+use sp_runtime::Permill;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
@@ -14,7 +14,6 @@ use hydra_dx_math::stableswap::types::AssetReserve;
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
-use sp_runtime::traits::Zero;
 
 pub(crate) type Balance = u128;
 

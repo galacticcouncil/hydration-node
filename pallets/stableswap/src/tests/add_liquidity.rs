@@ -2,8 +2,6 @@ use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
 use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok};
-use hydra_dx_math::stableswap::types::AssetReserve;
-use hydra_dx_math::stableswap::{calculate_d, stable_swap_equation};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 

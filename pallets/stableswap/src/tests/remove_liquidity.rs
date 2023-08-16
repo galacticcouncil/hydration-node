@@ -514,7 +514,6 @@ fn scenario_add_remove_with_different_decimals() {
 				0,
 			));
 
-			let balance_sold = Tokens::free_balance(asset_c, &BOB);
 			let balance_received = Tokens::free_balance(asset_a, &BOB);
 			//assert_eq!(balance_received, 9999703908493044130); //before decimals fix
 			assert_eq!(balance_received, 19_999_999_955_560_493_353);
