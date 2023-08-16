@@ -580,3 +580,287 @@ fn scenario_sell_with_different_decimals() {
 			assert_eq!(balance_received, 19_999_999_955_560_493_356);
 		});
 }
+
+#[test]
+fn withdrawing_shares_should_work_when_specifying_amount() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 200 * ONE),
+			(ALICE, asset_a, 100 * ONE),
+			(ALICE, asset_b, 200 * ONE),
+			(ALICE, asset_c, 300 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				trade_fee: Permill::from_percent(0),
+				withdraw_fee: Permill::from_percent(0),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 200 * ONE),
+					AssetAmount::new(asset_c, 300 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+
+			let amount_added = 200 * ONE;
+
+			let pool_account = pool_account(pool_id);
+
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				vec![AssetAmount::new(asset_a, amount_added),]
+			));
+
+			let shares = Tokens::free_balance(pool_id, &BOB);
+			dbg!(shares);
+
+			assert_ok!(Stableswap::withdraw_asset_amount(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_c,
+				10 * ONE,
+				shares,
+			));
+
+			let remaining_shares = Tokens::free_balance(pool_id, &BOB);
+			assert!(remaining_shares < shares);
+
+			let shares_used = shares - remaining_shares;
+			assert_eq!(shares_used, 9998623788461936015);
+			assert_balance!(BOB, asset_a, 0u128);
+			assert_balance!(BOB, asset_c, 10 * ONE);
+			assert_balance!(pool_account, asset_c, 300 * ONE - 10 * ONE);
+		});
+}
+
+#[test]
+fn scenario_111() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 200 * ONE),
+			(ALICE, asset_a, 100 * ONE),
+			(ALICE, asset_b, 200 * ONE),
+			(ALICE, asset_c, 300 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				trade_fee: Permill::from_percent(0),
+				withdraw_fee: Permill::from_percent(0),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 200 * ONE),
+					AssetAmount::new(asset_c, 300 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+
+			let amount_added = 200 * ONE;
+
+			let pool_account = pool_account(pool_id);
+
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				vec![AssetAmount::new(asset_a, amount_added),]
+			));
+
+			let shares = Tokens::free_balance(pool_id, &BOB);
+
+			assert_eq!(shares, 200058123010663078868);
+
+			assert_ok!(Stableswap::remove_liquidity_one_asset(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_c,
+				9998623788461936015 + 3000,
+				10 * ONE,
+			));
+
+			let remaining_shares = Tokens::free_balance(pool_id, &BOB);
+			assert!(remaining_shares < shares);
+
+			assert_balance!(BOB, asset_a, 0u128);
+			assert_balance!(BOB, asset_c, 10 * ONE);
+			assert_balance!(pool_account, asset_c, 300 * ONE - 10 * ONE);
+		});
+}
+
+#[test]
+fn withdrawing_shares_should_work_when_specifying_amount_with_fee() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 200 * ONE),
+			(ALICE, asset_a, 100 * ONE),
+			(ALICE, asset_b, 200 * ONE),
+			(ALICE, asset_c, 300 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				trade_fee: Permill::from_percent(0),
+				withdraw_fee: Permill::from_percent(1),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 200 * ONE),
+					AssetAmount::new(asset_c, 300 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+
+			let amount_added = 200 * ONE;
+
+			let pool_account = pool_account(pool_id);
+
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				vec![AssetAmount::new(asset_a, amount_added),]
+			));
+
+			let shares = Tokens::free_balance(pool_id, &BOB);
+
+			assert_ok!(Stableswap::withdraw_asset_amount(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_c,
+				10 * ONE,
+				shares,
+			));
+
+			let remaining_shares = Tokens::free_balance(pool_id, &BOB);
+			assert!(remaining_shares < shares);
+
+			let shares_used = shares - remaining_shares;
+			assert_eq!(shares_used, 10012682868600111884);
+			assert_balance!(BOB, asset_a, 0u128);
+			assert_balance!(BOB, asset_c, 10 * ONE);
+			assert_balance!(pool_account, asset_c, 300 * ONE - 10 * ONE);
+		});
+}
+
+#[test]
+fn scenario_112() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 200 * ONE),
+			(ALICE, asset_a, 100 * ONE),
+			(ALICE, asset_b, 200 * ONE),
+			(ALICE, asset_c, 300 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				trade_fee: Permill::from_percent(0),
+				withdraw_fee: Permill::from_percent(1),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 200 * ONE),
+					AssetAmount::new(asset_c, 300 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+
+			let amount_added = 200 * ONE;
+
+			let pool_account = pool_account(pool_id);
+
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				vec![AssetAmount::new(asset_a, amount_added),]
+			));
+
+			let shares = Tokens::free_balance(pool_id, &BOB);
+			assert_eq!(shares, 200058123010663078868);
+
+			assert_ok!(Stableswap::remove_liquidity_one_asset(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_c,
+				10012682868600111884,
+				9 * ONE,
+			));
+
+			let remaining_shares = Tokens::free_balance(pool_id, &BOB);
+			assert!(remaining_shares < shares);
+
+			assert_balance!(BOB, asset_a, 0u128);
+			assert_balance!(BOB, asset_c, 10 * ONE);
+			assert_balance!(pool_account, asset_c, 300 * ONE - 10 * ONE);
+		});
+}

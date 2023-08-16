@@ -1,9 +1,9 @@
+use super::stable_swap_equation;
 use crate::stableswap::types::AssetReserve;
 use crate::stableswap::*;
 use crate::types::Balance;
 use proptest::prelude::*;
 use proptest::proptest;
-use super::stable_swap_equation;
 
 const D_ITERATIONS: u8 = 128;
 const Y_ITERATIONS: u8 = 64;
@@ -304,6 +304,46 @@ proptest! {
 			.collect();
 		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp).unwrap();
 		assert!(d1 >= d0);
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn remove_liquidity_invariant(
+		pool in some_pool(3),
+		amount in trade_amount(),
+		amp in amplification(),
+		(_, idx_out) in trade_pair(3),
+	) {
+		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp).unwrap();
+		let amount = to_precision(amount, 18u8);
+
+		let balances = pool
+			.iter()
+			.map(|v| normalize_value(v.amount, v.decimals, 18u8, Rounding::Down))
+			.collect::<Vec<Balance>>();
+		let issuance = balances.iter().sum();
+
+		let amount_out = calculate_withdraw_one_asset::<D_ITERATIONS,Y_ITERATIONS>(&pool, amount, idx_out, issuance, amp, Permill::zero()).unwrap();
+		let updated_pool: Vec<AssetReserve> = pool
+			.into_iter()
+			.enumerate()
+			.map(|(idx, v)| {
+				if idx == idx_out {
+					AssetReserve::new(v.amount - amount_out.0, v.decimals)
+				} else {
+					v
+				}
+			})
+			.collect();
+		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp).unwrap();
+		assert!(d1 < d0);
+		let balances = updated_pool
+			.iter()
+			.map(|v| normalize_value(v.amount, v.decimals, 18u8, Rounding::Down))
+			.collect::<Vec<Balance>>();
+		assert!(stable_swap_equation(d1,amp, &balances));
 	}
 }
 

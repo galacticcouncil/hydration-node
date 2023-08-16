@@ -38,5 +38,5 @@ pub fn stable_swap_equation(d: Balance, amplification: Balance, balances: &[Bala
 	let r = nom.checked_div(denom).unwrap();
 	let side2 = side2_01.checked_add(r).unwrap();
 	let diff = U512::from(side1).abs_diff(side2);
-	diff <= U512::from(1_000_000_000)
+	diff <= U512::from(1_000_000_000u128)
 }

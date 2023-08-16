@@ -311,6 +311,9 @@ pub mod pallet {
 
 		/// Desired amount not reached.
 		MinimumAmountNotReached,
+
+		/// Slippage
+		SlippageLimit,
 	}
 
 	#[pallet::call]
@@ -628,7 +631,7 @@ pub mod pallet {
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
-			ensure!(shares <= max_share_amount, Error::<T>::SellLimitExceeded);
+			ensure!(shares <= max_share_amount, Error::<T>::SlippageLimit);
 
 			let current_share_balance = T::Currency::free_balance(pool_id, &who);
 

@@ -100,15 +100,42 @@ fn calculate_share_for_amount_should_return_correct_shares() {
 	let result =
 		calculate_shares_for_amount::<D_ITERATIONS>(&balances, 0, amount, amp, issuance, Permill::zero()).unwrap();
 
-	assert_eq!(result, 40000002575489444433);
+	assert_eq!(result, 40000002575489444434);
 
 	let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
-		result + 100,
+		result  + 3000,
 		0,
 		issuance,
 		amp,
 		Permill::zero(),
+	)
+	.unwrap();
+	assert_eq!(result, (amount, 0));
+}
+
+#[test]
+fn calculate_share_for_amount_should_return_correct_shares_when_fee_applied() {
+	let amp = 100_u128;
+
+	let fee = Permill::from_float(0.001);
+
+	let balances = [AssetReserve::new(10_000_000_000_000_000, 12); MAX_BALANCES];
+
+	let amount: Balance = 100_000_000_000_000;
+	let issuance: Balance = 20_000_000_000_000_000_000_000;
+
+	let result = calculate_shares_for_amount::<D_ITERATIONS>(&balances, 0, amount, amp, issuance, fee).unwrap();
+
+	assert_eq!(result, 40002502575973340332);
+
+	let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+		&balances,
+		result + 3000,
+		0,
+		issuance,
+		amp,
+		fee,
 	)
 	.unwrap();
 	assert_eq!(result, (amount, 0));

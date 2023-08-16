@@ -127,49 +127,66 @@ pub fn calculate_shares<const D: u8>(
 /// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
 pub fn calculate_shares_for_amount<const D: u8>(
 	initial_reserves: &[AssetReserve],
-	idx_in: usize,
+	asset_idx: usize,
 	amount: Balance,
 	amplification: Balance,
 	share_issuance: Balance,
-	_fee: Permill,
+	fee: Permill,
 ) -> Option<Balance> {
-	if idx_in >= initial_reserves.len() {
+	if asset_idx >= initial_reserves.len() {
 		return None;
 	}
 	let amount = normalize_value(
 		amount,
-		initial_reserves[idx_in].decimals,
+		initial_reserves[asset_idx].decimals,
 		target_precision(&initial_reserves),
 		Rounding::Down,
 	);
+	let n_coins = initial_reserves.len();
+	let fixed_fee = FixedU128::from(fee);
+	let fee = fixed_fee
+		.checked_mul(&FixedU128::from(n_coins as u128))?
+		.checked_div(&FixedU128::from(4 * (n_coins - 1) as u128))?;
+
 	let initial_reserves = normalize_reserves(initial_reserves);
 
-	let new_reserve_in = initial_reserves[idx_in].checked_sub(amount)?;
+	let new_reserve_in = initial_reserves[asset_idx].checked_sub(amount)?;
 
 	let updated_reserves: Vec<Balance> = initial_reserves
 		.iter()
 		.enumerate()
-		.map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
+		.map(|(idx, v)| if idx == asset_idx { new_reserve_in } else { *v })
 		.collect();
 
 	let initial_d = calculate_d_internal::<D>(&initial_reserves, amplification)?;
+	let updated_d = calculate_d_internal::<D>(&updated_reserves, amplification)?;
 
-	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
-	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-	let updated_d = calculate_d_internal::<D>(&updated_reserves, amplification)?; //.checked_sub(2_u128)?;
+	let (d1, d0, asset_reserve) = to_u256!(updated_d, initial_d, initial_reserves[asset_idx]);
 
-	if updated_d >= initial_d {
-		return None;
-	}
+	let ideal_balance = d1.checked_mul(asset_reserve)?.checked_div(d0)?;
 
-	if share_issuance == 0 {
-		// if first liquidity added
-		Some(updated_d)
-	} else {
-		let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, initial_d.checked_sub(updated_d)?, initial_d);
-		let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
-		Balance::try_from(share_amount).ok()
-	}
+	let diff = Balance::try_from(asset_reserve.abs_diff(ideal_balance)).ok()?;
+
+	let fee_amount = fee.checked_mul_int(diff)?;
+
+	let adjusted_balances: Vec<Balance> = updated_reserves
+		.iter()
+		.enumerate()
+		.map(|(idx, v)| {
+			if idx == asset_idx {
+				v.saturating_sub(fee_amount)
+			} else {
+				*v
+			}
+		})
+		.collect();
+
+	let adjusted_d = calculate_d_internal::<D>(&adjusted_balances, amplification)?;
+
+	let (d_diff, issuance_hp) = to_u256!(initial_d.checked_sub(adjusted_d)?, share_issuance);
+
+	let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?.checked_add(U256::one())?;
+	Balance::try_from(share_amount).ok()
 }
 
 /// Given amount of shares and asset reserves, calculate corresponding amount of selected asset to be withdrawn.
