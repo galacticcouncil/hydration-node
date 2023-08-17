@@ -1,4 +1,5 @@
 pub mod balances;
+pub mod bonds;
 pub mod circuit_breaker;
 pub mod claims;
 pub mod collator_selection;
@@ -18,6 +19,7 @@ pub mod proxy;
 pub mod registry;
 pub mod route_executor;
 pub mod scheduler;
+pub mod staking;
 pub mod system;
 pub mod technical_comittee;
 pub mod timestamp;

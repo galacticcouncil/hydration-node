@@ -5,6 +5,8 @@ pub trait Registry<AssetId, AssetName, Balance, Error> {
 
 	fn retrieve_asset(name: &AssetName) -> Result<AssetId, Error>;
 
+	fn retrieve_asset_type(asset_id: AssetId) -> Result<AssetKind, Error>;
+
 	fn create_asset(name: &AssetName, existential_deposit: Balance) -> Result<AssetId, Error>;
 
 	fn get_or_create_asset(name: AssetName, existential_deposit: Balance) -> Result<AssetId, Error> {

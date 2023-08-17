@@ -11,7 +11,7 @@ use frame_support::{
 };
 pub use hydradx_runtime::{AccountId, NativeExistentialDeposit, Treasury, VestingPalletId};
 use pallet_transaction_multi_payment::Price;
-pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance};
+pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};
 
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
@@ -50,6 +50,8 @@ pub const DOT: AssetId = 3;
 pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
+
+pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
 decl_test_relay_chain! {
 	pub struct PolkadotRelay {
@@ -186,7 +188,7 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 
 pub fn hydra_ext() -> sp_io::TestExternalities {
 	use frame_support::traits::OnInitialize;
-	use hydradx_runtime::{MultiTransactionPayment, Runtime, System};
+	use hydradx_runtime::{MultiTransactionPayment, Runtime, System, Timestamp};
 
 	let stable_amount = 50_000 * UNITS * 1_000_000;
 	let native_amount = 936_329_588_000_000_000;
@@ -194,6 +196,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	let eth_amount = 63_750_000_000_000_000_000u128;
 	let btc_amount = 1_000_000_000u128;
 	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+	let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 
 	let existential_deposit = NativeExistentialDeposit::get();
 
@@ -209,6 +212,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(DAVE), 1_000 * UNITS),
 			(omnipool_account.clone(), native_amount),
 			(vesting_account(), 10_000 * UNITS),
+			(staking_account, UNITS),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -222,6 +226,8 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(b"ETH".to_vec(), 1_000u128, Some(ETH)),
 			(b"BTC".to_vec(), 1_000u128, Some(BTC)),
 			(b"ACA".to_vec(), 1_000u128, Some(ACA)),
+			// workaround for next_asset_id() to return correct values
+			(b"DUMMY".to_vec(), 1_000u128, None),
 		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,
@@ -294,6 +300,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| {
 		System::set_block_number(1);
+		Timestamp::set_timestamp(NOW);
 		// Make sure the prices are up-to-date.
 		MultiTransactionPayment::on_initialize(1);
 	});

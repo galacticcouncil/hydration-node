@@ -44,17 +44,29 @@ impl<AssetId> From<AssetKind> for AssetType<AssetId> {
 	}
 }
 
+impl<AssetId> From<AssetType<AssetId>> for AssetKind {
+	fn from(value: AssetType<AssetId>) -> Self {
+		match value {
+			AssetType::Token => Self::Token,
+			AssetType::PoolShare(_, _) => Self::XYK,
+			AssetType::XYK => Self::XYK,
+			AssetType::StableSwap => Self::StableSwap,
+			AssetType::Bond => Self::Bond,
+		}
+	}
+}
+
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AssetDetails<AssetId, Balance, BoundedString> {
 	/// The name of this asset. Limited in length by `StringLimit`.
-	pub(super) name: BoundedString,
+	pub name: BoundedString,
 
-	pub(super) asset_type: AssetType<AssetId>,
+	pub asset_type: AssetType<AssetId>,
 
-	pub(super) existential_deposit: Balance,
+	pub existential_deposit: Balance,
 
-	pub(super) xcm_rate_limit: Option<Balance>,
+	pub xcm_rate_limit: Option<Balance>,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
