@@ -21,16 +21,23 @@
 
 use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
-	Aura,
+	AssetLocation, Aura,
 };
+use frame_support::traits::Defensive;
 use frame_support::{
 	parameter_types,
 	traits::FindAuthor,
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 	ConsensusEngineId,
 };
+use hex_literal::hex;
+use hydradx_traits::Registry;
+use orml_tokens::CurrencyAdapter;
 use pallet_evm::EnsureAddressTruncated;
-use sp_core::U256;
+use polkadot_xcm::latest::MultiLocation;
+use polkadot_xcm::prelude::{AccountKey20, Here, PalletInstance, Parachain, X3};
+use primitives::AssetId;
+use sp_core::{Get, U256};
 use sp_runtime::Permill;
 
 mod accounts_conversion;
@@ -74,13 +81,41 @@ parameter_types! {
 	pub WeightPerGas: Weight = Weight::from_ref_time(WEIGHT_PER_GAS);
 }
 
+const MOONBEAM_PARA_ID: u32 = 2004;
+const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(MultiLocation {
+	parents: 1,
+	interior: X3(
+		Parachain(MOONBEAM_PARA_ID),
+		PalletInstance(110),
+		AccountKey20 {
+			network: None,
+			key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
+		},
+	),
+});
+
+pub struct WethAssetId;
+impl Get<AssetId> for WethAssetId {
+	fn get() -> AssetId {
+		let invalid_id =
+			pallet_asset_registry::Pallet::<crate::Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
+
+		match pallet_asset_registry::Pallet::<crate::Runtime>::location_to_asset(WETH_ASSET_LOCATION) {
+			Some(asset_id) => asset_id,
+			None => invalid_id,
+		}
+	}
+}
+
+type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
+
 impl pallet_evm::Config for crate::Runtime {
 	type AddressMapping = ExtendedAddressMapping;
 	type BlockGasLimit = BlockGasLimit;
 	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
 	type CallOrigin = EnsureAddressTruncated;
 	type ChainId = crate::EVMChainId;
-	type Currency = crate::Balances;
+	type Currency = WethCurrency;
 	type FeeCalculator = crate::BaseFee;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
