@@ -1,4 +1,4 @@
-use crate::types::AssetBalance;
+use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use frame_support::ensure;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
@@ -8,6 +8,7 @@ use sp_runtime::{ArithmeticError, DispatchError, Permill};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec;
 use sp_std::vec::Vec;
+use hydra_dx_math::stableswap::types::AssetReserve;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
@@ -27,7 +28,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						.find_asset(asset_out)
 						.ok_or(ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let pool_account = Self::pool_account(pool_id);
-					let balances = pool.balances::<T>(&pool_account);
+					let balances = pool.balances::<T>(&pool_account).ok_or(ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 
 					let amplification = Self::get_amplification(&pool);
@@ -46,9 +47,10 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 				} else if asset_out == pool_id {
 					let share_amount = Self::calculate_shares(
 						pool_id,
-						&vec![AssetBalance {
+						&vec![AssetAmount{
 							asset_id: asset_in,
 							amount: amount_in,
+							..Default::default()
 						}],
 					)
 					.map_err(ExecutorError::Error)?;
@@ -87,7 +89,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						.find_asset(asset_in)
 						.ok_or(ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let pool_account = Self::pool_account(pool_id);
-					let balances = pool.balances::<T>(&pool_account);
+					let balances = pool.balances::<T>(&pool_account).ok_or(ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 
 					let amplification = Self::get_amplification(&pool);
@@ -109,11 +111,15 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 					let fee_amount = withdraw_fee.mul_ceil(amount_out);
 
+					/*
 					let shares_amount =
 						Self::calculate_shares_for_amount(pool_id, asset_out, amount_out.saturating_add(fee_amount))
 							.map_err(ExecutorError::Error)?;
 
 					Ok(shares_amount)
+					 */
+					todo!();
+
 				} else {
 					let (amount_in, _) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out)
 						.map_err(ExecutorError::Error)?;
@@ -143,9 +149,10 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					Self::add_liquidity(
 						who,
 						pool_id,
-						vec![AssetBalance {
+						vec![AssetAmount{
 							asset_id: asset_in,
 							amount: amount_in,
+							..Default::default()
 						}],
 					)
 					.map_err(ExecutorError::Error)
@@ -174,9 +181,10 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					Self::add_liquidity(
 						who,
 						pool_id,
-						vec![AssetBalance {
+						vec![AssetAmount{
 							asset_id: asset_in,
 							amount: shares_amount,
+							..Default::default()
 						}],
 					)
 					.map_err(ExecutorError::Error)

@@ -1,6 +1,7 @@
+use crate::stableswap::types::AssetReserve;
 use crate::to_u256;
 use crate::types::Balance;
-use num_traits::{CheckedDiv, CheckedMul, Zero};
+use num_traits::{CheckedDiv, CheckedMul, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::Div;
@@ -9,13 +10,15 @@ use sp_std::prelude::*;
 pub const MAX_Y_ITERATIONS: u8 = 128;
 pub const MAX_D_ITERATIONS: u8 = 64;
 
+const TARGET_PRECISION: u8 = 18;
+
 const PRECISION: u8 = 1;
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
-/// N - number of iterations to use for Newton's formula to calculate parameter D ( it should be >=1 otherwise it wont converge at all and will always fail
-/// N_Y - number of iterations to use for Newton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
-pub fn calculate_out_given_in<const N: u8, const N_Y: u8>(
-	balances: &[Balance],
+/// D - number of iterations to use for Newton's formula to calculate parameter D ( it should be >=1 otherwise it wont converge at all and will always fail
+/// Y - number of iterations to use for Newton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
+pub fn calculate_out_given_in<const D: u8, const Y: u8>(
+	balances: &[AssetReserve],
 	idx_in: usize,
 	idx_out: usize,
 	amount_in: Balance,
@@ -24,15 +27,20 @@ pub fn calculate_out_given_in<const N: u8, const N_Y: u8>(
 	if idx_in >= balances.len() || idx_out >= balances.len() {
 		return None;
 	}
-	let new_reserve_out = calculate_y_given_in::<N, N_Y>(amount_in, idx_in, idx_out, balances, amplification)?;
-	balances[idx_out].checked_sub(new_reserve_out)
+	let reserves = normalize_reserves(balances);
+	let amount_in = normalize_value(amount_in, balances[idx_in].decimals, TARGET_PRECISION, Rounding::Down);
+	let new_reserve_out = calculate_y_given_in::<D, Y>(amount_in, idx_in, idx_out, &reserves, amplification)?;
+
+	let amount_out = reserves[idx_out].checked_sub(new_reserve_out)?;
+	let amount_out = normalize_value(amount_out, TARGET_PRECISION, balances[idx_out].decimals, Rounding::Down);
+	Some(amount_out)
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
-/// N - number of iterations to use for Newton's formula ( it should be >=1 otherwise it wont converge at all and will always fail
-/// N_Y - number of iterations to use for Newton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
-pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
-	balances: &[Balance],
+/// D - number of iterations to use for Newton's formula ( it should be >=1 otherwise it wont converge at all and will always fail
+/// Y - number of iterations to use for Dewton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
+pub fn calculate_in_given_out<const D: u8, const Y: u8>(
+	balances: &[AssetReserve],
 	idx_in: usize,
 	idx_out: usize,
 	amount_out: Balance,
@@ -41,20 +49,24 @@ pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
 	if idx_in >= balances.len() || idx_out >= balances.len() {
 		return None;
 	}
-	let new_reserve_in = calculate_y_given_out::<N, N_Y>(amount_out, idx_in, idx_out, balances, amplification)?;
-	new_reserve_in.checked_sub(balances[idx_in])
+	let reserves = normalize_reserves(balances);
+	let amount_out = normalize_value(amount_out, balances[idx_out].decimals, TARGET_PRECISION, Rounding::Down);
+	let new_reserve_in = calculate_y_given_out::<D, Y>(amount_out, idx_in, idx_out, &reserves, amplification)?;
+	let amount_in = new_reserve_in.checked_sub(reserves[idx_in])?;
+	let amount_in = normalize_value(amount_in, TARGET_PRECISION, balances[idx_in].decimals, Rounding::Up);
+	Some(amount_in)
 }
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves and apply a fee.
-pub fn calculate_out_given_in_with_fee<const N: u8, const N_Y: u8>(
-	balances: &[Balance],
+pub fn calculate_out_given_in_with_fee<const D: u8, const Y: u8>(
+	balances: &[AssetReserve],
 	idx_in: usize,
 	idx_out: usize,
 	amount_in: Balance,
 	amplification: Balance,
 	fee: Permill,
 ) -> Option<(Balance, Balance)> {
-	let amount_out = calculate_out_given_in::<N, N_Y>(balances, idx_in, idx_out, amount_in, amplification)?;
+	let amount_out = calculate_out_given_in::<D, Y>(balances, idx_in, idx_out, amount_in, amplification)?;
 	let fee_amount = calculate_fee_amount(amount_out, fee, Rounding::Down);
 
 	let amount_out = amount_out.checked_sub(fee_amount)?;
@@ -63,15 +75,15 @@ pub fn calculate_out_given_in_with_fee<const N: u8, const N_Y: u8>(
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves with fee applied.
-pub fn calculate_in_given_out_with_fee<const N: u8, const N_Y: u8>(
-	balances: &[Balance],
+pub fn calculate_in_given_out_with_fee<const D: u8, const Y: u8>(
+	balances: &[AssetReserve],
 	idx_in: usize,
 	idx_out: usize,
 	amount_out: Balance,
 	amplification: Balance,
 	fee: Permill,
 ) -> Option<(Balance, Balance)> {
-	let amount_in = calculate_in_given_out::<N, N_Y>(balances, idx_in, idx_out, amount_out, amplification)?;
+	let amount_in = calculate_in_given_out::<D, Y>(balances, idx_in, idx_out, amount_out, amplification)?;
 	let fee_amount = calculate_fee_amount(amount_in, fee, Rounding::Up);
 
 	let amount_in = amount_in.checked_add(fee_amount)?;
@@ -80,21 +92,23 @@ pub fn calculate_in_given_out_with_fee<const N: u8, const N_Y: u8>(
 }
 
 /// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
-pub fn calculate_shares<const N: u8>(
-	initial_reserves: &[Balance],
-	updated_reserves: &[Balance],
+pub fn calculate_shares<const D: u8>(
+	initial_reserves: &[AssetReserve],
+	updated_reserves: &[AssetReserve],
 	amplification: Balance,
 	share_issuance: Balance,
 ) -> Option<Balance> {
 	if initial_reserves.len() != updated_reserves.len() {
 		return None;
 	}
+	let initial_reserves = normalize_reserves(initial_reserves);
+	let updated_reserves = normalize_reserves(updated_reserves);
 
-	let initial_d = calculate_d::<N>(initial_reserves, amplification)?;
+	let initial_d = calculate_d_internal::<D>(&initial_reserves, amplification)?;
 
 	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
 	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-	let updated_d = calculate_d::<N>(updated_reserves, amplification)?.checked_sub(2_u128)?;
+	let updated_d = calculate_d_internal::<D>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
 
 	if updated_d < initial_d {
 		return None;
@@ -110,9 +124,77 @@ pub fn calculate_shares<const N: u8>(
 	}
 }
 
+/// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
+pub fn calculate_shares_for_amount<const D: u8>(
+	initial_reserves: &[AssetReserve],
+	asset_idx: usize,
+	amount: Balance,
+	amplification: Balance,
+	share_issuance: Balance,
+	fee: Permill,
+) -> Option<Balance> {
+	if asset_idx >= initial_reserves.len() {
+		return None;
+	}
+	let amount = normalize_value(
+		amount,
+		initial_reserves[asset_idx].decimals,
+		TARGET_PRECISION,
+		Rounding::Down,
+	);
+	let n_coins = initial_reserves.len();
+	let fixed_fee = FixedU128::from(fee);
+	let fee = fixed_fee
+		.checked_mul(&FixedU128::from(n_coins as u128))?
+		.checked_div(&FixedU128::from(4 * (n_coins - 1) as u128))?;
+
+	let initial_reserves = normalize_reserves(initial_reserves);
+
+	let new_reserve_in = initial_reserves[asset_idx].checked_sub(amount)?;
+
+	let updated_reserves: Vec<Balance> = initial_reserves
+		.iter()
+		.enumerate()
+		.map(|(idx, v)| if idx == asset_idx { new_reserve_in } else { *v })
+		.collect();
+
+	let initial_d = calculate_d_internal::<D>(&initial_reserves, amplification)?;
+	let updated_d = calculate_d_internal::<D>(&updated_reserves, amplification)?;
+
+	let (d1, d0, asset_reserve) = to_u256!(updated_d, initial_d, initial_reserves[asset_idx]);
+
+	let ideal_balance = d1.checked_mul(asset_reserve)?.checked_div(d0)?;
+
+	let diff = Balance::try_from(asset_reserve.abs_diff(ideal_balance)).ok()?;
+
+	let fee_amount = fee.checked_mul_int(diff)?;
+
+	let adjusted_balances: Vec<Balance> = updated_reserves
+		.iter()
+		.enumerate()
+		.map(|(idx, v)| {
+			if idx == asset_idx {
+				v.saturating_sub(fee_amount)
+			} else {
+				*v
+			}
+		})
+		.collect();
+
+	let adjusted_d = calculate_d_internal::<D>(&adjusted_balances, amplification)?;
+
+	let (d_diff, issuance_hp) = to_u256!(initial_d.checked_sub(adjusted_d)?, share_issuance);
+
+	let share_amount = issuance_hp
+		.checked_mul(d_diff)?
+		.checked_div(d0)?
+		.checked_add(U256::one())?;
+	Balance::try_from(share_amount).ok()
+}
+
 /// Given amount of shares and asset reserves, calculate corresponding amount of selected asset to be withdrawn.
-pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
-	reserves: &[Balance],
+pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
+	reserves: &[AssetReserve],
 	shares: Balance,
 	asset_index: usize,
 	share_asset_issuance: Balance,
@@ -135,12 +217,15 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 	if n_coins <= 1 {
 		return None;
 	}
+	let asset_out_decimals = reserves[asset_index].decimals;
+	let reserves = normalize_reserves(reserves);
+
 	let fixed_fee = FixedU128::from(fee);
 	let fee = fixed_fee
 		.checked_mul(&FixedU128::from(n_coins as u128))?
 		.checked_div(&FixedU128::from(4 * (n_coins - 1) as u128))?;
 
-	let initial_d = calculate_d::<N>(reserves, amplification)?;
+	let initial_d = calculate_d_internal::<D>(&reserves, amplification)?;
 
 	let (shares_hp, issuance_hp, d_hp) = to_u256!(shares, share_asset_issuance, initial_d);
 
@@ -153,7 +238,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 		.map(|(_, v)| *v)
 		.collect();
 
-	let y = calculate_y::<N_Y>(&xp, Balance::try_from(d1).ok()?, amplification)?;
+	let y = calculate_y_internal::<Y>(&xp, Balance::try_from(d1).ok()?, amplification)?;
 
 	let xp_hp: Vec<U256> = reserves.iter().map(|v| to_u256!(*v)).collect();
 
@@ -183,7 +268,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 		}
 	}
 
-	let y1 = calculate_y::<N_Y>(&reserves_reduced, Balance::try_from(d1).ok()?, amplification)?;
+	let y1 = calculate_y_internal::<Y>(&reserves_reduced, Balance::try_from(d1).ok()?, amplification)?;
 
 	let dy = asset_reserve.checked_sub(y1)?;
 
@@ -191,7 +276,14 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 
 	let fee = dy_0.checked_sub(dy)?;
 
-	Some((dy, fee))
+	let amount_out = normalize_value(dy, TARGET_PRECISION, asset_out_decimals, Rounding::Down);
+	let fee = normalize_value(fee, TARGET_PRECISION, asset_out_decimals, Rounding::Down);
+	Some((amount_out, fee))
+}
+
+pub fn calculate_d<const D: u8>(reserves: &[AssetReserve], amplification: Balance) -> Option<Balance> {
+	let balances = normalize_reserves(reserves);
+	calculate_d_internal::<D>(&balances, amplification)
 }
 
 /// amplification * n^n where n is number of assets in pool.
@@ -199,7 +291,7 @@ pub(crate) fn calculate_ann(len: usize, amplification: Balance) -> Option<Balanc
 	(0..len).try_fold(amplification, |acc, _| acc.checked_mul(len as u128))
 }
 
-pub(crate) fn calculate_y_given_in<const N: u8, const N_Y: u8>(
+pub(crate) fn calculate_y_given_in<const D: u8, const Y: u8>(
 	amount: Balance,
 	idx_in: usize,
 	idx_out: usize,
@@ -212,7 +304,7 @@ pub(crate) fn calculate_y_given_in<const N: u8, const N_Y: u8>(
 
 	let new_reserve_in = balances[idx_in].checked_add(amount)?;
 
-	let d = calculate_d::<N>(balances, amplification)?;
+	let d = calculate_d_internal::<D>(balances, amplification)?;
 
 	let xp: Vec<Balance> = balances
 		.iter()
@@ -221,11 +313,11 @@ pub(crate) fn calculate_y_given_in<const N: u8, const N_Y: u8>(
 		.map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
 		.collect();
 
-	calculate_y::<N_Y>(&xp, d, amplification)
+	calculate_y_internal::<Y>(&xp, d, amplification)
 }
 
-/// Calculate new amount of reserve IN given amount to be withdrawn from the pool
-pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
+/// Calculate new amount of reserve ID given amount to be withdrawn from the pool
+pub(crate) fn calculate_y_given_out<const D: u8, const Y: u8>(
 	amount: Balance,
 	idx_in: usize,
 	idx_out: usize,
@@ -237,7 +329,7 @@ pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
 	}
 	let new_reserve_out = balances[idx_out].checked_sub(amount)?;
 
-	let d = calculate_d::<N>(balances, amplification)?;
+	let d = calculate_d_internal::<D>(balances, amplification)?;
 	let xp: Vec<Balance> = balances
 		.iter()
 		.enumerate()
@@ -245,10 +337,10 @@ pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
 		.map(|(idx, v)| if idx == idx_out { new_reserve_out } else { *v })
 		.collect();
 
-	calculate_y::<N_Y>(&xp, d, amplification)
+	calculate_y_internal::<Y>(&xp, d, amplification)
 }
 
-pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance) -> Option<Balance> {
+pub(crate) fn calculate_d_internal<const D: u8>(xp: &[Balance], amplification: Balance) -> Option<Balance> {
 	let two_u256 = to_u256!(2_u128);
 
 	// Filter out zero balance assets, and return error if there is one.
@@ -279,7 +371,7 @@ pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance) -> Optio
 
 	let (ann_hp, precision_hp) = to_u256!(ann, PRECISION as u128);
 
-	for _ in 0..N {
+	for _ in 0..D {
 		let d_p = xp_hp
 			.iter()
 			.try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(n_coins)?))?;
@@ -312,7 +404,18 @@ pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance) -> Optio
 	Balance::try_from(d).ok()
 }
 
-pub(crate) fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification: Balance) -> Option<Balance> {
+pub fn calculate_y<const D: u8>(
+	reserves: &[AssetReserve],
+	d: Balance,
+	amplification: Balance,
+	asset_precision: u8,
+) -> Option<Balance> {
+	let balances = normalize_reserves(reserves);
+	let y = calculate_y_internal::<D>(&balances, d, amplification)?;
+	Some(normalize_value(y, TARGET_PRECISION, asset_precision, Rounding::Down))
+}
+
+fn calculate_y_internal<const D: u8>(xp: &[Balance], d: Balance, amplification: Balance) -> Option<Balance> {
 	// Filter out zero balance assets, and return error if there is one.
 	// Either all assets are zero balance, or none are zero balance.
 	// Otherwise, it breaks the math.
@@ -342,7 +445,7 @@ pub(crate) fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification
 	let b = s_hp.checked_add(d_hp.checked_div(ann_hp)?)?;
 	let mut y = d_hp;
 
-	for _i in 0..N {
+	for _i in 0..D {
 		let y_prev = y;
 		y = y
 			.checked_mul(y)?
@@ -405,7 +508,7 @@ fn abs_diff(d0: U256, d1: U256) -> U256 {
 	}
 }
 
-enum Rounding {
+pub(crate) enum Rounding {
 	Down,
 	Up,
 }
@@ -417,42 +520,59 @@ fn calculate_fee_amount(amount: Balance, fee: Permill, rounding: Rounding) -> Ba
 	}
 }
 
-/// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
-pub fn calculate_shares_for_amount<const N: u8>(
-    initial_reserves: &[Balance],
-    idx_in: usize,
-    amount: Balance,
-    amplification: Balance,
-    share_issuance: Balance,
-) -> Option<Balance> {
-    if idx_in >= initial_reserves.len() {
-        return None;
-    }
+pub(crate) fn normalize_reserves(reserves: &[AssetReserve]) -> Vec<Balance> {
+	reserves
+		.iter()
+		.map(|v| normalize_value(v.amount, v.decimals, TARGET_PRECISION, Rounding::Down))
+		.collect()
+}
 
-    let new_reserve_in = initial_reserves[idx_in].checked_add(amount)?;
+pub(crate) fn normalize_value(amount: Balance, decimals: u8, target_decimals: u8, rounding: Rounding) -> Balance {
+	if target_decimals == decimals {
+		return amount;
+	}
+	let diff = target_decimals.abs_diff(decimals);
+	if target_decimals > decimals {
+		amount.saturating_mul(10u128.pow(diff as u32))
+	} else {
+		match rounding {
+			Rounding::Down => amount.div(10u128.pow(diff as u32)),
+			Rounding::Up => amount.div(10u128.pow(diff as u32)).saturating_add(Balance::one()),
+		}
+	}
+}
 
-    let updated_reserves: Vec<Balance> = initial_reserves
-        .iter()
-        .enumerate()
-        .map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
-        .collect();
+#[cfg(test)]
+mod tests {
+	use super::*;
 
-    let initial_d = calculate_d::<N>(initial_reserves, amplification)?;
+	#[test]
+	fn test_normalize_value_same_decimals() {
+		let amount = 1_000_000_000_000;
+		let decimals = 12;
+		let target_decimals = 12;
+		let expected: Balance = amount;
+		let actual = normalize_value(amount, decimals, target_decimals, Rounding::Down);
+		assert_eq!(actual, expected);
+	}
 
-    // We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
-    // calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-    let updated_d = calculate_d::<N>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
+	#[test]
+	fn test_normalize_value_target_greater_than_decimals() {
+		let amount = 1_000_000_000_000;
+		let decimals = 12;
+		let target_decimals = 18;
+		let expected: Balance = 1_000_000_000_000_000_000;
+		let actual = normalize_value(amount, decimals, target_decimals, Rounding::Down);
+		assert_eq!(actual, expected);
+	}
 
-    if updated_d < initial_d {
-        return None;
-    }
-
-    if share_issuance == 0 {
-        // if first liquidity added
-        Some(updated_d)
-    } else {
-        let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, updated_d.checked_sub(initial_d)?, initial_d);
-        let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
-        Balance::try_from(share_amount).ok()
-    }
+	#[test]
+	fn test_normalize_value_target_less_than_decimals() {
+		let amount: Balance = 1_000_000_000_000_000_000;
+		let decimals = 18;
+		let target_decimals = 12;
+		let expected: Balance = 1_000_000_000_000;
+		let actual = normalize_value(amount, decimals, target_decimals, Rounding::Down);
+		assert_eq!(actual, expected);
+	}
 }
