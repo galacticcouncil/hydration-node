@@ -28,7 +28,7 @@ use frame_support::PalletId;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{AccountIdFor, OraclePeriod, PriceOracle, Registry};
+use hydradx_traits::{AccountIdFor, AssetKind, OraclePeriod, PriceOracle, Registry};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;

@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.4.3"
+version = "7.5.0"
 dependencies = [
  "approx",
  "criterion",
@@ -3773,7 +3773,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.4.2"
+version = "0.5.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -3786,6 +3786,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
+ "orml-vesting",
  "orml-xcm-support",
  "pallet-balances",
  "pallet-circuit-breaker",
@@ -3796,7 +3797,9 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-route-executor",
+ "pallet-staking 1.0.0",
  "pallet-transaction-multi-payment",
+ "pallet-uniques",
  "parity-scale-codec",
  "polkadot-parachain",
  "pretty_assertions",
@@ -3814,7 +3817,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "170.0.0"
+version = "172.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3832,7 +3835,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.3.4",
+ "hex-literal 0.4.1",
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
@@ -3848,6 +3851,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-bonds",
  "pallet-circuit-breaker",
  "pallet-claims",
  "pallet-collator-rewards",
@@ -3855,7 +3859,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -3874,6 +3878,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
+ "pallet-staking 1.0.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -3916,7 +3921,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.4.0"
+version = "2.5.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -4511,7 +4516,7 @@ dependencies = [
  "pallet-child-bounties",
  "pallet-collective",
  "pallet-conviction-voting",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen",
@@ -4537,7 +4542,7 @@ dependencies = [
  "pallet-session",
  "pallet-session-benchmarking",
  "pallet-society",
- "pallet-staking",
+ "pallet-staking 4.0.0-dev",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-payment",
@@ -6197,7 +6202,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.2.2"
+version = "2.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6365,6 +6370,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-bonds"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitive-types",
+ "primitives",
+ "proptest",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-tracing",
+]
+
+[[package]]
 name = "pallet-bounties"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
@@ -6403,7 +6433,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.14"
+version = "1.1.16"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6552,7 +6582,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6590,6 +6620,26 @@ dependencies = [
  "sp-tracing",
  "test-case 2.2.2",
  "test-utils",
+]
+
+[[package]]
+name = "pallet-democracy"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-preimage",
+ "pallet-scheduler",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -6846,7 +6896,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.2.3"
+version = "4.2.4"
 dependencies = [
  "fixed",
  "frame-support",
@@ -6964,7 +7014,7 @@ dependencies = [
  "frame-system",
  "pallet-bags-list",
  "pallet-nomination-pools",
- "pallet-staking",
+ "pallet-staking 4.0.0-dev",
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
@@ -7016,7 +7066,7 @@ dependencies = [
  "pallet-im-online",
  "pallet-offences",
  "pallet-session",
- "pallet-staking",
+ "pallet-staking 4.0.0-dev",
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
@@ -7026,7 +7076,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "3.1.0"
+version = "3.2.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7053,7 +7103,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.0.10"
+version = "2.0.11"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7082,7 +7132,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7272,7 +7322,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-session",
- "pallet-staking",
+ "pallet-staking 4.0.0-dev",
  "rand 0.8.5",
  "sp-runtime",
  "sp-session",
@@ -7315,6 +7365,30 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-tracing",
+]
+
+[[package]]
+name = "pallet-staking"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-democracy 4.0.0-dev",
+ "pallet-uniques",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -7634,7 +7708,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm-rate-limiter"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-benchmarking",
@@ -8878,7 +8952,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen",
@@ -8899,7 +8973,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-session-benchmarking",
- "pallet-staking",
+ "pallet-staking 4.0.0-dev",
  "pallet-staking-reward-curve",
  "pallet-timestamp",
  "pallet-tips",
@@ -8964,7 +9038,7 @@ dependencies = [
  "pallet-election-provider-multi-phase",
  "pallet-fast-unstake",
  "pallet-session",
- "pallet-staking",
+ "pallet-staking 4.0.0-dev",
  "pallet-staking-reward-fn",
  "pallet-timestamp",
  "pallet-transaction-payment",
@@ -9035,7 +9109,7 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-session",
- "pallet-staking",
+ "pallet-staking 4.0.0-dev",
  "pallet-timestamp",
  "pallet-vesting",
  "parity-scale-codec",
@@ -9081,7 +9155,7 @@ dependencies = [
  "mmr-gadget",
  "pallet-babe",
  "pallet-im-online",
- "pallet-staking",
+ "pallet-staking 4.0.0-dev",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-db",
  "polkadot-approval-distribution",
@@ -9322,7 +9396,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.8.2"
+version = "5.8.3"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -9922,7 +9996,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-elections-phragmen",
  "pallet-grandpa",
  "pallet-identity",
@@ -9939,7 +10013,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-society",
- "pallet-staking",
+ "pallet-staking 4.0.0-dev",
  "pallet-state-trie-migration",
  "pallet-sudo",
  "pallet-timestamp",
@@ -10074,7 +10148,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.8.2"
+version = "1.9.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10108,12 +10182,13 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-bonds",
  "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -10127,6 +10202,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
+ "pallet-staking 1.0.0",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
@@ -14413,7 +14489,7 @@ dependencies = [
  "pallet-bags-list",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen",
@@ -14436,7 +14512,7 @@ dependencies = [
  "pallet-session",
  "pallet-session-benchmarking",
  "pallet-society",
- "pallet-staking",
+ "pallet-staking 4.0.0-dev",
  "pallet-staking-reward-curve",
  "pallet-state-trie-migration",
  "pallet-sudo",

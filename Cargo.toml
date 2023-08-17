@@ -30,7 +30,10 @@ members = [
   'pallets/dynamic-fees',
   'pallets/duster',
   'pallets/otc',
+  'pallets/bonds',
   'math',
+  'pallets/staking',
+  'pallets/democracy',
 ]
 
 [workspace.dependencies]
@@ -62,8 +65,11 @@ pallet-route-executor = { path = "pallets/route-executor", default-features = fa
 pallet-stableswap = { path = "pallets/stableswap", default-features = false }
 pallet-transaction-multi-payment = { path = "pallets/transaction-multi-payment", default-features = false }
 pallet-transaction-pause = { path = "pallets/transaction-pause", default-features = false }
+pallet-staking = { path = "pallets/staking", default-features = false }
+pallet-democracy= { path = "pallets/democracy", default-features = false }
 pallet-xcm-rate-limiter = { path = "pallets/xcm-rate-limiter", default-features = false }
 warehouse-liquidity-mining = { package = "pallet-liquidity-mining", path = "pallets/liquidity-mining", default-features = false }
+pallet-bonds = { path = "pallets/bonds", default-features = false}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
@@ -137,7 +143,6 @@ pallet-aura = { git = "https://github.com/paritytech/substrate", branch = "polka
 pallet-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-multisig = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
