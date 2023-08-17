@@ -1,0 +1,68 @@
+[package]
+name = "pallet-lbp"
+version = "4.6.13"
+description = "HydraDX Liquidity Bootstrapping Pool Pallet"
+authors = ["GalacticCouncil"]
+edition = "2021"
+homepage = "https://github.com/galacticcouncil/hydradx-node"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/hydradx-node"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[build-dependencies]
+substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+
+[dependencies]
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
+scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
+primitive-types = { default-features = false, version = "0.12.0" }
+serde = { features = ["derive"], optional = true, version = "1.0.136" }
+
+## Local dependencies
+hydra-dx-math = { workspace = true }
+hydradx-traits = { workspace = true }
+primitives = { workspace = true }
+
+## ORML dependencies
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
+
+## Substrate dependencies
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false, optional = true }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false, optional = true }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+
+# Needed for benchmarks
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+
+[dev-dependencies]
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+test-utils = { workspace = true }
+
+[features]
+default = ["std"]
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+]
+std = [
+    "serde",
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "orml-tokens/std",
+    "orml-traits/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-std/std",
+    "primitives/std",
+    "hydradx-traits/std",
+    "scale-info/std",
+]
+try-runtime = ["frame-support/try-runtime"]

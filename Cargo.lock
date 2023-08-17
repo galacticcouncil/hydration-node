@@ -6893,6 +6893,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-lbp"
+version = "4.6.13"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "orml-tokens",
+ "orml-traits",
+ "parity-scale-codec",
+ "primitive-types",
+ "primitives",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-liquidity-mining"
 version = "4.2.4"
 dependencies = [
@@ -9394,7 +9419,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.8.3"
+version = "5.8.4"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -9403,6 +9428,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-core",
+ "sp-std",
  "static_assertions",
 ]
 
