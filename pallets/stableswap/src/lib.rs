@@ -43,15 +43,12 @@
 extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::traits::fungibles::Inspect;
 use frame_support::{ensure, require_transactional, transactional};
-use hydradx_traits::AccountIdFor;
+use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
 use sp_runtime::traits::{BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
-
-use frame_support::traits::tokens::fungibles::InspectMetadata;
 
 pub use pallet::*;
 
@@ -126,7 +123,7 @@ pub mod pallet {
 		type ShareAccountId: AccountIdFor<Self::AssetId, AccountId = Self::AccountId>;
 
 		/// Asset registry mechanism
-		type AssetInspection: InspectMetadata<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>;
+		type AssetInspection: InspectRegistry<Self::AssetId>;
 
 		/// The origin which can create a new pool
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -314,6 +311,9 @@ pub mod pallet {
 
 		/// Slippage
 		SlippageLimit,
+
+		/// Failed to retrieve asset decimals.
+		UnknownDecimals,
 	}
 
 	#[pallet::call]
@@ -556,7 +556,7 @@ pub mod pallet {
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 			let pool_account = Self::pool_account(pool_id);
-			let balances = pool.balances::<T>(&pool_account);
+			let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
 			let share_issuance = T::Currency::total_issuance(pool_id);
 
 			ensure!(
@@ -617,7 +617,7 @@ pub mod pallet {
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 			let pool_account = Self::pool_account(pool_id);
-			let balances = pool.balances::<T>(&pool_account);
+			let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
 
@@ -828,7 +828,7 @@ impl<T: Config> Pallet<T> {
 		let index_out = pool.find_asset(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
 
 		let pool_account = Self::pool_account(pool_id);
-		let balances = pool.balances::<T>(&pool_account);
+		let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
 
 		ensure!(!balances[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
 		ensure!(!balances[index_out].is_zero(), Error::<T>::InsufficientLiquidity);
@@ -857,7 +857,7 @@ impl<T: Config> Pallet<T> {
 		let index_out = pool.find_asset(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
 
 		let pool_account = Self::pool_account(pool_id);
-		let balances = pool.balances::<T>(&pool_account);
+		let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
 
 		ensure!(
 			balances[index_out].amount > amount_out,
@@ -887,7 +887,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
-			<T::AssetInspection as Inspect<T::AccountId>>::asset_exists(share_asset),
+			T::AssetInspection::exists(share_asset),
 			Error::<T>::ShareAssetNotRegistered
 		);
 
@@ -916,10 +916,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InvalidAmplification
 		);
 		for asset in pool.assets.iter() {
-			ensure!(
-				<T::AssetInspection as Inspect<T::AccountId>>::asset_exists(*asset),
-				Error::<T>::AssetNotRegistered
-			);
+			ensure!(T::AssetInspection::exists(*asset), Error::<T>::AssetNotRegistered);
 		}
 
 		Pools::<T>::insert(share_asset, pool);
@@ -958,7 +955,7 @@ impl<T: Config> Pallet<T> {
 		let mut initial_reserves = Vec::with_capacity(pool.assets.len());
 		let mut updated_reserves = Vec::with_capacity(pool.assets.len());
 		for pool_asset in pool.assets.iter() {
-			let decimals = Self::retrieve_decimals(*pool_asset);
+			let decimals = Self::retrieve_decimals(*pool_asset).ok_or(Error::<T>::UnknownDecimals)?;
 			let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
 			initial_reserves.push(AssetReserve {
 				amount: reserve,
@@ -1029,7 +1026,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[inline]
-	pub(crate) fn retrieve_decimals(asset_id: T::AssetId) -> u8 {
-		T::AssetInspection::decimals(&asset_id)
+	pub(crate) fn retrieve_decimals(asset_id: T::AssetId) -> Option<u8> {
+		T::AssetInspection::decimals(asset_id)
 	}
 }

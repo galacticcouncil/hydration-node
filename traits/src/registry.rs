@@ -41,6 +41,11 @@ pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<Asset
 	}
 }
 
+pub trait InspectRegistry<AssetId> {
+	fn exists(asset_id: AssetId) -> bool;
+	fn decimals(asset_id: AssetId) -> Option<u8>;
+}
+
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum AssetKind {
 	Token,

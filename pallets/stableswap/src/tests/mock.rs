@@ -29,8 +29,6 @@ use crate as pallet_stableswap;
 use crate::Config;
 
 use frame_support::assert_ok;
-use frame_support::traits::fungibles::{Inspect, InspectMetadata};
-use frame_support::traits::tokens::{DepositConsequence, WithdrawConsequence};
 use frame_support::traits::{Contains, Everything, GenesisBuild};
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -175,7 +173,7 @@ impl Config for Test {
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
-	type AssetInspection = DummyRegistry<Test>;
+	type AssetInspection = DummyRegistry;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type MinPoolLiquidity = MinimumLiquidity;
 	type AmplificationRange = AmplificationRange;
@@ -305,68 +303,20 @@ impl ExtBuilder {
 
 use crate::types::{AssetAmount, PoolInfo};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::AccountIdFor;
+use hydradx_traits::{AccountIdFor, InspectRegistry};
 use sp_runtime::traits::Zero;
 
-pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
+pub struct DummyRegistry;
 
-impl<T: Config> Inspect<T::AccountId> for DummyRegistry<T> {
-	type AssetId = AssetId;
-	type Balance = Balance;
-
-	fn total_issuance(_asset: Self::AssetId) -> Self::Balance {
-		todo!()
-	}
-
-	fn minimum_balance(_asset: Self::AssetId) -> Self::Balance {
-		todo!()
-	}
-
-	fn balance(_asset: Self::AssetId, _who: &T::AccountId) -> Self::Balance {
-		todo!()
-	}
-
-	fn reducible_balance(_asset: Self::AssetId, _who: &T::AccountId, _keep_alive: bool) -> Self::Balance {
-		todo!()
-	}
-
-	fn can_deposit(
-		_asset: Self::AssetId,
-		_who: &T::AccountId,
-		_amount: Self::Balance,
-		_mint: bool,
-	) -> DepositConsequence {
-		todo!()
-	}
-
-	fn can_withdraw(
-		_asset: Self::AssetId,
-		_who: &T::AccountId,
-		_amount: Self::Balance,
-	) -> WithdrawConsequence<Self::Balance> {
-		todo!()
-	}
-
-	fn asset_exists(asset_id: Self::AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+impl InspectRegistry<AssetId> for DummyRegistry {
+	fn exists(asset_id: AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied());
 		matches!(asset, Some(_))
 	}
-}
 
-impl<T: Config> InspectMetadata<T::AccountId> for DummyRegistry<T> {
-	fn name(_asset: &Self::AssetId) -> Vec<u8> {
-		todo!()
-	}
-
-	fn symbol(_asset: &Self::AssetId) -> Vec<u8> {
-		todo!()
-	}
-
-	fn decimals(asset_id: &Self::AssetId) -> u8 {
-		let asset = REGISTERED_ASSETS
-			.with(|v| v.borrow().get(&((*asset_id).into())).copied())
-			.unwrap();
-		asset.1
+	fn decimals(asset_id: AssetId) -> Option<u8> {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied())?;
+		Some(asset.1)
 	}
 }
 
