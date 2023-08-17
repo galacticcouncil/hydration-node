@@ -179,7 +179,7 @@ pub mod pallet {
 		/// Maturity not long enough
 		InvalidMaturity,
 		/// Asset type not allowed for underlying asset
-		DisallowedAseet,
+		DisallowedAsset,
 	}
 
 	#[pallet::call]
@@ -212,7 +212,7 @@ pub mod pallet {
 
 			ensure!(
 				T::AssetTypeWhitelist::contains(&T::AssetRegistry::retrieve_asset_type(asset_id)?),
-				Error::<T>::DisallowedAseet
+				Error::<T>::DisallowedAsset
 			);
 
 			let fee = T::ProtocolFee::get().mul_ceil(amount);

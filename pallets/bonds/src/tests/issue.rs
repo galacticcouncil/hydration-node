@@ -463,7 +463,7 @@ fn issue_bonds_should_fail_when_asset_is_blacklisted() {
 			// Act & Assert
 			assert_noop!(
 				Bonds::issue(RuntimeOrigin::signed(ALICE), bond_id, amount, maturity),
-				Error::<Test>::DisallowedAseet
+				Error::<Test>::DisallowedAsset
 			);
 		});
 }

@@ -121,7 +121,7 @@ fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 				amount,
 				maturity
 			),
-			pallet_bonds::Error::<hydradx_runtime::Runtime>::DisallowedAseet
+			pallet_bonds::Error::<hydradx_runtime::Runtime>::DisallowedAsset
 		);
 	});
 }
