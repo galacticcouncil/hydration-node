@@ -8,7 +8,7 @@ use crate::{
 
 use core::convert::From;
 use num_traits::Zero;
-use std::ops::Div;
+use sp_std::ops::Div;
 
 use crate::types::{Balance, FixedBalance, LBPWeight, HYDRA_ONE};
 
