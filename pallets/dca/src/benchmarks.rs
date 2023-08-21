@@ -26,7 +26,7 @@ use frame_system::{Pallet as System, RawOrigin};
 use hydradx_traits::router::PoolType;
 use hydradx_traits::Registry;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use pallet_stableswap::types::AssetBalance;
+use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::FixedU128;
@@ -212,11 +212,13 @@ where
 	do_lrna_hdx_trade::<T>()
 }
 
-pub fn init_stableswap<T: Config + pallet_route_executor::Config + pallet_stableswap::Config>(
-) -> Result<(AssetId, AssetId, AssetId), DispatchError>
+pub fn init_stableswap<
+	T: Config + pallet_route_executor::Config + pallet_stableswap::Config + pallet_omnipool::Config,
+>() -> Result<(<T as pallet_stableswap::Config>::AssetId, AssetId, AssetId), DispatchError>
 where
 	<T as pallet_stableswap::Config>::AssetId: From<u32>,
 	<T as pallet_stableswap::Config>::AssetId: Into<u32>,
+	<T as pallet_stableswap::Config>::AssetId: From<<T as pallet_omnipool::Config>::AssetId>,
 	<T as pallet_stableswap::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	//<T as pallet_stableswap::Config>::AssetId: From<<T as orml_traits::MultiCurrency<AccountId>>::CurrencyId>,
 	//<T as pallet_stableswap::Config>::AssetId: Into<<T as orml_traits::MultiCurrency<AccountId>>::CurrencyId>,
@@ -226,22 +228,22 @@ where
 	let initial_liquidity = 1_000_000_000_000_000u128;
 	let liquidity_added = 300_000_000_000_000u128;
 
-	let mut initial: Vec<AssetBalance<<T as pallet_stableswap::Config>::AssetId>> = vec![];
-	let mut added_liquidity: Vec<AssetBalance<<T as pallet_stableswap::Config>::AssetId>> = vec![];
+	let mut initial: Vec<AssetAmount<<T as pallet_stableswap::Config>::AssetId>> = vec![];
+	let mut added_liquidity: Vec<AssetAmount<<T as pallet_stableswap::Config>::AssetId>> = vec![];
 
 	let mut asset_ids: Vec<<T as pallet_stableswap::Config>::AssetId> = Vec::new();
 	for idx in 0..MAX_ASSETS_IN_POOL {
 		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
 		//let asset_id = regi_asset(name.clone(), 1_000_000, 10000 + idx as u32)?;
-		let asset_id = <T as pallet_stableswap::Config>::AssetRegistry::create_asset(&name, 1u128)?;
-		asset_ids.push(asset_id);
+		let asset_id = <T as pallet_omnipool::Config>::AssetRegistry::create_asset(&name, 1u128)?;
+		asset_ids.push(asset_id.into());
 		<T as pallet_stableswap::Config>::Currency::update_balance(
-			asset_id,
+			asset_id.into(),
 			&caller.clone(),
 			1_000_000_000_000_000i128,
 		)?;
 		<T as pallet_stableswap::Config>::Currency::update_balance(
-			asset_id,
+			asset_id.into(),
 			&lp_provider.clone(),
 			1_000_000_000_000_000i128,
 		)?;
@@ -257,16 +259,10 @@ where
 			asset_id,
 			1_000_000_000_000_000_000_000i128,
 		)?;*/
-		initial.push(AssetBalance {
-			asset_id,
-			amount: initial_liquidity,
-		});
-		added_liquidity.push(AssetBalance {
-			asset_id,
-			amount: liquidity_added,
-		});
+		initial.push(AssetAmount::new(asset_id.into(), initial_liquidity));
+		added_liquidity.push(AssetAmount::new(asset_id.into(), liquidity_added));
 	}
-	let pool_id = <T as pallet_stableswap::Config>::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
+	let pool_id = <T as pallet_omnipool::Config>::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
 	let amplification = 100u16;
 	let trade_fee = Permill::from_percent(1);
@@ -278,14 +274,14 @@ where
 	let successful_origin = <T as pallet_stableswap::Config>::AuthorityOrigin::try_successful_origin().unwrap();
 	StableswapPallet::<T>::create_pool(
 		successful_origin,
-		pool_id,
+		pool_id.into(),
 		asset_ids,
 		amplification,
 		trade_fee,
 		withdraw_fee,
 	)?;
 
-	StableswapPallet::<T>::add_liquidity(RawOrigin::Signed(caller.into()).into(), pool_id, initial)?;
+	StableswapPallet::<T>::add_liquidity(RawOrigin::Signed(caller.into()).into(), pool_id.into(), initial)?;
 
 	let seller: AccountId = account("seller", 0, 1);
 	let amount_sell = 100_000_000_000_000u128;
@@ -300,7 +296,13 @@ where
 	)?;*/
 
 	// Worst case is when amplification is changing
-	StableswapPallet::<T>::update_amplification(RawOrigin::Root.into(), pool_id, 1000, 100u32.into(), 1000u32.into())?;
+	StableswapPallet::<T>::update_amplification(
+		RawOrigin::Root.into(),
+		pool_id.into(),
+		1000,
+		100u32.into(),
+		1000u32.into(),
+	)?;
 
 	Ok((pool_id.into(), asset_in, asset_out))
 }
@@ -406,6 +408,7 @@ benchmarks! {
 		<T as pallet_stableswap::Config>::AssetId: From<u32> + Into<u32>,
 		<T as pallet_route_executor::Config>::AssetId: From<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<u32>,
+		<T as pallet_stableswap::Config>::AssetId: From<<T as pallet_omnipool::Config>::AssetId>,
 		<T as pallet_omnipool::Config>::AssetId: Into<<T as pallet_route_executor::Config>::AssetId>,
 		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet_route_executor::Config>::AssetId>,
 		u128: From<<T as pallet_route_executor::Config>::Balance>,
@@ -511,7 +514,7 @@ benchmarks! {
 		let amount_buy = 200 * ONE;
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(asset_in.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
-		let schedule1 = schedule_buy_fake::<T>(seller.clone(), asset_in.into(), asset_out.into(), amount_buy, PoolType::Stableswap(pool_id.into()));
+		let schedule1 = schedule_buy_fake::<T>(seller.clone(), asset_in.into(), asset_out.into(), amount_buy, PoolType::Stableswap(pool_id.into().into()));
 		let execution_block = 1001u32;
 
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
@@ -555,7 +558,7 @@ benchmarks! {
 
 		<T as pallet_stableswap::Config>::Currency::update_balance(asset_in.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
 
-		let schedule1 = schedule_sell_fake::<T>(seller.clone(), asset_in.into(), asset_out.into(), amount_sell, PoolType::Stableswap(pool_id.into()));
+		let schedule1 = schedule_sell_fake::<T>(seller.clone(), asset_in.into(), asset_out.into(), amount_sell, PoolType::Stableswap(pool_id.into().into()));
 		let execution_block = 1001u32;
 
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
