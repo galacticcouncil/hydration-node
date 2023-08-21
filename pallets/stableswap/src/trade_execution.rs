@@ -4,11 +4,8 @@ use frame_support::ensure;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
-use sp_runtime::traits::CheckedAdd;
-use sp_runtime::{ArithmeticError, DispatchError, Permill};
-use sp_std::collections::btree_map::BTreeMap;
+use sp_runtime::{ArithmeticError, DispatchError};
 use sp_std::vec;
-use sp_std::vec::Vec;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
@@ -78,9 +75,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
-				if asset_out == pool_id {
-					Err(ExecutorError::NotSupported)
-				} else if asset_in == pool_id {
+				if asset_out == pool_id || asset_in == pool_id {
 					Err(ExecutorError::NotSupported)
 				} else {
 					let (amount_in, _) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out)
@@ -136,9 +131,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 	) -> Result<(), ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
-				if asset_out == pool_id {
-					Err(ExecutorError::NotSupported)
-				} else if asset_in == pool_id {
+				if asset_out == pool_id || asset_in == pool_id {
 					Err(ExecutorError::NotSupported)
 				} else {
 					Self::buy(who, pool_id, asset_out, asset_in, amount_out, max_limit).map_err(ExecutorError::Error)
