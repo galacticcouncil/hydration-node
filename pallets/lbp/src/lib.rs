@@ -36,11 +36,7 @@ use frame_system::ensure_signed;
 use hydra_dx_math::types::LBPWeight;
 use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
-use primitives::{
-	asset::AssetPair,
-	constants::chain::{MAX_IN_RATIO, MAX_OUT_RATIO},
-	Amount, AssetId, Balance,
-};
+use primitives::{asset::AssetPair, Amount, AssetId, Balance};
 
 use scale_info::TypeInfo;
 
@@ -1000,7 +996,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 		let asset_out_reserve = T::MultiCurrency::free_balance(assets.asset_out, &pool_id);
 
 		ensure!(
-			amount <= asset_in_reserve.checked_div(MAX_IN_RATIO).ok_or(Error::<T>::Overflow)?,
+			amount
+				<= asset_in_reserve
+					.checked_div(T::MaxInRatio::get())
+					.ok_or(Error::<T>::Overflow)?,
 			Error::<T>::MaxInRatioExceeded
 		);
 
@@ -1027,7 +1026,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			ensure!(
 				amount_out
 					<= asset_out_reserve
-						.checked_div(MAX_OUT_RATIO)
+						.checked_div(T::MaxOutRatio::get())
 						.ok_or(Error::<T>::Overflow)?,
 				Error::<T>::MaxOutRatioExceeded
 			);
@@ -1067,7 +1066,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			ensure!(
 				calculated_out
 					<= asset_out_reserve
-						.checked_div(MAX_OUT_RATIO)
+						.checked_div(T::MaxOutRatio::get())
 						.ok_or(Error::<T>::Overflow)?,
 				Error::<T>::MaxOutRatioExceeded
 			);
@@ -1124,7 +1123,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 		ensure!(
 			amount
 				<= asset_out_reserve
-					.checked_div(MAX_OUT_RATIO)
+					.checked_div(T::MaxOutRatio::get())
 					.ok_or(Error::<T>::Overflow)?,
 			Error::<T>::MaxOutRatioExceeded
 		);
@@ -1151,7 +1150,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			.map_err(|_| Error::<T>::Overflow)?;
 
 			ensure!(
-				calculated_in <= asset_in_reserve.checked_div(MAX_IN_RATIO).ok_or(Error::<T>::Overflow)?,
+				calculated_in
+					<= asset_in_reserve
+						.checked_div(T::MaxInRatio::get())
+						.ok_or(Error::<T>::Overflow)?,
 				Error::<T>::MaxInRatioExceeded
 			);
 
@@ -1191,7 +1193,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			let calculated_in_without_fee = calculated_in.checked_sub(fee).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(
-				calculated_in <= asset_in_reserve.checked_div(MAX_IN_RATIO).ok_or(Error::<T>::Overflow)?,
+				calculated_in
+					<= asset_in_reserve
+						.checked_div(T::MaxInRatio::get())
+						.ok_or(Error::<T>::Overflow)?,
 				Error::<T>::MaxInRatioExceeded
 			);
 

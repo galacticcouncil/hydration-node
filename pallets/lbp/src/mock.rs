@@ -7,9 +7,7 @@ use frame_support::parameter_types;
 use frame_support::traits::{Everything, GenesisBuild, LockIdentifier, Nothing};
 use hydradx_traits::LockedBalance;
 use orml_traits::parameter_type_with_key;
-use primitives::constants::chain::{
-	AssetId, Balance, CORE_ASSET_ID, MAX_IN_RATIO, MAX_OUT_RATIO, MIN_POOL_LIQUIDITY, MIN_TRADING_LIMIT,
-};
+use primitives::constants::chain::{AssetId, Balance, CORE_ASSET_ID};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -153,32 +151,22 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 
 parameter_types! {
 	pub const NativeAssetId: AssetId = CORE_ASSET_ID;
-	pub const MinTradingLimit: Balance = MIN_TRADING_LIMIT;
-	pub const MinPoolLiquidity: Balance = MIN_POOL_LIQUIDITY;
-	pub const MaxInRatio: u128 = MAX_IN_RATIO;
-	pub const MaxOutRatio: u128 = MAX_OUT_RATIO;
+	pub const MinTradingLimit: Balance = 1_000;
+	pub const MinPoolLiquidity: Balance = 1_000;
+	pub const MaxInRatio: u128 = 3;
+	pub const MaxOutRatio: u128 = 3;
 }
 
 pub struct MultiLockedBalance();
 
 impl LockedBalance<AssetId, AccountId, Balance> for MultiLockedBalance {
 	fn get_by_lock(lock_id: LockIdentifier, asset: AssetId, account: AccountId) -> Balance {
-		if asset == NativeAssetId::get() {
-			match Currency::locks(account, asset)
-				.into_iter()
-				.find(|lock| lock.id == lock_id)
-			{
-				Some(lock) => lock.amount,
-				None => Zero::zero(),
-			}
-		} else {
-			match Currency::locks(account, asset)
-				.into_iter()
-				.find(|lock| lock.id == lock_id)
-			{
-				Some(lock) => lock.amount,
-				None => Zero::zero(),
-			}
+		match Currency::locks(account, asset)
+			.into_iter()
+			.find(|lock| lock.id == lock_id)
+		{
+			Some(lock) => lock.amount,
+			None => Zero::zero(),
 		}
 	}
 }

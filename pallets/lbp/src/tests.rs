@@ -31,11 +31,8 @@ use hydradx_traits::{AMMTransfer, LockedBalance};
 use sp_runtime::traits::BadOrigin;
 use sp_std::convert::TryInto;
 
+use primitives::asset::AssetPair;
 use primitives::constants::chain::CORE_ASSET_ID;
-use primitives::{
-	asset::AssetPair,
-	constants::chain::{MAX_IN_RATIO, MAX_OUT_RATIO},
-};
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
@@ -2033,7 +2030,7 @@ fn exceed_max_in_ratio_should_not_work() {
 				Origin::signed(BOB),
 				KUSD,
 				BSX,
-				1_000_000_000 / MAX_IN_RATIO + 1,
+				1_000_000_000 / LBPPallet::get_max_in_ratio() + 1,
 				200_000_u128
 			),
 			Error::<Test>::MaxInRatioExceeded
@@ -2050,7 +2047,7 @@ fn exceed_max_in_ratio_should_not_work() {
 			Origin::signed(BOB),
 			KUSD,
 			BSX,
-			1_000_000_000 / MAX_IN_RATIO,
+			1_000_000_000 / LBPPallet::get_max_in_ratio(),
 			2_000_u128
 		));
 	});
@@ -2067,7 +2064,7 @@ fn exceed_max_out_ratio_should_not_work() {
 				Origin::signed(BOB),
 				BSX,
 				KUSD,
-				2_000_000_000 / MAX_OUT_RATIO + 1,
+				2_000_000_000 / LBPPallet::get_max_out_ratio() + 1,
 				200_000_u128
 			),
 			Error::<Test>::MaxOutRatioExceeded

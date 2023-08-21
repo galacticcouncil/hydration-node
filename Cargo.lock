@@ -3866,6 +3866,7 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-multisig",
  "pallet-omnipool",
