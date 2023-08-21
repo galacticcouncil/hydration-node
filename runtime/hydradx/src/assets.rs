@@ -46,11 +46,11 @@ use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use orml_traits::currency::MutationHooks;
 use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
+use pallet_staking::types::Action;
+use pallet_staking::SigmoidPercentage;
 use sp_core::crypto::UncheckedFrom;
 use sp_std::marker::PhantomData;
 use sp_std::num::NonZeroU16;
-use pallet_staking::types::Action;
-use pallet_staking::SigmoidPercentage;
 
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;
@@ -519,7 +519,7 @@ impl pallet_stableswap::Config for Runtime {
 	type AssetId = AssetId;
 	type Currency = Currencies;
 	type ShareAccountId = StableswapAccountIdConstructor<Runtime>;
-	type AssetRegistry = AssetRegistry;
+	type AssetInspection = AssetRegistry;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type DustAccountHandler = Duster;
 	type MinPoolLiquidity = MinPoolLiquidity;

@@ -1033,7 +1033,6 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> Pallet<T> {
 	fn calculate_shares(pool_id: T::AssetId, assets: &[AssetAmount<T::AssetId>]) -> Result<Balance, DispatchError> {
-		/*
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		let pool_account = Self::pool_account(pool_id);
 
@@ -1057,16 +1056,27 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		let mut initial_reserves = Vec::new();
-		let mut updated_reserves = Vec::new();
+		let mut initial_reserves = Vec::with_capacity(pool.assets.len());
+		let mut updated_reserves = Vec::with_capacity(pool.assets.len());
 		for pool_asset in pool.assets.iter() {
+			let decimals = Self::retrieve_decimals(*pool_asset).ok_or(Error::<T>::UnknownDecimals)?;
 			let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
-			initial_reserves.push(reserve);
-			if let Some(liq_added) = added_assets.get(pool_asset) {
-				updated_reserves.push(reserve.checked_add(*liq_added).ok_or(ArithmeticError::Overflow)?);
+			initial_reserves.push(AssetReserve {
+				amount: reserve,
+				decimals,
+			});
+			if let Some(liq_added) = added_assets.remove(pool_asset) {
+				let inc_reserve = reserve.checked_add(liq_added).ok_or(ArithmeticError::Overflow)?;
+				updated_reserves.push(AssetReserve {
+					amount: inc_reserve,
+					decimals,
+				});
 			} else {
 				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push(reserve);
+				updated_reserves.push(AssetReserve {
+					amount: reserve,
+					decimals,
+				});
 			}
 		}
 
@@ -1081,7 +1091,5 @@ impl<T: Config> Pallet<T> {
 		.ok_or(ArithmeticError::Overflow)?;
 
 		Ok(share_amount)
-		 */
-		todo!()
 	}
 }

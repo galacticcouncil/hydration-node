@@ -28,7 +28,7 @@ use frame_support::PalletId;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{AccountIdFor, AssetKind, OraclePeriod, PriceOracle, Registry};
+use hydradx_traits::{AccountIdFor, AssetKind, InspectRegistry, OraclePeriod, PriceOracle, Registry};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
@@ -156,7 +156,7 @@ impl pallet_stableswap::Config for Test {
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
-	type AssetRegistry = DummyRegistry<Test>;
+	type AssetInspection = DummyRegistry<Test>;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type MinPoolLiquidity = MinimumLiquidity;
 	type AmplificationRange = AmplificationRange;
@@ -922,6 +922,10 @@ where
 		Ok(1.into())
 	}
 
+	fn retrieve_asset_type(asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+		Ok(AssetKind::Token)
+	}
+
 	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
@@ -929,6 +933,18 @@ where
 			l as u32
 		});
 		Ok(T::AssetId::from(assigned))
+	}
+}
+
+impl InspectRegistry<AssetId> for DummyRegistry<Test> {
+	fn exists(asset_id: AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied());
+		matches!(asset, Some(_))
+	}
+
+	fn decimals(asset_id: AssetId) -> Option<u8> {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied())?;
+		Some(asset as u8)
 	}
 }
 

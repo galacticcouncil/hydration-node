@@ -12,11 +12,12 @@ use hydradx_traits::router::PoolType;
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use pallet_route_executor::Trade;
-use pallet_stableswap::types::AssetBalance;
+use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use sp_runtime::Permill;
 use sp_runtime::{DispatchError, FixedU128};
 use xcm_emulator::TestExt;
+
 //NOTE: XYK pool is not supported in HydraDX. If you want to support it, also adjust router and dca benchmarking
 #[test]
 fn router_should_not_support_xyk() {
@@ -445,8 +446,8 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let initial_liquidity = 1_000_000_000_000_000u128;
 	let liquidity_added = 300_000_000_000_000u128;
 
-	let mut initial: Vec<AssetBalance<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
-	let mut added_liquidity: Vec<AssetBalance<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> =
+	let mut initial: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
+	let mut added_liquidity: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> =
 		vec![];
 
 	let mut asset_ids: Vec<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
@@ -454,6 +455,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
 		//let asset_id = regi_asset(name.clone(), 1_000_000, 10000 + idx as u32)?;
 		let asset_id = AssetRegistry::create_asset(&name, 1u128)?;
+		AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), asset_id, b"xDUM".to_vec(), 18u8)?;
 		asset_ids.push(asset_id);
 		Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -467,14 +469,8 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 			asset_id,
 			1_000_000_000_000_000_000_000i128,
 		)?;
-		initial.push(AssetBalance {
-			asset_id,
-			amount: initial_liquidity,
-		});
-		added_liquidity.push(AssetBalance {
-			asset_id,
-			amount: liquidity_added,
-		});
+		initial.push(AssetAmount::new(asset_id, initial_liquidity));
+		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
 	}
 	let pool_id = AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
