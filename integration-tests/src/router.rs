@@ -251,7 +251,7 @@ fn router_should_remove_liquidity_from_stableswap_when_selling_shareasset_in_sta
 
 	Hydra::execute_with(|| {
 		//Arrange
-		let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+		let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 		init_omnipool();
 

@@ -56,22 +56,22 @@ pub struct BasiliskWeight<T>(PhantomData<T>);
 
 // NOTE: Dummy weights. The actual weights are determined in the runtime weight file
 impl<T: frame_system::Config, AssetId> WeightInfo<AssetId> for BasiliskWeight<T> {
-	fn sell(route: Vec<Trade<AssetId>>) -> Weight {
+	fn sell(_: Vec<Trade<AssetId>>) -> Weight {
 		Weight::from_ref_time(99_999_999 as u64)
 	}
 
-	fn buy(route: Vec<Trade<AssetId>>) -> Weight {
+	fn buy(_: Vec<Trade<AssetId>>) -> Weight {
 		Weight::from_ref_time(99_999_999 as u64)
 	}
 }
 
 //NOTE: Dummy weights. The actual weights are determined in the runtime weight implementation
 impl<AssetId> WeightInfo<AssetId> for () {
-	fn sell(route: Vec<Trade<AssetId>>) -> Weight {
+	fn sell(_: Vec<Trade<AssetId>>) -> Weight {
 		Weight::from_ref_time(99_999_999 as u64)
 	}
 
-	fn buy(route: Vec<Trade<AssetId>>) -> Weight {
+	fn buy(_: Vec<Trade<AssetId>>) -> Weight {
 		Weight::from_ref_time(99_999_999 as u64)
 	}
 }

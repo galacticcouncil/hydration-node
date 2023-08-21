@@ -922,7 +922,7 @@ where
 		Ok(1.into())
 	}
 
-	fn retrieve_asset_type(asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+	fn retrieve_asset_type(_: T::AssetId) -> Result<AssetKind, DispatchError> {
 		Ok(AssetKind::Token)
 	}
 
