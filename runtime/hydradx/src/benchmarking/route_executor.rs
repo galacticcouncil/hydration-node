@@ -185,7 +185,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let mut asset_ids: Vec<<Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
 	for idx in 0..MAX_ASSETS_IN_POOL {
 		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-		let asset_id = regi_asset(name.clone(), 1_000_000, 10000 + idx as u32)?;
+		let asset_id = regi_asset(name.clone(), 1, 10000 + idx as u32)?;
 		//let asset_id = AssetRegistry::create_asset(&name, 1u128)?;
 		asset_ids.push(asset_id);
 		Currencies::update_balance(
@@ -244,7 +244,7 @@ pub fn regi_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<
 		Some(asset_id),
 		None,
 	)?;
-	AssetRegistry::set_metadata(RawOrigin::Root.into(), asset_id, b"DUM".to_vec(), 12u8)?;
+	AssetRegistry::set_metadata(RawOrigin::Root.into(), asset_id, b"DUM".to_vec(), 18u8)?;
 
 	Ok(asset_id)
 }
@@ -383,18 +383,20 @@ runtime_benchmarks! {
 		let trades = vec![Trade {
 			pool: PoolType::Stableswap(pool_id),
 			asset_in: asset_in,
-			asset_out: asset_out
+			asset_out: pool_id
 		}];
 
-		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, 100 * UNITS, asset_in);
+		let caller: AccountId = create_funded_account::<Runtime>("trader", 0, 100 * UNITS, asset_in);
+		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller), 100 * UNITS);
 
 		let amount_to_sell = 10 * UNITS;
 	}: {
-		RouteExecutor::<Runtime>::sell(RawOrigin::Signed(caller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades)?
+		RouteExecutor::<Runtime>::sell(RawOrigin::Signed(caller.clone()).into(), asset_in, pool_id, amount_to_sell, 0u128, trades)?
 	}
 	verify{
 		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller), 100 * UNITS -  amount_to_sell);
-		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) > 0);
+		//assert!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller) < 100000 * UNITS);
+		assert!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller) > 0);
 	}
 
 	//Stableswap buy in router is not yet supported in router.
