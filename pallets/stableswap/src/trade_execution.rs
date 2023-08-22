@@ -97,7 +97,6 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
 				if asset_in == pool_id {
-					//NOTE: user pays the withhdraw fee which is higher than the trade fee
 					Self::remove_liquidity_one_asset(who, pool_id, asset_out, amount_in, min_limit)
 						.map_err(ExecutorError::Error)
 				} else if asset_out == pool_id {
