@@ -71,6 +71,9 @@ pub(crate) mod tests;
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
 
+#[cfg(feature = "runtime-benchmarks")]
+use crate::types::BenchmarkHelper;
+
 /// Stableswap share token and account id identifier.
 /// Used as identifier to create share token unique names and account ids.
 pub const POOL_IDENTIFIER: &[u8] = b"sts";
@@ -145,6 +148,9 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		#[cfg(feature = "runtime-benchmarks")]
+		type BenchmarkHelper: BenchmarkHelper<Self::AssetId>;
 	}
 
 	/// Existing pools
