@@ -237,13 +237,16 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 
 pub fn regi_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<AssetId, DispatchError> {
 	let name = AssetRegistry::to_bounded_name(name)?;
-	AssetRegistry::register_asset(
+	let asset_id = AssetRegistry::register_asset(
 		name,
 		pallet_asset_registry::AssetType::<AssetId>::Token,
 		deposit,
 		Some(asset_id),
 		None,
-	)
+	)?;
+	AssetRegistry::set_metadata(RawOrigin::Root.into(), asset_id, b"DUM".to_vec(), 12u8)?;
+
+	Ok(asset_id)
 }
 
 //NOTE: This is necessary for oracle to provide price.
@@ -394,7 +397,8 @@ runtime_benchmarks! {
 		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) > 0);
 	}
 
-	buy_stableswap {
+	//Stableswap buy in router is not yet supported in router.
+	/*buy_stableswap {
 		let (pool_id, asset_in, asset_out) = init_stableswap()?;
 
 		let trades = vec![Trade {
@@ -412,7 +416,7 @@ runtime_benchmarks! {
 	verify{
 		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller) < 100 * UNITS);
 		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller), amount_to_buy);
-	}
+	}*/
 
 }
 
