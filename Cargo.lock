@@ -6597,6 +6597,7 @@ dependencies = [
  "log",
  "orml-tokens",
  "orml-traits",
+ "pallet-asset-registry",
  "pallet-balances",
  "pallet-currencies",
  "pallet-ema-oracle",

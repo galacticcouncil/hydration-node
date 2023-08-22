@@ -92,9 +92,28 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 EmaOracle: pallet_ema_oracle,
-		 Stableswap: pallet_stableswap
+		 Stableswap: pallet_stableswap,
+		 AssetRegistry: pallet_asset_registry,
 	 }
 );
+
+parameter_types! {
+	pub const RegistryStrLimit: u32 = 32;
+	pub const SequentialIdOffset: u32 = 1_000_000;
+	pub const NativeAssetId: u32 = HDX;
+}
+
+impl pallet_asset_registry::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type RegistryOrigin = EnsureRoot<AccountId>;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type AssetNativeLocation = ();
+	type StringLimit = RegistryStrLimit;
+	type SequentialIdStartAt = SequentialIdOffset;
+	type NativeAssetId = NativeAssetId;
+	type WeightInfo = ();
+}
 
 parameter_types! {
 	pub const MinimumLiquidity: Balance = 1000;
@@ -156,7 +175,7 @@ impl pallet_stableswap::Config for Test {
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
-	type AssetInspection = DummyRegistry<Test>;
+	type AssetInspection = AssetRegistry;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type MinPoolLiquidity = MinimumLiquidity;
 	type AmplificationRange = AmplificationRange;
