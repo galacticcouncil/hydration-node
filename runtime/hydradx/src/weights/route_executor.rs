@@ -63,7 +63,7 @@ impl<T: frame_system::Config, AssetId> WeightInfo<AssetId> for HydraWeight<T> {
 			.map(|trade| match trade.pool {
 				PoolType::Omnipool => Self::sell_omnipool(),
 				PoolType::Stableswap(_) => Self::sell_stableswap(),
-				//TODO: Since we can't panic, we need return some weight as default.
+				//Since we can't panic, we need return some weight as default.
 				//Since the rest of the pools are not supported by hydra, the route execution will fail
 				//We have integration tests covering the supported and non supported pool types, acting as safety net
 				_ => Self::sell_omnipool(),
@@ -81,8 +81,9 @@ impl<T: frame_system::Config, AssetId> WeightInfo<AssetId> for HydraWeight<T> {
 			.iter()
 			.map(|trade| match trade.pool {
 				PoolType::Omnipool => Self::buy_omnipool(),
-				PoolType::Stableswap(_) => Self::buy_stableswap(),
-				//TODO: Since we can't panic, we need return some weight as default.
+				//We use sell weight as we need some default, the buy trade in stableswap is not supported anyway so it will fail eventually
+				PoolType::Stableswap(_) => Self::sell_stableswap(),
+				//Since we can't panic, we need return some weight as default.
 				//Since the rest of the pools are not supported by hydra, the route execution will fail
 				//We have integration tests covering the supported and non supported pool types, acting as safety net
 				_ => Self::buy_omnipool(),
@@ -120,8 +121,8 @@ impl<T: frame_system::Config> HydraWeight<T> {
 	// Storage: CircuitBreaker AllowedTradeVolumeLimitPerAsset (r:2 w:2)
 	// Proof: CircuitBreaker AllowedTradeVolumeLimitPerAsset (max_values: None, max_size: Some(68), added: 2543, mode: MaxEncodedLen)
 	fn sell_omnipool() -> Weight {
-		// Minimum execution time: 208_119 nanoseconds.
-		Weight::from_ref_time(209_369_000 as u64)
+		// Minimum execution time: 211_579 nanoseconds.
+		Weight::from_ref_time(214_049_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(17 as u64))
 			.saturating_add(T::DbWeight::get().writes(12 as u64))
 	}
@@ -147,19 +148,22 @@ impl<T: frame_system::Config> HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
 	// Storage: CircuitBreaker AllowedTradeVolumeLimitPerAsset (r:2 w:2)
 	// Proof: CircuitBreaker AllowedTradeVolumeLimitPerAsset (max_values: None, max_size: Some(68), added: 2543, mode: MaxEncodedLen)
+	// Storage: Staking Staking (r:1 w:0)
+	// Proof: Staking Staking (max_values: Some(1), max_size: Some(48), added: 543, mode: MaxEncodedLen)
 	fn buy_omnipool() -> Weight {
-		// Minimum execution time: 206_638 nanoseconds.
-		Weight::from_ref_time(207_959_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(17 as u64))
+		// Minimum execution time: 209_979 nanoseconds.
+		Weight::from_ref_time(213_179_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(18 as u64))
 			.saturating_add(T::DbWeight::get().writes(12 as u64))
 	}
-
 	// Storage: Tokens Accounts (r:7 w:4)
 	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: System Account (r:2 w:1)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Stableswap Pools (r:1 w:0)
 	// Proof: Stableswap Pools (max_values: None, max_size: Some(61), added: 2536, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:2 w:0)
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	// Storage: Stableswap AssetTradability (r:2 w:0)
@@ -169,29 +173,9 @@ impl<T: frame_system::Config> HydraWeight<T> {
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	fn sell_stableswap() -> Weight {
-		// Minimum execution time: 431_398 nanoseconds.
-		Weight::from_ref_time(435_057_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(16 as u64))
-			.saturating_add(T::DbWeight::get().writes(5 as u64))
-	}
-	// Storage: Tokens Accounts (r:7 w:4)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: System Account (r:2 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: Stableswap Pools (r:1 w:0)
-	// Proof: Stableswap Pools (max_values: None, max_size: Some(61), added: 2536, mode: MaxEncodedLen)
-	// Storage: Stableswap AssetTradability (r:2 w:0)
-	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	fn buy_stableswap() -> Weight {
-		// Minimum execution time: 430_698 nanoseconds.
-		Weight::from_ref_time(432_908_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(16 as u64))
+		// Minimum execution time: 554_147 nanoseconds.
+		Weight::from_ref_time(559_967_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(21 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
 }
