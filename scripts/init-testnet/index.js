@@ -66,6 +66,13 @@ function assetRegistry(api, txs) {
 
       tx = api.tx.assetRegistry.setMetadata(k, a.metadata.symbol, a.metadata.decimals);
       txs.push(tx);
+
+      let aLocation = (a['location']) ? a['location'] : null;
+      if (aLocation) {
+        tx = api.tx.assetRegistry.setLocation(k, aLocation);
+        txs.push(tx);
+      }
+
       continue;
     }
 
@@ -74,7 +81,8 @@ function assetRegistry(api, txs) {
 
     a.metadata.decimals = Number(a.metadata.decimals);
 
-    tx = api.tx.assetRegistry.register(a.asset.name, aType, 100, k, a.metadata, null, null);
+    let aLocation = (a['location']) ? a['location'] : null;
+    tx = api.tx.assetRegistry.register(a.asset.name, aType, 100, k, a.metadata, aLocation, null);
     txs.push(tx);
   };
   
