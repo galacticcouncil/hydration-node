@@ -10173,7 +10173,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.9.2"
+version = "1.10.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10218,6 +10218,7 @@ dependencies = [
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
+ "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
