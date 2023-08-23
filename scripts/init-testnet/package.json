@@ -1,7 +1,7 @@
 {
   "name": "init-testnet",
   "version": "1.0.0",
-  "description": "Script to inint empty hydradx parachain for testing purposes.",
+  "description": "Script to init empty hydradx parachain for testing purposes.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
