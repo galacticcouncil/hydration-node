@@ -329,8 +329,6 @@ pub mod pallet {
 		/// Updates also mapping between name and asset id if provided name is different than currently registered.
 		///
 		/// Emits `Updated` event when successful.
-
-		// TODO: No tests
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::update())]
 		pub fn update(
@@ -477,13 +475,11 @@ impl<T: Config> Pallet<T> {
 				Error::<T>::NotInReservedRange
 			);
 
-			println!("--> sem");
 			ensure!(
 				!Assets::<T>::contains_key(selected_id),
 				Error::<T>::AssetAlreadyRegistered
 			);
 
-			println!("--> sem2");
 			selected_id
 		} else {
 			NextAssetId::<T>::mutate(|value| -> Result<T::AssetId, DispatchError> {
