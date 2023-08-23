@@ -47,7 +47,7 @@ pub enum AssetKind {
 	XYK,
 	StableSwap,
 	Bond,
-    External,
+	External,
 }
 
 pub trait CreateRegistry<AssetId, Balance> {

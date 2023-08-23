@@ -6210,6 +6210,7 @@ dependencies = [
  "hydradx-traits",
  "orml-traits",
  "parity-scale-codec",
+ "pretty_assertions",
  "primitive-types",
  "scale-info",
  "serde",

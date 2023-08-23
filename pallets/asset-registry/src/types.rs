@@ -31,7 +31,7 @@ pub enum AssetType<AssetId> {
 	XYK,
 	StableSwap,
 	Bond,
-    External,
+	External,
 }
 
 impl<AssetId> From<AssetKind> for AssetType<AssetId> {
@@ -81,6 +81,12 @@ pub struct AssetMetadata<BoundedString> {
 	pub(super) symbol: BoundedString,
 	/// The number of decimals this asset uses to represent one unit.
 	pub(super) decimals: u8,
+}
+
+impl<BoundedString> AssetMetadata<BoundedString> {
+	pub fn new(symbol: BoundedString, decimals: u8) -> Self {
+		Self { symbol, decimals }
+	}
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo)]

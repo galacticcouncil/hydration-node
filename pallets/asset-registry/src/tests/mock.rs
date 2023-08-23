@@ -29,12 +29,13 @@ use frame_support::traits::{Everything, GenesisBuild};
 
 use polkadot_xcm::v3::MultiLocation;
 
-use crate::{self as asset_registry, Config};
+use crate as pallet_asset_registry;
 
 pub type AssetId = u32;
 pub type Balance = u128;
 
 pub const UNIT: Balance = 1_000_000_000_000;
+pub const ALICE: u64 = 1_000;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -46,7 +47,7 @@ frame_support::construct_runtime!(
 	 UncheckedExtrinsic = UncheckedExtrinsic,
 	 {
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		 Registry: asset_registry::{Pallet, Call, Storage, Event<T>},
+		 Registry: pallet_asset_registry::{Pallet, Call, Storage, Event<T>},
 	 }
 
 );
@@ -92,7 +93,7 @@ use scale_info::TypeInfo;
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub MultiLocation);
 
-impl Config for Test {
+impl pallet_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = frame_system::EnsureRoot<u64>;
 	type AssetId = u32;
@@ -103,52 +104,33 @@ impl Config for Test {
 	type NativeAssetId = NativeAssetId;
 	type WeightInfo = ();
 }
-pub type AssetRegistryPallet = crate::Pallet<Test>;
 
 #[derive(Default)]
 pub struct ExtBuilder {
-	registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)>,
-	native_asset_name: Option<Vec<u8>>,
+	registered_assets: Vec<(Option<Vec<u8>>, Balance, Option<AssetId>)>,
 }
 
 impl ExtBuilder {
-	pub fn with_assets(mut self, asset_ids: Vec<(Vec<u8>, Balance, Option<AssetId>)>) -> Self {
+	pub fn with_assets(mut self, asset_ids: Vec<(Option<Vec<u8>>, Balance, Option<AssetId>)>) -> Self {
 		self.registered_assets = asset_ids;
-		self
-	}
-
-	pub fn with_native_asset_name(mut self, name: Vec<u8>) -> Self {
-		self.native_asset_name = Some(name);
 		self
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		if let Some(name) = self.native_asset_name {
-			crate::GenesisConfig::<Test> {
-				registered_assets: self.registered_assets,
-				native_asset_name: name,
-				native_existential_deposit: 1_000_000u128,
-			}
-		} else {
-			crate::GenesisConfig::<Test> {
-				registered_assets: self.registered_assets,
-				..Default::default()
-			}
+		crate::GenesisConfig::<Test> {
+			registered_assets: self.registered_assets,
+			..Default::default()
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
-		t.into()
+
+		let mut r: sp_io::TestExternalities = t.into();
+		r.execute_with(|| {
+			System::set_block_number(1);
+		});
+
+		r
 	}
-}
-
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut ext = ExtBuilder::default().build();
-	ext.execute_with(|| System::set_block_number(1));
-	ext
-}
-
-pub fn expect_events(e: Vec<RuntimeEvent>) {
-	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }

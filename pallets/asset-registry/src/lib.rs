@@ -27,9 +27,6 @@ use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
 #[cfg(test)]
-mod mock;
-
-#[cfg(test)]
 mod tests;
 
 mod benchmarking;
@@ -45,14 +42,13 @@ pub use types::AssetType;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-pub use crate::types::{AssetDetails, AssetMetadata};
+pub use crate::types::{AssetDetails, AssetMetadata, Metadata};
 use frame_support::BoundedVec;
 use hydradx_traits::{AssetKind, CreateRegistry, Registry, ShareTokenRegistry};
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::Metadata;
 	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 
 	pub type AssetDetailsT<T> =
@@ -176,7 +172,7 @@ pub mod pallet {
 		fn default() -> Self {
 			GenesisConfig::<T> {
 				registered_assets: vec![],
-				native_asset_name: b"BSX".to_vec(),
+				native_asset_name: b"HDX".to_vec(),
 				native_existential_deposit: Default::default(),
 			}
 		}
@@ -226,6 +222,8 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			asset_name: Option<BoundedVec<u8, T::StringLimit>>,
 			asset_type: AssetType<T::AssetId>,
+			existential_deposit: T::Balance,
+			xcm_rate_limit: Option<T::Balance>,
 		},
 
 		/// Asset was updated.
@@ -240,8 +238,7 @@ pub mod pallet {
 		/// Metadata set for an asset.
 		MetadataSet {
 			asset_id: T::AssetId,
-			symbol: BoundedVec<u8, T::StringLimit>,
-			decimals: u8,
+			metadata: Option<Metadata>,
 		},
 
 		/// Native location set for an asset.
@@ -289,15 +286,11 @@ pub mod pallet {
 				None
 			};
 
-			let meta = match metadata {
-				Some(m) => {
-					let symbol = Self::to_bounded_name(m.symbol)?;
-					Some(AssetMetadata {
-						symbol: symbol.clone(),
-						decimals: m.decimals,
-					})
-				}
-				None => None,
+			let meta = if let Some(m) = metadata.as_ref() {
+				let symbol = Self::to_bounded_name(m.symbol.clone())?;
+				Some(AssetMetadata::new(symbol, m.decimals))
+			} else {
+				None
 			};
 
 			let asset_id = Self::register_asset(
@@ -306,15 +299,11 @@ pub mod pallet {
 				existential_deposit,
 				asset_id,
 				xcm_rate_limit,
-				meta.clone(),
+				meta,
 			)?;
 
-			if let Some(m) = meta {
-				Self::deposit_event(Event::MetadataSet {
-					asset_id,
-					symbol: m.symbol,
-					decimals: m.decimals,
-				});
+			if metadata.is_some() {
+				Self::deposit_event(Event::MetadataSet { asset_id, metadata });
 			}
 
 			if let Some(loc) = location {
@@ -351,31 +340,29 @@ pub mod pallet {
 			asset_type: AssetType<T::AssetId>,
 			existential_deposit: Option<T::Balance>,
 			xcm_rate_limit: Option<T::Balance>,
+			metadata: Option<Metadata>,
 		) -> DispatchResult {
 			T::RegistryOrigin::ensure_origin(origin)?;
 
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
 				let mut detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-				let new_bounded_name = if let Some(name) = name {
-					let new_bounded_name = Self::to_bounded_name(name)?;
+				let new_bounded_name = if let Some(n) = name {
+					let new_name = Self::to_bounded_name(n)?;
+					ensure!(Self::asset_ids(&new_name).is_none(), Error::<T>::AssetAlreadyRegistered);
 
-					if Some(new_bounded_name.clone()) != detail.name {
-						ensure!(
-							Self::asset_ids(&new_bounded_name).is_none(),
-							Error::<T>::AssetAlreadyRegistered
-						);
-						// update also name map - remove old one first
-						if let Some(old_name) = &detail.name {
-							AssetIds::<T>::remove(old_name);
-						}
-						AssetIds::<T>::insert(&new_bounded_name, asset_id);
+					if Some(new_name.clone()) != detail.name {
+						AssetIds::<T>::insert(&new_name, asset_id);
 					}
 
-					Some(new_bounded_name)
+					Some(new_name)
 				} else {
 					None
 				};
+
+				if let Some(old_name) = &detail.name {
+					AssetIds::<T>::remove(old_name);
+				}
 
 				detail.name = new_bounded_name.clone();
 				detail.asset_type = asset_type;
@@ -390,6 +377,13 @@ pub mod pallet {
 					xcm_rate_limit: detail.xcm_rate_limit,
 				});
 
+				if let Some(meta) = metadata.as_ref() {
+					let symbol = Self::to_bounded_name(meta.symbol.clone())?;
+					detail.metadata = Some(AssetMetadata::new(symbol, meta.decimals));
+
+					Self::deposit_event(Event::MetadataSet { asset_id, metadata });
+				}
+
 				Ok(())
 			})
 		}
@@ -403,30 +397,22 @@ pub mod pallet {
 		/// Emits `MetadataSet` event when successful.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_metadata())]
-		pub fn set_metadata(
-			origin: OriginFor<T>,
-			asset_id: T::AssetId,
-			symbol: Vec<u8>,
-			decimals: u8,
-		) -> DispatchResult {
+		pub fn set_metadata(origin: OriginFor<T>, asset_id: T::AssetId, metadata: Option<Metadata>) -> DispatchResult {
 			T::RegistryOrigin::ensure_origin(origin)?;
 
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
 				let mut detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
-				let b_symbol = Self::to_bounded_name(symbol)?;
 
-				let metadata = AssetMetadata::<BoundedVec<u8, T::StringLimit>> {
-					symbol: b_symbol.clone(),
-					decimals,
+				let meta = if let Some(m) = metadata.as_ref() {
+					let symbol = Self::to_bounded_name(m.symbol.clone())?;
+					Some(AssetMetadata::new(symbol, m.decimals))
+				} else {
+					None
 				};
 
-				detail.metadata = Some(metadata);
+				detail.metadata = meta;
 
-				Self::deposit_event(Event::MetadataSet {
-					asset_id,
-					symbol: b_symbol,
-					decimals,
-				});
+				Self::deposit_event(Event::MetadataSet { asset_id, metadata });
 
 				Ok(())
 			})
@@ -469,10 +455,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn next_asset_id() -> Option<T::AssetId> {
-		NextAssetId::<T>::get().checked_add(&T::SequentialIdStartAt::get())
-	}
-
 	/// Convert Vec<u8> to BoundedVec so it respects the max set limit, otherwise return TooLong error
 	pub fn to_bounded_name(name: Vec<u8>) -> Result<BoundedVec<u8, T::StringLimit>, Error<T>> {
 		name.try_into().map_err(|_| Error::<T>::TooLong)
@@ -495,11 +477,13 @@ impl<T: Config> Pallet<T> {
 				Error::<T>::NotInReservedRange
 			);
 
+			println!("--> sem");
 			ensure!(
 				!Assets::<T>::contains_key(selected_id),
 				Error::<T>::AssetAlreadyRegistered
 			);
 
+			println!("--> sem2");
 			selected_id
 		} else {
 			NextAssetId::<T>::mutate(|value| -> Result<T::AssetId, DispatchError> {
@@ -539,12 +523,12 @@ impl<T: Config> Pallet<T> {
 		// Store the details
 		Assets::<T>::insert(asset_id, details);
 
-		// Increase asset id to be assigned for following asset.
-
 		Self::deposit_event(Event::Registered {
 			asset_id,
 			asset_name: name,
 			asset_type,
+			existential_deposit,
+			xcm_rate_limit,
 		});
 
 		Ok(asset_id)
