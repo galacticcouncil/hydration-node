@@ -1,3 +1,4 @@
+use frame_support::BoundedVec;
 use sp_std::vec::Vec;
 
 pub trait Registry<AssetId, AssetName, Balance, Error> {
@@ -14,6 +15,10 @@ pub trait Registry<AssetId, AssetName, Balance, Error> {
 			Self::create_asset(&name, existential_deposit)
 		}
 	}
+}
+
+pub trait RegistryQueryForEvm<AssetId, NameStringLimit, Error> {
+	fn retrieve_asset_name(name: AssetId) -> Result<BoundedVec<u8, NameStringLimit>, Error>;
 }
 
 pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<AssetId, AssetName, Balance, Error> {

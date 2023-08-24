@@ -33,6 +33,7 @@ use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 };
 
+use crate::evm::precompile::{EvmAddress, FungibleTokenId};
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::One,
@@ -479,4 +480,17 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type Oracle = OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
+}
+
+impl evm::precompile::Erc20Mapping for Runtime {
+	fn encode_evm_address(v: AssetId) -> Option<EvmAddress> {
+		todo!("implement try from for EvmAddress")
+		//EvmAddress::try_from(v).ok()
+	}
+
+	fn decode_evm_address(v: EvmAddress) -> Option<AssetId> {
+		let address = v.as_bytes();
+		let test_position_token: usize = 19; //TODO: change this to do it properly
+		address[test_position_token].try_into().ok()
+	}
 }

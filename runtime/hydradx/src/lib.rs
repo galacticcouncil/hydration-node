@@ -33,7 +33,7 @@ pub mod weights;
 
 pub mod adapters;
 mod assets;
-mod evm;
+pub mod evm;
 mod governance;
 mod system;
 mod xcm;

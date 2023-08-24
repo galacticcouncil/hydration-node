@@ -20,6 +20,7 @@ codec = { package = "parity-scale-codec", version = "3.4.0", default-features = 
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 smallvec = "1.9.0"
 getrandom = { version = "0.2.10", features = ["js"] }
+num_enum = { version = "0.5.1", default-features = false }
 
 # local dependencies
 primitives = { workspace = true }
@@ -135,6 +136,8 @@ pallet-ethereum = { workspace = true }
 pallet-evm = { workspace = true }
 pallet-evm-chain-id = { workspace = true }
 pallet-evm-precompile-dispatch = { workspace = true }
+module-evm-utility-macro = { workspace = true }
+ethabi = { version = "18.0.0", default-features = false }
 
 [features]
 default = ["std"]

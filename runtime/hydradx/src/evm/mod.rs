@@ -38,10 +38,12 @@ use polkadot_xcm::latest::MultiLocation;
 use polkadot_xcm::prelude::{AccountKey20, Here, PalletInstance, Parachain, X3};
 use primitives::AssetId;
 use sp_core::{Get, U256};
+use sp_runtime::traits::Convert;
 use sp_runtime::Permill;
 
 mod accounts_conversion;
-mod precompiles;
+pub mod precompile;
+pub mod precompiles;
 
 // Centrifuge / Moonbeam:
 // Current approximation of the gas per second consumption considering
@@ -67,6 +69,19 @@ impl pallet_base_fee::BaseFeeThreshold for BaseFeeThreshold {
 
 	fn upper() -> Permill {
 		Permill::from_parts(1_000_000)
+	}
+}
+
+pub const GAS_TO_WEIGHT_RATIO: u64 = 9000;
+
+/// Convert weight to gas
+pub struct WeightToGas;
+impl Convert<Weight, u64> for WeightToGas {
+	fn convert(weight: Weight) -> u64 {
+		weight
+			.ref_time()
+			.checked_div(GAS_TO_WEIGHT_RATIO)
+			.expect("Compile-time constant is not zero; qed;")
 	}
 }
 
