@@ -55,6 +55,8 @@ mod benchmarking;
 #[allow(clippy::all)]
 pub mod weights;
 
+#[cfg(test)]
+mod invariants;
 mod trade_execution;
 
 use weights::WeightInfo;

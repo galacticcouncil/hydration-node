@@ -208,6 +208,11 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
+	pub fn with_endowed_accounts(mut self, accounts: Vec<(AccountId, AssetId, Balance)>) -> Self {
+		self.endowed_accounts.extend_from_slice(&accounts);
+		self
+	}
+
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
