@@ -32,7 +32,6 @@ members = [
   'pallets/otc',
   'math',
   'runtime/hydradx/src/evm/modules/evm-utility/macro',
-  'runtime/hydradx/src/evm/modules/evm-utility',
   #'runtime/hydradx/src/evm/modules/evm',
 ]
 
@@ -221,8 +220,6 @@ pallet-evm-chain-id = { git = "https://github.com/PureStake/frontier", branch = 
 pallet-evm-precompile-dispatch = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 
 #Evm from acala
-#module-evm = { path = "runtime/hydradx/src/evm/modules/evm", default-features = false}
-module-evm-utility = { path = "runtime/hydradx/src/evm/modules/evm-utility", default-features = false}
 module-evm-utility-macro = { path = "runtime/hydradx/src/evm/modules/evm-utility/macro", default-features = false}
 
 # Polkadot dependencies
