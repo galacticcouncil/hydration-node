@@ -17,7 +17,8 @@
 
 use frame_support::pallet_prelude::*;
 use scale_info::TypeInfo;
-use sp_std::vec::Vec;
+
+pub type Balance = u128;
 
 use hydradx_traits::AssetKind;
 #[cfg(feature = "std")]
@@ -61,7 +62,7 @@ impl<AssetId> From<AssetType<AssetId>> for AssetKind {
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AssetDetails<AssetId, Balance, BoundedString> {
+pub struct AssetDetails<AssetId, BoundedString> {
 	/// The name of this asset. Limited in length by `StringLimit`.
 	pub name: Option<BoundedString>,
 
@@ -69,29 +70,35 @@ pub struct AssetDetails<AssetId, Balance, BoundedString> {
 
 	pub existential_deposit: Balance,
 
+	/// The ticker symbol for this asset. Limited in length by `StringLimit`.
+	pub symbol: Option<BoundedString>,
+
+	/// The number of decimals this asset uses to represent one unit.
+	pub decimals: Option<u8>,
+
 	pub xcm_rate_limit: Option<Balance>,
 
-	pub metadata: Option<AssetMetadata<BoundedString>>,
+	pub is_sufficient: bool,
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Default, RuntimeDebug, TypeInfo, MaxEncodedLen, Copy)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AssetMetadata<BoundedString> {
-	/// The ticker symbol for this asset. Limited in length by `StringLimit`.
-	pub(super) symbol: BoundedString,
-	/// The number of decimals this asset uses to represent one unit.
-	pub(super) decimals: u8,
-}
-
-impl<BoundedString> AssetMetadata<BoundedString> {
-	pub fn new(symbol: BoundedString, decimals: u8) -> Self {
-		Self { symbol, decimals }
+impl<AssetId, BoundedString> AssetDetails<AssetId, BoundedString> {
+	pub fn new(
+		name: Option<BoundedString>,
+		asset_type: AssetType<AssetId>,
+		existential_deposit: Balance,
+		symbol: Option<BoundedString>,
+		decimals: Option<u8>,
+		xcm_rate_limit: Option<Balance>,
+		is_sufficient: bool,
+	) -> Self {
+		Self {
+			name,
+			asset_type,
+			existential_deposit,
+			symbol,
+			decimals,
+			xcm_rate_limit,
+			is_sufficient,
+		}
 	}
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct Metadata {
-	pub(super) symbol: Vec<u8>,
-	pub(super) decimals: u8,
 }

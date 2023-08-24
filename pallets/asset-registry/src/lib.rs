@@ -42,17 +42,19 @@ pub use types::AssetType;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-pub use crate::types::{AssetDetails, AssetMetadata, Metadata};
+pub use crate::types::{AssetDetails, Balance};
 use frame_support::BoundedVec;
 use hydradx_traits::{AssetKind, CreateRegistry, Registry, ShareTokenRegistry};
+
+/// Default value of existential deposit. This value is used if existential deposit wasn't
+/// provided.
+pub const DEFAULT_ED: Balance = 1;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 
-	pub type AssetDetailsT<T> =
-		AssetDetails<<T as Config>::AssetId, <T as Config>::Balance, BoundedVec<u8, <T as Config>::StringLimit>>;
+	pub type AssetDetailsT<T> = AssetDetails<<T as Config>::AssetId, BoundedVec<u8, <T as Config>::StringLimit>>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -60,6 +62,9 @@ pub mod pallet {
 
 		/// The origin which can work with asset-registry.
 		type RegistryOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// The origin which can update assets' detail.
+		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Asset type
 		type AssetId: Parameter
@@ -70,15 +75,6 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
 			+ TypeInfo;
-
-		/// Balance type
-		type Balance: Parameter
-			+ Member
-			+ AtLeast32BitUnsigned
-			+ Default
-			+ Copy
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen;
 
 		/// Asset location type
 		type AssetNativeLocation: Parameter + Member + Default + MaxEncodedLen;
@@ -131,6 +127,13 @@ pub mod pallet {
 
 		/// Location already registered with different asset
 		LocationAlreadyRegistered,
+
+		Forbidden,
+	}
+
+	#[pallet::type_value]
+	pub fn DefaultNextAssetId<T: Config>() -> T::AssetId {
+		1.into()
 	}
 
 	#[pallet::storage]
@@ -139,8 +142,9 @@ pub mod pallet {
 	pub type Assets<T: Config> = StorageMap<_, Twox64Concat, T::AssetId, AssetDetailsT<T>, OptionQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn next_asset_id)]
 	/// Next available asset id. This is sequential id assigned for each new registered asset.
-	pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
+	pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery, DefaultNextAssetId<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn asset_ids)]
@@ -162,9 +166,19 @@ pub mod pallet {
 	#[allow(clippy::type_complexity)]
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub registered_assets: Vec<(Option<Vec<u8>>, T::Balance, Option<T::AssetId>)>,
+		//asset_id, name, existential deposit, symbol, decimals, is_sufficient
+		pub registered_assets: Vec<(
+			Option<T::AssetId>,
+			Option<Vec<u8>>,
+			Balance,
+			Option<Vec<u8>>,
+			Option<u8>,
+			bool,
+		)>,
 		pub native_asset_name: Vec<u8>,
-		pub native_existential_deposit: T::Balance,
+		pub native_existential_deposit: Balance,
+		pub native_symbol: Vec<u8>,
+		pub native_decimals: u8,
 	}
 
 	#[cfg(feature = "std")]
@@ -174,6 +188,8 @@ pub mod pallet {
 				registered_assets: vec![],
 				native_asset_name: b"HDX".to_vec(),
 				native_existential_deposit: Default::default(),
+				native_symbol: b"HDX".to_vec(),
+				native_decimals: 12,
 			}
 		}
 	}
@@ -186,31 +202,57 @@ pub mod pallet {
 				.map_err(|_| panic!("Invalid native asset name!"))
 				.unwrap();
 
+			let native_symbol = Pallet::<T>::to_bounded_name(self.native_symbol.to_vec())
+				.map_err(|_| panic!("Invalid native asset symbol!"))
+				.unwrap();
+
 			AssetIds::<T>::insert(&native_asset_name, T::NativeAssetId::get());
 			let details = AssetDetails {
 				name: Some(native_asset_name),
 				asset_type: AssetType::Token,
 				existential_deposit: self.native_existential_deposit,
-
 				xcm_rate_limit: None,
-				metadata: None,
+				symbol: Some(native_symbol),
+				decimals: Some(self.native_decimals),
+				is_sufficient: true,
 			};
 
 			Assets::<T>::insert(T::NativeAssetId::get(), details);
 
-			self.registered_assets.iter().for_each(|(name, ed, id)| {
-				let bounded_name = if let Some(name) = name {
-					Some(
-						Pallet::<T>::to_bounded_name(name.to_vec())
-							.map_err(|_| panic!("Invalid asset name!"))
-							.unwrap(),
-					)
-				} else {
-					None
-				};
-				let _ = Pallet::<T>::register_asset(bounded_name, AssetType::Token, *ed, *id, None, None)
-					.map_err(|_| panic!("Failed to register asset"));
-			})
+			self.registered_assets
+				.iter()
+				.for_each(|(id, name, ed, symbol, decimals, is_sufficient)| {
+					let bounded_name = if let Some(name) = name {
+						Some(
+							Pallet::<T>::to_bounded_name(name.to_vec())
+								.map_err(|_| panic!("Invalid asset name!"))
+								.unwrap(),
+						)
+					} else {
+						None
+					};
+					let bounded_symbol = if let Some(symbol) = symbol {
+						Some(
+							Pallet::<T>::to_bounded_name(symbol.to_vec())
+								.map_err(|_| panic!("Invalid symbol!"))
+								.unwrap(),
+						)
+					} else {
+						None
+					};
+
+					let details = AssetDetails {
+						name: bounded_name,
+						asset_type: AssetType::Token,
+						existential_deposit: *ed,
+						xcm_rate_limit: None,
+						symbol: bounded_symbol,
+						decimals: *decimals,
+						is_sufficient: *is_sufficient,
+					};
+					let _ = Pallet::<T>::do_register_asset(*id, details, None)
+						.map_err(|_| panic!("Failed to register asset"));
+				})
 		}
 	}
 
@@ -222,8 +264,10 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			asset_name: Option<BoundedVec<u8, T::StringLimit>>,
 			asset_type: AssetType<T::AssetId>,
-			existential_deposit: T::Balance,
-			xcm_rate_limit: Option<T::Balance>,
+			existential_deposit: Balance,
+			xcm_rate_limit: Option<Balance>,
+			symbol: Option<BoundedVec<u8, T::StringLimit>>,
+			decimals: Option<u8>,
 		},
 
 		/// Asset was updated.
@@ -231,14 +275,10 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			asset_name: Option<BoundedVec<u8, T::StringLimit>>,
 			asset_type: AssetType<T::AssetId>,
-			existential_deposit: T::Balance,
-			xcm_rate_limit: Option<T::Balance>,
-		},
-
-		/// Metadata set for an asset.
-		MetadataSet {
-			asset_id: T::AssetId,
-			metadata: Option<Metadata>,
+			existential_deposit: Balance,
+			xcm_rate_limit: Option<Balance>,
+			symbol: Option<BoundedVec<u8, T::StringLimit>>,
+			decimals: Option<u8>,
 		},
 
 		/// Native location set for an asset.
@@ -264,63 +304,42 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::register())]
 		pub fn register(
 			origin: OriginFor<T>,
+			asset_id: Option<T::AssetId>,
 			name: Option<Vec<u8>>,
 			asset_type: AssetType<T::AssetId>,
-			existential_deposit: T::Balance,
-			asset_id: Option<T::AssetId>,
-			metadata: Option<Metadata>,
+			existential_deposit: Option<Balance>,
+			symbol: Option<Vec<u8>>,
+			decimals: Option<u8>,
 			location: Option<T::AssetNativeLocation>,
-			xcm_rate_limit: Option<T::Balance>,
+			xcm_rate_limit: Option<Balance>,
+			is_sufficient: bool,
 		) -> DispatchResult {
 			T::RegistryOrigin::ensure_origin(origin)?;
 
-			let bounded_name = if let Some(n) = name {
-				let bounded_name = Self::to_bounded_name(n)?;
-				ensure!(
-					Self::asset_ids(&bounded_name).is_none(),
-					Error::<T>::AssetAlreadyRegistered
-				);
-
+			let bounded_name = if let Some(name) = name {
+				let bounded_name = Self::to_bounded_name(name)?;
 				Some(bounded_name)
 			} else {
 				None
 			};
 
-			let meta = if let Some(m) = metadata.as_ref() {
-				let symbol = Self::to_bounded_name(m.symbol.clone())?;
-				Some(AssetMetadata::new(symbol, m.decimals))
+			let bounded_symbol = if let Some(symbol) = symbol {
+				Some(Self::to_bounded_name(symbol)?)
 			} else {
 				None
 			};
 
-			let asset_id = Self::register_asset(
+			let details = AssetDetails::new(
 				bounded_name,
 				asset_type,
-				existential_deposit,
-				asset_id,
+				existential_deposit.unwrap_or(DEFAULT_ED),
+				bounded_symbol,
+				decimals,
 				xcm_rate_limit,
-				meta,
-			)?;
+				is_sufficient,
+			);
 
-			if metadata.is_some() {
-				Self::deposit_event(Event::MetadataSet { asset_id, metadata });
-			}
-
-			if let Some(loc) = location {
-				ensure!(asset_id != T::NativeAssetId::get(), Error::<T>::CannotUpdateLocation);
-				ensure!(
-					Self::location_assets(&loc).is_none(),
-					Error::<T>::LocationAlreadyRegistered
-				);
-				AssetLocations::<T>::insert(asset_id, &loc);
-				LocationAssets::<T>::insert(&loc, asset_id);
-
-				Self::deposit_event(Event::LocationSet {
-					asset_id,
-					location: loc,
-				});
-			}
-
+			Self::do_register_asset(asset_id, details, location)?;
 			Ok(())
 		}
 
@@ -335,21 +354,36 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
 			name: Option<Vec<u8>>,
-			asset_type: AssetType<T::AssetId>,
-			existential_deposit: Option<T::Balance>,
-			xcm_rate_limit: Option<T::Balance>,
-			metadata: Option<Metadata>,
+			asset_type: Option<AssetType<T::AssetId>>,
+			existential_deposit: Option<Balance>,
+			xcm_rate_limit: Option<Balance>,
+			is_sufficient: Option<bool>,
+			symbol: Option<Vec<u8>>,
+			decimals: Option<u8>,
 		) -> DispatchResult {
-			T::RegistryOrigin::ensure_origin(origin)?;
+			T::UpdateOrigin::ensure_origin(origin.clone())?;
+
+			// let is_registry_origing = match T::UpdateOrigin::ensure_origin(origin.clone()) {
+			//     Ok(_) => false,
+			//     Err(e) => {
+			//         T::RegistryOrigin::ensure_origin(origin)?
+			//
+			//         true
+			//     }
+			// }
 
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
-				let mut detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+				let mut details = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
 				let new_bounded_name = if let Some(n) = name {
 					let new_name = Self::to_bounded_name(n)?;
 					ensure!(Self::asset_ids(&new_name).is_none(), Error::<T>::AssetAlreadyRegistered);
 
-					if Some(new_name.clone()) != detail.name {
+					if let Some(old_name) = &details.name {
+						AssetIds::<T>::remove(old_name);
+					}
+
+					if Some(new_name.clone()) != details.name {
 						AssetIds::<T>::insert(&new_name, asset_id);
 					}
 
@@ -358,96 +392,41 @@ pub mod pallet {
 					None
 				};
 
-				if let Some(old_name) = &detail.name {
-					AssetIds::<T>::remove(old_name);
-				}
-
-				detail.name = new_bounded_name.clone();
-				detail.asset_type = asset_type;
-				detail.existential_deposit = existential_deposit.unwrap_or(detail.existential_deposit);
-				detail.xcm_rate_limit = xcm_rate_limit;
-
-				Self::deposit_event(Event::Updated {
-					asset_id,
-					asset_name: new_bounded_name,
-					asset_type,
-					existential_deposit: detail.existential_deposit,
-					xcm_rate_limit: detail.xcm_rate_limit,
-				});
-
-				if let Some(meta) = metadata.as_ref() {
-					let symbol = Self::to_bounded_name(meta.symbol.clone())?;
-					detail.metadata = Some(AssetMetadata::new(symbol, meta.decimals));
-
-					Self::deposit_event(Event::MetadataSet { asset_id, metadata });
-				}
-
-				Ok(())
-			})
-		}
-
-		/// Set metadata for an asset.
-		///
-		/// - `asset_id`: Asset identifier.
-		/// - `symbol`: The exchange symbol for this asset. Limited in length by `StringLimit`.
-		/// - `decimals`: The number of decimals this asset uses to represent one unit.
-		///
-		/// Emits `MetadataSet` event when successful.
-		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_metadata())]
-		pub fn set_metadata(origin: OriginFor<T>, asset_id: T::AssetId, metadata: Option<Metadata>) -> DispatchResult {
-			T::RegistryOrigin::ensure_origin(origin)?;
-
-			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
-				let mut detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
-
-				let meta = if let Some(m) = metadata.as_ref() {
-					let symbol = Self::to_bounded_name(m.symbol.clone())?;
-					Some(AssetMetadata::new(symbol, m.decimals))
+				let bounded_symbol = if let Some(s) = symbol {
+					Some(Self::to_bounded_name(s)?)
 				} else {
 					None
 				};
 
-				detail.metadata = meta;
+				details.name = new_bounded_name.or(details.name.clone());
+				details.asset_type = asset_type.unwrap_or(details.asset_type);
+				details.existential_deposit = existential_deposit.unwrap_or(details.existential_deposit);
+				details.xcm_rate_limit = details.xcm_rate_limit.or(xcm_rate_limit);
+				details.is_sufficient = is_sufficient.unwrap_or(details.is_sufficient);
+				details.symbol = bounded_symbol.or(details.symbol.clone());
 
-				Self::deposit_event(Event::MetadataSet { asset_id, metadata });
+				if decimals.is_some() {
+					if details.decimals.is_none() {
+						details.decimals = decimals;
+					} else {
+						//Only highest origin can change decimal if it was set previously.
+						ensure!(T::RegistryOrigin::ensure_origin(origin).is_ok(), Error::<T>::Forbidden);
+						details.decimals = decimals;
+					};
+				}
+
+				Self::deposit_event(Event::Updated {
+					asset_id,
+					asset_name: details.name.clone(),
+					asset_type: details.asset_type,
+					existential_deposit: details.existential_deposit,
+					xcm_rate_limit: details.xcm_rate_limit,
+					symbol: details.symbol.clone(),
+					decimals: details.decimals,
+				});
 
 				Ok(())
 			})
-		}
-
-		/// Set asset native location.
-		///
-		/// Adds mapping between native location and local asset id and vice versa.
-		///
-		/// Mainly used in XCM.
-		///
-		/// Emits `LocationSet` event when successful.
-		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_location())]
-		pub fn set_location(
-			origin: OriginFor<T>,
-			asset_id: T::AssetId,
-			location: T::AssetNativeLocation,
-		) -> DispatchResult {
-			T::RegistryOrigin::ensure_origin(origin)?;
-
-			ensure!(asset_id != T::NativeAssetId::get(), Error::<T>::CannotUpdateLocation);
-			ensure!(Self::assets(asset_id).is_some(), Error::<T>::AssetNotRegistered);
-			ensure!(
-				Self::location_assets(&location).is_none(),
-				Error::<T>::LocationAlreadyRegistered
-			);
-
-			if let Some(old_location) = AssetLocations::<T>::take(asset_id) {
-				LocationAssets::<T>::remove(&old_location);
-			}
-			AssetLocations::<T>::insert(asset_id, &location);
-			LocationAssets::<T>::insert(&location, asset_id);
-
-			Self::deposit_event(Event::LocationSet { asset_id, location });
-
-			Ok(())
 		}
 	}
 }
@@ -458,42 +437,37 @@ impl<T: Config> Pallet<T> {
 		name.try_into().map_err(|_| Error::<T>::TooLong)
 	}
 
+	fn do_set_location(asset_id: T::AssetId, location: T::AssetNativeLocation) -> Result<(), DispatchError> {
+		ensure!(
+			Self::location_assets(&location).is_none(),
+			Error::<T>::LocationAlreadyRegistered
+		);
+
+		AssetLocations::<T>::insert(asset_id, &location);
+		LocationAssets::<T>::insert(&location, asset_id);
+
+		Self::deposit_event(Event::LocationSet { asset_id, location });
+
+		Ok(())
+	}
+
 	/// Register new asset.
 	///
-	/// Does not perform any  check whether an asset for given name already exists. This has to be prior to calling this function.
-	pub fn register_asset(
-		name: Option<BoundedVec<u8, T::StringLimit>>,
-		asset_type: AssetType<T::AssetId>,
-		existential_deposit: T::Balance,
+	/// This function checks if asset name is already used.
+	fn do_register_asset(
 		selected_asset_id: Option<T::AssetId>,
-		xcm_rate_limit: Option<T::Balance>,
-		metadata: Option<AssetMetadata<BoundedVec<u8, T::StringLimit>>>,
+		details: AssetDetails<T::AssetId, BoundedVec<u8, T::StringLimit>>,
+		location: Option<T::AssetNativeLocation>,
 	) -> Result<T::AssetId, DispatchError> {
-		let asset_id = if let Some(selected_id) = selected_asset_id {
-			ensure!(
-				selected_id < T::SequentialIdStartAt::get(),
-				Error::<T>::NotInReservedRange
-			);
+		let asset_id = if let Some(id) = selected_asset_id {
+			ensure!(id < T::SequentialIdStartAt::get(), Error::<T>::NotInReservedRange);
 
-			ensure!(
-				!Assets::<T>::contains_key(selected_id),
-				Error::<T>::AssetAlreadyRegistered
-			);
+			ensure!(!Assets::<T>::contains_key(id), Error::<T>::AssetAlreadyRegistered);
 
-			selected_id
+			id
 		} else {
 			NextAssetId::<T>::mutate(|value| -> Result<T::AssetId, DispatchError> {
-				// Check if current id does not clash with CORE ASSET ID.
-				// If yes, just skip it and use next one, otherwise use it.
-				// Note: this way we prevent accidental clashes with native asset id, so no need to set next asset id to be > next asset id
-				let next_asset_id = if *value == T::NativeAssetId::get() {
-					value
-						.checked_add(&T::AssetId::from(1))
-						.ok_or(Error::<T>::NoIdAvailable)?
-				} else {
-					*value
-				};
-
+				let next_asset_id = *value;
 				*value = next_asset_id
 					.checked_add(&T::AssetId::from(1))
 					.ok_or(Error::<T>::NoIdAvailable)?;
@@ -504,28 +478,25 @@ impl<T: Config> Pallet<T> {
 			})?
 		};
 
-		if let Some(n) = name.clone() {
-			AssetIds::<T>::insert(&n, asset_id);
+		Assets::<T>::insert(asset_id, &details);
+		if let Some(name) = details.name.as_ref() {
+			ensure!(!AssetIds::<T>::contains_key(name), Error::<T>::AssetAlreadyRegistered);
+			AssetIds::<T>::insert(name, asset_id);
 		}
-
-		let details = AssetDetails {
-			name: name.clone(),
-			asset_type,
-			existential_deposit,
-			xcm_rate_limit,
-			metadata,
-		};
-
-		// Store the details
-		Assets::<T>::insert(asset_id, details);
 
 		Self::deposit_event(Event::Registered {
 			asset_id,
-			asset_name: name,
-			asset_type,
-			existential_deposit,
-			xcm_rate_limit,
+			asset_name: details.name,
+			asset_type: details.asset_type,
+			existential_deposit: details.existential_deposit,
+			xcm_rate_limit: details.xcm_rate_limit,
+			symbol: details.symbol,
+			decimals: details.decimals,
 		});
+
+		if let Some(loc) = location {
+			Self::do_set_location(asset_id, loc)?;
+		}
 
 		Ok(asset_id)
 	}
@@ -534,20 +505,26 @@ impl<T: Config> Pallet<T> {
 	pub fn get_or_create_asset(
 		name: Vec<u8>,
 		asset_type: AssetType<T::AssetId>,
-		existential_deposit: T::Balance,
+		existential_deposit: Balance,
 		asset_id: Option<T::AssetId>,
+		is_sufficient: bool,
 	) -> Result<T::AssetId, DispatchError> {
 		let bounded_name: BoundedVec<u8, T::StringLimit> = Self::to_bounded_name(name)?;
 
 		if let Some(asset_id) = AssetIds::<T>::get(&bounded_name) {
 			Ok(asset_id)
 		} else {
-			Self::register_asset(
-				Some(bounded_name),
-				asset_type,
-				existential_deposit,
+			Self::do_register_asset(
 				asset_id,
-				None,
+				AssetDetails::new(
+					Some(bounded_name),
+					asset_type,
+					existential_deposit,
+					None,
+					None,
+					None,
+					is_sufficient,
+				),
 				None,
 			)
 		}
@@ -564,7 +541,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for Pallet<T> {
+impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for Pallet<T> {
 	fn exists(asset_id: T::AssetId) -> bool {
 		Assets::<T>::contains_key(asset_id)
 	}
@@ -584,12 +561,16 @@ impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for Pal
 		Ok(asset_details.asset_type.into())
 	}
 
-	fn create_asset(name: &Vec<u8>, existential_deposit: T::Balance) -> Result<T::AssetId, DispatchError> {
-		Self::get_or_create_asset(name.clone(), AssetType::Token, existential_deposit, None)
+	fn create_asset(
+		name: &Vec<u8>,
+		existential_deposit: Balance,
+		is_sufficient: bool,
+	) -> Result<T::AssetId, DispatchError> {
+		Self::get_or_create_asset(name.clone(), AssetType::Token, existential_deposit, None, is_sufficient)
 	}
 }
 
-impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for Pallet<T> {
+impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, Balance, DispatchError> for Pallet<T> {
 	fn retrieve_shared_asset(name: &Vec<u8>, _assets: &[T::AssetId]) -> Result<T::AssetId, DispatchError> {
 		Self::retrieve_asset(name)
 	}
@@ -597,7 +578,8 @@ impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, T::Balance, DispatchErro
 	fn create_shared_asset(
 		name: &Vec<u8>,
 		assets: &[T::AssetId],
-		existential_deposit: T::Balance,
+		existential_deposit: Balance,
+		is_sufficient: bool,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(assets.len() == 2, Error::<T>::InvalidSharedAssetLen);
 		Self::get_or_create_asset(
@@ -605,21 +587,21 @@ impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, T::Balance, DispatchErro
 			AssetType::PoolShare(assets[0], assets[1]),
 			existential_deposit,
 			None,
+			is_sufficient,
 		)
 	}
 }
 
 use orml_traits::GetByKey;
-use sp_arithmetic::traits::Bounded;
 
 // Return Existential deposit of an asset
-impl<T: Config> GetByKey<T::AssetId, T::Balance> for Pallet<T> {
-	fn get(k: &T::AssetId) -> T::Balance {
+impl<T: Config> GetByKey<T::AssetId, Balance> for Pallet<T> {
+	fn get(k: &T::AssetId) -> Balance {
 		if let Some(details) = Self::assets(k) {
 			details.existential_deposit
 		} else {
 			// Asset does not exist - not supported
-			T::Balance::max_value()
+			Balance::max_value()
 		}
 	}
 }
@@ -628,26 +610,40 @@ impl<T: Config> GetByKey<T::AssetId, T::Balance> for Pallet<T> {
 pub struct XcmRateLimitsInRegistry<T>(PhantomData<T>);
 /// Allows querying the XCM rate limit for an asset by its id.
 /// Both a unknown asset and an unset rate limit will return `None`.
-impl<T: Config> GetByKey<T::AssetId, Option<T::Balance>> for XcmRateLimitsInRegistry<T> {
-	fn get(k: &T::AssetId) -> Option<T::Balance> {
+impl<T: Config> GetByKey<T::AssetId, Option<Balance>> for XcmRateLimitsInRegistry<T> {
+	fn get(k: &T::AssetId) -> Option<Balance> {
 		Pallet::<T>::assets(k).and_then(|details| details.xcm_rate_limit)
 	}
 }
 
-impl<T: Config> CreateRegistry<T::AssetId, T::Balance> for Pallet<T> {
+impl<T: Config> CreateRegistry<T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn create_asset(
 		name: Option<&[u8]>,
 		kind: AssetKind,
-		existential_deposit: T::Balance,
+		existential_deposit: Balance,
+		is_sufficient: bool,
+		//TODO: add location
 	) -> Result<T::AssetId, Self::Error> {
-		let bounded_name = if let Some(name) = name {
-			Some(Self::to_bounded_name(name.to_vec())?)
+		let bounded_name = if let Some(n) = name {
+			Some(Self::to_bounded_name(n.to_vec())?)
 		} else {
 			None
 		};
 
-		Pallet::<T>::register_asset(bounded_name, kind.into(), existential_deposit, None, None, None)
+		Pallet::<T>::do_register_asset(
+			None,
+			AssetDetails::new(
+				bounded_name,
+				kind.into(),
+				existential_deposit,
+				None,
+				None,
+				None,
+				is_sufficient,
+			),
+			None,
+		)
 	}
 }
