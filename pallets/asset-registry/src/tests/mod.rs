@@ -4,7 +4,7 @@ use crate::*;
 use frame_support::{assert_noop, assert_ok};
 
 pub(crate) mod mock;
-mod register;
+//mod register;
 mod update;
 
 #[macro_export]

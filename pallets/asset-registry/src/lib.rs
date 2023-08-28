@@ -142,7 +142,6 @@ pub mod pallet {
 	pub type Assets<T: Config> = StorageMap<_, Twox64Concat, T::AssetId, AssetDetailsT<T>, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_asset_id)]
 	/// Next available asset id. This is sequential id assigned for each new registered asset.
 	pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery, DefaultNextAssetId<T>>;
 
@@ -268,6 +267,7 @@ pub mod pallet {
 			xcm_rate_limit: Option<Balance>,
 			symbol: Option<BoundedVec<u8, T::StringLimit>>,
 			decimals: Option<u8>,
+			is_sufficient: bool,
 		},
 
 		/// Asset was updated.
@@ -279,6 +279,7 @@ pub mod pallet {
 			xcm_rate_limit: Option<Balance>,
 			symbol: Option<BoundedVec<u8, T::StringLimit>>,
 			decimals: Option<u8>,
+			is_sufficient: bool,
 		},
 
 		/// Native location set for an asset.
@@ -361,16 +362,14 @@ pub mod pallet {
 			symbol: Option<Vec<u8>>,
 			decimals: Option<u8>,
 		) -> DispatchResult {
-			T::UpdateOrigin::ensure_origin(origin.clone())?;
+			let is_registry_origing = match T::UpdateOrigin::ensure_origin(origin.clone()) {
+				Ok(_) => false,
+				Err(_) => {
+					T::RegistryOrigin::ensure_origin(origin)?;
 
-			// let is_registry_origing = match T::UpdateOrigin::ensure_origin(origin.clone()) {
-			//     Ok(_) => false,
-			//     Err(e) => {
-			//         T::RegistryOrigin::ensure_origin(origin)?
-			//
-			//         true
-			//     }
-			// }
+					true
+				}
+			};
 
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
 				let mut details = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
@@ -410,7 +409,7 @@ pub mod pallet {
 						details.decimals = decimals;
 					} else {
 						//Only highest origin can change decimal if it was set previously.
-						ensure!(T::RegistryOrigin::ensure_origin(origin).is_ok(), Error::<T>::Forbidden);
+						ensure!(is_registry_origing, Error::<T>::Forbidden);
 						details.decimals = decimals;
 					};
 				}
@@ -423,6 +422,7 @@ pub mod pallet {
 					xcm_rate_limit: details.xcm_rate_limit,
 					symbol: details.symbol.clone(),
 					decimals: details.decimals,
+					is_sufficient: details.is_sufficient,
 				});
 
 				Ok(())
@@ -432,12 +432,17 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	pub fn next_asset_id() -> Option<T::AssetId> {
+		NextAssetId::<T>::get().checked_add(&T::SequentialIdStartAt::get())
+	}
+
 	/// Convert Vec<u8> to BoundedVec so it respects the max set limit, otherwise return TooLong error
 	pub fn to_bounded_name(name: Vec<u8>) -> Result<BoundedVec<u8, T::StringLimit>, Error<T>> {
 		name.try_into().map_err(|_| Error::<T>::TooLong)
 	}
 
-	fn do_set_location(asset_id: T::AssetId, location: T::AssetNativeLocation) -> Result<(), DispatchError> {
+    //Note: this is used in the tests.
+	pub(crate) fn do_set_location(asset_id: T::AssetId, location: T::AssetNativeLocation) -> Result<(), DispatchError> {
 		ensure!(
 			Self::location_assets(&location).is_none(),
 			Error::<T>::LocationAlreadyRegistered
@@ -492,6 +497,7 @@ impl<T: Config> Pallet<T> {
 			xcm_rate_limit: details.xcm_rate_limit,
 			symbol: details.symbol,
 			decimals: details.decimals,
+			is_sufficient: details.is_sufficient,
 		});
 
 		if let Some(loc) = location {

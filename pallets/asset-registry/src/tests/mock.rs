@@ -96,8 +96,8 @@ pub struct AssetLocation(pub MultiLocation);
 impl pallet_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = frame_system::EnsureRoot<u64>;
+	type UpdateOrigin = frame_system::EnsureSigned<u64>;
 	type AssetId = u32;
-	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStringLimit;
 	type SequentialIdStartAt = SequentialIdStart;
@@ -107,12 +107,29 @@ impl pallet_asset_registry::Config for Test {
 
 #[derive(Default)]
 pub struct ExtBuilder {
-	registered_assets: Vec<(Option<Vec<u8>>, Balance, Option<AssetId>)>,
+	registered_assets: Vec<(
+		Option<AssetId>,
+		Option<Vec<u8>>,
+		Balance,
+		Option<Vec<u8>>,
+		Option<u8>,
+		bool,
+	)>,
 }
 
 impl ExtBuilder {
-	pub fn with_assets(mut self, asset_ids: Vec<(Option<Vec<u8>>, Balance, Option<AssetId>)>) -> Self {
-		self.registered_assets = asset_ids;
+	pub fn with_assets(
+		mut self,
+		assets: Vec<(
+			Option<AssetId>,
+			Option<Vec<u8>>,
+			Balance,
+			Option<Vec<u8>>,
+			Option<u8>,
+			bool,
+		)>,
+	) -> Self {
+		self.registered_assets = assets;
 		self
 	}
 
