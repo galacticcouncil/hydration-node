@@ -22,6 +22,7 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub const INITIAL_BALANCE: Balance = 1_000_000_000_000_000u128;
+pub const INITIAL_ETH_BALANCE: Balance = 1_000_000_000_000_000_000_000u128;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
@@ -197,11 +198,11 @@ impl Default for ExtBuilder {
 				(ALICE, HDX, INITIAL_BALANCE),
 				(ALICE, BSX, INITIAL_BALANCE),
 				(ALICE, KUSD, INITIAL_BALANCE),
-				(ALICE, ETH, INITIAL_BALANCE),
+				(ALICE, ETH, INITIAL_ETH_BALANCE),
 				(BOB, HDX, INITIAL_BALANCE),
 				(BOB, BSX, INITIAL_BALANCE),
 				(BOB, KUSD, INITIAL_BALANCE),
-				(BOB, ETH, INITIAL_BALANCE),
+				(BOB, ETH, INITIAL_ETH_BALANCE),
 			],
 		}
 	}
