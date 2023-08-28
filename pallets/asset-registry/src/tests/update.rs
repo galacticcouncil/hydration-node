@@ -272,7 +272,7 @@ fn create_origin_should_always_set_decimals() {
 				None,
 				Some(decimals),
 			));
-            
+
 			assert_ok!(Registry::update(
 				RuntimeOrigin::root(),
 				asset_id,
@@ -284,7 +284,6 @@ fn create_origin_should_always_set_decimals() {
 				None,
 				Some(u8::max_value()),
 			));
-
 
 			//Assert
 			assert_eq!(
@@ -339,16 +338,19 @@ fn update_should_fail_when_name_is_already_used() {
 			Pallet::<Test>::do_set_location(asset_id, asset_location.clone()).unwrap();
 
 			//Act
-			assert_noop!(Registry::update(
-				RuntimeOrigin::root(),
-				asset_id,
-				Some(name.clone()),
-				Some(AssetType::External),
-				Some(ed),
-				Some(xcm_rate_limit),
-				Some(is_sufficient),
-				Some(symbol.clone()),
-				Some(decimals),
-			),Error::<Test>::AssetAlreadyRegistered);
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					Some(name.clone()),
+					Some(AssetType::External),
+					Some(ed),
+					Some(xcm_rate_limit),
+					Some(is_sufficient),
+					Some(symbol.clone()),
+					Some(decimals),
+				),
+				Error::<Test>::AssetAlreadyRegistered
+			);
 		});
 }
