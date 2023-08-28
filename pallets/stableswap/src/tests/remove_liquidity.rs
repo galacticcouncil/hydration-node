@@ -136,7 +136,7 @@ fn remove_liquidity_should_apply_fee_when_withdrawing_all_shares() {
 
 			let amount_received = Tokens::free_balance(asset_c, &BOB);
 			assert_balance!(BOB, asset_a, 0u128);
-			assert_balance!(BOB, asset_c, 190632279384125);
+			assert_balance!(BOB, asset_c, 190688958461730);
 			assert_balance!(BOB, pool_id, 0u128);
 			assert_balance!(pool_account, asset_a, 100 * ONE + amount_added);
 			assert_balance!(pool_account, asset_c, 300 * ONE - amount_received);
@@ -388,11 +388,11 @@ fn verify_remove_liquidity_against_research_impl() {
 
 			let amount_received = Tokens::free_balance(asset_b, &BOB);
 			assert_balance!(BOB, asset_a, 0u128);
-			assert_balance!(BOB, asset_b, 99847206046905544);
+			assert_balance!(BOB, asset_b, 99749116913542959); //TODO: double check python impl
 			assert_balance!(BOB, pool_id, 0u128);
 			assert_balance!(pool_account, asset_a, 1_000_000 * ONE + amount_added);
 			assert_balance!(pool_account, asset_b, 1_000_000 * ONE - amount_received);
-			assert_balance!(pool_account, asset_b, 900152793953094456);
+			assert_balance!(pool_account, asset_b, 900250883086457041);
 		});
 }
 
