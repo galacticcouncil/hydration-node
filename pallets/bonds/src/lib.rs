@@ -248,6 +248,7 @@ pub mod pallet {
 						None,
 						AssetKind::Bond,
 						ed,
+						false,
 					)?;
 
 					Bonds::<T>::insert(bond_id, (asset_id, maturity));

@@ -95,7 +95,14 @@ pub fn parachain_genesis(
 	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
 	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
-	registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)>, // (Asset name, Existential deposit, Chosen asset id)
+	registered_assets: Vec<(
+		Option<AssetId>,
+		Option<Vec<u8>>,
+		Balance,
+		Option<Vec<u8>>,
+		Option<u8>,
+		bool,
+	)>, // (asset_id, name, existential deposit, symbol, decimals, is_sufficient)
 	accepted_assets: Vec<(AssetId, Price)>, // (Asset id, Fallback price) - asset which fee can be paid with
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
@@ -148,6 +155,8 @@ pub fn parachain_genesis(
 			registered_assets: registered_assets.clone(),
 			native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
 			native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
+			native_symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
+			native_decimals: TOKEN_DECIMALS,
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: accepted_assets,

@@ -157,9 +157,9 @@ parameter_types! {
 
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type RegistryOrigin = SuperMajorityTechCommittee;
+	type RegistryOrigin = EnsureRoot<AccountId>;
+	type UpdateOrigin = SuperMajorityTechCommittee;
 	type AssetId = AssetId;
-	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
