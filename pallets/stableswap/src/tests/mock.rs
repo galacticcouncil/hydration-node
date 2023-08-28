@@ -329,7 +329,11 @@ where
 		unimplemented!()
 	}
 
-	fn create_asset(name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
+	fn create_asset(
+		name: &Vec<u8>,
+		_existential_deposit: Balance,
+		_is_sufficient: bool,
+	) -> Result<T::AssetId, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
 			v.borrow_mut().insert(l as u32, l as u32);
@@ -354,8 +358,9 @@ where
 		name: &Vec<u8>,
 		_assets: &[T::AssetId],
 		existential_deposit: Balance,
+		is_sufficient: bool,
 	) -> Result<T::AssetId, DispatchError> {
-		Self::get_or_create_asset(name.clone(), existential_deposit)
+		Self::get_or_create_asset(name.clone(), existential_deposit, is_sufficient)
 	}
 }
 

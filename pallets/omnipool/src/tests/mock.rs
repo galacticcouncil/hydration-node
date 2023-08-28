@@ -532,7 +532,11 @@ where
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
+	fn create_asset(
+		_name: &Vec<u8>,
+		_existential_deposit: Balance,
+		_is_sufficient: bool,
+	) -> Result<T::AssetId, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
 			v.borrow_mut().insert(l as u32, l as u32);

@@ -441,8 +441,7 @@ impl<T: Config> Pallet<T> {
 		name.try_into().map_err(|_| Error::<T>::TooLong)
 	}
 
-	//Note: this is used in the tests.
-	pub(crate) fn do_set_location(asset_id: T::AssetId, location: T::AssetNativeLocation) -> Result<(), DispatchError> {
+	pub fn set_location(asset_id: T::AssetId, location: T::AssetNativeLocation) -> Result<(), DispatchError> {
 		ensure!(
 			Self::location_assets(&location).is_none(),
 			Error::<T>::LocationAlreadyRegistered
@@ -501,7 +500,7 @@ impl<T: Config> Pallet<T> {
 		});
 
 		if let Some(loc) = location {
-			Self::do_set_location(asset_id, loc)?;
+			Self::set_location(asset_id, loc)?;
 		}
 
 		Ok(asset_id)

@@ -261,7 +261,7 @@ fn register_should_not_work_when_asset_location_is_already_used() {
 
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::do_set_location(3, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(3, asset_location.clone()).unwrap();
 
 			let name = b"Tkn4".to_vec();
 			let symbol = b"TKN".to_vec();

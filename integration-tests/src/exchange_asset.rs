@@ -273,48 +273,54 @@ fn transfer_and_swap_should_work_with_4_hops() {
 fn register_glmr() {
 	assert_ok!(hydradx_runtime::AssetRegistry::register(
 		hydradx_runtime::RuntimeOrigin::root(),
-		b"GLRM".to_vec(),
-		pallet_asset_registry::AssetType::Token,
-		1_000_000,
 		Some(GLMR),
+		Some(b"GLRM".to_vec()),
+		pallet_asset_registry::AssetType::Token,
+		Some(1_000_000),
+		None,
 		None,
 		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
 			1,
 			X2(Parachain(MOONBEAM_PARA_ID), GeneralIndex(0))
 		))),
-		None
+		None,
+		false
 	));
 }
 
 fn register_aca() {
 	assert_ok!(hydradx_runtime::AssetRegistry::register(
 		hydradx_runtime::RuntimeOrigin::root(),
-		b"ACAL".to_vec(),
-		pallet_asset_registry::AssetType::Token,
-		1_000_000,
 		Some(ACA),
+		Some(b"ACAL".to_vec()),
+		pallet_asset_registry::AssetType::Token,
+		Some(1_000_000),
+		None,
 		None,
 		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
 			1,
 			X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))
 		))),
-		None
+		None,
+		false
 	));
 }
 
 fn register_ibtc() {
 	assert_ok!(hydradx_runtime::AssetRegistry::register(
 		hydradx_runtime::RuntimeOrigin::root(),
-		b"iBTC".to_vec(),
-		pallet_asset_registry::AssetType::Token,
-		1_000_000,
 		Some(IBTC),
+		Some(b"iBTC".to_vec()),
+		pallet_asset_registry::AssetType::Token,
+		Some(1_000_000),
+		None,
 		None,
 		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
 			1,
 			X2(Parachain(INTERLAY_PARA_ID), GeneralIndex(0))
 		))),
-		None
+		None,
+		false
 	));
 }
 

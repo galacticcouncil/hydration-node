@@ -152,7 +152,11 @@ impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegi
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
+	fn create_asset(
+		_name: &Vec<u8>,
+		_existential_deposit: Balance,
+		_is_sufficient: bool,
+	) -> Result<AssetId, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
 			v.borrow_mut().insert(l as u32, l as u32);

@@ -31,7 +31,7 @@ fn update_should_work_when_asset_exists() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::do_set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
 
 			//Act
 			assert_ok!(Registry::update(
@@ -99,7 +99,7 @@ fn update_should_not_change_values_when_param_is_none() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::do_set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
 
 			let details_0 = Registry::assets(asset_id).unwrap();
 
@@ -156,7 +156,7 @@ fn update_origin_should_set_decimals_if_its_none() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::do_set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
 
 			let details_0 = Registry::assets(asset_id).unwrap();
 
@@ -218,7 +218,7 @@ fn update_origin_should_not_chane_decimals_if_its_some() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::do_set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
 
 			//NOTE: update origin is ste to ensure_signed
 			//Act & assert
@@ -255,7 +255,7 @@ fn create_origin_should_always_set_decimals() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::do_set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
 
 			let details_0 = Registry::assets(asset_id).unwrap();
 
@@ -335,7 +335,7 @@ fn update_should_fail_when_name_is_already_used() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::do_set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
 
 			//Act
 			assert_noop!(

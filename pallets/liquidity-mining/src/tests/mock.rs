@@ -444,11 +444,19 @@ impl Registry<AssetId, Vec<u8>, Balance, DispatchError> for AssetRegistry {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
+	fn create_asset(
+		_name: &Vec<u8>,
+		_existential_deposit: Balance,
+		_is_sufficient: bool,
+	) -> Result<AssetId, DispatchError> {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}
 
-	fn get_or_create_asset(_name: Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
+	fn get_or_create_asset(
+		_name: Vec<u8>,
+		_existential_deposit: Balance,
+		_is_sufficient: bool,
+	) -> Result<AssetId, DispatchError> {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}
 }

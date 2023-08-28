@@ -5,10 +5,10 @@ use crate::polkadot_test_net::*;
 
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
-use sp_runtime::BoundedVec;
 use xcm_emulator::TestExt;
 
 use hydradx_runtime::{AssetRegistry, Bonds, Currencies, Runtime, RuntimeOrigin};
+use hydradx_traits::{AssetKind, CreateRegistry};
 use primitives::constants::time::unix_time::MONTH;
 
 #[test]
@@ -31,7 +31,7 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
 
 		assert_eq!(bond_asset_details.asset_type, pallet_asset_registry::AssetType::Bond);
-		assert!(bond_asset_details.name.is_empty());
+		assert!(bond_asset_details.name.is_none());
 		assert_eq!(bond_asset_details.existential_deposit, NativeExistentialDeposit::get());
 
 		assert_balance!(&ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount);
@@ -53,14 +53,12 @@ fn issue_bonds_should_work_when_issued_for_shared_asset() {
 
 		let maturity = NOW + MONTH;
 
-		let bounded_name: BoundedVec<u8, <Runtime as pallet_asset_registry::Config>::StringLimit> =
-			"SHARED".as_bytes().to_vec().try_into().unwrap();
-		let shared_asset_id = AssetRegistry::register_asset(
-			bounded_name,
-			pallet_asset_registry::AssetType::PoolShare(HDX, DOT),
+		let name = b"SHARED".to_vec();
+		let shared_asset_id = AssetRegistry::create_asset(
+			Some(&name),
+			pallet_asset_registry::AssetType::PoolShare(HDX, DOT).into(),
 			1_000,
-			None,
-			None,
+			false,
 		)
 		.unwrap();
 		assert_ok!(Currencies::deposit(shared_asset_id, &ALICE.into(), amount,));
@@ -80,7 +78,7 @@ fn issue_bonds_should_work_when_issued_for_shared_asset() {
 		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
 
 		assert_eq!(bond_asset_details.asset_type, pallet_asset_registry::AssetType::Bond);
-		assert!(bond_asset_details.name.is_empty());
+		assert!(bond_asset_details.name.is_none());
 		assert_eq!(bond_asset_details.existential_deposit, 1_000);
 
 		assert_balance!(&ALICE.into(), shared_asset_id, 0);
@@ -103,11 +101,8 @@ fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 		let amount = 100 * UNITS;
 		let maturity = NOW + MONTH;
 
-		let bounded_name: BoundedVec<u8, <Runtime as pallet_asset_registry::Config>::StringLimit> =
-			"BOND".as_bytes().to_vec().try_into().unwrap();
-		let underlying_asset_id =
-			AssetRegistry::register_asset(bounded_name, pallet_asset_registry::AssetType::Bond, 1_000, None, None)
-				.unwrap();
+		let name = b"BOND".to_vec();
+		let underlying_asset_id = AssetRegistry::create_asset(Some(&name), AssetKind::Bond, 1_000, false).unwrap();
 		assert_ok!(Currencies::deposit(underlying_asset_id, &ALICE.into(), amount,));
 
 		// Act & Assert
