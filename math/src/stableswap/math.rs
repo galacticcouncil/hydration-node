@@ -154,7 +154,7 @@ pub fn calculate_shares_for_amount<const D: u8>(
 		})
 		.collect::<Option<Vec<AssetReserve>>>()?;
 
-	let initial_d = calculate_d::<D>(&initial_reserves, amplification)?;
+	let initial_d = calculate_d::<D>(initial_reserves, amplification)?;
 	let updated_d = calculate_d::<D>(&updated_reserves, amplification)?;
 	let (d1, d0) = to_u256!(updated_d, initial_d);
 	let adjusted_balances: Vec<AssetReserve> = updated_reserves
