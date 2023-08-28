@@ -6895,7 +6895,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.6.13"
+version = "4.6.14"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10173,7 +10173,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
