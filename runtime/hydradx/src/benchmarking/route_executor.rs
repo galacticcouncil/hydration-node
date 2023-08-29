@@ -22,6 +22,7 @@ use super::*;
 
 use frame_benchmarking::account;
 use frame_system::{Pallet as System, RawOrigin};
+use hydradx_traits::CreateRegistry;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
@@ -86,12 +87,12 @@ fn initialize_omnipool() -> DispatchResult {
 
 pub fn regi_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<AssetId, DispatchError> {
 	let name = AssetRegistry::to_bounded_name(name)?;
-	AssetRegistry::register_asset(
-		name,
-		pallet_asset_registry::AssetType::<AssetId>::Token,
-		deposit,
+	<AssetRegistry as CreateRegistry<AssetId, Balance>>::create_asset(
 		Some(asset_id),
-		None,
+		Some(&name),
+		pallet_asset_registry::AssetType::<AssetId>::Token.into(),
+		deposit,
+		true,
 	)
 }
 

@@ -222,24 +222,16 @@ pub mod pallet {
 			self.registered_assets
 				.iter()
 				.for_each(|(id, name, ed, symbol, decimals, is_sufficient)| {
-					let bounded_name = if let Some(name) = name {
-						Some(
-							Pallet::<T>::to_bounded_name(name.to_vec())
-								.map_err(|_| panic!("Invalid asset name!"))
-								.unwrap(),
-						)
-					} else {
-						None
-					};
-					let bounded_symbol = if let Some(symbol) = symbol {
-						Some(
-							Pallet::<T>::to_bounded_name(symbol.to_vec())
-								.map_err(|_| panic!("Invalid symbol!"))
-								.unwrap(),
-						)
-					} else {
-						None
-					};
+					let bounded_name = name.as_ref().map(|name| {
+						Pallet::<T>::to_bounded_name(name.to_vec())
+							.map_err(|_| panic!("Invalid asset name!"))
+							.unwrap()
+					});
+					let bounded_symbol = symbol.as_ref().map(|symbol| {
+						Pallet::<T>::to_bounded_name(symbol.to_vec())
+							.map_err(|_| panic!("Invalid symbol!"))
+							.unwrap()
+					});
 
 					let details = AssetDetails {
 						name: bounded_name,
@@ -626,7 +618,7 @@ impl<T: Config> CreateRegistry<T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn create_asset(
-        asset_id: Option<T::AssetId>,
+		asset_id: Option<T::AssetId>,
 		name: Option<&[u8]>,
 		kind: AssetKind,
 		existential_deposit: Balance,

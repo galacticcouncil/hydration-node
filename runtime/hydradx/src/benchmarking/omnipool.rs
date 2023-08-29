@@ -86,7 +86,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
+		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), Balance::one(), true)?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -123,7 +123,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		//Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
+		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), Balance::one(), true)?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -169,7 +169,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
+		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), 1u128,true)?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -227,7 +227,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
+		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), 1u128, true)?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -285,7 +285,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;
+		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), 1_u128, true)?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -351,7 +351,7 @@ runtime_benchmarks! {
 	refund_refused_asset {
 		let recipient: AccountId = account("recipient", 3, 1);
 
-		let asset_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;
+		let asset_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), 1_u128, true)?;
 		let amount = 1_000_000_000_000_000_u128;
 
 		update_balance(asset_id, &Omnipool::protocol_account(), amount);
@@ -380,7 +380,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
+		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), Balance::one(), true)?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -449,11 +449,13 @@ mod tests {
 
 		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
 			registered_assets: vec![
-				(b"LRNA".to_vec(), 1_000u128, Some(1)),
-				(b"DAI".to_vec(), 1_000u128, Some(2)),
+				(Some(1), Some(b"LRNA".to_vec()), 1_000u128, None, None, false),
+				(Some(2), Some(b"DAI".to_vec()), 1_000u128, None, None, false),
 			],
 			native_asset_name: b"HDX".to_vec(),
 			native_existential_deposit: NativeExistentialDeposit::get(),
+			native_decimals: 12,
+			native_symbol: b"HDX".to_vec(),
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

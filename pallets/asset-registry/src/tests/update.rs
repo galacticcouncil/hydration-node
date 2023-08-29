@@ -14,9 +14,9 @@ fn update_should_work_when_asset_exists() {
 	let old_asset_name = b"Tkn2".to_vec();
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(old_asset_name.clone()), 1 * UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(old_asset_name.clone()), UNIT, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -64,7 +64,7 @@ fn update_should_work_when_asset_exists() {
 
 			//NOTE: location should't change
 			assert_eq!(Registry::location_assets(asset_location.clone()), Some(asset_id));
-			assert_eq!(Registry::locations(asset_id), Some(asset_location.clone()));
+			assert_eq!(Registry::locations(asset_id), Some(asset_location));
 
 			let old_bounded_name = Pallet::<Test>::to_bounded_name(old_asset_name).unwrap();
 			assert_eq!(Registry::asset_ids(bounded_name.clone()).unwrap(), asset_id);
@@ -88,9 +88,9 @@ fn update_should_work_when_asset_exists() {
 fn update_should_not_change_values_when_param_is_none() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), 1 * UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -120,11 +120,11 @@ fn update_should_not_change_values_when_param_is_none() {
 			assert_eq!(Registry::assets(asset_id).unwrap(), details_0);
 
 			let old_bounded_name = Pallet::<Test>::to_bounded_name(b"Tkn2".to_vec()).unwrap();
-			assert_eq!(Registry::asset_ids(old_bounded_name.clone()).unwrap(), asset_id);
+			assert_eq!(Registry::asset_ids(old_bounded_name).unwrap(), asset_id);
 
 			//NOTE: location should't change
 			assert_eq!(Registry::location_assets(asset_location.clone()), Some(asset_id));
-			assert_eq!(Registry::locations(asset_id), Some(asset_location.clone()));
+			assert_eq!(Registry::locations(asset_id), Some(asset_location));
 
 			assert_last_event!(Event::<Test>::Updated {
 				asset_id,
@@ -144,9 +144,9 @@ fn update_should_not_change_values_when_param_is_none() {
 fn update_origin_should_set_decimals_if_its_none() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), 1 * UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -156,7 +156,7 @@ fn update_origin_should_set_decimals_if_its_none() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location).unwrap();
 
 			let details_0 = Registry::assets(asset_id).unwrap();
 
@@ -206,9 +206,9 @@ fn update_origin_should_set_decimals_if_its_none() {
 fn update_origin_should_not_chane_decimals_if_its_some() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), 1 * UNIT, None, Some(3), true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, Some(3), true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -218,7 +218,7 @@ fn update_origin_should_not_chane_decimals_if_its_some() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location).unwrap();
 
 			//NOTE: update origin is ste to ensure_signed
 			//Act & assert
@@ -243,9 +243,9 @@ fn update_origin_should_not_chane_decimals_if_its_some() {
 fn create_origin_should_always_set_decimals() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), 1 * UNIT, None, Some(3), true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, Some(3), true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -255,7 +255,7 @@ fn create_origin_should_always_set_decimals() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location).unwrap();
 
 			let details_0 = Registry::assets(asset_id).unwrap();
 
@@ -318,9 +318,9 @@ fn update_should_fail_when_name_is_already_used() {
 	let old_asset_name = b"Tkn2".to_vec();
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(old_asset_name.clone()), 1 * UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(old_asset_name), UNIT, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -335,19 +335,19 @@ fn update_should_fail_when_name_is_already_used() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location).unwrap();
 
 			//Act
 			assert_noop!(
 				Registry::update(
 					RuntimeOrigin::root(),
 					asset_id,
-					Some(name.clone()),
+					Some(name),
 					Some(AssetType::External),
 					Some(ed),
 					Some(xcm_rate_limit),
 					Some(is_sufficient),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
 				),
 				Error::<Test>::AssetAlreadyRegistered

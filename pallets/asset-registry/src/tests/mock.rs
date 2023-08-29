@@ -106,6 +106,7 @@ impl pallet_asset_registry::Config for Test {
 }
 
 #[derive(Default)]
+#[allow(clippy::type_complexity)]
 pub struct ExtBuilder {
 	registered_assets: Vec<(
 		Option<AssetId>,
@@ -118,6 +119,7 @@ pub struct ExtBuilder {
 }
 
 impl ExtBuilder {
+	#[allow(clippy::type_complexity)]
 	pub fn with_assets(
 		mut self,
 		assets: Vec<(

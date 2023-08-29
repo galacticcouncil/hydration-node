@@ -115,9 +115,9 @@ where
 	)?;
 
 	// Register new asset in asset registry
-	T::AssetRegistry::create_asset(&b"BSX".to_vec(), Balance::one())?;
-	T::AssetRegistry::create_asset(&b"ETH".to_vec(), Balance::one())?;
-	T::AssetRegistry::create_asset(&b"BTC".to_vec(), Balance::one())?;
+	T::AssetRegistry::create_asset(&b"BSX".to_vec(), Balance::one(), true)?;
+	T::AssetRegistry::create_asset(&b"ETH".to_vec(), Balance::one(), true)?;
+	T::AssetRegistry::create_asset(&b"BTC".to_vec(), Balance::one(), true)?;
 
 	// Create account for token provider and set balance
 	let owner: T::AccountId = account("owner", 0, 1);

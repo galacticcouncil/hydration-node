@@ -152,12 +152,12 @@ fn register_should_not_work_when_asset_id_is_not_from_reserved_range() {
 			Registry::register(
 				RuntimeOrigin::root(),
 				Some(asset_id),
-				Some(name.clone()),
+				Some(name),
 				AssetType::Token,
 				Some(ed),
-				Some(symbol.clone()),
+				Some(symbol),
 				Some(decimals),
-				Some(asset_location.clone()),
+				Some(asset_location),
 				Some(xcm_rate_limit),
 				is_sufficient
 			),
@@ -170,9 +170,9 @@ fn register_should_not_work_when_asset_id_is_not_from_reserved_range() {
 fn register_should_not_work_when_asset_id_is_already_used() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), 1 * UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -192,12 +192,12 @@ fn register_should_not_work_when_asset_id_is_already_used() {
 				Registry::register(
 					RuntimeOrigin::root(),
 					Some(asset_id),
-					Some(name.clone()),
+					Some(name),
 					AssetType::Token,
 					Some(ed),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
-					Some(asset_location.clone()),
+					Some(asset_location),
 					Some(xcm_rate_limit),
 					is_sufficient
 				),
@@ -210,9 +210,9 @@ fn register_should_not_work_when_asset_id_is_already_used() {
 fn register_should_not_work_when_asset_name_is_already_used() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), 1 * UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -232,12 +232,12 @@ fn register_should_not_work_when_asset_name_is_already_used() {
 				Registry::register(
 					RuntimeOrigin::root(),
 					Some(asset_id),
-					Some(name.clone()),
+					Some(name),
 					AssetType::Token,
 					Some(ed),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
-					Some(asset_location.clone()),
+					Some(asset_location),
 					Some(xcm_rate_limit),
 					is_sufficient
 				),
@@ -250,9 +250,9 @@ fn register_should_not_work_when_asset_name_is_already_used() {
 fn register_should_not_work_when_asset_location_is_already_used() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), 1 * UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -275,12 +275,12 @@ fn register_should_not_work_when_asset_location_is_already_used() {
 				Registry::register(
 					RuntimeOrigin::root(),
 					Some(asset_id),
-					Some(name.clone()),
+					Some(name),
 					AssetType::Token,
 					Some(ed),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
-					Some(asset_location.clone()),
+					Some(asset_location),
 					Some(xcm_rate_limit),
 					is_sufficient
 				),
@@ -293,9 +293,9 @@ fn register_should_not_work_when_asset_location_is_already_used() {
 fn register_should_not_work_when_origin_is_none() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), 1 * UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -317,12 +317,12 @@ fn register_should_not_work_when_origin_is_none() {
 				Registry::register(
 					RuntimeOrigin::none(),
 					Some(asset_id),
-					Some(name.clone()),
+					Some(name),
 					AssetType::Token,
 					Some(ed),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
-					Some(asset_location.clone()),
+					Some(asset_location),
 					Some(xcm_rate_limit),
 					is_sufficient
 				),
@@ -335,9 +335,9 @@ fn register_should_not_work_when_origin_is_none() {
 fn register_should_not_work_when_origin_is_not_allowed() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), 1 * UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), 1 * UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), 1 * UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -359,12 +359,12 @@ fn register_should_not_work_when_origin_is_not_allowed() {
 				Registry::register(
 					RuntimeOrigin::signed(ALICE),
 					Some(asset_id),
-					Some(name.clone()),
+					Some(name),
 					AssetType::Token,
 					Some(ed),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
-					Some(asset_location.clone()),
+					Some(asset_location),
 					Some(xcm_rate_limit),
 					is_sufficient
 				),

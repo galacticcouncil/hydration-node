@@ -87,6 +87,7 @@ where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
+#[allow(clippy::type_complexity)]
 pub fn parachain_genesis(
 	wasm_binary: &[u8],
 	_root_key: AccountId,

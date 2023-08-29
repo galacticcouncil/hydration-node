@@ -59,7 +59,7 @@ pub enum AssetKind {
 pub trait CreateRegistry<AssetId, Balance> {
 	type Error;
 	fn create_asset(
-        asset_id: Option<AssetId>,
+		asset_id: Option<AssetId>,
 		name: Option<&[u8]>,
 		kind: AssetKind,
 		existential_deposit: Balance,
