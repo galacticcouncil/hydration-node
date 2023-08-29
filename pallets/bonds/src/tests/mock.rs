@@ -181,6 +181,7 @@ where
 	type Error = DispatchError;
 
 	fn create_asset(
+        _asset_id: Option<AssetId>,
 		_name: Option<&[u8]>,
 		_kind: AssetKind,
 		existential_deposit: Balance,

@@ -51,6 +51,7 @@ use hydradx_traits::{AssetKind, CreateRegistry, Registry, ShareTokenRegistry};
 pub const DEFAULT_ED: Balance = 1;
 
 #[frame_support::pallet]
+#[allow(clippy::too_many_arguments)]
 pub mod pallet {
 	use super::*;
 
@@ -397,12 +398,12 @@ pub mod pallet {
 					None
 				};
 
-				details.name = new_bounded_name.or(details.name.clone());
+				details.name = new_bounded_name.or_else(|| details.name.clone());
 				details.asset_type = asset_type.unwrap_or(details.asset_type);
 				details.existential_deposit = existential_deposit.unwrap_or(details.existential_deposit);
 				details.xcm_rate_limit = details.xcm_rate_limit.or(xcm_rate_limit);
 				details.is_sufficient = is_sufficient.unwrap_or(details.is_sufficient);
-				details.symbol = bounded_symbol.or(details.symbol.clone());
+				details.symbol = bounded_symbol.or_else(|| details.symbol.clone());
 
 				if decimals.is_some() {
 					if details.decimals.is_none() {
@@ -458,7 +459,7 @@ impl<T: Config> Pallet<T> {
 	/// Register new asset.
 	///
 	/// This function checks if asset name is already used.
-	fn do_register_asset(
+	pub fn do_register_asset(
 		selected_asset_id: Option<T::AssetId>,
 		details: AssetDetails<T::AssetId, BoundedVec<u8, T::StringLimit>>,
 		location: Option<T::AssetNativeLocation>,
@@ -625,6 +626,7 @@ impl<T: Config> CreateRegistry<T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn create_asset(
+        asset_id: Option<T::AssetId>,
 		name: Option<&[u8]>,
 		kind: AssetKind,
 		existential_deposit: Balance,
@@ -638,7 +640,7 @@ impl<T: Config> CreateRegistry<T::AssetId, Balance> for Pallet<T> {
 		};
 
 		Pallet::<T>::do_register_asset(
-			None,
+			asset_id,
 			AssetDetails::new(
 				bounded_name,
 				kind.into(),

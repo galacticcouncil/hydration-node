@@ -56,7 +56,7 @@ benchmarks! {
 		let xcm_rate_limit = 1_000_u128;
 		let is_sufficient = true;
 
-		let _ = Pallet::<T>::register(RawOrigin::Root.into(), Some(asset_id), Some(name.clone()), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient);
+		let _ = Pallet::<T>::register(RawOrigin::Root.into(), Some(asset_id), Some(name), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient);
 
 		let new_name= b"New name".to_vec();
 		let new_type = AssetType::PoolShare(T::AssetId::from(10u8),T::AssetId::from(20u8));

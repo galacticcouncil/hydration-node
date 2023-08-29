@@ -55,6 +55,7 @@ fn issue_bonds_should_work_when_issued_for_shared_asset() {
 
 		let name = b"SHARED".to_vec();
 		let shared_asset_id = AssetRegistry::create_asset(
+            None,
 			Some(&name),
 			pallet_asset_registry::AssetType::PoolShare(HDX, DOT).into(),
 			1_000,
@@ -102,7 +103,7 @@ fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 		let maturity = NOW + MONTH;
 
 		let name = b"BOND".to_vec();
-		let underlying_asset_id = AssetRegistry::create_asset(Some(&name), AssetKind::Bond, 1_000, false).unwrap();
+		let underlying_asset_id = AssetRegistry::create_asset(None, Some(&name), AssetKind::Bond, 1_000, false).unwrap();
 		assert_ok!(Currencies::deposit(underlying_asset_id, &ALICE.into(), amount,));
 
 		// Act & Assert
