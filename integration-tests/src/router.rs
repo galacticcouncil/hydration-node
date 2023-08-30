@@ -456,7 +456,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 
 	let amplification = 100u16;
 	let trade_fee = Permill::from_percent(1);
-	let withdraw_fee = Permill::from_percent(0);
+	let withdraw_fee = Permill::from_percent(1);
 
 	let asset_in: AssetId = *asset_ids.last().unwrap();
 	let asset_out: AssetId = *asset_ids.first().unwrap();
