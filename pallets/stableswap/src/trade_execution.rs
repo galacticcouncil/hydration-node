@@ -121,7 +121,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 					let fee_amount = withdraw_fee.mul_ceil(amount_out);
 
-					let shares_amount = Self::calculate_shares(
+					/*let shares_amount = Self::calculate_shares(
 						pool_id,
 						&vec![AssetAmount {
 							asset_id: asset_out,
@@ -129,9 +129,9 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 							..Default::default()
 						}],
 					)
-					.map_err(ExecutorError::Error)?;
+					.map_err(ExecutorError::Error)?;*/
 
-					/*let shares_amount = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
+					let shares_amount = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
 						&balances,
 						asset_idx,
 						amount_out.saturating_add(fee_amount),
@@ -139,7 +139,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						share_issuance,
 						pool.withdraw_fee,
 					)
-					.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;*/
+					.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					Ok(shares_amount)
 				} else {
@@ -199,7 +199,10 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					Err(ExecutorError::NotSupported)
 				} else if asset_in == pool_id {
 					let shares_amount = max_limit; //Because amount_in is passed as max_limit in router
-					Self::remove_liquidity_one_asset(who, pool_id, asset_out, shares_amount, 0)
+							   /*Self::remove_liquidity_one_asset(who, pool_id, asset_out, shares_amount, 0)
+							   .map_err(ExecutorError::Error)*/
+
+					Self::withdraw_asset_amount(who, pool_id, asset_out, amount_out, shares_amount)
 						.map_err(ExecutorError::Error)
 				} else {
 					Self::buy(who, pool_id, asset_out, asset_in, amount_out, max_limit).map_err(ExecutorError::Error)
