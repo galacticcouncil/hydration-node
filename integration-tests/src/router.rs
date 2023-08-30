@@ -367,7 +367,7 @@ fn buy_router_should_remove_liquidity_from_stableswap_when_asset_in_is_shareasse
 }
 
 #[test]
-fn buy_router_should_add_liquidity_from_stableswap_when_asset_out_is_share_asset() {
+fn buy_router_should_add_liquidity_from_stableswap_when_asset_out_is_share_asset_in_stable() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -379,13 +379,13 @@ fn buy_router_should_add_liquidity_from_stableswap_when_asset_out_is_share_asset
 		assert_ok!(Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			Omnipool::protocol_account(),
-			stable_asset_1,
+			pool_id,
 			3000 * UNITS as i128,
 		));
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
 			hydradx_runtime::RuntimeOrigin::root(),
-			stable_asset_1,
+			pool_id,
 			FixedU128::from_inner(25_650_000_000_000_000_000),
 			Permill::from_percent(100),
 			AccountId::from(BOB),
@@ -393,26 +393,33 @@ fn buy_router_should_add_liquidity_from_stableswap_when_asset_out_is_share_asset
 
 		let trades = vec![
 			Trade {
-				pool: PoolType::Omnipool,
-				asset_in: HDX,
-				asset_out: stable_asset_1,
-			},
-			Trade {
 				pool: PoolType::Stableswap(pool_id),
 				asset_in: stable_asset_1,
 				asset_out: pool_id,
 			},
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: pool_id,
+				asset_out: HDX,
+			},
 		];
 
-		assert_balance!(ALICE.into(), pool_id, 0);
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 
 		//Act
-		let amount_to_buy = 1 * UNITS / 1000;
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			stable_asset_1,
+			3000 * UNITS as i128,
+		));
+
+		let amount_to_buy = 100 * UNITS;
 
 		assert_ok!(Router::buy(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			stable_asset_1,
 			HDX,
-			pool_id,
 			amount_to_buy,
 			u128::MAX,
 			trades
@@ -420,7 +427,7 @@ fn buy_router_should_add_liquidity_from_stableswap_when_asset_out_is_share_asset
 
 		//Assert
 		//assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
-		assert_balance!(ALICE.into(), pool_id, amount_to_buy);
+		assert_balance!(ALICE.into(), HDX, amount_to_buy);
 	});
 }
 
