@@ -38,14 +38,14 @@ fn test_y_given_in() {
 	let reserves = [1000u128, 2000u128];
 
 	let amount_in = 100u128;
-	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1), Some(2942u128));
+	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1), Some(2914u128));
 	assert_eq!(
 		calculate_y_given_in::<D_ITERATIONS, Y_ITERATIONS>(amount_in, 0, 1, &reserves, 1),
-		Some(2000u128 - 121u128)
+		Some(1866u128)
 	);
 	assert_eq!(
 		calculate_d_internal::<D_ITERATIONS>(&[1100u128, 2000u128 - 125u128], 1),
-		Some(2942u128)
+		Some(2925u128)
 	);
 }
 
@@ -55,9 +55,9 @@ fn test_y_given_out() {
 
 	let amount_out = 100u128;
 
-	let expected_in = 83u128;
+	let expected_in = 75u128;
 
-	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1), Some(2942u128));
+	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1), Some(2914u128));
 
 	assert_eq!(
 		calculate_y_given_out::<D_ITERATIONS, Y_ITERATIONS>(amount_out, 0, 1, &reserves, 1),
@@ -65,7 +65,7 @@ fn test_y_given_out() {
 	);
 	assert_eq!(
 		calculate_d_internal::<D_ITERATIONS>(&[1000u128 + expected_in, 2000u128 - amount_out], 1),
-		Some(2946u128)
+		Some(2918u128)
 	);
 }
 
@@ -108,7 +108,7 @@ fn test_shares() {
 	let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, 0u128);
 
 	assert!(result.is_some());
-	assert_eq!(result.unwrap(), 928031226918039092);
+	assert_eq!(result.unwrap(), 736626243363217809);
 }
 #[test]
 fn remove_one_asset_should_work() {

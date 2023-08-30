@@ -46,7 +46,7 @@ fn sell_should_work_when_correct_input_provided() {
 				25 * ONE,
 			));
 
-			let expected = 29_950_934_311_776u128;
+			let expected = 29_902_625_420_923u128;
 
 			let pool_account = pool_account(pool_id);
 
@@ -97,7 +97,7 @@ fn buy_should_work_when_correct_input_provided() {
 				35 * ONE,
 			));
 
-			let expected_to_sell = 30049242502717u128;
+			let expected_to_sell = 30098072706881u128;
 
 			let pool_account = pool_account(pool_id);
 
@@ -149,14 +149,8 @@ fn sell_with_fee_should_work_when_correct_input_provided() {
 				25 * ONE,
 			));
 
-			let expected = 29950934311776u128;
-
-			let fee = Permill::from_percent(10).mul_floor(expected);
-
-			let expected = expected - fee;
-
+			let expected = 26912362878831u128;
 			let pool_account = pool_account(pool_id);
-
 			assert_balance!(BOB, asset_a, 170 * ONE);
 			assert_balance!(BOB, asset_b, expected);
 			assert_balance!(pool_account, asset_a, 130 * ONE);
@@ -204,14 +198,8 @@ fn sell_should_work_when_fee_is_small() {
 				25 * ONE,
 			));
 
-			let expected = 29950934311776u128;
-
-			let fee = Permill::from_float(0.003).mul_floor(expected);
-
-			let expected = expected - fee;
-
+			let expected = 29812917544661u128;
 			let pool_account = pool_account(pool_id);
-
 			assert_balance!(BOB, asset_a, 170 * ONE);
 			assert_balance!(BOB, asset_b, expected);
 			assert_balance!(pool_account, asset_a, 130 * ONE);
@@ -259,14 +247,8 @@ fn buy_should_work_when_fee_is_set() {
 				35 * ONE,
 			));
 
-			let expected_to_sell = 30049242502717u128;
-
-			let fee = Permill::from_percent(10).mul_ceil(expected_to_sell);
-
-			let expected_to_sell = expected_to_sell + fee;
-
+			let expected_to_sell = 33107879977570;
 			let pool_account = pool_account(pool_id);
-
 			assert_balance!(BOB, asset_a, 200 * ONE - expected_to_sell);
 			assert_balance!(BOB, asset_b, 30 * ONE);
 			assert_balance!(pool_account, asset_a, 100 * ONE + expected_to_sell);
@@ -510,7 +492,7 @@ fn sell_should_work_when_pool_have_asset_with_various_decimals() {
 				0,
 			));
 
-			let expected = 1_000_190_264_248;
+			let expected = 1_001_709_976_614;
 
 			let pool_account = pool_account(pool_id);
 
@@ -561,25 +543,24 @@ fn buy_should_work_when_pool_have_asset_with_various_decimals() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 
+			let buy_amount = 1_001_709_976_614;
+
 			assert_ok!(Stableswap::buy(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				asset_b,
 				asset_c,
-				1_000_190_264_248,
+				buy_amount,
 				2 * ONE * 1_000_000,
 			));
 
-			let expected = 1_000_190_264_248;
-			let paid = 1_000_000_000_000_000_000 - 317184; //TODO: compare with previous where we payd 1 and get the same amount
-											   // TODO: here we paid slightly less
-
+			let paid = 999999999999187342;
 			let pool_account = pool_account(pool_id);
 
 			assert_balance!(BOB, asset_c, 1_000_000_000_000_000_000 - paid);
-			assert_balance!(BOB, asset_b, expected);
+			assert_balance!(BOB, asset_b, buy_amount);
 			assert_balance!(pool_account, asset_c, 1000 * ONE * 1_000_000 + paid);
-			assert_balance!(pool_account, asset_b, 3_000_000_000_000_000 - expected);
+			assert_balance!(pool_account, asset_b, 3_000_000_000_000_000 - buy_amount);
 		});
 }
 
@@ -629,7 +610,7 @@ fn sell_should_work_when_assets_have_different_decimals() {
 				to_precision!(27, dec_b),
 			));
 
-			let expected = 29_950_934u128;
+			let expected = 29_902_625u128;
 
 			let pool_account = pool_account(pool_id);
 
@@ -686,7 +667,7 @@ fn buy_should_work_when_assets_have_different_decimals() {
 				to_precision!(31, dec_a),
 			));
 
-			let expected_to_sell = 30_049_242_502_716_457_079u128;
+			let expected_to_sell = 30_098_072_706_880_214_086u128;
 
 			let pool_account = pool_account(pool_id);
 

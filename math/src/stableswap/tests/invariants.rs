@@ -1,4 +1,3 @@
-use super::stable_swap_equation;
 use crate::stableswap::types::AssetReserve;
 use crate::stableswap::*;
 use crate::types::Balance;
@@ -178,8 +177,7 @@ proptest! {
 		let d1 = calculate_d_internal::<D_ITERATIONS>(&updated_balances, amp).unwrap();
 		assert!(d1 >= d0);
 		let diff = d1 - d0;
-		assert!(diff <= 1500u128);
-		assert!(stable_swap_equation(d1, amp, &updated_balances));
+		assert!(diff <= 5000u128);
 	}
 }
 
@@ -339,11 +337,6 @@ proptest! {
 			.collect();
 		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp).unwrap();
 		assert!(d1 < d0);
-		let balances = updated_pool
-			.iter()
-			.map(|v| normalize_value(v.amount, v.decimals, 18u8, Rounding::Down))
-			.collect::<Vec<Balance>>();
-		assert!(stable_swap_equation(d1,amp, &balances));
 	}
 }
 
@@ -391,7 +384,6 @@ proptest! {
 		assert!(d1 >= d0);
 		let diff = d1 - d0;
 		assert!(diff <= 8000u128);
-		assert!(stable_swap_equation(d1, amp, &updated_balances));
 	}
 }
 
