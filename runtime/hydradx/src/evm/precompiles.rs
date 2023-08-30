@@ -63,7 +63,7 @@ where
 // function, made `const` to make our precompile address `const`s a
 // bit cleaner. It can be removed when upstream has a const conversion
 // function.
-const fn addr(a: u64) -> H160 {
+pub const fn addr(a: u64) -> H160 {
 	let b = a.to_be_bytes();
 	H160([
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
