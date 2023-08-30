@@ -7,11 +7,12 @@ use sp_core::{H160, H256, U256};
 use xcm_emulator::TestExt;
 type CurrencyPrecompile = MultiCurrencyPrecompile<hydradx_runtime::Runtime>;
 use fp_evm::{Context, Transfer};
+use frame_support::assert_ok;
 use hex_literal::hex;
 use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
 use hydradx_runtime::evm::precompile::Bytes;
 use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
-use hydradx_runtime::Tokens;
+use hydradx_runtime::{RuntimeOrigin, Tokens, EVM};
 use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
 
@@ -71,35 +72,50 @@ fn dispatch_should_work_with_remark() {
 	});
 }
 
+// TODO: test dispatch should respect call filter
+
+// TODO: test EVM fees should be handled the same way as substrate ones - tranfered to treasury
+
 #[test]
 fn dispatch_should_work_with_transfer() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
 		//Arrange
-		let mut handle = create_dispatch_handle(
-			// substrate.tx.tokens.transfer('7KATdGbN7qoeZLW3dXtnTrvjJjJqwpCHz6ELMxvh7vt37vA3', 20, "10000000000000000")
-			hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
-				.to_vec(),
-		);
 		let balance = Tokens::free_balance(WETH, &evm_account());
 
 		//Act
-		let result = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new().execute(&mut handle);
+		assert_ok!(EVM::call(
+			RuntimeOrigin::signed(truncated_account()),
+			evm_address(),
+			DISPATCH_ADDR,
+			hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+				.to_vec(),
+			U256::from(0),
+			1000000,
+			gwei(1),
+			None,
+			Some(U256::zero()),
+			[].into()
+		));
 
 		//Assert
-		assert_eq!(
-			result.unwrap(),
-			Ok(PrecompileOutput {
-				exit_status: ExitSucceed::Stopped,
-				output: Default::default(),
-			})
-		);
 		assert_eq!(Tokens::free_balance(WETH, &evm_account()), balance - 1 * 10u128.pow(16));
 	});
 }
 
 const DISPATCH_ADDR: H160 = addr(1025);
+
+// TODO: check weirdness that signed origin account has to be truncated like this and not with EVM prefix
+fn truncated_account() -> AccountId {
+	let mut account_truncated: [u8; 32] = [0; 32];
+	account_truncated[..evm_address().as_bytes().len()].copy_from_slice(evm_address().as_bytes());
+	account_truncated.into()
+}
+
+fn gwei(value: u128) -> U256 {
+	U256::from(value) * U256::from(10_u128.pow(9))
+}
 
 fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
 	MockHandle {
