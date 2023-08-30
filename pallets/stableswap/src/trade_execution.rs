@@ -84,8 +84,8 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						.balances::<T>(&pool_account)
 						.ok_or(ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
-
 					let amplification = Self::get_amplification(&pool);
+
 					let (liqudity, _) =
 						hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 							&balances,
