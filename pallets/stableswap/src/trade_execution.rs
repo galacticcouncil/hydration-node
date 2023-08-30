@@ -167,7 +167,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						vec![AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
-							..Default::default()
+							..Default::default() //TODO: for all of these, I need to use the decimals from asset registry
 						}],
 					)
 					.map_err(ExecutorError::Error)
@@ -190,23 +190,23 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
 				if asset_out == pool_id {
-					//TODO: Add check for what we provide is less than max_limit
-					let shares_amount = max_limit; //Because amount_in is passed as max_limit in router
+					let decimals = Self::retrieve_decimals(asset_in)
+						.ok_or(ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+
+					let liquidity = max_limit; //Because amount_in is passed as max_limit in router
 
 					Self::add_liquidity(
 						who,
 						pool_id,
 						vec![AssetAmount {
 							asset_id: asset_in,
-							amount: shares_amount,
-							..Default::default()
+							amount: liquidity,
+							decimals,
 						}],
 					)
 					.map_err(ExecutorError::Error)
 				} else if asset_in == pool_id {
-					let shares_amount = max_limit; //Because amount_in is passed as max_limit in router
-							   /*Self::remove_liquidity_one_asset(who, pool_id, asset_out, shares_amount, 0)
-							   .map_err(ExecutorError::Error)*/
+					let shares_amount = max_limit;
 
 					Self::withdraw_asset_amount(who, pool_id, asset_out, amount_out, shares_amount)
 						.map_err(ExecutorError::Error)
