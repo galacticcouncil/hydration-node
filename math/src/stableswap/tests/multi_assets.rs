@@ -691,3 +691,27 @@ fn test_compare_precision_results_04() {
 	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 	assert!(d_after >= d_before);
 }
+
+#[test]
+fn calculate_exact_amount_of_shares() {
+	let amp = 100_u128;
+
+	let asset_idx = 2;
+
+	let initial_balances = [AssetReserve::new(10_000_000_000_000_000, 12); MAX_BALANCES];
+	let mut updated_balances = initial_balances.clone();
+	updated_balances[asset_idx].amount += 1000_000_000_000_000u128;
+
+	let issuance: Balance = 20_000_000_000_000_000_000_000;
+
+	let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, issuance);
+	assert_eq!(result, Some(399850144492663029648));
+	let result = calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+		&initial_balances,
+		399850144492663029648,
+		asset_idx,
+		issuance,
+		amp,
+	);
+	assert_eq!(result, Some(1000000000000000));
+}

@@ -258,6 +258,49 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 	Some((amount_out, fee))
 }
 
+pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
+	reserves: &[AssetReserve],
+	shares: Balance,
+	asset_index: usize,
+	share_asset_issuance: Balance,
+	amplification: Balance,
+) -> Option<Balance> {
+	if share_asset_issuance.is_zero() {
+		return None;
+	}
+	if asset_index >= reserves.len() {
+		return None;
+	}
+	if shares > share_asset_issuance {
+		return None;
+	}
+	let n_coins = reserves.len();
+	if n_coins <= 1 {
+		return None;
+	}
+
+	let asset_in_decimals = reserves[asset_index].decimals;
+	let reserves = normalize_reserves(reserves);
+
+	let initial_d = calculate_d_internal::<D>(&reserves, amplification)?;
+	let (shares_hp, issuance_hp, d_hp) = to_u256!(shares, share_asset_issuance, initial_d);
+
+	let d1 = d_hp.checked_add(shares_hp.checked_mul(d_hp)?.checked_div(issuance_hp)?)?;
+
+	let xp: Vec<Balance> = reserves
+		.iter()
+		.enumerate()
+		.filter(|(idx, _)| *idx != asset_index)
+		.map(|(_, v)| *v)
+		.collect();
+
+	let y = calculate_y_internal::<Y>(&xp, Balance::try_from(d1).ok()?, amplification)?;
+	let dy = y.checked_sub(reserves[asset_index])?;
+
+	let amount_in = normalize_value(dy, TARGET_PRECISION, asset_in_decimals, Rounding::Down);
+	Some(amount_in)
+}
+
 pub fn calculate_d<const D: u8>(reserves: &[AssetReserve], amplification: Balance) -> Option<Balance> {
 	let balances = normalize_reserves(reserves);
 	calculate_d_internal::<D>(&balances, amplification)
