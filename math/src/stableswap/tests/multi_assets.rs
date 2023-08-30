@@ -24,7 +24,7 @@ fn calculate_out_given_in_should_work_when_max_supported_nbr_of_balances_is_prov
 	assert!(result.is_some());
 	let result = result.unwrap();
 
-	assert_eq!(result, 1995u128);
+	assert_eq!(result, 1994u128);
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn calculate_in_given_out_should_work_when_max_supported_nbr_of_balances_is_prov
 	assert!(result.is_some());
 	let result = result.unwrap();
 
-	assert_eq!(result, 2005u128);
+	assert_eq!(result, 2006u128);
 }
 
 #[test]
@@ -400,7 +400,7 @@ fn calculate_out_given_in_with_fee_should_work_when_reserves_have_different_prec
 		amp,
 		Permill::from_percent(1),
 	);
-	assert_eq!(result.unwrap(), (990710823773957150, 10007180038120779));
+	assert_eq!(result.unwrap(), (990710823773957149, 10007180038120779));
 
 	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
@@ -410,7 +410,7 @@ fn calculate_out_given_in_with_fee_should_work_when_reserves_have_different_prec
 		amp,
 		Permill::from_percent(1),
 	);
-	assert_eq!(result.unwrap(), (989289, 9992));
+	assert_eq!(result.unwrap(), (989288, 9992));
 }
 
 #[test]
@@ -430,7 +430,7 @@ fn calculate_out_given_in_with_zero_fee_should_work_when_reserves_have_different
 		amp,
 		Permill::from_percent(0),
 	);
-	assert_eq!(result.unwrap(), (1000718003812077929, 0));
+	assert_eq!(result.unwrap(), (1000718003812077928, 0));
 
 	let result = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
@@ -440,7 +440,7 @@ fn calculate_out_given_in_with_zero_fee_should_work_when_reserves_have_different
 		amp,
 		Permill::from_percent(0),
 	);
-	assert_eq!(result.unwrap(), (999281, 0));
+	assert_eq!(result.unwrap(), (999280, 0));
 }
 
 #[test]
@@ -460,7 +460,7 @@ fn calculate_in_given_out_with_fee_should_work_when_reserves_have_different_prec
 		amp,
 		Permill::from_percent(1),
 	);
-	assert_eq!(result.unwrap(), (1_009_276, 9993));
+	assert_eq!(result.unwrap(), (1_009_277, 9993));
 
 	let result = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
@@ -470,7 +470,7 @@ fn calculate_in_given_out_with_fee_should_work_when_reserves_have_different_prec
 		amp,
 		Permill::from_percent(1),
 	);
-	assert_eq!(result.unwrap(), (1010726103103047746, 10007189139634137));
+	assert_eq!(result.unwrap(), (1010726103103047747, 10007189139634137));
 }
 
 #[test]
@@ -491,7 +491,7 @@ fn calculate_in_given_out_with_zero_fee_should_work_when_reserves_have_different
 		amp,
 		Permill::from_percent(0),
 	);
-	assert_eq!(result.unwrap(), (999_283, 0));
+	assert_eq!(result.unwrap(), (999_284, 0));
 
 	let result = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
@@ -501,7 +501,7 @@ fn calculate_in_given_out_with_zero_fee_should_work_when_reserves_have_different
 		amp,
 		Permill::from_percent(0),
 	);
-	assert_eq!(result.unwrap(), (1000718913963413609, 0));
+	assert_eq!(result.unwrap(), (1000718913963413610, 0));
 }
 
 #[test]
@@ -530,7 +530,7 @@ fn test_compare_precision_results_01() {
 	];
 	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 	assert!(d_after >= d_before);
-	assert_eq!(result.unwrap(), (1000718003812077929, 0));
+	assert_eq!(result.unwrap(), (1000718003812077928, 0));
 
 	let (amount_out, fee) = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
@@ -541,7 +541,7 @@ fn test_compare_precision_results_01() {
 		Permill::from_percent(0),
 	)
 	.unwrap();
-	assert_eq!((amount_out, fee), (999281602829189797, 0));
+	assert_eq!((amount_out, fee), (999281602829189796, 0));
 	let updated_reserves = [
 		balances[0],
 		AssetReserve::new(balances[1].amount - amount_out, balances[1].decimals),
@@ -577,7 +577,7 @@ fn test_compare_precision_results_02() {
 	];
 	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 	assert!(d_after >= d_before);
-	assert_eq!(result.unwrap(), (1000718003812077929, 0));
+	assert_eq!(result.unwrap(), (1000718003812077928, 0));
 
 	let (amount_out, fee) = calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
@@ -588,7 +588,7 @@ fn test_compare_precision_results_02() {
 		Permill::from_percent(0),
 	)
 	.unwrap();
-	assert_eq!((amount_out, fee), (999_281, 0));
+	assert_eq!((amount_out, fee), (999_280, 0));
 	let updated_reserves = [
 		balances[0],
 		AssetReserve::new(balances[1].amount - amount_out, balances[1].decimals),
@@ -623,13 +623,13 @@ fn test_compare_precision_results_03() {
 	];
 	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 	assert!(d_after >= d_before);
-	assert_eq!(result.unwrap(), (1000718003812077929, 0));
+	assert_eq!(result.unwrap(), (1000718003812077928, 0));
 
 	let (amount_in, fee) = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
 		1,
 		2,
-		1000718003812077929,
+		1000718003812077928,
 		amp,
 		Permill::from_percent(0),
 	)
@@ -638,7 +638,7 @@ fn test_compare_precision_results_03() {
 	let updated_reserves = [
 		balances[0],
 		AssetReserve::new(balances[1].amount + amount_in, balances[1].decimals),
-		AssetReserve::new(balances[2].amount - 1000718003812077929, balances[2].decimals),
+		AssetReserve::new(balances[2].amount - 1000718003812077928, balances[2].decimals),
 	];
 
 	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
@@ -671,13 +671,13 @@ fn test_compare_precision_results_04() {
 	];
 	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 	assert!(d_after >= d_before);
-	assert_eq!(result.unwrap(), (1000718003812077929, 0));
+	assert_eq!(result.unwrap(), (1000718003812077928, 0));
 
 	let (amount_in, fee) = calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
 		1,
 		2,
-		1000718003812077929,
+		1000718003812077928,
 		amp,
 		Permill::from_percent(0),
 	)
@@ -686,7 +686,7 @@ fn test_compare_precision_results_04() {
 	let updated_reserves = [
 		balances[0],
 		AssetReserve::new(balances[1].amount + amount_in, balances[1].decimals),
-		AssetReserve::new(balances[2].amount - 1000718003812077929, balances[2].decimals),
+		AssetReserve::new(balances[2].amount - 1000718003812077928, balances[2].decimals),
 	];
 	let d_after = calculate_d::<D_ITERATIONS>(&updated_reserves, amp).unwrap();
 	assert!(d_after >= d_before);
