@@ -1,19 +1,18 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use frame_support::assert_ok;
-use frame_support::codec::Encode;
 use hydradx_runtime::evm::precompile::multicurrency::{Action, MultiCurrencyPrecompile};
 use pallet_evm::*;
-use sp_core::{blake2_256, H160, H256, U256};
+use sp_core::{H160, H256, U256};
 use xcm_emulator::TestExt;
 type CurrencyPrecompile = MultiCurrencyPrecompile<hydradx_runtime::Runtime>;
-//use pallet_evm::Transfer;
 use fp_evm::{Context, Transfer};
 use hex_literal::hex;
 use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
-use hydradx_runtime::evm::precompile::{Bytes, EvmAddress};
+use hydradx_runtime::evm::precompile::Bytes;
 use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
+use hydradx_runtime::Tokens;
+use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -27,7 +26,7 @@ fn evm1() {
 		let mut handle = MockHandle {
 			input: data,
 			context: Context {
-				address: alice_evm_addr(),
+				address: evm_address(),
 				caller: native_asset_ethereum_address(),
 				apparent_value: U256::from(10),
 			},
@@ -47,18 +46,6 @@ fn evm1() {
 			})
 		);
 	});
-}
-
-fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
-	MockHandle {
-		input: data,
-		context: Context {
-			address: DISPATCH_ADDR,
-			caller: alice_evm_addr(),
-			apparent_value: U256::zero(),
-		},
-		core_address: DISPATCH_ADDR,
-	}
 }
 
 #[test]
@@ -91,39 +78,43 @@ fn dispatch_should_work_with_transfer() {
 	Hydra::execute_with(|| {
 		//Arrange
 		let mut handle = create_dispatch_handle(
+			// substrate.tx.tokens.transfer('7KATdGbN7qoeZLW3dXtnTrvjJjJqwpCHz6ELMxvh7vt37vA3', 20, "10000000000000000")
 			hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
 				.to_vec(),
 		);
+		let balance = Tokens::free_balance(WETH, &evm_account());
 
 		//Act
-		let prec = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new();
-		let result = prec.execute(&mut handle);
+		let result = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new().execute(&mut handle);
 
 		//Assert
-		assert_ok!(result.unwrap());
+		assert_eq!(
+			result.unwrap(),
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Stopped,
+				output: Default::default(),
+			})
+		);
+		assert_eq!(Tokens::free_balance(WETH, &evm_account()), balance - 1 * 10u128.pow(16));
 	});
 }
 
 const DISPATCH_ADDR: H160 = addr(1025);
 
-pub const ALICE_ACCOUNT: AccountId = AccountId::new([1u8; 32]);
-
-pub fn alice_evm_addr() -> H160 {
-	//H160::from(hex_literal::hex!("1000000000000000000000000000000000000001"))
-	//EvmAddressMapping::<hydradx_runtime::Runtime>::get_default_evm_address(&ALICE)
-
-	account_to_default_evm_address(&ALICE_ACCOUNT)
-}
-
-// Creates a an EvmAddress from an AccountId by appending the bytes "evm:" to
-// the account_id and hashing it.
-fn account_to_default_evm_address(account_id: &impl Encode) -> EvmAddress {
-	let payload = (b"evm:", account_id);
-	EvmAddress::from_slice(&payload.using_encoded(blake2_256)[0..20])
+fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
+	MockHandle {
+		input: data,
+		context: Context {
+			address: DISPATCH_ADDR,
+			caller: evm_address(),
+			apparent_value: U256::zero(),
+		},
+		core_address: DISPATCH_ADDR,
+	}
 }
 
 pub fn native_asset_ethereum_address() -> H160 {
-	H160::from(hex_literal::hex!("0000000000000000000100000000000000000000"))
+	H160::from(hex!("0000000000000000000100000000000000000000"))
 }
 
 pub struct MockHandle {
