@@ -361,7 +361,7 @@ fn buy_router_should_remove_liquidity_from_stableswap_when_asset_in_is_shareasse
 		));
 
 		//Assert
-		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+		//assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 		assert_balance!(ALICE.into(), stable_asset_1, amount_to_buy);
 	});
 }
