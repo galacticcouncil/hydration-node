@@ -90,9 +90,10 @@ fn dispatch_should_work_with_transfer() {
 
 	Hydra::execute_with(|| {
 		//Arrange
-		let data = EvmDataWriter::new_with_selector(Action::Name).build();
-
-		let mut handle = create_dispatch_handle(data);
+		let mut handle = create_dispatch_handle(
+			hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+				.to_vec(),
+		);
 
 		//Act
 		let prec = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new();
