@@ -10,6 +10,7 @@ use xcm_emulator::TestExt;
 type CurrencyPrecompile = MultiCurrencyPrecompile<hydradx_runtime::Runtime>;
 //use pallet_evm::Transfer;
 use fp_evm::{Context, Transfer};
+use hex_literal::hex;
 use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
 use hydradx_runtime::evm::precompile::{Bytes, EvmAddress};
 use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
@@ -48,39 +49,57 @@ fn evm1() {
 	});
 }
 
+fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
+	MockHandle {
+		input: data,
+		context: Context {
+			address: DISPATCH_ADDR,
+			caller: alice_evm_addr(),
+			apparent_value: U256::zero(),
+		},
+		core_address: DISPATCH_ADDR,
+	}
+}
+
 #[test]
-fn dispatch_should_work() {
+fn dispatch_should_work_with_remark() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let mut handle = create_dispatch_handle(hex!["0107081337"].to_vec());
+
+		//Act
+		let prec = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new();
+		let result = prec.execute(&mut handle);
+
+		//Assert
+		assert_eq!(
+			result.unwrap(),
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Stopped,
+				output: Default::default(),
+			})
+		)
+	});
+}
+
+#[test]
+fn dispatch_should_work_with_transfer() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
 		//Arrange
 		let data = EvmDataWriter::new_with_selector(Action::Name).build();
 
-		let mut handle = MockHandle {
-			input: data,
-			context: Context {
-				address: alice_evm_addr(),
-				caller: native_asset_ethereum_address(),
-				apparent_value: U256::from(10),
-			},
-			core_address: DISPATCH_ADDR,
-		};
+		let mut handle = create_dispatch_handle(data);
 
 		//Act
 		let prec = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new();
 		let result = prec.execute(&mut handle);
 
-		assert!(result.is_some());
-
 		//Assert
-		/*	let output = EvmDataWriter::new().write(Bytes::from("HDX".as_bytes())).build();
-		assert_eq!(
-			result,
-			Ok(PrecompileOutput {
-				exit_status: ExitSucceed::Returned,
-				output
-			})
-		);*/
+		assert_ok!(result.unwrap());
 	});
 }
 
