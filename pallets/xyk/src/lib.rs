@@ -55,7 +55,7 @@ pub use impls::XYKSpotPrice;
 use weights::WeightInfo;
 
 /// Oracle source identifier for this pallet.
-pub const SOURCE: Source = *b"snek/xyk";
+pub const SOURCE: Source = *b"hydraxyk";
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
