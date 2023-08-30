@@ -86,16 +86,14 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					let share_issuance = T::Currency::total_issuance(pool_id);
 					let amplification = Self::get_amplification(&pool);
 
-					let (liqudity, _) =
-						hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
-							&balances,
-							amount_out,
-							asset_idx,
-							share_issuance,
-							amplification,
-							Permill::from_percent(0),
-						)
-						.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+					let liqudity = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+						&balances,
+						amount_out,
+						asset_idx,
+						share_issuance,
+						amplification,
+					)
+					.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					Ok(liqudity)
 				} else if asset_in == pool_id {
