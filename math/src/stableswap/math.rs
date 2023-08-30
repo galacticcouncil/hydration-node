@@ -30,15 +30,14 @@ pub fn calculate_out_given_in<const D: u8, const Y: u8>(
 	let reserves = normalize_reserves(balances);
 	let amount_in = normalize_value(amount_in, balances[idx_in].decimals, TARGET_PRECISION, Rounding::Down);
 	let new_reserve_out = calculate_y_given_in::<D, Y>(amount_in, idx_in, idx_out, &reserves, amplification)?;
-
 	let amount_out = reserves[idx_out].checked_sub(new_reserve_out)?;
 	let amount_out = normalize_value(amount_out, TARGET_PRECISION, balances[idx_out].decimals, Rounding::Down);
-	Some(amount_out)
+	Some(amount_out.saturating_sub(1u128))
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
 /// D - number of iterations to use for Newton's formula ( it should be >=1 otherwise it wont converge at all and will always fail
-/// Y - number of iterations to use for Dewton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
+/// Y - number of iterations to use for Newton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
 pub fn calculate_in_given_out<const D: u8, const Y: u8>(
 	balances: &[AssetReserve],
 	idx_in: usize,
@@ -54,7 +53,7 @@ pub fn calculate_in_given_out<const D: u8, const Y: u8>(
 	let new_reserve_in = calculate_y_given_out::<D, Y>(amount_out, idx_in, idx_out, &reserves, amplification)?;
 	let amount_in = new_reserve_in.checked_sub(reserves[idx_in])?;
 	let amount_in = normalize_value(amount_in, TARGET_PRECISION, balances[idx_in].decimals, Rounding::Up);
-	Some(amount_in)
+	Some(amount_in.saturating_add(1u128))
 }
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves and apply a fee.
@@ -68,9 +67,7 @@ pub fn calculate_out_given_in_with_fee<const D: u8, const Y: u8>(
 ) -> Option<(Balance, Balance)> {
 	let amount_out = calculate_out_given_in::<D, Y>(balances, idx_in, idx_out, amount_in, amplification)?;
 	let fee_amount = calculate_fee_amount(amount_out, fee, Rounding::Down);
-
 	let amount_out = amount_out.checked_sub(fee_amount)?;
-
 	Some((amount_out, fee_amount))
 }
 
@@ -85,9 +82,7 @@ pub fn calculate_in_given_out_with_fee<const D: u8, const Y: u8>(
 ) -> Option<(Balance, Balance)> {
 	let amount_in = calculate_in_given_out::<D, Y>(balances, idx_in, idx_out, amount_out, amplification)?;
 	let fee_amount = calculate_fee_amount(amount_in, fee, Rounding::Up);
-
 	let amount_in = amount_in.checked_add(fee_amount)?;
-
 	Some((amount_in, fee_amount))
 }
 
@@ -109,7 +104,6 @@ pub fn calculate_shares<const D: u8>(
 	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
 	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
 	let updated_d = calculate_d_internal::<D>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
-
 	if updated_d < initial_d {
 		return None;
 	}
