@@ -73,7 +73,7 @@ fn in_given_out_should_work() {
 			5_000_000,
 			10_000_000,
 			prec,
-			Ok(10803324098387),
+			Ok(10803324100388),
 			"Easy case",
 		),
 		(
@@ -82,7 +82,7 @@ fn in_given_out_should_work() {
 			10_000_000,
 			5_000_000,
 			prec,
-			Ok(2597835207971),
+			Ok(2597835208516),
 			"Easy case",
 		),
 		(
@@ -91,7 +91,7 @@ fn in_given_out_should_work() {
 			10_000_000,
 			120_000_000,
 			2 * prec,
-			Ok(7336295309332),
+			Ok(7336295320974),
 			"Easy case",
 		),
 		(0, 0, 0, 0, 100, Err(Overflow), "Zero reserves and weights"),

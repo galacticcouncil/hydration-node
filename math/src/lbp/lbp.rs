@@ -175,8 +175,8 @@ pub fn calculate_in_given_out(
 	let weight_ratio = round_up_fixed(out_weight.checked_div(in_weight).ok_or(Overflow)?)?;
 
 	let new_out_reserve = out_reserve.checked_sub(amount).ok_or(Overflow)?;
-	// We are correctly rounding this down
-	let y = out_reserve.checked_div(new_out_reserve).ok_or(Overflow)?;
+
+	let y = round_up_fixed(out_reserve.checked_div(new_out_reserve).ok_or(Overflow)?)?;
 
 	let y1: FixedBalance = crate::transcendental::pow(y, weight_ratio).map_err(|_| Overflow)?;
 
