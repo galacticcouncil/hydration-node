@@ -31,3 +31,4 @@ pub mod utility;
 pub mod vesting;
 pub mod xcm;
 pub mod xcmp_queue;
+pub mod xyk;

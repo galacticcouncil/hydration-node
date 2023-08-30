@@ -72,6 +72,7 @@ pallet-xcm-rate-limiter = { path = "pallets/xcm-rate-limiter", default-features 
 warehouse-liquidity-mining = { package = "pallet-liquidity-mining", path = "pallets/liquidity-mining", default-features = false }
 pallet-bonds = { path = "pallets/bonds", default-features = false}
 pallet-lbp = { path = "pallets/lbp", default-features = false}
+pallet-xyk = { path = "pallets/xyk", default-features = false}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
