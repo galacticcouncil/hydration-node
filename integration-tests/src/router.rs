@@ -367,12 +367,29 @@ fn buy_router_should_remove_liquidity_from_stableswap_when_asset_in_is_shareasse
 }
 
 #[test]
-fn stableswap_buy_is_not_supported_when_asset_out_is_shareasset() {
+fn buy_router_should_add_liquidity_from_stableswap_when_asset_out_is_share_asset() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
 		//Arrange
-		let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+		let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+		init_omnipool();
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			Omnipool::protocol_account(),
+			stable_asset_1,
+			3000 * UNITS as i128,
+		));
+
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			stable_asset_1,
+			FixedU128::from_inner(25_650_000_000_000_000_000),
+			Permill::from_percent(100),
+			AccountId::from(BOB),
+		));
 
 		let trades = vec![
 			Trade {
@@ -387,20 +404,23 @@ fn stableswap_buy_is_not_supported_when_asset_out_is_shareasset() {
 			},
 		];
 
-		//Act and assert
+		assert_balance!(ALICE.into(), pool_id, 0);
+
+		//Act
 		let amount_to_buy = 1 * UNITS / 1000;
 
-		assert_noop!(
-			Router::buy(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				HDX,
-				pool_id,
-				amount_to_buy,
-				u128::MAX,
-				trades
-			),
-			pallet_route_executor::Error::<hydradx_runtime::Runtime>::PoolNotSupported
-		);
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			pool_id,
+			amount_to_buy,
+			u128::MAX,
+			trades
+		));
+
+		//Assert
+		//assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+		assert_balance!(ALICE.into(), pool_id, amount_to_buy);
 	});
 }
 

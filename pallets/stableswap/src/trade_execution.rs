@@ -75,12 +75,6 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 			PoolType::Stableswap(pool_id) => {
 				if asset_out == pool_id {
 					//I wanna buy 500 shares, how much luqidity i need provide to get 500 shares
-					/*let s = Self::calculate_liquidity_for_share(
-						pool_id,
-						asset_in,
-						amount_out
-					)
-					.map_err(ExecutorError::Error);*/
 					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
 					let asset_idx = pool
 						.find_asset(asset_in)
@@ -196,7 +190,19 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
 				if asset_out == pool_id {
-					Err(ExecutorError::NotSupported)
+					//TODO: Add check for what we provide is less than max_limit
+					let shares_amount = max_limit; //Because amount_in is passed as max_limit in router
+
+					Self::add_liquidity(
+						who,
+						pool_id,
+						vec![AssetAmount {
+							asset_id: asset_in,
+							amount: shares_amount,
+							..Default::default()
+						}],
+					)
+					.map_err(ExecutorError::Error)
 				} else if asset_in == pool_id {
 					let shares_amount = max_limit; //Because amount_in is passed as max_limit in router
 							   /*Self::remove_liquidity_one_asset(who, pool_id, asset_out, shares_amount, 0)
