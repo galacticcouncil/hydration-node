@@ -44,9 +44,9 @@ pub use types::AssetType;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-use crate::types::{AssetDetails, AssetMetadata};
+pub use crate::types::{AssetDetails, AssetMetadata};
 use frame_support::BoundedVec;
-use hydradx_traits::{Registry, RegistryQueryForEvm, ShareTokenRegistry};
+use hydradx_traits::{AssetKind, CreateRegistry, Registry, RegistryQueryForEvm, ShareTokenRegistry};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -575,6 +575,12 @@ impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for Pal
 		}
 	}
 
+	fn retrieve_asset_type(asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+		let asset_details =
+			Assets::<T>::get(asset_id).ok_or_else(|| Into::<DispatchError>::into(Error::<T>::AssetNotFound))?;
+		Ok(asset_details.asset_type.into())
+	}
+
 	fn create_asset(name: &Vec<u8>, existential_deposit: T::Balance) -> Result<T::AssetId, DispatchError> {
 		Self::get_or_create_asset(name.clone(), AssetType::Token, existential_deposit, None)
 	}
@@ -622,5 +628,14 @@ pub struct XcmRateLimitsInRegistry<T>(PhantomData<T>);
 impl<T: Config> GetByKey<T::AssetId, Option<T::Balance>> for XcmRateLimitsInRegistry<T> {
 	fn get(k: &T::AssetId) -> Option<T::Balance> {
 		Pallet::<T>::assets(k).and_then(|details| details.xcm_rate_limit)
+	}
+}
+
+impl<T: Config> CreateRegistry<T::AssetId, T::Balance> for Pallet<T> {
+	type Error = DispatchError;
+
+	fn create_asset(name: &[u8], kind: AssetKind, existential_deposit: T::Balance) -> Result<T::AssetId, Self::Error> {
+		let bounded_name: BoundedVec<u8, T::StringLimit> = Self::to_bounded_name(name.to_vec())?;
+		Pallet::<T>::register_asset(bounded_name, kind.into(), existential_deposit, None, None)
 	}
 }

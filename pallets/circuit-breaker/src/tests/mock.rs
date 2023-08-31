@@ -24,7 +24,7 @@ use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use orml_traits::{parameter_type_with_key, GetByKey};
 use sp_core::H256;
-use sp_runtime::traits::{ConstU128, ConstU32};
+use sp_runtime::traits::{ConstU128, ConstU32, Zero};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
@@ -231,7 +231,7 @@ impl pallet_omnipool::Config for Test {
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);
 
-impl<T> OmnipoolHooks<RuntimeOrigin, AssetId, Balance> for CircuitBreakerHooks<T>
+impl<T> OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for CircuitBreakerHooks<T>
 where
 	// Lrna: Get<AssetId>,
 	T: Config + pallet_circuit_breaker::Config,
@@ -305,6 +305,10 @@ where
 	fn on_trade_weight() -> Weight {
 		todo!()
 	}
+
+	fn on_trade_fee(_fee_account: AccountId, _asset: AssetId, _amount: Balance) -> Result<Balance, Self::Error> {
+		Ok(Balance::zero())
+	}
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
@@ -358,7 +362,7 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 }
 
 use crate::Config;
-use hydradx_traits::Registry;
+use hydradx_traits::{AssetKind, Registry};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
@@ -374,6 +378,10 @@ where
 
 	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
 		Ok(T::AssetId::default())
+	}
+
+	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+		unimplemented!()
 	}
 
 	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {

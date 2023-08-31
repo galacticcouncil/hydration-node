@@ -6,6 +6,8 @@ pub trait Registry<AssetId, AssetName, Balance, Error> {
 
 	fn retrieve_asset(name: &AssetName) -> Result<AssetId, Error>;
 
+	fn retrieve_asset_type(asset_id: AssetId) -> Result<AssetKind, Error>;
+
 	fn create_asset(name: &AssetName, existential_deposit: Balance) -> Result<AssetId, Error>;
 
 	fn get_or_create_asset(name: AssetName, existential_deposit: Balance) -> Result<AssetId, Error> {
@@ -21,6 +23,7 @@ pub trait RegistryQueryForEvm<AssetId, NameStringLimit, Error> {
 	fn retrieve_asset_name(name: AssetId) -> Result<BoundedVec<u8, NameStringLimit>, Error>;
 }
 
+// Use CreateRegistry if possible
 pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<AssetId, AssetName, Balance, Error> {
 	fn retrieve_shared_asset(name: &AssetName, assets: &[AssetId]) -> Result<AssetId, Error>;
 
@@ -41,6 +44,19 @@ pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<Asset
 			Self::create_shared_asset(&name, &assets, existential_deposit)
 		}
 	}
+}
+
+#[derive(Eq, PartialEq, Copy, Clone)]
+pub enum AssetKind {
+	Token,
+	XYK,
+	StableSwap,
+	Bond,
+}
+
+pub trait CreateRegistry<AssetId, Balance> {
+	type Error;
+	fn create_asset(name: &[u8], kind: AssetKind, existential_deposit: Balance) -> Result<AssetId, Self::Error>;
 }
 
 // Deprecated.

@@ -22,9 +22,10 @@ use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::{
 	sp_runtime::{
 		traits::{AtLeast32BitUnsigned, Convert, Get, MaybeSerializeDeserialize, Saturating, Zero},
-		ArithmeticError, DispatchError, FixedPointNumber, FixedPointOperand, FixedU128, SaturatedConversion,
+		ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, FixedPointOperand, FixedU128,
+		SaturatedConversion,
 	},
-	traits::Contains,
+	traits::{Contains, LockIdentifier, OriginTrait},
 	weights::{Weight, WeightToFee},
 };
 use hydra_dx_math::{
@@ -33,7 +34,7 @@ use hydra_dx_math::{
 	support::rational::{round_to_rational, Rounding},
 };
 use hydradx_traits::{
-	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, NativePriceOracle,
+	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
 	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
 };
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
@@ -43,7 +44,7 @@ use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use pallet_transaction_multi_payment::DepositFee;
 use polkadot_xcm::latest::prelude::*;
 use primitive_types::U128;
-use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId, Balance, BlockNumber};
+use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::BlockNumberProvider;
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
 use warehouse_liquidity_mining::GlobalFarmData;
@@ -54,6 +55,8 @@ use xcm_executor::{
 };
 
 pub mod inspect;
+pub mod xcm_exchange;
+pub mod xcm_execute_filter;
 
 #[cfg(test)]
 mod tests;
@@ -315,10 +318,16 @@ where
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
 
-impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AssetId, Balance> for OmnipoolHookAdapter<Origin, Lrna, Runtime>
+impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
+	for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
-	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<RuntimeOrigin = Origin>,
+	Runtime: pallet_ema_oracle::Config
+		+ pallet_circuit_breaker::Config
+		+ frame_system::Config<RuntimeOrigin = Origin>
+		+ pallet_staking::Config,
+	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
+	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
 {
 	type Error = DispatchError;
 
@@ -435,6 +444,10 @@ where
 		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_pool_state_change_limit();
 		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single_trade_limit_entry();
 		w1.saturating_add(w2).saturating_add(w3)
+	}
+
+	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
+		pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), amount)
 	}
 }
 
@@ -714,5 +727,65 @@ where
 			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
 				.ok()?;
 		Some(entry.liquidity.a)
+	}
+}
+
+pub struct VestingInfo<Runtime>(PhantomData<Runtime>);
+
+impl<Runtime> pallet_staking::traits::VestingDetails<AccountId, Balance> for VestingInfo<Runtime>
+where
+	Runtime: pallet_balances::Config<Balance = Balance>,
+	AccountId: codec::EncodeLike<<Runtime as frame_system::Config>::AccountId>,
+{
+	fn locked(who: AccountId) -> Balance {
+		let lock_id = orml_vesting::VESTING_LOCK_ID;
+
+		pallet_balances::Locks::<Runtime>::get(who)
+			.iter()
+			.find(|x| x.id == lock_id)
+			.map(|p| p.amount)
+			.unwrap_or_default()
+	}
+}
+
+pub struct FreezableNFT<Runtime, Origin>(PhantomData<(Runtime, Origin)>);
+
+impl<Runtime, Origin: OriginTrait<AccountId = AccountId>> pallet_staking::traits::Freeze<AccountId, CollectionId>
+	for FreezableNFT<Runtime, Origin>
+where
+	Runtime: frame_system::Config<RuntimeOrigin = Origin> + pallet_uniques::Config<CollectionId = CollectionId>,
+{
+	fn freeze_collection(owner: AccountId, collection: CollectionId) -> DispatchResult {
+		pallet_uniques::Pallet::<Runtime>::freeze_collection(Runtime::RuntimeOrigin::signed(owner), collection)
+	}
+}
+
+pub struct MultiCurrencyLockedBalance<T, NativeAssetId: Get<AssetId>>(PhantomData<(T, NativeAssetId)>);
+
+impl<T: orml_tokens::Config + pallet_balances::Config + frame_system::Config, NativeAssetId: Get<AssetId>>
+	LockedBalance<AssetId, T::AccountId, Balance> for MultiCurrencyLockedBalance<T, NativeAssetId>
+where
+	AssetId: Into<<T as orml_tokens::Config>::CurrencyId>,
+	Balance: From<<T as orml_tokens::Config>::Balance>,
+	Balance: From<<T as pallet_balances::Config>::Balance>,
+{
+	fn get_by_lock(lock_id: LockIdentifier, currency_id: AssetId, who: T::AccountId) -> Balance {
+		if currency_id == NativeAssetId::get() {
+			match pallet_balances::Pallet::<T>::locks(who)
+				.into_iter()
+				.find(|lock| lock.id == lock_id)
+			{
+				Some(lock) => lock.amount.into(),
+				None => Zero::zero(),
+			}
+		} else {
+			match orml_tokens::Pallet::<T>::locks(who, currency_id.into())
+				.into_iter()
+				.find(|lock| lock.id == lock_id)
+			{
+				Some(lock) => lock.amount.into(),
+				None => Zero::zero(),
+			}
+		}
 	}
 }

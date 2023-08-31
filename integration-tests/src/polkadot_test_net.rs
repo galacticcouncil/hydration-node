@@ -12,7 +12,7 @@ use frame_support::{
 pub use hydradx_runtime::evm::ExtendedAddressMapping;
 pub use hydradx_runtime::{AccountId, NativeExistentialDeposit, Treasury, VestingPalletId};
 use pallet_transaction_multi_payment::Price;
-pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance};
+pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};
 
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
@@ -50,11 +50,14 @@ pub const UNITS: Balance = 1_000_000_000_000;
 
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
+pub const MOONBEAM_PARA_ID: u32 = 2_004;
+pub const INTERLAY_PARA_ID: u32 = 2_032;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
-pub const ALICE_INITIAL_DAI_BALANCE: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_DAI_BALANCE: Balance = 2_000 * UNITS;
 pub const ALICE_INITIAL_LRNA_BALANCE: Balance = 200 * UNITS;
-pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000 * UNITS * 1_000_000;
+pub const ALICE_INITIAL_DOT_BALANCE: Balance = 2_000 * UNITS;
+pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
@@ -70,6 +73,8 @@ pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
 pub const WETH: AssetId = 20;
+
+pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
 decl_test_relay_chain! {
 	pub struct PolkadotRelay {
@@ -95,7 +100,27 @@ decl_test_parachain! {
 		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
 		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
 		DmpMessageHandler = hydradx_runtime::DmpQueue,
-		new_ext = acala_ext(),
+		new_ext = para_ext(ACALA_PARA_ID),
+	}
+}
+
+decl_test_parachain! {
+	pub struct Moonbeam{
+		Runtime = hydradx_runtime::Runtime,
+		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
+		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
+		DmpMessageHandler = hydradx_runtime::DmpQueue,
+		new_ext = para_ext(MOONBEAM_PARA_ID),
+	}
+}
+
+decl_test_parachain! {
+	pub struct Interlay {
+		Runtime = hydradx_runtime::Runtime,
+		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
+		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
+		DmpMessageHandler = hydradx_runtime::DmpQueue,
+		new_ext = para_ext(INTERLAY_PARA_ID),
 	}
 }
 
@@ -104,6 +129,8 @@ decl_test_network! {
 		relay_chain = PolkadotRelay,
 		parachains = vec![
 			(2000, Acala),
+			(2004, Moonbeam),
+			(2032, Interlay),
 			(2034, Hydra),
 		],
 	}
@@ -184,7 +211,7 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 
 pub fn hydra_ext() -> sp_io::TestExternalities {
 	use frame_support::traits::OnInitialize;
-	use hydradx_runtime::{MultiTransactionPayment, Runtime, System};
+	use hydradx_runtime::{MultiTransactionPayment, Runtime, System, Timestamp};
 
 	let stable_amount = 50_000 * UNITS * 1_000_000;
 	let native_amount = 936_329_588_000_000_000;
@@ -192,6 +219,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	let eth_amount = 63_750_000_000_000_000_000u128;
 	let btc_amount = 1_000_000_000u128;
 	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+	let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 
 	let existential_deposit = NativeExistentialDeposit::get();
 
@@ -207,6 +235,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(DAVE), 1_000 * UNITS),
 			(omnipool_account.clone(), native_amount),
 			(vesting_account(), 10_000 * UNITS),
+			(staking_account, UNITS),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -221,6 +250,8 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(b"BTC".to_vec(), 1_000u128, Some(BTC)),
 			(b"ACA".to_vec(), 1_000u128, Some(ACA)),
 			(b"WETH".to_vec(), 1_000u128, Some(WETH)),
+			// workaround for next_asset_id() to return correct values
+			(b"DUMMY".to_vec(), 1_000u128, None),
 		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,
@@ -239,6 +270,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 		balances: vec![
 			(AccountId::from(ALICE), LRNA, ALICE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(ALICE), DAI, ALICE_INITIAL_DAI_BALANCE),
+			(AccountId::from(ALICE), DOT, ALICE_INITIAL_DOT_BALANCE),
 			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
 			(AccountId::from(BOB), BTC, 1_000_000),
@@ -295,6 +327,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| {
 		System::set_block_number(1);
+		Timestamp::set_timestamp(NOW);
 		// Make sure the prices are up-to-date.
 		MultiTransactionPayment::on_initialize(1);
 		hydradx_runtime::AssetRegistry::set_location(RuntimeOrigin::root(), WETH, WETH_ASSET_LOCATION).unwrap();
@@ -302,7 +335,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn acala_ext() -> sp_io::TestExternalities {
+pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 	use hydradx_runtime::{Runtime, System};
 
 	let mut t = frame_system::GenesisConfig::default()
@@ -317,7 +350,7 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 
 	<parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&parachain_info::GenesisConfig {
-			parachain_id: ACALA_PARA_ID.into(),
+			parachain_id: para_id.into(),
 		},
 		&mut t,
 	)

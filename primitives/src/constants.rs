@@ -67,6 +67,15 @@ pub mod time {
 	pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 	pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
 	pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 4 * HOURS;
+
+	pub mod unix_time {
+		use crate::Moment;
+
+		// in milliseconds
+		pub const DAY: Moment = 86_400_000;
+		pub const WEEK: Moment = 7 * DAY;
+		pub const MONTH: Moment = 2_629_743_000;
+	}
 }
 
 pub mod chain {

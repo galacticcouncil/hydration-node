@@ -19,6 +19,7 @@ use frame_support::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 
+use hydradx_traits::AssetKind;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
@@ -26,20 +27,46 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum AssetType<AssetId> {
 	Token,
-	PoolShare(AssetId, AssetId),
+	PoolShare(AssetId, AssetId), // Use XYX instead
+	XYK,
+	StableSwap,
+	Bond,
+}
+
+impl<AssetId> From<AssetKind> for AssetType<AssetId> {
+	fn from(value: AssetKind) -> Self {
+		match value {
+			AssetKind::Token => Self::Token,
+			AssetKind::XYK => Self::XYK,
+			AssetKind::StableSwap => Self::StableSwap,
+			AssetKind::Bond => Self::Bond,
+		}
+	}
+}
+
+impl<AssetId> From<AssetType<AssetId>> for AssetKind {
+	fn from(value: AssetType<AssetId>) -> Self {
+		match value {
+			AssetType::Token => Self::Token,
+			AssetType::PoolShare(_, _) => Self::XYK,
+			AssetType::XYK => Self::XYK,
+			AssetType::StableSwap => Self::StableSwap,
+			AssetType::Bond => Self::Bond,
+		}
+	}
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AssetDetails<AssetId, Balance, BoundedString> {
 	/// The name of this asset. Limited in length by `StringLimit`.
-	pub(super) name: BoundedString,
+	pub name: BoundedString,
 
-	pub(super) asset_type: AssetType<AssetId>,
+	pub asset_type: AssetType<AssetId>,
 
-	pub(super) existential_deposit: Balance,
+	pub existential_deposit: Balance,
 
-	pub(super) xcm_rate_limit: Option<Balance>,
+	pub xcm_rate_limit: Option<Balance>,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]

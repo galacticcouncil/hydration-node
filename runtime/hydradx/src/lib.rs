@@ -31,7 +31,6 @@ mod benchmarking;
 mod migrations;
 pub mod weights;
 
-pub mod adapters;
 mod assets;
 pub mod evm;
 mod governance;
@@ -46,7 +45,7 @@ pub use xcm::*;
 use crate::sp_api_hidden_includes_construct_runtime::hidden_include::dispatch::Dispatchable;
 use codec::{Decode, Encode};
 use sp_api::impl_runtime_apis;
-use sp_core::{Get, OpaqueMetadata, H160, H256, U256};
+use sp_core::{ConstU128, Get, OpaqueMetadata, H160, H256, U256};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
@@ -100,7 +99,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 171,
+	spec_version: 174,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -163,6 +162,9 @@ construct_runtime!(
 
 		Router: pallet_route_executor = 67,
 		DynamicFees: pallet_dynamic_fees = 68,
+		Staking: pallet_staking = 69,
+		Bonds: pallet_bonds = 71,
+		LBP: pallet_lbp = 73,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -244,17 +246,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsReversedWithSystemFirst,
-	(
-		pallet_preimage::migration::v1::Migration<Runtime>,
-		pallet_democracy::migrations::v1::Migration<Runtime>,
-		pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
-		DmpQueue,
-		XcmpQueue,
-		ParachainSystem,
-		migrations::OnRuntimeUpgradeMigration,
-		migrations::MigrateRegistryLocationToV3<Runtime>,
-		migrations::XcmRateLimitMigration,
-	),
+	(migrations::OnRuntimeUpgradeMigration,),
 >;
 
 impl_runtime_apis! {
@@ -547,10 +539,13 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 			list_benchmark!(list, extra, pallet_dca, DCA);
+			list_benchmark!(list, extra, pallet_bonds, Bonds);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
 			list_benchmark!(list, extra, pallet_ema_oracle, EmaOracle);
+			list_benchmark!(list, extra, pallet_staking, Staking);
+			list_benchmark!(list, extra, pallet_staking, LBP);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
@@ -616,6 +611,9 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
 			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);
+			add_benchmark!(params, batches, pallet_bonds, Bonds);
+			add_benchmark!(params, batches, pallet_staking, Staking);
+			add_benchmark!(params, batches, pallet_staking, LBP);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);

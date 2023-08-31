@@ -28,7 +28,7 @@ use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{OraclePeriod, PriceOracle, Registry};
+use hydradx_traits::{AssetKind, OraclePeriod, PriceOracle, Registry};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
@@ -728,6 +728,10 @@ where
 
 	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
 		Ok(1.into())
+	}
+
+	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+		unimplemented!()
 	}
 
 	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {

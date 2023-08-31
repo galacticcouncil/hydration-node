@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.8.0"
+version = "1.10.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -18,6 +18,7 @@ hydradx-adapters = { workspace = true }
 pallet-omnipool = { workspace = true }
 pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
+pallet-bonds = { workspace = true }
 
 # Warehouse dependencies
 pallet-asset-registry = { workspace = true }
@@ -32,6 +33,8 @@ pallet-relaychain-info = { workspace = true }
 pallet-route-executor = { workspace = true}
 pallet-dca = { workspace = true}
 pallet-dynamic-fees = { workspace = true }
+pallet-staking = { workspace = true}
+pallet-lbp = { workspace = true}
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -182,4 +185,5 @@ std = [
     "pallet-relaychain-info/std",
     "polkadot-runtime/std",
     "hydradx-runtime/std",
+    "pallet-staking/std",
 ]

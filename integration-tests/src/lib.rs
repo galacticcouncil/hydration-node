@@ -1,3 +1,4 @@
+mod bonds;
 mod call_filter;
 mod circuit_breaker;
 mod cross_chain_transfer;
@@ -6,6 +7,7 @@ mod dust;
 mod dust_removal_whitelist;
 mod dynamic_fees;
 mod evm;
+mod exchange_asset;
 mod non_native_fee;
 mod omnipool_init;
 mod omnipool_liquidity_mining;
@@ -13,6 +15,8 @@ mod omnipool_price_provider;
 mod oracle;
 mod otc;
 mod polkadot_test_net;
+mod router;
+mod staking;
 mod transact_call_filter;
 mod vesting;
 
