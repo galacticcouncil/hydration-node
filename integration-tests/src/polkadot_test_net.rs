@@ -17,6 +17,7 @@ pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance};
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use hex_literal::hex;
+use hydradx_runtime::RuntimeOrigin;
 use pallet_evm::AddressMapping;
 use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
@@ -33,6 +34,12 @@ pub fn evm_address() -> H160 {
 }
 pub fn evm_account() -> AccountId {
 	ExtendedAddressMapping::into_account_id(evm_address())
+}
+pub fn evm_signed_origin(address: H160) -> RuntimeOrigin {
+	// account has to be truncated to spoof it as an origin
+	let mut account_truncated: [u8; 32] = [0; 32];
+	account_truncated[..address.clone().as_bytes().len()].copy_from_slice(address.as_bytes());
+	RuntimeOrigin::signed(AccountId::from(account_truncated))
 }
 pub fn to_ether(b: Balance) -> Balance {
 	b * 10_u128.pow(18)

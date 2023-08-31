@@ -86,7 +86,7 @@ fn dispatch_should_work_with_transfer() {
 
 		//Act
 		assert_ok!(EVM::call(
-			RuntimeOrigin::signed(truncated_account()),
+			evm_signed_origin(evm_address()),
 			evm_address(),
 			DISPATCH_ADDR,
 			hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
@@ -105,13 +105,6 @@ fn dispatch_should_work_with_transfer() {
 }
 
 const DISPATCH_ADDR: H160 = addr(1025);
-
-// TODO: check weirdness that signed origin account has to be truncated like this and not with EVM prefix
-fn truncated_account() -> AccountId {
-	let mut account_truncated: [u8; 32] = [0; 32];
-	account_truncated[..evm_address().as_bytes().len()].copy_from_slice(evm_address().as_bytes());
-	account_truncated.into()
-}
 
 fn gwei(value: u128) -> U256 {
 	U256::from(value) * U256::from(10_u128.pow(9))
