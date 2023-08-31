@@ -245,11 +245,9 @@ pub mod pallet {
 					let ed = T::ExistentialDeposits::get(&asset_id);
 
 					let bond_id = <T::AssetRegistry as CreateRegistry<T::AssetId, T::Balance>>::create_asset(
-						None,
-						None,
+						&[],
 						AssetKind::Bond,
 						ed,
-						false,
 					)?;
 
 					Bonds::<T>::insert(bond_id, (asset_id, maturity));

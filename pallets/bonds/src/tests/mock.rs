@@ -180,13 +180,7 @@ where
 {
 	type Error = DispatchError;
 
-	fn create_asset(
-		_asset_id: Option<AssetId>,
-		_name: Option<&[u8]>,
-		_kind: AssetKind,
-		existential_deposit: Balance,
-		_sufficient: bool,
-	) -> Result<AssetId, DispatchError> {
+	fn create_asset(_name: &[u8], _kind: AssetKind, existential_deposit: Balance) -> Result<AssetId, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
 			v.borrow_mut().insert(l as u32, (existential_deposit, AssetKind::Bond));
@@ -212,19 +206,11 @@ impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegi
 			.ok_or(DispatchError::Other("AssetNotFound"))
 	}
 
-	fn create_asset(
-		_name: &Vec<u8>,
-		_existential_deposit: Balance,
-		_sufficient: bool,
-	) -> Result<AssetId, DispatchError> {
+	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
 		unimplemented!()
 	}
 
-	fn get_or_create_asset(
-		_name: Vec<u8>,
-		_existential_deposit: Balance,
-		_is_sufficient: bool,
-	) -> Result<AssetId, DispatchError> {
+	fn get_or_create_asset(_name: Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
 		unimplemented!()
 	}
 }

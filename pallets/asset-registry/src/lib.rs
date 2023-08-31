@@ -44,7 +44,10 @@ pub use pallet::*;
 
 pub use crate::types::{AssetDetails, Balance};
 use frame_support::BoundedVec;
-use hydradx_traits::{AssetKind, CreateRegistry, Registry, ShareTokenRegistry};
+use hydradx_traits::{
+	registry::{Create, Inspect, Mutate},
+	AssetKind, CreateRegistry, Registry, ShareTokenRegistry,
+};
 
 /// Default value of existential deposit. This value is used if existential deposit wasn't
 /// provided.
@@ -430,11 +433,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Convert Vec<u8> to BoundedVec so it respects the max set limit, otherwise return TooLong error
+	//TODO: remove pub
 	pub fn to_bounded_name(name: Vec<u8>) -> Result<BoundedVec<u8, T::StringLimit>, Error<T>> {
 		name.try_into().map_err(|_| Error::<T>::TooLong)
 	}
 
-	pub fn set_location(asset_id: T::AssetId, location: T::AssetNativeLocation) -> Result<(), DispatchError> {
+	fn do_set_location(asset_id: T::AssetId, location: T::AssetNativeLocation) -> Result<(), DispatchError> {
 		ensure!(
 			Self::location_assets(&location).is_none(),
 			Error::<T>::LocationAlreadyRegistered
@@ -448,10 +452,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Register new asset.
-	///
-	/// This function checks if asset name is already used.
-	pub fn do_register_asset(
+	fn do_register_asset(
 		selected_asset_id: Option<T::AssetId>,
 		details: AssetDetails<T::AssetId, BoundedVec<u8, T::StringLimit>>,
 		location: Option<T::AssetNativeLocation>,
@@ -493,7 +494,7 @@ impl<T: Config> Pallet<T> {
 		});
 
 		if let Some(loc) = location {
-			Self::set_location(asset_id, loc)?;
+			Self::do_set_location(asset_id, loc)?;
 		}
 
 		Ok(asset_id)
@@ -559,12 +560,8 @@ impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for Pallet
 		Ok(asset_details.asset_type.into())
 	}
 
-	fn create_asset(
-		name: &Vec<u8>,
-		existential_deposit: Balance,
-		is_sufficient: bool,
-	) -> Result<T::AssetId, DispatchError> {
-		Self::get_or_create_asset(name.clone(), AssetType::Token, existential_deposit, None, is_sufficient)
+	fn create_asset(name: &Vec<u8>, existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
+		Self::get_or_create_asset(name.clone(), AssetType::Token, existential_deposit, None, false)
 	}
 }
 
@@ -577,7 +574,6 @@ impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, Balance, DispatchError> 
 		name: &Vec<u8>,
 		assets: &[T::AssetId],
 		existential_deposit: Balance,
-		is_sufficient: bool,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(assets.len() == 2, Error::<T>::InvalidSharedAssetLen);
 		Self::get_or_create_asset(
@@ -585,7 +581,7 @@ impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, Balance, DispatchError> 
 			AssetType::PoolShare(assets[0], assets[1]),
 			existential_deposit,
 			None,
-			is_sufficient,
+			false,
 		)
 	}
 }
@@ -618,31 +614,67 @@ impl<T: Config> CreateRegistry<T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn create_asset(
-		asset_id: Option<T::AssetId>,
-		name: Option<&[u8]>,
+		name: &[u8],
 		kind: AssetKind,
 		existential_deposit: Balance,
-		is_sufficient: bool,
 		//TODO: add location
 	) -> Result<T::AssetId, Self::Error> {
-		let bounded_name = if let Some(n) = name {
-			Some(Self::to_bounded_name(n.to_vec())?)
+		let bounded_name = Some(Self::to_bounded_name(name.to_vec())?);
+
+		Pallet::<T>::do_register_asset(
+			None,
+			AssetDetails::new(bounded_name, kind.into(), existential_deposit, None, None, None, false),
+			None,
+		)
+	}
+}
+
+impl<T: Config> Inspect<T::AssetNativeLocation, Balance> for Pallet<T> {
+	type Error = DispatchError;
+	type AssetId = T::AssetId;
+}
+
+impl<T: Config> Mutate<T::AssetNativeLocation, Balance> for Pallet<T> {
+	fn set_location(asset_id: Self::AssetId, location: T::AssetNativeLocation) -> Result<(), Self::Error> {
+		Self::do_set_location(asset_id, location)
+	}
+}
+
+impl<T: Config> Create<T::AssetNativeLocation, Balance> for Pallet<T> {
+	fn register_asset(
+		asset_id: Option<Self::AssetId>,
+		name: Option<&[u8]>,
+		kind: AssetKind,
+		existential_deposit: Option<Balance>,
+		symbol: Option<&[u8]>,
+		decimals: Option<u8>,
+		location: Option<T::AssetNativeLocation>,
+		xcm_rate_limit: Option<Balance>,
+		is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		let bounded_name = if let Some(name) = name {
+			let bounded_name = Self::to_bounded_name(name.to_vec())?;
+			Some(bounded_name)
 		} else {
 			None
 		};
 
-		Pallet::<T>::do_register_asset(
-			asset_id,
-			AssetDetails::new(
-				bounded_name,
-				kind.into(),
-				existential_deposit,
-				None,
-				None,
-				None,
-				is_sufficient,
-			),
-			None,
-		)
+		let bounded_symbol = if let Some(symbol) = symbol {
+			Some(Self::to_bounded_name(symbol.to_vec())?)
+		} else {
+			None
+		};
+
+		let details = AssetDetails::new(
+			bounded_name,
+			kind.into(),
+			existential_deposit.unwrap_or(DEFAULT_ED),
+			bounded_symbol,
+			decimals,
+			xcm_rate_limit,
+			is_sufficient,
+		);
+
+		Self::do_register_asset(asset_id, details, location)
 	}
 }

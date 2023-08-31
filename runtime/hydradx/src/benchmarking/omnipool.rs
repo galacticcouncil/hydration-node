@@ -86,7 +86,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), Balance::one(), true)?;
+		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -123,7 +123,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		//Register new asset in asset registry
-		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), Balance::one(), true)?;
+		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -169,7 +169,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), 1u128,true)?;
+		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -227,7 +227,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), 1u128, true)?;
+		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -285,7 +285,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), 1_u128, true)?;
+		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -351,7 +351,7 @@ runtime_benchmarks! {
 	refund_refused_asset {
 		let recipient: AccountId = account("recipient", 3, 1);
 
-		let asset_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), 1_u128, true)?;
+		let asset_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;
 		let amount = 1_000_000_000_000_000_u128;
 
 		update_balance(asset_id, &Omnipool::protocol_account(), amount);
@@ -380,7 +380,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = <AssetRegistry as Registry<AssetId, Vec<u8>, Balance, DispatchError>>::create_asset(&b"FCK".to_vec(), Balance::one(), true)?;
+		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);

@@ -4,11 +4,11 @@ use crate::assert_balance;
 use crate::polkadot_test_net::*;
 
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::CreateRegistry;
 use orml_traits::MultiCurrency;
 use xcm_emulator::TestExt;
 
 use hydradx_runtime::{AssetRegistry, Bonds, Currencies, Runtime, RuntimeOrigin};
-use hydradx_traits::{AssetKind, CreateRegistry};
 use primitives::constants::time::unix_time::MONTH;
 
 #[test]
@@ -31,7 +31,7 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
 
 		assert_eq!(bond_asset_details.asset_type, pallet_asset_registry::AssetType::Bond);
-		assert!(bond_asset_details.name.is_none());
+		assert!(bond_asset_details.name.unwrap().is_empty());
 		assert_eq!(bond_asset_details.existential_deposit, NativeExistentialDeposit::get());
 
 		assert_balance!(&ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount);
@@ -55,11 +55,9 @@ fn issue_bonds_should_work_when_issued_for_shared_asset() {
 
 		let name = b"SHARED".to_vec();
 		let shared_asset_id = AssetRegistry::create_asset(
-			None,
-			Some(&name),
+			&name,
 			pallet_asset_registry::AssetType::PoolShare(HDX, DOT).into(),
 			1_000,
-			false,
 		)
 		.unwrap();
 		assert_ok!(Currencies::deposit(shared_asset_id, &ALICE.into(), amount,));
@@ -79,7 +77,7 @@ fn issue_bonds_should_work_when_issued_for_shared_asset() {
 		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
 
 		assert_eq!(bond_asset_details.asset_type, pallet_asset_registry::AssetType::Bond);
-		assert!(bond_asset_details.name.is_none());
+		assert!(bond_asset_details.name.unwrap().is_empty());
 		assert_eq!(bond_asset_details.existential_deposit, 1_000);
 
 		assert_balance!(&ALICE.into(), shared_asset_id, 0);
@@ -104,7 +102,7 @@ fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 
 		let name = b"BOND".to_vec();
 		let underlying_asset_id =
-			AssetRegistry::create_asset(None, Some(&name), AssetKind::Bond, 1_000, false).unwrap();
+			AssetRegistry::create_asset(&name, pallet_asset_registry::AssetType::<AssetId>::Bond.into(), 1_000).unwrap();
 		assert_ok!(Currencies::deposit(underlying_asset_id, &ALICE.into(), amount,));
 
 		// Act & Assert

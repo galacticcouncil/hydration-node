@@ -657,11 +657,7 @@ where
 		unimplemented!()
 	}
 
-	fn create_asset(
-		_name: &Vec<u8>,
-		_existential_deposit: Balance,
-		_is_sufficient: bool,
-	) -> Result<T::AssetId, DispatchError> {
+	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			//NOTE: This is to have same ids as real AssetRegistry which is used in the benchmarks.
 			//1_000_000 - offset of the reals AssetRegistry

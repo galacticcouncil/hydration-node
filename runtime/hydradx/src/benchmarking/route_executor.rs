@@ -22,7 +22,7 @@ use super::*;
 
 use frame_benchmarking::account;
 use frame_system::{Pallet as System, RawOrigin};
-use hydradx_traits::CreateRegistry;
+use hydradx_traits::{registry::Create, router::PoolType, AssetKind};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
@@ -86,13 +86,16 @@ fn initialize_omnipool() -> DispatchResult {
 }
 
 pub fn regi_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<AssetId, DispatchError> {
-	let name = AssetRegistry::to_bounded_name(name)?;
-	<AssetRegistry as CreateRegistry<AssetId, Balance>>::create_asset(
+	AssetRegistry::register_asset(
 		Some(asset_id),
 		Some(&name),
-		pallet_asset_registry::AssetType::<AssetId>::Token.into(),
-		deposit,
-		true,
+		AssetKind::Token,
+		Some(deposit),
+		None,
+		None,
+		None,
+		None,
+		false,
 	)
 }
 
@@ -132,7 +135,6 @@ fn fund<T: pallet_omnipool::Config>(
 
 use frame_support::assert_ok;
 use frame_support::traits::Hooks;
-use hydradx_traits::router::PoolType;
 use pallet_route_executor::Trade;
 use sp_runtime::{DispatchError, DispatchResult, FixedU128, Permill};
 use sp_std::vec;

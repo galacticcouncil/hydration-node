@@ -84,8 +84,8 @@ where
 	u32: From<<T as pallet::Config>::AssetId>,
 {
 	// Register new asset in asset registry
-	let hdx = T::AssetRegistry::create_asset(&b"HDX".to_vec(), ONE, true)?;
-	let dai = T::AssetRegistry::create_asset(&b"DAI".to_vec(), ONE, true)?;
+	let hdx = T::AssetRegistry::create_asset(&b"HDX".to_vec(), ONE)?;
+	let dai = T::AssetRegistry::create_asset(&b"DAI".to_vec(), ONE)?;
 
 	Ok((hdx.into(), dai.into()))
 }

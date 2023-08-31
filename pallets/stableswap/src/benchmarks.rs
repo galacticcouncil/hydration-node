@@ -50,10 +50,10 @@ benchmarks! {
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
 			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-			let asset_id = T::AssetRegistry::create_asset(&name, 1u128, false)?;
+			let asset_id = T::AssetRegistry::create_asset(&name, 1u128)?;
 			asset_ids.push(asset_id);
 		}
-		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128, false)?;
+		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
 		let withdraw_fee = Permill::from_percent(1);
@@ -77,7 +77,7 @@ benchmarks! {
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
 			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-			let asset_id = T::AssetRegistry::create_asset(&name, 1u128, false)?;
+			let asset_id = T::AssetRegistry::create_asset(&name, 1u128)?;
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
@@ -90,7 +90,7 @@ benchmarks! {
 				amount: liquidity_added
 			});
 		}
-		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128, false)?;
+		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
@@ -127,7 +127,7 @@ benchmarks! {
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
 			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-			let asset_id = T::AssetRegistry::create_asset(&name, 1u128, false)?;
+			let asset_id = T::AssetRegistry::create_asset(&name, 1u128)?;
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
@@ -140,7 +140,7 @@ benchmarks! {
 				amount: liquidity_added
 			});
 		}
-		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128, false)?;
+		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
 		let asset_id_to_withdraw: T::AssetId = *asset_ids.last().unwrap();
 
@@ -191,7 +191,7 @@ benchmarks! {
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
 			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-			let asset_id = T::AssetRegistry::create_asset(&name, 1u128, false)?;
+			let asset_id = T::AssetRegistry::create_asset(&name, 1u128)?;
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
@@ -204,7 +204,7 @@ benchmarks! {
 				amount: liquidity_added
 			});
 		}
-		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128, false)?;
+		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
@@ -262,7 +262,7 @@ benchmarks! {
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
 			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-			let asset_id = T::AssetRegistry::create_asset(&name, 1u128, false)?;
+			let asset_id = T::AssetRegistry::create_asset(&name, 1u128)?;
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
@@ -275,7 +275,7 @@ benchmarks! {
 				amount: liquidity_added
 			});
 		}
-		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128, false)?;
+		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
@@ -332,7 +332,7 @@ benchmarks! {
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
 			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-			let asset_id = T::AssetRegistry::create_asset(&name, 1u128, false)?;
+			let asset_id = T::AssetRegistry::create_asset(&name, 1u128)?;
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
@@ -345,7 +345,7 @@ benchmarks! {
 				amount: liquidity_added
 			});
 		}
-		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128, false)?;
+		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
@@ -380,7 +380,7 @@ benchmarks! {
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
 			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-			let asset_id = T::AssetRegistry::create_asset(&name, 1u128, false)?;
+			let asset_id = T::AssetRegistry::create_asset(&name, 1u128)?;
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
@@ -393,7 +393,7 @@ benchmarks! {
 				amount: liquidity_added
 			});
 		}
-		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128, false)?;
+		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin.clone(),
@@ -425,7 +425,7 @@ benchmarks! {
 		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
 		for idx in 0..MAX_ASSETS_IN_POOL {
 			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-			let asset_id = T::AssetRegistry::create_asset(&name, 1u128, false)?;
+			let asset_id = T::AssetRegistry::create_asset(&name, 1u128)?;
 			asset_ids.push(asset_id);
 			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
 			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
@@ -438,7 +438,7 @@ benchmarks! {
 				amount: liquidity_added
 			});
 		}
-		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128, false)?;
+		let pool_id = T::AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin.clone(),

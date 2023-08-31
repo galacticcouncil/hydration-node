@@ -13,6 +13,7 @@ use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};
 use xcm_emulator::TestExt;
+use hydradx_traits::registry::Mutate;
 
 // Determine the hash for assets expected to be have been trapped.
 fn determine_hash<M>(origin: &MultiLocation, assets: M) -> H256
