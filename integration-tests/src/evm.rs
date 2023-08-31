@@ -187,12 +187,11 @@ fn complete_fee_should_be_transferred_to_treasury() {
 
 		//Assert
 		let new_balance = Tokens::free_balance(WETH, &evm_account());
+		let new_treasury_balance = Tokens::free_balance(WETH, &Treasury::account_id());
 		let fee = balance - new_balance;
 		assert!(fee > 0);
-		assert_eq!(
-			treasury_balance + fee,
-			Tokens::free_balance(WETH, &Treasury::account_id())
-		);
+		assert_eq!(fee, gwei(1).as_u128() * 21000);
+		assert_eq!(treasury_balance + fee, new_treasury_balance);
 		assert_eq!(issuance, Tokens::total_issuance(WETH));
 	});
 }
