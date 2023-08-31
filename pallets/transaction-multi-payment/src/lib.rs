@@ -411,17 +411,34 @@ where
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))
 				.ok()?;
 
-			// deposit the fee
+			// deposit the paid fee
 			DepFee::deposit_fee(&fee_receiver, currency.into(), corrected_fee)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))
 				.ok()?;
+
+			// deposit base fee (which would be burned on ethereum)
+			/*DepFee::deposit_fee(&fee_receiver, currency.into(), base_fee)
+			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))
+			.ok()?;*/
+
+			//TODO: determine fee properly, maybe using EVMCurrencyAdapter?
+			let priority_fee = base_fee.saturating_sub(paid_fee);
+			if priority_fee.is_zero() {
+				return None;
+			}
+			return Some(priority_fee);
 		}
 
-		Some(corrected_fee)
+		None
 	}
 
 	fn pay_priority_fee(tip: Self::LiquidityInfo) {
-		//TODO: fix
+		let fee_receiver = FeeReceiver::get();
+		let currency = Weth::get();
+
+		if let Some(priority_fee) = tip {
+			let _ = DepFee::deposit_fee(&fee_receiver, currency.into(), priority_fee);
+		}
 	}
 }
 
