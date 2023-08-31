@@ -113,7 +113,7 @@ pub fn calculate_shares<const D: u8>(
 		Some(updated_d)
 	} else {
 		let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, updated_d.checked_sub(initial_d)?, initial_d);
-		let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
+		let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?.checked_sub(U256::from(1))?;
 		Balance::try_from(share_amount).ok()
 	}
 }
