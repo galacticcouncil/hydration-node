@@ -20,7 +20,7 @@ use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
 
 #[test]
-fn evm1() {
+fn currency_name_should_work() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
