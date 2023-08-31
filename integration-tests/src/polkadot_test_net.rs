@@ -17,6 +17,7 @@ pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance};
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use hex_literal::hex;
+use hydradx_runtime::evm::WETH_ASSET_LOCATION;
 use hydradx_runtime::RuntimeOrigin;
 use pallet_evm::AddressMapping;
 use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
@@ -296,6 +297,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 		System::set_block_number(1);
 		// Make sure the prices are up-to-date.
 		MultiTransactionPayment::on_initialize(1);
+		hydradx_runtime::AssetRegistry::set_location(RuntimeOrigin::root(), WETH, WETH_ASSET_LOCATION).unwrap();
 	});
 	ext
 }
@@ -354,7 +356,7 @@ pub fn expect_hydra_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
 	use frame_support::traits::OnInitialize;
-	use hydradx_runtime::{ParachainSystem, RuntimeOrigin};
+	use hydradx_runtime::ParachainSystem;
 
 	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
 	// how we set the block number with `cumulus-test-relay-sproof-builder` package

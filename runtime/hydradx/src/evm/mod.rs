@@ -97,7 +97,7 @@ parameter_types! {
 }
 
 const MOONBEAM_PARA_ID: u32 = 2004;
-const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(MultiLocation {
+pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(MultiLocation {
 	parents: 1,
 	interior: X3(
 		Parachain(MOONBEAM_PARA_ID),

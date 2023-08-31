@@ -12,7 +12,7 @@ use hex_literal::hex;
 use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
 use hydradx_runtime::evm::precompile::Bytes;
 use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
-use hydradx_runtime::{RuntimeOrigin, Tokens, EVM};
+use hydradx_runtime::{Tokens, EVM};
 use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
 
@@ -82,15 +82,17 @@ fn dispatch_should_work_with_transfer() {
 
 	Hydra::execute_with(|| {
 		//Arrange
+		let data = hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+			.to_vec();
 		let balance = Tokens::free_balance(WETH, &evm_account());
+		let transferred = 1 * 10u128.pow(16);
 
 		//Act
 		assert_ok!(EVM::call(
 			evm_signed_origin(evm_address()),
 			evm_address(),
 			DISPATCH_ADDR,
-			hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
-				.to_vec(),
+			data,
 			U256::from(0),
 			1000000,
 			gwei(1),
@@ -100,7 +102,9 @@ fn dispatch_should_work_with_transfer() {
 		));
 
 		//Assert
-		assert_eq!(Tokens::free_balance(WETH, &evm_account()), balance - 1 * 10u128.pow(16));
+		let new_balance = Tokens::free_balance(WETH, &evm_account());
+		assert!(new_balance < balance - transferred);
+		println!("fee: {:?}", balance - (new_balance + transferred));
 	});
 }
 
