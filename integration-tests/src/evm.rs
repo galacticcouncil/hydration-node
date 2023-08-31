@@ -4,15 +4,18 @@ use crate::polkadot_test_net::*;
 use hydradx_runtime::evm::precompile::multicurrency::{Action, MultiCurrencyPrecompile};
 use pallet_evm::*;
 use sp_core::{H160, H256, U256};
+use std::borrow::Cow;
 use xcm_emulator::TestExt;
 type CurrencyPrecompile = MultiCurrencyPrecompile<hydradx_runtime::Runtime>;
 use fp_evm::{Context, Transfer};
 use frame_support::assert_ok;
+use frame_support::codec::Encode;
+use frame_support::traits::Contains;
 use hex_literal::hex;
 use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
 use hydradx_runtime::evm::precompile::Bytes;
 use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
-use hydradx_runtime::{Tokens, EVM};
+use hydradx_runtime::{CallFilter, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM};
 use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
 
@@ -72,10 +75,6 @@ fn dispatch_should_work_with_remark() {
 	});
 }
 
-// TODO: test dispatch should respect call filter
-
-// TODO: test EVM fees should be handled the same way as substrate ones - tranfered to treasury
-
 #[test]
 fn dispatch_should_work_with_transfer() {
 	TestNet::reset();
@@ -85,7 +84,6 @@ fn dispatch_should_work_with_transfer() {
 		let data = hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
 			.to_vec();
 		let balance = Tokens::free_balance(WETH, &evm_account());
-		let transferred = 1 * 10u128.pow(16);
 
 		//Act
 		assert_ok!(EVM::call(
@@ -102,11 +100,104 @@ fn dispatch_should_work_with_transfer() {
 		));
 
 		//Assert
-		let new_balance = Tokens::free_balance(WETH, &evm_account());
-		assert!(new_balance < balance - transferred);
-		println!("fee: {:?}", balance - (new_balance + transferred));
+		assert!(Tokens::free_balance(WETH, &evm_account()) < balance - 1 * 10u128.pow(16));
 	});
 }
+
+#[test]
+fn dispatch_should_respect_call_filter() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let balance = Tokens::free_balance(WETH, &evm_account());
+		let amount = 1 * 10u128.pow(16);
+		let gas_limit = 1000000;
+		let gas_price = gwei(1);
+		let transfer_call = RuntimeCall::Tokens(orml_tokens::Call::transfer {
+			dest: ALICE.into(),
+			currency_id: WETH,
+			amount,
+		});
+		assert!(CallFilter::contains(&transfer_call));
+		assert_ok!(TransactionPause::pause_transaction(
+			RuntimeOrigin::root(),
+			b"Tokens".to_vec(),
+			b"transfer".to_vec()
+		));
+		assert!(!CallFilter::contains(&transfer_call));
+
+		//Act
+		assert_ok!(EVM::call(
+			evm_signed_origin(evm_address()),
+			evm_address(),
+			DISPATCH_ADDR,
+			transfer_call.encode(),
+			U256::from(0),
+			gas_limit,
+			gas_price,
+			None,
+			Some(U256::zero()),
+			[].into(),
+		));
+
+		//Assert
+		let new_balance = Tokens::free_balance(WETH, &evm_account());
+		assert!(new_balance < balance, "fee wasn't charged");
+		assert!(new_balance > balance - amount, "more than fee was taken from account");
+		assert_eq!(
+			new_balance,
+			balance - (U256::from(gas_limit) * gas_price).as_u128(),
+			"gas limit was not charged"
+		);
+		assert_eq!(
+			HydraDXPrecompiles::<hydradx_runtime::Runtime>::new()
+				.execute(&mut create_dispatch_handle(transfer_call.encode()))
+				.unwrap(),
+			Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other(Cow::from("dispatch execution failed: CallFiltered"))
+			})
+		);
+	});
+}
+
+#[test]
+fn complete_fee_should_be_transferred_to_treasury() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let balance = Tokens::free_balance(WETH, &evm_account());
+		let treasury_balance = Tokens::free_balance(WETH, &Treasury::account_id());
+		let issuance = Tokens::total_issuance(WETH);
+
+		//Act
+		assert_ok!(EVM::call(
+			evm_signed_origin(evm_address()),
+			evm_address(),
+			evm_address(),
+			[].into(),
+			U256::from(0),
+			1000000,
+			gwei(1),
+			None,
+			Some(U256::zero()),
+			[].into()
+		));
+
+		//Assert
+		let new_balance = Tokens::free_balance(WETH, &evm_account());
+		let fee = balance - new_balance;
+		assert!(fee > 0);
+		assert_eq!(
+			treasury_balance + fee,
+			Tokens::free_balance(WETH, &Treasury::account_id())
+		);
+		assert_eq!(issuance, Tokens::total_issuance(WETH));
+	});
+}
+
+// TODO: test that we charge approximatelly same fee on evm as with extrinsics directly
 
 const DISPATCH_ADDR: H160 = addr(1025);
 
