@@ -19,6 +19,7 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::TreasuryAccount;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura,
@@ -33,10 +34,12 @@ use frame_support::{
 use hex_literal::hex;
 use hydradx_traits::Registry;
 use orml_tokens::CurrencyAdapter;
-use pallet_evm::EnsureAddressTruncated;
+use pallet_evm::{AddressMapping, EnsureAddressTruncated, Error, OnChargeEVMTransaction};
+use pallet_transaction_multi_payment::{DepositAll, DepositAllEvm, TransferEvmFees};
 use polkadot_xcm::latest::MultiLocation;
 use polkadot_xcm::prelude::{AccountKey20, Here, PalletInstance, Parachain, X3};
-use primitives::AssetId;
+use primitive_types::H160;
+use primitives::{AccountId, AssetId};
 use sp_core::{Get, U256};
 use sp_runtime::traits::Convert;
 use sp_runtime::Permill;
@@ -134,7 +137,8 @@ impl pallet_evm::Config for crate::Runtime {
 	type FeeCalculator = crate::BaseFee;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
-	type OnChargeTransaction = ();
+	type OnChargeTransaction =
+		TransferEvmFees<crate::Currencies, TreasuryAccount, DepositAllEvm<crate::Runtime>, WethAssetId>;
 	type OnCreate = ();
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;

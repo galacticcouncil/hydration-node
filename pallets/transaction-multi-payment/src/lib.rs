@@ -47,6 +47,9 @@ use hydradx_traits::{pools::SpotPriceProvider, NativePriceOracle};
 use orml_traits::{Happened, MultiCurrency};
 
 use frame_support::traits::IsSubType;
+use pallet_evm::AddressMapping;
+use sp_core::crypto::AccountId32;
+use sp_core::{H160, U256};
 
 pub use crate::traits::*;
 
@@ -342,6 +345,83 @@ impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, BalanceOf<T>> for Deposit
 	fn deposit_fee(who: &T::AccountId, currency: AssetIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
 		<T as Config>::Currencies::deposit(currency, who, amount)?;
 		Ok(())
+	}
+}
+
+/// Deposits all fees to some account
+pub struct DepositAllEvm<T>(PhantomData<T>);
+
+impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, U256> for DepositAllEvm<T>
+where
+	<<T as pallet::Config>::Currencies as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
+		From<u128>,
+{
+	fn deposit_fee(who: &T::AccountId, currency: AssetIdOf<T>, amount: U256) -> DispatchResult {
+		<T as Config>::Currencies::deposit(currency, who, amount.as_u128().into())?;
+		Ok(())
+	}
+}
+
+pub struct TransferEvmFees<MultiCurrencies, FeeReceiver, DepFee, Weth>(
+	PhantomData<(MultiCurrencies, FeeReceiver, DepFee, Weth)>,
+);
+
+impl<T, MultiCurrencies, FeeReceiver, DepFee, Weth> pallet_evm::OnChargeEVMTransaction<T>
+	for TransferEvmFees<MultiCurrencies, FeeReceiver, DepFee, Weth>
+where
+	T: Config + pallet_evm::Config,
+	MultiCurrencies: MultiCurrency<<T as frame_system::Config>::AccountId>,
+	FeeReceiver: Get<T::AccountId>,
+	DepFee: DepositFee<T::AccountId, MultiCurrencies::CurrencyId, U256>,
+	Weth: Get<AssetIdOf<T>>,
+	AssetIdOf<T>: Into<MultiCurrencies::CurrencyId>,
+	MultiCurrencies::Balance: From<u128>,
+{
+	type LiquidityInfo = Option<U256>;
+
+	fn withdraw_fee(who: &H160, fee: U256) -> Result<Self::LiquidityInfo, pallet_evm::Error<T>> {
+		if fee.is_zero() {
+			return Ok(None);
+		}
+		let currency = Weth::get();
+		let account = <T as pallet_evm::Config>::AddressMapping::into_account_id(*who);
+
+		return match MultiCurrencies::withdraw(currency.into(), &account, fee.as_u128().into()) {
+			Ok(()) => Ok(Some(fee)),
+			Err(_) => Err(pallet_evm::Error::<T>::WithdrawFailed.into()),
+		};
+	}
+
+	fn correct_and_deposit_fee(
+		who: &H160,
+		corrected_fee: U256,
+		base_fee: U256,
+		already_withdrawn: Self::LiquidityInfo,
+	) -> Self::LiquidityInfo {
+		let fee_receiver = FeeReceiver::get();
+		let currency = Weth::get();
+
+		if let Some(paid_fee) = already_withdrawn {
+			// refund to the account that paid the fees
+			let refund = paid_fee.saturating_sub(corrected_fee);
+			let account = <T as pallet_evm::Config>::AddressMapping::into_account_id(*who);
+
+			// refund overpaid fees to the fee payer
+			MultiCurrencies::deposit(currency.into(), &account, refund.as_u128().into())
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))
+				.ok()?;
+
+			// deposit the fee
+			DepFee::deposit_fee(&fee_receiver, currency.into(), corrected_fee)
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))
+				.ok()?;
+		}
+
+		Some(corrected_fee)
+	}
+
+	fn pay_priority_fee(tip: Self::LiquidityInfo) {
+		//TODO: fix
 	}
 }
 
