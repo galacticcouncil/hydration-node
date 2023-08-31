@@ -29,6 +29,7 @@ mod mock;
 mod tests;
 mod traits;
 
+use frame_support::traits::Currency as PalletCurrency;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
 use frame_system::ensure_signed;
 use sp_runtime::{
@@ -36,6 +37,7 @@ use sp_runtime::{
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
 	FixedU128,
 };
+
 use sp_std::prelude::*;
 
 use pallet_transaction_payment::OnChargeTransaction;
@@ -46,10 +48,10 @@ use frame_support::sp_runtime::FixedPointOperand;
 use hydradx_traits::{pools::SpotPriceProvider, NativePriceOracle};
 use orml_traits::{Happened, MultiCurrency};
 
-use frame_support::traits::IsSubType;
-use pallet_evm::AddressMapping;
-use sp_core::crypto::AccountId32;
+use frame_support::traits::{Imbalance, IsSubType, OnUnbalanced};
+use pallet_evm::{EVMCurrencyAdapter, OnChargeEVMTransaction};
 use sp_core::{H160, U256};
+use sp_runtime::traits::UniqueSaturatedInto;
 
 pub use crate::traits::*;
 
@@ -348,48 +350,28 @@ impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, BalanceOf<T>> for Deposit
 	}
 }
 
-/// Deposits all fees to some account
-pub struct DepositAllEvm<T>(PhantomData<T>);
+type CurrencyAccountId<T> = <T as frame_system::Config>::AccountId;
+type BalanceFor<T> = <<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::Balance;
+type PositiveImbalanceFor<T> =
+	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::PositiveImbalance;
+type NegativeImbalanceFor<T> =
+	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::NegativeImbalance;
 
-impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, U256> for DepositAllEvm<T>
+/// Implements the transaction payment for EVM transactions.
+pub struct TransferEvmFees<OU>(PhantomData<OU>);
+
+impl<T, OU> OnChargeEVMTransaction<T> for TransferEvmFees<OU>
 where
-	<<T as pallet::Config>::Currencies as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
-		From<u128>,
+	T: pallet_evm::Config,
+	PositiveImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = NegativeImbalanceFor<T>>,
+	NegativeImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = PositiveImbalanceFor<T>>,
+	OU: OnUnbalanced<NegativeImbalanceFor<T>>,
+	U256: UniqueSaturatedInto<BalanceFor<T>>,
 {
-	fn deposit_fee(who: &T::AccountId, currency: AssetIdOf<T>, amount: U256) -> DispatchResult {
-		<T as Config>::Currencies::deposit(currency, who, amount.as_u128().into())?;
-		Ok(())
-	}
-}
-
-pub struct TransferEvmFees<MultiCurrencies, FeeReceiver, DepFee, Weth>(
-	PhantomData<(MultiCurrencies, FeeReceiver, DepFee, Weth)>,
-);
-
-impl<T, MultiCurrencies, FeeReceiver, DepFee, Weth> pallet_evm::OnChargeEVMTransaction<T>
-	for TransferEvmFees<MultiCurrencies, FeeReceiver, DepFee, Weth>
-where
-	T: Config + pallet_evm::Config,
-	MultiCurrencies: MultiCurrency<<T as frame_system::Config>::AccountId>,
-	FeeReceiver: Get<T::AccountId>,
-	DepFee: DepositFee<T::AccountId, MultiCurrencies::CurrencyId, U256>,
-	Weth: Get<AssetIdOf<T>>,
-	AssetIdOf<T>: Into<MultiCurrencies::CurrencyId>,
-	MultiCurrencies::Balance: From<u128>,
-{
-	type LiquidityInfo = Option<U256>;
+	type LiquidityInfo = Option<NegativeImbalanceFor<T>>;
 
 	fn withdraw_fee(who: &H160, fee: U256) -> Result<Self::LiquidityInfo, pallet_evm::Error<T>> {
-		if fee.is_zero() {
-			return Ok(None);
-		}
-		let currency = Weth::get();
-		let account = <T as pallet_evm::Config>::AddressMapping::into_account_id(*who);
-
-		return match MultiCurrencies::withdraw(currency.into(), &account, fee.as_u128().into()) {
-			Ok(()) => Ok(Some(fee)),
-			Err(_) => Err(pallet_evm::Error::<T>::WithdrawFailed.into()),
-		};
+		EVMCurrencyAdapter::<<T as pallet_evm::Config>::Currency, ()>::withdraw_fee(who, fee)
 	}
 
 	fn correct_and_deposit_fee(
@@ -398,46 +380,14 @@ where
 		base_fee: U256,
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Self::LiquidityInfo {
-		let fee_receiver = FeeReceiver::get();
-		let currency = Weth::get();
-
-		if let Some(paid_fee) = already_withdrawn {
-			// refund to the account that paid the fees
-			let refund = paid_fee.saturating_sub(corrected_fee);
-			let account = <T as pallet_evm::Config>::AddressMapping::into_account_id(*who);
-
-			// refund overpaid fees to the fee payer
-			MultiCurrencies::deposit(currency.into(), &account, refund.as_u128().into())
-				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))
-				.ok()?;
-
-			// deposit the paid fee
-			DepFee::deposit_fee(&fee_receiver, currency.into(), corrected_fee)
-				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))
-				.ok()?;
-
-			// deposit base fee (which would be burned on ethereum)
-			/*DepFee::deposit_fee(&fee_receiver, currency.into(), base_fee)
-			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))
-			.ok()?;*/
-
-			//TODO: determine fee properly, maybe using EVMCurrencyAdapter?
-			let priority_fee = base_fee.saturating_sub(paid_fee);
-			if priority_fee.is_zero() {
-				return None;
-			}
-			return Some(priority_fee);
-		}
-
-		None
+		<EVMCurrencyAdapter<<T as pallet_evm::Config>::Currency, OU> as OnChargeEVMTransaction<
+			T,
+		>>::correct_and_deposit_fee(who, corrected_fee, base_fee, already_withdrawn)
 	}
 
 	fn pay_priority_fee(tip: Self::LiquidityInfo) {
-		let fee_receiver = FeeReceiver::get();
-		let currency = Weth::get();
-
-		if let Some(priority_fee) = tip {
-			let _ = DepFee::deposit_fee(&fee_receiver, currency.into(), priority_fee);
+		if let Some(tip) = tip {
+			OU::on_unbalanced(tip);
 		}
 	}
 }

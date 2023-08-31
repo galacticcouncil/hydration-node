@@ -24,7 +24,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura,
 };
-use frame_support::traits::Defensive;
+use frame_support::traits::{Defensive, Imbalance, OnUnbalanced};
 use frame_support::{
 	parameter_types,
 	traits::FindAuthor,
@@ -35,7 +35,7 @@ use hex_literal::hex;
 use hydradx_traits::Registry;
 use orml_tokens::CurrencyAdapter;
 use pallet_evm::{AddressMapping, EnsureAddressTruncated, Error, OnChargeEVMTransaction};
-use pallet_transaction_multi_payment::{DepositAll, DepositAllEvm, TransferEvmFees};
+use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
 use polkadot_xcm::latest::MultiLocation;
 use polkadot_xcm::prelude::{AccountKey20, Here, PalletInstance, Parachain, X3};
 use primitive_types::H160;
@@ -126,6 +126,22 @@ impl Get<AssetId> for WethAssetId {
 }
 
 type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
+use frame_support::traits::Currency as PalletCurrency;
+use primitives::constants::currency::deposit;
+
+type NegativeImbalance = <WethCurrency as PalletCurrency<AccountId>>::NegativeImbalance;
+
+pub struct DealWithFees;
+impl OnUnbalanced<NegativeImbalance> for DealWithFees {
+	// this is called for substrate-based transactions
+	fn on_unbalanceds<B>(_: impl Iterator<Item = NegativeImbalance>) {}
+
+	// this is called from pallet_evm for Ethereum-based transactions
+	// (technically, it calls on_unbalanced, which calls this when non-zero)
+	fn on_nonzero_unbalanced(amount: NegativeImbalance) {
+		let _ = DepositAll::<crate::Runtime>::deposit_fee(&TreasuryAccount::get(), WethAssetId::get(), amount.peek());
+	}
+}
 
 impl pallet_evm::Config for crate::Runtime {
 	type AddressMapping = ExtendedAddressMapping;
@@ -137,8 +153,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type FeeCalculator = crate::BaseFee;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
-	type OnChargeTransaction =
-		TransferEvmFees<crate::Currencies, TreasuryAccount, DepositAllEvm<crate::Runtime>, WethAssetId>;
+	type OnChargeTransaction = TransferEvmFees<DealWithFees>;
 	type OnCreate = ();
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
