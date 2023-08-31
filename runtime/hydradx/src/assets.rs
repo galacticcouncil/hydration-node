@@ -520,7 +520,7 @@ parameter_types! {
 	pub const MinStake: Balance = 1_000 * UNITS;
 	pub const PeriodLength: BlockNumber = DAYS;
 	pub const TimePointsW:Permill =  Permill::from_percent(100);
-	pub const ActionPointsW: Perbill = Perbill::from_parts(4_400);
+	pub const ActionPointsW: Perbill = Perbill::from_percent(20);
 	pub const TimePointsPerPeriod: u8 = 1;
 	pub const CurrentStakeWeight: u8 = 2;
 	pub const UnclaimablePeriods: BlockNumber = 1;
