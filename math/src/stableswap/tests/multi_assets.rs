@@ -161,7 +161,7 @@ fn calculate_shares_should_work_when_share_issuance_is_zero() {
 
 	let result = result.unwrap();
 
-	assert_eq!(result, 54991983151);
+	assert_eq!(result, 54991983153);
 }
 
 #[test]

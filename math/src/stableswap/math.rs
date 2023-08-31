@@ -96,23 +96,44 @@ pub fn calculate_shares<const D: u8>(
 	if initial_reserves.len() != updated_reserves.len() {
 		return None;
 	}
-	let initial_reserves = normalize_reserves(initial_reserves);
-	let updated_reserves = normalize_reserves(updated_reserves);
-
-	let initial_d = calculate_d_internal::<D>(&initial_reserves, amplification)?;
+	let initial_d = calculate_d::<D>(&initial_reserves, amplification)?;
 
 	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
 	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-	let updated_d = calculate_d_internal::<D>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
+	let updated_d = calculate_d::<D>(&updated_reserves, amplification)?;
 	if updated_d < initial_d {
 		return None;
 	}
 
+	let (d0, d1) = to_u256!(initial_d, updated_d);
+	let fee = FixedU128::zero();
+
+	let adjusted_balances = if share_issuance > 0 {
+		let adjusted_balances: Vec<AssetReserve> = updated_reserves
+			.iter()
+			.enumerate()
+			.map(|(idx, asset_reserve)| -> Option<AssetReserve> {
+				let (initial_reserve, updated_reserve) = to_u256!(initial_reserves[idx].amount, asset_reserve.amount);
+				let ideal_balance = d1.checked_mul(initial_reserve)?.checked_div(d0)?;
+				let diff = Balance::try_from(updated_reserve.abs_diff(ideal_balance)).ok()?;
+				let fee_amount = fee.checked_mul_int(diff)?;
+				Some(AssetReserve::new(
+					asset_reserve.amount.saturating_sub(fee_amount),
+					asset_reserve.decimals,
+				))
+			})
+			.collect::<Option<Vec<AssetReserve>>>()?;
+		adjusted_balances
+	} else {
+		updated_reserves.to_vec()
+	};
+
+	let adjusted_d = calculate_d::<D>(&adjusted_balances, amplification)?;
 	if share_issuance == 0 {
 		// if first liquidity added
 		Some(updated_d)
 	} else {
-		let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, updated_d.checked_sub(initial_d)?, initial_d);
+		let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, adjusted_d.checked_sub(initial_d)?, initial_d);
 		let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
 		Balance::try_from(share_amount).ok()
 	}

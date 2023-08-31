@@ -108,7 +108,7 @@ fn test_shares() {
 	let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, 0u128);
 
 	assert!(result.is_some());
-	assert_eq!(result.unwrap(), 736626243363217809);
+	assert_eq!(result.unwrap(), 736626243363217811);
 }
 #[test]
 fn remove_one_asset_should_work() {
