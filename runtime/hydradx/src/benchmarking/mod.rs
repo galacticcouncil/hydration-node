@@ -38,12 +38,12 @@ pub fn update_asset(asset_id: AssetId, name: Vec<u8>, deposit: Balance) -> Resul
 		RawOrigin::Root.into(),
 		asset_id,
 		Some(name),
-        None,
+		None,
 		Some(deposit),
 		None,
 		None,
 		None,
-        None,
+		None,
 	)
 	.map_err(|_| ())
 }

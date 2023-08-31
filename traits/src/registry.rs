@@ -104,10 +104,20 @@ pub trait Create<AssetNativeLocation, Balance>: Inspect<AssetNativeLocation, Bal
 		location: Option<AssetNativeLocation>,
 		xcm_rate_limit: Option<Balance>,
 	) -> Result<Self::AssetId, Self::Error> {
-        Self::register_asset(asset_id, name, kind, existential_deposit, symbol, decimals, location, xcm_rate_limit, false)
+		Self::register_asset(
+			asset_id,
+			name,
+			kind,
+			existential_deposit,
+			symbol,
+			decimals,
+			location,
+			xcm_rate_limit,
+			false,
+		)
 	}
-	
-    fn register_sufficient_asset(
+
+	fn register_sufficient_asset(
 		asset_id: Option<Self::AssetId>,
 		name: Option<&[u8]>,
 		kind: AssetKind,
@@ -117,7 +127,17 @@ pub trait Create<AssetNativeLocation, Balance>: Inspect<AssetNativeLocation, Bal
 		location: Option<AssetNativeLocation>,
 		xcm_rate_limit: Option<Balance>,
 	) -> Result<Self::AssetId, Self::Error> {
-        Self::register_asset(asset_id, name, kind, existential_deposit, symbol, decimals, location, xcm_rate_limit, true)
+		Self::register_asset(
+			asset_id,
+			name,
+			kind,
+			existential_deposit,
+			symbol,
+			decimals,
+			location,
+			xcm_rate_limit,
+			true,
+		)
 	}
 }
 

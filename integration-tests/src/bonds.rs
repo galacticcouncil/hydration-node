@@ -102,7 +102,8 @@ fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 
 		let name = b"BOND".to_vec();
 		let underlying_asset_id =
-			AssetRegistry::create_asset(&name, pallet_asset_registry::AssetType::<AssetId>::Bond.into(), 1_000).unwrap();
+			AssetRegistry::create_asset(&name, pallet_asset_registry::AssetType::<AssetId>::Bond.into(), 1_000)
+				.unwrap();
 		assert_ok!(Currencies::deposit(underlying_asset_id, &ALICE.into(), amount,));
 
 		// Act & Assert

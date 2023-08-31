@@ -396,7 +396,7 @@ pub mod pallet {
 				details.name = new_bounded_name.or_else(|| details.name.clone());
 				details.asset_type = asset_type.unwrap_or(details.asset_type);
 				details.existential_deposit = existential_deposit.unwrap_or(details.existential_deposit);
-				details.xcm_rate_limit = details.xcm_rate_limit.or(xcm_rate_limit);
+				details.xcm_rate_limit = xcm_rate_limit.or(details.xcm_rate_limit);
 				details.is_sufficient = is_sufficient.unwrap_or(details.is_sufficient);
 				details.symbol = bounded_symbol.or_else(|| details.symbol.clone());
 
