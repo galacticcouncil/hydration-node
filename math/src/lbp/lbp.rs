@@ -8,6 +8,7 @@ use crate::{
 
 use core::convert::From;
 use num_traits::Zero;
+use sp_std::ops::Div;
 
 use crate::types::{Balance, FixedBalance, LBPWeight, HYDRA_ONE};
 
@@ -54,9 +55,8 @@ fn convert_to_fixed(value: Balance) -> FixedBalance {
 		return FixedBalance::from_num(1);
 	}
 
-	// Unwrap is safer here
-	let f = value.checked_div(HYDRA_ONE).unwrap();
-	let r = value - (f.checked_mul(HYDRA_ONE).unwrap());
+	let f = value.div(HYDRA_ONE);
+	let r = value - (f.saturating_mul(HYDRA_ONE));
 	FixedBalance::from_num(f) + (FixedBalance::from_num(r) / HYDRA_ONE)
 }
 
@@ -136,7 +136,7 @@ pub fn calculate_out_given_in(
 
 	let r = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
 
-	let new_out_reserve = out_reserve.checked_sub(r).unwrap();
+	let new_out_reserve = out_reserve.saturating_sub(r);
 
 	if new_out_reserve < new_out_reserve_calc {
 		return Err(Overflow);
