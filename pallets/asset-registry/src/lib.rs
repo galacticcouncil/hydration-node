@@ -567,6 +567,14 @@ impl<T: Config> RegistryQueryForEvm<T::AssetId, T::StringLimit, DispatchError> f
 			Err(Error::<T>::AssetNotFound.into())
 		}
 	}
+
+	fn retrieve_asset_decimals(id: T::AssetId) -> Result<u8, DispatchError> {
+		if let Some(meta) = AssetMetadataMap::<T>::get(id) {
+			Ok(meta.decimals)
+		} else {
+			Err(Error::<T>::AssetNotFound.into())
+		}
+	}
 }
 
 impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for Pallet<T> {

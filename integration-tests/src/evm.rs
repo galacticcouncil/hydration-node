@@ -90,6 +90,44 @@ fn precompile_for_currency_symbol_should_work() {
 }
 
 #[test]
+fn precompile_for_currency_decimal_should_work() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), HDX, b"xHDX".to_vec(), 12u8);
+
+		let data = EvmDataWriter::new_with_selector(Action::Decimals).build();
+
+		let mut handle = MockHandle {
+			input: data,
+			context: Context {
+				address: evm_address(),
+				caller: native_asset_ethereum_address(),
+				apparent_value: U256::from(10),
+			},
+			core_address: native_asset_ethereum_address(),
+		};
+
+		//Act
+		let result = CurrencyPrecompile::execute(&mut handle);
+
+		//Assert
+		let output = vec![
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12u8,
+		];
+
+		assert_eq!(
+			result,
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Returned,
+				output
+			})
+		);
+	});
+}
+
+#[test]
 fn dispatch_should_work_with_remark() {
 	TestNet::reset();
 

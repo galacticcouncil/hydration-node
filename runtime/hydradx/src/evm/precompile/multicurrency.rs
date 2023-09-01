@@ -93,6 +93,7 @@ where
 			return match selector {
 				Action::Name => Self::name(asset_id, handle),
 				Action::Symbol => Self::symbol(asset_id, handle),
+				Action::Decimals => Self::decimals(asset_id, handle),
 				_ => todo!(),
 			};
 		}
@@ -121,7 +122,7 @@ where
 				log::debug!(target: "evm", "multicurrency: symbol: {:?}", name);
 
 				let encoded = Output::encode_bytes(name.as_slice());
-				// Build output.
+
 				Ok(succeed(encoded))
 			}
 			Err(_) => Err(PrecompileFailure::Error {
@@ -138,11 +139,32 @@ where
 		input.expect_arguments(0)?;
 
 		match <pallet_asset_registry::Pallet<Runtime>>::retrieve_asset_symbol(asset_id.into()) {
-			Ok(name) => {
-				log::debug!(target: "evm", "multicurrency: name: {:?}", name);
+			Ok(symbol) => {
+				log::debug!(target: "evm", "multicurrency: name: {:?}", symbol);
 
-				let encoded = Output::encode_bytes(name.as_slice());
-				// Build output.
+				let encoded = Output::encode_bytes(symbol.as_slice());
+
+				Ok(succeed(encoded))
+			}
+			Err(_) => Err(PrecompileFailure::Error {
+				exit_status: pallet_evm::ExitError::Other("Non-existing asset.".into()),
+			}),
+		}
+	}
+
+	fn decimals(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Parse input
+		let input = handle.read_input()?;
+		input.expect_arguments(0)?;
+
+		match <pallet_asset_registry::Pallet<Runtime>>::retrieve_asset_decimals(asset_id.into()) {
+			Ok(decimals) => {
+				log::debug!(target: "evm", "multicurrency: decimals: {:?}", decimals);
+
+				let encoded = Output::encode_uint::<u8>(decimals.into());
+
 				Ok(succeed(encoded))
 			}
 			Err(_) => Err(PrecompileFailure::Error {
