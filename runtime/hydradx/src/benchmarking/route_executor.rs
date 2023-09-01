@@ -40,8 +40,6 @@ type RouteExecutor<T> = pallet_route_executor::Pallet<T>;
 type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 
-//TODO: REMOVE UNSUSED FUNCTIONS
-
 fn generate_trades_with_pools(number_of_trades: u32) -> Result<(AssetId, AssetId, Vec<Trade<AssetId>>), DispatchError> {
 	let (stable_pool_id, stable_asset_in, stable_asset_out) = init_stableswap()?;
 	initialize_omnipool()?;
@@ -399,26 +397,25 @@ runtime_benchmarks! {
 		assert!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller) > 0);
 	}
 
-	//Stableswap buy in router is not yet supported in router.
-	/*buy_stableswap {
+	buy_stableswap {
 		let (pool_id, asset_in, asset_out) = init_stableswap()?;
 
 		let trades = vec![Trade {
 			pool: PoolType::Stableswap(pool_id),
 			asset_in: asset_in,
-			asset_out: asset_out
+			asset_out: pool_id
 		}];
 
 		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, 100 * UNITS, asset_in);
 
 		let amount_to_buy = 10 * UNITS;
 	}: {
-		RouteExecutor::<Runtime>::buy(RawOrigin::Signed(caller.clone()).into(), asset_in, asset_out, amount_to_buy, u128::MAX, trades)?
+		RouteExecutor::<Runtime>::buy(RawOrigin::Signed(caller.clone()).into(), asset_in, pool_id, amount_to_buy, u128::MAX, trades)?
 	}
 	verify{
 		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller) < 100 * UNITS);
-		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller), amount_to_buy);
-	}*/
+		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller), amount_to_buy);
+	}
 
 }
 
