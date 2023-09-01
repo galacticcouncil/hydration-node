@@ -66,7 +66,8 @@ benchmarks! {
 		let new_symbol = b"TKNn".to_vec();
 		let new_decimals = 12_u8;
 
-	}: _(RawOrigin::Root, asset_id, Some(new_name.clone()), Some(new_type), Some(new_ed), Some(new_xcm_rate_limit), Some(new_is_sufficient), Some(new_symbol.clone()), Some(new_decimals))
+
+	}: _(RawOrigin::Root, asset_id, Some(new_name.clone()), Some(new_type), Some(new_ed), Some(new_xcm_rate_limit), Some(new_is_sufficient), Some(new_symbol.clone()), Some(new_decimals), Some(Default::default()))
 	verify {
 		let b_name = Pallet::<T>::to_bounded_name(new_name).unwrap();
 		let b_symbol = Pallet::<T>::to_bounded_name(new_symbol).unwrap();

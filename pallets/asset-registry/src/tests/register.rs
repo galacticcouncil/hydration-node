@@ -170,9 +170,9 @@ fn register_should_not_work_when_asset_id_is_not_from_reserved_range() {
 fn register_should_not_work_when_asset_id_is_already_used() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -210,9 +210,9 @@ fn register_should_not_work_when_asset_id_is_already_used() {
 fn register_should_not_work_when_asset_name_is_already_used() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -250,9 +250,9 @@ fn register_should_not_work_when_asset_name_is_already_used() {
 fn register_should_not_work_when_asset_location_is_already_used() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -293,9 +293,9 @@ fn register_should_not_work_when_asset_location_is_already_used() {
 fn register_should_not_work_when_origin_is_none() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
 		])
 		.build()
 		.execute_with(|| {
@@ -335,9 +335,9 @@ fn register_should_not_work_when_origin_is_none() {
 fn register_should_not_work_when_origin_is_not_allowed() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, true),
-			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, true),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, true),
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
 		])
 		.build()
 		.execute_with(|| {

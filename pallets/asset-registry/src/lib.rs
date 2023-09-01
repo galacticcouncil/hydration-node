@@ -132,13 +132,14 @@ pub mod pallet {
 		/// Location already registered with different asset
 		LocationAlreadyRegistered,
 
-		//TODO: docs
+		/// Origin is fobiddent to set/update value
 		Forbidden,
 	}
 
 	#[pallet::type_value]
+	/// Default value of NextAssetId if storage is empty. 1 is used to offset for native token
+	/// which id is 0.
 	pub fn DefaultNextAssetId<T: Config>() -> T::AssetId {
-		// TODO: docs
 		1.into()
 	}
 
@@ -171,13 +172,14 @@ pub mod pallet {
 	#[allow(clippy::type_complexity)]
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		//asset_id, name, existential deposit, symbol, decimals, is_sufficient
+		//asset_id, name, existential deposit, symbol, decimals, xcm_rate_limit, is_sufficient
 		pub registered_assets: Vec<(
 			Option<T::AssetId>,
 			Option<Vec<u8>>,
 			Balance,
 			Option<Vec<u8>>,
 			Option<u8>,
+			Option<Balance>,
 			bool,
 		)>,
 		pub native_asset_name: Vec<u8>,
@@ -192,7 +194,7 @@ pub mod pallet {
 			GenesisConfig::<T> {
 				registered_assets: vec![],
 				native_asset_name: b"HDX".to_vec(),
-				native_existential_deposit: Default::default(), // TODO: Fix
+				native_existential_deposit: DEFAULT_ED,
 				native_symbol: b"HDX".to_vec(),
 				native_decimals: 12,
 			}
@@ -226,7 +228,7 @@ pub mod pallet {
 
 			self.registered_assets
 				.iter()
-				.for_each(|(id, name, ed, symbol, decimals, is_sufficient)| {
+				.for_each(|(id, name, ed, symbol, decimals, xcm_rate_limit, is_sufficient)| {
 					let bounded_name = name.as_ref().map(|name| {
 						Pallet::<T>::to_bounded_name(name.to_vec())
 							.map_err(|_| panic!("Invalid asset name!"))
@@ -242,7 +244,7 @@ pub mod pallet {
 						name: bounded_name,
 						asset_type: AssetType::Token,
 						existential_deposit: *ed,
-						xcm_rate_limit: None, //TODO: add to setup
+						xcm_rate_limit: *xcm_rate_limit,
 						symbol: bounded_symbol,
 						decimals: *decimals,
 						is_sufficient: *is_sufficient,
@@ -291,10 +293,13 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Register a new asset.
 		///
-		/// Asset is identified by `name` and the name must not be used to register another asset.
-		///
 		/// New asset is given `NextAssetId` - sequential asset id
 		///
+		/// Asset's id is optional and it can't be used by another asset if it's provided.
+		/// Provided `asset_id` must be from within reserved range.
+		/// If `asset_id` is `None`, new asset is given id for sequential ids.
+		///
+		/// Asset's name is optional and it can't be used by another asset if it's provided.
 		/// Adds mapping between `name` and assigned `asset_id` so asset id can be retrieved by name too (Note: this approach is used in AMM implementation (xyk))
 		///
 		/// Emits 'Registered` event when successful.
@@ -344,7 +349,12 @@ pub mod pallet {
 
 		/// Update registered asset.
 		///
-		/// Updates also mapping between name and asset id if provided name is different than currently registered.
+		/// All parameteres are optional and value is not updated if param is `None`.
+		///
+		/// `decimals` - can be update by `UpdateOrigin` only if it wasn't set yet. Only
+		/// `RegistryOrigin` can update `decimals` if it was previously set.
+		///
+		/// `location` - can be updated only by `RegistryOrigin`.
 		///
 		/// Emits `Updated` event when successful.
 		#[pallet::call_index(1)]
@@ -359,13 +369,14 @@ pub mod pallet {
 			is_sufficient: Option<bool>,
 			symbol: Option<Vec<u8>>,
 			decimals: Option<u8>,
+			location: Option<T::AssetNativeLocation>,
 		) -> DispatchResult {
-			let is_registry_origin = match T::UpdateOrigin::ensure_origin(origin.clone()) {
-				Ok(_) => false,
+			let is_registry_origin = match T::RegistryOrigin::ensure_origin(origin.clone()) {
+				Ok(_) => true,
 				Err(_) => {
-					T::RegistryOrigin::ensure_origin(origin)?;
+					T::UpdateOrigin::ensure_origin(origin)?;
 
-					true
+					false
 				}
 			};
 
@@ -406,11 +417,20 @@ pub mod pallet {
 					if details.decimals.is_none() {
 						details.decimals = decimals;
 					} else {
-						// TODO: Maybe consider updating location here as it would require just 3 more LOC
 						//Only highest origin can change decimal if it was set previously.
 						ensure!(is_registry_origin, Error::<T>::Forbidden);
 						details.decimals = decimals;
 					};
+				}
+
+				if let Some(loc) = location {
+					//Only highest origin can update location.
+					ensure!(is_registry_origin, Error::<T>::Forbidden);
+
+					if let Some(old_location) = AssetLocations::<T>::take(asset_id) {
+						LocationAssets::<T>::remove(&old_location);
+					}
+					Self::do_set_location(asset_id, loc)?;
 				}
 
 				Self::deposit_event(Event::Updated {
@@ -484,7 +504,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(!AssetIds::<T>::contains_key(name), Error::<T>::AssetAlreadyRegistered);
 			AssetIds::<T>::insert(name, asset_id);
 		}
-		
+
 		if let Some(loc) = location {
 			Self::set_location(asset_id, loc)?;
 		}
@@ -616,12 +636,7 @@ impl<T: Config> GetByKey<T::AssetId, Option<Balance>> for XcmRateLimitsInRegistr
 impl<T: Config> CreateRegistry<T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
-	fn create_asset(
-		name: &[u8],
-		kind: AssetKind,
-		existential_deposit: Balance,
-		//TODO: add location
-	) -> Result<T::AssetId, Self::Error> {
+	fn create_asset(name: &[u8], kind: AssetKind, existential_deposit: Balance) -> Result<T::AssetId, Self::Error> {
 		let bounded_name = Some(Self::to_bounded_name(name.to_vec())?);
 
 		Pallet::<T>::do_register_asset(

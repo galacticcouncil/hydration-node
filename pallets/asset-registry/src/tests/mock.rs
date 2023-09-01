@@ -114,6 +114,7 @@ pub struct ExtBuilder {
 		Balance,
 		Option<Vec<u8>>,
 		Option<u8>,
+		Option<Balance>,
 		bool,
 	)>,
 }
@@ -128,6 +129,7 @@ impl ExtBuilder {
 			Balance,
 			Option<Vec<u8>>,
 			Option<u8>,
+			Option<Balance>,
 			bool,
 		)>,
 	) -> Self {

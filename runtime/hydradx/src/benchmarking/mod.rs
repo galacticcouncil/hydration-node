@@ -44,6 +44,7 @@ pub fn update_asset(asset_id: AssetId, name: Vec<u8>, deposit: Balance) -> Resul
 		None,
 		None,
 		None,
+		None,
 	)
 	.map_err(|_| ())
 }

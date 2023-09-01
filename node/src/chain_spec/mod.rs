@@ -102,8 +102,9 @@ pub fn parachain_genesis(
 		Balance,
 		Option<Vec<u8>>,
 		Option<u8>,
+		Option<Balance>,
 		bool,
-	)>, // (asset_id, name, existential deposit, symbol, decimals, is_sufficient)
+	)>, // (asset_id, name, existential deposit, symbol, decimals, xcm_rate_limit, is_sufficient)
 	accepted_assets: Vec<(AssetId, Price)>, // (Asset id, Fallback price) - asset which fee can be paid with
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,

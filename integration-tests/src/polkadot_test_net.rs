@@ -220,14 +220,14 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 
 	pallet_asset_registry::GenesisConfig::<Runtime> {
 		registered_assets: vec![
-			(Some(LRNA), Some(b"LRNA".to_vec()), 1_000u128, None, None, false),
-			(Some(DAI), Some(b"DAI".to_vec()), 1_000u128, None, None, false),
-			(Some(DOT), Some(b"DOT".to_vec()), 1_000u128, None, None, false),
-			(Some(ETH), Some(b"ETH".to_vec()), 1_000u128, None, None, false),
-			(Some(BTC), Some(b"BTC".to_vec()), 1_000u128, None, None, false),
-			(Some(ACA), Some(b"ACA".to_vec()), 1_000u128, None, None, false),
+			(Some(LRNA), Some(b"LRNA".to_vec()), 1_000u128, None, None, None, false),
+			(Some(DAI), Some(b"DAI".to_vec()), 1_000u128, None, None, None, false),
+			(Some(DOT), Some(b"DOT".to_vec()), 1_000u128, None, None, None, false),
+			(Some(ETH), Some(b"ETH".to_vec()), 1_000u128, None, None, None, false),
+			(Some(BTC), Some(b"BTC".to_vec()), 1_000u128, None, None, None, false),
+			(Some(ACA), Some(b"ACA".to_vec()), 1_000u128, None, None, None, false),
 			// workaround for next_asset_id() to return correct values
-			(None, Some(b"DUMMY".to_vec()), 1_000u128, None, None, false),
+			(None, Some(b"DUMMY".to_vec()), 1_000u128, None, None, None, false),
 		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,

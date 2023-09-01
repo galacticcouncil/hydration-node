@@ -66,8 +66,10 @@ pub struct AssetDetails<AssetId, BoundedString> {
 	/// The name of this asset. Limited in length by `StringLimit`.
 	pub name: Option<BoundedString>,
 
+	/// Asset type
 	pub asset_type: AssetType<AssetId>,
 
+	/// Existential deposit
 	pub existential_deposit: Balance,
 
 	/// The ticker symbol for this asset. Limited in length by `StringLimit`.
@@ -76,8 +78,10 @@ pub struct AssetDetails<AssetId, BoundedString> {
 	/// The number of decimals this asset uses to represent one unit.
 	pub decimals: Option<u8>,
 
+	/// XCM rate limit.
 	pub xcm_rate_limit: Option<Balance>,
 
+	/// Asset sufficiency.
 	pub is_sufficient: bool,
 }
 

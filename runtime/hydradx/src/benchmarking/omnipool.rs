@@ -449,8 +449,8 @@ mod tests {
 
 		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
 			registered_assets: vec![
-				(Some(1), Some(b"LRNA".to_vec()), 1_000u128, None, None, false),
-				(Some(2), Some(b"DAI".to_vec()), 1_000u128, None, None, false),
+				(Some(1), Some(b"LRNA".to_vec()), 1_000u128, None, None, None, false),
+				(Some(2), Some(b"DAI".to_vec()), 1_000u128, None, None, None, false),
 			],
 			native_asset_name: b"HDX".to_vec(),
 			native_existential_deposit: NativeExistentialDeposit::get(),
