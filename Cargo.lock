@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.5.0"
+version = "7.5.1"
 dependencies = [
  "approx",
  "criterion",
@@ -3773,7 +3773,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -3797,7 +3797,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-route-executor",
- "pallet-staking 1.0.0",
+ "pallet-staking 1.0.1",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "parity-scale-codec",
@@ -3817,7 +3817,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "172.0.0"
+version = "175.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3866,6 +3866,7 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-multisig",
  "pallet-omnipool",
@@ -3877,7 +3878,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
- "pallet-staking 1.0.0",
+ "pallet-staking 1.0.1",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -6370,7 +6371,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-bonds"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6893,6 +6894,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-lbp"
+version = "4.6.13"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "orml-tokens",
+ "orml-traits",
+ "parity-scale-codec",
+ "primitive-types",
+ "primitives",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-liquidity-mining"
 version = "4.2.4"
 dependencies = [
@@ -7367,7 +7393,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9394,7 +9420,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.8.3"
+version = "5.8.4"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -9403,6 +9429,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-core",
+ "sp-std",
  "static_assertions",
 ]
 
@@ -10146,7 +10173,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.9.1"
+version = "1.10.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10191,6 +10218,7 @@ dependencies = [
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
+ "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
@@ -10199,7 +10227,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
- "pallet-staking 1.0.0",
+ "pallet-staking 1.0.1",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",

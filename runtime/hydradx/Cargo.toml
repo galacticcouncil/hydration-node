@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "172.0.0"
+version = "175.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -31,6 +31,7 @@ pallet-dca = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-dynamic-fees = { workspace = true }
 pallet-bonds = { workspace = true }
+pallet-lbp = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -168,6 +169,7 @@ runtime-benchmarks = [
     "pallet-route-executor/runtime-benchmarks",
     "pallet-staking/runtime-benchmarks",
     "pallet-bonds/runtime-benchmarks",
+    "pallet-lbp/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -251,6 +253,7 @@ std = [
     "pallet-dynamic-fees/std",
     "pallet-staking/std",
     "pallet-bonds/std",
+    "pallet-lbp/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -310,4 +313,5 @@ try-runtime= [
     "pallet-dynamic-fees/try-runtime",
     "pallet-staking/try-runtime",
     "pallet-bonds/try-runtime",
+    "pallet-lbp/try-runtime",
 ]
