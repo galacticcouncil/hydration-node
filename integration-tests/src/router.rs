@@ -427,7 +427,7 @@ fn buy_router_should_add_liquidity_from_stableswap_when_asset_out_is_share_asset
 
 		//Assert
 		//assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
-		assert_balance!(ALICE.into(), HDX, amount_to_buy);
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + amount_to_buy);
 	});
 }
 
