@@ -449,6 +449,7 @@ fn reissuance_of_bonds_should_work_again_when_all_bonds_were_redeemed() {
 #[test]
 fn issue_bonds_should_fail_when_asset_is_blacklisted() {
 	let bond_id: AssetId = 10;
+
 	ExtBuilder::default()
 		.with_registered_asset(bond_id, NATIVE_EXISTENTIAL_DEPOSIT, AssetKind::Bond)
 		.build()
@@ -462,7 +463,7 @@ fn issue_bonds_should_fail_when_asset_is_blacklisted() {
 			// Act & Assert
 			assert_noop!(
 				Bonds::issue(RuntimeOrigin::signed(ALICE), bond_id, amount, maturity),
-				Error::<Test>::DisallowedAseet
+				Error::<Test>::DisallowedAsset
 			);
 		});
 }

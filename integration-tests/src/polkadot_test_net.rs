@@ -33,9 +33,10 @@ pub const MOONBEAM_PARA_ID: u32 = 2_004;
 pub const INTERLAY_PARA_ID: u32 = 2_032;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
-pub const ALICE_INITIAL_DAI_BALANCE: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_DAI_BALANCE: Balance = 2_000 * UNITS;
 pub const ALICE_INITIAL_LRNA_BALANCE: Balance = 200 * UNITS;
-pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000 * UNITS * 1_000_000;
+pub const ALICE_INITIAL_DOT_BALANCE: Balance = 2_000 * UNITS;
+pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
@@ -248,6 +249,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 		balances: vec![
 			(AccountId::from(ALICE), LRNA, ALICE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(ALICE), DAI, ALICE_INITIAL_DAI_BALANCE),
+			(AccountId::from(ALICE), DOT, ALICE_INITIAL_DOT_BALANCE),
 			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
 			(AccountId::from(BOB), BTC, 1_000_000),
