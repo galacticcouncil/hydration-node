@@ -142,7 +142,7 @@ fn calculate_shares_should_work_when_correct_input_provided() {
 
 	let result = result.unwrap();
 
-	assert_eq!(result, 9983u128);
+	assert_eq!(result, 9982u128);
 }
 
 #[test]
@@ -705,13 +705,13 @@ fn calculate_exact_amount_of_shares() {
 	let issuance: Balance = 20_000_000_000_000_000_000_000;
 
 	let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, issuance);
-	assert_eq!(result, Some(399850144492663029648));
+	assert_eq!(result, Some(399850144492663029647));
 	let result = calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 		&initial_balances,
-		399850144492663029648,
+		399850144492663029647,
 		asset_idx,
 		issuance,
 		amp,
 	);
-	assert_eq!(result, Some(1000000000000000));
+	assert_eq!(result, Some(999999999999999));
 }

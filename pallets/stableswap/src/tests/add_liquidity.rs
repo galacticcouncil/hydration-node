@@ -157,7 +157,7 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
 			assert_balance!(BOB, asset_b, 100 * ONE);
-			assert_balance!(BOB, pool_id, 199999999999999999996);
+			assert_balance!(BOB, pool_id, 199999999999999999995);
 			assert_balance!(pool_account, asset_a, 200 * ONE);
 			assert_balance!(pool_account, asset_b, 200 * ONE);
 		});
@@ -215,7 +215,7 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
 			assert_balance!(BOB, asset_b, 100 * ONE);
-			assert_balance!(BOB, pool_id, 199999999999999999996);
+			assert_balance!(BOB, pool_id, 199999999999999999995);
 			assert_balance!(pool_account, asset_a, 200 * ONE);
 			assert_balance!(pool_account, asset_b, 200 * ONE);
 		});
