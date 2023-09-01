@@ -15,12 +15,14 @@ use hex_literal::hex;
 use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
 use hydradx_runtime::evm::precompile::Bytes;
 use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
+use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::{CallFilter, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM};
 use orml_traits::MultiCurrency;
+use pallet_asset_registry::AssetMetadata;
 use pretty_assertions::assert_eq;
 
 #[test]
-fn currency_name_should_work() {
+fn precompile_for_currency_name_should_work() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -42,6 +44,41 @@ fn currency_name_should_work() {
 
 		//Assert
 		let output = EvmDataWriter::new().write(Bytes::from("HDX".as_bytes())).build();
+		assert_eq!(
+			result,
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Returned,
+				output
+			})
+		);
+	});
+}
+
+#[test]
+fn precompile_for_currency_symbol_should_work() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), HDX, b"xHDX".to_vec(), 12u8);
+
+		let data = EvmDataWriter::new_with_selector(Action::Symbol).build();
+
+		let mut handle = MockHandle {
+			input: data,
+			context: Context {
+				address: evm_address(),
+				caller: native_asset_ethereum_address(),
+				apparent_value: U256::from(10),
+			},
+			core_address: native_asset_ethereum_address(),
+		};
+
+		//Act
+		let result = CurrencyPrecompile::execute(&mut handle);
+
+		//Assert
+		let output = EvmDataWriter::new().write(Bytes::from("xHDX".as_bytes())).build();
 		assert_eq!(
 			result,
 			Ok(PrecompileOutput {

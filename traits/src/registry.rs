@@ -21,6 +21,8 @@ pub trait Registry<AssetId, AssetName, Balance, Error> {
 
 pub trait RegistryQueryForEvm<AssetId, NameStringLimit, Error> {
 	fn retrieve_asset_name(name: AssetId) -> Result<BoundedVec<u8, NameStringLimit>, Error>;
+
+	fn retrieve_asset_symbol(name: AssetId) -> Result<BoundedVec<u8, NameStringLimit>, Error>;
 }
 
 // Use CreateRegistry if possible

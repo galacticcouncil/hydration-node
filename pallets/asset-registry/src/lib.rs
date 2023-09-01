@@ -559,6 +559,14 @@ impl<T: Config> RegistryQueryForEvm<T::AssetId, T::StringLimit, DispatchError> f
 			Err(Error::<T>::AssetNotFound.into())
 		}
 	}
+
+	fn retrieve_asset_symbol(id: T::AssetId) -> Result<BoundedVec<u8, <T as Config>::StringLimit>, DispatchError> {
+		if let Some(meta) = AssetMetadataMap::<T>::get(id) {
+			Ok(meta.symbol)
+		} else {
+			Err(Error::<T>::AssetNotFound.into())
+		}
+	}
 }
 
 impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for Pallet<T> {
