@@ -132,11 +132,13 @@ pub mod pallet {
 		/// Location already registered with different asset
 		LocationAlreadyRegistered,
 
+		//TODO: docs
 		Forbidden,
 	}
 
 	#[pallet::type_value]
 	pub fn DefaultNextAssetId<T: Config>() -> T::AssetId {
+		// TODO: docs
 		1.into()
 	}
 
@@ -190,7 +192,7 @@ pub mod pallet {
 			GenesisConfig::<T> {
 				registered_assets: vec![],
 				native_asset_name: b"HDX".to_vec(),
-				native_existential_deposit: Default::default(),
+				native_existential_deposit: Default::default(), // TODO: Fix
 				native_symbol: b"HDX".to_vec(),
 				native_decimals: 12,
 			}
@@ -240,7 +242,7 @@ pub mod pallet {
 						name: bounded_name,
 						asset_type: AssetType::Token,
 						existential_deposit: *ed,
-						xcm_rate_limit: None,
+						xcm_rate_limit: None, //TODO: add to setup
 						symbol: bounded_symbol,
 						decimals: *decimals,
 						is_sufficient: *is_sufficient,
@@ -358,7 +360,7 @@ pub mod pallet {
 			symbol: Option<Vec<u8>>,
 			decimals: Option<u8>,
 		) -> DispatchResult {
-			let is_registry_origing = match T::UpdateOrigin::ensure_origin(origin.clone()) {
+			let is_registry_origin = match T::UpdateOrigin::ensure_origin(origin.clone()) {
 				Ok(_) => false,
 				Err(_) => {
 					T::RegistryOrigin::ensure_origin(origin)?;
@@ -404,8 +406,9 @@ pub mod pallet {
 					if details.decimals.is_none() {
 						details.decimals = decimals;
 					} else {
+						// TODO: Maybe consider updating location here as it would require just 3 more LOC
 						//Only highest origin can change decimal if it was set previously.
-						ensure!(is_registry_origing, Error::<T>::Forbidden);
+						ensure!(is_registry_origin, Error::<T>::Forbidden);
 						details.decimals = decimals;
 					};
 				}
@@ -481,6 +484,10 @@ impl<T: Config> Pallet<T> {
 			ensure!(!AssetIds::<T>::contains_key(name), Error::<T>::AssetAlreadyRegistered);
 			AssetIds::<T>::insert(name, asset_id);
 		}
+		
+		if let Some(loc) = location {
+			Self::set_location(asset_id, loc)?;
+		}
 
 		Self::deposit_event(Event::Registered {
 			asset_id,
@@ -492,10 +499,6 @@ impl<T: Config> Pallet<T> {
 			decimals: details.decimals,
 			is_sufficient: details.is_sufficient,
 		});
-
-		if let Some(loc) = location {
-			Self::do_set_location(asset_id, loc)?;
-		}
 
 		Ok(asset_id)
 	}
