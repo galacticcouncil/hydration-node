@@ -181,6 +181,8 @@ impl Config for Test {
 	type WeightInfo = ();
 	type BlockNumberProvider = System;
 	type DustAccountHandler = Whitelist;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = DummyRegistry;
 }
 
 pub struct InitialLiquidity {
@@ -301,10 +303,15 @@ impl ExtBuilder {
 	}
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+use crate::types::BenchmarkHelper;
 use crate::types::{AssetAmount, PoolInfo};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{AccountIdFor, InspectRegistry};
 use sp_runtime::traits::Zero;
+
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::DispatchResult;
 
 pub struct DummyRegistry;
 
@@ -317,6 +324,17 @@ impl InspectRegistry<AssetId> for DummyRegistry {
 	fn decimals(asset_id: AssetId) -> Option<u8> {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied())?;
 		Some(asset.1)
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<AssetId> for DummyRegistry {
+	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().insert(asset_id, (asset_id, decimals));
+		});
+
+		Ok(())
 	}
 }
 

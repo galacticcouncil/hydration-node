@@ -46,7 +46,7 @@ fn sell_should_work_when_correct_input_provided() {
 				25 * ONE,
 			));
 
-			let expected = 29_902_625_420_923u128;
+			let expected = 29_902_625_420_922u128;
 
 			let pool_account = pool_account(pool_id);
 
@@ -97,7 +97,7 @@ fn buy_should_work_when_correct_input_provided() {
 				35 * ONE,
 			));
 
-			let expected_to_sell = 30098072706881u128;
+			let expected_to_sell = 30098072706882u128;
 
 			let pool_account = pool_account(pool_id);
 
@@ -149,7 +149,7 @@ fn sell_with_fee_should_work_when_correct_input_provided() {
 				25 * ONE,
 			));
 
-			let expected = 26912362878831u128;
+			let expected = 26912362878830u128;
 			let pool_account = pool_account(pool_id);
 			assert_balance!(BOB, asset_a, 170 * ONE);
 			assert_balance!(BOB, asset_b, expected);
@@ -198,7 +198,7 @@ fn sell_should_work_when_fee_is_small() {
 				25 * ONE,
 			));
 
-			let expected = 29812917544661u128;
+			let expected = 29812917544660u128;
 			let pool_account = pool_account(pool_id);
 			assert_balance!(BOB, asset_a, 170 * ONE);
 			assert_balance!(BOB, asset_b, expected);
@@ -247,7 +247,7 @@ fn buy_should_work_when_fee_is_set() {
 				35 * ONE,
 			));
 
-			let expected_to_sell = 33107879977570;
+			let expected_to_sell = 33_107_879_977_571;
 			let pool_account = pool_account(pool_id);
 			assert_balance!(BOB, asset_a, 200 * ONE - expected_to_sell);
 			assert_balance!(BOB, asset_b, 30 * ONE);
@@ -492,7 +492,7 @@ fn sell_should_work_when_pool_have_asset_with_various_decimals() {
 				0,
 			));
 
-			let expected = 1_001_709_976_614;
+			let expected = 1_001_709_976_613;
 
 			let pool_account = pool_account(pool_id);
 
@@ -554,7 +554,7 @@ fn buy_should_work_when_pool_have_asset_with_various_decimals() {
 				2 * ONE * 1_000_000,
 			));
 
-			let paid = 999999999999187342;
+			let paid = 999999999999187343;
 			let pool_account = pool_account(pool_id);
 
 			assert_balance!(BOB, asset_c, 1_000_000_000_000_000_000 - paid);
@@ -610,7 +610,7 @@ fn sell_should_work_when_assets_have_different_decimals() {
 				to_precision!(27, dec_b),
 			));
 
-			let expected = 29_902_625u128;
+			let expected = 29_902_624u128;
 
 			let pool_account = pool_account(pool_id);
 
@@ -667,7 +667,7 @@ fn buy_should_work_when_assets_have_different_decimals() {
 				to_precision!(31, dec_a),
 			));
 
-			let expected_to_sell = 30_098_072_706_880_214_086u128;
+			let expected_to_sell = 30_098_072_706_880_214_087u128;
 
 			let pool_account = pool_account(pool_id);
 

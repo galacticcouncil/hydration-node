@@ -92,28 +92,50 @@ pub fn calculate_shares<const D: u8>(
 	updated_reserves: &[AssetReserve],
 	amplification: Balance,
 	share_issuance: Balance,
+	fee: Permill,
 ) -> Option<Balance> {
 	if initial_reserves.len() != updated_reserves.len() {
 		return None;
 	}
-	let initial_reserves = normalize_reserves(initial_reserves);
-	let updated_reserves = normalize_reserves(updated_reserves);
-
-	let initial_d = calculate_d_internal::<D>(&initial_reserves, amplification)?;
+	let initial_d = calculate_d::<D>(&initial_reserves, amplification)?;
 
 	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
 	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-	let updated_d = calculate_d_internal::<D>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
+	let updated_d = calculate_d::<D>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
 	if updated_d < initial_d {
 		return None;
 	}
+	let fee = FixedU128::from(fee);
+	let (d0, d1) = to_u256!(initial_d, updated_d);
+
+	let adjusted_balances = if share_issuance > 0 {
+		let adjusted_balances: Vec<AssetReserve> = updated_reserves
+			.iter()
+			.enumerate()
+			.map(|(idx, asset_reserve)| -> Option<AssetReserve> {
+				let (initial_reserve, updated_reserve) = to_u256!(initial_reserves[idx].amount, asset_reserve.amount);
+				let ideal_balance = d1.checked_mul(initial_reserve)?.checked_div(d0)?;
+				let diff = Balance::try_from(updated_reserve.abs_diff(ideal_balance)).ok()?;
+				let fee_amount = fee.checked_mul_int(diff)?;
+				Some(AssetReserve::new(
+					asset_reserve.amount.saturating_sub(fee_amount),
+					asset_reserve.decimals,
+				))
+			})
+			.collect::<Option<Vec<AssetReserve>>>()?;
+		adjusted_balances
+	} else {
+		updated_reserves.to_vec()
+	};
+
+	let adjusted_d = calculate_d::<D>(&adjusted_balances, amplification)?;
 
 	if share_issuance == 0 {
 		// if first liquidity added
 		Some(updated_d)
 	} else {
-		let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, updated_d.checked_sub(initial_d)?, initial_d);
-		let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?.checked_sub(U256::from(1))?;
+		let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, adjusted_d.checked_sub(initial_d)?, initial_d);
+		let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
 		Balance::try_from(share_amount).ok()
 	}
 }
@@ -264,6 +286,7 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 	asset_index: usize,
 	share_asset_issuance: Balance,
 	amplification: Balance,
+	fee: Permill,
 ) -> Option<Balance> {
 	if share_asset_issuance.is_zero() {
 		return None;
@@ -295,12 +318,42 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 		.collect();
 
 	let y = calculate_y_internal::<Y>(&xp, Balance::try_from(d1).ok()?, amplification)?;
-	let dy = y.checked_sub(reserves[asset_index])?;
 
+	let fee = FixedU128::from(fee);
+	let xp_hp: Vec<U256> = reserves.iter().map(|v| to_u256!(*v)).collect();
+	let y_hp = to_u256!(y);
+
+	let mut reserves_reduced: Vec<Balance> = Vec::new();
+	let mut asset_reserve: Balance = Balance::zero();
+
+	for (idx, reserve) in xp_hp.iter().enumerate() {
+		let dx_expected = if idx == asset_index {
+			y_hp.checked_sub(reserve.checked_mul(d1)?.checked_div(d_hp)?)?
+		} else {
+			reserve.checked_mul(d1)?.checked_div(d_hp)?.checked_sub(*reserve)?
+		};
+
+		let expected = Balance::try_from(dx_expected).ok()?;
+		let reduced = Balance::try_from(*reserve)
+			.ok()?
+			.checked_sub(fee.checked_mul_int(expected)?)?;
+
+		if idx != asset_index {
+			reserves_reduced.push(reduced);
+		} else {
+			asset_reserve = reduced;
+		}
+	}
+	let y1 = calculate_y_internal::<Y>(&reserves_reduced, Balance::try_from(d1).ok()?, amplification)?;
+	let dy = y1.checked_sub(asset_reserve)?;
+	/*
+	let dy = asset_reserve.checked_sub(y1)?;
+	let dy_0 = reserves[asset_index].checked_sub(y)?;
+	let fee = dy_0.checked_sub(dy)?;
+	 */
 	let amount_in = normalize_value(dy, TARGET_PRECISION, asset_in_decimals, Rounding::Down);
 	Some(amount_in)
 }
-
 pub fn calculate_d<const D: u8>(reserves: &[AssetReserve], amplification: Balance) -> Option<Balance> {
 	let balances = normalize_reserves(reserves);
 	calculate_d_internal::<D>(&balances, amplification)

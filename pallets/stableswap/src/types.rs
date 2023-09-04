@@ -126,3 +126,11 @@ impl Default for Tradability {
 		Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
 	}
 }
+
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::DispatchResult;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub trait BenchmarkHelper<AssetId> {
+	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult;
+}

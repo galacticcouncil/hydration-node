@@ -19,11 +19,11 @@ use super::*;
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
-	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, OmnipoolHookAdapter, OracleAssetVolumeProvider,
-	OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, VestingInfo,
+	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
+	OracleAssetVolumeProvider, OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, VestingInfo,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{AccountIdFor, AssetKind, OraclePeriod, Source};
+use hydradx_traits::{AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
@@ -37,7 +37,8 @@ use primitives::constants::{
 use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
-	sp_runtime::traits::One,
+	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
+	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
 	BoundedVec, PalletId,
@@ -48,8 +49,7 @@ use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
-use sp_core::crypto::UncheckedFrom;
-use sp_std::marker::PhantomData;
+use sp_runtime::DispatchResult;
 use sp_std::num::NonZeroU16;
 
 parameter_types! {
@@ -442,7 +442,7 @@ impl pallet_route_executor::Config for Runtime {
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
-	type AMM = (Omnipool, Stableswap);
+	type AMM = (Omnipool, Stableswap, LBP);
 	type WeightInfo = weights::route_executor::HydraWeight<Runtime>;
 }
 
@@ -513,6 +513,15 @@ where
 	}
 }
 
+pub struct DummyHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_stableswap::BenchmarkHelper<AssetId> for DummyHelper {
+	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
+		Ok(())
+	}
+}
+
 impl pallet_stableswap::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
@@ -524,6 +533,8 @@ impl pallet_stableswap::Config for Runtime {
 	type DustAccountHandler = Duster;
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = DummyHelper;
 	type AmplificationRange = StableswapAmplificationRange;
 	type WeightInfo = weights::stableswap::HydraWeight<Runtime>;
 }
@@ -543,7 +554,6 @@ impl Contains<AssetKind> for AssetTypeWhitelist {
 
 impl pallet_bonds::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AssetId = AssetId;
 	type Balance = Balance;
 	type Currency = Currencies;
 	type AssetRegistry = AssetRegistry;
@@ -608,4 +618,43 @@ impl pallet_staking::Config for Runtime {
 	type Vesting = VestingInfo<Runtime>;
 	type RewardedVoteUnit = OneHDX;
 	type WeightInfo = weights::staking::HydraWeight<Runtime>;
+}
+
+// LBP
+pub struct AssetPairAccountId<T: frame_system::Config>(PhantomData<T>);
+impl<T: frame_system::Config> AssetPairAccountIdFor<AssetId, T::AccountId> for AssetPairAccountId<T>
+where
+	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
+{
+	fn from_assets(asset_a: AssetId, asset_b: AssetId, identifier: &str) -> T::AccountId {
+		let mut buf: Vec<u8> = identifier.as_bytes().to_vec();
+
+		if asset_a < asset_b {
+			buf.extend_from_slice(&asset_a.to_le_bytes());
+			buf.extend_from_slice(&asset_b.to_le_bytes());
+		} else {
+			buf.extend_from_slice(&asset_b.to_le_bytes());
+			buf.extend_from_slice(&asset_a.to_le_bytes());
+		}
+		T::AccountId::unchecked_from(<T::Hashing as frame_support::sp_runtime::traits::Hash>::hash(&buf[..]))
+	}
+}
+
+parameter_types! {
+	pub LBPExchangeFee: (u32, u32) = (2, 1_000);
+}
+
+impl pallet_lbp::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MultiCurrency = Currencies;
+	type LockedBalance = MultiCurrencyLockedBalance<Runtime, NativeAssetId>;
+	type CreatePoolOrigin = SuperMajorityTechCommittee;
+	type LBPWeightFunction = pallet_lbp::LBPWeightFunction;
+	type AssetPairAccountId = AssetPairAccountId<Self>;
+	type WeightInfo = weights::lbp::HydraWeight<Runtime>;
+	type MinTradingLimit = MinTradingLimit;
+	type MinPoolLiquidity = MinPoolLiquidity;
+	type MaxInRatio = MaxInRatio;
+	type MaxOutRatio = MaxOutRatio;
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }

@@ -205,7 +205,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 
 	let amplification = 100u16;
 	let trade_fee = Permill::from_percent(1);
-	let withdraw_fee = Permill::from_percent(1);
+	let withdraw_fee = Permill::from_percent(0);
 
 	let asset_in: AssetId = *asset_ids.last().unwrap();
 	let asset_out: AssetId = *asset_ids.first().unwrap();
@@ -331,6 +331,7 @@ where
 runtime_benchmarks! {
 	{ Runtime, pallet_route_executor}
 
+
 	sell_omnipool {
 		initialize_omnipool()?;
 
@@ -406,7 +407,9 @@ runtime_benchmarks! {
 			asset_out: pool_id
 		}];
 
-		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, 100 * UNITS, asset_in);
+		let caller: AccountId = create_funded_account::<Runtime>("trader", 0, 100 * UNITS, asset_in);
+		//assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller), 5000 * UNITS);
+
 
 		let amount_to_buy = 10 * UNITS;
 	}: {

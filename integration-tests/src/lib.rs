@@ -13,8 +13,9 @@ mod omnipool_price_provider;
 mod oracle;
 mod otc;
 mod polkadot_test_net;
-mod staking;
 mod router;
+mod router_2; //TODO: merge this to std router
+mod staking;
 mod transact_call_filter;
 mod vesting;
 

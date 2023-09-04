@@ -105,7 +105,7 @@ fn test_shares() {
 	let initial_reserves = &[AssetReserve::new(0, 12); 2];
 	let updated_reserves = &[AssetReserve::new(1000 * ONE, 12), AssetReserve::new(500, 12)];
 
-	let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, 0u128);
+	let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, 0u128, Permill::zero());
 
 	assert!(result.is_some());
 	assert_eq!(result.unwrap(), 736626243363217809);

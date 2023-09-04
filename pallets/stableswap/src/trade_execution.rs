@@ -47,7 +47,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						&vec![AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
-							..Default::default()
+							..Default::default() //TODO: don't use default, and nowhere in this class
 						}],
 					)
 					.map_err(ExecutorError::Error)?;
@@ -92,6 +92,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						asset_idx,
 						share_issuance,
 						amplification,
+						pool.withdraw_fee,
 					)
 					.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
@@ -193,16 +194,8 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 					let liquidity = max_limit; //Because amount_in is passed as max_limit in router
 
-					Self::add_liquidity(
-						who,
-						pool_id,
-						vec![AssetAmount {
-							asset_id: asset_in,
-							amount: liquidity,
-							decimals,
-						}],
-					)
-					.map_err(ExecutorError::Error)
+					Self::add_liquidity_shares(who, pool_id, amount_out, asset_in, max_limit)
+						.map_err(ExecutorError::Error)
 				} else if asset_in == pool_id {
 					let shares_amount = max_limit;
 

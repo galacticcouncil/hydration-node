@@ -10,6 +10,7 @@ pub mod democracy;
 pub mod duster;
 pub mod ema_oracle;
 pub mod identity;
+pub mod lbp;
 pub mod omnipool;
 pub mod omnipool_lm;
 pub mod otc;
