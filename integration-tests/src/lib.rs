@@ -1,3 +1,4 @@
+mod asset_registry;
 mod bonds;
 mod call_filter;
 mod circuit_breaker;
