@@ -472,7 +472,7 @@ fn unstake_should_clear_votes_when_staking_position_exists() {
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
-			assert_unlocked_balance!(&BOB, HDX, 260_671_709_925_645_495_u128);
+			assert_unlocked_balance!(&BOB, HDX, 250_903_890_918_838_024_u128);
 			assert_hdx_lock!(BOB, 0, STAKING_LOCK);
 			assert_eq!(Staking::positions(bob_position_id), None);
 

@@ -220,20 +220,19 @@ impl pallet_staking::Config for Test {
 
 	type PayablePercentage = SigmoidPercentage<PointPercentage, ConstU32<40_000>>;
 	type MaxVotes = MaxVotes;
-	type ActionMultiplier = DummyActionMultiplier;
+	type MaxPointsPerAction = DummyMaxPointsPerAction;
 	type ReferendumInfo = DummyReferendumStatus;
 	type Vesting = DummyVesting;
 	type Collections = FreezableUniques;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
-	type RewardedVoteUnit = ConstU128<ONE>;
 }
 
-pub struct DummyActionMultiplier;
+pub struct DummyMaxPointsPerAction;
 
-impl GetByKey<Action, u32> for DummyActionMultiplier {
+impl GetByKey<Action, u32> for DummyMaxPointsPerAction {
 	fn get(k: &Action) -> u32 {
 		match k {
-			Action::DemocracyVote => 1_u32,
+			Action::DemocracyVote => 100_u32,
 		}
 	}
 }

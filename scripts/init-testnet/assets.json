@@ -1,0 +1,218 @@
+{
+  "0": {
+    "asset": {
+      "name": "HydraDX",
+      "assetType": "Token",
+      "existentialDeposit": "1,000,000,000,000",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "HDX",
+      "decimals": "12"
+    }
+  },
+  "1": {
+    "asset": {
+      "name": "Lerna",
+      "assetType": "Token",
+      "existentialDeposit": "400,000,000",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "LRNA",
+      "decimals": "12"
+    }
+  },
+  "2": {
+    "asset": {
+      "name": "DAI Stablecoin (via Wormhole)",
+      "assetType": "Token",
+      "existentialDeposit": "10,000,000,000,000,000",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "DAI",
+      "decimals": "18"
+    }
+  },
+  "3": {
+    "asset": {
+      "name": "Wrapped Bitcoin (via Wormhole)",
+      "assetType": "Token",
+      "existentialDeposit": "44",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "WBTC",
+      "decimals": "8"
+    }
+  },
+  "4": {
+    "asset": {
+      "name": "Ethereum (via Wormhole)",
+      "assetType": "Token",
+      "existentialDeposit": "7,000,000,000,000",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "WETH",
+      "decimals": "18"
+    }
+  },
+  "5": {
+    "asset": {
+      "name": "Polkadot",
+      "assetType": "Token",
+      "existentialDeposit": "17,540,000",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "DOT",
+      "decimals": "10"
+    }
+  },
+  "6": {
+    "asset": {
+      "name": "ApeCoin (via Wormhole)",
+      "assetType": "Token",
+      "existentialDeposit": "2,518,891,687,657,430",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "APE",
+      "decimals": "18"
+    }
+  },
+  "7": {
+    "asset": {
+      "name": "USD Coin (via Wormhole)",
+      "assetType": "Token",
+      "existentialDeposit": "10,000",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "USDC",
+      "decimals": "6"
+    }
+  },
+  "8": {
+    "asset": {
+      "name": "Phala",
+      "assetType": "Token",
+      "existentialDeposit": "54,945,054,945",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "PHA",
+      "decimals": "12"
+    }
+  },
+  "9": {
+    "asset": {
+      "name": "Astar",
+      "assetType": "Token",
+      "existentialDeposit": "147,058,823,529,412,000",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "ASTR",
+      "decimals": "18"
+    }
+  },
+  "10": {
+    "asset": {
+      "name": "Statemint USDT",
+      "assetType": "Token",
+      "existentialDeposit": "10,000",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "USDT",
+      "decimals": "6"
+    }
+  },
+  "11": {
+    "asset": {
+      "name": "interBTC",
+      "assetType": "Token",
+      "existentialDeposit": "36",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "iBTC",
+      "decimals": "8"
+    }
+  },
+  "12": {
+    "asset": {
+      "name": "Zeitgeist",
+      "assetType": "Token",
+      "existentialDeposit": "1,204,151,916",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "ZTG",
+      "decimals": "10"
+    }
+  },
+  "13": {
+    "asset": {
+      "name": "Centrifuge",
+      "assetType": "Token",
+      "existentialDeposit": "32,467,532,467,532,500",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "CFG",
+      "decimals": "18"
+    }
+  },
+  "14": {
+    "asset": {
+      "name": "Bifrost Native Coin",
+      "assetType": "Token",
+      "existentialDeposit": "68,795,189,840",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "BNC",
+      "decimals": "12"
+    }
+  },
+  "15": {
+    "asset": {
+      "name": "Bifrost Voucher DOT",
+      "assetType": "Token",
+      "existentialDeposit": "18,761,726",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "vDOT",
+      "decimals": "10"
+    }
+  },
+  "16": {
+    "asset": {
+      "name": "Glimmer",
+      "assetType": "Token",
+      "existentialDeposit": "34,854,864,344,868,000",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "GLMR",
+      "decimals": "18"
+    }
+  },
+  "17": {
+    "asset": {
+      "name": "Interlay",
+      "assetType": "Token",
+      "existentialDeposit": "6,164,274,209",
+      "xcmRateLimit": null
+    },
+    "metadata": {
+      "symbol": "INTR",
+      "decimals": "10"
+    }
+  }
+}
