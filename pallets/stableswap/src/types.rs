@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{Config, Pallet, MAX_ASSETS_IN_POOL};
-use sp_runtime::{DispatchResult, Permill};
+use sp_runtime::Permill;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
@@ -126,6 +126,9 @@ impl Default for Tradability {
 		Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
 	}
 }
+
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::DispatchResult;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub trait BenchmarkHelper<AssetId> {

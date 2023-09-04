@@ -514,6 +514,28 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		#[transactional]
+		pub fn add_liquidity_shares(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			shares: Balance,
+			asset_id: T::AssetId,
+			max_asset_amount: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let amount_in = Self::do_add_liquidity_shares(&who, pool_id, shares, asset_id, max_asset_amount)?;
+			Self::deposit_event(Event::LiquidityAdded {
+				pool_id,
+				who,
+				shares,
+				assets: vec![AssetAmount::new(asset_id, amount_in)],
+			});
+
+			Ok(())
+		}
+
 		/// Remove liquidity from selected pool.
 		///
 		/// Withdraws liquidity of selected asset from a pool.
@@ -530,7 +552,7 @@ pub mod pallet {
 		/// - 'min_amount_out': minimum amount to receive
 		///
 		/// Emits `LiquidityRemoved` event when successful.
-		#[pallet::call_index(4)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset())]
 		#[transactional]
 		pub fn remove_liquidity_one_asset(
@@ -602,7 +624,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(5)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset())]
 		#[transactional]
 		pub fn withdraw_asset_amount(
@@ -676,7 +698,7 @@ pub mod pallet {
 		///
 		/// Emits `SellExecuted` event when successful.
 		///
-		#[pallet::call_index(6)]
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		#[transactional]
 		pub fn sell(
@@ -738,7 +760,7 @@ pub mod pallet {
 		///
 		/// Emits `BuyExecuted` event when successful.
 		///
-		#[pallet::call_index(7)]
+		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		#[transactional]
 		pub fn buy(
@@ -789,7 +811,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(8)]
+		#[pallet::call_index(9)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
 		#[transactional]
 		pub fn set_asset_tradable_state(
@@ -990,6 +1012,7 @@ impl<T: Config> Pallet<T> {
 			&updated_reserves,
 			amplification,
 			share_issuance,
+			Permill::zero(),
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1008,6 +1031,46 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(share_amount)
+	}
+
+	#[require_transactional]
+	fn do_add_liquidity_shares(
+		who: &T::AccountId,
+		pool_id: T::AssetId,
+		shares: Balance,
+		asset_id: T::AssetId,
+		max_asset_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
+		let share_issuance = T::Currency::total_issuance(pool_id);
+		let amplification = Self::get_amplification(&pool);
+		let pool_account = Self::pool_account(pool_id);
+		let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+
+		let amount_in = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+			&balances,
+			shares,
+			asset_idx,
+			share_issuance,
+			amplification,
+			Permill::zero(),
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(amount_in <= max_asset_amount, Error::<T>::SlippageLimit);
+
+		ensure!(!amount_in.is_zero(), Error::<T>::InvalidAssetAmount);
+		let current_share_balance = T::Currency::free_balance(pool_id, who);
+
+		ensure!(
+			current_share_balance.saturating_add(shares) >= T::MinPoolLiquidity::get(),
+			Error::<T>::InsufficientShareBalance
+		);
+
+		T::Currency::deposit(pool_id, who, shares)?;
+		T::Currency::transfer(asset_id, who, &pool_account, amount_in)?;
+		Ok(amount_in)
 	}
 
 	#[inline]

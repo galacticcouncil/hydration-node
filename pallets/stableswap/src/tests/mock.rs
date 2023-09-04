@@ -41,7 +41,7 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	DispatchError, DispatchResult,
+	DispatchError,
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -181,6 +181,7 @@ impl Config for Test {
 	type WeightInfo = ();
 	type BlockNumberProvider = System;
 	type DustAccountHandler = Whitelist;
+	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = DummyRegistry;
 }
 
@@ -302,10 +303,15 @@ impl ExtBuilder {
 	}
 }
 
-use crate::types::{AssetAmount, BenchmarkHelper, PoolInfo};
+#[cfg(feature = "runtime-benchmarks")]
+use crate::types::BenchmarkHelper;
+use crate::types::{AssetAmount, PoolInfo};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{AccountIdFor, InspectRegistry};
 use sp_runtime::traits::Zero;
+
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::DispatchResult;
 
 pub struct DummyRegistry;
 
