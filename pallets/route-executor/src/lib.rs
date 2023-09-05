@@ -339,10 +339,6 @@ impl<T: Config> Pallet<T> {
 		if spent_amount < user_balance_of_asset_in_before_trade {
 			let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, true);
 
-			assert_eq!(
-				user_balance_of_asset_in_before_trade - spent_amount,
-				user_balance_of_asset_in_after_trade
-			);
 			ensure!(
 				user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
 				Error::<T>::InvalidRouteExecution
