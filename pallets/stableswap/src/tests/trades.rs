@@ -22,8 +22,7 @@ fn sell_should_work_when_correct_input_provided() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -73,8 +72,7 @@ fn buy_should_work_when_correct_input_provided() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -125,8 +123,7 @@ fn sell_with_fee_should_work_when_correct_input_provided() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(10),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(10),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -174,8 +171,7 @@ fn sell_should_work_when_fee_is_small() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_rational(3u32, 1000u32),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_rational(3u32, 1000u32),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -223,8 +219,7 @@ fn buy_should_work_when_fee_is_set() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(10),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(10),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -277,8 +272,7 @@ fn sell_should_fail_when_insufficient_amount_is_provided() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -364,8 +358,7 @@ fn buy_should_fail_when_insufficient_amount_is_provided() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -466,9 +459,8 @@ fn sell_should_work_when_pool_have_asset_with_various_decimals() {
 				initial_amplification: NonZeroU16::new(1000).unwrap(),
 				final_amplification: NonZeroU16::new(1000).unwrap(),
 				initial_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
 				final_block: 0,
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -526,9 +518,8 @@ fn buy_should_work_when_pool_have_asset_with_various_decimals() {
 				initial_amplification: NonZeroU16::new(1000).unwrap(),
 				final_amplification: NonZeroU16::new(1000).unwrap(),
 				initial_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
 				final_block: 0,
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -586,8 +577,7 @@ fn sell_should_work_when_assets_have_different_decimals() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -643,8 +633,7 @@ fn buy_should_work_when_assets_have_different_decimals() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,

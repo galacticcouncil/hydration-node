@@ -30,7 +30,6 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 				vec![asset_a, asset_b],
 				amplification,
 				Permill::from_percent(0),
-				Permill::from_percent(0),
 			));
 
 			let initial_liquidity_amount = 100 * ONE;
@@ -79,7 +78,6 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 				vec![asset_a, asset_b],
 				amplification,
 				Permill::from_percent(0),
-				Permill::from_percent(0),
 			));
 
 			let initial_liquidity_amount = 100 * ONE;
@@ -127,8 +125,7 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -157,7 +154,7 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
 			assert_balance!(BOB, asset_b, 100 * ONE);
-			assert_balance!(BOB, pool_id, 199999999999999999995);
+			assert_balance!(BOB, pool_id, 199999999999999999998);
 			assert_balance!(pool_account, asset_a, 200 * ONE);
 			assert_balance!(pool_account, asset_b, 200 * ONE);
 		});
@@ -185,8 +182,7 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -215,7 +211,7 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
 			assert_balance!(BOB, asset_b, 100 * ONE);
-			assert_balance!(BOB, pool_id, 199999999999999999995);
+			assert_balance!(BOB, pool_id, 199999999999999999998);
 			assert_balance!(pool_account, asset_a, 200 * ONE);
 			assert_balance!(pool_account, asset_b, 200 * ONE);
 		});
@@ -243,8 +239,7 @@ fn add_liquidity_should_fail_when_providing_insufficient_liquidity() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -300,8 +295,7 @@ fn add_liquidity_should_work_when_providing_one_asset_only() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -356,8 +350,7 @@ fn add_liquidity_should_fail_when_providing_one_asset_not_in_pool() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -410,8 +403,7 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -465,7 +457,6 @@ fn add_initial_liquidity_should_work_when_asset_have_different_decimals() {
 				vec![asset_a, asset_b],
 				amplification,
 				Permill::from_percent(0),
-				Permill::from_percent(0),
 			));
 
 			let initial_liquidity_amount_a = to_precision!(100, dec_a);
@@ -514,8 +505,8 @@ fn add_liquidity_should_work_correctly() {
 				final_amplification: NonZeroU16::new(2000).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_float(0.0001),
-				withdraw_fee: Permill::from_float(0.0005),
+				//fee: Permill::from_float(0.0001),
+				fee: Permill::zero(),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -565,8 +556,7 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 				final_amplification: NonZeroU16::new(2000).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_float(0.0001),
-				withdraw_fee: Permill::from_float(0.0005),
+				fee: Permill::zero(),
 			},
 			InitialLiquidity {
 				account: ALICE,

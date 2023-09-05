@@ -29,8 +29,7 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -98,8 +97,7 @@ fn remove_liquidity_should_apply_fee_when_withdrawing_all_shares() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(10),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -136,7 +134,7 @@ fn remove_liquidity_should_apply_fee_when_withdrawing_all_shares() {
 
 			let amount_received = Tokens::free_balance(asset_c, &BOB);
 			assert_balance!(BOB, asset_a, 0u128);
-			assert_balance!(BOB, asset_c, 190688958461730);
+			assert_balance!(BOB, asset_c, 199_999_999_999_999);
 			assert_balance!(BOB, pool_id, 0u128);
 			assert_balance!(pool_account, asset_a, 100 * ONE + amount_added);
 			assert_balance!(pool_account, asset_c, 300 * ONE - amount_received);
@@ -226,8 +224,7 @@ fn remove_liquidity_should_fail_when_requested_asset_not_in_pool() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(10),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -283,8 +280,7 @@ fn remove_liquidity_should_fail_when_remaining_shares_below_min_liquidity() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(10),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -349,8 +345,7 @@ fn verify_remove_liquidity_against_research_impl() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_float(0.003),
-				withdraw_fee: Permill::from_float(0.003),
+				fee: Permill::from_float(0.003),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -388,11 +383,11 @@ fn verify_remove_liquidity_against_research_impl() {
 
 			let amount_received = Tokens::free_balance(asset_b, &BOB);
 			assert_balance!(BOB, asset_a, 0u128);
-			assert_balance!(BOB, asset_b, 99749116913542959); //TODO: double check python impl
+			assert_balance!(BOB, asset_b, 99311327199793181);
 			assert_balance!(BOB, pool_id, 0u128);
 			assert_balance!(pool_account, asset_a, 1_000_000 * ONE + amount_added);
 			assert_balance!(pool_account, asset_b, 1_000_000 * ONE - amount_received);
-			assert_balance!(pool_account, asset_b, 900250883086457041);
+			assert_balance!(pool_account, asset_b, 900688672800206819);
 		});
 }
 
@@ -420,8 +415,7 @@ fn remove_liquidity_fail_when_desired_min_limit_is_not_reached() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_percent(0),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -483,8 +477,7 @@ fn scenario_add_remove_with_different_decimals() {
 				final_amplification: NonZeroU16::new(1000).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_float(0.0),
-				withdraw_fee: Permill::from_float(0.0),
+				fee: Permill::from_float(0.0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -515,7 +508,7 @@ fn scenario_add_remove_with_different_decimals() {
 			));
 
 			let balance_received = Tokens::free_balance(asset_a, &BOB);
-			assert_eq!(balance_received, 19999999600399608218);
+			assert_eq!(balance_received, 19999999600399608220);
 		});
 }
 
@@ -551,8 +544,7 @@ fn scenario_sell_with_different_decimals() {
 				final_amplification: NonZeroU16::new(1000).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_float(0.0),
-				withdraw_fee: Permill::from_float(0.0),
+				fee: Permill::from_float(0.0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -604,8 +596,7 @@ fn specific_scenario_to_verify_remove_liquidity() {
 				final_amplification: NonZeroU16::new(2000).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_float(0.0001),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -630,7 +621,7 @@ fn specific_scenario_to_verify_remove_liquidity() {
 			));
 
 			let received_remove_liq = Tokens::free_balance(asset_b, &ALICE);
-			assert_eq!(received_remove_liq, 615_630_069_100);
+			assert_eq!(received_remove_liq, 615_665_495_436);
 		});
 }
 
@@ -658,8 +649,7 @@ fn specific_scenario_to_verify_withdrawal_exact_amount() {
 				final_amplification: NonZeroU16::new(2000).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_float(0.0001),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -675,7 +665,7 @@ fn specific_scenario_to_verify_withdrawal_exact_amount() {
 			let pool_id = get_pool_id_at(0);
 			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
 			let expected_shares_to_use = 599540994996813062914899;
-			let exact_amount = 615_630_069_100;
+			let exact_amount = 615_665_495_436;
 			let shares = Tokens::free_balance(pool_id, &ALICE);
 			assert_ok!(Stableswap::withdraw_asset_amount(
 				RuntimeOrigin::signed(ALICE),
@@ -686,7 +676,7 @@ fn specific_scenario_to_verify_withdrawal_exact_amount() {
 			));
 			let remaining_shares = Tokens::free_balance(pool_id, &ALICE);
 			let shares_used = shares - remaining_shares;
-			assert_eq!(shares_used, 599540993010117673299724);
+			assert_eq!(shares_used, 599540994996118902897172);
 		});
 }
 
@@ -714,8 +704,7 @@ fn specific_scenario_to_verify_difference() {
 				final_amplification: NonZeroU16::new(2000).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_percent(0),
-				withdraw_fee: Permill::from_float(0.0001),
+				fee: Permill::from_percent(0),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -767,8 +756,7 @@ fn scenario_3_trade() {
 				final_amplification: NonZeroU16::new(2000).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				trade_fee: Permill::from_float(0.0001),
-				withdraw_fee: Permill::from_float(0.0005),
+				fee: Permill::from_float(0.0001),
 			},
 			InitialLiquidity {
 				account: ALICE,

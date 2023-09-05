@@ -56,7 +56,7 @@ pub trait WeightInfo {
 	fn sell() -> Weight;
 	fn buy() -> Weight;
 	fn set_asset_tradable_state() -> Weight;
-	fn update_pool_fees() -> Weight;
+	fn update_pool_fee() -> Weight;
 	fn update_amplification() -> Weight;
 }
 
@@ -93,10 +93,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(RocksDbWeight::get().reads(2 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
-	fn update_pool_fees() -> Weight {
-		Weight::from_ref_time(22_460_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(1 as u64))
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+	fn update_pool_fee() -> Weight {
+		Weight::from_ref_time(0)
 	}
 	fn update_amplification() -> Weight {
 		Weight::from_ref_time(24_353_000 as u64)
@@ -137,10 +135,8 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(2 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
-	fn update_pool_fees() -> Weight {
-		Weight::from_ref_time(22_460_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(1 as u64))
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+	fn update_pool_fee() -> Weight {
+		Weight::from_ref_time(0)
 	}
 	fn update_amplification() -> Weight {
 		Weight::from_ref_time(24_353_000 as u64)

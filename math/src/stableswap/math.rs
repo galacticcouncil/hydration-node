@@ -97,11 +97,11 @@ pub fn calculate_shares<const D: u8>(
 	if initial_reserves.len() != updated_reserves.len() {
 		return None;
 	}
-	let initial_d = calculate_d::<D>(&initial_reserves, amplification)?;
+	let initial_d = calculate_d::<D>(initial_reserves, amplification)?;
 
 	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
 	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-	let updated_d = calculate_d::<D>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
+	let updated_d = calculate_d::<D>(updated_reserves, amplification)?.checked_sub(2_u128)?;
 	if updated_d < initial_d {
 		return None;
 	}

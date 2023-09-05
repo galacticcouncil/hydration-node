@@ -29,8 +29,7 @@ pub struct PoolInfo<AssetId, BlockNumber> {
 	pub final_amplification: NonZeroU16,
 	pub initial_block: BlockNumber,
 	pub final_block: BlockNumber,
-	pub trade_fee: Permill,
-	pub withdraw_fee: Permill,
+	pub fee: Permill,
 }
 
 fn has_unique_elements<T>(iter: &mut T) -> bool

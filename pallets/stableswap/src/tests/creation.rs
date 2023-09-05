@@ -25,7 +25,6 @@ fn create_two_asset_pool_should_work_when_assets_are_registered() {
 				vec![asset_a, asset_b],
 				100,
 				Permill::from_percent(0),
-				Permill::from_percent(0),
 			));
 
 			assert_eq!(
@@ -36,8 +35,7 @@ fn create_two_asset_pool_should_work_when_assets_are_registered() {
 					final_amplification: NonZeroU16::new(100).unwrap(),
 					initial_block: 0,
 					final_block: 0,
-					trade_fee: Permill::from_percent(0),
-					withdraw_fee: Permill::from_percent(0)
+					fee: Permill::from_percent(0),
 				}
 			);
 		});
@@ -65,7 +63,6 @@ fn create_multi_asset_pool_should_work_when_assets_are_registered() {
 				pool_id,
 				vec![asset_a, asset_b, asset_c, asset_d],
 				100,
-				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
 
@@ -97,7 +94,6 @@ fn create_pool_should_store_assets_correctly_when_input_is_not_sorted() {
 				vec![asset_c, asset_d, asset_b, asset_a],
 				amplification,
 				Permill::from_percent(5),
-				Permill::from_percent(10),
 			));
 
 			assert_eq!(
@@ -108,8 +104,7 @@ fn create_pool_should_store_assets_correctly_when_input_is_not_sorted() {
 					final_amplification: NonZeroU16::new(100).unwrap(),
 					initial_block: 0,
 					final_block: 0,
-					trade_fee: Permill::from_percent(5),
-					withdraw_fee: Permill::from_percent(10)
+					fee: Permill::from_percent(5),
 				}
 			);
 		});
@@ -132,7 +127,6 @@ fn create_pool_should_fail_when_same_assets_is_specified() {
 					vec![asset_a, 3, 4, asset_a],
 					amplification,
 					Permill::from_percent(0),
-					Permill::from_percent(0),
 				),
 				Error::<Test>::IncorrectAssets
 			);
@@ -154,7 +148,6 @@ fn create_pool_should_fail_when_same_assets_is_empty() {
 					pool_id,
 					vec![],
 					amplification,
-					Permill::from_percent(0),
 					Permill::from_percent(0),
 				),
 				Error::<Test>::IncorrectAssets
@@ -179,7 +172,6 @@ fn create_pool_should_fail_when_single_asset_is_provided() {
 					vec![asset_a],
 					amplification,
 					Permill::from_percent(0),
-					Permill::from_percent(0),
 				),
 				Error::<Test>::IncorrectAssets
 			);
@@ -199,7 +191,6 @@ fn create_pool_should_fail_when_share_asset_is_not_registered() {
 				pool_id,
 				vec![asset_a, 3, 4],
 				amplification,
-				Permill::from_percent(0),
 				Permill::from_percent(0),
 			),
 			Error::<Test>::ShareAssetNotRegistered
@@ -223,7 +214,6 @@ fn create_pool_should_fail_when_share_asset_is_among_assets() {
 					pool_id,
 					vec![asset_a, pool_id],
 					amplification,
-					Permill::from_percent(0),
 					Permill::from_percent(0),
 				),
 				Error::<Test>::ShareAssetInPoolAssets
@@ -250,7 +240,6 @@ fn create_pool_should_fail_when_asset_is_not_registered() {
 					vec![not_registered, registered],
 					amplification,
 					Permill::from_percent(0),
-					Permill::from_percent(0),
 				),
 				Error::<Test>::AssetNotRegistered
 			);
@@ -261,7 +250,6 @@ fn create_pool_should_fail_when_asset_is_not_registered() {
 					pool_id,
 					vec![registered, not_registered],
 					amplification,
-					Permill::from_percent(0),
 					Permill::from_percent(0),
 				),
 				Error::<Test>::AssetNotRegistered
@@ -289,7 +277,6 @@ fn create_pool_should_fail_when_same_share_asset_pool_already_exists() {
 				vec![asset_a, asset_b],
 				amplification,
 				Permill::from_percent(0),
-				Permill::from_percent(0),
 			));
 
 			assert_noop!(
@@ -298,7 +285,6 @@ fn create_pool_should_fail_when_same_share_asset_pool_already_exists() {
 					pool_id,
 					vec![asset_a, asset_b],
 					amplification,
-					Permill::from_percent(0),
 					Permill::from_percent(0),
 				),
 				Error::<Test>::PoolExists
@@ -328,7 +314,6 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 					vec![asset_a, asset_b],
 					0,
 					Permill::from_percent(0),
-					Permill::from_percent(0),
 				),
 				Error::<Test>::InvalidAmplification
 			);
@@ -339,7 +324,6 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 					pool_id,
 					vec![asset_a, asset_b],
 					amplification_min,
-					Permill::from_percent(0),
 					Permill::from_percent(0),
 				),
 				Error::<Test>::InvalidAmplification
@@ -352,7 +336,6 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 					vec![asset_a, asset_b],
 					amplification_max,
 					Permill::from_percent(0),
-					Permill::from_percent(0)
 				),
 				Error::<Test>::InvalidAmplification
 			);
@@ -360,7 +343,7 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 }
 
 #[test]
-fn create_pool_should_add_account_to_whilest() {
+fn create_pool_should_add_account_to_whitelist() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id: AssetId = 100;
@@ -377,7 +360,6 @@ fn create_pool_should_add_account_to_whilest() {
 				pool_id,
 				vec![asset_a, asset_b],
 				100,
-				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
 

@@ -282,8 +282,7 @@ impl ExtBuilder {
 					pool_id,
 					pool.assets.clone().into(),
 					pool.initial_amplification.get(),
-					pool.trade_fee,
-					pool.withdraw_fee,
+					pool.fee,
 				));
 				POOL_IDS.with(|v| {
 					v.borrow_mut().push(pool_id);
