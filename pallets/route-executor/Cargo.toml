@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-route-executor'
-version = '1.0.5'
+version = '1.0.6'
 description = 'A pallet to execute a route containing a sequence of trades'
 authors = ['GalacticCouncil']
 edition = '2021'
