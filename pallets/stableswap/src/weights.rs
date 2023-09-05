@@ -51,7 +51,7 @@ pub trait WeightInfo {
 	fn sell() -> Weight;
 	fn buy() -> Weight;
 	fn set_asset_tradable_state() -> Weight;
-	fn update_pool_fees() -> Weight;
+	fn update_pool_fee() -> Weight;
 	fn update_amplification() -> Weight;
 }
 
@@ -87,7 +87,7 @@ impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
 	fn set_asset_tradable_state() -> Weight {
 		Weight::from_ref_time(0)
 	}
-	fn update_pool_fees() -> Weight {
+	fn update_pool_fee() -> Weight {
 		Weight::from_ref_time(0)
 	}
 	fn update_amplification() -> Weight {
@@ -126,7 +126,7 @@ impl WeightInfo for () {
 	fn set_asset_tradable_state() -> Weight {
 		Weight::from_ref_time(0)
 	}
-	fn update_pool_fees() -> Weight {
+	fn update_pool_fee() -> Weight {
 		Weight::from_ref_time(0)
 	}
 	fn update_amplification() -> Weight {

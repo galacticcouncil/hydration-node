@@ -172,15 +172,10 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			assets: Vec<T::AssetId>,
 			amplification: NonZeroU16,
-			trade_fee: Permill,
-			withdraw_fee: Permill,
+			fee: Permill,
 		},
 		/// Pool parameters has been updated.
-		FeesUpdated {
-			pool_id: T::AssetId,
-			trade_fee: Permill,
-			withdraw_fee: Permill,
-		},
+		FeeUpdated { pool_id: T::AssetId, fee: Permill },
 		/// Liquidity of an asset was added to a pool.
 		LiquidityAdded {
 			pool_id: T::AssetId,
@@ -300,9 +295,6 @@ pub mod pallet {
 		/// Remaining balance of share asset is below asset's existential deposit.
 		InsufficientShareBalance,
 
-		/// No pool parameters to update are provided.
-		NothingToUpdate,
-
 		/// Not allowed to perform an operation on given asset.
 		NotAllowed,
 
@@ -335,8 +327,7 @@ pub mod pallet {
 		/// - `share_asset`: Preregistered share asset identifier
 		/// - `assets`: List of Asset ids
 		/// - `amplification`: Pool amplification
-		/// - `trade_fee`: trade fee to be applied in sell/buy trades
-		/// - `withdraw_fee`: fee to be applied when removing liquidity
+		/// - `fee`: fee to be applied on trade and liquidity operations
 		///
 		/// Emits `PoolCreated` event if successful.
 		#[pallet::call_index(0)]
@@ -347,21 +338,19 @@ pub mod pallet {
 			share_asset: T::AssetId,
 			assets: Vec<T::AssetId>,
 			amplification: u16,
-			trade_fee: Permill,
-			withdraw_fee: Permill,
+			fee: Permill,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
-			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, trade_fee, withdraw_fee)?;
+			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee)?;
 
 			Self::deposit_event(Event::PoolCreated {
 				pool_id,
 				assets,
 				amplification,
-				trade_fee,
-				withdraw_fee,
+				fee,
 			});
 
 			Self::deposit_event(Event::AmplificationChanging {
@@ -383,36 +372,20 @@ pub mod pallet {
 		/// Parameters:
 		/// - `origin`: Must be T::AuthorityOrigin
 		/// - `pool_id`: pool to update
-		/// - `trade_fee`: new trade fee or None
-		/// - `withdraw_fee`: new withdraw fee or None
+		/// - `fee`: new withdraw fee or None
 		///
 		/// Emits `FeesUpdated` event if successful.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_pool_fees())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_pool_fee())]
 		#[transactional]
-		pub fn update_pool_fees(
-			origin: OriginFor<T>,
-			pool_id: T::AssetId,
-			trade_fee: Option<Permill>,
-			withdraw_fee: Option<Permill>,
-		) -> DispatchResult {
+		pub fn update_pool_fee(origin: OriginFor<T>, pool_id: T::AssetId, fee: Permill) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
-
-			ensure!(
-				trade_fee.is_some() || withdraw_fee.is_some(),
-				Error::<T>::NothingToUpdate
-			);
 
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
 				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
-				pool.trade_fee = trade_fee.unwrap_or(pool.trade_fee);
-				pool.withdraw_fee = withdraw_fee.unwrap_or(pool.withdraw_fee);
-				Self::deposit_event(Event::FeesUpdated {
-					pool_id,
-					trade_fee: pool.trade_fee,
-					withdraw_fee: pool.withdraw_fee,
-				});
+				pool.fee = fee;
+				Self::deposit_event(Event::FeeUpdated { pool_id, fee });
 				Ok(())
 			})
 		}
@@ -600,7 +573,7 @@ pub mod pallet {
 				asset_idx,
 				share_issuance,
 				amplification,
-				pool.withdraw_fee,
+				pool.fee,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -655,7 +628,7 @@ pub mod pallet {
 				amount,
 				amplification,
 				share_issuance,
-				pool.withdraw_fee,
+				pool.fee,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -868,7 +841,7 @@ impl<T: Config> Pallet<T> {
 			index_out,
 			amount_in,
 			amplification,
-			pool.trade_fee,
+			pool.fee,
 		)
 		.ok_or_else(|| ArithmeticError::Overflow.into())
 	}
@@ -900,7 +873,7 @@ impl<T: Config> Pallet<T> {
 			index_out,
 			amount_out,
 			amplification,
-			pool.trade_fee,
+			pool.fee,
 		)
 		.ok_or_else(|| ArithmeticError::Overflow.into())
 	}
@@ -910,8 +883,7 @@ impl<T: Config> Pallet<T> {
 		share_asset: T::AssetId,
 		assets: &[T::AssetId],
 		amplification: NonZeroU16,
-		trade_fee: Permill,
-		withdraw_fee: Permill,
+		fee: Permill,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
@@ -935,8 +907,7 @@ impl<T: Config> Pallet<T> {
 			final_amplification: amplification,
 			initial_block: block_number,
 			final_block: block_number,
-			trade_fee,
-			withdraw_fee,
+			fee,
 		};
 		ensure!(pool.is_valid(), Error::<T>::IncorrectAssets);
 		ensure!(
@@ -1012,7 +983,7 @@ impl<T: Config> Pallet<T> {
 			&updated_reserves,
 			amplification,
 			share_issuance,
-			Permill::zero(),
+			pool.fee,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1054,7 +1025,7 @@ impl<T: Config> Pallet<T> {
 			asset_idx,
 			share_issuance,
 			amplification,
-			Permill::zero(),
+			pool.fee,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
