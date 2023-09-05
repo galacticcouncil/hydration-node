@@ -34,7 +34,7 @@ fn process_votes_should_work_when_referendum_is_finished() {
 			vec![(
 				2_u32,
 				Vote {
-					amount: 10_000 * ONE,
+					amount: 100_000 * ONE,
 					conviction: Conviction::None,
 				},
 			)],
@@ -51,7 +51,7 @@ fn process_votes_should_work_when_referendum_is_finished() {
 			//Assert
 			assert_eq!(
 				Position {
-					action_points: 1_000_u128,
+					action_points: 1_u128,
 					..position_before
 				},
 				position
@@ -142,7 +142,7 @@ fn process_votes_should_work_when_referendum_is_finished_with_conviction() {
 			//Assert
 			assert_eq!(
 				Position {
-					action_points: 40_000_u128,
+					action_points: 5_u128,
 					..position_before
 				},
 				position
@@ -227,7 +227,7 @@ fn process_votes_should_work_when_multiple_votes_exists() {
 			//Assert
 			assert_eq!(
 				Position {
-					action_points: 480_006_u128,
+					action_points: 64_u128,
 					..position_before
 				},
 				position
@@ -352,7 +352,7 @@ fn process_votes_should_work_when_on_vote_is_called() {
 			//Assert
 			assert_eq!(
 				Position {
-					action_points: 480_006_u128,
+					action_points: 64_u128,
 					..position_before
 				},
 				Staking::positions(position_id).unwrap()
@@ -508,5 +508,242 @@ fn update_rewards_should_not_emit_event_when_pending_rewards_are_zero() {
 				}
 				.into()
 			));
+		});
+}
+
+#[test]
+fn process_votes_should_calculate_action_points_corectly_when_referendum_is_finished() {
+	//NOTE: this test checks if action points are calculated correctly based on how much of stake
+	//was used in votings.
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, HDX, 150_000 * ONE),
+			(BOB, HDX, 250_000 * ONE),
+			(CHARLIE, HDX, 10_000 * ONE),
+			(DAVE, HDX, 100_000 * ONE),
+		])
+		.start_at_block(1_452_987)
+		.with_initialized_staking()
+		.with_stakes(vec![
+			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
+			(BOB, 120_000 * ONE, 1_452_987, 0),
+			(CHARLIE, 10_000 * ONE, 1_455_000, 10_000 * ONE),
+			(DAVE, 10 * ONE, 1_465_000, 1),
+		])
+		.with_votings(vec![(
+			1,
+			vec![(
+				2_u32,
+				Vote {
+					amount: 100_000 * ONE,
+					conviction: Conviction::None,
+				},
+			)],
+		)])
+		.build()
+		.execute_with(|| {
+			let position_id = 1;
+			let position_before = Staking::positions(position_id).unwrap();
+			let mut position = Staking::positions(position_id).unwrap();
+
+			//Act
+			assert_ok!(Staking::process_votes(position_id, &mut position));
+
+			//Assert
+			assert_eq!(
+				Position {
+					action_points: 1_u128,
+					..position_before
+				},
+				position
+			);
+
+			assert_eq!(PositionVotes::<Test>::get(position_id).votes.len(), 0);
+
+			//Vote with max stake + max conviction
+			//NOTE: reset previous test
+			position.action_points = 0;
+
+			let votes = vec![(
+				2_u32,
+				Vote {
+					amount: 120_000 * ONE,
+					conviction: Conviction::Locked6x,
+				},
+			)];
+			let v = Voting::<MaxVotes> {
+				votes: votes.try_into().unwrap(),
+			};
+
+			PositionVotes::<Test>::insert(position_id, v);
+
+			//Act
+			assert_ok!(Staking::process_votes(position_id, &mut position));
+
+			//Assert
+			assert_eq!(
+				Position {
+					action_points: 100_u128,
+					..position_before
+				},
+				position
+			);
+
+			assert_eq!(PositionVotes::<Test>::get(position_id).votes.len(), 0);
+
+			//Too small vote to get any action points
+			//NOTE: reset previous test
+			position.action_points = 0;
+
+			let votes = vec![(
+				2_u32,
+				Vote {
+					amount: ONE,
+					conviction: Conviction::None,
+				},
+			)];
+			let v = Voting::<MaxVotes> {
+				votes: votes.try_into().unwrap(),
+			};
+
+			PositionVotes::<Test>::insert(position_id, v);
+
+			//Act
+			assert_ok!(Staking::process_votes(position_id, &mut position));
+
+			//Assert
+			assert_eq!(
+				Position {
+					action_points: 0_u128,
+					..position_before
+				},
+				position
+			);
+
+			assert_eq!(PositionVotes::<Test>::get(position_id).votes.len(), 0);
+
+			//Vote max stake + half convition
+			//NOTE: reset previous test
+			position.action_points = 0;
+
+			let votes = vec![(
+				2_u32,
+				Vote {
+					amount: 120_000 * ONE,
+					conviction: Conviction::Locked3x,
+				},
+			)];
+			let v = Voting::<MaxVotes> {
+				votes: votes.try_into().unwrap(),
+			};
+
+			PositionVotes::<Test>::insert(position_id, v);
+
+			//Act
+			assert_ok!(Staking::process_votes(position_id, &mut position));
+
+			//Assert
+			assert_eq!(
+				Position {
+					action_points: 50_u128,
+					..position_before
+				},
+				position
+			);
+
+			assert_eq!(PositionVotes::<Test>::get(position_id).votes.len(), 0);
+
+			//Vote with half stake + max convition
+			//NOTE: reset previous test
+			position.action_points = 0;
+
+			let votes = vec![(
+				2_u32,
+				Vote {
+					amount: 60_000 * ONE,
+					conviction: Conviction::Locked6x,
+				},
+			)];
+			let v = Voting::<MaxVotes> {
+				votes: votes.try_into().unwrap(),
+			};
+
+			PositionVotes::<Test>::insert(position_id, v);
+
+			//Act
+			assert_ok!(Staking::process_votes(position_id, &mut position));
+
+			//Assert
+			assert_eq!(
+				Position {
+					action_points: 50_u128,
+					..position_before
+				},
+				position
+			);
+
+			assert_eq!(PositionVotes::<Test>::get(position_id).votes.len(), 0);
+
+			//Vote with random stake + random conviction
+			//NOTE: reset previous test
+			position.action_points = 0;
+
+			let votes = vec![(
+				2_u32,
+				Vote {
+					amount: 10_000 * ONE,
+					conviction: Conviction::Locked2x,
+				},
+			)];
+			let v = Voting::<MaxVotes> {
+				votes: votes.try_into().unwrap(),
+			};
+
+			PositionVotes::<Test>::insert(position_id, v);
+
+			//Act
+			assert_ok!(Staking::process_votes(position_id, &mut position));
+
+			//Assert
+			assert_eq!(
+				Position {
+					action_points: 2_u128,
+					..position_before
+				},
+				position
+			);
+
+			assert_eq!(PositionVotes::<Test>::get(position_id).votes.len(), 0);
+
+			//Vote with max stake + conviction.none
+			//NOTE: reset previous test
+			position.action_points = 0;
+
+			let votes = vec![(
+				2_u32,
+				Vote {
+					amount: 120_000 * ONE,
+					conviction: Conviction::None,
+				},
+			)];
+			let v = Voting::<MaxVotes> {
+				votes: votes.try_into().unwrap(),
+			};
+
+			PositionVotes::<Test>::insert(position_id, v);
+
+			//Act
+			assert_ok!(Staking::process_votes(position_id, &mut position));
+
+			//Assert
+			assert_eq!(
+				Position {
+					action_points: 1_u128,
+					..position_before
+				},
+				position
+			);
+
+			assert_eq!(PositionVotes::<Test>::get(position_id).votes.len(), 0);
 		});
 }
