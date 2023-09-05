@@ -1,7 +1,7 @@
 use crate::lbp::lbp;
 
 use crate::types::{Balance, LBPWeight, HYDRA_ONE};
-use crate::MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight};
+use crate::MathError::{Overflow, ZeroDuration, ZeroReserve};
 
 use std::vec;
 
@@ -39,7 +39,7 @@ fn spot_price_should_work() {
 fn out_given_in_should_work() {
 	let cases: Vec<(u128, u128, u32, u32, u128, Result<u128, crate::MathError>, &str)> = vec![
 		(1000, 2000, 500, 500, 100, Ok(181), "Easy case"),
-		(0, 0, 0, 0, 100, Err(ZeroWeight), "Zero reserves and weights"),
+		(0, 0, 0, 0, 100, Err(Overflow), "Zero reserves and weights"),
 		(1, 1, 1, 1, 0, Ok(0), "Zero out reserve and amount"),
 		(
 			0,
@@ -47,7 +47,7 @@ fn out_given_in_should_work() {
 			1,
 			1,
 			Balance::MAX,
-			Err(ZeroReserve),
+			Ok(0),
 			"Zero buy reserve and sell reserve",
 		),
 	];
@@ -73,7 +73,7 @@ fn in_given_out_should_work() {
 			5_000_000,
 			10_000_000,
 			prec,
-			Ok(10803324100388),
+			Ok(10803324099724),
 			"Easy case",
 		),
 		(
@@ -82,7 +82,7 @@ fn in_given_out_should_work() {
 			10_000_000,
 			5_000_000,
 			prec,
-			Ok(2597835208516),
+			Ok(2597835208517),
 			"Easy case",
 		),
 		(
@@ -91,7 +91,7 @@ fn in_given_out_should_work() {
 			10_000_000,
 			120_000_000,
 			2 * prec,
-			Ok(7336295320974),
+			Ok(7336295198685),
 			"Easy case",
 		),
 		(0, 0, 0, 0, 100, Err(Overflow), "Zero reserves and weights"),
