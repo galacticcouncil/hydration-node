@@ -8,9 +8,9 @@ use crate::{
 
 use core::convert::From;
 use num_traits::Zero;
-use sp_std::ops::Div;
 use sp_arithmetic;
 use sp_arithmetic::Rounding;
+use sp_std::ops::Div;
 
 use crate::types::{Balance, FixedBalance, LBPWeight, HYDRA_ONE};
 
@@ -114,21 +114,31 @@ pub fn calculate_out_given_in(
 		return Ok(0u128);
 	}
 
-	let (amount, in_reserve, out_reserve) =
-		to_fixed_balance!(amount, in_reserve, out_reserve);
+	let (amount, in_reserve, out_reserve) = to_fixed_balance!(amount, in_reserve, out_reserve);
 
 	// We are correctly rounding this down
 	// let out_weight = round_up_fixed(out_weight)?;
-	let weight_ratio = sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding(in_weight.into(), 2_u128.pow(64), out_weight.into(), Rounding::Down).ok_or(Overflow)?;
-	let weight_ratio = FixedBalance::from_bits(weight_ratio>>25);
+	let weight_ratio = sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding(
+		in_weight.into(),
+		2_u128.pow(64),
+		out_weight.into(),
+		Rounding::Down,
+	)
+	.ok_or(Overflow)?;
+	let weight_ratio = FixedBalance::from_bits(weight_ratio >> 25);
 
 	// We round this up
 	// This ratio being closer to one (i.e. rounded up) minimizes the impact of the asset
 	// that was sold to the pool, i.e. 'amount'
 	let new_in_reserve = in_reserve.checked_add(amount).ok_or(Overflow)?;
 
-
-	let ir = sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding(in_reserve.to_bits(), 2_u128.pow(39), new_in_reserve.to_bits(), Rounding::Up).ok_or(Overflow)?;
+	let ir = sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding(
+		in_reserve.to_bits(),
+		2_u128.pow(39),
+		new_in_reserve.to_bits(),
+		Rounding::Up,
+	)
+	.ok_or(Overflow)?;
 	let ir = FixedBalance::from_bits(ir);
 
 	// let t1 = amount.checked_add(in_reserve).ok_or(Overflow)?;
@@ -138,7 +148,13 @@ pub fn calculate_out_given_in(
 	let ir: FixedBalance = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
 
 	// We round this up
-	let new_out_reserve_calc = sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding(out_reserve.to_bits(), ir.to_bits(), 2_u128.pow(39), Rounding::Up).ok_or(Overflow)?;
+	let new_out_reserve_calc = sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding(
+		out_reserve.to_bits(),
+		ir.to_bits(),
+		2_u128.pow(39),
+		Rounding::Up,
+	)
+	.ok_or(Overflow)?;
 	let new_out_reserve_calc = FixedBalance::from_bits(new_out_reserve_calc);
 
 	let new_out_reserve_calc = round_up_fixed(new_out_reserve_calc)?;
