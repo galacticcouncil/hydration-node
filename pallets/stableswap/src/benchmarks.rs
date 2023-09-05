@@ -53,10 +53,9 @@ benchmarks! {
 		T::BenchmarkHelper::register_asset(pool_id.into(), 18)?;
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
-		let withdraw_fee = Permill::from_percent(1);
 		let caller: T::AccountId = account("caller", 0, 1);
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), asset_ids, amplification, trade_fee, withdraw_fee)
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), asset_ids, amplification, trade_fee)
 	verify {
 		assert!(<Pools<T>>::get::<T::AssetId>(pool_id.into()).is_some());
 	}
@@ -84,14 +83,12 @@ benchmarks! {
 		T::BenchmarkHelper::register_asset(pool_id, 18)?;
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
-		let withdraw_fee = Permill::from_percent(1);
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
 			asset_ids,
 			amplification,
 			trade_fee,
-			withdraw_fee,
 		)?;
 
 		// Worst case is adding additional liquidity and not initial liquidity
@@ -128,14 +125,12 @@ benchmarks! {
 		let asset_id_to_withdraw: T::AssetId = *asset_ids.last().unwrap();
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
-		let withdraw_fee = Permill::from_percent(1);
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
 			asset_ids,
 			amplification,
 			trade_fee,
-			withdraw_fee,
 		)?;
 
 		// Worst case is adding additional liquidity and not initial liquidity
@@ -179,7 +174,6 @@ benchmarks! {
 		T::BenchmarkHelper::register_asset(pool_id, 18)?;
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
-		let withdraw_fee = Permill::from_percent(1);
 		let asset_in: T::AssetId = *asset_ids.last().unwrap();
 		let asset_out: T::AssetId = *asset_ids.first().unwrap();
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
@@ -188,7 +182,6 @@ benchmarks! {
 			asset_ids,
 			amplification,
 			trade_fee,
-			withdraw_fee,
 		)?;
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
@@ -235,8 +228,6 @@ benchmarks! {
 		T::BenchmarkHelper::register_asset(pool_id, 18)?;
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
-		let withdraw_fee = Permill::from_percent(1);
-
 		let asset_in: T::AssetId = *asset_ids.last().unwrap();
 		let asset_out: T::AssetId = *asset_ids.first().unwrap();
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
@@ -245,7 +236,6 @@ benchmarks! {
 			asset_ids,
 			amplification,
 			trade_fee,
-			withdraw_fee,
 		)?;
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
@@ -292,7 +282,6 @@ benchmarks! {
 		T::BenchmarkHelper::register_asset(pool_id, 18)?;
 		let amplification = 100u16;
 		let trade_fee = Permill::from_percent(1);
-		let withdraw_fee = Permill::from_percent(1);
 		let asset_to_change = asset_ids[0];
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin.clone(),
@@ -300,7 +289,6 @@ benchmarks! {
 			asset_ids,
 			amplification,
 			trade_fee,
-			withdraw_fee,
 		)?;
 
 		let asset_tradability_old = crate::Pallet::<T>::asset_tradability(pool_id, asset_to_change,);
@@ -310,7 +298,7 @@ benchmarks! {
 		assert_ne!(asset_tradability_old, asset_tradability_new);
 	}
 
-	update_pool_fees{
+	update_pool_fee{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let initial_liquidity = 1_000_000_000_000_000_000u128;
@@ -336,16 +324,13 @@ benchmarks! {
 			asset_ids,
 			100u16,
 			Permill::from_percent(1),
-			Permill::from_percent(1),
 		)?;
 
-		let trade_fee_new = Some(Permill::from_percent(50));
-		let withdraw_fee_new = Some(Permill::from_percent(40));
-	}: _<T::RuntimeOrigin>(successful_origin, pool_id, trade_fee_new, withdraw_fee_new)
+		let new_fee = Permill::from_percent(50);
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id, new_fee)
 	verify {
 		let pool = crate::Pallet::<T>::pools(pool_id).unwrap();
-		assert_eq!(pool.trade_fee, trade_fee_new.unwrap());
-		assert_eq!(pool.withdraw_fee, withdraw_fee_new.unwrap());
+		assert_eq!(pool.fee, new_fee);
 	}
 
 	update_amplification{
@@ -373,7 +358,6 @@ benchmarks! {
 			pool_id,
 			asset_ids,
 			100u16,
-			Permill::from_percent(1),
 			Permill::from_percent(1),
 		)?;
 

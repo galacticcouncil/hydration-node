@@ -77,8 +77,7 @@ proptest! {
 					final_amplification: amplification,
 					initial_block: 0,
 					final_block: 0,
-					trade_fee,
-					withdraw_fee: Permill::from_percent(0),
+					fee: trade_fee,
 				},
 				InitialLiquidity{ account: ALICE,
 				assets:	vec![
@@ -145,8 +144,7 @@ proptest! {
 					final_amplification: amplification,
 					initial_block: 0,
 					final_block: 0,
-					trade_fee: Permill::from_percent(0),
-					withdraw_fee: Permill::from_percent(0),
+					fee: Permill::from_percent(0),
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
@@ -220,8 +218,7 @@ proptest! {
 					final_amplification: amplification,
 					initial_block: 0,
 					final_block: 0,
-					trade_fee: Permill::from_percent(0),
-					withdraw_fee: Permill::from_percent(0),
+					fee: Permill::from_percent(0),
 				},
 				InitialLiquidity{ account: ALICE,
 					assets:			vec![
@@ -293,8 +290,7 @@ proptest! {
 					final_amplification: initial_amplification,
 					initial_block: 0,
 					final_block: 0,
-					trade_fee: Permill::from_percent(0),
-					withdraw_fee: Permill::from_percent(0),
+					fee: Permill::from_percent(0),
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
@@ -391,8 +387,7 @@ proptest! {
 					final_amplification: initial_amplification,
 					initial_block: 0,
 					final_block: 0,
-					trade_fee: Permill::from_percent(0),
-					withdraw_fee: Permill::from_percent(0),
+					fee: Permill::from_percent(0),
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
@@ -490,8 +485,7 @@ proptest! {
 					final_amplification: initial_amplification,
 					initial_block: 0,
 					final_block: 0,
-					trade_fee: Permill::from_percent(0),
-					withdraw_fee: Permill::from_percent(0),
+					fee: Permill::from_percent(0),
 				},
 				InitialLiquidity{ account: ALICE, assets:
 				vec![
