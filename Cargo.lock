@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.5.0"
+version = "7.5.1"
 dependencies = [
  "approx",
  "criterion",
@@ -3797,7 +3797,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-route-executor",
- "pallet-staking 1.0.0",
+ "pallet-staking 1.0.1",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "parity-scale-codec",
@@ -3817,7 +3817,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "174.0.0"
+version = "176.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3879,7 +3879,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 1.0.0",
+ "pallet-staking 1.0.1",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -7396,7 +7396,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10176,7 +10176,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.10.0"
+version = "1.10.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10231,7 +10231,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 1.0.0",
+ "pallet-staking 1.0.1",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",

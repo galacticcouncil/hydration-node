@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use primitives::Price;
 
 use frame_support::{
 	assert_ok,
@@ -121,6 +122,48 @@ fn fee_currency_on_account_lifecycle() {
 			false,
 		));
 
+		assert_eq!(
+			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
+			None
+		);
+	});
+}
+
+#[test]
+fn pepe_is_not_registered() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		assert_ok!(MultiTransactionPayment::add_currency(
+			RuntimeOrigin::root(),
+			PEPE,
+			Price::from(10)
+		));
+	});
+}
+
+#[test]
+fn fee_currency_cannot_be_set_to_not_accepted_asset() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// assemble
+		let amount = 50_000_000 * UNITS;
+		assert_eq!(
+			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
+			None
+		);
+
+		// act
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(BOB.into()),
+			HITCHHIKER.into(),
+			PEPE,
+			amount,
+		));
+
+		// assert
+		assert_eq!(Tokens::free_balance(PEPE, &AccountId::from(HITCHHIKER)), amount);
 		assert_eq!(
 			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
 			None
