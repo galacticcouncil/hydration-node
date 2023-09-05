@@ -3,23 +3,24 @@
 use crate::polkadot_test_net::*;
 use hydradx_runtime::evm::precompile::multicurrency::{Action, MultiCurrencyPrecompile};
 use pallet_evm::*;
-use sp_core::{H160, H256, U256};
+use sp_core::{blake2_256, H160, H256, U256};
 use std::borrow::Cow;
 use xcm_emulator::TestExt;
 type CurrencyPrecompile = MultiCurrencyPrecompile<hydradx_runtime::Runtime>;
 use fp_evm::{Context, Transfer};
 use frame_support::assert_ok;
 use frame_support::codec::Encode;
-use frame_support::traits::Contains;
+use frame_support::traits::{Contains, IsType};
 use hex_literal::hex;
 use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
-use hydradx_runtime::evm::precompile::Bytes;
+use hydradx_runtime::evm::precompile::{Address, Bytes, EvmAddress};
 use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::{CallFilter, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetMetadata;
 use pretty_assertions::assert_eq;
+use sp_core::crypto::AccountId32;
 
 #[test]
 fn precompile_for_currency_name_should_work() {
@@ -113,18 +114,120 @@ fn precompile_for_currency_decimal_should_work() {
 		let result = CurrencyPrecompile::execute(&mut handle);
 
 		//Assert
-		let output = vec![
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12u8,
-		];
+
+		// 12
+		let expected_output = hex! {"
+				00000000000000000000000000000000 0000000000000000000000000000000C
+			"};
 
 		assert_eq!(
 			result,
 			Ok(PrecompileOutput {
 				exit_status: ExitSucceed::Returned,
-				output
+				output: expected_output.to_vec()
 			})
 		);
 	});
+}
+
+#[test]
+fn precompile_for_total_supply_should_work() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let data = EvmDataWriter::new_with_selector(Action::TotalSupply).build();
+
+		let mut handle = MockHandle {
+			input: data,
+			context: Context {
+				address: evm_address(),
+				caller: native_asset_ethereum_address(),
+				apparent_value: U256::from(10),
+			},
+			core_address: native_asset_ethereum_address(),
+		};
+
+		//Act
+		let result = CurrencyPrecompile::execute(&mut handle);
+
+		//Assert
+
+		// 950330588000000000
+		let expected_output = hex! {"
+				00000000000000000000000000000000 00000000000000000D3040A27CED9800
+			"};
+
+		assert_eq!(
+			result,
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Returned,
+				output: expected_output.to_vec()
+			})
+		);
+	});
+}
+
+#[test]
+fn precompile_for_balance_of_should_work() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account().into(),
+			HDX,
+			100 * UNITS as i128,
+		));
+
+		let data = EvmDataWriter::new_with_selector(Action::BalanceOf)
+			.write(Address::from(evm_address()))
+			.build();
+
+		let alice = alice_evm_addr();
+		let mut handle = MockHandle {
+			input: data,
+			context: Context {
+				address: alice_evm_addr(),
+				caller: alice_evm_addr(),
+				apparent_value: U256::from(10),
+			},
+			core_address: native_asset_ethereum_address(),
+		};
+
+		//Act
+		let result = CurrencyPrecompile::execute(&mut handle);
+
+		//Assert
+
+		// 100 * UNITS
+		let expected_output = hex! {"
+				00000000000000000000000000000000 000000000000000000005AF3107A4000
+			"};
+
+		assert_eq!(
+			result,
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Returned,
+				output: expected_output.to_vec()
+			})
+		);
+	});
+}
+
+pub fn bit_evm_address() -> H160 {
+	H160::from(hex_literal::hex!("0000000000000000000300000000000000000000"))
+}
+
+fn account_to_default_evm_address(account_id: &impl Encode) -> EvmAddress {
+	let payload = (b"evm:", account_id);
+	EvmAddress::from_slice(&payload.using_encoded(blake2_256)[0..20])
+}
+
+pub fn alice_evm_addr() -> H160 {
+	//H160::from(hex_literal::hex!("1000000000000000000000000000000000000001"))
+	account_to_default_evm_address(&ALICE)
 }
 
 #[test]

@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Utils.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::evm::precompile::{costs, revert, Bytes, EvmResult};
+use crate::evm::precompile::{costs, revert, Address, Bytes, EvmResult};
 use frame_support::log;
 use num_enum::{TryFromPrimitive, TryFromPrimitiveError};
 use pallet_evm::{Context, Log, PrecompileFailure, PrecompileHandle};
-use primitive_types::{H256, U256};
+use primitive_types::{H160, H256, U256};
 use sp_std::borrow::ToOwned;
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -235,6 +235,27 @@ impl EvmData for Bytes {
 
 	fn has_static_size() -> bool {
 		false
+	}
+}
+
+impl EvmData for Address {
+	fn read(reader: &mut EvmDataReader) -> EvmResult<Self> {
+		let range = reader.move_cursor(32)?;
+
+		let data = reader
+			.input
+			.get(range)
+			.ok_or_else(|| revert("tried to parse H160 out of bounds"))?;
+
+		Ok(H160::from_slice(&data[12..32]).into())
+	}
+
+	fn write(writer: &mut EvmDataWriter, value: Self) {
+		H256::write(writer, value.0.into());
+	}
+
+	fn has_static_size() -> bool {
+		true
 	}
 }
 

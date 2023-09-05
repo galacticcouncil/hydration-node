@@ -17,6 +17,7 @@
 
 use codec::{alloc, Decode, Encode, MaxEncodedLen};
 use ethabi::Token;
+use frame_support::traits::IsType;
 use pallet_evm::{ExitError, ExitRevert, ExitSucceed, PrecompileFailure, PrecompileOutput};
 use primitive_types::{H160, U256};
 use primitives::AssetId;
@@ -34,6 +35,24 @@ pub mod substrate;
 pub type EvmResult<T = ()> = Result<T, PrecompileFailure>;
 
 pub type EvmAddress = sp_core::H160;
+
+/// The `address` type of Solidity.
+/// H160 could represent 2 types of data (bytes20 and address) that are not encoded the same way.
+/// To avoid issues writing H160 is thus not supported.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Address(pub H160);
+
+impl From<H160> for Address {
+	fn from(a: H160) -> Address {
+		Address(a)
+	}
+}
+
+impl From<Address> for H160 {
+	fn from(a: Address) -> H160 {
+		a.0
+	}
+}
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, MaxEncodedLen, PartialOrd, Ord, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

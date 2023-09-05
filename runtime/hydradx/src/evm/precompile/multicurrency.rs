@@ -31,21 +31,27 @@ use frame_support::{
 
 //use module_support::Erc20InfoMapping as Erc20InfoMappingT;
 use codec::{alloc, Decode, Encode, EncodeLike, MaxEncodedLen};
-use frame_support::traits::OriginTrait;
+use frame_support::traits::{IsType, OriginTrait};
 //use input::Erc20InfoMappingT;
 use crate::evm::precompile::handle::PrecompileHandleExt;
 use crate::evm::precompile::substrate::RuntimeHelper;
-use crate::evm::precompile::{succeed, Erc20Mapping, EvmResult, FungibleTokenId, Output};
+use crate::evm::precompile::{succeed, Address, Erc20Mapping, EvmAddress, EvmResult, FungibleTokenId, Output};
+use crate::evm::ExtendedAddressMapping;
+use crate::Currencies;
+use crate::NativeAssetId;
 use hydradx_traits::RegistryQueryForEvm;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use orml_traits::MultiCurrency as MultiCurrencyT;
+use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{
-	Context, ExitError, ExitRevert, ExitSucceed, Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput,
+	AddressMapping, Context, ExitError, ExitRevert, ExitSucceed, Precompile, PrecompileFailure, PrecompileHandle,
+	PrecompileOutput,
 };
+use primitive_types::H160;
 use primitives::{AssetId, Balance};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+use sp_core::crypto::AccountId32;
 use sp_runtime::traits::Dispatchable;
 use sp_runtime::{traits::Convert, RuntimeDebug};
 use sp_std::{marker::PhantomData, prelude::*};
@@ -77,6 +83,8 @@ where
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 	<Runtime as pallet_asset_registry::Config>::AssetId: core::convert::From<AssetId>,
+	Currencies: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
+	<Runtime as frame_system::Config>::AccountId: core::convert::From<sp_runtime::AccountId32>,
 {
 	fn execute(handle: &mut impl PrecompileHandle) -> pallet_evm::PrecompileResult {
 		let address = handle.code_address();
@@ -94,6 +102,8 @@ where
 				Action::Name => Self::name(asset_id, handle),
 				Action::Symbol => Self::symbol(asset_id, handle),
 				Action::Decimals => Self::decimals(asset_id, handle),
+				Action::TotalSupply => Self::total_supply(asset_id, handle),
+				Action::BalanceOf => Self::balance_of(asset_id, handle),
 				_ => todo!(),
 			};
 		}
@@ -109,6 +119,8 @@ where
 	Runtime: Erc20Mapping + frame_system::Config + pallet_evm::Config + pallet_asset_registry::Config,
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 	<Runtime as pallet_asset_registry::Config>::AssetId: core::convert::From<AssetId>,
+	Currencies: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
+	<Runtime as frame_system::Config>::AccountId: core::convert::From<sp_runtime::AccountId32>,
 {
 	fn name(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
@@ -172,6 +184,52 @@ where
 			}),
 		}
 	}
+
+	fn total_supply(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Parse input
+		let input = handle.read_input()?;
+		input.expect_arguments(0)?;
+
+		let total_issuance = Currencies::total_issuance(asset_id);
+
+		log::debug!(target: "evm", "multicurrency: totalSupply: {:?}", total_issuance);
+
+		let encoded = Output::encode_uint::<u128>(total_issuance.into());
+
+		Ok(succeed(encoded))
+	}
+
+	fn balance_of(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Parse input
+		let mut input = handle.read_input()?;
+		input.expect_arguments(1)?;
+
+		let owner: H160 = input.read::<Address>()?.into();
+		let who: Runtime::AccountId = ExtendedAddressMapping::into_account_id(owner).into(); //TODO: use pallet?
+
+		let free_balance = Currencies::free_balance(asset_id, &who);
+
+		log::debug!(target: "evm", "multicurrency: balanceOf: {:?}", free_balance);
+
+		let encoded = Output::encode_uint::<u128>(free_balance.into());
+
+		Ok(succeed(encoded))
+	}
+}
+
+fn get_account_id<T: frame_system::Config>(address: &EvmAddress) -> T::AccountId
+where
+	T::AccountId: IsType<AccountId32>,
+{
+	let mut data: [u8; 32] = [0u8; 32];
+	data[0..4].copy_from_slice(b"evm:");
+	data[4..24].copy_from_slice(&address[..]);
+
+	AccountId32::from(data).into()
 }
 
 /*
