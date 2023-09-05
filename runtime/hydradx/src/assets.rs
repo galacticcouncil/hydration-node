@@ -506,7 +506,7 @@ where
 	}
 
 	fn name(asset: &u32, identifier: Option<&[u8]>) -> Vec<u8> {
-		let mut buf = identifier.map_or_else(|| vec![], |v| v.to_vec());
+		let mut buf = identifier.map_or_else(Vec::new, |v| v.to_vec());
 		buf.extend_from_slice(&(asset).to_le_bytes());
 		buf
 	}

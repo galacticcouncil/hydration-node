@@ -1080,13 +1080,13 @@ mod omnipool_stableswap_router_tests {
 			asset_ids.push(asset_id);
 			Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
-				AccountId::from(BOB.clone()),
+				AccountId::from(BOB),
 				asset_id,
 				1_000_000_000_000_000i128,
 			)?;
 			Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
-				AccountId::from(CHARLIE.clone()),
+				AccountId::from(CHARLIE),
 				asset_id,
 				1_000_000_000_000_000_000_000i128,
 			)?;

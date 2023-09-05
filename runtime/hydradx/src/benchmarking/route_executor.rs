@@ -19,14 +19,12 @@
 use crate::{AccountId, AssetId, Balance, Currencies, Omnipool, Runtime, Stableswap, Tokens};
 
 use super::*;
-use codec::alloc::string::ToString;
 use frame_benchmarking::account;
 use frame_support::traits::EnsureOrigin;
 use frame_system::{Pallet as System, RawOrigin};
 use hydradx_traits::Registry;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use sp_runtime::SaturatedConversion;
 
 pub const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
 
@@ -39,71 +37,6 @@ pub const ONE: Balance = 1_000_000_000_000;
 type RouteExecutor<T> = pallet_route_executor::Pallet<T>;
 type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
-
-fn generate_trades_with_pools(number_of_trades: u32) -> Result<(AssetId, AssetId, Vec<Trade<AssetId>>), DispatchError> {
-	let (stable_pool_id, stable_asset_in, stable_asset_out) = init_stableswap()?;
-	initialize_omnipool()?;
-
-	let owner: AccountId = account("caller", 0, 1);
-
-	add_omnipool_token(stable_asset_in, owner.clone())?;
-	add_omnipool_token(stable_asset_out, owner.clone())?;
-
-	let asset_in = DAI;
-	let mut asset_out = HDX;
-
-	let trades = match number_of_trades {
-		1 => {
-			vec![Trade {
-				pool: PoolType::Omnipool,
-				asset_in,
-				asset_out,
-			}]
-		}
-		2 => {
-			asset_out = stable_asset_out;
-
-			vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in,
-					asset_out: stable_asset_in,
-				},
-				Trade {
-					pool: PoolType::Stableswap(stable_pool_id),
-					asset_in: stable_asset_in,
-					asset_out,
-				},
-			]
-		}
-		3 => {
-			vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: DAI,
-					asset_out: stable_asset_in,
-				},
-				Trade {
-					pool: PoolType::Stableswap(stable_pool_id),
-					asset_in: stable_asset_in,
-					asset_out: stable_asset_out,
-				},
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: stable_asset_out,
-					asset_out: HDX,
-				},
-			]
-		}
-		_ => {
-			todo!("the given number of trades not supported. Add support once we add more pools to hydra such as xyk")
-		}
-	};
-
-	let trades = trades.iter().take(number_of_trades as usize).cloned().collect();
-
-	Ok((asset_in, asset_out, trades))
-}
 
 fn initialize_omnipool() -> DispatchResult {
 	let stable_amount: Balance = 1_000_000_000_000_000_000_u128;
@@ -152,25 +85,6 @@ fn initialize_omnipool() -> DispatchResult {
 	Ok(())
 }
 
-fn add_omnipool_token(token_id: AssetId, owner: AccountId) -> DispatchResult {
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		Omnipool::protocol_account(),
-		token_id,
-		3000 * UNITS as i128,
-	));
-
-	assert_ok!(Omnipool::add_token(
-		RawOrigin::Root.into(),
-		token_id,
-		FixedU128::from((6, 7)),
-		Permill::from_percent(100),
-		owner.clone()
-	));
-
-	Ok(())
-}
-
 pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let caller: AccountId = account("caller", 0, 1);
 	let lp_provider: AccountId = account("provider", 0, 1);
@@ -183,7 +97,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let mut asset_ids: Vec<<Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
 	for idx in 0..MAX_ASSETS_IN_POOL {
 		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-		let asset_id = regi_asset(name.clone(), 1, 10000 + idx as u32)?;
+		let asset_id = regi_asset(name.clone(), 1, 10000 + idx)?;
 		//let asset_id = AssetRegistry::create_asset(&name, 1u128)?;
 		asset_ids.push(asset_id);
 		Currencies::update_balance(
@@ -220,7 +134,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	Currencies::update_balance(RawOrigin::Root.into(), seller, asset_in, amount_sell as i128)?;
 
 	// Worst case is when amplification is changing
-	Stableswap::update_amplification(RawOrigin::Root.into(), pool_id, 1000, 100u32.into(), 1000u32.into())?;
+	Stableswap::update_amplification(RawOrigin::Root.into(), pool_id, 1000, 100u32, 1000u32)?;
 
 	Ok((pool_id, asset_in, asset_out))
 }
@@ -373,7 +287,7 @@ runtime_benchmarks! {
 
 		let trades = vec![Trade {
 			pool: PoolType::Stableswap(pool_id),
-			asset_in: asset_in,
+			asset_in,
 			asset_out: pool_id
 		}];
 
@@ -395,7 +309,7 @@ runtime_benchmarks! {
 		let trades = vec![Trade {
 			pool: PoolType::Stableswap(pool_id),
 			asset_in: pool_id,
-			asset_out: asset_out
+			asset_out
 		}];
 
 		let caller: AccountId = create_funded_account::<Runtime>("trader", 0, 100 * UNITS, pool_id);

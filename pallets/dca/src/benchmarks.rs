@@ -16,6 +16,7 @@
 // limitations under the License.
 #![cfg(feature = "runtime-benchmarks")]
 #![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the Act block
+#![allow(dead_code)] //TODO: once we have oracle, use stableswap in the tests, then remove this tag and possible non used code
 
 use super::*;
 
@@ -282,10 +283,10 @@ where
 	let successful_origin = <T as pallet_stableswap::Config>::AuthorityOrigin::try_successful_origin().unwrap();
 	StableswapPallet::<T>::create_pool(successful_origin, pool_id.into(), asset_ids, amplification, fee)?;
 
-	StableswapPallet::<T>::add_liquidity(RawOrigin::Signed(caller.into()).into(), pool_id.into(), initial)?;
+	StableswapPallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(), pool_id.into(), initial)?;
 
-	let seller: AccountId = account("seller", 0, 1);
-	let amount_sell = 100_000_000_000_000u128;
+	//let seller: AccountId = account("seller", 0, 1);
+	//let amount_sell = 100_000_000_000_000u128;
 
 	//T::update_balance(asset_in.into(), &seller.clone(), amount_sell as i128)?;
 
@@ -397,18 +398,11 @@ where
 	<T as pallet_route_executor::Config>::AssetId: From<u32>,
 	<T as pallet_stableswap::Config>::AssetId: From<u32>,
 {
-	let trader = create_funded_account_stable::<T>("tmp_trader", 0, 100 * ONE, asset_a.into());
+	let trader = create_funded_account_stable::<T>("tmp_trader", 0, 100 * ONE, asset_a);
 
-	fund_stable::<T>(trader.clone(), asset_b.into(), 100 * ONE)?;
+	fund_stable::<T>(trader.clone(), asset_b, 100 * ONE)?;
 
-	StableswapPallet::<T>::sell(
-		RawOrigin::Signed(trader).into(),
-		pool_id.into(),
-		asset_a.into(),
-		asset_b.into(),
-		ONE,
-		0,
-	)
+	StableswapPallet::<T>::sell(RawOrigin::Signed(trader).into(), pool_id, asset_a, asset_b, ONE, 0)
 }
 
 fn create_account_with_native_balance<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(

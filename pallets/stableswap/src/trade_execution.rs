@@ -18,14 +18,15 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
 				if asset_in == pool_id {
-					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+					let pool = Pools::<T>::get(pool_id)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
 					let asset_idx = pool
 						.find_asset(asset_out)
-						.ok_or(ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let pool_account = Self::pool_account(pool_id);
 					let balances = pool
 						.balances::<T>(&pool_account)
-						.ok_or(ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 
 					let amplification = Self::get_amplification(&pool);
@@ -33,16 +34,16 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						D_ITERATIONS,
 						Y_ITERATIONS,
 					>(&balances, amount_in, asset_idx, share_issuance, amplification, pool.fee)
-					.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					Ok(amount)
 				} else if asset_out == pool_id {
 					let decimals = T::AssetInspection::decimals(asset_in)
-						.ok_or(ExecutorError::Error(Error::<T>::AssetNotRegistered.into()))?;
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotRegistered.into()))?;
 
 					let share_amount = Self::calculate_shares(
 						pool_id,
-						&vec![AssetAmount {
+						&[AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
 							decimals,
@@ -73,14 +74,15 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 			PoolType::Stableswap(pool_id) => {
 				if asset_out == pool_id {
 					//I wanna buy 500 shares, how much luqidity i need provide to get 500 shares
-					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+					let pool = Pools::<T>::get(pool_id)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
 					let asset_idx = pool
 						.find_asset(asset_in)
-						.ok_or(ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let pool_account = Self::pool_account(pool_id);
 					let balances = pool
 						.balances::<T>(&pool_account)
-						.ok_or(ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 					let amplification = Self::get_amplification(&pool);
 
@@ -92,22 +94,24 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						amplification,
 						pool.fee,
 					)
-					.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					Ok(liqudity)
 				} else if asset_in == pool_id {
-					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+					let pool = Pools::<T>::get(pool_id)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
 					let asset_idx = pool
 						.find_asset(asset_out)
-						.ok_or(ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let pool_account = Self::pool_account(pool_id);
 					let balances = pool
 						.balances::<T>(&pool_account)
-						.ok_or(ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 					let amplification = Self::get_amplification(&pool);
 
-					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+					let pool = Pools::<T>::get(pool_id)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
 
 					let shares_amount = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
 						&balances,
@@ -117,7 +121,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						share_issuance,
 						pool.fee,
 					)
-					.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					Ok(shares_amount)
 				} else {
@@ -146,7 +150,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						.map_err(ExecutorError::Error)
 				} else if asset_out == pool_id {
 					let decimals = T::AssetInspection::decimals(asset_in)
-						.ok_or(ExecutorError::Error(Error::<T>::AssetNotRegistered.into()))?;
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotRegistered.into()))?;
 					Self::add_liquidity(
 						who,
 						pool_id,
