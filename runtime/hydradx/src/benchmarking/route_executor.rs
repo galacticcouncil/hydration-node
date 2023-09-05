@@ -386,7 +386,6 @@ runtime_benchmarks! {
 	}
 	verify{
 		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller), 100 * UNITS -  amount_to_sell);
-		//assert!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller) < 100000 * UNITS);
 		assert!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller) > 0);
 	}
 
@@ -395,21 +394,19 @@ runtime_benchmarks! {
 
 		let trades = vec![Trade {
 			pool: PoolType::Stableswap(pool_id),
-			asset_in: asset_in,
-			asset_out: pool_id
+			asset_in: pool_id,
+			asset_out: asset_out
 		}];
 
-		let caller: AccountId = create_funded_account::<Runtime>("trader", 0, 100 * UNITS, asset_in);
-		//assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller), 5000 * UNITS);
-
+		let caller: AccountId = create_funded_account::<Runtime>("trader", 0, 100 * UNITS, pool_id);
 
 		let amount_to_buy = 10 * UNITS;
 	}: {
-		RouteExecutor::<Runtime>::buy(RawOrigin::Signed(caller.clone()).into(), asset_in, pool_id, amount_to_buy, u128::MAX, trades)?
+		RouteExecutor::<Runtime>::buy(RawOrigin::Signed(caller.clone()).into(), pool_id, asset_out, amount_to_buy, u128::MAX, trades)?
 	}
 	verify{
-		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller) < 100 * UNITS);
-		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller), amount_to_buy);
+		assert!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller) < 100 * UNITS);
+		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller), amount_to_buy);
 	}
 
 }
