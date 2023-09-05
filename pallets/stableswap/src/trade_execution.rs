@@ -3,14 +3,13 @@ use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::InspectRegistry;
 use orml_traits::MultiCurrency;
-use sp_runtime::{ArithmeticError, DispatchError, Permill};
+use sp_runtime::{ArithmeticError, DispatchError};
 use sp_std::vec;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn calculate_sell(
-		//TODO: rename to calculate_out_given_in
 		pool_type: PoolType<T::AssetId>,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
@@ -46,7 +45,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						&vec![AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
-							decimals, //TODO: don't use default, and nowhere in this class
+							decimals,
 						}],
 					)
 					.map_err(ExecutorError::Error)?;

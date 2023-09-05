@@ -49,7 +49,6 @@ use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
-use sp_runtime::DispatchResult;
 use sp_std::num::NonZeroU16;
 
 parameter_types! {
