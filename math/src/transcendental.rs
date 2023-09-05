@@ -282,9 +282,10 @@ where
 #[cfg(test)]
 mod tests {
 	use crate::fraction;
-	use crate::types::{FixedBalance, Fraction};
+	use crate::types::Fraction;
 	use core::str::FromStr;
 	use fixed::traits::LossyInto;
+	use fixed::types::U32F96;
 	use fixed::types::U64F64;
 
 	use super::*;
@@ -404,8 +405,8 @@ mod tests {
 
 	#[test]
 	fn pow_works() {
-		type S = FixedBalance;
-		type D = FixedBalance;
+		type S = U32F96;
+		type D = U32F96;
 		let zero = S::from_num(0);
 		let one = S::one();
 		let two = S::from_num(2);

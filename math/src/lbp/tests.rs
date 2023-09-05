@@ -37,8 +37,8 @@ fn spot_price_should_work() {
 
 #[test]
 fn out_given_in_should_work() {
-	let cases = vec![
-		(1000, 2000, 500, 500, 100, Ok(170), "Easy case"),
+	let cases: Vec<(u128, u128, u32, u32, u128, Result<u128, crate::MathError>, &str)> = vec![
+		(1000, 2000, 500, 500, 100, Ok(181), "Easy case"),
 		(0, 0, 0, 0, 100, Err(ZeroWeight), "Zero reserves and weights"),
 		(1, 1, 1, 1, 0, Ok(0), "Zero out reserve and amount"),
 		(
@@ -66,7 +66,7 @@ fn out_given_in_should_work() {
 fn in_given_out_should_work() {
 	let prec: u128 = HYDRA_ONE;
 	let cases = vec![
-		(1000, 2000, 500, 500, 100, Ok(60), "Easy case"),
+		(1000, 2000, 500, 500, 100, Ok(54), "Easy case"),
 		(
 			100 * prec,
 			20 * prec,

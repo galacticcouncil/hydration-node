@@ -1,8 +1,8 @@
 use crate::transcendental::pow;
-use crate::types::FixedBalance;
+use fixed::types::U32F96;
 use std::str::FromStr;
 
-fn ensure_accuracy(result: FixedBalance, expected: FixedBalance, tolerance: FixedBalance) -> bool {
+fn ensure_accuracy(result: U32F96, expected: U32F96, tolerance: U32F96) -> bool {
 	let diff = if result > expected {
 		result - expected
 	} else {
@@ -20,8 +20,8 @@ fn ensure_accuracy(result: FixedBalance, expected: FixedBalance, tolerance: Fixe
 
 #[test]
 fn pow_should_be_accurate() {
-	type S = FixedBalance;
-	type D = FixedBalance;
+	type S = U32F96;
+	type D = U32F96;
 	let tolerance = S::from_num(10e-10);
 
 	let result: D = pow::<S, D>(S::from_num(0.5), S::from_num(0.01)).unwrap();
