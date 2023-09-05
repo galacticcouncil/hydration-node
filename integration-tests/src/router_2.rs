@@ -434,7 +434,7 @@ fn buy_router_should_add_liquidity_from_stableswap_when_asset_out_is_share_asset
 }
 
 #[test]
-fn buy_router_should_work_one_stable_trade_when_asset_out_is_share_asset() {
+fn single_buy_router_should_work_one_stable_trade_when_asset_out_is_share_asset() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -463,6 +463,41 @@ fn buy_router_should_work_one_stable_trade_when_asset_out_is_share_asset() {
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			stable_asset_1,
 			pool_id,
+			amount_to_buy,
+			u128::MAX,
+			trades
+		));
+	});
+}
+
+#[test]
+fn single_buy_router_should_work_one_stable_trade_when_asset_in_is_share() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+		let trades = vec![Trade {
+			pool: PoolType::Stableswap(pool_id),
+			asset_in: pool_id,
+			asset_out: stable_asset_1,
+		}];
+
+		//Act
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			pool_id,
+			3000 * UNITS as i128,
+		));
+
+		let amount_to_buy = 100 * UNITS;
+
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			stable_asset_1,
 			amount_to_buy,
 			u128::MAX,
 			trades

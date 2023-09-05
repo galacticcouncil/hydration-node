@@ -1,6 +1,7 @@
 use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::InspectRegistry;
 use orml_traits::MultiCurrency;
 use sp_runtime::{ArithmeticError, DispatchError, Permill};
 use sp_std::vec;
@@ -37,12 +38,15 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 					Ok(amount)
 				} else if asset_out == pool_id {
+					let decimals = T::AssetInspection::decimals(asset_in)
+						.ok_or(ExecutorError::Error(Error::<T>::AssetNotRegistered.into()))?;
+
 					let share_amount = Self::calculate_shares(
 						pool_id,
 						&vec![AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
-							..Default::default() //TODO: don't use default, and nowhere in this class
+							decimals, //TODO: don't use default, and nowhere in this class
 						}],
 					)
 					.map_err(ExecutorError::Error)?;
@@ -105,14 +109,11 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					let amplification = Self::get_amplification(&pool);
 
 					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
-					let withdraw_fee = pool.fee;
-
-					let fee_amount = withdraw_fee.mul_ceil(amount_out);
 
 					let shares_amount = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
 						&balances,
 						asset_idx,
-						amount_out.saturating_add(fee_amount),
+						amount_out,
 						amplification,
 						share_issuance,
 						pool.fee,
@@ -145,13 +146,15 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					Self::remove_liquidity_one_asset(who, pool_id, asset_out, amount_in, min_limit)
 						.map_err(ExecutorError::Error)
 				} else if asset_out == pool_id {
+					let decimals = T::AssetInspection::decimals(asset_in)
+						.ok_or(ExecutorError::Error(Error::<T>::AssetNotRegistered.into()))?;
 					Self::add_liquidity(
 						who,
 						pool_id,
 						vec![AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
-							..Default::default() //TODO: for all of these, I need to use the decimals from asset registry
+							decimals,
 						}],
 					)
 					.map_err(ExecutorError::Error)
@@ -174,11 +177,6 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
 				if asset_out == pool_id {
-					let decimals = Self::retrieve_decimals(asset_in)
-						.ok_or(ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
-
-					let liquidity = max_limit; //Because amount_in is passed as max_limit in router
-
 					Self::add_liquidity_shares(who, pool_id, amount_out, asset_in, max_limit)
 						.map_err(ExecutorError::Error)
 				} else if asset_in == pool_id {
