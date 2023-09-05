@@ -41,15 +41,7 @@ fn out_given_in_should_work() {
 		(1000, 2000, 500, 500, 100, Ok(181), "Easy case"),
 		(0, 0, 0, 0, 100, Err(Overflow), "Zero reserves and weights"),
 		(1, 1, 1, 1, 0, Ok(0), "Zero out reserve and amount"),
-		(
-			0,
-			0,
-			1,
-			1,
-			Balance::MAX,
-			Ok(0),
-			"Zero buy reserve and sell reserve",
-		),
+		(0, 0, 1, 1, Balance::MAX, Ok(0), "Zero buy reserve and sell reserve"),
 	];
 
 	for case in cases {
