@@ -241,6 +241,8 @@ proptest! {
 				let before = invariant(pool_id, asset_a, asset_b, block_num);
 				assert_ok!(filter_errors(LBPPallet::buy(Origin::signed(ALICE), asset_b, asset_a, buy_amount, u128::MAX,)));
 				let after = invariant(pool_id, asset_a, asset_b, block_num);
+				println!("before: {before}");
+				println!("after: {after}");
 				assert!(after >= before);
 			});
 	}
