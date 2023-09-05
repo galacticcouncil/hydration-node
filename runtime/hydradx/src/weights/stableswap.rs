@@ -162,7 +162,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	}
 	// Storage: Stableswap Pools (r:1 w:1)
 	// Proof: Stableswap Pools (max_values: None, max_size: Some(61), added: 2536, mode: MaxEncodedLen)
-	fn update_pool_fees() -> Weight {
+	fn update_pool_fee() -> Weight {
 		// Minimum execution time: 22_216 nanoseconds.
 		Weight::from_ref_time(22_460_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))

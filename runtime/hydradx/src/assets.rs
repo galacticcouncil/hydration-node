@@ -513,15 +513,6 @@ where
 	}
 }
 
-pub struct DummyHelper;
-
-#[cfg(feature = "runtime-benchmarks")]
-impl pallet_stableswap::BenchmarkHelper<AssetId> for DummyHelper {
-	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
-		Ok(())
-	}
-}
-
 impl pallet_stableswap::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
@@ -534,7 +525,7 @@ impl pallet_stableswap::Config for Runtime {
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = DummyHelper;
+	type BenchmarkHelper = (); //TODO: this must be some actual implementation
 	type AmplificationRange = StableswapAmplificationRange;
 	type WeightInfo = weights::stableswap::HydraWeight<Runtime>;
 }

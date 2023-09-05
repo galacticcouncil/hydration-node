@@ -147,7 +147,7 @@ fn router_should_work_for_hopping_from_omniool_to_stableswap() {
 }
 
 #[test]
-fn single_router_should_add_liquidity_to_stableswap_when_asset_out_is_share() {
+fn sell_single_router_should_add_liquidity_to_stableswap_when_asset_out_is_share() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -175,7 +175,7 @@ fn single_router_should_add_liquidity_to_stableswap_when_asset_out_is_share() {
 		let amount_to_sell = 100 * UNITS;
 		assert_ok!(Router::sell(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			HDX,
+			stable_asset_1,
 			pool_id,
 			amount_to_sell,
 			0,
@@ -184,16 +184,14 @@ fn single_router_should_add_liquidity_to_stableswap_when_asset_out_is_share() {
 
 		//Assert
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell
+			hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)),
+			3000 * UNITS - amount_to_sell
 		);
-
-		//assert_balance!(ALICE.into(), pool_id, 4669657654);
 	});
 }
 
 #[test]
-fn router_should_add_liquidity_to_stableswap_when_selling_for_shareasset_in_stableswap() {
+fn sell_router_should_add_liquidity_to_stableswap_when_selling_for_shareasset_in_stableswap() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -249,7 +247,7 @@ fn router_should_add_liquidity_to_stableswap_when_selling_for_shareasset_in_stab
 			ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell
 		);
 
-		assert_balance!(ALICE.into(), pool_id, 4669657654);
+		assert_balance!(ALICE.into(), pool_id, 4594943133);
 	});
 }
 
@@ -308,7 +306,7 @@ fn router_should_remove_liquidity_from_stableswap_when_selling_shareasset_in_sta
 		//Assert
 		assert_balance!(ALICE.into(), pool_id, 0);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
-		assert_balance!(ALICE.into(), stable_asset_1, 2918536050);
+		assert_balance!(ALICE.into(), stable_asset_1, 2903943370);
 	});
 }
 
@@ -523,8 +521,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let pool_id = AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
 	let amplification = 100u16;
-	let trade_fee = Permill::from_percent(1);
-	let withdraw_fee = Permill::from_percent(0);
+	let fee = Permill::from_percent(1);
 
 	let asset_in: AssetId = *asset_ids.last().unwrap();
 	let asset_out: AssetId = *asset_ids.first().unwrap();
@@ -534,8 +531,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 		pool_id,
 		asset_ids,
 		amplification,
-		trade_fee,
-		withdraw_fee,
+		fee,
 	)?;
 
 	Stableswap::add_liquidity(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;

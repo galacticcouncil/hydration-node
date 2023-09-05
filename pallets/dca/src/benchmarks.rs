@@ -275,21 +275,12 @@ where
 	let pool_id = pallet_asset_registry::Pallet::<T>::create_asset(&b"pool".to_vec(), 1u128.into())?;
 
 	let amplification = 100u16;
-	let trade_fee = Permill::from_percent(1);
-	let withdraw_fee = Permill::from_percent(1);
-
+	let fee = Permill::from_percent(1);
 	let asset_in: AssetId = (*asset_ids.last().unwrap()).into();
 	let asset_out: AssetId = (*asset_ids.first().unwrap()).into();
 
 	let successful_origin = <T as pallet_stableswap::Config>::AuthorityOrigin::try_successful_origin().unwrap();
-	StableswapPallet::<T>::create_pool(
-		successful_origin,
-		pool_id.into(),
-		asset_ids,
-		amplification,
-		trade_fee,
-		withdraw_fee,
-	)?;
+	StableswapPallet::<T>::create_pool(successful_origin, pool_id.into(), asset_ids, amplification, fee)?;
 
 	StableswapPallet::<T>::add_liquidity(RawOrigin::Signed(caller.into()).into(), pool_id.into(), initial)?;
 
@@ -544,7 +535,8 @@ benchmarks! {
 		assert_eq!((T::MaxSchedulePerBlock::get()) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}
 
-	on_initialize_with_sell_trade_stableswap{
+	//TODO: continue once we have oracle for stableswap
+	/*on_initialize_with_sell_trade_stableswap{
 		let (pool_id, asset_in, asset_out) = init_stableswap::<T>()?;
 		set_period::<T>(1000);
 		let seller: T::AccountId = account("seller", 3, 1);
@@ -584,7 +576,7 @@ benchmarks! {
 		let new_asset_out_balance = <T as pallet_stableswap::Config>::Currency::free_balance(asset_out.into(), &seller);
 		assert!(new_asset_out_balance > 0);
 		assert_eq!((T::MaxSchedulePerBlock::get()) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
-	}
+	}*/
 
 	on_initialize_with_empty_block{
 		initialize_omnipool::<T>()?;

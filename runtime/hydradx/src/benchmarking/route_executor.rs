@@ -204,21 +204,13 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let pool_id = AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
 	let amplification = 100u16;
-	let trade_fee = Permill::from_percent(1);
-	let withdraw_fee = Permill::from_percent(0);
+	let fee = Permill::from_percent(1);
 
 	let asset_in: AssetId = *asset_ids.last().unwrap();
 	let asset_out: AssetId = *asset_ids.first().unwrap();
 
 	let successful_origin = <Runtime as pallet_stableswap::Config>::AuthorityOrigin::try_successful_origin().unwrap();
-	Stableswap::create_pool(
-		successful_origin,
-		pool_id,
-		asset_ids,
-		amplification,
-		trade_fee,
-		withdraw_fee,
-	)?;
+	Stableswap::create_pool(successful_origin, pool_id, asset_ids, amplification, fee)?;
 
 	Stableswap::add_liquidity(RawOrigin::Signed(caller).into(), pool_id, initial)?;
 

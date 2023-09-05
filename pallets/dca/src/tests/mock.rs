@@ -183,6 +183,8 @@ impl pallet_stableswap::Config for Test {
 	type WeightInfo = ();
 	type BlockNumberProvider = System;
 	type DustAccountHandler = Whitelist;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 lazy_static::lazy_static! {

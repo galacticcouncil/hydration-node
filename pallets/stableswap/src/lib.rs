@@ -1127,7 +1127,7 @@ impl<T: Config> Pallet<T> {
 			&updated_reserves,
 			amplification,
 			share_issuance,
-			Permill::zero(),
+			pool.fee,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 

@@ -142,7 +142,7 @@ fn calculate_shares_should_work_when_correct_input_provided() {
 
 	let result = result.unwrap();
 
-	assert_eq!(result, 9982u128);
+	assert_eq!(result, 9983u128);
 }
 
 #[test]
