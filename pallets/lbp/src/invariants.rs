@@ -309,24 +309,24 @@ proptest! {
 
 fn filter_errors(dispatch_result: DispatchResult) -> DispatchResult {
 	if dispatch_result.is_err() {
-		let is_filtered = match dispatch_result {
+		let is_filtered = matches!(
+			dispatch_result,
 			Err(DispatchError::Module(ModuleError {
 				index: 1,
 				error: [14, 0, 0, 0],
 				message: Some("MaxInRatioExceeded"),
-			})) => true,
-			Err(DispatchError::Module(ModuleError {
+			})) | Err(DispatchError::Module(ModuleError {
 				index: 1,
 				error: [15, 0, 0, 0],
 				message: Some("MaxOutRatioExceeded"),
-			})) => true,
-			_ => false,
-		};
+			}))
+		);
 
 		if is_filtered {
 			println!("Error skipped");
 			return Ok(());
 		};
 	}
-	return dispatch_result;
+
+	dispatch_result
 }
