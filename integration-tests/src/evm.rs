@@ -7,6 +7,7 @@ use sp_core::{blake2_256, H160, H256, U256};
 use std::borrow::Cow;
 use xcm_emulator::TestExt;
 type CurrencyPrecompile = MultiCurrencyPrecompile<hydradx_runtime::Runtime>;
+use crate::assert_balance;
 use fp_evm::{Context, Transfer};
 use frame_support::assert_ok;
 use frame_support::codec::Encode;
@@ -16,6 +17,7 @@ use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
 use hydradx_runtime::evm::precompile::{Address, Bytes, EvmAddress};
 use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
 use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::Currencies;
 use hydradx_runtime::{CallFilter, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetMetadata;
@@ -216,8 +218,41 @@ fn precompile_for_balance_of_should_work() {
 	});
 }
 
-pub fn bit_evm_address() -> H160 {
-	H160::from(hex_literal::hex!("0000000000000000000300000000000000000000"))
+#[test]
+fn precompile_for_transfer_should_work() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account().into(),
+			HDX,
+			100 * UNITS as i128,
+		));
+
+		let data = EvmDataWriter::new_with_selector(Action::Transfer)
+			.write(Address::from(evm_address2()))
+			.write(U256::from(86u128 * UNITS))
+			.build();
+
+		let mut handle = MockHandle {
+			input: data,
+			context: Context {
+				address: evm_address(),
+				caller: evm_address(),
+				apparent_value: U256::from(10),
+			},
+			core_address: native_asset_ethereum_address(),
+		};
+
+		//Act
+		let result = CurrencyPrecompile::execute(&mut handle);
+
+		//Assert
+		assert_eq!(result.unwrap().exit_status, ExitSucceed::Returned);
+		assert_balance!(evm_account2(), HDX, 86u128 * UNITS);
+	});
 }
 
 fn account_to_default_evm_address(account_id: &impl Encode) -> EvmAddress {

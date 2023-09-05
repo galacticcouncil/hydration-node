@@ -32,8 +32,10 @@ use frame_support::{
 //use module_support::Erc20InfoMapping as Erc20InfoMappingT;
 use codec::{alloc, Decode, Encode, EncodeLike, MaxEncodedLen};
 use frame_support::traits::{IsType, OriginTrait};
+use frame_system::pallet_prelude::OriginFor;
+use frame_system::Origin;
 //use input::Erc20InfoMappingT;
-use crate::evm::precompile::handle::PrecompileHandleExt;
+use crate::evm::precompile::handle::{EvmDataWriter, PrecompileHandleExt};
 use crate::evm::precompile::substrate::RuntimeHelper;
 use crate::evm::precompile::{succeed, Address, Erc20Mapping, EvmAddress, EvmResult, FungibleTokenId, Output};
 use crate::evm::ExtendedAddressMapping;
@@ -79,12 +81,18 @@ pub struct MultiCurrencyPrecompile<Runtime>(PhantomData<Runtime>);
 
 impl<Runtime> Precompile for MultiCurrencyPrecompile<Runtime>
 where
-	Runtime: Erc20Mapping + frame_system::Config + pallet_evm::Config + pallet_asset_registry::Config,
+	Runtime: Erc20Mapping
+		+ frame_system::Config
+		+ pallet_evm::Config
+		+ pallet_asset_registry::Config
+		+ pallet_currencies::Config,
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 	<Runtime as pallet_asset_registry::Config>::AssetId: core::convert::From<AssetId>,
 	Currencies: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
+	pallet_currencies::Pallet<Runtime>: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
 	<Runtime as frame_system::Config>::AccountId: core::convert::From<sp_runtime::AccountId32>,
+	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 {
 	fn execute(handle: &mut impl PrecompileHandle) -> pallet_evm::PrecompileResult {
 		let address = handle.code_address();
@@ -104,6 +112,7 @@ where
 				Action::Decimals => Self::decimals(asset_id, handle),
 				Action::TotalSupply => Self::total_supply(asset_id, handle),
 				Action::BalanceOf => Self::balance_of(asset_id, handle),
+				Action::Transfer => Self::transfer(asset_id, handle),
 				_ => todo!(),
 			};
 		}
@@ -116,11 +125,17 @@ where
 
 impl<Runtime> MultiCurrencyPrecompile<Runtime>
 where
-	Runtime: Erc20Mapping + frame_system::Config + pallet_evm::Config + pallet_asset_registry::Config,
+	Runtime: Erc20Mapping
+		+ frame_system::Config
+		+ pallet_evm::Config
+		+ pallet_asset_registry::Config
+		+ pallet_currencies::Config,
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 	<Runtime as pallet_asset_registry::Config>::AssetId: core::convert::From<AssetId>,
 	Currencies: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
+	pallet_currencies::Pallet<Runtime>: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
 	<Runtime as frame_system::Config>::AccountId: core::convert::From<sp_runtime::AccountId32>,
+	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 {
 	fn name(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
@@ -218,6 +233,35 @@ where
 		let encoded = Output::encode_uint::<u128>(free_balance.into());
 
 		Ok(succeed(encoded))
+	}
+
+	fn transfer(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Parse input
+		let mut input = handle.read_input()?;
+		input.expect_arguments(2)?;
+
+		let to: H160 = input.read::<Address>()?.into();
+		let amount = input.read::<Balance>()?;
+
+		let origin = ExtendedAddressMapping::into_account_id(handle.context().caller);
+		let to = ExtendedAddressMapping::into_account_id(to);
+
+		log::debug!(target: "evm", "multicurrency: transfer from: {:?}, to: {:?}, amount: {:?}", origin, to, amount);
+
+		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
+			asset_id.into(),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
+			amount.into(),
+		)
+		.map_err(|e| PrecompileFailure::Revert {
+			exit_status: ExitRevert::Reverted,
+			output: Into::<&str>::into(e).as_bytes().to_vec(),
+		})?;
+
+		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 }
 

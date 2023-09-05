@@ -19,6 +19,7 @@ use frame_support::log;
 use num_enum::{TryFromPrimitive, TryFromPrimitiveError};
 use pallet_evm::{Context, Log, PrecompileFailure, PrecompileHandle};
 use primitive_types::{H160, H256, U256};
+use smallvec::alloc;
 use sp_std::borrow::ToOwned;
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -252,6 +253,55 @@ impl EvmData for Address {
 
 	fn write(writer: &mut EvmDataWriter, value: Self) {
 		H256::write(writer, value.0.into());
+	}
+
+	fn has_static_size() -> bool {
+		true
+	}
+}
+
+macro_rules! impl_evmdata_for_uints {
+	($($uint:ty, )*) => {
+		$(
+			impl EvmData for $uint {
+				fn read(reader: &mut EvmDataReader) -> EvmResult<Self> {
+					let value256: U256 = reader.read()?;
+
+					value256
+						.try_into()
+						.map_err(|_| revert(alloc::format!(
+							"value too big for type",
+						)))
+				}
+
+				fn write(writer: &mut EvmDataWriter, value: Self) {
+					U256::write(writer, value.into());
+				}
+
+				fn has_static_size() -> bool {
+					true
+				}
+			}
+		)*
+	};
+}
+
+impl_evmdata_for_uints!(u8, u16, u32, u64, u128,);
+
+impl EvmData for bool {
+	fn read(reader: &mut EvmDataReader) -> EvmResult<Self> {
+		let h256 = H256::read(reader).map_err(|_| revert("tried to parse bool out of bounds"))?;
+
+		Ok(!h256.is_zero())
+	}
+
+	fn write(writer: &mut EvmDataWriter, value: Self) {
+		let mut buffer = [0u8; 32];
+		if value {
+			buffer[31] = 1;
+		}
+
+		writer.data.extend_from_slice(&buffer);
 	}
 
 	fn has_static_size() -> bool {
