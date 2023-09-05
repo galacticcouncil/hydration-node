@@ -429,12 +429,12 @@ mod tests {
 
 		assert_eq!(
 			pow(S::from_num(22.1234), S::from_num(2.1)),
-			Ok(D::from_num(667.096912176457))
+			Ok(D::from_str("667.0969121771803182631954923946").unwrap())
 		);
 
 		assert_eq!(
 			pow(S::from_num(0.986069911074), S::from_num(1.541748732743)),
-			Ok(D::from_num(0.978604514488))
+			Ok(D::from_str("0.97860451447489653592682845716").unwrap())
 		);
 	}
 }

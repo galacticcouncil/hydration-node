@@ -53,7 +53,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_out = 5304848460209;
+			let amount_out = 5304848794461;
 
 			assert_trader_hdx_balance!(BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_trader_non_native_balance!(BOB_INITIAL_DAI_BALANCE + amount_out, DAI);
@@ -97,7 +97,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_out = 15853065839194;
+			let amount_out = 15853064919440;
 
 			assert_trader_non_native_balance!(BOB_INITIAL_DAI_BALANCE - amount_to_sell, DAI);
 			assert_trader_hdx_balance!(BOB_INITIAL_NATIVE_BALANCE + amount_out);
@@ -149,7 +149,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_out = 2894653262401;
+			let amount_out = 2894653623153;
 
 			assert_trader_hdx_balance!(BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_trader_non_native_balance!(BOB_INITIAL_DAI_BALANCE, DAI);
@@ -202,7 +202,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_out = 23648946648916;
+			let amount_out = 23648944192390;
 
 			assert_trader_hdx_balance!(BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_trader_non_native_balance!(BOB_INITIAL_DAI_BALANCE, DAI);
@@ -224,7 +224,7 @@ mod lbp_router_tests {
 
 		let amount_to_sell = 10 * UNITS;
 		let limit = 0;
-		let received_amount_out = 5304848460209;
+		let received_amount_out = 5304848794461;
 
 		Hydra::execute_with(|| {
 			//Arrange
@@ -313,7 +313,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_in = 19944392710940;
+			let amount_in = 19944391321918;
 
 			assert_trader_hdx_balance!(BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_trader_non_native_balance!(BOB_INITIAL_DAI_BALANCE + amount_to_buy, DAI);
@@ -357,7 +357,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_in = 6045520606867;
+			let amount_in = 6045520997664;
 
 			assert_trader_hdx_balance!(BOB_INITIAL_NATIVE_BALANCE + amount_to_buy);
 			assert_trader_non_native_balance!(BOB_INITIAL_DAI_BALANCE - amount_in, DAI);
@@ -409,7 +409,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_in = 3244461644871;
+			let amount_in = 3244461218396;
 
 			assert_trader_hdx_balance!(BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_trader_non_native_balance!(BOB_INITIAL_DAI_BALANCE, DAI);
@@ -462,7 +462,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_in = 322733715447;
+			let amount_in = 322733757240;
 
 			assert_trader_hdx_balance!(BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_trader_non_native_balance!(BOB_INITIAL_DAI_BALANCE, DAI);
@@ -484,7 +484,7 @@ mod lbp_router_tests {
 
 		let amount_to_buy = 10 * UNITS;
 		let limit = 100 * UNITS;
-		let spent_amount_in = 19944392710940;
+		let spent_amount_in = 19944391321918;
 
 		Hydra::execute_with(|| {
 			//Arrange

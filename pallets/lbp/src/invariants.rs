@@ -35,8 +35,8 @@ fn invariant(pool_id: u64, asset_a: AssetId, asset_b: AssetId, at: BlockNumber) 
 
 const RESERVE_RANGE: (Balance, Balance) = (10_000, 1_000_000_000);
 const TRADE_RANGE: (Balance, Balance) = (1, 2_000);
-const WEIGHT_A: LBPWeight = 80_000_000;
-const WEIGHT_B: LBPWeight = 20_000_000;
+const WEIGHT_A: LBPWeight = 10_000_000;
+const WEIGHT_B: LBPWeight = 90_000_000;
 
 fn asset_amount() -> impl Strategy<Value = Balance> {
 	RESERVE_RANGE.0..RESERVE_RANGE.1
