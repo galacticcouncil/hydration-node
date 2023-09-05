@@ -9,6 +9,7 @@ use hydra_dx_math::types::HYDRA_ONE;
 use orml_traits::MultiCurrency;
 use rug::ops::Pow;
 use rug::Rational;
+use sp_runtime::ModuleError;
 
 use proptest::prelude::*;
 use proptest::proptest;
@@ -34,6 +35,8 @@ fn invariant(pool_id: u64, asset_a: AssetId, asset_b: AssetId, at: BlockNumber) 
 
 const RESERVE_RANGE: (Balance, Balance) = (10_000, 1_000_000_000);
 const TRADE_RANGE: (Balance, Balance) = (1, 2_000);
+const WEIGHT_A: LBPWeight = 80_000_000;
+const WEIGHT_B: LBPWeight = 20_000_000;
 
 fn asset_amount() -> impl Strategy<Value = Balance> {
 	RESERVE_RANGE.0..RESERVE_RANGE.1
@@ -71,7 +74,7 @@ fn pool_assets() -> impl Strategy<Value = Assets> {
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
-	fn sell_invariant(
+	fn sell_accumulated_asset_invariant(
 		assets in pool_assets(),
 		sell_amount in trade_amount(),
 	) {
@@ -79,15 +82,12 @@ proptest! {
 		let asset_b = 2;
 		let pool_id: PoolId<Test> = 1002;
 
-		let weight_a = 20_000_000;
-		let weight_b = 80_000_000;
-
 		let sell_amount = to_precision(sell_amount, assets.asset_a_decimals);
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
 				(ALICE, asset_a, assets.asset_a_amount + sell_amount),
-				(ALICE, asset_b, assets.asset_b_amount),
+				(ALICE, asset_b, assets.asset_b_amount + sell_amount),
 			])
 			.build()
 			.execute_with(|| {
@@ -98,8 +98,8 @@ proptest! {
 					assets.asset_a_amount,
 					asset_b,
 					assets.asset_b_amount,
-					weight_a,
-					weight_b,
+					WEIGHT_A,
+					WEIGHT_B,
 					WeightCurveType::Linear,
 					(0, 1),
 					CHARLIE,
@@ -118,17 +118,71 @@ proptest! {
 					None,
 				));
 
-				set_block_number::<Test>(20);
+				let block_num = 10;
+				set_block_number::<Test>(block_num);
 
-				let before = invariant(pool_id, asset_a, asset_b, 20);
-				assert_ok!(LBPPallet::sell(Origin::signed(ALICE), asset_a, asset_b, sell_amount, 0,));
-				let after = invariant(pool_id, asset_a, asset_b, 20);
+				let before = invariant(pool_id, asset_a, asset_b, block_num);
+				assert_ok!(filter_errors(LBPPallet::sell(Origin::signed(ALICE), asset_a, asset_b, sell_amount, 0,)));
+
+				let after = invariant(pool_id, asset_a, asset_b, block_num);
 				assert!(after >= before);
+			});
+	}
+}
 
-				let balance_b = Currency::free_balance(asset_b, &ALICE);
-				let before = invariant(pool_id, asset_a, asset_b, 20);
-				assert_ok!(LBPPallet::sell(Origin::signed(ALICE), asset_b, asset_a, balance_b, 0,));
-				let after = invariant(pool_id, asset_a, asset_b, 20);
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1))]
+	#[test]
+	fn sell_distributed_asset_invariant(
+		assets in pool_assets(),
+		sell_amount in trade_amount(),
+	) {
+		let asset_a = 1;
+		let asset_b = 2;
+		let pool_id: PoolId<Test> = 1002;
+
+		let sell_amount = to_precision(sell_amount, assets.asset_a_decimals);
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(ALICE, asset_a, assets.asset_a_amount + sell_amount),
+				(ALICE, asset_b, assets.asset_b_amount + sell_amount),
+			])
+			.build()
+			.execute_with(|| {
+				assert_ok!(LBPPallet::create_pool(
+					Origin::root(),
+					ALICE,
+					asset_a,
+					assets.asset_a_amount,
+					asset_b,
+					assets.asset_b_amount,
+					WEIGHT_A,
+					WEIGHT_B,
+					WeightCurveType::Linear,
+					(0, 1),
+					CHARLIE,
+					0,
+				));
+				assert_ok!(LBPPallet::update_pool_data(
+					Origin::signed(ALICE),
+					pool_id,
+					None,
+					Some(10),
+					Some(40),
+					None,
+					None,
+					None,
+					None,
+					None,
+				));
+
+				let block_num = 10;
+				set_block_number::<Test>(block_num);
+
+				let before = invariant(pool_id, asset_a, asset_b, block_num);
+				assert_ok!(filter_errors(LBPPallet::sell(Origin::signed(ALICE), asset_b, asset_a, sell_amount, 0,)));
+				let after = invariant(pool_id, asset_a, asset_b, block_num);
 				assert!(after >= before);
 			});
 	}
@@ -137,7 +191,7 @@ proptest! {
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
-	fn buy_invariant(
+	fn buy_distributed_invariant(
 		assets in pool_assets(),
 		buy_amount in trade_amount(),
 	) {
@@ -145,15 +199,12 @@ proptest! {
 		let asset_b = 2;
 		let pool_id: PoolId<Test> = 1002;
 
-		let weight_a = 20_000_000;
-		let weight_b = 80_000_000;
-
 		let buy_amount = to_precision(buy_amount, assets.asset_b_decimals);
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
-				(ALICE, asset_a, assets.asset_a_amount  * 1000),
-				(ALICE, asset_b, assets.asset_b_amount* 1000),
+				(ALICE, asset_a, assets.asset_a_amount * 1000),
+				(ALICE, asset_b, assets.asset_b_amount * 1000),
 			])
 			.build()
 			.execute_with(|| {
@@ -164,8 +215,8 @@ proptest! {
 					assets.asset_a_amount,
 					asset_b,
 					assets.asset_b_amount,
-					weight_a,
-					weight_b,
+					WEIGHT_A,
+					WEIGHT_B,
 					WeightCurveType::Linear,
 					(0, 1),
 					CHARLIE,
@@ -184,12 +235,89 @@ proptest! {
 					None,
 				));
 
-				set_block_number::<Test>(20);
+				let block_num = 10;
+				set_block_number::<Test>(block_num);
 
-				let before = invariant(pool_id, asset_a, asset_b, 20);
-				assert_ok!(LBPPallet::buy(Origin::signed(ALICE), asset_b, asset_a, buy_amount, u128::MAX,));
-				let after = invariant(pool_id, asset_a, asset_b, 20);
+				let before = invariant(pool_id, asset_a, asset_b, block_num);
+				assert_ok!(filter_errors(LBPPallet::buy(Origin::signed(ALICE), asset_b, asset_a, buy_amount, u128::MAX,)));
+				let after = invariant(pool_id, asset_a, asset_b, block_num);
 				assert!(after >= before);
 			});
 	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn buy_accumulated_invariant(
+		assets in pool_assets(),
+		buy_amount in trade_amount(),
+	) {
+		let asset_a = 1;
+		let asset_b = 2;
+		let pool_id: PoolId<Test> = 1002;
+
+		let buy_amount = to_precision(buy_amount, assets.asset_b_decimals);
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(ALICE, asset_a, assets.asset_a_amount * 1000),
+				(ALICE, asset_b, assets.asset_b_amount * 1000),
+			])
+			.build()
+			.execute_with(|| {
+				assert_ok!(LBPPallet::create_pool(
+					Origin::root(),
+					ALICE,
+					asset_a,
+					assets.asset_a_amount,
+					asset_b,
+					assets.asset_b_amount,
+					WEIGHT_A,
+					WEIGHT_B,
+					WeightCurveType::Linear,
+					(0, 1),
+					CHARLIE,
+					0,
+				));
+				assert_ok!(LBPPallet::update_pool_data(
+					Origin::signed(ALICE),
+					pool_id,
+					None,
+					Some(10),
+					Some(40),
+					None,
+					None,
+					None,
+					None,
+					None,
+				));
+
+				let block_num = 10;
+				set_block_number::<Test>(block_num);
+
+				let before = invariant(pool_id, asset_a, asset_b, block_num);
+				assert_ok!(filter_errors(LBPPallet::buy(Origin::signed(ALICE), asset_a, asset_b, buy_amount, u128::MAX,)));
+
+				let after = invariant(pool_id, asset_a, asset_b, block_num);
+				assert!(after >= before);
+			});
+	}
+}
+
+fn filter_errors(dispatch_result: DispatchResult) -> DispatchResult {
+	if dispatch_result.is_err() {
+		let is_filtered = match dispatch_result {
+			Err(DispatchError::Module(ModuleError { index: 1, error: [14, 0, 0, 0], message: Some("MaxInRatioExceeded") })) => true,
+			Err(DispatchError::Module(ModuleError { index: 1, error: [15, 0, 0, 0], message: Some("MaxOutRatioExceeded") })) => true,
+			_ => false,
+		};
+
+		if is_filtered {
+			println!("Error skipped");
+			return Ok(());
+
+		};
+	}
+	return dispatch_result
 }

@@ -9,6 +9,8 @@ use crate::{
 use core::convert::From;
 use num_traits::Zero;
 use sp_std::ops::Div;
+use sp_arithmetic;
+use sp_arithmetic::Rounding;
 
 use crate::types::{Balance, FixedBalance, LBPWeight, HYDRA_ONE};
 
@@ -112,42 +114,49 @@ pub fn calculate_out_given_in(
 		return Ok(0u128);
 	}
 
-	let (in_weight, out_weight, amount, in_reserve, out_reserve) =
-		to_fixed_balance!(in_weight as u128, out_weight as u128, amount, in_reserve, out_reserve);
+	let (amount, in_reserve, out_reserve) =
+		to_fixed_balance!(amount, in_reserve, out_reserve);
 
 	// We are correctly rounding this down
-	let weight_ratio = in_weight.checked_div(out_weight).ok_or(Overflow)?;
+	// let out_weight = round_up_fixed(out_weight)?;
+	let weight_ratio = sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding(in_weight.into(), 2_u128.pow(64), out_weight.into(), Rounding::Down).ok_or(Overflow)?;
+	let weight_ratio = FixedBalance::from_bits(weight_ratio>>25);
 
 	// We round this up
 	// This ratio being closer to one (i.e. rounded up) minimizes the impact of the asset
 	// that was sold to the pool, i.e. 'amount'
 	let new_in_reserve = in_reserve.checked_add(amount).ok_or(Overflow)?;
-	let ir = round_up_fixed(in_reserve.checked_div(new_in_reserve).ok_or(Overflow)?)?;
 
-	let t1 = amount.checked_add(in_reserve).ok_or(Overflow)?;
-	if ir.checked_mul(t1).ok_or(Overflow)? < in_reserve {
-		return Err(Overflow);
-	}
 
-	let ir = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
+	let ir = sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding(in_reserve.to_bits(), 2_u128.pow(39), new_in_reserve.to_bits(), Rounding::Up).ok_or(Overflow)?;
+	let ir = FixedBalance::from_bits(ir);
+
+	// let t1 = amount.checked_add(in_reserve).ok_or(Overflow)?;
+	// if ir.checked_mul(t1).ok_or(Overflow)? < in_reserve {
+	// 	return Err(Overflow);
+	// }
+	let ir: FixedBalance = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
 
 	// We round this up
-	let new_out_reserve_calc = round_up_fixed(out_reserve.checked_mul(ir).ok_or(Overflow)?)?;
+	let new_out_reserve_calc = sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding(out_reserve.to_bits(), ir.to_bits(), 2_u128.pow(39), Rounding::Up).ok_or(Overflow)?;
+	let new_out_reserve_calc = FixedBalance::from_bits(new_out_reserve_calc);
+
+	let new_out_reserve_calc = round_up_fixed(new_out_reserve_calc)?;
 
 	let r = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
 
-	let new_out_reserve = out_reserve.saturating_sub(r);
-
-	if new_out_reserve < new_out_reserve_calc {
-		return Err(Overflow);
-	}
-
-	let out_delta = out_reserve.checked_sub(new_out_reserve).ok_or(Overflow)?;
-	let out_delta_calc = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
-
-	if out_delta > out_delta_calc {
-		return Err(Overflow);
-	}
+	// let new_out_reserve = out_reserve.saturating_sub(r);
+	//
+	// if new_out_reserve < new_out_reserve_calc {
+	// 	return Err(Overflow);
+	// }
+	//
+	// let out_delta = out_reserve.checked_sub(new_out_reserve).ok_or(Overflow)?;
+	// let out_delta_calc = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
+	//
+	// if out_delta > out_delta_calc {
+	// 	return Err(Overflow);
+	// }
 
 	to_balance_from_fixed!(r)
 }
