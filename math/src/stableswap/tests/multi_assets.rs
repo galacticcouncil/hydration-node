@@ -699,8 +699,8 @@ fn calculate_exact_amount_of_shares() {
 	let asset_idx = 2;
 
 	let initial_balances = [AssetReserve::new(10_000_000_000_000_000, 12); MAX_BALANCES];
-	let mut updated_balances = initial_balances.clone();
-	updated_balances[asset_idx].amount += 1000_000_000_000_000u128;
+	let mut updated_balances = initial_balances;
+	updated_balances[asset_idx].amount += 1_000_000_000_000_000u128;
 
 	let issuance: Balance = 20_000_000_000_000_000_000_000;
 
@@ -712,6 +712,7 @@ fn calculate_exact_amount_of_shares() {
 		asset_idx,
 		issuance,
 		amp,
+		Permill::zero(),
 	);
 	assert_eq!(result, Some(1_000_000_000_000_000));
 }
