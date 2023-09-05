@@ -131,7 +131,7 @@ proptest! {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1))]
+	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
 	fn sell_distributed_asset_invariant(
 		assets in pool_assets(),
