@@ -113,7 +113,9 @@ where
 				Action::TotalSupply => Self::total_supply(asset_id, handle),
 				Action::BalanceOf => Self::balance_of(asset_id, handle),
 				Action::Transfer => Self::transfer(asset_id, handle),
-				_ => todo!(),
+				Action::Allowance => Self::not_supported(asset_id, handle),
+				Action::Approve => Self::not_supported(asset_id, handle),
+				Action::TransferFrom => Self::not_supported(asset_id, handle),
 			};
 		}
 		Err(PrecompileFailure::Revert {
@@ -137,6 +139,12 @@ where
 	<Runtime as frame_system::Config>::AccountId: core::convert::From<sp_runtime::AccountId32>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 {
+	fn not_supported(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+		Err(PrecompileFailure::Error {
+			exit_status: pallet_evm::ExitError::Other("not supported".into()),
+		})
+	}
+
 	fn name(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
