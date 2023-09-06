@@ -29,7 +29,7 @@ use frame_support::{
 use hydra_dx_math::staking as math;
 use orml_traits::{GetByKey, MultiCurrency, MultiLockableCurrency};
 use sp_core::Get;
-use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One, Scale};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One};
 use sp_runtime::{
 	traits::{BlockNumberProvider, Zero},
 	Perbill, Permill, SaturatedConversion,
@@ -49,6 +49,7 @@ pub mod types;
 pub mod weights;
 
 pub use pallet::*;
+use types::Conviction;
 pub use weights::WeightInfo;
 
 /// Lock ID for staked assets.
@@ -130,11 +131,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type CurrentStakeWeight: Get<u8>;
 
-		/// Unit we are distributing action points for.
-		/// e.g if RewardedVoteUnit is 1HDX user will receive `x` action points per each voted 1 HDX.
-		#[pallet::constant]
-		type RewardedVoteUnit: Get<Balance>;
-
 		/// Max amount of votes the user can have at any time.
 		#[pallet::constant]
 		type MaxVotes: Get<u32>;
@@ -165,11 +161,13 @@ pub mod pallet {
 			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>
 			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
+		/// Max amount of action points user can receive for action. Users receives
+		/// percentage of this based on how much of staking power they used. e.g. for democracy
+		/// vote it is percentage of stake used for voting.
+		type MaxPointsPerAction: GetByKey<Action, u32>;
+
 		/// Democracy referendum state.
 		type ReferendumInfo: DemocracyReferendum;
-
-		/// Amount of action points user will receive for each voted HDX.
-		type ActionMultiplier: GetByKey<Action, u32>;
 
 		/// Provides information about amount of vested tokens.
 		type Vesting: VestingDetails<Self::AccountId, Balance>;
@@ -934,9 +932,11 @@ impl<T: Config> Pallet<T> {
 		position: &mut Position<T::BlockNumber>,
 	) -> DispatchResult {
 		PositionVotes::<T>::mutate(position_id, |voting| {
+			let max_position_vote = Conviction::max_multiplier().saturating_mul_int(position.stake);
+
 			voting.votes.retain(|(ref_idx, vote)| {
 				if T::ReferendumInfo::is_referendum_finished(*ref_idx) {
-					let points = Self::calculate_points_for_action(Action::DemocracyVote, vote);
+					let points = Self::calculate_points_for_action(Action::DemocracyVote, vote, max_position_vote);
 					position.action_points = position.action_points.saturating_add(points);
 					false
 				} else {
@@ -947,12 +947,18 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn calculate_points_for_action<V: ActionData>(action: Action, data: V) -> Balance {
-		let total = data
-			.conviction()
+	/// Returns amount of action points user receives for action.
+	///
+	/// params:
+	/// - action: action for which points are calculated
+	/// - data: action's data necessary for points calculation
+	/// - action_max_value: max value that can be used by user for `action`. It is used to calculate
+	/// percentage of points user will receive based on how much action's power user used.
+	fn calculate_points_for_action<V: ActionData>(action: Action, data: V, action_max_value: Balance) -> Balance {
+		data.conviction()
 			.saturating_mul_int(data.amount())
-			.div(T::RewardedVoteUnit::get());
-		total.saturating_mul(T::ActionMultiplier::get(&action) as u128)
+			.saturating_mul(T::MaxPointsPerAction::get(&action) as u128)
+			.saturating_div(action_max_value)
 	}
 
 	#[inline]
