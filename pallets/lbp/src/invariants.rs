@@ -35,9 +35,6 @@ fn invariant(pool_id: u64, asset_a: AssetId, asset_b: AssetId, at: BlockNumber) 
 
 const RESERVE_RANGE: (Balance, Balance) = (10_000, 1_000_000_000);
 const TRADE_RANGE: (Balance, Balance) = (1, 2_000);
-const WEIGHT_A: LBPWeight = 10_000_000;
-const WEIGHT_B: LBPWeight = 90_000_000;
-
 fn asset_amount() -> impl Strategy<Value = Balance> {
 	RESERVE_RANGE.0..RESERVE_RANGE.1
 }
@@ -52,6 +49,15 @@ fn to_precision(value: Balance, precision: u8) -> Balance {
 
 fn decimals() -> impl Strategy<Value = u8> {
 	prop_oneof![Just(6), Just(8), Just(10), Just(12), Just(18)]
+}
+
+fn weight_ratio() -> impl Strategy<Value = u32> {
+	// we can only use simple ratios due to limitations in the invariant calculation
+	1u32..10u32
+}
+
+fn weights() -> impl Strategy<Value = (LBPWeight, LBPWeight)> {
+	weight_ratio().prop_map(|ratio| (ratio * MAX_WEIGHT / 10, (10 - ratio) * MAX_WEIGHT / 10))
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -77,6 +83,7 @@ proptest! {
 	fn sell_accumulated_asset_invariant(
 		assets in pool_assets(),
 		sell_amount in trade_amount(),
+		(weight_a, weight_b) in weights(),
 	) {
 		let asset_a = 1;
 		let asset_b = 2;
@@ -98,8 +105,8 @@ proptest! {
 					assets.asset_a_amount,
 					asset_b,
 					assets.asset_b_amount,
-					WEIGHT_A,
-					WEIGHT_B,
+					weight_a,
+					weight_b,
 					WeightCurveType::Linear,
 					(0, 1),
 					CHARLIE,
@@ -136,6 +143,7 @@ proptest! {
 	fn sell_distributed_asset_invariant(
 		assets in pool_assets(),
 		sell_amount in trade_amount(),
+		(weight_a, weight_b) in weights(),
 	) {
 		let asset_a = 1;
 		let asset_b = 2;
@@ -157,8 +165,8 @@ proptest! {
 					assets.asset_a_amount,
 					asset_b,
 					assets.asset_b_amount,
-					WEIGHT_A,
-					WEIGHT_B,
+					weight_a,
+					weight_b,
 					WeightCurveType::Linear,
 					(0, 1),
 					CHARLIE,
@@ -194,6 +202,7 @@ proptest! {
 	fn buy_distributed_invariant(
 		assets in pool_assets(),
 		buy_amount in trade_amount(),
+		(weight_a, weight_b) in weights(),
 	) {
 		let asset_a = 1;
 		let asset_b = 2;
@@ -215,8 +224,8 @@ proptest! {
 					assets.asset_a_amount,
 					asset_b,
 					assets.asset_b_amount,
-					WEIGHT_A,
-					WEIGHT_B,
+					weight_a,
+					weight_b,
 					WeightCurveType::Linear,
 					(0, 1),
 					CHARLIE,
@@ -241,8 +250,6 @@ proptest! {
 				let before = invariant(pool_id, asset_a, asset_b, block_num);
 				assert_ok!(filter_errors(LBPPallet::buy(Origin::signed(ALICE), asset_b, asset_a, buy_amount, u128::MAX,)));
 				let after = invariant(pool_id, asset_a, asset_b, block_num);
-				println!("before: {before}");
-				println!("after: {after}");
 				assert!(after >= before);
 			});
 	}
@@ -254,6 +261,7 @@ proptest! {
 	fn buy_accumulated_invariant(
 		assets in pool_assets(),
 		buy_amount in trade_amount(),
+		(weight_a, weight_b) in weights(),
 	) {
 		let asset_a = 1;
 		let asset_b = 2;
@@ -275,8 +283,8 @@ proptest! {
 					assets.asset_a_amount,
 					asset_b,
 					assets.asset_b_amount,
-					WEIGHT_A,
-					WEIGHT_B,
+					weight_a,
+					weight_b,
 					WeightCurveType::Linear,
 					(0, 1),
 					CHARLIE,
