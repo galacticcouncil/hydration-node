@@ -255,6 +255,46 @@ fn precompile_for_transfer_should_work() {
 	});
 }
 
+#[test]
+fn precompile_for_currency_allowance_should_return_0_as_not_supported_yet() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let data = EvmDataWriter::new_with_selector(Action::Allowance)
+			.write(Address::from(evm_address()))
+			.write(Address::from(evm_address2()))
+			.build();
+
+		let mut handle = MockHandle {
+			input: data,
+			context: Context {
+				address: evm_address(),
+				caller: native_asset_ethereum_address(),
+				apparent_value: U256::from(10),
+			},
+			core_address: native_asset_ethereum_address(),
+		};
+
+		//Act
+		let result = CurrencyPrecompile::execute(&mut handle);
+
+		//Assert
+		//0
+		let expected_output = hex! {"
+				00000000000000000000000000000000 00000000000000000000000000000000
+			"};
+
+		assert_eq!(
+			result,
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Returned,
+				output: expected_output.to_vec()
+			})
+		);
+	});
+}
+
 fn account_to_default_evm_address(account_id: &impl Encode) -> EvmAddress {
 	let payload = (b"evm:", account_id);
 	EvmAddress::from_slice(&payload.using_encoded(blake2_256)[0..20])

@@ -113,7 +113,7 @@ where
 				Action::TotalSupply => Self::total_supply(asset_id, handle),
 				Action::BalanceOf => Self::balance_of(asset_id, handle),
 				Action::Transfer => Self::transfer(asset_id, handle),
-				Action::Allowance => Self::not_supported(asset_id, handle),
+				Action::Allowance => Self::allowance(asset_id, handle),
 				Action::Approve => Self::not_supported(asset_id, handle),
 				Action::TransferFrom => Self::not_supported(asset_id, handle),
 			};
@@ -270,6 +270,19 @@ where
 		})?;
 
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
+	}
+
+	fn allowance(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Parse input
+		let input = handle.read_input()?;
+		input.expect_arguments(2)?;
+
+		//As approve is not supported yet, we always return 0
+		let encoded = Output::encode_uint::<u128>(0);
+
+		Ok(succeed(encoded))
 	}
 }
 
