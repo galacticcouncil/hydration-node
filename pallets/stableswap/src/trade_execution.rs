@@ -64,7 +64,6 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 	}
 
 	fn calculate_buy(
-		//TODO: rename calculate_in_given_out
 		pool_type: PoolType<T::AssetId>,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
