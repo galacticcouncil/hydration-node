@@ -1044,7 +1044,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(!reserve.amount.is_zero(), Error::<T>::InvalidInitialLiquidity);
 		}
 
-		let amount_in = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+		let (amount_in, _) = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 			&balances,
 			shares,
 			asset_idx,

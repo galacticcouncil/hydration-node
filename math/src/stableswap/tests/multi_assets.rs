@@ -714,5 +714,36 @@ fn calculate_exact_amount_of_shares() {
 		amp,
 		Permill::zero(),
 	);
-	assert_eq!(result, Some(1_000_000_000_000_000));
+	assert_eq!(result, Some((1_000_000_000_000_000, 0)));
+}
+
+#[test]
+fn calculate_exact_amount_of_shares_with_fee() {
+	let amp = 100_u128;
+
+	let asset_idx = 2;
+
+	let initial_balances = [AssetReserve::new(10_000_000_000_000_000, 12); MAX_BALANCES];
+	let mut updated_balances = initial_balances;
+	updated_balances[asset_idx].amount += 1_000_000_000_000_000u128;
+
+	let issuance: Balance = 20_000_000_000_000_000_000_000;
+
+	let result = calculate_shares::<D_ITERATIONS>(
+		&initial_balances,
+		&updated_balances,
+		amp,
+		issuance,
+		Permill::from_percent(1),
+	);
+	assert_eq!(result, Some(393452763150990629435));
+	let result = calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+		&initial_balances,
+		393452763150990629435,
+		asset_idx,
+		issuance,
+		amp,
+		Permill::from_percent(1),
+	);
+	assert_eq!(result, Some((999_743_871_443_050, 7_876_236_551_301)));
 }
