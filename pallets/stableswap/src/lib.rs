@@ -498,7 +498,7 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityAdded` event when successful.
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_shares())]
 		#[transactional]
 		pub fn add_liquidity_shares(
 			origin: OriginFor<T>,
@@ -618,7 +618,7 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityRemoved` event when successful.
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset())]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_asset_amount())]
 		#[transactional]
 		pub fn withdraw_asset_amount(
 			origin: OriginFor<T>,

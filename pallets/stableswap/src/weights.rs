@@ -47,7 +47,9 @@ use sp_std::marker::PhantomData;
 pub trait WeightInfo {
 	fn create_pool() -> Weight;
 	fn add_liquidity() -> Weight;
+	fn add_liquidity_shares() -> Weight;
 	fn remove_liquidity_one_asset() -> Weight;
+	fn withdraw_asset_amount() -> Weight;
 	fn sell() -> Weight;
 	fn buy() -> Weight;
 	fn set_asset_tradable_state() -> Weight;
@@ -63,13 +65,22 @@ impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(13 as u64))
 			.saturating_add(T::DbWeight::get().writes(12 as u64))
 	}
-
 	fn add_liquidity() -> Weight {
 		Weight::from_ref_time(64_481_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(10 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
+	fn add_liquidity_shares() -> Weight {
+		Weight::from_ref_time(64_481_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(10 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
 	fn remove_liquidity_one_asset() -> Weight {
+		Weight::from_ref_time(38_601_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(9 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
+	}
+	fn withdraw_asset_amount() -> Weight {
 		Weight::from_ref_time(38_601_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(9 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
@@ -107,7 +118,17 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(10 as u64))
 			.saturating_add(RocksDbWeight::get().writes(5 as u64))
 	}
+	fn add_liquidity_shares() -> Weight {
+		Weight::from_ref_time(64_481_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(10 as u64))
+			.saturating_add(RocksDbWeight::get().writes(5 as u64))
+	}
 	fn remove_liquidity_one_asset() -> Weight {
+		Weight::from_ref_time(38_601_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(9 as u64))
+			.saturating_add(RocksDbWeight::get().writes(4 as u64))
+	}
+	fn withdraw_asset_amount() -> Weight {
 		Weight::from_ref_time(38_601_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(9 as u64))
 			.saturating_add(RocksDbWeight::get().writes(4 as u64))
