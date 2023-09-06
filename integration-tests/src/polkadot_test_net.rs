@@ -51,6 +51,7 @@ pub const DOT: AssetId = 3;
 pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
+pub const PEPE: AssetId = 420;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
@@ -227,6 +228,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(b"ETH".to_vec(), 1_000u128, Some(ETH)),
 			(b"BTC".to_vec(), 1_000u128, Some(BTC)),
 			(b"ACA".to_vec(), 1_000u128, Some(ACA)),
+			(b"PEPE".to_vec(), 1_000u128, Some(PEPE)),
 			// workaround for next_asset_id() to return correct values
 			(b"DUMMY".to_vec(), 1_000u128, None),
 		],
@@ -251,6 +253,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
 			(AccountId::from(BOB), BTC, 1_000_000),
+			(AccountId::from(BOB), PEPE, 1_000 * UNITS * 1_000_000),
 			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
 			(AccountId::from(CHARLIE), LRNA, CHARLIE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
