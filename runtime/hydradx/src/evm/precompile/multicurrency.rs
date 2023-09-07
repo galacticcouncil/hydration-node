@@ -115,7 +115,7 @@ where
 				Action::Transfer => Self::transfer(asset_id, handle),
 				Action::Allowance => Self::allowance(asset_id, handle),
 				Action::Approve => Self::not_supported(asset_id, handle),
-				Action::TransferFrom => Self::not_supported(asset_id, handle),
+				Action::TransferFrom => Self::transfer_from(asset_id, handle),
 			};
 		}
 		Err(PrecompileFailure::Revert {
@@ -139,12 +139,6 @@ where
 	<Runtime as frame_system::Config>::AccountId: core::convert::From<sp_runtime::AccountId32>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 {
-	fn not_supported(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
-		Err(PrecompileFailure::Error {
-			exit_status: pallet_evm::ExitError::Other("not supported".into()),
-		})
-	}
-
 	fn name(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
@@ -283,6 +277,48 @@ where
 		let encoded = Output::encode_uint::<u128>(0);
 
 		Ok(succeed(encoded))
+	}
+
+	fn transfer_from(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Parse input
+		let mut input = handle.read_input()?;
+		input.expect_arguments(2)?;
+
+		//TODO: DOUBLE CHECK WITH SOMEONE IF THIS IS THE CORRECT WAY TO PREVENT MALICIOUS TRANSFER
+		let from: H160 = input.read::<Address>()?.into();
+		if !handle.context().caller.eq(&from) {
+			return Err(PrecompileFailure::Error {
+				exit_status: pallet_evm::ExitError::Other("not supported".into()).into(),
+			});
+		}
+		let to: H160 = input.read::<Address>()?.into();
+		let amount = input.read::<Balance>()?;
+
+		let origin = ExtendedAddressMapping::into_account_id(from);
+		let to = ExtendedAddressMapping::into_account_id(to);
+
+		log::debug!(target: "evm", "multicurrency: transferFrom from: {:?}, to: {:?}, amount: {:?}", origin, to, amount);
+
+		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
+			asset_id.into(),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
+			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
+			amount.into(),
+		)
+		.map_err(|e| PrecompileFailure::Revert {
+			exit_status: ExitRevert::Reverted,
+			output: Into::<&str>::into(e).as_bytes().to_vec(),
+		})?;
+
+		Ok(succeed(EvmDataWriter::new().write(true).build()))
+	}
+
+	fn not_supported(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+		Err(PrecompileFailure::Error {
+			exit_status: pallet_evm::ExitError::Other("not supported".into()),
+		})
 	}
 }
 
