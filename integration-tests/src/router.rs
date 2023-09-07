@@ -788,7 +788,7 @@ mod omnipool_stableswap_router_tests {
 				ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell
 			);
 
-			assert_balance!(ALICE.into(), pool_id, 4594943133);
+			assert_balance!(ALICE.into(), pool_id, 4646309366);
 		});
 	}
 

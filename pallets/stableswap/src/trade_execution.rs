@@ -95,7 +95,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					)
 					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
-					Ok(liqudity)
+					Ok(liqudity.0)
 				} else if asset_in == pool_id {
 					let pool = Pools::<T>::get(pool_id)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
