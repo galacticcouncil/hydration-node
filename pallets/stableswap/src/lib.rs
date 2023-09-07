@@ -372,9 +372,9 @@ pub mod pallet {
 		/// Parameters:
 		/// - `origin`: Must be T::AuthorityOrigin
 		/// - `pool_id`: pool to update
-		/// - `fee`: new withdraw fee or None
+		/// - `fee`: new pool fee
 		///
-		/// Emits `FeesUpdated` event if successful.
+		/// Emits `FeeUpdated` event if successful.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_pool_fee())]
 		#[transactional]
@@ -487,8 +487,18 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Add liquidity to selected pool given exact amount of shares to receive.
+		///
+		/// Parameters:
+		/// - `origin`: liquidity provider
+		/// - `pool_id`: Pool Id
+		/// - `shares`: amount of shares to receive
+		/// - `asset_id`: asset id of an asset to provide as liquidity
+		/// - `max_asset_amount`: slippage limit. Max amount of asset.
+		///
+		/// Emits `LiquidityAdded` event when successful.
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_shares())]
 		#[transactional]
 		pub fn add_liquidity_shares(
 			origin: OriginFor<T>,
@@ -597,8 +607,18 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Remove liquidity from selected pool by specifying exact amount of asset to receive.
+		///
+		/// Parameters:
+		/// - `origin`: liquidity provider
+		/// - `pool_id`: Pool Id
+		/// - `asset_id`: id of asset to receive
+		/// - 'amount': amount of asset to receive
+		/// - 'max_share_amount': Slippage limit. Max amount of shares to burn.
+		///
+		/// Emits `LiquidityRemoved` event when successful.
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset())]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_asset_amount())]
 		#[transactional]
 		pub fn withdraw_asset_amount(
 			origin: OriginFor<T>,
@@ -1019,7 +1039,12 @@ impl<T: Config> Pallet<T> {
 		let pool_account = Self::pool_account(pool_id);
 		let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
 
-		let amount_in = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+		// Ensure that initial liquidity has been already provided
+		for reserve in balances.iter() {
+			ensure!(!reserve.amount.is_zero(), Error::<T>::InvalidInitialLiquidity);
+		}
+
+		let (amount_in, _) = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 			&balances,
 			shares,
 			asset_idx,

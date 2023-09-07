@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.5.2"
+version = "7.6.0"
 dependencies = [
  "approx",
  "criterion",
@@ -3817,7 +3817,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "177.0.0"
+version = "176.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3859,7 +3859,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.0.0-dev",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -3878,7 +3878,6 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
- "pallet-stableswap",
  "pallet-staking 1.0.1",
  "pallet-timestamp",
  "pallet-tips",
@@ -3922,7 +3921,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.5.2"
+version = "2.6.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -4517,7 +4516,7 @@ dependencies = [
  "pallet-child-bounties",
  "pallet-collective",
  "pallet-conviction-voting",
- "pallet-democracy 4.0.0-dev",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen",
@@ -6583,7 +6582,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.9"
+version = "1.1.8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6598,14 +6597,12 @@ dependencies = [
  "log",
  "orml-tokens",
  "orml-traits",
- "pallet-asset-registry",
  "pallet-balances",
  "pallet-currencies",
  "pallet-ema-oracle",
  "pallet-omnipool",
  "pallet-relaychain-info",
  "pallet-route-executor",
- "pallet-stableswap",
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types",
@@ -6627,12 +6624,14 @@ dependencies = [
 [[package]]
 name = "pallet-democracy"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
+ "pallet-balances",
+ "pallet-preimage",
+ "pallet-scheduler",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -6644,15 +6643,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.0.1-dev"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
- "pallet-balances",
- "pallet-preimage",
- "pallet-scheduler",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -7279,7 +7276,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.0.6"
+version = "1.0.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7372,7 +7369,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "2.2.2"
+version = "3.0.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7406,7 +7403,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.0.0-dev",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -8979,7 +8976,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-democracy 4.0.0-dev",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen",
@@ -10024,7 +10021,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-democracy 4.0.0-dev",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-elections-phragmen",
  "pallet-grandpa",
  "pallet-identity",
@@ -10176,7 +10173,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.10.2"
+version = "1.10.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10216,7 +10213,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.0.0-dev",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -10230,7 +10227,6 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
- "pallet-stableswap",
  "pallet-staking 1.0.1",
  "pallet-sudo",
  "pallet-timestamp",
@@ -14518,7 +14514,7 @@ dependencies = [
  "pallet-bags-list",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy 4.0.0-dev",
+ "pallet-democracy 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen",
