@@ -736,14 +736,14 @@ fn calculate_exact_amount_of_shares_with_fee() {
 		issuance,
 		Permill::from_percent(1),
 	);
-	assert_eq!(result, Some(393452763150990629435));
+	assert_eq!(result, Some(397850963801921326566));
 	let result = calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 		&initial_balances,
-		393452763150990629435,
+		397850963801921326566,
 		asset_idx,
 		issuance,
 		amp,
 		Permill::from_percent(1),
 	);
-	assert_eq!(result, Some((999_743_871_443_050, 7_876_236_551_301)));
+	assert_eq!(result, Some((1010923491550412, 7964356875396)));
 }

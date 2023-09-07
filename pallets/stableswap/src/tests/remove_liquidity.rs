@@ -383,11 +383,11 @@ fn verify_remove_liquidity_against_research_impl() {
 
 			let amount_received = Tokens::free_balance(asset_b, &BOB);
 			assert_balance!(BOB, asset_a, 0u128);
-			assert_balance!(BOB, asset_b, 99311327199793181);
+			assert_balance!(BOB, asset_b, 99603197897583876);
 			assert_balance!(BOB, pool_id, 0u128);
 			assert_balance!(pool_account, asset_a, 1_000_000 * ONE + amount_added);
 			assert_balance!(pool_account, asset_b, 1_000_000 * ONE - amount_received);
-			assert_balance!(pool_account, asset_b, 900688672800206819);
+			assert_balance!(pool_account, asset_b, 900396802102416124);
 		});
 }
 

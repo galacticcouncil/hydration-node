@@ -99,6 +99,10 @@ pub fn calculate_shares<const D: u8>(
 	if initial_reserves.len() != updated_reserves.len() {
 		return None;
 	}
+	let n_coins = initial_reserves.len();
+	if n_coins <= 1 {
+		return None;
+	}
 	let initial_d = calculate_d::<D>(initial_reserves, amplification)?;
 
 	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
@@ -107,7 +111,11 @@ pub fn calculate_shares<const D: u8>(
 	if updated_d < initial_d {
 		return None;
 	}
-	let fee = FixedU128::from(fee);
+	let fixed_fee = FixedU128::from(fee);
+	let fee = fixed_fee
+		.checked_mul(&FixedU128::from(n_coins as u128))?
+		.checked_div(&FixedU128::from(4 * (n_coins - 1) as u128))?;
+
 	let (d0, d1) = to_u256!(initial_d, updated_d);
 
 	let adjusted_balances = if share_issuance > 0 {
@@ -129,7 +137,6 @@ pub fn calculate_shares<const D: u8>(
 	} else {
 		updated_reserves.to_vec()
 	};
-
 	let adjusted_d = calculate_d::<D>(&adjusted_balances, amplification)?;
 
 	if share_issuance == 0 {
