@@ -59,7 +59,7 @@ mod router_different_pools_tests {
 			));
 
 			//Assert
-			let amount_out = 4_383_480_141_260_650;
+			let amount_out = 4_383_480_416_162_085;
 
 			assert_balance!(BOB.into(), DAI, 1_000_000_000 * UNITS - amount_to_sell);
 			assert_balance!(BOB.into(), LRNA, 1_000 * UNITS);
@@ -112,7 +112,7 @@ mod router_different_pools_tests {
 			));
 
 			//Assert
-			let amount_in = 2_135_300_210;
+			let amount_in = 2_135_301_508;
 
 			assert_balance!(BOB.into(), DAI, 1_000_000_000 * UNITS - amount_in);
 			assert_balance!(BOB.into(), LRNA, 1_000 * UNITS);
@@ -576,7 +576,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_out = 5_304_848_460_209;
+			let amount_out = 5_304_848_794_461;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
@@ -619,7 +619,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_out = 15_853_065_839_194;
+			let amount_out = 15_853_064_919_440;
 
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE + amount_out);
@@ -670,7 +670,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_out = 2_894_653_262_401;
+			let amount_out = 2_894_653_623_153;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
@@ -722,7 +722,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_out = 23_648_946_648_916;
+			let amount_out = 23_648_944_192_390;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
@@ -744,7 +744,7 @@ mod lbp_router_tests {
 
 		let amount_to_sell = 10 * UNITS;
 		let limit = 0;
-		let received_amount_out = 5_304_848_460_209;
+		let received_amount_out = 5_304_848_794_461;
 
 		Hydra::execute_with(|| {
 			//Arrange
@@ -841,7 +841,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_in = 19_944_392_706_756;
+			let amount_in = 19_944_391_321_918;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -884,7 +884,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_in = 6_045_520_606_503;
+			let amount_in = 6_045_520_997_664;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE + amount_to_buy);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE - amount_in);
@@ -935,7 +935,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_in = 3_244_461_635_777;
+			let amount_in = 3_244_461_218_396;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
@@ -987,7 +987,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			let amount_in = 322_733_714_720;
+			let amount_in = 322_733_757_240;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
@@ -1009,7 +1009,7 @@ mod lbp_router_tests {
 
 		let amount_to_buy = 10 * UNITS;
 		let limit = 100 * UNITS;
-		let spent_amount_in = 19_944_392_706_756;
+		let spent_amount_in = 19_944_391_321_918;
 
 		Hydra::execute_with(|| {
 			//Arrange

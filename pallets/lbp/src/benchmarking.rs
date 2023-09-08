@@ -126,7 +126,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()), asset_in, asset_out, amount, max_limit)
 	verify{
 		assert_eq!(T::MultiCurrency::free_balance(asset_in, &caller), 999998900000000);
-		assert_eq!(T::MultiCurrency::free_balance(asset_out, &caller), 999998047091811);
+		assert_eq!(T::MultiCurrency::free_balance(asset_out, &caller), 999998047091820);
 		assert_eq!(T::MultiCurrency::free_balance(asset_in, &fee_collector), 1000000000200000);
 	}
 
@@ -150,7 +150,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()), asset_out, asset_in, amount, max_limit)
 	verify{
 		assert_eq!(T::MultiCurrency::free_balance(asset_out, &caller), 999998100000000);
-		assert_eq!(T::MultiCurrency::free_balance(asset_in, &caller), 999998772262325);
+		assert_eq!(T::MultiCurrency::free_balance(asset_in, &caller), 999998772262335);
 		assert_eq!(T::MultiCurrency::free_balance(asset_in, &fee_collector), 1000000000455474);
 	}
 }
