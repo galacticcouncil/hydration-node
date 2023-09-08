@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.10.1"
+version = "1.11.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
