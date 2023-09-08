@@ -18,9 +18,9 @@
 #![allow(clippy::bool_assert_comparison)]
 use super::*;
 use crate::mock::{
-	expect_events, generate_trades, run_to_sale_end, run_to_sale_start, RuntimeCall as Call, DEFAULT_FEE,
-	EXISTENTIAL_DEPOSIT, HDX_BSX_POOL_ID, INITIAL_BALANCE, KUSD_BSX_POOL_ID, SALE_END, SALE_START, SAMPLE_AMM_TRANSFER,
-	SAMPLE_POOL_DATA,
+	expect_events, generate_trades, run_to_sale_end, run_to_sale_start, AccountId, RuntimeCall as Call, DEFAULT_FEE,
+	EXISTENTIAL_DEPOSIT, HDX_BSX_POOL_ID, INITIAL_BALANCE, INITIAL_ETH_BALANCE, KUSD_BSX_POOL_ID, SALE_END, SALE_START,
+	SAMPLE_AMM_TRANSFER, SAMPLE_POOL_DATA,
 };
 pub use crate::mock::{
 	set_block_number, Currency, ExtBuilder, LBPPallet, RuntimeEvent as TestEvent, RuntimeOrigin as Origin, Test, ALICE,
@@ -145,6 +145,48 @@ pub fn predefined_test_ext_with_repay_target() -> sp_io::TestExternalities {
 		));
 	});
 	ext
+}
+
+pub fn start_50_50_lbp_without_fee_and_repay_target(
+	asset_in: AssetId,
+	reserve_in: Balance,
+	asset_out: AssetId,
+	reserve_out: Balance,
+) -> AccountId {
+	assert_ok!(LBPPallet::create_pool(
+		Origin::root(),
+		ALICE,
+		asset_in,
+		reserve_in,
+		asset_out,
+		reserve_out,
+		50_000_000,
+		50_000_000,
+		WeightCurveType::Linear,
+		(0, 1),
+		CHARLIE,
+		0,
+	));
+
+	let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
+
+	assert_ok!(LBPPallet::update_pool_data(
+		Origin::signed(ALICE),
+		pool_id,
+		None,
+		SALE_START,
+		SALE_END,
+		None,
+		None,
+		None,
+		None,
+		None,
+	));
+
+	//start sale
+	set_block_number::<Test>(11);
+
+	pool_id
 }
 
 #[test]
@@ -2567,6 +2609,208 @@ fn sell_should_work() {
 		assert_eq!(Currency::free_balance(asset_out, &buyer), 999_999_995_605_138);
 		assert_eq!(Currency::free_balance(asset_in, &pool_id2), 998_156_994);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id2), 2_010_000_000);
+	});
+}
+
+#[test]
+fn sell_should_work_with_different_token_precisions() {
+	new_test_ext().execute_with(|| {
+		let asset_in = KUSD;
+		let asset_out = BSX;
+		let reserve_in = 1_000 * 1_000_000;
+		let reserve_out = 1_000 * 1_000_000_000_000;
+
+		let pool_id = start_50_50_lbp_without_fee_and_repay_target(asset_in, reserve_in, asset_out, reserve_out);
+
+		let sell_amount = 1_000_000;
+
+		assert_ok!(LBPPallet::sell(
+			Origin::signed(BOB),
+			asset_in,
+			asset_out,
+			sell_amount,
+			0
+		));
+
+		assert_eq!(Currency::free_balance(asset_in, &BOB), INITIAL_BALANCE - sell_amount);
+		assert_eq!(
+			Currency::free_balance(asset_out, &BOB),
+			INITIAL_BALANCE + 999_000_999_000
+		);
+		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_001_000_000);
+		assert_eq!(Currency::free_balance(asset_out, &pool_id), 999_000_999_001_000);
+	});
+
+	new_test_ext().execute_with(|| {
+		let asset_in = BSX;
+		let asset_out = KUSD;
+		let reserve_in = 1_000 * 1_000_000_000_000;
+		let reserve_out = 1_000 * 1_000_000;
+
+		let pool_id = start_50_50_lbp_without_fee_and_repay_target(asset_in, reserve_in, asset_out, reserve_out);
+
+		let sell_amount = 1_000_000_000_000;
+
+		assert_ok!(LBPPallet::sell(
+			Origin::signed(BOB),
+			asset_in,
+			asset_out,
+			sell_amount,
+			0
+		));
+
+		assert_eq!(Currency::free_balance(asset_in, &BOB), INITIAL_BALANCE - sell_amount);
+		assert_eq!(Currency::free_balance(asset_out, &BOB), INITIAL_BALANCE + 999_000);
+		assert_eq!(
+			Currency::free_balance(asset_in, &pool_id),
+			INITIAL_BALANCE + 1_000_000_000_000
+		);
+		assert_eq!(Currency::free_balance(asset_out, &pool_id), 999_001_000);
+	});
+
+	new_test_ext().execute_with(|| {
+		let asset_in = KUSD;
+		let asset_out = ETH;
+		let reserve_in = 1_000 * 1_000_000;
+		let reserve_out = 1_000 * 1_000_000_000_000_000_000;
+
+		let pool_id = start_50_50_lbp_without_fee_and_repay_target(asset_in, reserve_in, asset_out, reserve_out);
+
+		let sell_amount = 1_000_000;
+
+		assert_ok!(LBPPallet::sell(
+			Origin::signed(BOB),
+			asset_in,
+			asset_out,
+			sell_amount,
+			0
+		));
+
+		assert_eq!(Currency::free_balance(asset_in, &BOB), INITIAL_BALANCE - sell_amount);
+		assert_eq!(
+			Currency::free_balance(asset_out, &BOB),
+			INITIAL_ETH_BALANCE + 999_000_999_000_999_000
+		);
+		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_001_000_000);
+		assert_eq!(Currency::free_balance(asset_out, &pool_id), 999_000_999_000_999_001_000);
+	});
+
+	// selling a small amount can result in receiving 0
+	new_test_ext().execute_with(|| {
+		let asset_in = BSX;
+		let asset_out = KUSD;
+		let reserve_in = 1_000 * 1_000_000_000_000;
+		let reserve_out = 1_000 * 1_000_000;
+
+		let pool_id = start_50_50_lbp_without_fee_and_repay_target(asset_in, reserve_in, asset_out, reserve_out);
+
+		let sell_amount = 100_000;
+
+		assert_ok!(LBPPallet::sell(
+			Origin::signed(BOB),
+			asset_in,
+			asset_out,
+			sell_amount,
+			0
+		));
+
+		assert_eq!(Currency::free_balance(asset_in, &BOB), INITIAL_BALANCE - sell_amount);
+		assert_eq!(Currency::free_balance(asset_out, &BOB), INITIAL_BALANCE);
+		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_000_100_000);
+		assert_eq!(Currency::free_balance(asset_out, &pool_id), 1_000_000_000);
+	});
+}
+
+#[test]
+fn buy_should_work_with_different_token_precisions() {
+	new_test_ext().execute_with(|| {
+		let asset_in = BSX;
+		let asset_out = KUSD;
+		let reserve_in = 1_000 * 1_000_000_000_000;
+		let reserve_out = 1_000 * 1_000_000;
+
+		let pool_id = start_50_50_lbp_without_fee_and_repay_target(asset_in, reserve_in, asset_out, reserve_out);
+
+		let buy_amount = 1_000_000;
+
+		assert_ok!(LBPPallet::buy(
+			Origin::signed(BOB),
+			asset_out,
+			asset_in,
+			buy_amount,
+			2_000_000_000_000,
+		));
+
+		assert_eq!(Currency::free_balance(asset_in, &BOB), 998_998_998_998_997);
+		assert_eq!(Currency::free_balance(asset_out, &BOB), INITIAL_BALANCE + buy_amount);
+		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_001_001_001_001_003);
+		assert_eq!(Currency::free_balance(asset_out, &pool_id), 999_000_000);
+	});
+
+	new_test_ext().execute_with(|| {
+		let asset_in = KUSD;
+		let asset_out = BSX;
+		let reserve_in = 1_000 * 1_000_000;
+		let reserve_out = 1_000 * 1_000_000_000_000;
+
+		let pool_id = start_50_50_lbp_without_fee_and_repay_target(asset_in, reserve_in, asset_out, reserve_out);
+
+		let buy_amount = 1_000_000;
+
+		assert_ok!(LBPPallet::buy(Origin::signed(BOB), asset_out, asset_in, buy_amount, 10,));
+
+		assert_eq!(Currency::free_balance(asset_in, &BOB), INITIAL_BALANCE - 3);
+		assert_eq!(Currency::free_balance(asset_out, &BOB), INITIAL_BALANCE + buy_amount);
+		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_003);
+		assert_eq!(Currency::free_balance(asset_out, &pool_id), 999_999_999_000_000);
+	});
+
+	new_test_ext().execute_with(|| {
+		let asset_in = KUSD;
+		let asset_out = ETH;
+		let reserve_in = 1_000 * 1_000_000;
+		let reserve_out = 1_000 * 1_000_000_000_000_000_000;
+
+		let pool_id = start_50_50_lbp_without_fee_and_repay_target(asset_in, reserve_in, asset_out, reserve_out);
+
+		let buy_amount = 1_000_000;
+
+		assert_ok!(LBPPallet::buy(Origin::signed(BOB), asset_out, asset_in, buy_amount, 10,));
+
+		assert_eq!(Currency::free_balance(asset_in, &BOB), INITIAL_BALANCE - 2);
+		assert_eq!(
+			Currency::free_balance(asset_out, &BOB),
+			INITIAL_ETH_BALANCE + buy_amount
+		);
+		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_002);
+		assert_eq!(Currency::free_balance(asset_out, &pool_id), 999_999_999_999_999_000_000);
+	});
+}
+
+#[test]
+fn buy_small_amount_should_return_non_zero_amount() {
+	new_test_ext().execute_with(|| {
+		let asset_in = KUSD;
+		let asset_out = ETH;
+		let reserve_in = 1_000 * 1_000_000;
+		let reserve_out = 1_000 * 1_000_000_000_000_000_000;
+
+		let pool_id = start_50_50_lbp_without_fee_and_repay_target(asset_in, reserve_in, asset_out, reserve_out);
+
+		//start sale
+		set_block_number::<Test>(11);
+
+		let buy_amount = 1_000;
+
+		assert_ok!(LBPPallet::buy(Origin::signed(BOB), asset_out, asset_in, buy_amount, 10,));
+
+		assert_eq!(Currency::free_balance(asset_in, &BOB), INITIAL_BALANCE - 2);
+		assert_eq!(
+			Currency::free_balance(asset_out, &BOB),
+			INITIAL_ETH_BALANCE + buy_amount
+		);
+		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_002);
+		assert_eq!(Currency::free_balance(asset_out, &pool_id), 999_999_999_999_999_999_000);
 	});
 }
 
