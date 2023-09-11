@@ -619,7 +619,7 @@ pub mod pallet {
 				shares: share_issuance,
 			};
 
-			T::Hooks::on_liquidity_changed(state)?;
+			T::Hooks::on_liquidity_changed(pool_id, state)?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				pool_id,
@@ -717,7 +717,7 @@ pub mod pallet {
 				shares: share_issuance,
 			};
 
-			T::Hooks::on_liquidity_changed(state)?;
+			T::Hooks::on_liquidity_changed(pool_id, state)?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				pool_id,
@@ -819,7 +819,7 @@ pub mod pallet {
 				shares: share_issuance,
 			};
 
-			T::Hooks::on_trade(asset_in, asset_out, state)?;
+			T::Hooks::on_trade(pool_id, asset_in, asset_out, state)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who,
@@ -922,7 +922,7 @@ pub mod pallet {
 				shares: share_issuance,
 			};
 
-			T::Hooks::on_trade(asset_in, asset_out, state)?;
+			T::Hooks::on_trade(pool_id, asset_in, asset_out, state)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -1162,7 +1162,7 @@ impl<T: Config> Pallet<T> {
 			shares: share_issuance.saturating_add(share_amount),
 		};
 
-		T::Hooks::on_liquidity_changed(state)?;
+		T::Hooks::on_liquidity_changed(pool_id, state)?;
 
 		Ok(share_amount)
 	}
@@ -1232,7 +1232,7 @@ impl<T: Config> Pallet<T> {
 			shares: share_issuance.saturating_add(shares),
 		};
 
-		T::Hooks::on_liquidity_changed(state)?;
+		T::Hooks::on_liquidity_changed(pool_id, state)?;
 
 		Ok(amount_in)
 	}

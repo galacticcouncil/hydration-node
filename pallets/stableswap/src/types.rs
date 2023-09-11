@@ -148,19 +148,24 @@ pub struct PoolState<AssetId> {
 }
 
 pub trait StableswapHooks<AssetId> {
-	fn on_liquidity_changed(state: PoolState<AssetId>) -> DispatchResult;
-	fn on_trade(asset_in: AssetId, asset_out: AssetId, state: PoolState<AssetId>) -> DispatchResult;
+	fn on_liquidity_changed(pool_id: AssetId, state: PoolState<AssetId>) -> DispatchResult;
+	fn on_trade(pool_id: AssetId, asset_in: AssetId, asset_out: AssetId, state: PoolState<AssetId>) -> DispatchResult;
 
 	fn on_liquidity_changed_weight() -> Weight;
 	fn on_trade_weight() -> Weight;
 }
 
 impl<AssetId> StableswapHooks<AssetId> for () {
-	fn on_liquidity_changed(_state: PoolState<AssetId>) -> DispatchResult {
+	fn on_liquidity_changed(_pool_id: AssetId, _state: PoolState<AssetId>) -> DispatchResult {
 		Ok(())
 	}
 
-	fn on_trade(_asset_in: AssetId, _asset_out: AssetId, _state: PoolState<AssetId>) -> DispatchResult {
+	fn on_trade(
+		_pool_id: AssetId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_state: PoolState<AssetId>,
+	) -> DispatchResult {
 		Ok(())
 	}
 
