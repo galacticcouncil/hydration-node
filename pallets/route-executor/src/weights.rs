@@ -46,47 +46,27 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_route_executor.
 pub trait WeightInfo {
-	fn sell(n: u32) -> Weight;
-	fn buy(n: u32) -> Weight;
+	fn sell_in_lbp() -> Weight;
+	fn buy_in_lbp() -> Weight;
 }
 
 pub struct BasiliskWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
-	fn sell(n: u32) -> Weight {
-		Weight::from_ref_time(27_428_000 as u64) // Standard Error: 181_000
-			.saturating_add(Weight::from_ref_time(84_248_000 as u64).saturating_mul(n as u64))
-			.saturating_add(T::DbWeight::get().reads(4 as u64))
-			.saturating_add(T::DbWeight::get().reads((8 as u64).saturating_mul(n as u64)))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+	fn sell_in_lbp() -> Weight {
+		Weight::zero()
 	}
-	fn buy(n: u32) -> Weight {
-		Weight::from_ref_time(24_809_000 as u64) // Standard Error: 145_000
-			.saturating_add(Weight::from_ref_time(84_158_000 as u64).saturating_mul(n as u64))
-			.saturating_add(T::DbWeight::get().reads(4 as u64))
-			.saturating_add(T::DbWeight::get().reads((8 as u64).saturating_mul(n as u64)))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+	fn buy_in_lbp() -> Weight {
+		Weight::zero()
 	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	fn sell(n: u32) -> Weight {
-		Weight::from_ref_time(27_428_000 as u64) // Standard Error: 181_000
-			.saturating_add(Weight::from_ref_time(84_248_000 as u64).saturating_mul(n as u64))
-			.saturating_add(RocksDbWeight::get().reads(4 as u64))
-			.saturating_add(RocksDbWeight::get().reads((8 as u64).saturating_mul(n as u64)))
-			.saturating_add(RocksDbWeight::get().writes(2 as u64))
-			.saturating_add(RocksDbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+	fn sell_in_lbp() -> Weight {
+		Weight::zero()
 	}
-	fn buy(n: u32) -> Weight {
-		Weight::from_ref_time(24_809_000 as u64) // Standard Error: 145_000
-			.saturating_add(Weight::from_ref_time(84_158_000 as u64).saturating_mul(n as u64))
-			.saturating_add(RocksDbWeight::get().reads(4 as u64))
-			.saturating_add(RocksDbWeight::get().reads((8 as u64).saturating_mul(n as u64)))
-			.saturating_add(RocksDbWeight::get().writes(2 as u64))
-			.saturating_add(RocksDbWeight::get().writes((3 as u64).saturating_mul(n as u64)))
+	fn buy_in_lbp() -> Weight {
+		Weight::zero()
 	}
 }

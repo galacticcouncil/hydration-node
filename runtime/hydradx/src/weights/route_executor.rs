@@ -54,59 +54,11 @@ use pallet_route_executor::weights::WeightInfo;
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:3 w:3)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Omnipool Assets (r:2 w:2)
-	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
-	// Storage: Omnipool HubAssetImbalance (r:1 w:1)
-	// Proof: Omnipool HubAssetImbalance (max_values: Some(1), max_size: Some(17), added: 512, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof Skipped: AssetRegistry Assets (max_values: None, max_size: None, mode: Measured)
-	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: Tokens TotalIssuance (r:1 w:1)
-	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: EmaOracle Accumulator (r:1 w:1)
-	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
-	// Storage: CircuitBreaker AllowedTradeVolumeLimitPerAsset (r:2 w:2)
-	// Proof: CircuitBreaker AllowedTradeVolumeLimitPerAsset (max_values: None, max_size: Some(68), added: 2543, mode: MaxEncodedLen)
-	/// The range of component `n` is `[1, 2]`.
-	fn sell(_n: u32) -> Weight {
-		// Minimum execution time: 240_244 nanoseconds.
-		Weight::from_ref_time(252_571_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(16 as u64))
-			.saturating_add(T::DbWeight::get().writes(12 as u64))
+	fn sell_in_lbp() -> Weight {
+		Weight::zero()
 	}
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Omnipool Assets (r:2 w:2)
-	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:3 w:3)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Omnipool HubAssetImbalance (r:1 w:1)
-	// Proof: Omnipool HubAssetImbalance (max_values: Some(1), max_size: Some(17), added: 512, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof Skipped: AssetRegistry Assets (max_values: None, max_size: None, mode: Measured)
-	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: Tokens TotalIssuance (r:1 w:1)
-	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: EmaOracle Accumulator (r:1 w:1)
-	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
-	// Storage: CircuitBreaker AllowedTradeVolumeLimitPerAsset (r:2 w:2)
-	// Proof: CircuitBreaker AllowedTradeVolumeLimitPerAsset (max_values: None, max_size: Some(68), added: 2543, mode: MaxEncodedLen)
-	/// The range of component `n` is `[1, 2]`.
-	fn buy(n: u32) -> Weight {
-		// Minimum execution time: 237_842 nanoseconds.
-		Weight::from_ref_time(238_705_550 as u64) // Standard Error: 227_230
-			.saturating_add(Weight::from_ref_time(1_211_375 as u64).saturating_mul(n as u64))
-			.saturating_add(T::DbWeight::get().reads(16 as u64))
-			.saturating_add(T::DbWeight::get().writes(12 as u64))
+
+	fn buy_in_lbp() -> Weight {
+		Weight::zero()
 	}
 }

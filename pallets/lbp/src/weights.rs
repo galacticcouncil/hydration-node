@@ -52,6 +52,8 @@ pub trait WeightInfo {
 	fn remove_liquidity() -> Weight;
 	fn sell() -> Weight;
 	fn buy() -> Weight;
+	fn trade_execution_sell() -> Weight;
+	fn trade_execution_buy() -> Weight;
 }
 
 /// Weights for lbp using the hack.hydraDX node and recommended hardware.
@@ -83,6 +85,16 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
 	fn buy() -> Weight {
+		Weight::from_ref_time(161_152_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(6 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	}
+	fn trade_execution_sell() -> Weight {
+		Weight::from_ref_time(160_655_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(6 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	}
+	fn trade_execution_buy() -> Weight {
 		Weight::from_ref_time(161_152_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
@@ -120,5 +132,11 @@ impl WeightInfo for () {
 		Weight::from_ref_time(161_152_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(6 as u64))
 			.saturating_add(RocksDbWeight::get().writes(6 as u64))
+	}
+	fn trade_execution_sell() -> Weight {
+		Weight::zero()
+	}
+	fn trade_execution_buy() -> Weight {
+		Weight::zero()
 	}
 }

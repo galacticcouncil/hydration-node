@@ -59,6 +59,8 @@ pub trait WeightInfo {
 	fn refund_refused_asset() -> Weight;
 	fn sacrifice_position() -> Weight;
 	fn set_asset_weight_cap() -> Weight;
+	fn trade_execution_sell() -> Weight;
+	fn trade_execution_buy() -> Weight;
 }
 
 /// Weights for pallet_omnipool using the hydraDX node and recommended hardware.
@@ -115,6 +117,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+	fn trade_execution_sell() -> Weight {
+		Weight::zero()
+	}
+	fn trade_execution_buy() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
@@ -168,5 +176,11 @@ impl WeightInfo for () {
 		Weight::from_ref_time(20_790_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+	}
+	fn trade_execution_sell() -> Weight {
+		Weight::zero()
+	}
+	fn trade_execution_buy() -> Weight {
+		Weight::zero()
 	}
 }

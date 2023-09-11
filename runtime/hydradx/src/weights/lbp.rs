@@ -146,4 +146,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(12 as u64))
 			.saturating_add(T::DbWeight::get().writes(7 as u64))
 	}
+
+	fn trade_execution_sell() -> Weight {
+		Weight::zero()
+	}
+
+	fn trade_execution_buy() -> Weight {
+		Weight::zero()
+	}
 }

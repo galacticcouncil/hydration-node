@@ -18,13 +18,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::ensure;
-use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::Get;
-use frame_support::transactional;
+use frame_support::{
+	ensure,
+	traits::{fungibles::Inspect, Get},
+	transactional,
+	weights::Weight,
+};
 use frame_system::ensure_signed;
-use hydradx_traits::router::TradeExecution;
-use hydradx_traits::router::{ExecutorError, PoolType};
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError};
@@ -63,6 +64,20 @@ pub struct Trade<AssetId> {
 pub struct AmountInAndOut<Balance> {
 	pub amount_in: Balance,
 	pub amount_out: Balance,
+}
+
+pub trait AmmTradeWeights<AssetId> {
+	fn sell_weight(route: &[Trade<AssetId>]) -> Weight;
+	fn buy_weight(route: &[Trade<AssetId>]) -> Weight;
+}
+
+impl<AssetId> AmmTradeWeights<AssetId> for () {
+	fn sell_weight(_route: &[Trade<AssetId>]) -> Weight {
+		Weight::zero()
+	}
+	fn buy_weight(_route: &[Trade<AssetId>]) -> Weight {
+		Weight::zero()
+	}
 }
 
 #[frame_support::pallet]
@@ -107,6 +122,9 @@ pub mod pallet {
 			Self::Balance,
 			Error = DispatchError,
 		>;
+
+		/// Weight information for AMM trades.
+		type AmmTradeWeights: AmmTradeWeights<Self::AssetId>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -156,7 +174,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::sell(route.len() as u32))]
+		#[pallet::weight(T::AmmTradeWeights::sell_weight(route))]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -235,7 +253,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::buy(route.len() as u32))]
+		#[pallet::weight(T::AmmTradeWeights::buy_weight(route))]
 		#[transactional]
 		pub fn buy(
 			origin: OriginFor<T>,
