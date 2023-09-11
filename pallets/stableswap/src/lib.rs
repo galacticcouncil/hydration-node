@@ -46,7 +46,7 @@ use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional};
 use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
 use sp_runtime::traits::{BlockNumberProvider, Zero};
-use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
+use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion, Saturating};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
@@ -58,7 +58,7 @@ pub mod weights;
 
 pub use trade_execution::*;
 
-use crate::types::{AssetAmount, Balance, PoolInfo, Tradability};
+use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, Tradability};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
@@ -133,6 +133,9 @@ pub mod pallet {
 
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type DustAccountHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
+
+		/// Hooks are actions executed on add_liquidity, sell or buy.
+		type Hooks: StableswapHooks<Self::AssetId>;
 
 		/// Minimum pool liquidity
 		#[pallet::constant]
@@ -1021,6 +1024,16 @@ impl<T: Config> Pallet<T> {
 			T::Currency::transfer(asset.asset_id, who, &pool_account, asset.amount)?;
 		}
 
+		let state = PoolState {
+			assets: pool.assets.into_inner(),
+			before: initial_reserves.into_iter().map(|v| v.into()).collect(),
+			after: updated_reserves.into_iter().map(|v| v.into()).collect(),
+			delta: assets.into_iter().map(|v| v.into()).collect(),
+			shares: share_issuance.saturating_add(share_amount),
+		};
+
+		T::Hooks::on_liquidity_changed(state)?;
+
 		Ok(share_amount)
 	}
 
@@ -1066,6 +1079,31 @@ impl<T: Config> Pallet<T> {
 
 		T::Currency::deposit(pool_id, who, shares)?;
 		T::Currency::transfer(asset_id, who, &pool_account, amount_in)?;
+		let state = PoolState {
+			assets: pool.assets.clone().into(),
+			before: balances.iter().map(|v| v.into()).collect(),
+			after: balances
+				.into_iter()
+				.enumerate()
+				.map(|(idx, v)| {
+					if idx == asset_idx {
+						v.amount.saturating_add(amount_in)
+					} else {
+						v.into()
+					}
+				})
+				.collect(),
+			delta: pool
+				.assets
+				.iter()
+				.enumerate()
+				.map(|(idx, _)| if idx == asset_idx { amount_in } else { 0 })
+				.collect(),
+			shares: share_issuance.saturating_add(shares),
+		};
+
+		T::Hooks::on_liquidity_changed(state)?;
+
 		Ok(amount_in)
 	}
 

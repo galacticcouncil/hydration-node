@@ -9,6 +9,7 @@ use sp_std::prelude::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::ConstU32;
+use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use orml_traits::MultiCurrency;
@@ -102,6 +103,11 @@ impl<AssetId> From<AssetAmount<AssetId>> for u128 {
 		value.amount
 	}
 }
+impl<AssetId> From<&AssetAmount<AssetId>> for u128 {
+	fn from(value: &AssetAmount<AssetId>) -> Self {
+		value.amount
+	}
+}
 
 bitflags::bitflags! {
 	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.
@@ -132,4 +138,38 @@ use sp_runtime::DispatchResult;
 #[cfg(feature = "runtime-benchmarks")]
 pub trait BenchmarkHelper<AssetId> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult;
+}
+
+pub struct PoolState<AssetId> {
+	pub assets: Vec<AssetId>,
+	pub before: Vec<Balance>,
+	pub after: Vec<Balance>,
+	pub delta: Vec<Balance>,
+	pub shares: Balance,
+}
+
+pub trait StableswapHooks<AssetId> {
+	fn on_liquidity_changed(state: PoolState<AssetId>) -> DispatchResult;
+	fn on_trade(asset_in: AssetId, asset_out: AssetId, state: PoolState<AssetId>) -> DispatchResult;
+
+	fn on_liquidity_changed_weight() -> Weight;
+	fn on_trade_weight() -> Weight;
+}
+
+impl<AssetId> StableswapHooks<AssetId> for () {
+	fn on_liquidity_changed(_state: PoolState<AssetId>) -> DispatchResult {
+		Ok(())
+	}
+
+	fn on_trade(_asset_in: AssetId, _asset_out: AssetId, _state: PoolState<AssetId>) -> DispatchResult {
+		Ok(())
+	}
+
+	fn on_liquidity_changed_weight() -> Weight {
+		Weight::zero()
+	}
+
+	fn on_trade_weight() -> Weight {
+		Weight::zero()
+	}
 }
