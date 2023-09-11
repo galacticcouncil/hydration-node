@@ -56,6 +56,8 @@ mod benchmarking;
 #[allow(clippy::all)]
 pub mod weights;
 
+#[cfg(test)]
+mod invariants;
 mod trade_execution;
 
 use weights::WeightInfo;
@@ -225,7 +227,14 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		fn integrity_test() {
+			// The exponentiation used in the math can overflow for values smaller than 3
+			assert!(T::MaxInRatio::get() >= 3, "LBP: MaxInRatio is set to invalid value.");
+
+			assert!(T::MaxOutRatio::get() >= 3, "LBP: MaxOutRatio is set to invalid value.");
+		}
+	}
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -801,11 +810,15 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// zero weight at the beginning or at the end of a sale may cause a problem in the price calculation
+		// Minimum allowed weight is 2%. The exponentiation used in the math can overflow when the ration between the weights is higher than 98/2.
 		ensure!(
 			!pool_data.initial_weight.is_zero()
 				&& pool_data.initial_weight < MAX_WEIGHT
+				&& pool_data.initial_weight >= MAX_WEIGHT / 50	// 2%
 				&& !pool_data.final_weight.is_zero()
-				&& pool_data.final_weight < MAX_WEIGHT,
+				&& pool_data.final_weight < MAX_WEIGHT
+				// when initial and final weights are >= 2%, then the weights are also <= 98%
+				&& pool_data.final_weight >= MAX_WEIGHT / 50, // 2%,
 			// TODO people could leak value out the pool if initial weight is < final weight due to fee structure
 			// && pool_data.initial_weight > pool_data.final_weight,
 			Error::<T>::InvalidWeight

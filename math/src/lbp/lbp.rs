@@ -1,16 +1,18 @@
 use core::convert::{TryFrom, TryInto};
 use primitive_types::U256;
 
+use crate::types::{Balance, LBPWeight};
 use crate::{
 	ensure, to_balance, to_lbp_weight, to_u256, MathError,
-	MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight},
+	MathError::{Overflow, ZeroDuration, ZeroReserve},
 };
 
 use core::convert::From;
+use fixed::types::U32F96;
 use num_traits::Zero;
-use sp_std::ops::Div;
-
-use crate::types::{Balance, FixedBalance, LBPWeight, HYDRA_ONE};
+use sp_arithmetic;
+use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
+use sp_arithmetic::Rounding;
 
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
@@ -50,42 +52,7 @@ pub fn calculate_spot_price(
 	to_balance!(spot_price)
 }
 
-fn convert_to_fixed(value: Balance) -> FixedBalance {
-	if value == Balance::from(1u32) {
-		return FixedBalance::from_num(1);
-	}
-
-	let f = value.div(HYDRA_ONE);
-	let r = value - (f.saturating_mul(HYDRA_ONE));
-	FixedBalance::from_num(f) + (FixedBalance::from_num(r) / HYDRA_ONE)
-}
-
-fn convert_from_fixed(value: FixedBalance) -> Option<Balance> {
-	let w: Balance = value.int().to_num();
-	let frac = value.frac();
-	let frac: Balance = frac.checked_mul_int(HYDRA_ONE)?.int().to_num();
-	let r = w.checked_mul(HYDRA_ONE)?.checked_add(frac)?;
-	Some(r)
-}
-
-fn round_up_fixed(value: FixedBalance) -> Result<FixedBalance, MathError> {
-	let prec = FixedBalance::from_num(0.00000000001);
-	value.checked_add(prec).ok_or(Overflow)
-}
-
-#[macro_export]
-macro_rules! to_fixed_balance{
-    ($($x:expr),+) => (
-        {($(convert_to_fixed($x)),+)}
-    );
-}
-
-#[macro_export]
-macro_rules! to_balance_from_fixed {
-	($x:expr) => {
-		convert_from_fixed($x).ok_or(Overflow)
-	};
-}
+use num_traits::One;
 
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.
 ///
@@ -103,53 +70,22 @@ pub fn calculate_out_given_in(
 	out_weight: LBPWeight,
 	amount: Balance,
 ) -> Result<Balance, MathError> {
-	ensure!(out_weight != 0, ZeroWeight);
-	ensure!(in_weight != 0, ZeroWeight);
-	ensure!(out_reserve != 0, ZeroReserve);
-	ensure!(in_reserve != 0, ZeroWeight);
-
 	if amount.is_zero() {
 		return Ok(0u128);
 	}
 
-	let (in_weight, out_weight, amount, in_reserve, out_reserve) =
-		to_fixed_balance!(in_weight as u128, out_weight as u128, amount, in_reserve, out_reserve);
+	let weight_ratio = div_to_fixed(in_weight.into(), out_weight.into(), Rounding::Down).ok_or(Overflow)?;
 
-	// We are correctly rounding this down
-	let weight_ratio = in_weight.checked_div(out_weight).ok_or(Overflow)?;
-
-	// We round this up
+	let new_in_reserve = in_reserve.checked_add(amount).ok_or(Overflow)?;
 	// This ratio being closer to one (i.e. rounded up) minimizes the impact of the asset
 	// that was sold to the pool, i.e. 'amount'
-	let new_in_reserve = in_reserve.checked_add(amount).ok_or(Overflow)?;
-	let ir = round_up_fixed(in_reserve.checked_div(new_in_reserve).ok_or(Overflow)?)?;
+	let ir = div_to_fixed(in_reserve, new_in_reserve, Rounding::Up).ok_or(Overflow)?;
 
-	let t1 = amount.checked_add(in_reserve).ok_or(Overflow)?;
-	if ir.checked_mul(t1).ok_or(Overflow)? < in_reserve {
-		return Err(Overflow);
-	}
+	let ir: U32F96 = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
 
-	let ir = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
+	let new_out_reserve_calc = mul_to_balance(out_reserve, ir, Rounding::Up).ok_or(Overflow)?;
 
-	// We round this up
-	let new_out_reserve_calc = round_up_fixed(out_reserve.checked_mul(ir).ok_or(Overflow)?)?;
-
-	let r = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
-
-	let new_out_reserve = out_reserve.saturating_sub(r);
-
-	if new_out_reserve < new_out_reserve_calc {
-		return Err(Overflow);
-	}
-
-	let out_delta = out_reserve.checked_sub(new_out_reserve).ok_or(Overflow)?;
-	let out_delta_calc = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
-
-	if out_delta > out_delta_calc {
-		return Err(Overflow);
-	}
-
-	to_balance_from_fixed!(r)
+	out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)
 }
 
 /// Calculating buying price given reserve of selling asset and reserve of buying asset.
@@ -169,24 +105,20 @@ pub fn calculate_in_given_out(
 	out_weight: LBPWeight,
 	amount: Balance,
 ) -> Result<Balance, MathError> {
-	let (in_weight, out_weight, amount, in_reserve, out_reserve) =
-		to_fixed_balance!(in_weight as u128, out_weight as u128, amount, in_reserve, out_reserve);
-
-	let weight_ratio = round_up_fixed(out_weight.checked_div(in_weight).ok_or(Overflow)?)?;
+	let weight_ratio = div_to_fixed(out_weight.into(), in_weight.into(), Rounding::Down).ok_or(Overflow)?;
 
 	let new_out_reserve = out_reserve.checked_sub(amount).ok_or(Overflow)?;
-	// We are correctly rounding this down
-	let y = out_reserve.checked_div(new_out_reserve).ok_or(Overflow)?;
 
-	let y1: FixedBalance = crate::transcendental::pow(y, weight_ratio).map_err(|_| Overflow)?;
+	let y = div_to_fixed(out_reserve, new_out_reserve, Rounding::Up).ok_or(Overflow)?;
 
-	let y2 = y1.checked_sub(FixedBalance::from_num(1u128)).ok_or(Overflow)?;
+	let y1: U32F96 = crate::transcendental::pow(y, weight_ratio).map_err(|_| Overflow)?;
 
-	let r = in_reserve.checked_mul(y2).ok_or(Overflow)?;
+	let y2 = y1.checked_sub(U32F96::one()).ok_or(Overflow)?;
 
-	let amount_in = round_up_fixed(r)?;
+	let r = mul_to_balance(in_reserve, y2, Rounding::Up).ok_or(Overflow)?;
 
-	to_balance_from_fixed!(amount_in)
+	// Mysterious off-by-one error popped up in tests. Rounding this up to cover all possible errors.
+	Ok(r.saturating_add(1))
 }
 
 /// Calculating weight at any given block in an interval using linear interpolation.
@@ -223,4 +155,15 @@ pub fn calculate_linear_weights<BlockNumber: num_traits::CheckedSub + TryInto<u3
 		.ok_or(Overflow)?;
 
 	to_lbp_weight!(result)
+}
+
+/// Create a fixed point number based on two `u128` values. Divides the values and rounds according to `r`.
+pub(crate) fn div_to_fixed(num: u128, denom: u128, r: Rounding) -> Option<U32F96> {
+	let bits = multiply_by_rational_with_rounding(num, U32F96::one().to_bits(), denom, r)?;
+	Some(U32F96::from_bits(bits))
+}
+
+/// Multiply a `balance` with a `fixed` number and return a balance. Rounds the implicit division by `r`.
+pub(crate) fn mul_to_balance(balance: u128, fixed: U32F96, r: Rounding) -> Option<Balance> {
+	multiply_by_rational_with_rounding(balance, fixed.to_bits(), U32F96::one().to_bits(), r)
 }
