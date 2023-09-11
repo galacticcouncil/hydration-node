@@ -431,12 +431,21 @@ impl pallet_dca::Config for Runtime {
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 }
 
-pub struct AmmWeights<T>(PhantomData<T>);
-impl<T: pallet_route_executor::Config> AmmTradeWeights<T::AssetId> for AmmWeights<T> {
-	fn sell_weight(route: &[Trade<T::AssetId>]) -> Weight {
+pub struct AmmWeights;
+impl AmmWeights {
+	pub fn sell_overhead_weight() -> Weight {
+		weights::route_executor::HydraWeight::<Runtime>::sell_in_lbp()
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::trade_execution_sell())
+	}
+
+	pub fn buy_overhead_weight() -> Weight {
+		weights::route_executor::HydraWeight::<Runtime>::buy_in_lbp()
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::trade_execution_buy())
+	}
+}
+impl AmmTradeWeights<AssetId> for AmmWeights {
+	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
-		let sell_overhead = weights::route_executor::HydraWeight::<Runtime>::sell_in_lbp()
-			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::trade_execution_sell());
 
 		for trade in route {
 			let amm_weight = match trade.pool {
@@ -446,16 +455,14 @@ impl<T: pallet_route_executor::Config> AmmTradeWeights<T::AssetId> for AmmWeight
 				PoolType::XYK => Weight::zero(),
 			};
 			weight.saturating_accrue(amm_weight);
-			weight.saturating_accrue(sell_overhead);
+			weight.saturating_accrue(Self::sell_overhead_weight());
 		}
 
 		weight
 	}
 
-	fn buy_weight(route: &[Trade<T::AssetId>]) -> Weight {
+	fn buy_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
-		let buy_overhead = weights::route_executor::HydraWeight::<Runtime>::buy_in_lbp()
-			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::trade_execution_buy());
 
 		for trade in route {
 			let amm_weight = match trade.pool {
@@ -465,7 +472,7 @@ impl<T: pallet_route_executor::Config> AmmTradeWeights<T::AssetId> for AmmWeight
 				PoolType::XYK => Weight::zero(),
 			};
 			weight.saturating_accrue(amm_weight);
-			weight.saturating_accrue(buy_overhead);
+			weight.saturating_accrue(Self::buy_overhead_weight());
 		}
 
 		weight
@@ -483,7 +490,7 @@ impl pallet_route_executor::Config for Runtime {
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
 	type AMM = (Omnipool, LBP);
-	type AmmTradeWeights = AmmWeights<Runtime>;
+	type AmmTradeWeights = AmmWeights;
 	type WeightInfo = weights::route_executor::HydraWeight<Runtime>;
 }
 

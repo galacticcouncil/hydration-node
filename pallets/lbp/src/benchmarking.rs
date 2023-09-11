@@ -114,7 +114,7 @@ benchmarks! {
 
 		let pool_id = LBP::<T>::pair_account_from_assets(ASSET_A_ID, ASSET_B_ID);
 
-		LBP::<T>::create_pool(RawOrigin::Root.into(), caller.clone(), ASSET_A_ID, ASSET_A_AMOUNT, ASSET_B_ID, ASSET_B_AMOUNT, INITIAL_WEIGHT, FINAL_WEIGHT, WeightCurveType::Linear, DEFAULT_FEE, fee_collector.clone(), 0)?;
+		LBP::<T>::create_pool(RawOrigin::Root.into(), caller.clone(), ASSET_A_ID, ASSET_A_AMOUNT, ASSET_B_ID, ASSET_B_AMOUNT, INITIAL_WEIGHT, FINAL_WEIGHT, WeightCurveType::Linear, DEFAULT_FEE, fee_collector, 0)?;
 		ensure!(PoolData::<T>::contains_key(&pool_id), "Pool does not exist.");
 
 		let start = T::BlockNumber::from(1u32);
@@ -139,7 +139,7 @@ benchmarks! {
 		let max_limit: Balance = 1_000_000_000;
 		let pool_id = LBP::<T>::pair_account_from_assets(ASSET_A_ID, ASSET_B_ID);
 
-		LBP::<T>::create_pool(RawOrigin::Root.into(), caller.clone(), ASSET_A_ID, ASSET_A_AMOUNT, ASSET_B_ID, ASSET_B_AMOUNT, INITIAL_WEIGHT, FINAL_WEIGHT, WeightCurveType::Linear, DEFAULT_FEE, fee_collector.clone(), 0)?;
+		LBP::<T>::create_pool(RawOrigin::Root.into(), caller.clone(), ASSET_A_ID, ASSET_A_AMOUNT, ASSET_B_ID, ASSET_B_AMOUNT, INITIAL_WEIGHT, FINAL_WEIGHT, WeightCurveType::Linear, DEFAULT_FEE, fee_collector, 0)?;
 		ensure!(PoolData::<T>::contains_key(&pool_id), "Pool does not exist.");
 
 		let start = T::BlockNumber::from(1u32);
