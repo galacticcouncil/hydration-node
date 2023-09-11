@@ -46,7 +46,7 @@ use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional};
 use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
 use sp_runtime::traits::{BlockNumberProvider, Zero};
-use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion, Saturating};
+use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
@@ -595,6 +595,32 @@ pub mod pallet {
 			T::Currency::withdraw(pool_id, &who, share_amount)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
+			let share_issuance = T::Currency::total_issuance(pool_id);
+			let assets = pool.assets.clone();
+
+			let state = PoolState {
+				assets: pool.assets.into_inner(),
+				before: balances.iter().map(|v| v.into()).collect(),
+				after: balances
+					.into_iter()
+					.enumerate()
+					.map(|(idx, v)| {
+						if idx == asset_idx {
+							v.amount.saturating_sub(amount)
+						} else {
+							v.into()
+						}
+					})
+					.collect(),
+				delta: assets
+					.into_iter()
+					.map(|v| if v == asset_id { amount } else { 0 })
+					.collect(),
+				shares: share_issuance,
+			};
+
+			T::Hooks::on_liquidity_changed(state)?;
+
 			Self::deposit_event(Event::LiquidityRemoved {
 				pool_id,
 				who,
@@ -667,6 +693,32 @@ pub mod pallet {
 			T::Currency::withdraw(pool_id, &who, shares)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
+			let share_issuance = T::Currency::total_issuance(pool_id);
+			let assets = pool.assets.clone();
+
+			let state = PoolState {
+				assets: pool.assets.into_inner(),
+				before: balances.iter().map(|v| v.into()).collect(),
+				after: balances
+					.into_iter()
+					.enumerate()
+					.map(|(idx, v)| {
+						if idx == asset_idx {
+							v.amount.saturating_sub(amount)
+						} else {
+							v.into()
+						}
+					})
+					.collect(),
+				delta: assets
+					.into_iter()
+					.map(|v| if v == asset_id { amount } else { 0 })
+					.collect(),
+				shares: share_issuance,
+			};
+
+			T::Hooks::on_liquidity_changed(state)?;
+
 			Self::deposit_event(Event::LiquidityRemoved {
 				pool_id,
 				who,
@@ -723,13 +775,51 @@ pub mod pallet {
 				Error::<T>::InsufficientBalance
 			);
 
-			let (amount_out, fee_amount) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in)?;
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			let pool_account = Self::pool_account(pool_id);
+			let initial_reserves = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
 
+			let (amount_out, fee_amount) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in)?;
 			ensure!(amount_out >= min_buy_amount, Error::<T>::BuyLimitNotReached);
 
-			let pool_account = Self::pool_account(pool_id);
 			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
 			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
+
+			let share_issuance = T::Currency::total_issuance(pool_id);
+			let assets = pool.assets.clone();
+
+			let state = PoolState {
+				assets: pool.assets.into_inner(),
+				before: initial_reserves.iter().map(|v| v.into()).collect(),
+				after: initial_reserves
+					.into_iter()
+					.zip(assets.iter())
+					.map(|(v, asset_id)| {
+						if *asset_id == asset_in {
+							v.amount.saturating_add(amount_in)
+						} else if *asset_id == asset_out {
+							v.amount.saturating_sub(amount_out)
+						} else {
+							v.into()
+						}
+					})
+					.collect(),
+				delta: assets
+					.into_iter()
+					.map(|v| {
+						if v == asset_in {
+							amount_in
+						} else if v == asset_out {
+							amount_out
+						} else {
+							0
+						}
+					})
+					.collect(),
+				shares: share_issuance,
+			};
+
+			T::Hooks::on_trade(asset_in, asset_out, state)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who,
@@ -780,6 +870,10 @@ pub mod pallet {
 				Error::<T>::InsufficientTradingAmount
 			);
 
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			let pool_account = Self::pool_account(pool_id);
+			let initial_reserves = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+
 			let (amount_in, fee_amount) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out)?;
 
 			let pool_account = Self::pool_account(pool_id);
@@ -793,6 +887,42 @@ pub mod pallet {
 
 			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
 			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
+
+			let share_issuance = T::Currency::total_issuance(pool_id);
+			let assets = pool.assets.clone();
+
+			let state = PoolState {
+				assets: pool.assets.into_inner(),
+				before: initial_reserves.iter().map(|v| v.into()).collect(),
+				after: initial_reserves
+					.into_iter()
+					.zip(assets.iter())
+					.map(|(v, asset_id)| {
+						if *asset_id == asset_in {
+							v.amount.saturating_add(amount_in)
+						} else if *asset_id == asset_out {
+							v.amount.saturating_sub(amount_out)
+						} else {
+							v.into()
+						}
+					})
+					.collect(),
+				delta: assets
+					.into_iter()
+					.map(|v| {
+						if v == asset_in {
+							amount_in
+						} else if v == asset_out {
+							amount_out
+						} else {
+							0
+						}
+					})
+					.collect(),
+				shares: share_issuance,
+			};
+
+			T::Hooks::on_trade(asset_in, asset_out, state)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -1028,7 +1158,7 @@ impl<T: Config> Pallet<T> {
 			assets: pool.assets.into_inner(),
 			before: initial_reserves.into_iter().map(|v| v.into()).collect(),
 			after: updated_reserves.into_iter().map(|v| v.into()).collect(),
-			delta: assets.into_iter().map(|v| v.into()).collect(),
+			delta: assets.iter().map(|v| v.into()).collect(),
 			shares: share_issuance.saturating_add(share_amount),
 		};
 
