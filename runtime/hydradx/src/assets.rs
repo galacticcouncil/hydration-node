@@ -607,6 +607,7 @@ impl pallet_lbp::Config for Runtime {
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }
 
+//TODO: evm - replace this
 impl evm::precompile::Erc20Mapping for Runtime {
 	fn encode_evm_address(v: AssetId) -> Option<EvmAddress> {
 		todo!("implement try from for EvmAddress")
@@ -614,8 +615,12 @@ impl evm::precompile::Erc20Mapping for Runtime {
 	}
 
 	fn decode_evm_address(v: EvmAddress) -> Option<AssetId> {
-		let address = v.as_bytes();
-		let test_position_token: usize = 19; //TODO: change this to do it properly
-		address[test_position_token].try_into().ok()
+		//The asset id (with type u32) is encoded in the last 4 bytes of EVM address
+		let mut asset_id: u32 = 0;
+		for byte in v.as_bytes() {
+			asset_id = (asset_id << 8) | (*byte as u32);
+		}
+
+		Some(asset_id)
 	}
 }

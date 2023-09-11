@@ -21,8 +21,10 @@
 
 use core::marker::PhantomData;
 
+use crate::evm::precompile::multicurrency::MultiCurrencyPrecompile;
 use codec::Decode;
 use frame_support::dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo};
+use hex_literal::hex;
 use pallet_evm::{Precompile, PrecompileHandle, PrecompileResult, PrecompileSet};
 use sp_core::H160;
 
@@ -42,20 +44,30 @@ const DISPATCH_ADDR: H160 = addr(1025);
 
 impl<R> PrecompileSet for HydraDXPrecompiles<R>
 where
-	R: pallet_evm::Config,
+	R: pallet_evm::Config + pallet_currencies::Config,
 	R::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
 	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<R::AccountId>>,
+	MultiCurrencyPrecompile<R>: Precompile,
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
-		if handle.code_address() == DISPATCH_ADDR {
+		let address = handle.code_address();
+
+		let asset_address_prefix = &(H160::from(hex!("0000000000000000000000000000000100000000"))[0..16]);
+
+		if address == DISPATCH_ADDR {
 			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
+		} else if &address.to_fixed_bytes()[0..16] == asset_address_prefix {
+			Some(MultiCurrencyPrecompile::<R>::execute(handle))
 		} else {
 			None
 		}
 	}
 
 	fn is_precompile(&self, address: H160) -> bool {
-		address == DISPATCH_ADDR
+		//TODO: remove duplication for the prefix
+		let asset_address_prefix = &(H160::from(hex!("0000000000000000000000000000000100000000"))[0..16]);
+
+		address == DISPATCH_ADDR || &address.to_fixed_bytes()[0..16] == asset_address_prefix
 	}
 }
 
