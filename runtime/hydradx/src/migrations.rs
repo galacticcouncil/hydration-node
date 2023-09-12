@@ -1,6 +1,4 @@
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
-use sp_std::vec;
-use sp_std::vec::*;
 pub struct OnRuntimeUpgradeMigration;
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	#[cfg(feature = "try-runtime")]
