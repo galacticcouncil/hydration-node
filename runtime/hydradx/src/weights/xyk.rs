@@ -41,8 +41,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -53,143 +53,143 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: ParachainSystem ValidationData (r:1 w:0)
-    // Proof Skipped: ParachainSystem ValidationData (max_values: Some(1), max_size: None, mode: Measured)
-    // Storage: LBP PoolData (r:1 w:0)
-    // Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-    // Storage: XYK ShareToken (r:1 w:1)
-    // Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:5 w:5)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetIds (r:1 w:1)
-    // Proof: AssetRegistry AssetIds (max_values: None, max_size: Some(53), added: 2528, mode: MaxEncodedLen)
-    // Storage: AssetRegistry NextAssetId (r:1 w:1)
-    // Proof: AssetRegistry NextAssetId (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:1)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:2)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:2 w:1)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: Duster AccountBlacklist (r:0 w:1)
-    // Proof: Duster AccountBlacklist (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-    // Storage: XYK TotalLiquidity (r:0 w:1)
-    // Proof: XYK TotalLiquidity (max_values: None, max_size: Some(64), added: 2539, mode: MaxEncodedLen)
-    // Storage: XYK PoolAssets (r:0 w:1)
-    // Proof: XYK PoolAssets (max_values: None, max_size: Some(56), added: 2531, mode: MaxEncodedLen)
-    fn create_pool() -> Weight {
-        // Minimum execution time: 188_886 nanoseconds.
-        Weight::from_ref_time(190_128_000 as u64)
+	// Proof Skipped: ParachainSystem ValidationData (max_values: Some(1), max_size: None, mode: Measured)
+	// Storage: LBP PoolData (r:1 w:0)
+	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
+	// Storage: XYK ShareToken (r:1 w:1)
+	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:5 w:5)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetIds (r:1 w:1)
+	// Proof: AssetRegistry AssetIds (max_values: None, max_size: Some(53), added: 2528, mode: MaxEncodedLen)
+	// Storage: AssetRegistry NextAssetId (r:1 w:1)
+	// Proof: AssetRegistry NextAssetId (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:1)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:2)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:2 w:1)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: Duster AccountBlacklist (r:0 w:1)
+	// Proof: Duster AccountBlacklist (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
+	// Storage: XYK TotalLiquidity (r:0 w:1)
+	// Proof: XYK TotalLiquidity (max_values: None, max_size: Some(64), added: 2539, mode: MaxEncodedLen)
+	// Storage: XYK PoolAssets (r:0 w:1)
+	// Proof: XYK PoolAssets (max_values: None, max_size: Some(56), added: 2531, mode: MaxEncodedLen)
+	fn create_pool() -> Weight {
+		// Minimum execution time: 188_886 nanoseconds.
+		Weight::from_ref_time(190_128_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(18 as u64))
-            .saturating_add(T::DbWeight::get().writes(16 as u64))
-    }
-    // Storage: XYK ShareToken (r:1 w:0)
-    // Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:5 w:5)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: XYK TotalLiquidity (r:1 w:1)
-    // Proof: XYK TotalLiquidity (max_values: None, max_size: Some(64), added: 2539, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:3 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:1 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: EmaOracle Accumulator (r:1 w:1)
-    // Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
-    fn add_liquidity() -> Weight {
-        // Minimum execution time: 163_318 nanoseconds.
-        Weight::from_ref_time(164_777_000 as u64)
+			.saturating_add(T::DbWeight::get().writes(16 as u64))
+	}
+	// Storage: XYK ShareToken (r:1 w:0)
+	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:5 w:5)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: XYK TotalLiquidity (r:1 w:1)
+	// Proof: XYK TotalLiquidity (max_values: None, max_size: Some(64), added: 2539, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:3 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:1 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: EmaOracle Accumulator (r:1 w:1)
+	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
+	fn add_liquidity() -> Weight {
+		// Minimum execution time: 163_318 nanoseconds.
+		Weight::from_ref_time(164_777_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(14 as u64))
-            .saturating_add(T::DbWeight::get().writes(9 as u64))
-    }
+			.saturating_add(T::DbWeight::get().writes(9 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
-    // Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: XYK TotalLiquidity (r:1 w:1)
-    // Proof: XYK TotalLiquidity (max_values: None, max_size: Some(64), added: 2539, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:5 w:5)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:3 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:1 w:0)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: EmaOracle Accumulator (r:1 w:1)
-    // Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
-    fn remove_liquidity() -> Weight {
-        // Minimum execution time: 153_848 nanoseconds.
-        Weight::from_ref_time(154_840_000 as u64)
+	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: XYK TotalLiquidity (r:1 w:1)
+	// Proof: XYK TotalLiquidity (max_values: None, max_size: Some(64), added: 2539, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:5 w:5)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:3 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:1 w:0)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: EmaOracle Accumulator (r:1 w:1)
+	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
+	fn remove_liquidity() -> Weight {
+		// Minimum execution time: 153_848 nanoseconds.
+		Weight::from_ref_time(154_840_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(13 as u64))
-            .saturating_add(T::DbWeight::get().writes(8 as u64))
-    }
-    // Storage: XYK ShareToken (r:1 w:0)
-    // Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:4 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:0)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: EmaOracle Accumulator (r:1 w:1)
-    // Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
-    fn sell() -> Weight {
-        // Minimum execution time: 117_193 nanoseconds.
-        Weight::from_ref_time(118_353_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(10 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
+			.saturating_add(T::DbWeight::get().writes(8 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
-    // Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:4 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:0)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: EmaOracle Accumulator (r:1 w:1)
-    // Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
-    fn buy() -> Weight {
-        // Minimum execution time: 117_277 nanoseconds.
-        Weight::from_ref_time(118_170_000 as u64)
+	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:4 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:0)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: EmaOracle Accumulator (r:1 w:1)
+	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
+	fn sell() -> Weight {
+		// Minimum execution time: 117_193 nanoseconds.
+		Weight::from_ref_time(118_353_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(10 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
-    // Storage: XYK ShareToken (r:1 w:0)
-    // Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:4 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:0)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: EmaOracle Accumulator (r:1 w:1)
-    // Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
-    fn trade_execution_sell() -> Weight {
-        // Minimum execution time: 122_926 nanoseconds.
-        Weight::from_ref_time(124_505_000 as u64)
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
+	// Storage: XYK ShareToken (r:1 w:0)
+	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:4 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:0)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: EmaOracle Accumulator (r:1 w:1)
+	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
+	fn buy() -> Weight {
+		// Minimum execution time: 117_277 nanoseconds.
+		Weight::from_ref_time(118_170_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(10 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
-    // Storage: XYK ShareToken (r:1 w:0)
-    // Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:4 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:0)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: EmaOracle Accumulator (r:1 w:1)
-    // Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
-    fn trade_execution_buy() -> Weight {
-        // Minimum execution time: 124_161 nanoseconds.
-        Weight::from_ref_time(124_836_000 as u64)
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
+	// Storage: XYK ShareToken (r:1 w:0)
+	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:4 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:0)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: EmaOracle Accumulator (r:1 w:1)
+	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
+	fn trade_execution_sell() -> Weight {
+		// Minimum execution time: 122_926 nanoseconds.
+		Weight::from_ref_time(124_505_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(10 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
+	// Storage: XYK ShareToken (r:1 w:0)
+	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:4 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:0)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: EmaOracle Accumulator (r:1 w:1)
+	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
+	fn trade_execution_buy() -> Weight {
+		// Minimum execution time: 124_161 nanoseconds.
+		Weight::from_ref_time(124_836_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(10 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
 }
