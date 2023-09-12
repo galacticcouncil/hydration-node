@@ -529,7 +529,7 @@ impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsse
 			.try_into()
 			.map_err(|_| pallet_asset_registry::Error::<T>::TooLong)?;
 		AssetRegistry::register_asset(
-			name.clone(),
+			name,
 			pallet_asset_registry::AssetType::<AssetId>::Token,
 			1,
 			Some(asset_id),

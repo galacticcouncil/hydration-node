@@ -1,4 +1,7 @@
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
+#[cfg(feature = "try-runtime")]
+use sp_std::prelude::*;
+
 pub struct OnRuntimeUpgradeMigration;
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	#[cfg(feature = "try-runtime")]

@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "177.0.0"
+version = "178.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -318,5 +318,4 @@ try-runtime= [
     "pallet-bonds/try-runtime",
     "pallet-stableswap/try-runtime",
     "pallet-lbp/try-runtime",
-    "sp-std/std",
 ]
