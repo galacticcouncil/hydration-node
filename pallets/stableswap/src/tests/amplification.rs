@@ -14,9 +14,9 @@ fn update_amplification_should_work_when_correct_params_are_provided() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
@@ -25,7 +25,6 @@ fn update_amplification_should_work_when_correct_params_are_provided() {
 				vec![asset_a, asset_b],
 				100,
 				Permill::from_percent(10),
-				Permill::from_percent(20),
 			));
 
 			System::set_block_number(2);
@@ -46,8 +45,7 @@ fn update_amplification_should_work_when_correct_params_are_provided() {
 					final_amplification: NonZeroU16::new(1000).unwrap(),
 					initial_block: 10,
 					final_block: 1000,
-					trade_fee: Permill::from_percent(10),
-					withdraw_fee: Permill::from_percent(20)
+					fee: Permill::from_percent(10),
 				}
 			);
 		});
@@ -61,9 +59,9 @@ fn update_amplification_should_fail_when_end_block_is_before_current_block() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
@@ -72,7 +70,6 @@ fn update_amplification_should_fail_when_end_block_is_before_current_block() {
 				vec![asset_a, asset_b],
 				100,
 				Permill::from_percent(10),
-				Permill::from_percent(20),
 			));
 
 			System::set_block_number(5000);
@@ -92,9 +89,9 @@ fn update_amplification_should_fail_when_end_block_is_smaller_than_start_block()
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
@@ -103,7 +100,6 @@ fn update_amplification_should_fail_when_end_block_is_smaller_than_start_block()
 				vec![asset_a, asset_b],
 				100,
 				Permill::from_percent(10),
-				Permill::from_percent(20),
 			));
 
 			System::set_block_number(5000);
@@ -123,9 +119,9 @@ fn update_amplification_should_fail_when_start_block_before_current_block() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
@@ -134,7 +130,6 @@ fn update_amplification_should_fail_when_start_block_before_current_block() {
 				vec![asset_a, asset_b],
 				100,
 				Permill::from_percent(10),
-				Permill::from_percent(20),
 			));
 
 			System::set_block_number(5000);
@@ -154,9 +149,9 @@ fn update_amplification_should_work_when_current_change_is_in_progress() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
@@ -165,7 +160,6 @@ fn update_amplification_should_work_when_current_change_is_in_progress() {
 				vec![asset_a, asset_b],
 				100,
 				Permill::from_percent(10),
-				Permill::from_percent(20),
 			));
 
 			System::set_block_number(1);
@@ -186,8 +180,7 @@ fn update_amplification_should_work_when_current_change_is_in_progress() {
 					final_amplification: NonZeroU16::new(1000).unwrap(),
 					initial_block: 10,
 					final_block: 1000,
-					trade_fee: Permill::from_percent(10),
-					withdraw_fee: Permill::from_percent(20)
+					fee: Permill::from_percent(10),
 				}
 			);
 			System::set_block_number(500);
@@ -208,8 +201,7 @@ fn update_amplification_should_work_when_current_change_is_in_progress() {
 					final_amplification: NonZeroU16::new(5000).unwrap(),
 					initial_block: 501,
 					final_block: 1000,
-					trade_fee: Permill::from_percent(10),
-					withdraw_fee: Permill::from_percent(20)
+					fee: Permill::from_percent(10),
 				}
 			);
 		});
@@ -223,9 +215,9 @@ fn update_amplification_should_fail_when_new_value_is_same_as_previous_one() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
@@ -234,7 +226,6 @@ fn update_amplification_should_fail_when_new_value_is_same_as_previous_one() {
 				vec![asset_a, asset_b],
 				100,
 				Permill::from_percent(10),
-				Permill::from_percent(20),
 			));
 
 			System::set_block_number(5000);
@@ -254,9 +245,9 @@ fn update_amplification_should_fail_when_new_value_is_zero_or_outside_allowed_ra
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
@@ -265,7 +256,6 @@ fn update_amplification_should_fail_when_new_value_is_zero_or_outside_allowed_ra
 				vec![asset_a, asset_b],
 				100,
 				Permill::from_percent(10),
-				Permill::from_percent(20),
 			));
 
 			System::set_block_number(5000);
@@ -295,9 +285,9 @@ fn amplification_should_change_when_block_changes() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, asset_a, 200 * ONE), (ALICE, asset_b, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Stableswap::create_pool(
@@ -306,7 +296,6 @@ fn amplification_should_change_when_block_changes() {
 				vec![asset_a, asset_b],
 				2000,
 				Permill::from_percent(10),
-				Permill::from_percent(20),
 			));
 
 			System::set_block_number(1);
