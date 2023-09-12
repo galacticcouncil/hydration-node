@@ -14,10 +14,8 @@ use primitives::AssetId;
 use frame_support::{assert_noop, assert_ok};
 use xcm_emulator::TestExt;
 
-use crate::assert_balance;
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::Currencies;
-use hydradx_runtime::Omnipool;
 use hydradx_runtime::Stableswap;
 use hydradx_traits::Registry;
 use pallet_stableswap::types::AssetAmount;
@@ -1447,7 +1445,7 @@ mod omnipool_stableswap_router_tests {
 			assert_balance!(ALICE.into(), pool_id, 0);
 
 			//Act
-			let amount_to_buy = 1 * UNITS / 1000;
+			let amount_to_buy = UNITS / 1000;
 
 			assert_ok!(Router::buy(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
