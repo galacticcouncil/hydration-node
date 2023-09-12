@@ -88,6 +88,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(27 as u64))
 			.saturating_add(T::DbWeight::get().writes(13 as u64))
 	}
+
+	fn add_liquidity_shares() -> Weight {
+		Weight::zero()
+	}
+
 	// Storage: Stableswap AssetTradability (r:1 w:0)
 	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:7 w:3)
@@ -110,6 +115,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(15 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
+
+	fn withdraw_asset_amount() -> Weight {
+		Weight::zero()
+	}
+
 	// Storage: Stableswap AssetTradability (r:2 w:0)
 	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:7 w:4)
