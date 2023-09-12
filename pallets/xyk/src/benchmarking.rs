@@ -25,8 +25,8 @@ use sp_std::prelude::*;
 
 use crate::Pallet as XYK;
 
-use primitives::{AssetId, Balance};
 use hydradx_traits::router::{PoolType, TradeExecution};
+use primitives::{AssetId, Balance};
 
 const SEED: u32 = 1;
 
