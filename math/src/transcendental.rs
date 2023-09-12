@@ -282,9 +282,10 @@ where
 #[cfg(test)]
 mod tests {
 	use crate::fraction;
-	use crate::types::{FixedBalance, Fraction};
+	use crate::types::Fraction;
 	use core::str::FromStr;
 	use fixed::traits::LossyInto;
+	use fixed::types::U32F96;
 	use fixed::types::U64F64;
 
 	use super::*;
@@ -404,8 +405,8 @@ mod tests {
 
 	#[test]
 	fn pow_works() {
-		type S = FixedBalance;
-		type D = FixedBalance;
+		type S = U32F96;
+		type D = U32F96;
 		let zero = S::from_num(0);
 		let one = S::one();
 		let two = S::from_num(2);
@@ -428,12 +429,12 @@ mod tests {
 
 		assert_eq!(
 			pow(S::from_num(22.1234), S::from_num(2.1)),
-			Ok(D::from_num(667.096912176457))
+			Ok(D::from_str("667.0969121771803182631954923946").unwrap())
 		);
 
 		assert_eq!(
 			pow(S::from_num(0.986069911074), S::from_num(1.541748732743)),
-			Ok(D::from_num(0.978604514488))
+			Ok(D::from_str("0.97860451447489653592682845716").unwrap())
 		);
 	}
 }
