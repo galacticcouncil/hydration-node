@@ -520,20 +520,19 @@ parameter_types! {
 	pub const MinStake: Balance = 1_000 * UNITS;
 	pub const PeriodLength: BlockNumber = DAYS;
 	pub const TimePointsW:Permill =  Permill::from_percent(100);
-	pub const ActionPointsW: Perbill = Perbill::from_parts(4_400);
+	pub const ActionPointsW: Perbill = Perbill::from_percent(20);
 	pub const TimePointsPerPeriod: u8 = 1;
 	pub const CurrentStakeWeight: u8 = 2;
 	pub const UnclaimablePeriods: BlockNumber = 1;
 	pub const PointPercentage: FixedU128 = FixedU128::from_rational(2,100);
-	pub const OneHDX: Balance = primitives::constants::currency::UNITS;
 }
 
-pub struct ActionMultiplier;
+pub struct PointsPerAction;
 
-impl GetByKey<Action, u32> for ActionMultiplier {
+impl GetByKey<Action, u32> for PointsPerAction {
 	fn get(k: &Action) -> u32 {
 		match k {
-			Action::DemocracyVote => 1u32,
+			Action::DemocracyVote => 100_u32,
 		}
 	}
 }
@@ -561,9 +560,8 @@ impl pallet_staking::Config for Runtime {
 	type NFTHandler = Uniques;
 	type MaxVotes = MaxVotes;
 	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
-	type ActionMultiplier = ActionMultiplier;
+	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
-	type RewardedVoteUnit = OneHDX;
 	type WeightInfo = weights::staking::HydraWeight<Runtime>;
 }
 
