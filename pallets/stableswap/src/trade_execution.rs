@@ -1,7 +1,6 @@
 use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
-use hydradx_traits::InspectRegistry;
 use orml_traits::MultiCurrency;
 use sp_runtime::{ArithmeticError, DispatchError};
 use sp_std::vec;
@@ -175,9 +174,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					Self::add_liquidity_shares(who, pool_id, amount_out, asset_in, max_limit)
 						.map_err(ExecutorError::Error)
 				} else if asset_in == pool_id {
-					let shares_amount = max_limit;
-
-					Self::withdraw_asset_amount(who, pool_id, asset_out, amount_out, shares_amount)
+					Self::withdraw_asset_amount(who, pool_id, asset_out, amount_out, max_limit)
 						.map_err(ExecutorError::Error)
 				} else {
 					Self::buy(who, pool_id, asset_out, asset_in, amount_out, max_limit).map_err(ExecutorError::Error)
