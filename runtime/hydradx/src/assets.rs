@@ -49,6 +49,7 @@ use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
+use sp_runtime::DispatchResult;
 use sp_std::num::NonZeroU16;
 
 parameter_types! {
@@ -512,6 +513,33 @@ where
 	}
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_stableswap::BenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct RegisterAsset<T>(PhantomData<T>);
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsset<T> {
+	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
+		let asset_name = asset_id.to_le_bytes().to_vec();
+		let name: BoundedVec<u8, RegistryStrLimit> = asset_name
+			.clone()
+			.try_into()
+			.map_err(|_| pallet_asset_registry::Error::<T>::TooLong)?;
+		AssetRegistry::register_asset(
+			name.clone(),
+			pallet_asset_registry::AssetType::<AssetId>::Token,
+			1,
+			Some(asset_id),
+			None,
+		)?;
+		AssetRegistry::set_metadata(RuntimeOrigin::root(), asset_id, asset_name, decimals)?;
+
+		Ok(())
+	}
+}
+
 impl pallet_stableswap::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
@@ -523,10 +551,10 @@ impl pallet_stableswap::Config for Runtime {
 	type DustAccountHandler = Duster;
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = (); //TODO: this must be some actual implementation
 	type AmplificationRange = StableswapAmplificationRange;
 	type WeightInfo = weights::stableswap::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = RegisterAsset<Runtime>;
 }
 
 // Bonds
