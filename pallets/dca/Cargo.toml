@@ -34,9 +34,7 @@ hydradx-traits = { workspace = true }
 hydradx-adapters = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 pallet-ema-oracle =  { workspace = true }
-pallet-stableswap =  { workspace = true }
 pallet-route-executor =  { workspace = true }
-pallet-asset-registry = {workspace = true}
 
 hydra-dx-math = { workspace = true }
 
@@ -83,11 +81,8 @@ std = [
   "pallet-relaychain-info/std",
   "orml-tokens/std",
   "pallet-omnipool/std",
-  "pallet-stableswap/std",
   "pallet-ema-oracle/std",
   "pallet-route-executor/std",
-  "pallet-asset-registry/std",
-  "frame-benchmarking/std",
 ]
 
 runtime-benchmarks = [

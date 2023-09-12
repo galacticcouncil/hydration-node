@@ -18,17 +18,17 @@
 use crate as dca;
 use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
-use frame_support::traits::Contains;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
-use frame_support::BoundedVec;
 use frame_support::PalletId;
+
+use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{AccountIdFor, AssetKind, InspectRegistry, OraclePeriod, PriceOracle, Registry};
+use hydradx_traits::{AssetKind, OraclePeriod, PriceOracle, Registry};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
@@ -41,8 +41,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
-use sp_std::num::NonZeroU16;
-use sp_std::ops::RangeInclusive;
 
 use hydradx_adapters::inspect::MultiInspectAdapter;
 
@@ -92,100 +90,8 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 EmaOracle: pallet_ema_oracle,
-		 Stableswap: pallet_stableswap,
-		 AssetRegistry: pallet_asset_registry,
 	 }
 );
-
-parameter_types! {
-	pub const RegistryStrLimit: u32 = 32;
-	pub const SequentialIdOffset: u32 = 1_000_000;
-	pub const NativeAssetId: u32 = HDX;
-}
-
-impl pallet_asset_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type RegistryOrigin = EnsureRoot<AccountId>;
-	type AssetId = AssetId;
-	type Balance = Balance;
-	type AssetNativeLocation = ();
-	type StringLimit = RegistryStrLimit;
-	type SequentialIdStartAt = SequentialIdOffset;
-	type NativeAssetId = NativeAssetId;
-	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const MinimumLiquidity: Balance = 1000;
-	pub const MinimumTradingLimit: Balance = 1000;
-	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
-}
-
-pub struct Whitelist;
-
-impl Contains<AccountId> for Whitelist {
-	fn contains(account: &AccountId) -> bool {
-		DUSTER_WHITELIST.with(|v| v.borrow().contains(account))
-	}
-}
-
-impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
-	type Error = DispatchError;
-
-	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
-		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
-		Ok(())
-	}
-
-	fn remove_account(account: &AccountId) -> Result<(), Self::Error> {
-		DUSTER_WHITELIST.with(|v| {
-			let mut v = v.borrow_mut();
-
-			let idx = v.iter().position(|x| *x == *account).unwrap();
-			v.remove(idx);
-
-			Ok(())
-		})
-	}
-}
-
-pub struct AccountIdConstructor;
-
-impl AccountIdFor<u32> for AccountIdConstructor {
-	type AccountId = AccountId;
-
-	fn from_assets(asset: &u32, _identifier: Option<&[u8]>) -> Self::AccountId {
-		(asset * 1000) as u64
-	}
-
-	fn name(asset: &u32, identifier: Option<&[u8]>) -> Vec<u8> {
-		let mut buf: Vec<u8> = if let Some(ident) = identifier {
-			ident.to_vec()
-		} else {
-			vec![]
-		};
-		buf.extend_from_slice(&(asset).to_le_bytes());
-
-		buf
-	}
-}
-
-impl pallet_stableswap::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type AssetId = AssetId;
-	type Currency = Tokens;
-	type ShareAccountId = AccountIdConstructor;
-	type AssetInspection = AssetRegistry;
-	type AuthorityOrigin = EnsureRoot<AccountId>;
-	type MinPoolLiquidity = MinimumLiquidity;
-	type AmplificationRange = AmplificationRange;
-	type MinTradingLimit = MinimumTradingLimit;
-	type WeightInfo = ();
-	type BlockNumberProvider = System;
-	type DustAccountHandler = Whitelist;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
-}
 
 lazy_static::lazy_static! {
 	pub static ref ORIGINAL_MIN_BUDGET_IN_NATIVE: Balance = 2_000_000;
@@ -217,7 +123,6 @@ thread_local! {
 			135, 250, 171, 69, 205, 241, 47, 227, 168,
 		]
 		.into()));
-	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
 
 }
 
@@ -447,7 +352,7 @@ parameter_types! {
 	pub MaxNumberOfTrades: u8 = 3;
 }
 
-type Pools = (OmniPool, StableswapPool, Xyk);
+type Pools = (OmniPool, Xyk);
 
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -464,7 +369,6 @@ pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
 pub const CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY: Balance = 10 * ONE;
 
 pub struct OmniPool;
-pub struct StableswapPool;
 pub struct Xyk;
 
 impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool {
@@ -571,123 +475,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		};
 		let amount_in = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;
 
-		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
-			.map_err(ExecutorError::Error)?;
-		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-			.map_err(ExecutorError::Error)?;
-
-		Ok(())
-	}
-}
-
-impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for StableswapPool {
-	type Error = DispatchError;
-
-	fn calculate_sell(
-		pool_type: PoolType<AssetId>,
-		_asset_in: AssetId,
-		_asset_out: AssetId,
-		amount_in: Balance,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		if !matches!(pool_type, PoolType::Stableswap(..)) {
-			return Err(ExecutorError::NotSupported);
-		}
-
-		if amount_in == INVALID_CALCULATION_AMOUNT {
-			return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
-		}
-
-		let amount_out = CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| *v.borrow());
-		Ok(amount_out)
-	}
-
-	fn calculate_buy(
-		pool_type: PoolType<AssetId>,
-		_asset_in: AssetId,
-		_asset_out: AssetId,
-		amount_out: Balance,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		if !matches!(pool_type, PoolType::Stableswap(..)) {
-			return Err(ExecutorError::NotSupported);
-		}
-
-		if amount_out == INVALID_CALCULATION_AMOUNT {
-			return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
-		}
-
-		Ok(CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY)
-	}
-
-	fn execute_sell(
-		who: OriginForRuntime,
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		min_limit: Balance,
-	) -> Result<(), ExecutorError<Self::Error>> {
-		if !matches!(pool_type, PoolType::Stableswap(..)) {
-			return Err(ExecutorError::NotSupported);
-		}
-
-		if asset_in == FORBIDDEN_ASSET {
-			return Err(ExecutorError::Error(pallet_omnipool::Error::<Test>::NotAllowed.into()));
-		}
-
-		SELL_EXECUTIONS.with(|v| {
-			let mut m = v.borrow_mut();
-			m.push(SellExecution {
-				asset_in,
-				asset_out,
-				amount_in,
-				min_buy_amount: min_limit,
-			});
-		});
-
-		let Ok(who) =  ensure_signed(who) else {
-			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
-		};
-		let amount_out = CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| *v.borrow());
-
-		Currencies::update_balance(RuntimeOrigin::root(), ASSET_PAIR_ACCOUNT, asset_out, amount_out as i128)
-			.map_err(ExecutorError::Error)?;
-		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
-			.map_err(ExecutorError::Error)?;
-		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-			.map_err(ExecutorError::Error)?;
-
-		Ok(())
-	}
-
-	fn execute_buy(
-		origin: OriginForRuntime,
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-		max_limit: Balance,
-	) -> Result<(), ExecutorError<Self::Error>> {
-		if !matches!(pool_type, PoolType::Stableswap(..)) {
-			return Err(ExecutorError::NotSupported);
-		}
-
-		BUY_EXECUTIONS.with(|v| {
-			let mut m = v.borrow_mut();
-			m.push(BuyExecution {
-				asset_in,
-				asset_out,
-				amount_out,
-				max_sell_amount: max_limit,
-			});
-		});
-
-		let Ok(who) =  ensure_signed(origin) else {
-			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
-		};
-		let amount_in = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;
-
-		Currencies::update_balance(RuntimeOrigin::root(), ASSET_PAIR_ACCOUNT, asset_out, amount_out as i128)
-			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
 			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
@@ -875,7 +662,7 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::pools::{DustRemovalAccountWhitelist, SpotPriceProvider};
+use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
@@ -943,8 +730,8 @@ where
 		Ok(1.into())
 	}
 
-	fn retrieve_asset_type(_: T::AssetId) -> Result<AssetKind, DispatchError> {
-		Ok(AssetKind::Token)
+	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+		unimplemented!()
 	}
 
 	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
@@ -954,18 +741,6 @@ where
 			l as u32
 		});
 		Ok(T::AssetId::from(assigned))
-	}
-}
-
-impl InspectRegistry<AssetId> for DummyRegistry<Test> {
-	fn exists(asset_id: AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied());
-		matches!(asset, Some(_))
-	}
-
-	fn decimals(asset_id: AssetId) -> Option<u8> {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied())?;
-		Some(asset as u8)
 	}
 }
 
