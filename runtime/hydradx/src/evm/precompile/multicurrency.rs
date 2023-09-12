@@ -35,7 +35,7 @@ use frame_support::traits::{IsType, OriginTrait};
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
 //use input::Erc20InfoMappingT;
-use crate::evm::precompile::handle::{EvmDataWriter, PrecompileHandleExt};
+use crate::evm::precompile::handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt};
 use crate::evm::precompile::substrate::RuntimeHelper;
 use crate::evm::precompile::{succeed, Address, Erc20Mapping, EvmAddress, EvmResult, FungibleTokenId, Output};
 use crate::evm::ExtendedAddressMapping;
@@ -104,7 +104,12 @@ where
 				Err(e) => return Err(e),
 			};
 
-			//TODO: check function modifier
+			if let Err(err) = handle.check_function_modifier(match selector {
+				Action::Approve | Action::Transfer | Action::TransferFrom => FunctionModifier::NonPayable,
+				_ => FunctionModifier::View,
+			}) {
+				return Err(err);
+			}
 
 			return match selector {
 				Action::Name => Self::name(asset_id, handle),

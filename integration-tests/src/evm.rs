@@ -44,9 +44,10 @@ mod currency_precompile {
 				context: Context {
 					address: evm_address(),
 					caller: native_asset_ethereum_address(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
+				is_static: true,
 			};
 
 			//Act
@@ -79,9 +80,10 @@ mod currency_precompile {
 				context: Context {
 					address: evm_address(),
 					caller: native_asset_ethereum_address(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: H160::from(hex!("00000000000000000000000000000001ffffffff")),
+				is_static: true,
 			};
 
 			//Act
@@ -111,9 +113,10 @@ mod currency_precompile {
 				context: Context {
 					address: evm_address(),
 					caller: native_asset_ethereum_address(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
+				is_static: true,
 			};
 
 			//Act
@@ -146,9 +149,10 @@ mod currency_precompile {
 				context: Context {
 					address: evm_address(),
 					caller: native_asset_ethereum_address(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
+				is_static: true,
 			};
 
 			//Act
@@ -181,9 +185,10 @@ mod currency_precompile {
 				context: Context {
 					address: evm_address(),
 					caller: native_asset_ethereum_address(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
+				is_static: true,
 			};
 
 			//Act
@@ -219,9 +224,10 @@ mod currency_precompile {
 				context: Context {
 					address: evm_address(),
 					caller: native_asset_ethereum_address(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
+				is_static: true,
 			};
 
 			//Act
@@ -267,9 +273,10 @@ mod currency_precompile {
 				context: Context {
 					address: alice_evm_addr(),
 					caller: alice_evm_addr(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
+				is_static: true,
 			};
 
 			//Act
@@ -315,9 +322,10 @@ mod currency_precompile {
 				context: Context {
 					address: evm_address(),
 					caller: evm_address(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
+				is_static: false,
 			};
 
 			//Act
@@ -345,9 +353,10 @@ mod currency_precompile {
 				context: Context {
 					address: evm_address(),
 					caller: native_asset_ethereum_address(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
+				is_static: true,
 			};
 
 			//Act
@@ -393,9 +402,10 @@ mod currency_precompile {
 				context: Context {
 					address: evm_address(),
 					caller: evm_address(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
+				is_static: false,
 			};
 
 			//Act
@@ -432,9 +442,10 @@ mod currency_precompile {
 				context: Context {
 					address: evm_address(),
 					caller: evm_address(),
-					apparent_value: U256::from(10),
+					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
+				is_static: false,
 			};
 
 			//Act
@@ -624,6 +635,7 @@ fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
 			apparent_value: U256::zero(),
 		},
 		core_address: DISPATCH_ADDR,
+		is_static: true,
 	}
 }
 
@@ -635,6 +647,7 @@ pub struct MockHandle {
 	pub input: Vec<u8>,
 	pub context: Context,
 	pub core_address: H160,
+	pub is_static: bool,
 }
 
 impl PrecompileHandle for MockHandle {
@@ -675,7 +688,7 @@ impl PrecompileHandle for MockHandle {
 	}
 
 	fn is_static(&self) -> bool {
-		unimplemented!()
+		self.is_static
 	}
 
 	fn gas_limit(&self) -> Option<u64> {

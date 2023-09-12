@@ -89,7 +89,7 @@ impl Convert<Weight, u64> for WeightToGas {
 }
 
 parameter_types! {
-	// evmTODO: set value
+	//TODO: set value
 	pub BlockGasLimit: U256 = U256::from(u32::max_value());
 	// Centrifuge uses max block weight limits within the runtime based on calculation of 0.5s for 6s block times;
 	// it's interesting, check out: https://github.com/centrifuge/centrifuge-chain/blob/main/libs/primitives/src/lib.rs#L217:L228
