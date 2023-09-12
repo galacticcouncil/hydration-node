@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-traits"
-version = "2.6.1"
+version = "2.6.0"
 description = "Shared traits"
 authors = ["GalacticCouncil"]
 edition = "2021"
