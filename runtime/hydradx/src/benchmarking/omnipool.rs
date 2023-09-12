@@ -490,8 +490,8 @@ runtime_benchmarks! {
 		let buy_min_amount = 10_000_000_000_u128;
 
 	}: {
-		let _ = <Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_sell(PoolType::Omnipool, token_id, stable_id, amount_sell);
-		let _ = <Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, stable_id, amount_sell, buy_min_amount);
+		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_sell(PoolType::Omnipool, token_id, stable_id, amount_sell).is_ok());
+		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, stable_id, amount_sell, buy_min_amount).is_ok());
 	}
 	verify {
 		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(stable_id, &seller) >= buy_min_amount);
@@ -551,8 +551,8 @@ runtime_benchmarks! {
 		let sell_max_limit = 2_000_000_000_000_u128;
 
 	}: {
-		let _ = <Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_buy(PoolType::Omnipool, token_id, stable_id, amount_buy);
-		let _ = <Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, stable_id, amount_buy, sell_max_limit);
+		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_buy(PoolType::Omnipool, token_id, stable_id, amount_buy).is_ok());
+		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, stable_id, amount_buy, sell_max_limit).is_ok());
 	}
 	verify {
 		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(stable_id, &seller) >= Balance::zero());

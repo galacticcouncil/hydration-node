@@ -176,8 +176,8 @@ benchmarks! {
 		frame_system::Pallet::<T>::set_block_number(T::BlockNumber::from(2u32));
 
 	}: {
-		let _ = <LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_sell(PoolType::LBP, asset_in, asset_out, amount);
-		let _ = <LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(caller.clone()).into(), PoolType::LBP, asset_in, asset_out, amount, max_limit);
+		assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_sell(PoolType::LBP, asset_in, asset_out, amount).is_ok());
+		assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(caller.clone()).into(), PoolType::LBP, asset_in, asset_out, amount, max_limit).is_ok());
 	}
 	verify{
 		assert_eq!(T::MultiCurrency::free_balance(asset_in, &caller), 999998900000000);
