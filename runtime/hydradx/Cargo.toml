@@ -318,4 +318,5 @@ try-runtime= [
     "pallet-bonds/try-runtime",
     "pallet-stableswap/try-runtime",
     "pallet-lbp/try-runtime",
+    "sp-std/std",
 ]

@@ -596,11 +596,7 @@ pub mod pallet {
 				pool_id,
 				who,
 				shares: share_amount,
-				amounts: vec![AssetAmount {
-					asset_id,
-					amount,
-					..Default::default()
-				}],
+				amounts: vec![AssetAmount { asset_id, amount }],
 				fee,
 			});
 
@@ -668,11 +664,7 @@ pub mod pallet {
 				pool_id,
 				who,
 				shares,
-				amounts: vec![AssetAmount {
-					asset_id,
-					amount,
-					..Default::default()
-				}],
+				amounts: vec![AssetAmount { asset_id, amount }],
 				fee: 0u128, // TODO: Fix
 			});
 
