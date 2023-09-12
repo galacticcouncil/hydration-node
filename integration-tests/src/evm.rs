@@ -32,7 +32,7 @@ mod currency_precompile {
 	type CurrencyPrecompile = MultiCurrencyPrecompile<hydradx_runtime::Runtime>;
 
 	#[test]
-	fn all_hydra_precompiles_works_for_min_asset_value() {
+	fn all_hydra_precompile_should_match_native_asset_address() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -50,16 +50,24 @@ mod currency_precompile {
 			};
 
 			//Act
-			let prec = AllHydraDXPrecompile::new();
-			let result = prec.execute(&mut handle);
+			let result = AllHydraDXPrecompile::new().execute(&mut handle);
 
 			//Assert
 			assert!(result.is_some());
+			let output = EvmDataWriter::new().write(Bytes::from("HDX".as_bytes())).build();
+
+			assert_eq!(
+				result,
+				Some(Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output
+				}))
+			);
 		});
 	}
 
 	#[test]
-	fn all_hydra_precompiles_works_for_max_asset_value() {
+	fn all_hydra_precompile_should_match_asset_address_with_max_asset_value() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -77,11 +85,16 @@ mod currency_precompile {
 			};
 
 			//Act
-			let prec = AllHydraDXPrecompile::new();
-			let result = prec.execute(&mut handle);
+			let result = AllHydraDXPrecompile::new().execute(&mut handle);
 
 			//Assert
 			assert!(result.is_some());
+			assert_eq!(
+				result,
+				Some(Err(PrecompileFailure::Error {
+					exit_status: ExitError::Other("Non-existing asset.".into()),
+				}))
+			);
 		});
 	}
 

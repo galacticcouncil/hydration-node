@@ -52,11 +52,9 @@ where
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		let address = handle.code_address();
 
-		let asset_address_prefix = &(H160::from(hex!("0000000000000000000000000000000100000000"))[0..16]);
-
 		if address == DISPATCH_ADDR {
 			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
-		} else if &address.to_fixed_bytes()[0..16] == asset_address_prefix {
+		} else if is_asset_address(address) {
 			Some(MultiCurrencyPrecompile::<R>::execute(handle))
 		} else {
 			None
@@ -64,10 +62,7 @@ where
 	}
 
 	fn is_precompile(&self, address: H160) -> bool {
-		//TODO: remove duplication for the prefix
-		let asset_address_prefix = &(H160::from(hex!("0000000000000000000000000000000100000000"))[0..16]);
-
-		address == DISPATCH_ADDR || &address.to_fixed_bytes()[0..16] == asset_address_prefix
+		address == DISPATCH_ADDR || is_asset_address(address)
 	}
 }
 
@@ -80,4 +75,10 @@ pub const fn addr(a: u64) -> H160 {
 	H160([
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
 	])
+}
+
+fn is_asset_address(address: H160) -> bool {
+	let asset_address_prefix = &(H160::from(hex!("0000000000000000000000000000000100000000"))[0..16]);
+
+	&address.to_fixed_bytes()[0..16] == asset_address_prefix
 }
