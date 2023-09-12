@@ -38,15 +38,11 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 					Ok(amount)
 				} else if asset_out == pool_id {
-					let decimals = T::AssetInspection::decimals(asset_in)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotRegistered.into()))?;
-
 					let share_amount = Self::calculate_shares(
 						pool_id,
 						&[AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
-							decimals,
 						}],
 					)
 					.map_err(ExecutorError::Error)?;
@@ -148,15 +144,12 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					Self::remove_liquidity_one_asset(who, pool_id, asset_out, amount_in, min_limit)
 						.map_err(ExecutorError::Error)
 				} else if asset_out == pool_id {
-					let decimals = T::AssetInspection::decimals(asset_in)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotRegistered.into()))?;
 					Self::add_liquidity(
 						who,
 						pool_id,
 						vec![AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
-							decimals,
 						}],
 					)
 					.map_err(ExecutorError::Error)

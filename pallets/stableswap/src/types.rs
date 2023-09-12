@@ -74,28 +74,14 @@ where
 pub struct AssetAmount<AssetId> {
 	pub asset_id: AssetId,
 	pub amount: Balance,
-	#[codec(skip)]
-	pub decimals: u8,
 }
 
 impl<AssetId: Default> AssetAmount<AssetId> {
 	pub fn new(asset_id: AssetId, amount: Balance) -> Self {
-		Self {
-			asset_id,
-			amount,
-			..Default::default()
-		}
+		Self { asset_id, amount }
 	}
 }
 
-impl<AssetId> From<AssetAmount<AssetId>> for AssetReserve {
-	fn from(value: AssetAmount<AssetId>) -> Self {
-		Self {
-			amount: value.amount,
-			decimals: value.decimals,
-		}
-	}
-}
 impl<AssetId> From<AssetAmount<AssetId>> for u128 {
 	fn from(value: AssetAmount<AssetId>) -> Self {
 		value.amount
