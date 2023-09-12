@@ -26,6 +26,7 @@ use sp_std::prelude::*;
 use crate::Pallet as XYK;
 
 use primitives::{AssetId, Balance};
+use hydradx_traits::router::{PoolType, TradeExecution};
 
 const SEED: u32 = 1;
 
@@ -122,6 +123,48 @@ benchmarks! {
 	verify{
 		assert_eq!(T::Currency::free_balance(asset_a, &caller), 1000001000000000);
 	}
+
+	trade_execution_sell {
+		let maker = funded_account::<T>("maker", 0);
+		let caller = funded_account::<T>("caller", 0);
+
+		let asset_a: AssetId = 1;
+		let asset_b: AssetId = 2;
+		let amount : Balance = 1_000_000_000;
+		let discount = false;
+
+		let min_bought: Balance = 10 * 1_000;
+
+		XYK::<T>::create_pool(RawOrigin::Signed(maker).into(), asset_a, 1_000_000_000_000, asset_b, 3_000_000_000_000)?;
+
+	}: {
+		assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_sell(PoolType::XYK, asset_a, asset_b, amount).is_ok());
+		assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(caller.clone()).into(), PoolType::XYK, asset_a, asset_b, amount, min_bought).is_ok());
+	}
+	verify{
+		assert_eq!(T::Currency::free_balance(asset_a, &caller), 999999000000000);
+	}
+
+	trade_execution_buy {
+		let maker = funded_account::<T>("maker", 0);
+		let caller = funded_account::<T>("caller", 0);
+
+		let asset_a: AssetId = 1;
+		let asset_b: AssetId = 2;
+		let amount : Balance = 1_000_000_000;
+		let discount = false;
+
+		let max_sold: Balance = 6_000_000_000;
+
+		XYK::<T>::create_pool(RawOrigin::Signed(maker).into(), asset_a, 1_000_000_000_000, asset_b, 3_000_000_000_000)?;
+
+	}: {
+		assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_buy(PoolType::XYK, asset_a, asset_b, amount).is_ok());
+		assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(caller.clone()).into(), PoolType::XYK, asset_a, asset_b, amount, max_sold).is_ok());
+	}
+	verify{
+		assert_eq!(T::Currency::free_balance(asset_b, &caller), 1000001000000000);
+	}
 }
 
 #[cfg(test)]
@@ -139,6 +182,8 @@ mod tests {
 			assert_ok!(Pallet::<Test>::test_benchmark_remove_liquidity());
 			assert_ok!(Pallet::<Test>::test_benchmark_sell());
 			assert_ok!(Pallet::<Test>::test_benchmark_buy());
+			assert_ok!(Pallet::<Test>::test_benchmark_trade_execution_sell());
+			assert_ok!(Pallet::<Test>::test_benchmark_trade_execution_buy());
 		});
 	}
 }
