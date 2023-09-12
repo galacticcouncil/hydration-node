@@ -6209,6 +6209,7 @@ dependencies = [
  "frame-system",
  "frame-system-benchmarking",
  "hydradx-traits",
+ "orml-tokens",
  "orml-traits",
  "parity-scale-codec",
  "pretty_assertions",

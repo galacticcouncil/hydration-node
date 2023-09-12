@@ -19,6 +19,7 @@
 
 use frame_support::parameter_types;
 use frame_system as system;
+use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -36,6 +37,7 @@ pub type Balance = u128;
 
 pub const UNIT: Balance = 1_000_000_000_000;
 pub const ALICE: u64 = 1_000;
+pub const TREASURY: u64 = 2_222;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -47,6 +49,7 @@ frame_support::construct_runtime!(
 	 UncheckedExtrinsic = UncheckedExtrinsic,
 	 {
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		 Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>},
 		 Registry: pallet_asset_registry::{Pallet, Call, Storage, Event<T>},
 	 }
 
@@ -93,8 +96,14 @@ use scale_info::TypeInfo;
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub MultiLocation);
 
+parameter_types! {
+	pub const StoreFees: Balance = 10 * UNIT;
+	pub const FeesBeneficiarry: u64 = TREASURY;
+}
+
 impl pallet_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Tokens;
 	type RegistryOrigin = frame_system::EnsureRoot<u64>;
 	type UpdateOrigin = frame_system::EnsureSigned<u64>;
 	type AssetId = u32;
@@ -102,7 +111,29 @@ impl pallet_asset_registry::Config for Test {
 	type StringLimit = RegistryStringLimit;
 	type SequentialIdStartAt = SequentialIdStart;
 	type NativeAssetId = NativeAssetId;
+	type StorageFees = StoreFees;
+	type StorageFeesBeneficiary = FeesBeneficiarry;
 	type WeightInfo = ();
+}
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+		0
+	};
+}
+
+impl orml_tokens::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type Amount = i128;
+	type CurrencyId = AssetId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type MaxLocks = ();
+	type DustRemovalWhitelist = Everything;
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
+	type CurrencyHooks = ();
 }
 
 #[derive(Default)]

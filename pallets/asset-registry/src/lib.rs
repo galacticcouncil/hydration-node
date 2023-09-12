@@ -21,8 +21,9 @@ use frame_support::dispatch::DispatchError;
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::CheckedAdd;
 use frame_system::pallet_prelude::*;
+use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
-use sp_arithmetic::traits::BaseArithmetic;
+use sp_arithmetic::traits::{BaseArithmetic, Zero};
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
@@ -86,12 +87,23 @@ pub mod pallet {
 		/// The maximum length of a name or symbol stored on-chain.
 		type StringLimit: Get<u32>;
 
+		/// Multi currency mechanism
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
+
 		#[pallet::constant]
 		type SequentialIdStartAt: Get<Self::AssetId>;
 
 		/// Native Asset Id
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::AssetId>;
+
+		/// Storage fees for external asset creation.
+		#[pallet::constant]
+		type StorageFees: Get<Balance>;
+
+		/// Storage fees for external asset creation.
+		#[pallet::constant]
+		type StorageFeesBeneficiary: Get<Self::AccountId>;
 
 		/// Weight information for the extrinsics
 		type WeightInfo: WeightInfo;
@@ -134,6 +146,9 @@ pub mod pallet {
 
 		/// Origin is fobiddent to set/update value
 		Forbidden,
+
+		/// Balance too low
+		InsufficientBalance,
 	}
 
 	#[pallet::type_value]
@@ -249,7 +264,7 @@ pub mod pallet {
 						decimals: *decimals,
 						is_sufficient: *is_sufficient,
 					};
-					let _ = Pallet::<T>::do_register_asset(*id, details, None)
+					let _ = Pallet::<T>::do_register_asset(*id, &details, None)
 						.map_err(|_| panic!("Failed to register asset"));
 				})
 		}
@@ -343,7 +358,7 @@ pub mod pallet {
 				is_sufficient,
 			);
 
-			Self::do_register_asset(asset_id, details, location)?;
+			Self::do_register_asset(asset_id, &details, location)?;
 			Ok(())
 		}
 
@@ -447,6 +462,34 @@ pub mod pallet {
 				Ok(())
 			})
 		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::register())]
+		pub fn register_external(origin: OriginFor<T>, location: T::AssetNativeLocation) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			if !T::StorageFees::get().is_zero() {
+				ensure!(
+					T::Currency::ensure_can_withdraw(T::NativeAssetId::get(), &who, T::StorageFees::get()).is_ok(),
+					Error::<T>::InsufficientBalance
+				);
+
+				T::Currency::transfer(
+					T::NativeAssetId::get(),
+					&who,
+					&T::StorageFeesBeneficiary::get(),
+					T::StorageFees::get(),
+				)?;
+			}
+
+			Self::do_register_asset(
+				None,
+				&AssetDetails::new(None, AssetType::External, DEFAULT_ED, None, None, None, false),
+				Some(location),
+			)?;
+
+			Ok(())
+		}
 	}
 }
 
@@ -477,7 +520,7 @@ impl<T: Config> Pallet<T> {
 
 	fn do_register_asset(
 		selected_asset_id: Option<T::AssetId>,
-		details: AssetDetails<T::AssetId, BoundedVec<u8, T::StringLimit>>,
+		details: &AssetDetails<T::AssetId, BoundedVec<u8, T::StringLimit>>,
 		location: Option<T::AssetNativeLocation>,
 	) -> Result<T::AssetId, DispatchError> {
 		let asset_id = if let Some(id) = selected_asset_id {
@@ -499,23 +542,23 @@ impl<T: Config> Pallet<T> {
 			})?
 		};
 
-		Assets::<T>::insert(asset_id, &details);
+		Assets::<T>::insert(asset_id, details);
 		if let Some(name) = details.name.as_ref() {
 			ensure!(!AssetIds::<T>::contains_key(name), Error::<T>::AssetAlreadyRegistered);
 			AssetIds::<T>::insert(name, asset_id);
 		}
 
 		if let Some(loc) = location {
-			Self::set_location(asset_id, loc)?;
+			Self::do_set_location(asset_id, loc)?;
 		}
 
 		Self::deposit_event(Event::Registered {
 			asset_id,
-			asset_name: details.name,
+			asset_name: details.name.clone(),
 			asset_type: details.asset_type,
 			existential_deposit: details.existential_deposit,
 			xcm_rate_limit: details.xcm_rate_limit,
-			symbol: details.symbol,
+			symbol: details.symbol.clone(),
 			decimals: details.decimals,
 			is_sufficient: details.is_sufficient,
 		});
@@ -538,7 +581,7 @@ impl<T: Config> Pallet<T> {
 		} else {
 			Self::do_register_asset(
 				asset_id,
-				AssetDetails::new(
+				&AssetDetails::new(
 					Some(bounded_name),
 					asset_type,
 					existential_deposit,
@@ -641,7 +684,7 @@ impl<T: Config> CreateRegistry<T::AssetId, Balance> for Pallet<T> {
 
 		Pallet::<T>::do_register_asset(
 			None,
-			AssetDetails::new(bounded_name, kind.into(), existential_deposit, None, None, None, false),
+			&AssetDetails::new(bounded_name, kind.into(), existential_deposit, None, None, None, false),
 			None,
 		)
 	}
@@ -693,6 +736,6 @@ impl<T: Config> Create<T::AssetNativeLocation, Balance> for Pallet<T> {
 			is_sufficient,
 		);
 
-		Self::do_register_asset(asset_id, details, location)
+		Self::do_register_asset(asset_id, &details, location)
 	}
 }

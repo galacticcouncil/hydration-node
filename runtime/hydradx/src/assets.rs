@@ -154,17 +154,21 @@ impl pallet_claims::Config for Runtime {
 parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
 	pub const SequentialIdOffset: u32 = 1_000_000;
+	pub const StoreFees: Balance = 100 * UNITS;                //TODO:
 }
 
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureRoot<AccountId>;
 	type UpdateOrigin = SuperMajorityTechCommittee;
+	type Currency = Currencies;
 	type AssetId = AssetId;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type NativeAssetId = NativeAssetId;
+	type StorageFees = StoreFees;
+	type StorageFeesBeneficiary = TreasuryAccount;
 	type WeightInfo = weights::registry::HydraWeight<Runtime>;
 }
 
