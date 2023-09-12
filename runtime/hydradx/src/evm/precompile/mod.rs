@@ -61,8 +61,7 @@ pub enum FungibleTokenId {
 	FungibleToken(AssetId),
 }
 
-/// A mapping between FungibleTokenId and Erc20 address.
-/// provide a way to encode/decode for FungibleTokenId;
+/// A mapping between AssetId and Erc20 address.
 pub trait Erc20Mapping {
 	fn encode_evm_address(v: AssetId) -> Option<EvmAddress>;
 
