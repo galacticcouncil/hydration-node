@@ -96,6 +96,7 @@ fn setup_lbp(caller: AccountId, asset_in: AssetId, asset_out: AssetId) -> Dispat
 runtime_benchmarks! {
 	{Runtime, pallet_route_executor}
 
+	// Calculates the weight of LBP trade. Used in the calculation to determine the weight of the overhead.
 	sell_in_lbp {
 		let asset_in = 0u32;
 		let asset_out = 1u32;
@@ -120,6 +121,7 @@ runtime_benchmarks! {
 		), INITIAL_BALANCE - amount_to_sell);
 	}
 
+	// Calculates the weight of LBP trade. Used in the calculation to determine the weight of the overhead.
 	buy_in_lbp {
 		let asset_in = 0u32;
 		let asset_out = 1u32;

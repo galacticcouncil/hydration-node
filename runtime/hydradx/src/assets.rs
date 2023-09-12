@@ -431,6 +431,7 @@ impl pallet_dca::Config for Runtime {
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 }
 
+// Provides weight info for the router
 pub struct AmmWeights;
 impl AmmWeights {
 	pub fn sell_overhead_weight() -> Weight {
