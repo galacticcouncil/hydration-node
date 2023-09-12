@@ -14,7 +14,6 @@ use hydra_dx_math::stableswap::types::AssetReserve;
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
-
 pub(crate) type Balance = u128;
 
 /// Pool properties for 2-asset pool (v1)
@@ -75,28 +74,14 @@ where
 pub struct AssetAmount<AssetId> {
 	pub asset_id: AssetId,
 	pub amount: Balance,
-	#[codec(skip)]
-	pub decimals: u8,
 }
 
 impl<AssetId: Default> AssetAmount<AssetId> {
 	pub fn new(asset_id: AssetId, amount: Balance) -> Self {
-		Self {
-			asset_id,
-			amount,
-			..Default::default()
-		}
+		Self { asset_id, amount }
 	}
 }
 
-impl<AssetId> From<AssetAmount<AssetId>> for AssetReserve {
-	fn from(value: AssetAmount<AssetId>) -> Self {
-		Self {
-			amount: value.amount,
-			decimals: value.decimals,
-		}
-	}
-}
 impl<AssetId> From<AssetAmount<AssetId>> for u128 {
 	fn from(value: AssetAmount<AssetId>) -> Self {
 		value.amount
@@ -132,4 +117,11 @@ use sp_runtime::DispatchResult;
 #[cfg(feature = "runtime-benchmarks")]
 pub trait BenchmarkHelper<AssetId> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<AssetId> BenchmarkHelper<AssetId> for () {
+	fn register_asset(_asset_id: AssetId, _decimals: u8) -> DispatchResult {
+		Ok(())
+	}
 }

@@ -30,6 +30,7 @@ pallets=("frame-system:system"
 "pallet-ema-oracle:ema_oracle"
 "pallet-otc:otc"
 "pallet-route-executor:route_executor"
+"pallet-stableswap:stableswap"
 "pallet-staking:staking"
 )
 

@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.11.0"
+version = "1.12.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -19,6 +19,7 @@ pallet-omnipool = { workspace = true }
 pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-bonds = { workspace = true }
+pallet-stableswap = { workspace = true }
 
 # Warehouse dependencies
 pallet-asset-registry = { workspace = true }
