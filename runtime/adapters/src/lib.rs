@@ -865,6 +865,17 @@ where
 				state.shares,
 			)
 			.map_err(|(_, e)| e)?;
+
+			OnActivityHandler::<Runtime>::on_trade(
+				STABLESWAP_SOURCE,
+				pool_id,
+				state.assets[idx],
+				0, // Correct
+				state.delta[idx],
+				state.shares,
+				state.after[idx],
+			)
+			.map_err(|(_, e)| e)?;
 		}
 
 		Ok(())
