@@ -472,8 +472,8 @@ impl AmmTradeWeights<AssetId> for AmmWeights {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::trade_execution_buy(),
-				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_sell(),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell(), // TODO: replace by XYK weights
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_buy(),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(), // TODO: replace by XYK weights
 			};
 			weight.saturating_accrue(amm_weight);
 			weight.saturating_accrue(Self::buy_overhead_weight());
