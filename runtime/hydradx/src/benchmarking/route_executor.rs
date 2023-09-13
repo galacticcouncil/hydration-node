@@ -16,12 +16,13 @@
 // limitations under the License.
 #![allow(clippy::result_large_err)]
 
-use crate::{AccountId, AssetId, Balance, Currencies, Omnipool, Runtime, Tokens};
+use crate::{AccountId, AssetId, Balance, Currencies, Omnipool, Runtime, Stableswap, Tokens};
 
 use super::*;
-
 use frame_benchmarking::account;
+use frame_support::traits::EnsureOrigin;
 use frame_system::{Pallet as System, RawOrigin};
+use hydradx_traits::Registry;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
@@ -46,9 +47,9 @@ fn initialize_omnipool() -> DispatchResult {
 
 	Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
-	let _ = regi_asset(b"HDX".to_vec(), UNITS, HDX);
-	let _ = regi_asset(b"LRNA".to_vec(), UNITS, LRNA);
-	let _ = regi_asset(b"DAI".to_vec(), UNITS, DAI);
+	let _ = regi_asset(b"HDX".to_vec(), 1_000_000, HDX);
+	let _ = regi_asset(b"LRNA".to_vec(), 1_000_000, LRNA);
+	let _ = regi_asset(b"DAI".to_vec(), 1_000_000, DAI);
 
 	assert_ok!(Tokens::set_balance(
 		RawOrigin::Root.into(),
@@ -84,15 +85,72 @@ fn initialize_omnipool() -> DispatchResult {
 	Ok(())
 }
 
+pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
+	let caller: AccountId = account("caller", 0, 1);
+	let lp_provider: AccountId = account("provider", 0, 1);
+	let initial_liquidity = 1_000_000_000_000_000u128;
+	let liquidity_added = 300_000_000_000_000u128;
+
+	let mut initial: Vec<AssetAmount<<Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
+	let mut added_liquidity: Vec<AssetAmount<<Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
+
+	let mut asset_ids: Vec<<Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
+	for idx in 0..MAX_ASSETS_IN_POOL {
+		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
+		let asset_id = regi_asset(name.clone(), 1, 10000 + idx)?;
+		//let asset_id = AssetRegistry::create_asset(&name, 1u128)?;
+		asset_ids.push(asset_id);
+		Currencies::update_balance(
+			RawOrigin::Root.into(),
+			caller.clone(),
+			asset_id,
+			1_000_000_000_000_000i128,
+		)?;
+		Currencies::update_balance(
+			RawOrigin::Root.into(),
+			lp_provider.clone(),
+			asset_id,
+			1_000_000_000_000_000_000_000i128,
+		)?;
+		initial.push(AssetAmount::new(asset_id, initial_liquidity));
+		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
+	}
+	let pool_id = AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
+
+	let amplification = 100u16;
+	let fee = Permill::from_percent(1);
+
+	let asset_in: AssetId = *asset_ids.last().unwrap();
+	let asset_out: AssetId = *asset_ids.first().unwrap();
+
+	let successful_origin = <Runtime as pallet_stableswap::Config>::AuthorityOrigin::try_successful_origin().unwrap();
+	Stableswap::create_pool(successful_origin, pool_id, asset_ids, amplification, fee)?;
+
+	Stableswap::add_liquidity(RawOrigin::Signed(caller).into(), pool_id, initial)?;
+
+	let seller: AccountId = account("seller", 0, 1);
+	let amount_sell = 100_000_000_000_000u128;
+
+	Currencies::update_balance(RawOrigin::Root.into(), seller, asset_in, amount_sell as i128)?;
+
+	// Worst case is when amplification is changing
+	Stableswap::update_amplification(RawOrigin::Root.into(), pool_id, 1000, 100u32, 1000u32)?;
+
+	Ok((pool_id, asset_in, asset_out))
+}
+
 pub fn regi_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<AssetId, DispatchError> {
 	let name = AssetRegistry::to_bounded_name(name)?;
-	AssetRegistry::register_asset(
+	let asset_id = AssetRegistry::register_asset(
 		name,
 		pallet_asset_registry::AssetType::<AssetId>::Token,
 		deposit,
 		Some(asset_id),
 		None,
-	)
+	)?;
+	AssetRegistry::set_metadata(RawOrigin::Root.into(), asset_id, b"DUM".to_vec(), 18u8)?;
+
+	Ok(asset_id)
 }
 
 //NOTE: This is necessary for oracle to provide price.
@@ -133,6 +191,8 @@ use frame_support::assert_ok;
 use frame_support::traits::Hooks;
 use hydradx_traits::router::PoolType;
 use pallet_route_executor::Trade;
+use pallet_stableswap::types::AssetAmount;
+use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use sp_runtime::{DispatchError, DispatchResult, FixedU128, Permill};
 use sp_std::vec;
 
@@ -174,14 +234,11 @@ where
 	}
 }
 
-//TODO: Rebenchmark both buy and sell with dynamic length of route once we have other AMMs in hydra
-
 runtime_benchmarks! {
 	{ Runtime, pallet_route_executor}
 
-	sell {
-		let n in 1..2;
 
+	sell_omnipool {
 		initialize_omnipool()?;
 
 		let asset_in = HDX;
@@ -203,9 +260,7 @@ runtime_benchmarks! {
 		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) > 0);
 	}
 
-	buy {
-		let n in 1..2;
-
+	buy_omnipool {
 		initialize_omnipool()?;
 
 		let asset_in = HDX;
@@ -223,11 +278,50 @@ runtime_benchmarks! {
 		RouteExecutor::<Runtime>::buy(RawOrigin::Signed(caller.clone()).into(), asset_in, asset_out, amount_to_buy, u128::MAX, trades)?
 	}
 	verify{
-		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) < 100 * UNITS);
-		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) > 0);
+		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller) < 100 * UNITS);
+		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller), amount_to_buy);
 	}
 
+	sell_stableswap {
+		let (pool_id, asset_in, asset_out) = init_stableswap()?;
 
+		let trades = vec![Trade {
+			pool: PoolType::Stableswap(pool_id),
+			asset_in,
+			asset_out: pool_id
+		}];
+
+		let caller: AccountId = create_funded_account::<Runtime>("trader", 0, 100 * UNITS, asset_in);
+		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller), 100 * UNITS);
+
+		let amount_to_sell = 10 * UNITS;
+	}: {
+		RouteExecutor::<Runtime>::sell(RawOrigin::Signed(caller.clone()).into(), asset_in, pool_id, amount_to_sell, 0u128, trades)?
+	}
+	verify{
+		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller), 100 * UNITS -  amount_to_sell);
+		assert!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller) > 0);
+	}
+
+	buy_stableswap {
+		let (pool_id, asset_in, asset_out) = init_stableswap()?;
+
+		let trades = vec![Trade {
+			pool: PoolType::Stableswap(pool_id),
+			asset_in: pool_id,
+			asset_out
+		}];
+
+		let caller: AccountId = create_funded_account::<Runtime>("trader", 0, 100 * UNITS, pool_id);
+
+		let amount_to_buy = 10 * UNITS;
+	}: {
+		RouteExecutor::<Runtime>::buy(RawOrigin::Signed(caller.clone()).into(), pool_id, asset_out, amount_to_buy, u128::MAX, trades)?
+	}
+	verify{
+		assert!(<Currencies as MultiCurrency<_>>::total_balance(pool_id, &caller) < 100 * UNITS);
+		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller), amount_to_buy);
+	}
 
 }
 

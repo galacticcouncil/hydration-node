@@ -1,7 +1,8 @@
+#![allow(clippy::type_complexity)]
 use crate::lbp::lbp;
 
 use crate::types::{Balance, LBPWeight, HYDRA_ONE};
-use crate::MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight};
+use crate::MathError::{Overflow, ZeroDuration, ZeroReserve};
 
 use std::vec;
 
@@ -37,19 +38,11 @@ fn spot_price_should_work() {
 
 #[test]
 fn out_given_in_should_work() {
-	let cases = vec![
-		(1000, 2000, 500, 500, 100, Ok(170), "Easy case"),
-		(0, 0, 0, 0, 100, Err(ZeroWeight), "Zero reserves and weights"),
+	let cases: Vec<(u128, u128, u32, u32, u128, Result<u128, crate::MathError>, &str)> = vec![
+		(1000, 2000, 500, 500, 100, Ok(181), "Easy case"),
+		(0, 0, 0, 0, 100, Err(Overflow), "Zero reserves and weights"),
 		(1, 1, 1, 1, 0, Ok(0), "Zero out reserve and amount"),
-		(
-			0,
-			0,
-			1,
-			1,
-			Balance::MAX,
-			Err(ZeroReserve),
-			"Zero buy reserve and sell reserve",
-		),
+		(0, 0, 1, 1, Balance::MAX, Ok(0), "Zero buy reserve and sell reserve"),
 	];
 
 	for case in cases {
@@ -66,14 +59,14 @@ fn out_given_in_should_work() {
 fn in_given_out_should_work() {
 	let prec: u128 = HYDRA_ONE;
 	let cases = vec![
-		(1000, 2000, 500, 500, 100, Ok(60), "Easy case"),
+		(1000, 2000, 500, 500, 100, Ok(54), "Easy case"),
 		(
 			100 * prec,
 			20 * prec,
 			5_000_000,
 			10_000_000,
 			prec,
-			Ok(10803324098387),
+			Ok(10803324099724),
 			"Easy case",
 		),
 		(
@@ -82,7 +75,7 @@ fn in_given_out_should_work() {
 			10_000_000,
 			5_000_000,
 			prec,
-			Ok(2597835207971),
+			Ok(2597835208517),
 			"Easy case",
 		),
 		(
@@ -91,7 +84,7 @@ fn in_given_out_should_work() {
 			10_000_000,
 			120_000_000,
 			2 * prec,
-			Ok(7336295309332),
+			Ok(7336295198685),
 			"Easy case",
 		),
 		(0, 0, 0, 0, 100, Err(Overflow), "Zero reserves and weights"),

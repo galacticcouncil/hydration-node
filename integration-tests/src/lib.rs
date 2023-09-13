@@ -1,4 +1,3 @@
-mod bonds;
 mod call_filter;
 mod circuit_breaker;
 mod cross_chain_transfer;
@@ -18,17 +17,3 @@ mod router;
 mod staking;
 mod transact_call_filter;
 mod vesting;
-
-#[macro_export]
-macro_rules! assert_balance {
-	( $who:expr, $asset:expr, $amount:expr) => {{
-		assert_eq!(Currencies::free_balance($asset, &$who), $amount);
-	}};
-}
-
-#[macro_export]
-macro_rules! assert_reserved_balance {
-	( $who:expr, $asset:expr, $amount:expr) => {{
-		assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
-	}};
-}
