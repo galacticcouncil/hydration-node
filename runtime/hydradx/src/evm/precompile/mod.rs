@@ -23,11 +23,10 @@ use pallet_evm::{ExitError, ExitRevert, ExitSucceed, PrecompileFailure, Precompi
 use primitive_types::{H160, U256};
 use primitives::AssetId;
 use scale_info::TypeInfo;
-#[cfg(feature = "std")] //TODO: IMPORTANT - remove this deserialize
-use serde::{Deserialize, Serialize};
 use sp_runtime::{traits::Convert, RuntimeDebug};
 use sp_std::borrow::ToOwned;
 use sp_std::vec::Vec;
+
 pub mod costs;
 pub mod erc20_mapping;
 pub mod handle;
@@ -56,13 +55,6 @@ impl From<Address> for H160 {
 	fn from(a: Address) -> H160 {
 		a.0
 	}
-}
-
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, MaxEncodedLen, PartialOrd, Ord, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum FungibleTokenId {
-	NativeToken(AssetId),
-	FungibleToken(AssetId),
 }
 
 #[must_use]

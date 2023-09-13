@@ -38,7 +38,7 @@ use frame_system::Origin;
 use crate::evm::precompile::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
 use crate::evm::precompile::handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt};
 use crate::evm::precompile::substrate::RuntimeHelper;
-use crate::evm::precompile::{succeed, Address, EvmAddress, EvmResult, FungibleTokenId, Output};
+use crate::evm::precompile::{succeed, Address, EvmAddress, EvmResult, Output};
 use crate::evm::ExtendedAddressMapping;
 use crate::Currencies;
 use crate::NativeAssetId;

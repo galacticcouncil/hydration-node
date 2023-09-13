@@ -34,7 +34,7 @@ use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 };
 
-use crate::evm::precompile::{EvmAddress, FungibleTokenId};
+use crate::evm::precompile::EvmAddress;
 use frame_support::{
 	parameter_types,
 	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
