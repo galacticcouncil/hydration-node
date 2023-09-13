@@ -41,461 +41,473 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_stableswap.
 pub trait WeightInfo {
-    fn create_pool() -> Weight;
-    fn add_liquidity() -> Weight;
-    fn add_liquidity_shares() -> Weight;
-    fn remove_liquidity_one_asset() -> Weight;
-    fn withdraw_asset_amount() -> Weight;
-    fn sell() -> Weight;
-    fn buy() -> Weight;
-    fn set_asset_tradable_state() -> Weight;
-    fn update_pool_fee() -> Weight;
-    fn update_amplification() -> Weight;
-    fn trade_execution_sell() -> Weight;
-    fn trade_execution_buy() -> Weight;
+	fn create_pool() -> Weight;
+	fn add_liquidity() -> Weight;
+	fn add_liquidity_shares() -> Weight;
+	fn remove_liquidity_one_asset() -> Weight;
+	fn withdraw_asset_amount() -> Weight;
+	fn sell() -> Weight;
+	fn buy() -> Weight;
+	fn set_asset_tradable_state() -> Weight;
+	fn update_pool_fee() -> Weight;
+	fn update_amplification() -> Weight;
+	fn trade_execution_sell() -> Weight;
+	fn trade_execution_buy() -> Weight;
 }
 
 /// Weights for pallet_stableswap using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-    // Storage: Stableswap Pools (r:1 w:1)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:6 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: Duster AccountBlacklist (r:0 w:1)
-    // Proof: Duster AccountBlacklist (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-    fn create_pool() -> Weight {
-        // Minimum execution time: 50_796 nanoseconds.
-        Weight::from_ref_time(51_251_000 as u64)            .saturating_add(T::DbWeight::get().reads(7 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
-    }
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Stableswap AssetTradability (r:5 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:11 w:11)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:6 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:1 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    fn add_liquidity() -> Weight {
-        // Minimum execution time: 888_793 nanoseconds.
-        Weight::from_ref_time(891_474_000 as u64)            .saturating_add(T::DbWeight::get().reads(32 as u64))
-            .saturating_add(T::DbWeight::get().writes(13 as u64))
-    }
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:3)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:1 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    fn add_liquidity_shares() -> Weight {
-        // Minimum execution time: 488_333 nanoseconds.
-        Weight::from_ref_time(489_891_000 as u64)            .saturating_add(T::DbWeight::get().reads(19 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
-    // Storage: Stableswap AssetTradability (r:1 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:3)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    fn remove_liquidity_one_asset() -> Weight {
-        // Minimum execution time: 519_711 nanoseconds.
-        Weight::from_ref_time(521_236_000 as u64)            .saturating_add(T::DbWeight::get().reads(20 as u64))
-            .saturating_add(T::DbWeight::get().writes(6 as u64))
-    }
-    // Storage: Stableswap AssetTradability (r:1 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:3)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    fn withdraw_asset_amount() -> Weight {
-        // Minimum execution time: 796_068 nanoseconds.
-        Weight::from_ref_time(799_553_000 as u64)            .saturating_add(T::DbWeight::get().reads(21 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
-    // Storage: Stableswap AssetTradability (r:2 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    fn sell() -> Weight {
-        // Minimum execution time: 445_565 nanoseconds.
-        Weight::from_ref_time(446_960_000 as u64)            .saturating_add(T::DbWeight::get().reads(20 as u64))
-            .saturating_add(T::DbWeight::get().writes(6 as u64))
-    }
-    // Storage: Stableswap AssetTradability (r:2 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    fn buy() -> Weight {
-        // Minimum execution time: 432_808 nanoseconds.
-        Weight::from_ref_time(433_580_000 as u64)            .saturating_add(T::DbWeight::get().reads(21 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Stableswap AssetTradability (r:1 w:1)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    fn set_asset_tradable_state() -> Weight {
-        // Minimum execution time: 24_372 nanoseconds.
-        Weight::from_ref_time(24_699_000 as u64)            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
-    // Storage: Stableswap Pools (r:1 w:1)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    fn update_pool_fee() -> Weight {
-        // Minimum execution time: 22_580 nanoseconds.
-        Weight::from_ref_time(22_822_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
-    // Storage: Stableswap Pools (r:1 w:1)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    fn update_amplification() -> Weight {
-        // Minimum execution time: 23_990 nanoseconds.
-        Weight::from_ref_time(24_487_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: Stableswap AssetTradability (r:2 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    fn trade_execution_sell() -> Weight {
-        // Minimum execution time: 739_292 nanoseconds.
-        Weight::from_ref_time(740_883_000 as u64)            .saturating_add(T::DbWeight::get().reads(20 as u64))
-            .saturating_add(T::DbWeight::get().writes(6 as u64))
-    }
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: Stableswap AssetTradability (r:2 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    fn trade_execution_buy() -> Weight {
-        // Minimum execution time: 726_292 nanoseconds.
-        Weight::from_ref_time(727_824_000 as u64)            .saturating_add(T::DbWeight::get().reads(21 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
+	// Storage: Stableswap Pools (r:1 w:1)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:6 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: Duster AccountBlacklist (r:0 w:1)
+	// Proof: Duster AccountBlacklist (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
+	fn create_pool() -> Weight {
+		// Minimum execution time: 50_796 nanoseconds.
+		Weight::from_ref_time(51_251_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(7 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Stableswap AssetTradability (r:5 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:11 w:11)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:6 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:1 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	fn add_liquidity() -> Weight {
+		// Minimum execution time: 888_793 nanoseconds.
+		Weight::from_ref_time(891_474_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(32 as u64))
+			.saturating_add(T::DbWeight::get().writes(13 as u64))
+	}
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:3)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:1 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	fn add_liquidity_shares() -> Weight {
+		// Minimum execution time: 488_333 nanoseconds.
+		Weight::from_ref_time(489_891_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(19 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
+	// Storage: Stableswap AssetTradability (r:1 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:3)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	fn remove_liquidity_one_asset() -> Weight {
+		// Minimum execution time: 519_711 nanoseconds.
+		Weight::from_ref_time(521_236_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(20 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	}
+	// Storage: Stableswap AssetTradability (r:1 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:3)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	fn withdraw_asset_amount() -> Weight {
+		// Minimum execution time: 796_068 nanoseconds.
+		Weight::from_ref_time(799_553_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(21 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
+	// Storage: Stableswap AssetTradability (r:2 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	fn sell() -> Weight {
+		// Minimum execution time: 445_565 nanoseconds.
+		Weight::from_ref_time(446_960_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(20 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	}
+	// Storage: Stableswap AssetTradability (r:2 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	fn buy() -> Weight {
+		// Minimum execution time: 432_808 nanoseconds.
+		Weight::from_ref_time(433_580_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(21 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Stableswap AssetTradability (r:1 w:1)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	fn set_asset_tradable_state() -> Weight {
+		// Minimum execution time: 24_372 nanoseconds.
+		Weight::from_ref_time(24_699_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+	// Storage: Stableswap Pools (r:1 w:1)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	fn update_pool_fee() -> Weight {
+		// Minimum execution time: 22_580 nanoseconds.
+		Weight::from_ref_time(22_822_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+	// Storage: Stableswap Pools (r:1 w:1)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	fn update_amplification() -> Weight {
+		// Minimum execution time: 23_990 nanoseconds.
+		Weight::from_ref_time(24_487_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: Stableswap AssetTradability (r:2 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	fn trade_execution_sell() -> Weight {
+		// Minimum execution time: 739_292 nanoseconds.
+		Weight::from_ref_time(740_883_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(20 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	}
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: Stableswap AssetTradability (r:2 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	fn trade_execution_buy() -> Weight {
+		// Minimum execution time: 726_292 nanoseconds.
+		Weight::from_ref_time(727_824_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(21 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-    // Storage: Stableswap Pools (r:1 w:1)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:6 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: Duster AccountBlacklist (r:0 w:1)
-    // Proof: Duster AccountBlacklist (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-    fn create_pool() -> Weight {
-        // Minimum execution time: 50_796 nanoseconds.
-        Weight::from_ref_time(51_251_000)
-            .saturating_add(RocksDbWeight::get().reads(7))
-            .saturating_add(RocksDbWeight::get().writes(2))
-    }
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Stableswap AssetTradability (r:5 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:11 w:11)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:6 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:1 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    fn add_liquidity() -> Weight {
-        // Minimum execution time: 888_793 nanoseconds.
-        Weight::from_ref_time(891_474_000)
-            .saturating_add(RocksDbWeight::get().reads(32))
-            .saturating_add(RocksDbWeight::get().writes(13))
-    }
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:3)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:1 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    fn add_liquidity_shares() -> Weight {
-        // Minimum execution time: 488_333 nanoseconds.
-        Weight::from_ref_time(489_891_000)
-            .saturating_add(RocksDbWeight::get().reads(19))
-            .saturating_add(RocksDbWeight::get().writes(5))
-    }
-    // Storage: Stableswap AssetTradability (r:1 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:3)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    fn remove_liquidity_one_asset() -> Weight {
-        // Minimum execution time: 519_711 nanoseconds.
-        Weight::from_ref_time(521_236_000)
-            .saturating_add(RocksDbWeight::get().reads(20))
-            .saturating_add(RocksDbWeight::get().writes(6))
-    }
-    // Storage: Stableswap AssetTradability (r:1 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:3)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: Tokens TotalIssuance (r:1 w:1)
-    // Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    fn withdraw_asset_amount() -> Weight {
-        // Minimum execution time: 796_068 nanoseconds.
-        Weight::from_ref_time(799_553_000)
-            .saturating_add(RocksDbWeight::get().reads(21))
-            .saturating_add(RocksDbWeight::get().writes(5))
-    }
-    // Storage: Stableswap AssetTradability (r:2 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    fn sell() -> Weight {
-        // Minimum execution time: 445_565 nanoseconds.
-        Weight::from_ref_time(446_960_000)
-            .saturating_add(RocksDbWeight::get().reads(20))
-            .saturating_add(RocksDbWeight::get().writes(6))
-    }
-    // Storage: Stableswap AssetTradability (r:2 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    fn buy() -> Weight {
-        // Minimum execution time: 432_808 nanoseconds.
-        Weight::from_ref_time(433_580_000)
-            .saturating_add(RocksDbWeight::get().reads(21))
-            .saturating_add(RocksDbWeight::get().writes(5))
-    }
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Stableswap AssetTradability (r:1 w:1)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    fn set_asset_tradable_state() -> Weight {
-        // Minimum execution time: 24_372 nanoseconds.
-        Weight::from_ref_time(24_699_000)
-            .saturating_add(RocksDbWeight::get().reads(2))
-            .saturating_add(RocksDbWeight::get().writes(1))
-    }
-    // Storage: Stableswap Pools (r:1 w:1)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    fn update_pool_fee() -> Weight {
-        // Minimum execution time: 22_580 nanoseconds.
-        Weight::from_ref_time(22_822_000)
-            .saturating_add(RocksDbWeight::get().reads(1))
-            .saturating_add(RocksDbWeight::get().writes(1))
-    }
-    // Storage: Stableswap Pools (r:1 w:1)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    fn update_amplification() -> Weight {
-        // Minimum execution time: 23_990 nanoseconds.
-        Weight::from_ref_time(24_487_000)
-            .saturating_add(RocksDbWeight::get().reads(1))
-            .saturating_add(RocksDbWeight::get().writes(1))
-    }
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: Stableswap AssetTradability (r:2 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    fn trade_execution_sell() -> Weight {
-        // Minimum execution time: 739_292 nanoseconds.
-        Weight::from_ref_time(740_883_000)
-            .saturating_add(RocksDbWeight::get().reads(20))
-            .saturating_add(RocksDbWeight::get().writes(6))
-    }
-    // Storage: Stableswap Pools (r:1 w:0)
-    // Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
-    // Storage: Tokens Accounts (r:7 w:4)
-    // Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-    // Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
-    // Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
-    // Storage: Stableswap AssetTradability (r:2 w:0)
-    // Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
-    // Storage: AssetRegistry Assets (r:2 w:0)
-    // Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-    // Storage: System Account (r:2 w:1)
-    // Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-    // Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-    // Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
-    // Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-    fn trade_execution_buy() -> Weight {
-        // Minimum execution time: 726_292 nanoseconds.
-        Weight::from_ref_time(727_824_000)
-            .saturating_add(RocksDbWeight::get().reads(21))
-            .saturating_add(RocksDbWeight::get().writes(5))
-    }
+	// Storage: Stableswap Pools (r:1 w:1)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:6 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: Duster AccountBlacklist (r:0 w:1)
+	// Proof: Duster AccountBlacklist (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
+	fn create_pool() -> Weight {
+		// Minimum execution time: 50_796 nanoseconds.
+		Weight::from_ref_time(51_251_000)
+			.saturating_add(RocksDbWeight::get().reads(7))
+			.saturating_add(RocksDbWeight::get().writes(2))
+	}
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Stableswap AssetTradability (r:5 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:11 w:11)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:6 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:1 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	fn add_liquidity() -> Weight {
+		// Minimum execution time: 888_793 nanoseconds.
+		Weight::from_ref_time(891_474_000)
+			.saturating_add(RocksDbWeight::get().reads(32))
+			.saturating_add(RocksDbWeight::get().writes(13))
+	}
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:3)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:1 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	fn add_liquidity_shares() -> Weight {
+		// Minimum execution time: 488_333 nanoseconds.
+		Weight::from_ref_time(489_891_000)
+			.saturating_add(RocksDbWeight::get().reads(19))
+			.saturating_add(RocksDbWeight::get().writes(5))
+	}
+	// Storage: Stableswap AssetTradability (r:1 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:3)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	fn remove_liquidity_one_asset() -> Weight {
+		// Minimum execution time: 519_711 nanoseconds.
+		Weight::from_ref_time(521_236_000)
+			.saturating_add(RocksDbWeight::get().reads(20))
+			.saturating_add(RocksDbWeight::get().writes(6))
+	}
+	// Storage: Stableswap AssetTradability (r:1 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:3)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: Tokens TotalIssuance (r:1 w:1)
+	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	fn withdraw_asset_amount() -> Weight {
+		// Minimum execution time: 796_068 nanoseconds.
+		Weight::from_ref_time(799_553_000)
+			.saturating_add(RocksDbWeight::get().reads(21))
+			.saturating_add(RocksDbWeight::get().writes(5))
+	}
+	// Storage: Stableswap AssetTradability (r:2 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	fn sell() -> Weight {
+		// Minimum execution time: 445_565 nanoseconds.
+		Weight::from_ref_time(446_960_000)
+			.saturating_add(RocksDbWeight::get().reads(20))
+			.saturating_add(RocksDbWeight::get().writes(6))
+	}
+	// Storage: Stableswap AssetTradability (r:2 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	fn buy() -> Weight {
+		// Minimum execution time: 432_808 nanoseconds.
+		Weight::from_ref_time(433_580_000)
+			.saturating_add(RocksDbWeight::get().reads(21))
+			.saturating_add(RocksDbWeight::get().writes(5))
+	}
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Stableswap AssetTradability (r:1 w:1)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	fn set_asset_tradable_state() -> Weight {
+		// Minimum execution time: 24_372 nanoseconds.
+		Weight::from_ref_time(24_699_000)
+			.saturating_add(RocksDbWeight::get().reads(2))
+			.saturating_add(RocksDbWeight::get().writes(1))
+	}
+	// Storage: Stableswap Pools (r:1 w:1)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	fn update_pool_fee() -> Weight {
+		// Minimum execution time: 22_580 nanoseconds.
+		Weight::from_ref_time(22_822_000)
+			.saturating_add(RocksDbWeight::get().reads(1))
+			.saturating_add(RocksDbWeight::get().writes(1))
+	}
+	// Storage: Stableswap Pools (r:1 w:1)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	fn update_amplification() -> Weight {
+		// Minimum execution time: 23_990 nanoseconds.
+		Weight::from_ref_time(24_487_000)
+			.saturating_add(RocksDbWeight::get().reads(1))
+			.saturating_add(RocksDbWeight::get().writes(1))
+	}
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: Stableswap AssetTradability (r:2 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	fn trade_execution_sell() -> Weight {
+		// Minimum execution time: 739_292 nanoseconds.
+		Weight::from_ref_time(740_883_000)
+			.saturating_add(RocksDbWeight::get().reads(20))
+			.saturating_add(RocksDbWeight::get().writes(6))
+	}
+	// Storage: Stableswap Pools (r:1 w:0)
+	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	// Storage: Tokens Accounts (r:7 w:4)
+	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+	// Storage: AssetRegistry AssetMetadataMap (r:5 w:0)
+	// Proof: AssetRegistry AssetMetadataMap (max_values: None, max_size: Some(46), added: 2521, mode: MaxEncodedLen)
+	// Storage: Stableswap AssetTradability (r:2 w:0)
+	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
+	// Storage: AssetRegistry Assets (r:2 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
+	// Storage: System Account (r:2 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
+	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+	fn trade_execution_buy() -> Weight {
+		// Minimum execution time: 726_292 nanoseconds.
+		Weight::from_ref_time(727_824_000)
+			.saturating_add(RocksDbWeight::get().reads(21))
+			.saturating_add(RocksDbWeight::get().writes(5))
+	}
 }
