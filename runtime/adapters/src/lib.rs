@@ -30,6 +30,7 @@ use frame_support::{
 };
 use hydra_dx_math::{
 	ema::EmaPrice,
+	ensure,
 	omnipool::types::BalanceUpdate,
 	support::rational::{round_to_rational, Rounding},
 };
@@ -41,9 +42,11 @@ use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
+use pallet_stableswap::types::{PoolState, StableswapHooks};
 use pallet_transaction_multi_payment::DepositFee;
 use polkadot_xcm::latest::prelude::*;
 use primitive_types::U128;
+use primitives::constants::chain::STABLESWAP_SOURCE;
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::BlockNumberProvider;
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
@@ -787,5 +790,91 @@ where
 				None => Zero::zero(),
 			}
 		}
+	}
+}
+
+pub struct StableswapHooksAdapter<Runtime>(PhantomData<Runtime>);
+
+impl<Runtime> StableswapHooks<AssetId> for StableswapHooksAdapter<Runtime>
+where
+	Runtime: pallet_ema_oracle::Config + pallet_stableswap::Config,
+{
+	fn on_liquidity_changed(pool_id: AssetId, state: PoolState<AssetId>) -> DispatchResult {
+		let pool_size = state.assets.len();
+
+		// As we access by index, let's ensure correct vec lengths.
+		ensure!(
+			state.before.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+		ensure!(
+			state.after.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+		ensure!(
+			state.delta.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+
+		for idx in 0..pool_size {
+			OnActivityHandler::<Runtime>::on_liquidity_changed(
+				STABLESWAP_SOURCE,
+				state.assets[idx],
+				pool_id,
+				state.delta[idx],
+				0, //TODO: fix
+				state.after[idx],
+				state.shares,
+			)
+			.map_err(|(_, e)| e)?;
+		}
+
+		Ok(())
+	}
+
+	fn on_trade(
+		pool_id: AssetId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		state: PoolState<AssetId>,
+	) -> DispatchResult {
+		let pool_size = state.assets.len();
+
+		// As we access by index, let's ensure correct vec lengths.
+		ensure!(
+			state.before.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+		ensure!(
+			state.after.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+		ensure!(
+			state.delta.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+
+		for idx in 0..pool_size {
+			OnActivityHandler::<Runtime>::on_trade(
+				STABLESWAP_SOURCE,
+				state.assets[idx],
+				pool_id,
+				state.delta[idx],
+				0, // Correct
+				state.after[idx],
+				state.shares,
+			)
+			.map_err(|(_, e)| e)?;
+		}
+
+		Ok(())
+	}
+
+	fn on_liquidity_changed_weight(n: usize) -> Weight {
+		OnActivityHandler::<Runtime>::on_liquidity_changed_weight().saturating_mul(n as u64)
+	}
+
+	fn on_trade_weight(n: usize) -> Weight {
+		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(2 * n as u64)
 	}
 }

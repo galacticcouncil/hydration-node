@@ -135,8 +135,8 @@ pub trait StableswapHooks<AssetId> {
 	fn on_liquidity_changed(pool_id: AssetId, state: PoolState<AssetId>) -> DispatchResult;
 	fn on_trade(pool_id: AssetId, asset_in: AssetId, asset_out: AssetId, state: PoolState<AssetId>) -> DispatchResult;
 
-	fn on_liquidity_changed_weight() -> Weight;
-	fn on_trade_weight() -> Weight;
+	fn on_liquidity_changed_weight(n: usize) -> Weight;
+	fn on_trade_weight(n: usize) -> Weight;
 }
 
 impl<AssetId> StableswapHooks<AssetId> for () {
@@ -153,11 +153,11 @@ impl<AssetId> StableswapHooks<AssetId> for () {
 		Ok(())
 	}
 
-	fn on_liquidity_changed_weight() -> Weight {
+	fn on_liquidity_changed_weight(_n: usize) -> Weight {
 		Weight::zero()
 	}
 
-	fn on_trade_weight() -> Weight {
+	fn on_trade_weight(_n: usize) -> Weight {
 		Weight::zero()
 	}
 }

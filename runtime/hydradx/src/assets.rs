@@ -20,7 +20,8 @@ use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
 	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, VestingInfo,
+	OracleAssetVolumeProvider, OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, StableswapHooksAdapter,
+	VestingInfo,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
@@ -550,6 +551,7 @@ impl pallet_stableswap::Config for Runtime {
 	type AssetInspection = AssetRegistry;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type DustAccountHandler = Duster;
+	type Hooks = StableswapHooksAdapter<Runtime>;
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
 	type AmplificationRange = StableswapAmplificationRange;

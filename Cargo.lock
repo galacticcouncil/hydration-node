@@ -3797,6 +3797,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-route-executor",
+ "pallet-stableswap",
  "pallet-staking 1.0.1",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
