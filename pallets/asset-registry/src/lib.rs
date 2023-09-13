@@ -464,7 +464,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::register())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_external())]
 		pub fn register_external(origin: OriginFor<T>, location: T::AssetNativeLocation) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 

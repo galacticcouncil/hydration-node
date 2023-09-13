@@ -20,11 +20,15 @@
 use super::*;
 
 use crate::types::AssetDetails;
-use frame_benchmarking::benchmarks;
+use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
+use orml_traits::MultiCurrencyExtended;
+
+const UNIT: u128 = 1_000_000_000_000;
 
 benchmarks! {
 	 where_clause { where
+		T::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
 		T: crate::pallet::Config,
 	}
 
@@ -83,6 +87,21 @@ benchmarks! {
 			xcm_rate_limit: Some(xcm_rate_limit),
 			is_sufficient: new_is_sufficient,
 		}));
+	}
+
+	register_external {
+		let caller: T::AccountId = account("caller", 0, 1);
+		T::Currency::update_balance(T::NativeAssetId::get(), &caller, (100_000 * UNIT) as i128)?;
+
+		let expected_asset_id = Pallet::<T>::next_asset_id().unwrap();
+		let location: T::AssetNativeLocation = Default::default();
+
+		assert!(Pallet::<T>::location_assets(location.clone()).is_none());
+	}: _(RawOrigin::Signed(caller), location.clone())
+	verify {
+		assert_eq!(Pallet::<T>::locations(expected_asset_id), Some(location.clone()));
+		assert_eq!(Pallet::<T>::location_assets(location), Some(expected_asset_id));
+
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);
