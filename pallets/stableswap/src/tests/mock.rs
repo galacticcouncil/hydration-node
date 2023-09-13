@@ -67,7 +67,7 @@ macro_rules! assert_balance {
 }
 
 thread_local! {
-	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
+	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, (u32,u8)>> = RefCell::new(HashMap::default());
 	pub static ASSET_IDENTS: RefCell<HashMap<Vec<u8>, u32>> = RefCell::new(HashMap::default());
 	pub static POOL_IDS: RefCell<Vec<AssetId>> = RefCell::new(Vec::new());
 	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
@@ -173,7 +173,7 @@ impl Config for Test {
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
-	type AssetRegistry = DummyRegistry<Test>;
+	type AssetInspection = DummyRegistry;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type MinPoolLiquidity = MinimumLiquidity;
 	type AmplificationRange = AmplificationRange;
@@ -181,16 +181,18 @@ impl Config for Test {
 	type WeightInfo = ();
 	type BlockNumberProvider = System;
 	type DustAccountHandler = Whitelist;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = DummyRegistry;
 }
 
 pub struct InitialLiquidity {
 	pub(crate) account: AccountId,
-	pub(crate) assets: Vec<AssetBalance<AssetId>>,
+	pub(crate) assets: Vec<AssetAmount<AssetId>>,
 }
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
-	registered_assets: Vec<(Vec<u8>, AssetId)>,
+	registered_assets: Vec<(Vec<u8>, AssetId, u8)>,
 	created_pools: Vec<(AccountId, PoolInfo<AssetId, u64>, InitialLiquidity)>,
 }
 
@@ -222,8 +224,8 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_registered_asset(mut self, name: Vec<u8>, asset: AssetId) -> Self {
-		self.registered_assets.push((name, asset));
+	pub fn with_registered_asset(mut self, name: Vec<u8>, asset: AssetId, decimals: u8) -> Self {
+		self.registered_assets.push((name, asset, decimals));
 		self
 	}
 
@@ -240,12 +242,13 @@ impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		let mut all_assets: Vec<(Vec<u8>, AssetId)> = vec![(b"DAI".to_vec(), DAI), (b"HDX".to_vec(), HDX)];
+		let mut all_assets: Vec<(Vec<u8>, AssetId, u8)> =
+			vec![(b"DAI".to_vec(), DAI, 12u8), (b"HDX".to_vec(), HDX, 12u8)];
 		all_assets.extend(self.registered_assets);
 
-		for (name, asset) in all_assets.into_iter() {
+		for (name, asset, decimals) in all_assets.into_iter() {
 			REGISTERED_ASSETS.with(|v| {
-				v.borrow_mut().insert(asset, asset);
+				v.borrow_mut().insert(asset, (asset, decimals));
 			});
 
 			ASSET_IDENTS.with(|v| {
@@ -268,7 +271,7 @@ impl ExtBuilder {
 			for (_who, pool, initial_liquid) in self.created_pools {
 				let pool_id = retrieve_current_asset_id();
 				REGISTERED_ASSETS.with(|v| {
-					v.borrow_mut().insert(pool_id, pool_id);
+					v.borrow_mut().insert(pool_id, (pool_id, 12));
 				});
 				ASSET_IDENTS.with(|v| {
 					v.borrow_mut().insert(b"main".to_vec(), pool_id);
@@ -279,8 +282,7 @@ impl ExtBuilder {
 					pool_id,
 					pool.assets.clone().into(),
 					pool.initial_amplification.get(),
-					pool.trade_fee,
-					pool.withdraw_fee,
+					pool.fee,
 				));
 				POOL_IDS.with(|v| {
 					v.borrow_mut().push(pool_id);
@@ -300,62 +302,38 @@ impl ExtBuilder {
 	}
 }
 
-use crate::types::{AssetBalance, PoolInfo};
+#[cfg(feature = "runtime-benchmarks")]
+use crate::types::BenchmarkHelper;
+use crate::types::{AssetAmount, PoolInfo};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::{AccountIdFor, AssetKind, Registry, ShareTokenRegistry};
+use hydradx_traits::{AccountIdFor, InspectRegistry};
 use sp_runtime::traits::Zero;
 
-pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::DispatchResult;
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
-where
-	T::AssetId: Into<AssetId> + From<u32>,
-{
-	fn exists(asset_id: T::AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+pub struct DummyRegistry;
+
+impl InspectRegistry<AssetId> for DummyRegistry {
+	fn exists(asset_id: AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied());
 		matches!(asset, Some(_))
 	}
 
-	fn retrieve_asset(name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		let asset_id = ASSET_IDENTS.with(|v| v.borrow().get(name).copied());
-		if let Some(id) = asset_id {
-			Ok(id.into())
-		} else {
-			Err(pallet_stableswap::Error::<Test>::AssetNotRegistered.into())
-		}
-	}
-
-	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
-		unimplemented!()
-	}
-
-	fn create_asset(name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
-		let assigned = REGISTERED_ASSETS.with(|v| {
-			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, l as u32);
-			l as u32
-		});
-
-		ASSET_IDENTS.with(|v| v.borrow_mut().insert(name.clone(), assigned));
-
-		Ok(T::AssetId::from(assigned))
+	fn decimals(asset_id: AssetId) -> Option<u8> {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied())?;
+		Some(asset.1)
 	}
 }
 
-impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
-where
-	T::AssetId: Into<AssetId> + From<u32>,
-{
-	fn retrieve_shared_asset(name: &Vec<u8>, _assets: &[T::AssetId]) -> Result<T::AssetId, DispatchError> {
-		Self::retrieve_asset(name)
-	}
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<AssetId> for DummyRegistry {
+	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().insert(asset_id, (asset_id, decimals));
+		});
 
-	fn create_shared_asset(
-		name: &Vec<u8>,
-		_assets: &[T::AssetId],
-		existential_deposit: Balance,
-	) -> Result<T::AssetId, DispatchError> {
-		Self::get_or_create_asset(name.clone(), existential_deposit)
+		Ok(())
 	}
 }
 

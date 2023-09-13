@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.5.2"
+version = "7.6.0"
 dependencies = [
  "approx",
  "criterion",
@@ -3878,6 +3878,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-stableswap",
  "pallet-staking 1.0.1",
  "pallet-timestamp",
  "pallet-tips",
@@ -3922,7 +3923,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.5.1"
+version = "2.6.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6203,7 +6204,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.3.0"
+version = "2.3.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7279,7 +7280,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7372,7 +7373,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "2.1.2"
+version = "3.1.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -10205,7 +10206,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.11.0"
+version = "1.12.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10259,6 +10260,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-stableswap",
  "pallet-staking 1.0.1",
  "pallet-sudo",
  "pallet-timestamp",
