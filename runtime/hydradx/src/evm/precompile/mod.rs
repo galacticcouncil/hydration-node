@@ -15,15 +15,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use codec::{alloc, Decode, Encode, MaxEncodedLen};
+use codec::alloc;
 use ethabi::Token;
-use frame_support::traits::IsType;
-use hex_literal::hex;
 use pallet_evm::{ExitError, ExitRevert, ExitSucceed, PrecompileFailure, PrecompileOutput};
 use primitive_types::{H160, U256};
-use primitives::AssetId;
-use scale_info::TypeInfo;
-use sp_runtime::{traits::Convert, RuntimeDebug};
 use sp_std::borrow::ToOwned;
 use sp_std::vec::Vec;
 

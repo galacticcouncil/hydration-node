@@ -16,8 +16,7 @@
 
 use crate::evm::precompile::{costs, revert, Address, Bytes, EvmResult};
 use frame_support::log;
-use num_enum::{TryFromPrimitive, TryFromPrimitiveError};
-use pallet_evm::{Context, Log, PrecompileFailure, PrecompileHandle};
+use pallet_evm::{Context, Log, PrecompileHandle};
 use primitive_types::{H160, H256, U256};
 use smallvec::alloc;
 use sp_std::borrow::ToOwned;

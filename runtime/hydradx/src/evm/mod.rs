@@ -32,13 +32,11 @@ use frame_support::{
 	ConsensusEngineId,
 };
 use hex_literal::hex;
-use hydradx_traits::Registry;
 use orml_tokens::CurrencyAdapter;
-use pallet_evm::{AddressMapping, EnsureAddressTruncated, Error, OnChargeEVMTransaction};
+use pallet_evm::EnsureAddressTruncated;
 use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
 use polkadot_xcm::latest::MultiLocation;
-use polkadot_xcm::prelude::{AccountKey20, Here, PalletInstance, Parachain, X3};
-use primitive_types::H160;
+use polkadot_xcm::prelude::{AccountKey20, PalletInstance, Parachain, X3};
 use primitives::{AccountId, AssetId};
 use sp_core::{Get, U256};
 use sp_runtime::traits::Convert;
@@ -127,7 +125,6 @@ impl Get<AssetId> for WethAssetId {
 
 type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
 use frame_support::traits::Currency as PalletCurrency;
-use primitives::constants::currency::deposit;
 
 type NegativeImbalance = <WethCurrency as PalletCurrency<AccountId>>::NegativeImbalance;
 

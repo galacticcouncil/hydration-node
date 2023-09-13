@@ -1,62 +1,39 @@
-// This file is part of Acala.
+// This file is part of HydraDX-node.
 
-// Copyright (C) 2020-2023 Acala Foundation.
-// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
 
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
+use frame_support::log;
 
-// You should have received a copy of the GNU General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-use super::super::WeightToGas;
-//use super::input::{Input, InputT, Output};
-use frame_support::{
-	log,
-	traits::{Currency, Get},
-};
-//use module_currencies::WeightInfo;
-/*use module_evm::{
-	precompiles::Precompile,
-	runner::state::{PrecompileFailure, PrecompileOutput, PrecompileResult},
-	Context, ExitError, ExitRevert, ExitSucceed,
-};*/
-
-//use module_support::Erc20InfoMapping as Erc20InfoMappingT;
-use codec::{alloc, Decode, Encode, EncodeLike, MaxEncodedLen};
-use frame_support::traits::{IsType, OriginTrait};
-use frame_system::pallet_prelude::OriginFor;
-use frame_system::Origin;
+use codec::EncodeLike;
+use frame_support::traits::OriginTrait;
 //use input::Erc20InfoMappingT;
 use crate::evm::precompile::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
 use crate::evm::precompile::handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt};
 use crate::evm::precompile::substrate::RuntimeHelper;
-use crate::evm::precompile::{succeed, Address, EvmAddress, EvmResult, Output};
+use crate::evm::precompile::{succeed, Address, EvmResult, Output};
 use crate::evm::ExtendedAddressMapping;
 use crate::Currencies;
-use crate::NativeAssetId;
 use hydradx_traits::RegistryQueryForEvm;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
-use pallet_evm::{
-	AddressMapping, Context, ExitError, ExitRevert, ExitSucceed, Precompile, PrecompileFailure, PrecompileHandle,
-	PrecompileOutput,
-};
+use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput};
 use primitive_types::H160;
 use primitives::{AssetId, Balance};
-use scale_info::TypeInfo;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-use sp_core::crypto::AccountId32;
 use sp_runtime::traits::Dispatchable;
-use sp_runtime::{traits::Convert, RuntimeDebug};
+use sp_runtime::RuntimeDebug;
 use sp_std::{marker::PhantomData, prelude::*};
 
 //TODO: copied from runtime/common/recompile
@@ -264,7 +241,7 @@ where
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
-	fn allowance(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn allowance(_: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
@@ -313,20 +290,9 @@ where
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
-	fn not_supported(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn not_supported(_: AssetId, _: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
 		Err(PrecompileFailure::Error {
 			exit_status: pallet_evm::ExitError::Other("not supported".into()),
 		})
 	}
-}
-
-fn get_account_id<T: frame_system::Config>(address: &EvmAddress) -> T::AccountId
-where
-	T::AccountId: IsType<AccountId32>,
-{
-	let mut data: [u8; 32] = [0u8; 32];
-	data[0..4].copy_from_slice(b"evm:");
-	data[4..24].copy_from_slice(&address[..]);
-
-	AccountId32::from(data).into()
 }

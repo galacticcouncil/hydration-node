@@ -25,7 +25,6 @@ use crate::evm::precompile::erc20_mapping::is_asset_address;
 use crate::evm::precompile::multicurrency::MultiCurrencyPrecompile;
 use codec::Decode;
 use frame_support::dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo};
-use hex_literal::hex;
 use pallet_evm::{Precompile, PrecompileHandle, PrecompileResult, PrecompileSet};
 use sp_core::H160;
 

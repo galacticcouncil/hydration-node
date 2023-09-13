@@ -1,5 +1,3 @@
-use super::*;
-
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 
 pub struct OnRuntimeUpgradeMigration;

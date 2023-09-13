@@ -19,7 +19,6 @@
 
 use crate::evm::precompile::EvmResult;
 use pallet_evm::{ExitError, PrecompileFailure};
-use sp_core::U256;
 
 pub fn log_costs(topics: usize, data_len: usize) -> EvmResult<u64> {
 	// Cost calculation is copied from EVM code that is not publicly exposed by the crates.
