@@ -23,10 +23,11 @@ use hydradx_adapters::{
 	OracleAssetVolumeProvider, OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, VestingInfo,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{router::PoolType, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
+use hydradx_traits::{router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{traits::EnsurePriceWithin, weights::WeightInfo as OmnipoolWeights};
 use pallet_otc::NamedReserveIdentifier;
+use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
 use primitives::constants::time::DAYS;
 use primitives::constants::{
@@ -34,6 +35,7 @@ use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 };
 
+use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
 	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
@@ -50,6 +52,7 @@ use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, Trade};
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
+use sp_std::num::NonZeroU16;
 
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;
@@ -452,7 +455,7 @@ impl AmmTradeWeights<AssetId> for AmmWeights {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell(),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::trade_execution_sell(),
-				PoolType::Stableswap(_) => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell(), // TODO: replace by stableswap weights
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_sell(),
 				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell(), // TODO: replace by XYK weights
 			};
 			weight.saturating_accrue(amm_weight);
@@ -469,7 +472,7 @@ impl AmmTradeWeights<AssetId> for AmmWeights {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::trade_execution_buy(),
-				PoolType::Stableswap(_) => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell(), // TODO: replace by stableswap weights
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_sell(),
 				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell(), // TODO: replace by XYK weights
 			};
 			weight.saturating_accrue(amm_weight);
@@ -481,7 +484,7 @@ impl AmmTradeWeights<AssetId> for AmmWeights {
 }
 
 parameter_types! {
-	pub const MaxNumberOfTrades: u8 = 5;
+	pub const MaxNumberOfTrades: u8 = 3;
 }
 
 impl pallet_route_executor::Config for Runtime {
@@ -490,7 +493,7 @@ impl pallet_route_executor::Config for Runtime {
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
-	type AMM = (Omnipool, LBP);
+	type AMM = (Omnipool, Stableswap, LBP);
 	type AmmTradeWeights = AmmWeights;
 	type WeightInfo = weights::route_executor::HydraWeight<Runtime>;
 }
@@ -536,6 +539,77 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type Oracle = OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
+}
+
+// Stableswap
+parameter_types! {
+	pub StableswapAmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
+}
+
+pub struct StableswapAccountIdConstructor<T: frame_system::Config>(PhantomData<T>);
+
+impl<T: frame_system::Config> AccountIdFor<AssetId> for StableswapAccountIdConstructor<T>
+where
+	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
+{
+	type AccountId = T::AccountId;
+
+	fn from_assets(asset: &AssetId, identifier: Option<&[u8]>) -> Self::AccountId {
+		let name = Self::name(asset, identifier);
+		T::AccountId::unchecked_from(<T::Hashing as frame_support::sp_runtime::traits::Hash>::hash(&name[..]))
+	}
+
+	fn name(asset: &u32, identifier: Option<&[u8]>) -> Vec<u8> {
+		let mut buf = identifier.map_or_else(Vec::new, |v| v.to_vec());
+		buf.extend_from_slice(&(asset).to_le_bytes());
+		buf
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_stableswap::BenchmarkHelper;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::DispatchResult;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct RegisterAsset<T>(PhantomData<T>);
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsset<T> {
+	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
+		let asset_name = asset_id.to_le_bytes().to_vec();
+		let name: BoundedVec<u8, RegistryStrLimit> = asset_name
+			.clone()
+			.try_into()
+			.map_err(|_| pallet_asset_registry::Error::<T>::TooLong)?;
+		AssetRegistry::register_asset(
+			name,
+			pallet_asset_registry::AssetType::<AssetId>::Token,
+			1,
+			Some(asset_id),
+			None,
+		)?;
+		AssetRegistry::set_metadata(RuntimeOrigin::root(), asset_id, asset_name, decimals)?;
+
+		Ok(())
+	}
+}
+
+impl pallet_stableswap::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type BlockNumberProvider = System;
+	type AssetId = AssetId;
+	type Currency = Currencies;
+	type ShareAccountId = StableswapAccountIdConstructor<Runtime>;
+	type AssetInspection = AssetRegistry;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type DustAccountHandler = Duster;
+	type MinPoolLiquidity = MinPoolLiquidity;
+	type MinTradingLimit = MinTradingLimit;
+	type AmplificationRange = StableswapAmplificationRange;
+	type WeightInfo = weights::stableswap::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = RegisterAsset<Runtime>;
 }
 
 // Bonds

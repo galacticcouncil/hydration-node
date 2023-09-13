@@ -30,6 +30,7 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-dca = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-dynamic-fees = { workspace = true }
+pallet-stableswap = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 
@@ -170,6 +171,7 @@ runtime-benchmarks = [
     "pallet-route-executor/runtime-benchmarks",
     "pallet-staking/runtime-benchmarks",
     "pallet-bonds/runtime-benchmarks",
+    "pallet-stableswap/runtime-benchmarks",
     "pallet-lbp/runtime-benchmarks",
 ]
 std = [
@@ -254,6 +256,7 @@ std = [
     "pallet-dynamic-fees/std",
     "pallet-staking/std",
     "pallet-bonds/std",
+    "pallet-stableswap/std",
     "pallet-lbp/std",
 ]
 try-runtime= [
@@ -314,5 +317,6 @@ try-runtime= [
     "pallet-dynamic-fees/try-runtime",
     "pallet-staking/try-runtime",
     "pallet-bonds/try-runtime",
+    "pallet-stableswap/try-runtime",
     "pallet-lbp/try-runtime",
 ]
