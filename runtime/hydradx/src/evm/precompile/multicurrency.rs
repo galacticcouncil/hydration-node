@@ -35,9 +35,10 @@ use frame_support::traits::{IsType, OriginTrait};
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
 //use input::Erc20InfoMappingT;
+use crate::evm::precompile::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
 use crate::evm::precompile::handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt};
 use crate::evm::precompile::substrate::RuntimeHelper;
-use crate::evm::precompile::{succeed, Address, Erc20Mapping, EvmAddress, EvmResult, FungibleTokenId, Output};
+use crate::evm::precompile::{succeed, Address, EvmAddress, EvmResult, FungibleTokenId, Output};
 use crate::evm::ExtendedAddressMapping;
 use crate::Currencies;
 use crate::NativeAssetId;
@@ -81,11 +82,7 @@ pub struct MultiCurrencyPrecompile<Runtime>(PhantomData<Runtime>);
 
 impl<Runtime> Precompile for MultiCurrencyPrecompile<Runtime>
 where
-	Runtime: Erc20Mapping
-		+ frame_system::Config
-		+ pallet_evm::Config
-		+ pallet_asset_registry::Config
-		+ pallet_currencies::Config,
+	Runtime: frame_system::Config + pallet_evm::Config + pallet_asset_registry::Config + pallet_currencies::Config,
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 	<Runtime as pallet_asset_registry::Config>::AssetId: core::convert::From<AssetId>,
@@ -96,7 +93,7 @@ where
 {
 	fn execute(handle: &mut impl PrecompileHandle) -> pallet_evm::PrecompileResult {
 		let address = handle.code_address();
-		if let Some(asset_id) = Runtime::decode_evm_address(address) {
+		if let Some(asset_id) = HydraErc20Mapping::decode_evm_address(address) {
 			log::debug!(target: "evm", "multicurrency: currency id: {:?}", asset_id);
 
 			let selector = match handle.read_selector() {
@@ -132,11 +129,7 @@ where
 
 impl<Runtime> MultiCurrencyPrecompile<Runtime>
 where
-	Runtime: Erc20Mapping
-		+ frame_system::Config
-		+ pallet_evm::Config
-		+ pallet_asset_registry::Config
-		+ pallet_currencies::Config,
+	Runtime: frame_system::Config + pallet_evm::Config + pallet_asset_registry::Config + pallet_currencies::Config,
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 	<Runtime as pallet_asset_registry::Config>::AssetId: core::convert::From<AssetId>,
 	Currencies: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,

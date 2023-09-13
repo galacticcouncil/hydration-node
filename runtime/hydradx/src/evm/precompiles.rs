@@ -21,6 +21,7 @@
 
 use core::marker::PhantomData;
 
+use crate::evm::precompile::erc20_mapping::is_asset_address;
 use crate::evm::precompile::multicurrency::MultiCurrencyPrecompile;
 use codec::Decode;
 use frame_support::dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo};
@@ -75,10 +76,4 @@ pub const fn addr(a: u64) -> H160 {
 	H160([
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
 	])
-}
-
-fn is_asset_address(address: H160) -> bool {
-	let asset_address_prefix = &(H160::from(hex!("0000000000000000000000000000000100000000"))[0..16]);
-
-	&address.to_fixed_bytes()[0..16] == asset_address_prefix
 }

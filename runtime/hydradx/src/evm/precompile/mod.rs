@@ -18,21 +18,25 @@
 use codec::{alloc, Decode, Encode, MaxEncodedLen};
 use ethabi::Token;
 use frame_support::traits::IsType;
+use hex_literal::hex;
 use pallet_evm::{ExitError, ExitRevert, ExitSucceed, PrecompileFailure, PrecompileOutput};
 use primitive_types::{H160, U256};
 use primitives::AssetId;
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
+#[cfg(feature = "std")] //TODO: IMPORTANT - remove this deserialize
 use serde::{Deserialize, Serialize};
 use sp_runtime::{traits::Convert, RuntimeDebug};
 use sp_std::borrow::ToOwned;
 use sp_std::vec::Vec;
-//pub mod input;
 pub mod costs;
+pub mod erc20_mapping;
 pub mod handle;
 pub mod multicurrency;
 pub mod substrate;
 pub type EvmResult<T = ()> = Result<T, PrecompileFailure>;
+
+#[cfg(test)]
+mod tests;
 
 pub type EvmAddress = sp_core::H160;
 
@@ -59,13 +63,6 @@ impl From<Address> for H160 {
 pub enum FungibleTokenId {
 	NativeToken(AssetId),
 	FungibleToken(AssetId),
-}
-
-/// A mapping between AssetId and Erc20 address.
-pub trait Erc20Mapping {
-	fn encode_evm_address(v: AssetId) -> Option<EvmAddress>;
-
-	fn decode_evm_address(v: EvmAddress) -> Option<AssetId>;
 }
 
 #[must_use]
