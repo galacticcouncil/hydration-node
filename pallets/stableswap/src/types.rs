@@ -128,7 +128,8 @@ pub struct PoolState<AssetId> {
 	pub before: Vec<Balance>,
 	pub after: Vec<Balance>,
 	pub delta: Vec<Balance>,
-	pub shares: Balance,
+	pub issuance_before: Balance,
+	pub issuance_after: Balance,
 }
 
 pub trait StableswapHooks<AssetId> {

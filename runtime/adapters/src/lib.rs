@@ -822,9 +822,9 @@ where
 				state.assets[idx],
 				pool_id,
 				state.delta[idx],
-				0, //TODO: fix
+				state.issuance_before.abs_diff(state.issuance_after),
 				state.after[idx],
-				state.shares,
+				state.issuance_after,
 			)
 			.map_err(|(_, e)| e)?;
 		}
@@ -862,7 +862,7 @@ where
 				state.delta[idx],
 				0, // Correct
 				state.after[idx],
-				state.shares,
+				state.issuance_after,
 			)
 			.map_err(|(_, e)| e)?;
 		}

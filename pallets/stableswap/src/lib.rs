@@ -469,7 +469,8 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityAdded` event when successful.
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
+							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
 		#[transactional]
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
@@ -501,7 +502,8 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityAdded` event when successful.
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_shares())]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_shares()
+							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
 		#[transactional]
 		pub fn add_liquidity_shares(
 			origin: OriginFor<T>,
@@ -539,7 +541,8 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityRemoved` event when successful.
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset())]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset()
+							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
 		#[transactional]
 		pub fn remove_liquidity_one_asset(
 			origin: OriginFor<T>,
@@ -595,7 +598,7 @@ pub mod pallet {
 			T::Currency::withdraw(pool_id, &who, share_amount)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
-			let share_issuance = T::Currency::total_issuance(pool_id);
+			let updated_share_issuance = T::Currency::total_issuance(pool_id);
 			let assets = pool.assets.clone();
 
 			let state = PoolState {
@@ -616,7 +619,8 @@ pub mod pallet {
 					.into_iter()
 					.map(|v| if v == asset_id { amount } else { 0 })
 					.collect(),
-				shares: share_issuance,
+				issuance_before: share_issuance,
+				issuance_after: updated_share_issuance,
 			};
 
 			T::Hooks::on_liquidity_changed(pool_id, state)?;
@@ -643,7 +647,8 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityRemoved` event when successful.
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw_asset_amount())]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_asset_amount()
+							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
 		#[transactional]
 		pub fn withdraw_asset_amount(
 			origin: OriginFor<T>,
@@ -689,7 +694,7 @@ pub mod pallet {
 			T::Currency::withdraw(pool_id, &who, shares)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
-			let share_issuance = T::Currency::total_issuance(pool_id);
+			let updated_share_issuance = T::Currency::total_issuance(pool_id);
 			let assets = pool.assets.clone();
 
 			let state = PoolState {
@@ -710,7 +715,8 @@ pub mod pallet {
 					.into_iter()
 					.map(|v| if v == asset_id { amount } else { 0 })
 					.collect(),
-				shares: share_issuance,
+				issuance_before: share_issuance,
+				issuance_after: updated_share_issuance,
 			};
 
 			T::Hooks::on_liquidity_changed(pool_id, state)?;
@@ -739,7 +745,8 @@ pub mod pallet {
 		/// Emits `SellExecuted` event when successful.
 		///
 		#[pallet::call_index(7)]
-		#[pallet::weight(<T as Config>::WeightInfo::sell())]
+		#[pallet::weight(<T as Config>::WeightInfo::sell()
+							.saturating_add(T::Hooks::on_trade_weight(MAX_ASSETS_IN_POOL as usize)))]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -808,7 +815,8 @@ pub mod pallet {
 						}
 					})
 					.collect(),
-				shares: share_issuance,
+				issuance_before: share_issuance,
+				issuance_after: share_issuance,
 			};
 
 			T::Hooks::on_trade(pool_id, asset_in, asset_out, state)?;
@@ -839,7 +847,8 @@ pub mod pallet {
 		/// Emits `BuyExecuted` event when successful.
 		///
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::buy())]
+		#[pallet::weight(<T as Config>::WeightInfo::buy()
+							.saturating_add(T::Hooks::on_trade_weight(MAX_ASSETS_IN_POOL as usize)))]
 		#[transactional]
 		pub fn buy(
 			origin: OriginFor<T>,
@@ -911,7 +920,8 @@ pub mod pallet {
 						}
 					})
 					.collect(),
-				shares: share_issuance,
+				issuance_before: share_issuance,
+				issuance_after: share_issuance,
 			};
 
 			T::Hooks::on_trade(pool_id, asset_in, asset_out, state)?;
@@ -1098,6 +1108,7 @@ impl<T: Config> Pallet<T> {
 		let pool_account = Self::pool_account(pool_id);
 		let mut initial_reserves = Vec::with_capacity(pool.assets.len());
 		let mut updated_reserves = Vec::with_capacity(pool.assets.len());
+		let mut added_amounts = Vec::with_capacity(pool.assets.len());
 		for pool_asset in pool.assets.iter() {
 			let decimals = Self::retrieve_decimals(*pool_asset).ok_or(Error::<T>::UnknownDecimals)?;
 			let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
@@ -1111,12 +1122,14 @@ impl<T: Config> Pallet<T> {
 					amount: inc_reserve,
 					decimals,
 				});
+				added_amounts.push(liq_added);
 			} else {
 				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
 				updated_reserves.push(AssetReserve {
 					amount: reserve,
 					decimals,
 				});
+				added_amounts.push(0);
 			}
 		}
 		ensure!(added_assets.is_empty(), Error::<T>::AssetNotInPool);
@@ -1150,8 +1163,9 @@ impl<T: Config> Pallet<T> {
 			assets: pool.assets.into_inner(),
 			before: initial_reserves.into_iter().map(|v| v.into()).collect(),
 			after: updated_reserves.into_iter().map(|v| v.into()).collect(),
-			delta: assets.iter().map(|v| v.into()).collect(),
-			shares: share_issuance.saturating_add(share_amount),
+			delta: added_amounts,
+			issuance_before: share_issuance,
+			issuance_after: share_issuance.saturating_add(share_amount),
 		};
 
 		T::Hooks::on_liquidity_changed(pool_id, state)?;
@@ -1221,7 +1235,8 @@ impl<T: Config> Pallet<T> {
 				.enumerate()
 				.map(|(idx, _)| if idx == asset_idx { amount_in } else { 0 })
 				.collect(),
-			shares: share_issuance.saturating_add(shares),
+			issuance_before: share_issuance,
+			issuance_after: share_issuance.saturating_add(shares),
 		};
 
 		T::Hooks::on_liquidity_changed(pool_id, state)?;
