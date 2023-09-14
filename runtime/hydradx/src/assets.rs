@@ -25,7 +25,10 @@ use hydradx_adapters::{
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
-use pallet_omnipool::{traits::EnsurePriceWithin, weights::WeightInfo as OmnipoolWeights};
+use pallet_omnipool::{
+	traits::{EnsurePriceWithin, OmnipoolHooks},
+	weights::WeightInfo as OmnipoolWeights,
+};
 use pallet_otc::NamedReserveIdentifier;
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
@@ -453,10 +456,22 @@ impl AmmTradeWeights<AssetId> for AmmWeights {
 
 		for trade in route {
 			let amm_weight = match trade.pool {
-				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell(),
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell()
+					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
+						RuntimeOrigin,
+						AccountId,
+						AssetId,
+						Balance,
+					>>::on_trade_weight())
+					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
+						RuntimeOrigin,
+						AccountId,
+						AssetId,
+						Balance,
+					>>::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::trade_execution_sell(),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_sell(),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell(), // TODO: replace by XYK weights
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
 			};
 			weight.saturating_accrue(amm_weight);
 			weight.saturating_accrue(Self::sell_overhead_weight());
@@ -470,10 +485,22 @@ impl AmmTradeWeights<AssetId> for AmmWeights {
 
 		for trade in route {
 			let amm_weight = match trade.pool {
-				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(),
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy()
+					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
+						RuntimeOrigin,
+						AccountId,
+						AssetId,
+						Balance,
+					>>::on_trade_weight())
+					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
+						RuntimeOrigin,
+						AccountId,
+						AssetId,
+						Balance,
+					>>::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::trade_execution_buy(),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_buy(),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(), // TODO: replace by XYK weights
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
 			};
 			weight.saturating_accrue(amm_weight);
 			weight.saturating_accrue(Self::buy_overhead_weight());
