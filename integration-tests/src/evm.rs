@@ -11,18 +11,28 @@ use crate::assert_balance;
 use fp_evm::{Context, Transfer};
 use frame_support::assert_ok;
 use frame_support::codec::Encode;
+use frame_support::dispatch::{DispatchInfo, GetDispatchInfo, Weight};
+use frame_support::traits::StorePreimage;
 use frame_support::traits::{Contains, IsType};
 use hex_literal::hex;
 use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
 use hydradx_runtime::evm::precompile::{Address, Bytes, EvmAddress};
 use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
-use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::Balances;
 use hydradx_runtime::Currencies;
+use hydradx_runtime::{AssetRegistry, WeightToFee};
 use hydradx_runtime::{CallFilter, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetMetadata;
 use pretty_assertions::assert_eq;
 use sp_core::crypto::AccountId32;
+use sp_runtime::traits::SignedExtension;
+const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
+use frame_system::RawOrigin;
+use hydradx_runtime::Omnipool;
+use pallet_omnipool::WeightInfo;
+use sp_runtime::FixedU128;
+use sp_runtime::Permill;
 
 mod currency_precompile {
 	use super::*;
@@ -584,38 +594,152 @@ fn dispatch_should_respect_call_filter() {
 }
 
 #[test]
-fn complete_fee_should_be_transferred_to_treasury() {
+fn compare_fee_between_evm_and_native_omnipool_calls() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		//Arrange
-		let balance = Tokens::free_balance(WETH, &evm_account());
-		let treasury_balance = Tokens::free_balance(WETH, &Treasury::account_id());
-		let issuance = Tokens::total_issuance(WETH);
+		//Set alice with as fee currency and fund it
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			WETH,
+		));
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			WETH,
+			100 * UNITS as i128,
+		));
+
+		//Fund evm account with HDX to dispatch omnipool sell
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account().into(),
+			HDX,
+			100 * UNITS as i128,
+		));
+
+		init_omnipool_with_oracle_for_block_10();
+		let treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
+		let alice_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
 
 		//Act
+		let omni_sell =
+			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: UNITS,
+				min_buy_amount: 0,
+			});
+
+		let gas_limit = 1000000;
+		let gas_price = gwei(1);
+
+		//Execute omnipool via EVM
 		assert_ok!(EVM::call(
 			evm_signed_origin(evm_address()),
 			evm_address(),
-			evm_address(),
-			[].into(),
+			DISPATCH_ADDR,
+			omni_sell.encode(),
 			U256::from(0),
-			1000000,
-			gwei(1),
+			gas_limit,
+			gas_price,
 			None,
 			Some(U256::zero()),
-			[].into()
+			[].into(),
 		));
 
-		//Assert
-		let new_balance = Tokens::free_balance(WETH, &evm_account());
-		let new_treasury_balance = Tokens::free_balance(WETH, &Treasury::account_id());
-		let fee = balance - new_balance;
-		assert!(fee > 0);
-		assert_eq!(fee, gwei(1).as_u128() * 21000);
-		assert_eq!(treasury_balance + fee, new_treasury_balance);
-		assert_eq!(issuance, Tokens::total_issuance(WETH));
+		//Pre dispatch the native omnipool call - so withdrawring only the fees for the execution
+		let info = omni_sell.get_dispatch_info();
+		let len: usize = 1;
+		assert_ok!(
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
+				&AccountId::from(ALICE),
+				&omni_sell,
+				&info,
+				len,
+			)
+		);
+
+		//Determine fees and compare
+		let alice_new_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
+		let fee_weth_native = alice_weth_balance - alice_new_weth_balance;
+
+		let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
+		let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
+		assert_eq!(fee_weth_evm, fee_weth_native);
 	});
+}
+
+fn init_omnipool_with_oracle_for_block_10() {
+	init_omnipol();
+	//do_trade_to_populate_oracle(DAI, HDX, UNITS);
+	set_relaychain_block_number(10);
+	//do_trade_to_populate_oracle(DAI, HDX, UNITS);
+}
+
+pub fn init_omnipol() {
+	let native_price = FixedU128::from_float(0.5);
+	let stable_price = FixedU128::from_float(0.7);
+	let acc = hydradx_runtime::Omnipool::protocol_account();
+
+	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(RuntimeOrigin::root(), u128::MAX));
+
+	let stable_amount: Balance = 5_000_000_000_000_000_000_000u128;
+	let native_amount: Balance = 5_000_000_000_000_000_000_000u128;
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
+		acc.clone(),
+		DAI,
+		stable_amount,
+		0
+	));
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		acc,
+		HDX,
+		native_amount as i128,
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
+		hydradx_runtime::RuntimeOrigin::root(),
+		stable_price,
+		native_price,
+		Permill::from_percent(60),
+		Permill::from_percent(60)
+	));
+
+	assert_ok!(Balances::set_balance(
+		RawOrigin::Root.into(),
+		hydradx_runtime::Treasury::account_id(),
+		TREASURY_ACCOUNT_INIT_BALANCE,
+		0,
+	));
+}
+
+fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
+		CHARLIE.into(),
+		LRNA,
+		1000000000000 * UNITS,
+		0,
+	));
+
+	assert_ok!(Omnipool::sell(
+		hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
+		LRNA,
+		asset_1,
+		amount,
+		Balance::MIN
+	));
+
+	assert_ok!(Omnipool::sell(
+		hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
+		LRNA,
+		asset_2,
+		amount,
+		Balance::MIN
+	));
 }
 
 // TODO: test that we charge approximatelly same fee on evm as with extrinsics directly
