@@ -387,11 +387,15 @@ impl<T: Config> OnTradeHandler<AssetId, Balance> for OnActivityHandler<T> {
 		liquidity_a: Balance,
 		liquidity_b: Balance,
 	) -> Result<Weight, (Weight, DispatchError)> {
-		// We assume that zero values are not valid and can be ignored.
-		if liquidity_a.is_zero() || liquidity_b.is_zero() || amount_a.is_zero() || amount_b.is_zero() {
-			log::warn!(target: LOG_TARGET, "Neither liquidity nor amounts should be zero. Source: {source:?}, liquidity: ({liquidity_a},{liquidity_b}), amounts: {amount_a}/{amount_b}");
+		// We assume that zero liquidity values are not valid and can be ignored.
+		if liquidity_a.is_zero() || liquidity_b.is_zero() {
+			log::warn!(
+				target: LOG_TARGET,
+				"Liquidity amounts should not be zero. Source: {source:?}, liquidity: ({liquidity_a},{liquidity_b})"
+			);
 			return Err((Self::on_trade_weight(), Error::<T>::OnTradeValueZero.into()));
 		}
+
 		let price = determine_normalized_price(asset_a, asset_b, liquidity_a, liquidity_b);
 		let volume = determine_normalized_volume(asset_a, asset_b, amount_a, amount_b);
 		let liquidity = determine_normalized_liquidity(asset_a, asset_b, liquidity_a, liquidity_b);
