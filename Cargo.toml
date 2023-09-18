@@ -82,8 +82,8 @@ integration-tests = { path = "integration-tests", default-features = false }
 # Codec
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+primitive-types = { version = "0.12.0", default-features = false }
 
-# Frame
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
@@ -95,7 +95,6 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate"
 frame-try-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 
 # Substrate
-primitive-types = { version = "0.12.0", default-features = false }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
@@ -161,6 +160,12 @@ pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/parityt
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-uniques = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+substrate-prometheus-endpoint = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+substrate-rpc-client = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+try-runtime-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 
 # ORML dependencies
 orml-benchmarking = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
@@ -216,12 +221,6 @@ xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.3
 xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
 
-substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-substrate-prometheus-endpoint = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-substrate-rpc-client = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-try-runtime-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 
 [patch."https://github.com/paritytech/polkadot"]
 kusama-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-38" }
@@ -299,3 +298,107 @@ shell-runtime = { git = "https://github.com/galacticcouncil/cumulus.git", branch
 statemine-runtime = { git = "https://github.com/galacticcouncil/cumulus.git", branch = "feat/xcmp-defer-xcm-v9-38" }
 statemint-runtime = { git = "https://github.com/galacticcouncil/cumulus.git", branch = "feat/xcmp-defer-xcm-v9-38" }
 westmint-runtime = { git = "https://github.com/galacticcouncil/cumulus.git", branch = "feat/xcmp-defer-xcm-v9-38" }
+
+# Frame
+[patch."https://github.com/paritytech/substrate"]
+frame-benchmarking = { path = "../../sources/substrate/frame/benchmarking"}
+frame-benchmarking-cli = {path = "../../sources/substrate/utils/frame/benchmarking-cli" }
+frame-executive = {path = "../../sources/substrate/frame/executive" }
+frame-remote-externalities = {path = "../../sources/substrate/utils/frame/remote-externalities" }
+frame-support = {path = "../../sources/substrate/frame/support" }
+frame-system = {path = "../../sources/substrate/frame/system" }
+frame-system-benchmarking = {path = "../../sources/substrate/frame/system/benchmarking" }
+frame-system-rpc-runtime-api = {path = "../../sources/substrate/frame/system/rpc/runtime-api" }
+frame-try-runtime = {path = "../../sources/substrate/frame/try-runtime" }
+sp-api = {path = "../../sources/substrate/primitives/api" }
+sp-arithmetic = {path = "../../sources/substrate/primitives/arithmetic" }
+sp-authority-discovery = {path = "../../sources/substrate/primitives/authority-discovery" }
+sp-block-builder = {path = "../../sources/substrate/primitives/block-builder" }
+sp-blockchain = {path = "../../sources/substrate/primitives/blockchain" }
+sp-consensus = {path = "../../sources/substrate/primitives/consensus/common" }
+sp-consensus-aura = {path = "../../sources/substrate/primitives/consensus/aura" }
+sp-core = {path = "../../sources/substrate/primitives/core" }
+sp-externalities = {path = "../../sources/substrate/primitives/externalities" }
+sp-inherents = {path = "../../sources/substrate/primitives/inherents" }
+sp-io = {path = "../../sources/substrate/primitives/io" }
+sp-keystore = {path = "../../sources/substrate/primitives/keystore" }
+sp-npos-elections = {path = "../../sources/substrate/primitives/npos-elections" }
+sp-offchain = {path = "../../sources/substrate/primitives/offchain" }
+sp-rpc = {path = "../../sources/substrate/primitives/rpc" }
+sp-runtime = {path = "../../sources/substrate/primitives/runtime" }
+sp-session = {path = "../../sources/substrate/primitives/session" }
+sp-staking = {path = "../../sources/substrate/primitives/staking" }
+sp-std = {path = "../../sources/substrate/primitives/std" }
+sp-storage = {path = "../../sources/substrate/primitives/storage" }
+sp-timestamp = {path = "../../sources/substrate/primitives/timestamp" }
+sp-tracing = {path = "../../sources/substrate/primitives/tracing" }
+sp-transaction-pool = {path = "../../sources/substrate/primitives/transaction-pool" }
+sp-trie = {path = "../../sources/substrate/primitives/trie" }
+sp-version = {path = "../../sources/substrate/primitives/version" }
+sc-basic-authorship = {path = "../../sources/substrate/client/basic-authorship" }
+sc-chain-spec = {path = "../../sources/substrate/client/chain-spec" }
+sc-cli = {path = "../../sources/substrate/client/cli" }
+sc-client-api = {path = "../../sources/substrate/client/api"}
+sc-consensus = {path = "../../sources/substrate/client/consensus/common" }
+sc-consensus-aura = {path = "../../sources/substrate/client/consensus/aura" }
+sc-executor = {path = "../../sources/substrate/client/executor" }
+sc-keystore = {path = "../../sources/substrate/client/keystore" }
+sc-network = {path = "../../sources/substrate/client/network" }
+sc-network-common = {path = "../../sources/substrate/client/network/common" }
+sc-rpc = {path = "../../sources/substrate/client/rpc" }
+sc-rpc-api = {path = "../../sources/substrate/client/rpc-api" }
+sc-service = {path = "../../sources/substrate/client/service" }
+sc-telemetry = {path = "../../sources/substrate/client/telemetry" }
+sc-tracing = {path = "../../sources/substrate/client/tracing" }
+sc-transaction-pool = {path = "../../sources/substrate/client/transaction-pool" }
+sc-transaction-pool-api = {path = "../../sources/substrate/client/transaction-pool/api" }
+pallet-aura = {path = "../../sources/substrate/frame/aura" }
+pallet-authorship = {path = "../../sources/substrate/frame/authorship" }
+pallet-balances = {path = "../../sources/substrate/frame/balances" }
+pallet-collective = {path = "../../sources/substrate/frame/collective" }
+pallet-elections-phragmen = {path = "../../sources/substrate/frame/elections-phragmen" }
+pallet-identity = {path = "../../sources/substrate/frame/identity" }
+pallet-multisig = {path = "../../sources/substrate/frame/multisig" }
+pallet-preimage = {path = "../../sources/substrate/frame/preimage" }
+pallet-proxy = {path = "../../sources/substrate/frame/proxy" }
+pallet-scheduler = {path = "../../sources/substrate/frame/scheduler" }
+pallet-session = {path = "../../sources/substrate/frame/session" }
+pallet-sudo = {path = "../../sources/substrate/frame/sudo" }
+pallet-timestamp = {path = "../../sources/substrate/frame/timestamp" }
+pallet-tips = {path = "../../sources/substrate/frame/tips" }
+pallet-transaction-payment = {path = "../../sources/substrate/frame/transaction-payment" }
+pallet-transaction-payment-rpc = {path = "../../sources/substrate/frame/transaction-payment/rpc" }
+pallet-transaction-payment-rpc-runtime-api = {path = "../../sources/substrate/frame/transaction-payment/rpc/runtime-api" }
+pallet-treasury = {path = "../../sources/substrate/frame/treasury"}
+pallet-uniques = {path = "../../sources/substrate/frame/uniques" }
+pallet-utility = {path = "../../sources/substrate/frame/utility" }
+substrate-build-script-utils = {path = "../../sources/substrate/utils/build-script-utils"}
+substrate-frame-rpc-system = {path = "../../sources/substrate/utils/frame/rpc/system"}
+substrate-prometheus-endpoint = {path = "../../sources/substrate/utils/prometheus"}
+substrate-rpc-client = {path = "../../sources/substrate/utils/frame/rpc/client"}
+substrate-wasm-builder = {path = "../../sources/substrate/utils/wasm-builder"}
+try-runtime-cli = {path = "../../sources/substrate/utils/frame/try-runtime/cli"}
+sc-peerset = {path = "../../sources/substrate/client/peerset"}
+sp-weights = {path = "../../sources/substrate/primitives/weights"}
+sp-state-machine = {path = "../../sources/substrate/primitives/state-machine"}
+sp-panic-handler = {path = "../../sources/substrate/primitives/panic-handler"}
+sp-wasm-interface = {path = "../../sources/substrate/primitives/wasm-interface"}
+sp-runtime-interface = {path = "../../sources/substrate/primitives/runtime-interface"}
+sp-debug-derive = {path = "../../sources/substrate/primitives/debug-derive"}
+sp-consensus-slots = {path = "../../sources/substrate/primitives/consensus/slots"}
+sp-application-crypto = {path = "../../sources/substrate/primitives/application-crypto"}
+sp-finality-grandpa = {path = "../../sources/substrate/primitives/finality-grandpa"}
+sp-maybe-compressed-blob = {path = "../../sources/substrate/primitives/maybe-compressed-blob"}
+sp-keyring = {path = "../../sources/substrate/primitives/keyring"}
+sc-utils = {path = "../../sources/substrate/client/utils"}
+sc-client-db = {path = "../../sources/substrate/client/db"}
+sc-block-builder = {path = "../../sources/substrate/client/block-builder"}
+sc-executor-common = {path = "../../sources/substrate/client/executor/common"}
+sc-allocator = {path = "../../sources/substrate/client/allocator"}
+sc-consensus-slots = {path = "../../sources/substrate/client/consensus/slots"}
+sc-sysinfo = {path = "../../sources/substrate/client/sysinfo"}
+sc-offchain = {path = "../../sources/substrate/client/offchain"}
+sc-executor-wasmtime = {path = "../../sources/substrate/client/executor/wasmtime"}
+sc-storage-monitor = {path = "../../sources/substrate/client/storage-monitor"}
+fork-tree = {path = "../../sources/substrate/utils/fork-tree"}
+#pallet-democracy = {path = "../../sources/substrate/frame/democracy"}
