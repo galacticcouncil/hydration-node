@@ -232,8 +232,6 @@ pub mod pallet {
 			who: T::AccountId,
 			position_id: T::PositionItemId,
 			unlocked_stake: Balance,
-			rewards: Balance,
-			unlocked_rewards: Balance,
 		},
 
 		/// Staking was initialized.
@@ -634,7 +632,7 @@ pub mod pallet {
 		/// Parameters:
 		/// - `position_id`: The identifier of the position to be destroyed.
 		///
-		/// Emits `Unstaked` event when successful.
+		/// Emits `RewardsClaimed` and `Unstaked` events when successful.
 		///
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::unstake())]
@@ -697,12 +695,20 @@ pub mod pallet {
 					T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
 					T::Currency::remove_lock(STAKING_LOCK_ID, T::NativeAssetId::get(), &who)?;
 
+					Self::deposit_event(Event::RewardsClaimed {
+						who: who.clone(),
+						position_id,
+						paid_rewards: rewards_to_pay,
+						unlocked_rewards: position.accumulated_locked_rewards,
+						slashed_points: Self::get_points(position, current_period, created_at)
+							.ok_or(Error::<T>::Arithmetic)?,
+						slashed_unpaid_rewards: return_to_pot,
+					});
+
 					Self::deposit_event(Event::Unstaked {
 						who,
 						position_id,
 						unlocked_stake: position.stake,
-						rewards: rewards_to_pay,
-						unlocked_rewards: position.accumulated_locked_rewards,
 					});
 
 					PositionVotes::<T>::remove(position_id);

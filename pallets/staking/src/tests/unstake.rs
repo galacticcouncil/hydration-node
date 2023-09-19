@@ -61,7 +61,6 @@ fn unstake_should_not_work_when_staking_is_not_initialized() {
 			);
 		});
 }
-
 #[test]
 fn unstake_should_work_when_staking_position_exists() {
 	ExtBuilder::default()
@@ -90,12 +89,22 @@ fn unstake_should_work_when_staking_position_exists() {
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert!(has_event(
+				Event::<Test>::RewardsClaimed {
+					who: BOB,
+					position_id: bob_position_id,
+					paid_rewards: 334_912_244_857_841_u128,
+					unlocked_rewards: 0,
+					slashed_points: 40,
+					slashed_unpaid_rewards: 10_336_797_680_797_565_u128,
+				}
+				.into()
+			));
+
 			assert_last_event!(Event::<Test>::Unstaked {
 				who: BOB,
 				position_id: bob_position_id,
 				unlocked_stake: 120_000 * ONE,
-				rewards: 334_912_244_857_841_u128,
-				unlocked_rewards: 0
 			}
 			.into());
 
@@ -141,12 +150,22 @@ fn unstake_should_claim_zero_rewards_when_unstaking_during_unclaimable_periods()
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert!(has_event(
+				Event::<Test>::RewardsClaimed {
+					who: BOB,
+					position_id: bob_position_id,
+					paid_rewards: 0_u128,
+					unlocked_rewards: 0,
+					slashed_points: 3,
+					slashed_unpaid_rewards: 10_671_709_925_655_406_u128,
+				}
+				.into()
+			));
+
 			assert_last_event!(Event::<Test>::Unstaked {
 				who: BOB,
 				position_id: bob_position_id,
 				unlocked_stake: 120_000 * ONE,
-				rewards: 0,
-				unlocked_rewards: 0
 			}
 			.into());
 			assert_unlocked_balance!(&BOB, HDX, 250_000 * ONE);
@@ -192,12 +211,21 @@ fn unstake_should_work_when_called_after_unclaimable_periods_and_stake_was_incre
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert!(has_event(
+				Event::<Test>::RewardsClaimed {
+					who: BOB,
+					position_id: bob_position_id,
+					paid_rewards: 586_654_644_470_047_u128,
+					unlocked_rewards: 95_992_170_755_783_u128,
+					slashed_points: 29,
+					slashed_unpaid_rewards: 65_536_836_933_362_451_u128,
+				}
+				.into()
+			));
 			assert_last_event!(Event::<Test>::Unstaked {
 				who: BOB,
 				position_id: bob_position_id,
 				unlocked_stake: 420_000 * ONE,
-				rewards: 586_654_644_470_047_u128,
-				unlocked_rewards: 95_992_170_755_783_u128
 			}
 			.into());
 			assert_unlocked_balance!(&BOB, HDX, 500_682_646_815_225_830_u128);
@@ -246,12 +274,22 @@ fn unstake_should_claim_no_additional_rewards_when_called_immediately_after_clai
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			assert!(has_event(
+				Event::<Test>::RewardsClaimed {
+					who: BOB,
+					position_id: bob_position_id,
+					paid_rewards: 0_u128,
+					unlocked_rewards: 95_140_518_015_390_u128,
+					slashed_points: 0,
+					slashed_unpaid_rewards: 51_933_872_025_079_204_u128,
+				}
+				.into()
+			));
+
 			assert_last_event!(Event::<Test>::Unstaked {
 				who: BOB,
 				position_id: bob_position_id,
 				unlocked_stake: 420_000 * ONE,
-				rewards: 0,
-				unlocked_rewards: 95_140_518_015_390_u128,
 			}
 			.into());
 			assert_unlocked_balance!(&BOB, HDX, bob_balance);
@@ -299,39 +337,83 @@ fn unstake_should_work_when_called_by_all_stakers() {
 			//Act
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 			//Assert
+			assert!(has_event(
+				Event::<Test>::RewardsClaimed {
+					who: BOB,
+					position_id: bob_position_id,
+					paid_rewards: 586_654_644_470_047_u128,
+					unlocked_rewards: 95_992_170_755_783_u128,
+					slashed_points: 29,
+					slashed_unpaid_rewards: 65_536_836_933_362_451_u128,
+				}
+				.into()
+			));
+
 			assert_last_event!(Event::<Test>::Unstaked {
 				who: BOB,
 				position_id: bob_position_id,
 				unlocked_stake: 420_000 * ONE,
-				rewards: 586_654_644_470_047_u128,
-				unlocked_rewards: 95_992_170_755_783_u128,
 			}
 			.into());
+
+			//Act
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(ALICE), alice_position_id));
+			//Assert
+			assert!(has_event(
+				Event::<Test>::RewardsClaimed {
+					who: ALICE,
+					position_id: alice_position_id,
+					paid_rewards: 7_965_081_713_348_758_u128,
+					unlocked_rewards: 0_u128,
+					slashed_points: 38,
+					slashed_unpaid_rewards: 301_821_938_567_408_560_u128,
+				}
+				.into()
+			));
 			assert_last_event!(Event::<Test>::Unstaked {
 				who: ALICE,
 				position_id: alice_position_id,
 				unlocked_stake: 100_000 * ONE,
-				rewards: 7_965_081_713_348_758_u128,
-				unlocked_rewards: 0
 			}
 			.into());
+
+			//Act
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(CHARLIE), charlie_position_id));
+			//Assert
+			assert!(has_event(
+				Event::<Test>::RewardsClaimed {
+					who: CHARLIE,
+					position_id: charlie_position_id,
+					paid_rewards: 8_023_126_771_488_456_u128,
+					unlocked_rewards: 0_u128,
+					slashed_points: 38,
+					slashed_unpaid_rewards: 304_021_447_951_301_121_u128,
+				}
+				.into()
+			));
 			assert_last_event!(Event::<Test>::Unstaked {
 				who: CHARLIE,
 				position_id: charlie_position_id,
 				unlocked_stake: 10_000 * ONE,
-				rewards: 8_023_126_771_488_456_u128,
-				unlocked_rewards: 0
 			}
 			.into());
+
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(DAVE), dave_position_id));
+			assert!(has_event(
+				Event::<Test>::RewardsClaimed {
+					who: DAVE,
+					position_id: dave_position_id,
+					paid_rewards: 5_672_178_270_331_647_u128,
+					unlocked_rewards: 0_u128,
+					slashed_points: 35,
+					slashed_unpaid_rewards: 298_656_966_429_605_307_u128,
+				}
+				.into()
+			));
 			assert_last_event!(Event::<Test>::Unstaked {
 				who: DAVE,
 				position_id: dave_position_id,
 				unlocked_stake: 10 * ONE,
-				rewards: 5_672_178_270_331_647_u128,
-				unlocked_rewards: 0
 			}
 			.into());
 

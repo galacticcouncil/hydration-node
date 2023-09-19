@@ -1,12 +1,13 @@
 use crate::pallet::{PositionVotes, Positions};
-use crate::traits::DemocracyReferendum;
+use crate::traits::{DemocracyReferendum, VestingDetails};
 use crate::types::{Balance, Conviction, Vote};
 use crate::{Config, Error, Pallet};
 use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
-use orml_traits::MultiCurrencyExtended;
+use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_democracy::traits::DemocracyHooks;
 use pallet_democracy::{AccountVote, ReferendumIndex, ReferendumInfo};
+use sp_core::Get;
 
 pub struct StakingDemocracy<T>(sp_std::marker::PhantomData<T>);
 
@@ -28,7 +29,7 @@ where
 					let e = crate::Error::<T>::InconsistentState(crate::InconsistentStateError::PositionNotFound);
 					defensive!(e);
 
-					//NOTE: This is intetional, user can't recover from this state and we don't want
+					//NOTE: This is intentional, user can't recover from this state and we don't want
 					//to block voting.
 					return Ok(());
 				}
@@ -51,8 +52,15 @@ where
 				Conviction::default()
 			};
 
+			// We are capping vote by min(position stake, user's balance - vested amount).
+			// `user's - vested amount` is necessary because locks "overlay" so user may end
+			// up in the situation where portion of the staking lock is also vested and we don't
+			// want to assign points for vested amount.
+			let max_vote = T::Currency::free_balance(T::NativeAssetId::get(), who)
+				.saturating_sub(T::Vesting::locked(who.clone()))
+				.min(position.stake);
 			let staking_vote = Vote {
-				amount: amount.min(position.stake), // use only max staked amount
+				amount: amount.min(position.stake).min(max_vote),
 				conviction,
 			};
 
@@ -87,7 +95,7 @@ where
 					let e = crate::Error::<T>::InconsistentState(crate::InconsistentStateError::PositionNotFound);
 					defensive!(e);
 
-					//NOTE: This is intetional, user can't recover from this state and we don't want
+					//NOTE: This is intentional, user can't recover from this state and we don't want
 					//to block voting.
 					return Ok(());
 				}
@@ -103,7 +111,6 @@ where
 	#[cfg(feature = "runtime-benchmarks")]
 	fn on_vote_worst_case(who: &T::AccountId) {
 		use frame_system::Origin;
-		use sp_core::Get;
 
 		T::Currency::update_balance(
 			T::NativeAssetId::get(),
@@ -138,7 +145,6 @@ where
 	#[cfg(feature = "runtime-benchmarks")]
 	fn on_remove_vote_worst_case(who: &T::AccountId) {
 		use frame_system::Origin;
-		use sp_core::Get;
 
 		T::Currency::update_balance(
 			T::NativeAssetId::get(),
