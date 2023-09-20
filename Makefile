@@ -1,7 +1,6 @@
 .PHONY: build
 build:
-	cargo build --release
-	ln -f $(CURDIR)/target/release/hydradx $(CURDIR)/target/release/testing-hydradx
+	cargo build --release --locked
 
 .PHONY: check
 check:
@@ -13,7 +12,7 @@ build-benchmarks:
 
 .PHONY: test
 test:
-	cargo test --release
+	cargo test --release --all-features --locked
 
 .PHONY: test-benchmarks
 test-benchmarks:
