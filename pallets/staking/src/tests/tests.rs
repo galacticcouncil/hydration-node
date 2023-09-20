@@ -747,3 +747,80 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 			assert_eq!(PositionVotes::<Test>::get(position_id).votes.len(), 0);
 		});
 }
+
+#[test]
+fn democracy_hook_vote_cap_should_work() {
+	//NOTE: Democracy hook should record voted amount up to max stake or un-vested amount, what is
+	//lower.
+	//Locks "OVERLAY" so 1000 lock and 100 lock results in 1000 tokens locked in total.
+	use pallet_democracy::{Conviction as Dconviction, Vote as Dvote};
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, HDX, 150_000 * ONE),
+			(BOB, HDX, 250_000 * ONE),
+			(CHARLIE, HDX, 10_000 * ONE),
+			(DAVE, HDX, 100_000 * ONE),
+			(VESTED_100K, HDX, 180_000 * ONE),
+		])
+		.start_at_block(1_452_987)
+		.with_initialized_staking()
+		.with_stakes(vec![
+			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
+			(BOB, 120_000 * ONE, 1_452_987, 0),
+			(CHARLIE, 10_000 * ONE, 1_455_000, 10_000 * ONE),
+			(DAVE, 10 * ONE, 1_465_000, 1),
+			(VESTED_100K, 80_000 * ONE, 1_465_000, 10_000 * ONE),
+		])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let vested_position_id = 4;
+			let ref_idx: u32 = 1;
+			let v = AccountVote::Standard {
+				vote: Dvote {
+					aye: true,
+					conviction: Dconviction::Locked6x,
+				},
+				balance: 100_000 * ONE,
+			};
+
+			assert_eq!(Staking::position_votes(vested_position_id).votes.len(), 0);
+
+			//Act - happy path, user have enough token for staking and vesting.
+			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+
+			//Assert
+			let staking_votes = Staking::position_votes(vested_position_id).votes;
+
+			assert_eq!(staking_votes.len(), 1);
+			assert_eq!(staking_votes[0].1, Vote::new(80_000 * ONE, Conviction::Locked6x));
+
+			//Assert 2 - 1 token is missing to fully satisfy both locks
+			PositionVotes::<Test>::remove(vested_position_id);
+			Tokens::transfer(RuntimeOrigin::signed(VESTED_100K), ALICE, HDX, 1).unwrap();
+
+			//Act
+			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+
+			//Assert
+			let staking_votes = Staking::position_votes(vested_position_id).votes;
+
+			assert_eq!(staking_votes.len(), 1);
+			assert_eq!(staking_votes[0].1, Vote::new(80_000 * ONE - 1, Conviction::Locked6x));
+
+			//Assert 3 - only vesting lock is satisfied
+			PositionVotes::<Test>::remove(vested_position_id);
+			Tokens::transfer(RuntimeOrigin::signed(VESTED_100K), ALICE, HDX, 80_000 * ONE - 1).unwrap();
+
+			assert_eq!(Tokens::free_balance(HDX, &VESTED_100K), 100_000 * ONE);
+
+			//Act 3
+			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+
+			//Assert
+			let staking_votes = Staking::position_votes(vested_position_id).votes;
+
+			assert_eq!(staking_votes.len(), 1);
+			assert_eq!(staking_votes[0].1, Vote::new(0, Conviction::Locked6x));
+		});
+}
