@@ -132,7 +132,8 @@ fn increase_stake_should_work_when_user_already_staked() {
 				stake: 100_000 * ONE,
 				total_stake: 200_000 * ONE,
 				locked_rewards: 432_086_451_705_829_u128,
-				slashed_points: 12
+				slashed_points: 12,
+				payable_percentage: FixedU128::from_inner(4_181_481_790_701_572_u128)
 			}
 			.into());
 			assert_staking_data!(
@@ -188,7 +189,8 @@ fn increase_stake_should_slash_no_points_when_increase_is_small() {
 				stake: 10 * ONE,
 				total_stake: 100_010 * ONE,
 				locked_rewards: 432_086_451_705_829_u128,
-				slashed_points: 0
+				slashed_points: 0,
+				payable_percentage: FixedU128::from_inner(4_181_481_790_701_572_u128)
 			}
 			.into());
 			assert_eq!(
@@ -231,6 +233,7 @@ fn increase_stake_should_slash_all_points_when_increase_is_big() {
 				total_stake: 15_100_000 * ONE,
 				locked_rewards: 432_086_451_705_829_u128,
 				slashed_points: 24,
+				payable_percentage: FixedU128::from_inner(4_181_481_790_701_572_u128)
 			}
 			.into());
 			assert_eq!(
@@ -272,7 +275,8 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 				stake: 100_000 * ONE,
 				total_stake: 200_000 * ONE,
 				locked_rewards: 432_086_451_705_829_u128,
-				slashed_points: 12
+				slashed_points: 12,
+				payable_percentage: FixedU128::from_inner(4_181_481_790_701_572_u128)
 			}
 			.into());
 			assert_eq!(
@@ -294,7 +298,8 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 				stake: 100_000 * ONE,
 				total_stake: 300_000 * ONE,
 				locked_rewards: 26_998_317_793_092_u128,
-				slashed_points: 3
+				slashed_points: 3,
+				payable_percentage: FixedU128::from_inner(262_371_143_317_147_u128)
 			}
 			.into());
 			assert_eq!(
@@ -318,7 +323,8 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 				stake: 100_000 * ONE,
 				total_stake: 400_000 * ONE,
 				locked_rewards: 506_092_568_094_174_u128,
-				slashed_points: 4
+				slashed_points: 4,
+				payable_percentage: FixedU128::from_inner(4_919_526_267_840_874_u128)
 			}
 			.into());
 			assert_staking_data!(

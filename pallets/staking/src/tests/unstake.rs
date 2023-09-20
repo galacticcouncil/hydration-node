@@ -97,6 +97,7 @@ fn unstake_should_work_when_staking_position_exists() {
 					unlocked_rewards: 0,
 					slashed_points: 40,
 					slashed_unpaid_rewards: 10_336_797_680_797_565_u128,
+					payable_percentage: FixedU128::from_inner(31_383_184_812_088_337_u128)
 				}
 				.into()
 			));
@@ -158,6 +159,7 @@ fn unstake_should_claim_zero_rewards_when_unstaking_during_unclaimable_periods()
 					unlocked_rewards: 0,
 					slashed_points: 3,
 					slashed_unpaid_rewards: 10_671_709_925_655_406_u128,
+					payable_percentage: FixedU128::from(0_u128)
 				}
 				.into()
 			));
@@ -219,6 +221,7 @@ fn unstake_should_work_when_called_after_unclaimable_periods_and_stake_was_incre
 					unlocked_rewards: 95_992_170_755_783_u128,
 					slashed_points: 29,
 					slashed_unpaid_rewards: 65_536_836_933_362_451_u128,
+					payable_percentage: FixedU128::from_inner(8_872_106_273_751_589_u128)
 				}
 				.into()
 			));
@@ -282,6 +285,7 @@ fn unstake_should_claim_no_additional_rewards_when_called_immediately_after_clai
 					unlocked_rewards: 95_140_518_015_390_u128,
 					slashed_points: 0,
 					slashed_unpaid_rewards: 51_933_872_025_079_204_u128,
+					payable_percentage: FixedU128::from_inner(0_u128)
 				}
 				.into()
 			));
@@ -345,6 +349,7 @@ fn unstake_should_work_when_called_by_all_stakers() {
 					unlocked_rewards: 95_992_170_755_783_u128,
 					slashed_points: 29,
 					slashed_unpaid_rewards: 65_536_836_933_362_451_u128,
+					payable_percentage: FixedU128::from_inner(8_872_106_273_751_589_u128)
 				}
 				.into()
 			));
@@ -367,6 +372,7 @@ fn unstake_should_work_when_called_by_all_stakers() {
 					unlocked_rewards: 0_u128,
 					slashed_points: 38,
 					slashed_unpaid_rewards: 301_821_938_567_408_560_u128,
+					payable_percentage: FixedU128::from_inner(25_711_476_569_063_717_u128)
 				}
 				.into()
 			));
@@ -388,6 +394,7 @@ fn unstake_should_work_when_called_by_all_stakers() {
 					unlocked_rewards: 0_u128,
 					slashed_points: 38,
 					slashed_unpaid_rewards: 304_021_447_951_301_121_u128,
+					payable_percentage: FixedU128::from_inner(25_711_476_569_063_717_u128)
 				}
 				.into()
 			));
@@ -407,6 +414,7 @@ fn unstake_should_work_when_called_by_all_stakers() {
 					unlocked_rewards: 0_u128,
 					slashed_points: 35,
 					slashed_unpaid_rewards: 298_656_966_429_605_307_u128,
+					payable_percentage: FixedU128::from_inner(18_638_301_224_564_978_u128)
 				}
 				.into()
 			));

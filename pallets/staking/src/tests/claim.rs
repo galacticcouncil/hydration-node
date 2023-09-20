@@ -75,6 +75,7 @@ fn claim_should_work_when_claiming_multiple_times() {
 				unlocked_rewards: 0,
 				slashed_points: 16,
 				slashed_unpaid_rewards: 57_516_815_324_327_787_u128,
+				payable_percentage: FixedU128::from_inner(828_752_599_443_917_u128),
 			}
 			.into());
 
@@ -160,6 +161,7 @@ fn claim_should_work_when_staking_position_exists() {
 				unlocked_rewards: 0,
 				slashed_points: 40,
 				slashed_unpaid_rewards: 10_336_797_680_797_565_u128,
+				payable_percentage: FixedU128::from_inner(31_383_184_812_088_337_u128),
 			}
 			.into());
 
@@ -327,6 +329,7 @@ fn claim_should_work_when_claiming_after_unclaimable_periods() {
 				unlocked_rewards: 0,
 				slashed_points: 29,
 				slashed_unpaid_rewards: 65_631_977_451_377_841_u128,
+				payable_percentage: FixedU128::from_inner(8_872_106_273_751_589_u128),
 			}
 			.into());
 
@@ -410,6 +413,7 @@ fn claim_should_work_when_staked_was_increased() {
 				unlocked_rewards: 14_186_603_458_327_466_u128,
 				slashed_points: 77,
 				slashed_unpaid_rewards: 39_992_706_885_866_227_u128,
+				payable_percentage: FixedU128::from_inner(307_913_300_366_917_409_u128),
 			}
 			.into());
 
@@ -495,6 +499,7 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 				unlocked_rewards: 0,
 				slashed_points: 0,
 				slashed_unpaid_rewards: 27_771_941_672_360_647_u128,
+				payable_percentage: FixedU128::from_inner(0_u128),
 			}
 			.into());
 

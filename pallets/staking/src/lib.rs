@@ -215,6 +215,7 @@ pub mod pallet {
 			total_stake: Balance,
 			locked_rewards: Balance,
 			slashed_points: Point,
+			payable_percentage: FixedU128,
 		},
 
 		/// Rewards were claimed.
@@ -225,6 +226,7 @@ pub mod pallet {
 			unlocked_rewards: Balance,
 			slashed_points: Point,
 			slashed_unpaid_rewards: Balance,
+			payable_percentage: FixedU128,
 		},
 
 		/// Staked amount was withdrawn and NFT was burned.
@@ -433,13 +435,14 @@ pub mod pallet {
 					let created_at = Self::get_period_number(position.created_at)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
-					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, _) = Self::calculate_rewards(
-						position,
-						staking.accumulated_reward_per_stake,
-						current_period,
-						created_at,
-					)
-					.ok_or(Error::<T>::Arithmetic)?;
+					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, payable_percentage) =
+						Self::calculate_rewards(
+							position,
+							staking.accumulated_reward_per_stake,
+							current_period,
+							created_at,
+						)
+						.ok_or(Error::<T>::Arithmetic)?;
 
 					let rewards = claimable_rewards
 						.checked_add(claimable_unpaid_rewards)
@@ -498,6 +501,7 @@ pub mod pallet {
 						total_stake: position.stake,
 						locked_rewards: rewards,
 						slashed_points: slash_points,
+						payable_percentage,
 					});
 
 					Ok(())
@@ -615,6 +619,7 @@ pub mod pallet {
 						unlocked_rewards: rewards_to_unlock,
 						slashed_points: points_to_slash,
 						slashed_unpaid_rewards,
+						payable_percentage,
 					});
 
 					Ok(())
@@ -658,13 +663,14 @@ pub mod pallet {
 					let created_at = Self::get_period_number(position.created_at)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
-					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, _) = Self::calculate_rewards(
-						position,
-						staking.accumulated_reward_per_stake,
-						current_period,
-						created_at,
-					)
-					.ok_or(Error::<T>::Arithmetic)?;
+					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, payable_percentage) =
+						Self::calculate_rewards(
+							position,
+							staking.accumulated_reward_per_stake,
+							current_period,
+							created_at,
+						)
+						.ok_or(Error::<T>::Arithmetic)?;
 
 					let rewards_to_pay = claimable_rewards
 						.checked_add(claimable_unpaid_rewards)
@@ -703,6 +709,7 @@ pub mod pallet {
 						slashed_points: Self::get_points(position, current_period, created_at)
 							.ok_or(Error::<T>::Arithmetic)?,
 						slashed_unpaid_rewards: return_to_pot,
+						payable_percentage,
 					});
 
 					Self::deposit_event(Event::Unstaked {
