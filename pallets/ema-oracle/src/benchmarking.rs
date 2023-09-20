@@ -83,7 +83,7 @@ benchmarks! {
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
 		assert_ok!(OnActivityHandler::<T>::on_trade(
-			SOURCE, HDX, DOT, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out, 
+			SOURCE, HDX, DOT, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
 			Price::new(liquidity_asset_in, liquidity_asset_out)));
 		EmaOracle::<T>::on_finalize(initial_data_block);
 
