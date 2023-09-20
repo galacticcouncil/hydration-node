@@ -586,7 +586,7 @@ pub struct PriceProviderMock {}
 impl PriceOracle<AssetId> for PriceProviderMock {
 	type Price = Ratio;
 
-	fn price(_: &Vec<Trade<AssetId>>, period: OraclePeriod) -> Option<Ratio> {
+	fn price(_: &[Trade<AssetId>], period: OraclePeriod) -> Option<Ratio> {
 		if period == OraclePeriod::Short {
 			return Some(Ratio::new(80, 100));
 		}

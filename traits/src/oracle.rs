@@ -26,7 +26,7 @@ impl<AssetId, Price> NativePriceOracle<AssetId, Price> for () {
 pub trait PriceOracle<AssetId> {
 	type Price;
 
-	fn price(route: &Vec<Trade<AssetId>>, period: OraclePeriod) -> Option<Self::Price>;
+	fn price(route: &[Trade<AssetId>], period: OraclePeriod) -> Option<Self::Price>;
 }
 
 pub struct AlwaysPriceOfOne;

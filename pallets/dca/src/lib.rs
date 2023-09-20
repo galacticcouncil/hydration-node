@@ -1014,7 +1014,7 @@ where
 	}
 
 	fn calculate_last_block_slippage(
-		route: &Vec<Trade<T::AssetId>>,
+		route: &[Trade<T::AssetId>],
 		amount: Balance,
 		slippage: Option<Permill>,
 	) -> Result<(Balance, Balance), DispatchError> {
@@ -1057,7 +1057,7 @@ where
 		Ok(amount)
 	}
 
-	fn get_price_from_last_block_oracle(route: &Vec<Trade<T::AssetId>>) -> Result<FixedU128, DispatchError> {
+	fn get_price_from_last_block_oracle(route: &[Trade<T::AssetId>]) -> Result<FixedU128, DispatchError> {
 		let price =
 			T::OraclePriceProvider::price(route, OraclePeriod::LastBlock).ok_or(Error::<T>::CalculatingPriceError)?;
 

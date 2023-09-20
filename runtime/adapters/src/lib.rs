@@ -494,11 +494,11 @@ where
 	type Price = EmaPrice;
 
 	/// We calculate prices for trade (in a route) then making the product of them
-	fn price(route: &Vec<Trade<AssetId>>, period: OraclePeriod) -> Option<EmaPrice> {
+	fn price(route: &[Trade<AssetId>], period: OraclePeriod) -> Option<EmaPrice> {
 		let mut prices: Vec<EmaPrice> = Vec::with_capacity(route.len());
 		for trade in route {
-			let asset_a = trade.asset_in.clone();
-			let asset_b = trade.asset_out.clone();
+			let asset_a = trade.asset_in;
+			let asset_b = trade.asset_out;
 			let price = match trade.pool {
 				PoolType::Omnipool => {
 					let price_asset_a_lrna =

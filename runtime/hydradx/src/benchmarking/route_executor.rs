@@ -190,7 +190,7 @@ fn fund<T: pallet_omnipool::Config>(
 use frame_support::assert_ok;
 use frame_support::traits::Hooks;
 use hydradx_traits::router::PoolType;
-use pallet_route_executor::Trade;
+use hydradx_traits::router::Trade;
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use sp_runtime::{DispatchError, DispatchResult, FixedU128, Permill};
