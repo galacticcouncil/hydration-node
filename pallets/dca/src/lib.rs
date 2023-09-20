@@ -73,7 +73,6 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::router::PoolType::Omnipool;
 use hydradx_traits::router::Trade;
 use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
 use orml_traits::arithmetic::CheckedAdd;

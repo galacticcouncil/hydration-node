@@ -1357,7 +1357,7 @@ mod stableswap {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 			//Set stable asset 1 as accepted payment currency
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
@@ -1448,7 +1448,7 @@ mod stableswap {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 			init_omnipol();
 
@@ -1513,7 +1513,7 @@ mod stableswap {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 			init_omnipol();
 

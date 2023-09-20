@@ -17,16 +17,15 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::MaxEncodedLen;
 use frame_support::ensure;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::Get;
 use frame_support::transactional;
 use frame_system::ensure_signed;
-use hydradx_traits::router::{ExecutorError, PoolType};
+use hydradx_traits::router::ExecutorError;
 use hydradx_traits::router::{Trade, TradeExecution};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
-use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError};
 use sp_std::vec::Vec;
 
