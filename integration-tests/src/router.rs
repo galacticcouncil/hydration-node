@@ -1,29 +1,29 @@
 #![cfg(test)]
 
-use super::assert_balance;
-use crate::polkadot_test_net::*;
 use std::convert::Into;
 
-use hydradx_runtime::{BlockNumber, Omnipool, Router, RuntimeOrigin, LBP};
-use hydradx_traits::{router::PoolType, AMM};
-use pallet_lbp::WeightCurveType;
-use pallet_route_executor::Trade;
-use primitives::asset::AssetPair;
-use primitives::AssetId;
-
 use frame_support::{assert_noop, assert_ok};
+use orml_traits::MultiCurrency;
+use sp_runtime::Permill;
+use sp_runtime::{DispatchError, FixedU128};
 use xcm_emulator::TestExt;
 
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::Currencies;
 use hydradx_runtime::Stableswap;
+use hydradx_runtime::{BlockNumber, Omnipool, Router, RuntimeOrigin, LBP};
+use hydradx_traits::router::Trade;
 use hydradx_traits::Registry;
+use hydradx_traits::{router::PoolType, AMM};
+use pallet_lbp::WeightCurveType;
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use sp_runtime::Permill;
-use sp_runtime::{DispatchError, FixedU128};
+use primitives::asset::AssetPair;
+use primitives::AssetId;
 
-use orml_traits::MultiCurrency;
+use crate::polkadot_test_net::*;
+
+use super::assert_balance;
 
 pub const LBP_SALE_START: BlockNumber = 10;
 pub const LBP_SALE_END: BlockNumber = 40;
@@ -592,8 +592,9 @@ fn router_should_not_support_xyk() {
 }
 
 mod lbp_router_tests {
-	use super::*;
 	use crate::assert_balance;
+
+	use super::*;
 
 	#[test]
 	fn sell_should_work_when_route_contains_single_trade() {

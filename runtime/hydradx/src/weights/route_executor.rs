@@ -49,8 +49,7 @@ use frame_support::{
 	traits::Get,
 	weights::{constants::RocksDbWeight, Weight},
 };
-use hydradx_traits::router::PoolType;
-use pallet_route_executor::Trade;
+use hydradx_traits::router::{PoolType, Trade};
 use sp_std::marker::PhantomData;
 use sp_std::vec::Vec;
 

@@ -20,8 +20,7 @@ use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
 	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, StableswapHooksAdapter,
-	VestingInfo,
+	OracleAssetVolumeProvider, OraclePriceProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
@@ -418,8 +417,7 @@ impl pallet_dca::Config for Runtime {
 	type Currencies = Currencies;
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 	type RandomnessProvider = DCA;
-	type OraclePriceProvider = OraclePriceProviderAdapterForOmnipool<AssetId, EmaOracle, LRNA>;
-	type SpotPriceProvider = Omnipool;
+	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -430,6 +428,7 @@ impl pallet_dca::Config for Runtime {
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
+	type NativePriceOracle = MultiTransactionPayment;
 }
 
 parameter_types! {

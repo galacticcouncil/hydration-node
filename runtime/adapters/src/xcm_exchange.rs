@@ -1,6 +1,6 @@
 use hydradx_traits::router::PoolType;
+use hydradx_traits::router::Trade;
 use orml_traits::MultiCurrency;
-use pallet_route_executor::Trade;
 use polkadot_xcm::latest::prelude::*;
 use sp_core::Get;
 use sp_runtime::traits::{Convert, Zero};

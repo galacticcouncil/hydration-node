@@ -1,6 +1,14 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
+///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
+#[derive(Encode, Decode, Debug, Eq, PartialEq, Copy, Clone, TypeInfo, MaxEncodedLen)]
+pub struct Trade<AssetId> {
+	pub pool: PoolType<AssetId>,
+	pub asset_in: AssetId,
+	pub asset_out: AssetId,
+}
+
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum PoolType<AssetId> {
 	XYK,

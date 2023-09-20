@@ -45,12 +45,12 @@ extern crate core;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional};
 use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
+pub use pallet::*;
 use sp_runtime::traits::{BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
-
-pub use pallet::*;
+use sp_std::vec;
 
 mod trade_execution;
 pub mod types;

@@ -23,8 +23,8 @@ use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::Get;
 use frame_support::transactional;
 use frame_system::ensure_signed;
-use hydradx_traits::router::TradeExecution;
 use hydradx_traits::router::{ExecutorError, PoolType};
+use hydradx_traits::router::{Trade, TradeExecution};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError};
@@ -50,14 +50,6 @@ pub trait TradeAmountsCalculator<AssetId, Balance> {
 		route: &[Trade<AssetId>],
 		amount_in: Balance,
 	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError>;
-}
-
-///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Copy, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Trade<AssetId> {
-	pub pool: PoolType<AssetId>,
-	pub asset_in: AssetId,
-	pub asset_out: AssetId,
 }
 
 pub struct AmountInAndOut<Balance> {

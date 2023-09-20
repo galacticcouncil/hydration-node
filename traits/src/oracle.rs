@@ -1,7 +1,9 @@
 use super::*;
 
+use crate::router::Trade;
 use codec::MaxEncodedLen;
 use frame_support::sp_runtime::traits::{AtLeast32BitUnsigned, One};
+use frame_support::traits::ConstU32;
 use scale_info::TypeInfo;
 
 /// Implementers of this trait provide the price of a given asset compared to the native currency.
@@ -25,7 +27,7 @@ impl<AssetId, Price> NativePriceOracle<AssetId, Price> for () {
 pub trait PriceOracle<AssetId> {
 	type Price;
 
-	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<Self::Price>;
+	fn price(route: &Vec<Trade<AssetId>>, period: OraclePeriod) -> Option<Self::Price>;
 }
 
 pub struct AlwaysPriceOfOne;
