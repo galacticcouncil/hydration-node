@@ -155,7 +155,7 @@ impl<AssetId> OnCreatePoolHandler<AssetId> for () {
 }
 
 /// Handler used by AMM pools to perform some tasks when a trade is executed.
-pub trait OnTradeHandler<AssetId, Balance> {
+pub trait OnTradeHandler<AssetId, Balance, Price> {
 	/// Include a trade in the average price calculation of the price-oracle pallet.
 	fn on_trade(
 		source: Source,
@@ -165,6 +165,7 @@ pub trait OnTradeHandler<AssetId, Balance> {
 		amount_b: Balance,
 		liquidity_a: Balance,
 		liquidity_b: Balance,
+		price: Price,
 	) -> Result<Weight, (Weight, DispatchError)>;
 	/// Known overhead for a trade in `on_initialize/on_finalize`.
 	/// Needs to be specified here if we don't want to make AMM pools tightly coupled with the price oracle pallet, otherwise we can't access the weight.
@@ -172,7 +173,7 @@ pub trait OnTradeHandler<AssetId, Balance> {
 	fn on_trade_weight() -> Weight;
 }
 
-impl<AssetId, Balance> OnTradeHandler<AssetId, Balance> for () {
+impl<AssetId, Balance, Price> OnTradeHandler<AssetId, Balance, Price> for () {
 	fn on_trade(
 		_source: Source,
 		_asset_a: AssetId,
@@ -181,6 +182,7 @@ impl<AssetId, Balance> OnTradeHandler<AssetId, Balance> for () {
 		_amount_b: Balance,
 		_liquidity_a: Balance,
 		_liquidity_b: Balance,
+		_price: Price,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		Ok(Weight::zero())
 	}
@@ -198,7 +200,7 @@ pub trait LockedBalance<AssetId, AccountId, Balance> {
 }
 
 /// Handler used by AMM pools to perform some tasks when liquidity changes outside of trades.
-pub trait OnLiquidityChangedHandler<AssetId, Balance> {
+pub trait OnLiquidityChangedHandler<AssetId, Balance, Price> {
 	/// Notify that the liquidity for a pair of assets has changed.
 	fn on_liquidity_changed(
 		source: Source,
@@ -208,6 +210,7 @@ pub trait OnLiquidityChangedHandler<AssetId, Balance> {
 		amount_b: Balance,
 		liquidity_a: Balance,
 		liquidity_b: Balance,
+		price: Price,
 	) -> Result<Weight, (Weight, DispatchError)>;
 	/// Known overhead for a liquidity change in `on_initialize/on_finalize`.
 	/// Needs to be specified here if we don't want to make AMM pools tightly coupled with the price oracle pallet, otherwise we can't access the weight.
@@ -215,7 +218,7 @@ pub trait OnLiquidityChangedHandler<AssetId, Balance> {
 	fn on_liquidity_changed_weight() -> Weight;
 }
 
-impl<AssetId, Balance> OnLiquidityChangedHandler<AssetId, Balance> for () {
+impl<AssetId, Balance, Price> OnLiquidityChangedHandler<AssetId, Balance, Price> for () {
 	fn on_liquidity_changed(
 		_source: Source,
 		_a: AssetId,
@@ -224,6 +227,7 @@ impl<AssetId, Balance> OnLiquidityChangedHandler<AssetId, Balance> for () {
 		_amount_b: Balance,
 		_liq_a: Balance,
 		_liq_b: Balance,
+		_price: Price,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		Ok(Weight::zero())
 	}

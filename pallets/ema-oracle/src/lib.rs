@@ -377,7 +377,7 @@ pub(crate) fn fractional_on_finalize_weight<T: Config>(max_entries: u32) -> Weig
 		.saturating_div(max_entries.into())
 }
 
-impl<T: Config> OnTradeHandler<AssetId, Balance> for OnActivityHandler<T> {
+impl<T: Config> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T> {
 	fn on_trade(
 		source: Source,
 		asset_a: AssetId,
@@ -386,13 +386,14 @@ impl<T: Config> OnTradeHandler<AssetId, Balance> for OnActivityHandler<T> {
 		amount_b: Balance,
 		liquidity_a: Balance,
 		liquidity_b: Balance,
+		price: Price,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		// We assume that zero values are not valid and can be ignored.
 		if liquidity_a.is_zero() || liquidity_b.is_zero() || amount_a.is_zero() || amount_b.is_zero() {
 			log::warn!(target: LOG_TARGET, "Neither liquidity nor amounts should be zero. Source: {source:?}, liquidity: ({liquidity_a},{liquidity_b}), amounts: {amount_a}/{amount_b}");
 			return Err((Self::on_trade_weight(), Error::<T>::OnTradeValueZero.into()));
 		}
-		let price = determine_normalized_price(asset_a, asset_b, liquidity_a, liquidity_b);
+		let price = determine_normalized_price(asset_a, asset_b, price);
 		let volume = determine_normalized_volume(asset_a, asset_b, amount_a, amount_b);
 		let liquidity = determine_normalized_liquidity(asset_a, asset_b, liquidity_a, liquidity_b);
 
@@ -414,7 +415,7 @@ impl<T: Config> OnTradeHandler<AssetId, Balance> for OnActivityHandler<T> {
 	}
 }
 
-impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance> for OnActivityHandler<T> {
+impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivityHandler<T> {
 	fn on_liquidity_changed(
 		source: Source,
 		asset_a: AssetId,
@@ -423,6 +424,7 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance> for OnActivityHandle
 		_amount_b: Balance,
 		liquidity_a: Balance,
 		liquidity_b: Balance,
+		price: Price,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		if liquidity_a.is_zero() || liquidity_b.is_zero() {
 			log::trace!(
@@ -430,11 +432,7 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance> for OnActivityHandle
 				"Liquidity is zero. Source: {source:?}, liquidity: ({liquidity_a},{liquidity_a})"
 			);
 		}
-		let price = if liquidity_a.is_zero() || liquidity_b.is_zero() {
-			Price::zero()
-		} else {
-			determine_normalized_price(asset_a, asset_b, liquidity_a, liquidity_b)
-		};
+		let price = determine_normalized_price(asset_a, asset_b, price);
 		let liquidity = determine_normalized_liquidity(asset_a, asset_b, liquidity_a, liquidity_b);
 		let updated_at = T::BlockNumberProvider::current_block_number();
 		let entry = OracleEntry {
@@ -456,16 +454,11 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance> for OnActivityHandle
 }
 
 /// Calculate price from ordered assets
-pub fn determine_normalized_price(
-	asset_in: AssetId,
-	asset_out: AssetId,
-	amount_in: Balance,
-	amount_out: Balance,
-) -> Price {
+pub fn determine_normalized_price(asset_in: AssetId, asset_out: AssetId, price: Price) -> Price {
 	if ordered_pair(asset_in, asset_out) == (asset_in, asset_out) {
-		Price::new(amount_in, amount_out)
+		price
 	} else {
-		Price::new(amount_out, amount_in)
+		price.inverted()
 	}
 }
 
