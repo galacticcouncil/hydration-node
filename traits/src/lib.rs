@@ -157,6 +157,7 @@ impl<AssetId> OnCreatePoolHandler<AssetId> for () {
 /// Handler used by AMM pools to perform some tasks when a trade is executed.
 pub trait OnTradeHandler<AssetId, Balance, Price> {
 	/// Include a trade in the average price calculation of the price-oracle pallet.
+	#[allow(clippy::too_many_arguments)]
 	fn on_trade(
 		source: Source,
 		asset_a: AssetId,
@@ -202,6 +203,7 @@ pub trait LockedBalance<AssetId, AccountId, Balance> {
 /// Handler used by AMM pools to perform some tasks when liquidity changes outside of trades.
 pub trait OnLiquidityChangedHandler<AssetId, Balance, Price> {
 	/// Notify that the liquidity for a pair of assets has changed.
+	#[allow(clippy::too_many_arguments)]
 	fn on_liquidity_changed(
 		source: Source,
 		asset_a: AssetId,
