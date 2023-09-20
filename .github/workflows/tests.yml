@@ -44,6 +44,9 @@ jobs:
         with:
           name: hydradx_runtime.compact.compressed.wasm
           path: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
+      - name: Run benchmark tests
+        run: make test-benchmarks
+
 
   docker:
     needs: [build]

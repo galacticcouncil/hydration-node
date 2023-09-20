@@ -12,7 +12,7 @@ build-benchmarks:
 
 .PHONY: test
 test:
-	cargo test --release --all-features --locked
+	cargo test --release --locked
 
 .PHONY: test-benchmarks
 test-benchmarks:
