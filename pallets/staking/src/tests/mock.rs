@@ -225,6 +225,9 @@ impl pallet_staking::Config for Test {
 	type Vesting = DummyVesting;
 	type Collections = FreezableUniques;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type MaxLocks = MaxLocks;
 }
 
 pub struct DummyMaxPointsPerAction;

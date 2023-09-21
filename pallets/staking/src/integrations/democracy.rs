@@ -112,7 +112,11 @@ where
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn on_vote_worst_case(who: &T::AccountId) {
+		use crate::LockIdentifier;
+		#[cfg(not(feature = "std"))]
+		use codec::alloc::string::ToString;
 		use frame_system::Origin;
+		use orml_traits::MultiLockableCurrency;
 
 		T::Currency::update_balance(
 			T::NativeAssetId::get(),
@@ -135,6 +139,15 @@ where
 					conviction: Conviction::Locked1x,
 				},
 			));
+		}
+
+		for i in 0..<T as crate::pallet::Config>::MaxLocks::get() - 5 {
+			let id: LockIdentifier = scale_info::prelude::format!("{:a>8}", i.to_string())
+				.as_bytes()
+				.try_into()
+				.unwrap();
+
+			T::Currency::set_lock(id, T::NativeAssetId::get(), who, 10_000_000_000_000_u128).unwrap();
 		}
 
 		let voting = crate::types::Voting::<T::MaxVotes> {

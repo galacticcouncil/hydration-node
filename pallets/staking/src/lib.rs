@@ -172,6 +172,10 @@ pub mod pallet {
 		/// Provides information about amount of vested tokens.
 		type Vesting: VestingDetails<Self::AccountId, Balance>;
 
+		#[cfg(feature = "runtime-benchmarks")]
+		/// Max mumber of locks per account.  It's used in on_vote_worst_case benchmarks.
+		type MaxLocks: Get<u32>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
