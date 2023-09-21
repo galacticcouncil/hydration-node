@@ -742,14 +742,16 @@ impl<T: Config> Pallet<T> {
 		position: Option<&Position<T::BlockNumber>>,
 	) -> Result<(), DispatchError> {
 		let free_balance = T::Currency::free_balance(T::NativeAssetId::get(), who);
-		let staked = position.map(|p| p.stake).unwrap_or_default();
+		let staked = position
+			.map(|p| p.stake.saturating_add(p.accumulated_locked_rewards))
+			.unwrap_or_default();
 		let vested = T::Vesting::locked(who.clone());
 
+		//NOTE: locks overlay so vested + staked can be bigger than free_balance
 		let stakeable = free_balance
 			.checked_sub(vested)
 			.ok_or(Error::<T>::Arithmetic)?
-			.checked_sub(staked)
-			.ok_or(Error::<T>::Arithmetic)?;
+			.saturating_sub(staked);
 
 		ensure!(stakeable >= stake, Error::<T>::InsufficientBalance);
 
