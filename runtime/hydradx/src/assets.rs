@@ -24,10 +24,7 @@ use hydradx_adapters::{
 };
 
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{
-	router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod,
-	Source,
-};
+use hydradx_traits::{router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{
 	traits::{EnsurePriceWithin, OmnipoolHooks},
@@ -414,7 +411,7 @@ where
 }
 
 #[cfg(feature = "runtime-benchmarks")]
-use hydradx_traits::{PriceOracle, pools::SpotPriceProvider};
+use hydradx_traits::{pools::SpotPriceProvider, PriceOracle};
 
 #[cfg(feature = "runtime-benchmarks")]
 use hydra_dx_math::ema::EmaPrice;
