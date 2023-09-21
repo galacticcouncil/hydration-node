@@ -52,12 +52,14 @@ where
 				Conviction::default()
 			};
 
-			// We are capping vote by min(position stake, user's balance - vested amount).
-			// `user's - vested amount` is necessary because locks "overlay" so user may end
-			// up in the situation where portion of the staking lock is also vested and we don't
-			// want to assign points for vested amount.
+			// We are capping vote by min(position stake, user's balance - vested amount - locked
+			// rewards).
+			// Sub of vested and lockek rewards is necessary because locks overlay so users may end
+			// up in the situation where portion of the staking lock is also vested or locked
+			// rewads and we don't want to assign points for it.
 			let max_vote = T::Currency::free_balance(T::NativeAssetId::get(), who)
 				.saturating_sub(T::Vesting::locked(who.clone()))
+				.saturating_sub(position.accumulated_locked_rewards)
 				.min(position.stake);
 			let staking_vote = Vote {
 				amount: amount.min(position.stake).min(max_vote),

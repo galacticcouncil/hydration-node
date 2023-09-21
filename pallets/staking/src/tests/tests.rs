@@ -750,9 +750,7 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 
 #[test]
 fn democracy_hook_vote_cap_should_work() {
-	//NOTE: Democracy hook should record voted amount up to max stake or un-vested amount, what is
-	//lower.
-	//Locks "OVERLAY" so 1000 lock and 100 lock results in 1000 tokens locked in total.
+	//Locks OVERLAY so 1000 tokens lock and 100 tokens lock results in 1000 tokens locked in total.
 	use pallet_democracy::{Conviction as Dconviction, Vote as Dvote};
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -815,6 +813,68 @@ fn democracy_hook_vote_cap_should_work() {
 			assert_eq!(Tokens::free_balance(HDX, &VESTED_100K), 100_000 * ONE);
 
 			//Act 3
+			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+
+			//Assert
+			let staking_votes = Staking::position_votes(vested_position_id).votes;
+
+			assert_eq!(staking_votes.len(), 1);
+			assert_eq!(staking_votes[0].1, Vote::new(0, Conviction::Locked6x));
+
+			//Assert 4 - portion of the lock are locked rewards
+			PositionVotes::<Test>::remove(vested_position_id);
+			Tokens::transfer(RuntimeOrigin::signed(ALICE), VESTED_100K, HDX, 20_000 * ONE).unwrap();
+
+			let p = Staking::positions(vested_position_id).unwrap();
+			Positions::<Test>::insert(
+				vested_position_id,
+				Position {
+					accumulated_locked_rewards: 10_000 * ONE,
+					..p
+				},
+			);
+
+			assert_eq!(Tokens::free_balance(HDX, &VESTED_100K), 120_000 * ONE);
+			let v = AccountVote::Standard {
+				vote: Dvote {
+					aye: true,
+					conviction: Dconviction::Locked6x,
+				},
+				balance: 120_000 * ONE,
+			};
+
+			//Act 4
+			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+
+			//Assert
+			let staking_votes = Staking::position_votes(vested_position_id).votes;
+
+			assert_eq!(staking_votes.len(), 1);
+			assert_eq!(staking_votes[0].1, Vote::new(10_000 * ONE, Conviction::Locked6x));
+
+			//Assert 5 -  sum of vested and locked rewards is bigger than account's balance
+			PositionVotes::<Test>::remove(vested_position_id);
+			Tokens::transfer(RuntimeOrigin::signed(VESTED_100K), ALICE, HDX, 20_000 * ONE).unwrap();
+
+			let p = Staking::positions(vested_position_id).unwrap();
+			Positions::<Test>::insert(
+				vested_position_id,
+				Position {
+					accumulated_locked_rewards: 10_000 * ONE,
+					..p
+				},
+			);
+
+			assert_eq!(Tokens::free_balance(HDX, &VESTED_100K), 100_000 * ONE);
+			let v = AccountVote::Standard {
+				vote: Dvote {
+					aye: true,
+					conviction: Dconviction::Locked6x,
+				},
+				balance: 100_000 * ONE,
+			};
+
+			//Act 5
 			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
 
 			//Assert
