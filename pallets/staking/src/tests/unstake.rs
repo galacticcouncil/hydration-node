@@ -282,7 +282,7 @@ fn unstake_should_claim_no_additional_rewards_when_called_immediately_after_clai
 					who: BOB,
 					position_id: bob_position_id,
 					paid_rewards: 0_u128,
-					unlocked_rewards: 95_140_518_015_390_u128,
+					unlocked_rewards: 0_u128,
 					slashed_points: 0,
 					slashed_unpaid_rewards: 51_933_872_025_079_204_u128,
 					payable_percentage: FixedU128::from_inner(0_u128)

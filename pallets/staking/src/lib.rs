@@ -512,7 +512,7 @@ pub mod pallet {
 		/// Claim rewards accumulated for specific staking position.
 		///
 		/// Function calculates amount of rewards to pay for specified staking position based on
-		/// the amount of points position accumulated. Function also unlocks portion of the rewards locked
+		/// the amount of points position accumulated. Function also unlocks all the rewards locked
 		/// from `increase_stake` based on the amount of the points.
 		///
 		/// This action is penalized by removing all the points and returning allocated unpaid rewards
@@ -563,13 +563,8 @@ pub mod pallet {
 					let pot = Self::pot_account_id();
 					T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards_to_pay)?;
 
-					let rewards_to_unlock =
-						math::calculate_percentage_amount(position.accumulated_locked_rewards, payable_percentage);
-
-					position.accumulated_locked_rewards = position
-						.accumulated_locked_rewards
-						.checked_sub(rewards_to_unlock)
-						.ok_or(Error::<T>::Arithmetic)?;
+					let rewards_to_unlock = position.accumulated_locked_rewards;
+					position.accumulated_locked_rewards = Zero::zero();
 
 					position.accumulated_unpaid_rewards = position
 						.accumulated_unpaid_rewards
