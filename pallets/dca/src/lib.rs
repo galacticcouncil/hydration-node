@@ -74,12 +74,11 @@ use frame_support::{
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::{OraclePeriod, PriceOracle};
 use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
 use orml_traits::NamedMultiReservableCurrency;
-use pallet_route_executor::TradeAmountsCalculator;
-use pallet_route_executor::{AmountInAndOut, Trade};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sp_runtime::traits::CheckedMul;
@@ -92,9 +91,6 @@ use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};
 #[cfg(test)]
 mod tests;
-
-#[cfg(any(feature = "runtime-benchmarks", test))]
-mod benchmarks;
 
 pub mod types;
 pub mod weights;
@@ -129,11 +125,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T>
-	where
-		<T as pallet_route_executor::Config>::Balance: From<Balance>,
-		Balance: From<<T as pallet_route_executor::Config>::Balance>,
-	{
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			let mut weight = <T as pallet::Config>::WeightInfo::on_initialize_with_empty_block();
 
@@ -199,6 +191,13 @@ pub mod pallet {
 						}
 					}
 				}
+				match schedule.order {
+					Order::Buy { route, .. } => {
+						weight.saturating_accrue(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(&route))
+					}
+					Order::Sell { route, .. } => weight
+						.saturating_accrue(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(&route)),
+				}
 			}
 
 			weight
@@ -206,9 +205,12 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_route_executor::Config {
+	pub trait Config: frame_system::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// Asset id type
+		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
 
 		/// Origin able to terminate schedules
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -232,6 +234,9 @@ pub mod pallet {
 
 		///Spot price provider to get the current price between two asset
 		type SpotPriceProvider: SpotPriceProvider<Self::AssetId, Price = FixedU128>;
+
+		///Router implementation
+		type Router: RouterT<Self::RuntimeOrigin, Self::AssetId, Balance, Trade<Self::AssetId>, AmountInAndOut<Balance>>;
 
 		///Max price difference allowed between blocks
 		#[pallet::constant]
@@ -267,6 +272,9 @@ pub mod pallet {
 
 		/// Convert a weight value into a deductible fee
 		type WeightToFee: WeightToFee<Balance = Balance>;
+
+		/// AMMs trade weight information.
+		type AmmTradeWeights: AmmTradeWeights<Trade<Self::AssetId>>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -383,11 +391,7 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, ValueQuery>;
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	where
-		<T as pallet_route_executor::Config>::Balance: From<Balance>,
-		Balance: From<<T as pallet_route_executor::Config>::Balance>,
-	{
+	impl<T: Config> Pallet<T> {
 		/// Creates a new DCA (Dollar-Cost Averaging) schedule and plans the next execution
 		/// for the specified block.
 		///
@@ -413,7 +417,7 @@ pub mod pallet {
 		/// Emits `Scheduled` and `ExecutionPlanned` event when successful.
 		///
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule())]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule() + <T as Config>::AmmTradeWeights::calculate_buy_trade_amounts_weight(schedule.order.get_route()))]
 		#[transactional]
 		pub fn schedule(
 			origin: OriginFor<T>,
@@ -562,11 +566,7 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T>
-where
-	<T as pallet_route_executor::Config>::Balance: From<Balance>,
-	Balance: From<<T as pallet_route_executor::Config>::Balance>,
-{
+impl<T: Config> Pallet<T> {
 	fn get_randomness_generator(current_blocknumber: T::BlockNumber, salt: Option<u32>) -> StdRng {
 		match T::RandomnessProvider::generator(salt) {
 			Ok(generator) => generator,
@@ -644,37 +644,29 @@ where
 
 				let (estimated_amount_out, slippage_amount) =
 					Self::calculate_last_block_slippage(*asset_out, *asset_in, amount_to_sell, schedule.slippage)?;
-				let last_block_slippage_min_limit = estimated_amount_out
+				let last_block_slippage_min_limit: Balance = estimated_amount_out
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
 				let route = route.to_vec();
-				let trade_amounts =
-					pallet_route_executor::Pallet::<T>::calculate_sell_trade_amounts(&route, amount_to_sell.into())?;
+				let trade_amounts = T::Router::calculate_sell_trade_amounts(&route, amount_to_sell)?;
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
 				if *min_amount_out > last_block_slippage_min_limit {
-					ensure!(amount_out >= (*min_amount_out).into(), Error::<T>::TradeLimitReached);
+					ensure!(amount_out >= *min_amount_out, Error::<T>::TradeLimitReached);
 				} else {
 					ensure!(
-						amount_out >= last_block_slippage_min_limit.into(),
+						amount_out >= last_block_slippage_min_limit,
 						Error::<T>::SlippageLimitReached
 					);
 				};
 
-				pallet_route_executor::Pallet::<T>::sell(
-					origin,
-					*asset_in,
-					*asset_out,
-					(amount_to_sell).into(),
-					amount_out,
-					route,
-				)?;
+				T::Router::sell(origin, *asset_in, *asset_out, amount_to_sell, amount_out, route)?;
 
 				Ok(AmountInAndOut {
 					amount_in: amount_to_sell,
-					amount_out: amount_out.into(),
+					amount_out,
 				})
 			}
 			Order::Buy {
@@ -703,14 +695,7 @@ where
 					);
 				};
 
-				pallet_route_executor::Pallet::<T>::buy(
-					origin,
-					*asset_in,
-					*asset_out,
-					(*amount_out).into(),
-					amount_in.into(),
-					route.to_vec(),
-				)?;
+				T::Router::buy(origin, *asset_in, *asset_out, *amount_out, amount_in, route.to_vec())?;
 
 				Ok(AmountInAndOut {
 					amount_in,
@@ -847,12 +832,11 @@ where
 		amount_out: &Balance,
 		route: &BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
 	) -> Result<Balance, DispatchError> {
-		let trade_amounts =
-			pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(route.as_ref(), (*amount_out).into())?;
+		let trade_amounts = T::Router::calculate_buy_trade_amounts(route.as_ref(), *amount_out)?;
 
 		let first_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 
-		Ok(first_trade.amount_in.into())
+		Ok(first_trade.amount_in)
 	}
 
 	fn get_transaction_fee(order: &Order<T::AssetId>) -> Result<Balance, DispatchError> {

@@ -1,3 +1,5 @@
+// DCA pallet uses dummy router for benchmarks and some tests fail when benchmarking feature is enabled
+#![cfg(not(feature = "runtime-benchmarks"))]
 mod call_filter;
 mod circuit_breaker;
 mod cross_chain_transfer;

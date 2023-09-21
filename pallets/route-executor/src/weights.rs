@@ -48,80 +48,28 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_route_executor.
 pub trait WeightInfo {
-	fn sell_in_lbp() -> Weight;
-	fn buy_in_lbp() -> Weight;
+	fn multi_trade_execution_sell_in_lbp(c: u32, s: u32) -> Weight;
+	fn multi_trade_execution_buy_in_lbp(c: u32, b: u32) -> Weight;
 }
 
 /// Weights for pallet_route_executor using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	// Storage: System Account (r:3 w:3)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:2 w:2)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Balances Locks (r:1 w:1)
-	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:1 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	fn sell_in_lbp() -> Weight {
-		// Minimum execution time: 225_028 nanoseconds.
-		Weight::from_ref_time(229_826_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(8 as u64))
-			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	fn multi_trade_execution_sell_in_lbp(_c: u32, _s: u32) -> Weight {
+		Weight::zero()
 	}
-	// Storage: System Account (r:3 w:3)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:2 w:2)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Balances Locks (r:1 w:1)
-	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:1 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	fn buy_in_lbp() -> Weight {
-		// Minimum execution time: 219_890 nanoseconds.
-		Weight::from_ref_time(221_506_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(8 as u64))
-			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	fn multi_trade_execution_buy_in_lbp(_c: u32, _b: u32) -> Weight {
+		Weight::zero()
 	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	// Storage: System Account (r:3 w:3)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:2 w:2)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Balances Locks (r:1 w:1)
-	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:1 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	fn sell_in_lbp() -> Weight {
-		// Minimum execution time: 224_215 nanoseconds.
-		Weight::from_ref_time(225_550_000)
-			.saturating_add(RocksDbWeight::get().reads(8))
-			.saturating_add(RocksDbWeight::get().writes(6))
+	fn multi_trade_execution_sell_in_lbp(_c: u32, _s: u32) -> Weight {
+		Weight::zero()
 	}
-	// Storage: System Account (r:3 w:3)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:2 w:2)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Balances Locks (r:1 w:1)
-	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:1 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	fn buy_in_lbp() -> Weight {
-		// Minimum execution time: 220_676 nanoseconds.
-		Weight::from_ref_time(221_757_000)
-			.saturating_add(RocksDbWeight::get().reads(8))
-			.saturating_add(RocksDbWeight::get().writes(6))
+	fn multi_trade_execution_buy_in_lbp(_c: u32, _b: u32) -> Weight {
+		Weight::zero()
 	}
 }

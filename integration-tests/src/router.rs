@@ -260,7 +260,9 @@ mod router_different_pools_tests {
 						>>::on_liquidity_changed_weight()
 					)
 					.unwrap()
-					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::trade_execution_sell())
+					.checked_add(
+						&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_sell(1, 1)
+					)
 					.unwrap()
 					.checked_add(&AmmWeights::sell_overhead_weight().checked_mul(2).unwrap())
 					.unwrap()
@@ -286,7 +288,9 @@ mod router_different_pools_tests {
 						>>::on_liquidity_changed_weight()
 					)
 					.unwrap()
-					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::trade_execution_buy())
+					.checked_add(
+						&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_buy(1, 1)
+					)
 					.unwrap()
 					.checked_add(&AmmWeights::buy_overhead_weight().checked_mul(2).unwrap())
 					.unwrap()
@@ -1308,13 +1312,13 @@ mod lbp_router_tests {
 			//Act & Assert
 			assert_eq!(
 				AmmWeights::sell_weight(trades.as_slice()),
-				hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::trade_execution_sell()
+				hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_sell(1, 1)
 					.checked_add(&AmmWeights::sell_overhead_weight())
 					.unwrap()
 			);
 			assert_eq!(
 				AmmWeights::buy_weight(trades.as_slice()),
-				hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::trade_execution_buy()
+				hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_buy(1, 1)
 					.checked_add(&AmmWeights::buy_overhead_weight())
 					.unwrap()
 			);

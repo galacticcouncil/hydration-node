@@ -94,7 +94,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 179,
+	spec_version: 180,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -401,7 +401,6 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, tech, TechnicalCommittee);
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
-			list_benchmark!(list, extra, pallet_dca, DCA);
 			list_benchmark!(list, extra, pallet_bonds, Bonds);
 			list_benchmark!(list, extra, pallet_stableswap, Stableswap);
 
@@ -424,6 +423,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_duster, benchmarking::duster);
 			orml_list_benchmark!(list, extra, pallet_omnipool, benchmarking::omnipool);
 			orml_list_benchmark!(list, extra, pallet_route_executor, benchmarking::route_executor);
+			orml_list_benchmark!(list, extra, pallet_dca, benchmarking::dca);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -471,7 +471,6 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, tech, TechnicalCommittee);
 			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			add_benchmark!(params, batches, pallet_circuit_breaker, CircuitBreaker);
-			add_benchmark!(params, batches, pallet_dca, DCA);
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
 			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);
@@ -493,6 +492,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_duster, benchmarking::duster);
 			orml_add_benchmark!(params, batches, pallet_omnipool, benchmarking::omnipool);
 			orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
+			orml_add_benchmark!(params, batches, pallet_dca, benchmarking::dca);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

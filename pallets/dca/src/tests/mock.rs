@@ -631,6 +631,7 @@ impl RandomnessProvider for RandomnessProviderMock {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = RandomnessProviderMock;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
@@ -641,11 +642,13 @@ impl Config for Test {
 	type WeightInfo = ();
 	type OraclePriceProvider = PriceProviderMock;
 	type SpotPriceProvider = SpotPriceProviderMock;
+	type Router = RouteExecutor;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type RelayChainBlockHashProvider = ParentHashGetterMock;
+	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
 }
 

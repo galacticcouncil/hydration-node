@@ -54,8 +54,8 @@ pub trait WeightInfo {
 	fn remove_liquidity() -> Weight;
 	fn sell() -> Weight;
 	fn buy() -> Weight;
-	fn trade_execution_sell() -> Weight;
-	fn trade_execution_buy() -> Weight;
+	fn multi_trade_execution_sell(c: u32, e: u32) -> Weight;
+	fn multi_trade_execution_buy(c: u32, e: u32) -> Weight;
 }
 
 /// Weights for pallet_lbp using the hydraDX node and recommended hardware.
@@ -158,37 +158,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(12 as u64))
 			.saturating_add(T::DbWeight::get().writes(7 as u64))
 	}
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:5 w:5)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Tokens Locks (r:1 w:1)
-	// Proof: Tokens Locks (max_values: None, max_size: Some(1261), added: 3736, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: System Account (r:3 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn trade_execution_sell() -> Weight {
-		// Minimum execution time: 223_028 nanoseconds.
-		Weight::from_ref_time(225_062_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(12 as u64))
-			.saturating_add(T::DbWeight::get().writes(7 as u64))
+	fn multi_trade_execution_sell(_c: u32, _e: u32) -> Weight {
+		Weight::zero()
 	}
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:5 w:5)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Tokens Locks (r:1 w:1)
-	// Proof: Tokens Locks (max_values: None, max_size: Some(1261), added: 3736, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: System Account (r:3 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn trade_execution_buy() -> Weight {
-		// Minimum execution time: 223_313 nanoseconds.
-		Weight::from_ref_time(224_794_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(12 as u64))
-			.saturating_add(T::DbWeight::get().writes(7 as u64))
+	fn multi_trade_execution_buy(_c: u32, _e: u32) -> Weight {
+		Weight::zero()
 	}
 }
 
@@ -290,36 +264,10 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(12))
 			.saturating_add(RocksDbWeight::get().writes(7))
 	}
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:5 w:5)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Tokens Locks (r:1 w:1)
-	// Proof: Tokens Locks (max_values: None, max_size: Some(1261), added: 3736, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: System Account (r:3 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn trade_execution_sell() -> Weight {
-		// Minimum execution time: 209_538 nanoseconds.
-		Weight::from_ref_time(211_086_000)
-			.saturating_add(RocksDbWeight::get().reads(12))
-			.saturating_add(RocksDbWeight::get().writes(7))
+	fn multi_trade_execution_sell(_c: u32, _e: u32) -> Weight {
+		Weight::zero()
 	}
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:5 w:5)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Tokens Locks (r:1 w:1)
-	// Proof: Tokens Locks (max_values: None, max_size: Some(1261), added: 3736, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: System Account (r:3 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn trade_execution_buy() -> Weight {
-		// Minimum execution time: 213_308 nanoseconds.
-		Weight::from_ref_time(214_861_000)
-			.saturating_add(RocksDbWeight::get().reads(12))
-			.saturating_add(RocksDbWeight::get().writes(7))
+	fn multi_trade_execution_buy(_c: u32, _e: u32) -> Weight {
+		Weight::zero()
 	}
 }

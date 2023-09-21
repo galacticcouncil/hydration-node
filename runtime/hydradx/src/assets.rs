@@ -20,10 +20,14 @@ use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
 	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, VestingInfo,
+	OracleAssetVolumeProvider, PriceAdjustmentAdapter, VestingInfo,
 };
+
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
+use hydradx_traits::{
+	router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod,
+	Source,
+};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{
 	traits::{EnsurePriceWithin, OmnipoolHooks},
@@ -409,6 +413,41 @@ where
 	}
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::{PriceOracle, pools::SpotPriceProvider};
+
+#[cfg(feature = "runtime-benchmarks")]
+use hydra_dx_math::ema::EmaPrice;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct DummyOraclePriceProvider;
+#[cfg(feature = "runtime-benchmarks")]
+impl PriceOracle<AssetId> for DummyOraclePriceProvider {
+	type Price = EmaPrice;
+
+	fn price(_asset_a: AssetId, _asset_b: AssetId, _period: OraclePeriod) -> Option<Self::Price> {
+		Some(EmaPrice::one())
+	}
+}
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+use hydradx_adapters::OraclePriceProviderAdapterForOmnipool;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct DummySpotPriceProvider;
+#[cfg(feature = "runtime-benchmarks")]
+impl SpotPriceProvider<AssetId> for DummySpotPriceProvider {
+	type Price = FixedU128;
+
+	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
+		true
+	}
+
+	fn spot_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
+		Some(FixedU128::one())
+	}
+}
+
 parameter_types! {
 	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
 	pub MaxSchedulesPerBlock: u32 = 20;
@@ -419,12 +458,23 @@ parameter_types! {
 
 impl pallet_dca::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type Currencies = Currencies;
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 	type RandomnessProvider = DCA;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type OraclePriceProvider = OraclePriceProviderAdapterForOmnipool<AssetId, EmaOracle, LRNA>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type OraclePriceProvider = DummyOraclePriceProvider;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type SpotPriceProvider = Omnipool;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SpotPriceProvider = DummySpotPriceProvider;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Router = Router;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Router = pallet_route_executor::DummyRouter<Runtime>;
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -434,6 +484,7 @@ impl pallet_dca::Config for Runtime {
 	type FeeReceiver = TreasuryAccount;
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
+	type AmmTradeWeights = AmmWeights;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 }
 
@@ -441,16 +492,29 @@ impl pallet_dca::Config for Runtime {
 pub struct AmmWeights;
 impl AmmWeights {
 	pub fn sell_overhead_weight() -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::sell_in_lbp()
-			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::trade_execution_sell())
+		weights::route_executor::HydraWeight::<Runtime>::multi_trade_execution_sell_in_lbp(0, 1)
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_sell(1, 1))
 	}
 
 	pub fn buy_overhead_weight() -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::buy_in_lbp()
-			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::trade_execution_buy())
+		weights::route_executor::HydraWeight::<Runtime>::multi_trade_execution_buy_in_lbp(0, 1)
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_buy(1, 1))
+	}
+
+	pub fn calculate_buy_trade_amounts_overhead_weight() -> Weight {
+		weights::route_executor::HydraWeight::<Runtime>::multi_trade_execution_buy_in_lbp(1, 0)
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_buy(1, 0))
+	}
+	pub fn sell_and_calculate_sell_trade_amounts_overhead_weight() -> Weight {
+		weights::route_executor::HydraWeight::<Runtime>::multi_trade_execution_buy_in_lbp(1, 1)
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_sell(1, 1))
+	}
+	pub fn buy_and_calculate_buy_trade_amounts_overhead_weight() -> Weight {
+		weights::route_executor::HydraWeight::<Runtime>::multi_trade_execution_buy_in_lbp(2, 1)
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_buy(2, 1))
 	}
 }
-impl AmmTradeWeights<AssetId> for AmmWeights {
+impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 
@@ -469,7 +533,7 @@ impl AmmTradeWeights<AssetId> for AmmWeights {
 						AssetId,
 						Balance,
 					>>::on_liquidity_changed_weight()),
-				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::trade_execution_sell(),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_sell(1, 1),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_sell(),
 				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_sell(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
 			};
@@ -498,12 +562,63 @@ impl AmmTradeWeights<AssetId> for AmmWeights {
 						AssetId,
 						Balance,
 					>>::on_liquidity_changed_weight()),
-				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::trade_execution_buy(),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_buy(1, 1),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_buy(),
 				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
 			};
 			weight.saturating_accrue(amm_weight);
 			weight.saturating_accrue(Self::buy_overhead_weight());
+		}
+
+		weight
+	}
+
+	fn calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
+		let mut weight = Weight::zero();
+
+		for trade in route {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_buy(1, 0),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_buy(),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+			};
+			weight.saturating_accrue(amm_weight);
+			weight.saturating_accrue(Self::calculate_buy_trade_amounts_overhead_weight());
+		}
+
+		weight
+	}
+
+	fn sell_and_calculate_sell_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
+		let mut weight = Weight::zero();
+
+		for trade in route {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_sell(1, 1),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_buy(),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+			};
+			weight.saturating_accrue(amm_weight);
+			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight());
+		}
+
+		weight
+	}
+
+	fn buy_and_calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
+		let mut weight = Weight::zero();
+
+		for trade in route {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::multi_trade_execution_buy(2, 1),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::trade_execution_buy(),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::trade_execution_buy(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+			};
+			weight.saturating_accrue(amm_weight);
+			weight.saturating_accrue(Self::buy_and_calculate_buy_trade_amounts_overhead_weight());
 		}
 
 		weight

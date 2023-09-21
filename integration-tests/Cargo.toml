@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.12.1"
+version = "1.12.2"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -183,4 +183,9 @@ std = [
     "polkadot-runtime/std",
     "hydradx-runtime/std",
     "pallet-staking/std",
+]
+
+# we don't include integration tests when benchmarking feature is enabled
+runtime-benchmarks = [
+    "hydradx-runtime/runtime-benchmarks",
 ]
