@@ -1352,12 +1352,28 @@ mod stableswap {
 
 	#[test]
 	fn sell_should_work_with_stable_trades_and_omnipool() {
-		let amount_to_sell = 100 * UNITS;
-		let amount_to_receive = 170_828_876_541_813;
+		let amount_to_sell = 50 * UNITS;
+		let amount_to_receive = 12639842736549;
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			//To populate stableswap oracle
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				10000 * UNITS,
+				0,
+			));
 
 			//Set stable asset 1 as accepted payment currency
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
@@ -1383,7 +1399,22 @@ mod stableswap {
 				AccountId::from(BOB),
 			));
 
-			do_trade_to_populate_oracle(pool_id, HDX, 100 * UNITS);
+			//Populate oracle with omnipool source
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
+				CHARLIE.into(),
+				pool_id,
+				1000 * UNITS,
+				0,
+			));
+
+			assert_ok!(Omnipool::sell(
+				hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				HDX,
+				500 * UNITS,
+				Balance::MIN
+			));
 
 			set_relaychain_block_number(10);
 
@@ -1415,7 +1446,7 @@ mod stableswap {
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
-				slippage: Some(Permill::from_percent(70)),
+				slippage: Some(Permill::from_percent(25)),
 				order: Order::Sell {
 					asset_in: stable_asset_1,
 					asset_out: HDX,
@@ -1448,7 +1479,23 @@ mod stableswap {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			//To populate stableswap oracle
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				10000 * UNITS,
+				0,
+			));
 
 			init_omnipol();
 
@@ -1467,7 +1514,21 @@ mod stableswap {
 				AccountId::from(BOB),
 			));
 
-			do_trade_to_populate_oracle(pool_id, HDX, 100 * UNITS);
+			//Populate oracle with omnipool source
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
+				CHARLIE.into(),
+				pool_id,
+				1000 * UNITS,
+				0,
+			));
+			assert_ok!(Omnipool::sell(
+				hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				HDX,
+				500 * UNITS,
+				Balance::MIN
+			));
 
 			let alice_init_stable1_balance = 5000 * UNITS;
 			assert_ok!(Currencies::update_balance(
@@ -1490,13 +1551,13 @@ mod stableswap {
 					amount: amount_to_sell,
 				}],
 			));
-			assert_balance!(ALICE.into(), pool_id, 159140385520772);
+			assert_balance!(ALICE.into(), pool_id, 17341478089956);
 
 			assert_ok!(hydradx_runtime::Omnipool::sell(
 				RuntimeOrigin::signed(ALICE.into()),
 				pool_id,
 				HDX,
-				159140385520772,
+				17341478089956,
 				0,
 			));
 
@@ -1513,7 +1574,23 @@ mod stableswap {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			//To populate stableswap oracle
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				10000 * UNITS,
+				0,
+			));
 
 			init_omnipol();
 
@@ -1532,7 +1609,21 @@ mod stableswap {
 				AccountId::from(BOB),
 			));
 
-			do_trade_to_populate_oracle(pool_id, HDX, 100 * UNITS);
+			//Populate oracle with omnipool source
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
+				CHARLIE.into(),
+				pool_id,
+				1000 * UNITS,
+				0,
+			));
+			assert_ok!(Omnipool::sell(
+				hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				HDX,
+				500 * UNITS,
+				Balance::MIN
+			));
 
 			let alice_init_stable1_balance = 5000 * UNITS;
 			assert_ok!(Currencies::update_balance(
