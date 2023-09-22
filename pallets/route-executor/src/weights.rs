@@ -41,15 +41,15 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_route_executor.
 pub trait WeightInfo {
-    fn multi_trade_execution_sell_in_lbp(c: u32, s: u32, ) -> Weight;
-    fn multi_trade_execution_buy_in_lbp(c: u32, b: u32, ) -> Weight;
+	fn multi_trade_execution_sell_in_lbp(c: u32, s: u32) -> Weight;
+	fn multi_trade_execution_buy_in_lbp(c: u32, b: u32) -> Weight;
 }
 
 /// Weights for pallet_route_executor using the hydraDX node and recommended hardware.
@@ -68,16 +68,16 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	/// The range of component `c` is `[0, 1]`.
 	/// The range of component `s` is `[0, 1]`.
-    fn multi_trade_execution_sell_in_lbp(c: u32, s: u32, ) -> Weight {
-        // Minimum execution time: 73_855 nanoseconds.
-        Weight::from_ref_time(28_849_316 as u64)            // Standard Error: 346_014
-            .saturating_add(Weight::from_ref_time(45_884_573 as u64).saturating_mul(c as u64))
-            // Standard Error: 346_014
-            .saturating_add(Weight::from_ref_time(250_909_610 as u64).saturating_mul(s as u64))
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().reads((5 as u64).saturating_mul(s as u64)))
-            .saturating_add(T::DbWeight::get().writes((6 as u64).saturating_mul(s as u64)))
-    }
+	fn multi_trade_execution_sell_in_lbp(c: u32, s: u32) -> Weight {
+		// Minimum execution time: 73_855 nanoseconds.
+		Weight::from_ref_time(28_849_316 as u64) // Standard Error: 346_014
+			.saturating_add(Weight::from_ref_time(45_884_573 as u64).saturating_mul(c as u64))
+			// Standard Error: 346_014
+			.saturating_add(Weight::from_ref_time(250_909_610 as u64).saturating_mul(s as u64))
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().reads((5 as u64).saturating_mul(s as u64)))
+			.saturating_add(T::DbWeight::get().writes((6 as u64).saturating_mul(s as u64)))
+	}
 	// Storage: LBP PoolData (r:1 w:0)
 	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
 	// Storage: System Account (r:3 w:3)
@@ -90,16 +90,16 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `b` is `[0, 1]`.
-    fn multi_trade_execution_buy_in_lbp(c: u32, b: u32, ) -> Weight {
-        // Minimum execution time: 73_868 nanoseconds.
-        Weight::from_ref_time(74_256_000 as u64)            // Standard Error: 570_570
-            .saturating_add(Weight::from_ref_time(2_334_290 as u64).saturating_mul(c as u64))
-            // Standard Error: 1_252_564
-            .saturating_add(Weight::from_ref_time(204_505_747 as u64).saturating_mul(b as u64))
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().reads((5 as u64).saturating_mul(b as u64)))
-            .saturating_add(T::DbWeight::get().writes((6 as u64).saturating_mul(b as u64)))
-    }
+	fn multi_trade_execution_buy_in_lbp(c: u32, b: u32) -> Weight {
+		// Minimum execution time: 73_868 nanoseconds.
+		Weight::from_ref_time(74_256_000 as u64) // Standard Error: 570_570
+			.saturating_add(Weight::from_ref_time(2_334_290 as u64).saturating_mul(c as u64))
+			// Standard Error: 1_252_564
+			.saturating_add(Weight::from_ref_time(204_505_747 as u64).saturating_mul(b as u64))
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().reads((5 as u64).saturating_mul(b as u64)))
+			.saturating_add(T::DbWeight::get().writes((6 as u64).saturating_mul(b as u64)))
+	}
 }
 
 // For backwards compatibility and tests
@@ -116,17 +116,17 @@ impl WeightInfo for () {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	/// The range of component `c` is `[0, 1]`.
 	/// The range of component `s` is `[0, 1]`.
-    fn multi_trade_execution_sell_in_lbp(c: u32, s: u32, ) -> Weight {
-        // Minimum execution time: 73_855 nanoseconds.
-        Weight::from_ref_time(28_849_316)
-            // Standard Error: 346_014
-            .saturating_add(Weight::from_ref_time(45_884_573).saturating_mul(c.into()))
-            // Standard Error: 346_014
-            .saturating_add(Weight::from_ref_time(250_909_610).saturating_mul(s.into()))
-            .saturating_add(RocksDbWeight::get().reads(3))
-            .saturating_add(RocksDbWeight::get().reads((5_u64).saturating_mul(s.into())))
-            .saturating_add(RocksDbWeight::get().writes((6_u64).saturating_mul(s.into())))
-    }
+	fn multi_trade_execution_sell_in_lbp(c: u32, s: u32) -> Weight {
+		// Minimum execution time: 73_855 nanoseconds.
+		Weight::from_ref_time(28_849_316)
+			// Standard Error: 346_014
+			.saturating_add(Weight::from_ref_time(45_884_573).saturating_mul(c.into()))
+			// Standard Error: 346_014
+			.saturating_add(Weight::from_ref_time(250_909_610).saturating_mul(s.into()))
+			.saturating_add(RocksDbWeight::get().reads(3))
+			.saturating_add(RocksDbWeight::get().reads((5_u64).saturating_mul(s.into())))
+			.saturating_add(RocksDbWeight::get().writes((6_u64).saturating_mul(s.into())))
+	}
 	// Storage: LBP PoolData (r:1 w:0)
 	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
 	// Storage: System Account (r:3 w:3)
@@ -139,15 +139,15 @@ impl WeightInfo for () {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `b` is `[0, 1]`.
-    fn multi_trade_execution_buy_in_lbp(c: u32, b: u32, ) -> Weight {
-        // Minimum execution time: 73_868 nanoseconds.
-        Weight::from_ref_time(74_256_000)
-            // Standard Error: 570_570
-            .saturating_add(Weight::from_ref_time(2_334_290).saturating_mul(c.into()))
-            // Standard Error: 1_252_564
-            .saturating_add(Weight::from_ref_time(204_505_747).saturating_mul(b.into()))
-            .saturating_add(RocksDbWeight::get().reads(3))
-            .saturating_add(RocksDbWeight::get().reads((5_u64).saturating_mul(b.into())))
-            .saturating_add(RocksDbWeight::get().writes((6_u64).saturating_mul(b.into())))
-    }
+	fn multi_trade_execution_buy_in_lbp(c: u32, b: u32) -> Weight {
+		// Minimum execution time: 73_868 nanoseconds.
+		Weight::from_ref_time(74_256_000)
+			// Standard Error: 570_570
+			.saturating_add(Weight::from_ref_time(2_334_290).saturating_mul(c.into()))
+			// Standard Error: 1_252_564
+			.saturating_add(Weight::from_ref_time(204_505_747).saturating_mul(b.into()))
+			.saturating_add(RocksDbWeight::get().reads(3))
+			.saturating_add(RocksDbWeight::get().reads((5_u64).saturating_mul(b.into())))
+			.saturating_add(RocksDbWeight::get().writes((6_u64).saturating_mul(b.into())))
+	}
 }
