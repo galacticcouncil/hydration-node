@@ -155,7 +155,7 @@ benchmarks! {
 		assert_eq!(T::MultiCurrency::free_balance(asset_in, &caller), 999998851241411);
 	}
 
-	trade_execution_sell {
+	router_execution_sell {
 		let caller = funded_account::<T>("caller", 0);
 		let fee_collector = funded_account::<T>("fee_collector", 0);
 		let asset_in: AssetId = ASSET_A_ID;
@@ -184,7 +184,7 @@ benchmarks! {
 		assert_eq!(T::MultiCurrency::free_balance(asset_out, &caller), 999998069275212);
 	}
 
-	trade_execution_buy {
+	router_execution_buy {
 		let caller = funded_account::<T>("caller", 0);
 		let fee_collector = funded_account::<T>("fee_collector", 0);
 		let asset_in: AssetId = ASSET_A_ID;

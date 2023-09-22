@@ -67,6 +67,7 @@ pub struct AmountInAndOut<Balance> {
 }
 
 /// Provides weight info for the router. Calculates the weight of a route based on the AMMs.
+/// We get the resulting weight as the router extrinsic overhead + AMM weights.
 pub trait AmmTradeWeights<AssetId> {
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight;
 	fn buy_weight(route: &[Trade<AssetId>]) -> Weight;

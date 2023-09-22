@@ -158,7 +158,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	// Storage: System Account (r:3 w:1)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn trade_execution_sell() -> Weight {
+	fn router_execution_sell() -> Weight {
 		// Minimum execution time: 223_028 nanoseconds.
 		Weight::from_ref_time(225_062_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(12 as u64))
@@ -174,7 +174,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	// Storage: System Account (r:3 w:1)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn trade_execution_buy() -> Weight {
+	fn router_execution_buy() -> Weight {
 		// Minimum execution time: 223_313 nanoseconds.
 		Weight::from_ref_time(224_794_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(12 as u64))

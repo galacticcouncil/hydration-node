@@ -59,8 +59,8 @@ pub trait WeightInfo {
 	fn refund_refused_asset() -> Weight;
 	fn sacrifice_position() -> Weight;
 	fn set_asset_weight_cap() -> Weight;
-	fn trade_execution_sell() -> Weight;
-	fn trade_execution_buy() -> Weight;
+	fn router_execution_sell() -> Weight;
+	fn router_execution_buy() -> Weight;
 }
 
 /// Weights for pallet_omnipool using the hydraDX node and recommended hardware.
@@ -147,7 +147,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: CircuitBreaker LiquidityRemoveLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
 	// Storage: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (r:1 w:0)
 	// Proof: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	fn trade_execution_sell() -> Weight {
+	fn router_execution_sell() -> Weight {
 		// Minimum execution time: 269_857 nanoseconds.
 		Weight::from_ref_time(271_611_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(23 as u64))
@@ -183,7 +183,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: CircuitBreaker LiquidityRemoveLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
 	// Storage: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (r:1 w:0)
 	// Proof: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	fn trade_execution_buy() -> Weight {
+	fn router_execution_buy() -> Weight {
 		// Minimum execution time: 288_769 nanoseconds.
 		Weight::from_ref_time(290_860_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(24 as u64))
@@ -273,7 +273,7 @@ impl WeightInfo for () {
 	// Proof: CircuitBreaker LiquidityRemoveLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
 	// Storage: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (r:1 w:0)
 	// Proof: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	fn trade_execution_sell() -> Weight {
+	fn router_execution_sell() -> Weight {
 		// Minimum execution time: 269_857 nanoseconds.
 		Weight::from_ref_time(271_611_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(23 as u64))
@@ -309,7 +309,7 @@ impl WeightInfo for () {
 	// Proof: CircuitBreaker LiquidityRemoveLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
 	// Storage: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (r:1 w:0)
 	// Proof: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	fn trade_execution_buy() -> Weight {
+	fn router_execution_buy() -> Weight {
 		// Minimum execution time: 288_769 nanoseconds.
 		Weight::from_ref_time(290_860_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(24 as u64))
