@@ -149,6 +149,7 @@ impl Config for Test {
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
 	type AMM = Pools;
+	type AmmTradeWeights = ();
 	type WeightInfo = ();
 }
 
@@ -167,7 +168,6 @@ pub const SDN: AssetId = 1005;
 pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
 
 pub const XYK_SELL_CALCULATION_RESULT: Balance = 6;
-
 pub const XYK_BUY_CALCULATION_RESULT: Balance = 5;
 pub const STABLESWAP_SELL_CALCULATION_RESULT: Balance = 4;
 pub const STABLESWAP_BUY_CALCULATION_RESULT: Balance = 3;
