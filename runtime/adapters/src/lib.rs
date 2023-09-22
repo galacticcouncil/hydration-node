@@ -849,6 +849,7 @@ where
 	}
 }
 
+/// Passes on trade and liquidity changed data from the stableswap to the oracle.
 pub struct StableswapHooksAdapter<Runtime>(PhantomData<Runtime>);
 
 impl<Runtime> StableswapHooks<AssetId> for StableswapHooksAdapter<Runtime>
