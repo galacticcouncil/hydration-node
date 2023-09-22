@@ -229,8 +229,8 @@ mod tests {
 			assert_ok!(Pallet::<Test>::test_benchmark_remove_liquidity());
 			assert_ok!(Pallet::<Test>::test_benchmark_sell());
 			assert_ok!(Pallet::<Test>::test_benchmark_buy());
-			assert_ok!(Pallet::<Test>::test_benchmark_trade_execution_sell());
-			assert_ok!(Pallet::<Test>::test_benchmark_trade_execution_buy());
+			assert_ok!(Pallet::<Test>::test_benchmark_router_execution_sell());
+			assert_ok!(Pallet::<Test>::test_benchmark_router_execution_buy());
 		});
 	}
 }
