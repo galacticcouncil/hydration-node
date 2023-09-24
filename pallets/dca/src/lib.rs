@@ -191,13 +191,6 @@ pub mod pallet {
 						}
 					}
 				}
-				match schedule.order {
-					Order::Buy { route, .. } => {
-						weight.saturating_accrue(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(&route))
-					}
-					Order::Sell { route, .. } => weight
-						.saturating_accrue(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(&route)),
-				}
 			}
 
 			weight
@@ -839,7 +832,7 @@ impl<T: Config> Pallet<T> {
 		Ok(first_trade.amount_in)
 	}
 
-	fn get_transaction_fee(order: &Order<T::AssetId>) -> Result<Balance, DispatchError> {
+	pub fn get_transaction_fee(order: &Order<T::AssetId>) -> Result<Balance, DispatchError> {
 		Self::convert_weight_to_fee(Self::get_trade_weight(order), order.get_asset_in())
 	}
 
@@ -1017,10 +1010,13 @@ impl<T: Config> Pallet<T> {
 		Ok(fee_amount_in_sold_asset)
 	}
 
+	// returns DCA overhead weight + router execution weight
 	fn get_trade_weight(order: &Order<T::AssetId>) -> Weight {
 		match order {
-			Order::Sell { .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade(),
-			Order::Buy { .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade(),
+			Order::Sell { route, .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade()
+				.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route)),
+			Order::Buy { route, .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade()
+				.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route)),
 		}
 	}
 

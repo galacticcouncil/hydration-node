@@ -58,10 +58,10 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const BUY_DCA_FEE_IN_NATIVE: Balance = 3181488000;
-pub const BUY_DCA_FEE_IN_DAI: Balance = 2799709440;
-pub const SELL_DCA_FEE_IN_NATIVE: Balance = 3175101000;
-pub const SELL_DCA_FEE_IN_DAI: Balance = 2794088880;
+pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1331070000;
+pub const BUY_DCA_FEE_IN_DAI: Balance = 1171341600;
+pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1332578000;
+pub const SELL_DCA_FEE_IN_DAI: Balance = 1172668640;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
