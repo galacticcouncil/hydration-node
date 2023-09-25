@@ -18,6 +18,7 @@ use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
+use crate::count_dca_event;
 
 #[test]
 fn create_schedule_should_work() {
@@ -788,7 +789,7 @@ fn full_sell_dca_should_be_executed_then_completed() {
 
 		init_omnipool_with_oracle_for_block_10();
 
-		let amount_to_sell = 100 * UNITS;
+		let amount_to_sell = 200 * UNITS;
 		let dca_budget = 1200 * UNITS;
 		let schedule1 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
 		create_schedule(ALICE, schedule1);
@@ -809,6 +810,8 @@ fn full_sell_dca_should_be_executed_then_completed() {
 
 		let schedule = DCA::schedules(0);
 		assert!(schedule.is_none());
+
+		check_if_dcas_completed_without_failed_or_terminated_events();
 	});
 }
 
@@ -835,7 +838,7 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 
 		init_omnipool_with_oracle_for_block_10();
 
-		let amount_to_sell = 100 * UNITS;
+		let amount_to_sell = 200 * UNITS;
 		let dca_budget = 1000 * UNITS;
 		let dca_budget_for_bob = 1200 * UNITS;
 
@@ -867,6 +870,8 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 
 		let schedule = DCA::schedules(1);
 		assert!(schedule.is_none());
+
+		check_if_dcas_completed_without_failed_or_terminated_events();
 	});
 }
 
@@ -886,19 +891,19 @@ fn multiple_full_sell_dca_should_be_executed_then_completed_for_same_user() {
 		init_omnipool_with_oracle_for_block_10();
 
 		//Trade 1
-		let amount_to_sell1 = 100 * UNITS;
+		let amount_to_sell1 = 150 * UNITS;
 		let dca_budget1 = 1000 * UNITS;
 		let schedule1 = schedule_fake_with_sell_order(ALICE, dca_budget1, HDX, DAI, amount_to_sell1);
 		create_schedule(ALICE, schedule1);
 
 		//Trade 2
-		let amount_to_sell2 = 125 * UNITS;
+		let amount_to_sell2 = 200 * UNITS;
 		let dca_budget2 = 1500 * UNITS;
 		let schedule2 = schedule_fake_with_sell_order(ALICE, dca_budget2, HDX, DAI, amount_to_sell2);
 		create_schedule(ALICE, schedule2);
 
 		//Trade 3
-		let amount_to_sell3 = 250 * UNITS;
+		let amount_to_sell3 = 300 * UNITS;
 		let dca_budget3 = 2000 * UNITS;
 		let schedule3 = schedule_fake_with_sell_order(ALICE, dca_budget3, HDX, DAI, amount_to_sell3);
 		create_schedule(ALICE, schedule3);
@@ -927,6 +932,8 @@ fn multiple_full_sell_dca_should_be_executed_then_completed_for_same_user() {
 
 		let schedule = DCA::schedules(2);
 		assert!(schedule.is_none());
+
+		check_if_dcas_completed_without_failed_or_terminated_events();
 	});
 }
 
@@ -1182,6 +1189,21 @@ pub fn check_if_no_failed_events() {
 	assert_eq!(0, failed_events);
 }
 
+pub fn check_if_dcas_completed_without_failed_or_terminated_events() {
+	let failed_events = count_failed_trade_events();
+	let terminated_events = count_terminated_trade_events();
+	let completed_events = count_completed_event();
+	assert_eq!(
+		0, failed_events,
+		"There has been some dca::TradeFailed events, but not expected"
+	);
+	assert_eq!(
+		0, terminated_events,
+		"There has been some dca::Terminated events, but not expected"
+	);
+	assert!(completed_events > 0, "There has been no dca::Completed events");
+}
+
 pub fn get_last_schedule_ids_from_trade_executed_events() -> Vec<u32> {
 	let last_events: Vec<RuntimeEvent> = last_hydra_events(1000);
 	let mut schedule_ids = vec![];
@@ -1197,15 +1219,29 @@ pub fn get_last_schedule_ids_from_trade_executed_events() -> Vec<u32> {
 }
 
 pub fn count_failed_trade_events() -> u32 {
-	let last_events: Vec<RuntimeEvent> = last_hydra_events(100000);
+	count_dca_event!(pallet_dca::Event::TradeFailed { .. })
+}
 
-	let mut counter: u32 = 0;
-	for event in last_events {
-		let e = event.clone();
-		if matches!(e, RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { .. })) {
-			counter += 1;
+pub fn count_terminated_trade_events() -> u32 {
+	count_dca_event!(pallet_dca::Event::Terminated { .. })
+}
+
+pub fn count_completed_event() -> u32 {
+	count_dca_event!(pallet_dca::Event::Completed { .. })
+}
+#[macro_export]
+macro_rules! count_dca_event {
+	($pattern:pat) => {{
+		let last_events: Vec<RuntimeEvent> = last_hydra_events(100000);
+
+		let mut counter: u32 = 0;
+		for event in last_events {
+			let e = event.clone();
+			if matches!(e, RuntimeEvent::DCA($pattern)) {
+				counter += 1;
+			}
 		}
-	}
 
-	counter
+		counter
+	}};
 }
