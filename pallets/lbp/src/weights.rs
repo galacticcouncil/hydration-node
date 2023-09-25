@@ -168,14 +168,14 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	// Storage: System Account (r:3 w:1)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	/// The range of component `c` is `[0, 1]`.
+	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(c: u32, e: u32) -> Weight {
-		// Minimum execution time: 66_338 nanoseconds.
-		Weight::from_ref_time(17_915_174 as u64) // Standard Error: 75_347
-			.saturating_add(Weight::from_ref_time(49_325_413 as u64).saturating_mul(c as u64))
-			// Standard Error: 75_347
-			.saturating_add(Weight::from_ref_time(194_395_678 as u64).saturating_mul(e as u64))
+		// Minimum execution time: 66_503 nanoseconds.
+		Weight::from_ref_time(67_250_000 as u64) // Standard Error: 589_403
+			.saturating_add(Weight::from_ref_time(2_395_953 as u64).saturating_mul(c as u64))
+			// Standard Error: 1_293_908
+			.saturating_add(Weight::from_ref_time(153_805_036 as u64).saturating_mul(e as u64))
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().reads((9 as u64).saturating_mul(e as u64)))
 			.saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(e as u64)))
@@ -190,14 +190,17 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	// Storage: System Account (r:3 w:1)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	/// The range of component `c` is `[1, 2]`.
+	/// The range of component `c` is `[1, 3]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_buy(c: u32, _e: u32) -> Weight {
-		// Minimum execution time: 209_571 nanoseconds.
-		Weight::from_ref_time(164_574_414 as u64) // Standard Error: 418_487
-			.saturating_add(Weight::from_ref_time(49_466_763 as u64).saturating_mul(c as u64))
-			.saturating_add(T::DbWeight::get().reads(12 as u64))
-			.saturating_add(T::DbWeight::get().writes(7 as u64))
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
+		// Minimum execution time: 117_855 nanoseconds.
+		Weight::from_ref_time(118_465_000 as u64) // Standard Error: 749_832
+			.saturating_add(Weight::from_ref_time(3_680_020 as u64).saturating_mul(c as u64))
+			// Standard Error: 2_475_994
+			.saturating_add(Weight::from_ref_time(126_665_319 as u64).saturating_mul(e as u64))
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().reads((9 as u64).saturating_mul(e as u64)))
+			.saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(e as u64)))
 	}
 }
 
@@ -309,18 +312,17 @@ impl WeightInfo for () {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	// Storage: System Account (r:3 w:1)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	/// The range of component `c` is `[0, 1]`.
+	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(c: u32, e: u32) -> Weight {
-		// Minimum execution time: 66_338 nanoseconds.
-		Weight::from_ref_time(17_915_174)
-			// Standard Error: 75_347
-			.saturating_add(Weight::from_ref_time(49_325_413).saturating_mul(c.into()))
-			// Standard Error: 75_347
-			.saturating_add(Weight::from_ref_time(194_395_678).saturating_mul(e.into()))
-			.saturating_add(RocksDbWeight::get().reads(3))
-			.saturating_add(RocksDbWeight::get().reads((9_u64).saturating_mul(e.into())))
-			.saturating_add(RocksDbWeight::get().writes((7_u64).saturating_mul(e.into())))
+		// Minimum execution time: 66_503 nanoseconds.
+		Weight::from_ref_time(67_250_000 as u64) // Standard Error: 589_403
+			.saturating_add(Weight::from_ref_time(2_395_953 as u64).saturating_mul(c as u64))
+			// Standard Error: 1_293_908
+			.saturating_add(Weight::from_ref_time(153_805_036 as u64).saturating_mul(e as u64))
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().reads((9 as u64).saturating_mul(e as u64)))
+			.saturating_add(RocksDbWeight::get().writes((7 as u64).saturating_mul(e as u64)))
 	}
 	// Storage: LBP PoolData (r:1 w:0)
 	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
@@ -332,13 +334,16 @@ impl WeightInfo for () {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	// Storage: System Account (r:3 w:1)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	/// The range of component `c` is `[1, 2]`.
+	/// The range of component `c` is `[1, 3]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_buy(c: u32, _e: u32) -> Weight {
-		// Minimum execution time: 209_571 nanoseconds.
-		Weight::from_ref_time(164_574_414)
-			// Standard Error: 418_487
-			.saturating_add(Weight::from_ref_time(49_466_763).saturating_mul(c.into()))
-			.saturating_add(RocksDbWeight::get().writes(7))
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
+		// Minimum execution time: 117_855 nanoseconds.
+		Weight::from_ref_time(118_465_000 as u64) // Standard Error: 749_832
+			.saturating_add(Weight::from_ref_time(3_680_020 as u64).saturating_mul(c as u64))
+			// Standard Error: 2_475_994
+			.saturating_add(Weight::from_ref_time(126_665_319 as u64).saturating_mul(e as u64))
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().reads((9 as u64).saturating_mul(e as u64)))
+			.saturating_add(RocksDbWeight::get().writes((7 as u64).saturating_mul(e as u64)))
 	}
 }
