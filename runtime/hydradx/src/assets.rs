@@ -507,11 +507,11 @@ impl AmmWeights {
 	}
 	pub fn sell_and_calculate_sell_trade_amounts_overhead_weight() -> Weight {
 		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(1, 1)
-			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1))
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(2, 1))
 	}
 	pub fn buy_and_calculate_buy_trade_amounts_overhead_weight() -> Weight {
 		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_buy_in_lbp(2, 1)
-			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy(2, 1))
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy(3, 1))
 	}
 }
 impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
@@ -601,7 +601,7 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 
 	fn sell_and_calculate_sell_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
-		let c = 1; // number of times AMM::calculate_sell is executed
+		let c = 2; // number of times AMM::calculate_sell is executed
 		let e = 1; // number of times AMM::execute_sell is executed
 
 		for trade in route {
@@ -621,7 +621,7 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 
 	fn buy_and_calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
-		let c = 2; // number of times AMM::calculate_buy is executed
+		let c = 3; // number of times AMM::calculate_buy is executed
 		let e = 1; // number of times AMM::execute_buy is executed
 
 		for trade in route {

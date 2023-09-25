@@ -156,7 +156,7 @@ benchmarks! {
 	}
 
 	router_execution_sell {
-		let c in 0..1;	// if c == 1, calculate_sell is executed
+		let c in 1..2;	// if c == 1, calculate_sell is executed
 		let e in 0..1;	// if e == 1, execute_sell is executed
 
 		let caller = funded_account::<T>("caller", 0);
@@ -179,7 +179,7 @@ benchmarks! {
 		frame_system::Pallet::<T>::set_block_number(T::BlockNumber::from(2u32));
 
 	}: {
-		if c != 0 {
+		for _ in 1..c {
 			assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_sell(PoolType::LBP, asset_in, asset_out, amount).is_ok());
 		}
 		if e != 0 {
@@ -194,7 +194,7 @@ benchmarks! {
 	}
 
 	router_execution_buy {
-		let c in 1..2;	// number of times calculate_buy is executed
+		let c in 1..3;	// number of times calculate_buy is executed
 		let e in 0..1;	// if e == 1, execute_buy is executed
 
 		let caller = funded_account::<T>("caller", 0);
@@ -220,7 +220,9 @@ benchmarks! {
 		for _ in 1..c {
 			assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_buy(PoolType::LBP, asset_in, asset_out, amount).is_ok());
 		}
-		assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(caller.clone()).into(), PoolType::LBP, asset_in, asset_out, amount, max_limit).is_ok());
+		if e != 0 {
+			assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(caller.clone()).into(), PoolType::LBP, asset_in, asset_out, amount, max_limit).is_ok());
+		}
 	}
 	verify{
 		if e != 0 {
