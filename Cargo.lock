@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.6.0"
+version = "7.6.1"
 dependencies = [
  "approx",
  "criterion",
@@ -3773,7 +3773,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -3818,7 +3818,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "178.0.0"
+version = "179.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -5264,9 +5264,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.19"
+version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b06a4cde4c0f271a446782e3eff8de789548ce57dbc8eca9292c27f4a42004b4"
+checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 
 [[package]]
 name = "lru"
@@ -6584,7 +6584,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6763,7 +6763,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6897,7 +6897,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.6.14"
+version = "4.6.15"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7104,7 +7104,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "3.2.1"
+version = "3.2.2"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7280,7 +7280,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.0.6"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7373,7 +7373,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.1.0"
+version = "3.1.2"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -9424,7 +9424,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.8.4"
+version = "5.8.5"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -10177,7 +10177,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.12.0"
+version = "1.12.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",

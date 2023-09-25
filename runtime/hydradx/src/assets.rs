@@ -20,14 +20,17 @@ use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
 	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, StableswapHooksAdapter,
-	VestingInfo,
+	OracleAssetVolumeProvider, OraclePriceProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
+use hydradx_traits::{router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
-use pallet_omnipool::traits::EnsurePriceWithin;
+use pallet_omnipool::{
+	traits::{EnsurePriceWithin, OmnipoolHooks},
+	weights::WeightInfo as OmnipoolWeights,
+};
 use pallet_otc::NamedReserveIdentifier;
+use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
 use primitives::constants::time::DAYS;
 use primitives::constants::{
@@ -48,6 +51,8 @@ use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use orml_traits::currency::MutationHooks;
 use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
+use pallet_lbp::weights::WeightInfo as LbpWeights;
+use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, Trade};
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
 use sp_std::num::NonZeroU16;
@@ -300,7 +305,7 @@ impl pallet_ema_oracle::Config for Runtime {
 	type SupportedPeriods = SupportedPeriods;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 20 seems a decent upper bound for the forseeable future.
-	type MaxUniqueEntries = ConstU32<20>;
+	type MaxUniqueEntries = ConstU32<40>;
 }
 
 pub struct DustRemovalWhitelist;
@@ -418,8 +423,7 @@ impl pallet_dca::Config for Runtime {
 	type Currencies = Currencies;
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 	type RandomnessProvider = DCA;
-	type OraclePriceProvider = OraclePriceProviderAdapterForOmnipool<AssetId, EmaOracle, LRNA>;
-	type SpotPriceProvider = Omnipool;
+	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -430,6 +434,83 @@ impl pallet_dca::Config for Runtime {
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
+	type NativePriceOracle = MultiTransactionPayment;
+}
+
+// Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
+// the router extrinsic overhead and the AMM weight.
+pub struct AmmWeights;
+// Calculates the overhead of Router extrinsics. To do that, we benchmark Router::sell with single LBP trade and subtract the weight of LBP::sell.
+// This allows us to calculate the weight of any route by adding the weight of AMM trades to the overhead of a router extrinsic.
+impl AmmWeights {
+	pub fn sell_overhead_weight() -> Weight {
+		weights::route_executor::HydraWeight::<Runtime>::sell_in_lbp()
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell())
+	}
+
+	pub fn buy_overhead_weight() -> Weight {
+		weights::route_executor::HydraWeight::<Runtime>::buy_in_lbp()
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy())
+	}
+}
+impl AmmTradeWeights<AssetId> for AmmWeights {
+	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
+		let mut weight = Weight::zero();
+
+		for trade in route {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell()
+					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
+						RuntimeOrigin,
+						AccountId,
+						AssetId,
+						Balance,
+					>>::on_trade_weight())
+					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
+						RuntimeOrigin,
+						AccountId,
+						AssetId,
+						Balance,
+					>>::on_liquidity_changed_weight()),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+			};
+			weight.saturating_accrue(amm_weight);
+			weight.saturating_accrue(Self::sell_overhead_weight());
+		}
+
+		weight
+	}
+
+	fn buy_weight(route: &[Trade<AssetId>]) -> Weight {
+		let mut weight = Weight::zero();
+
+		for trade in route {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy()
+					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
+						RuntimeOrigin,
+						AccountId,
+						AssetId,
+						Balance,
+					>>::on_trade_weight())
+					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
+						RuntimeOrigin,
+						AccountId,
+						AssetId,
+						Balance,
+					>>::on_liquidity_changed_weight()),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+			};
+			weight.saturating_accrue(amm_weight);
+			weight.saturating_accrue(Self::buy_overhead_weight());
+		}
+
+		weight
+	}
 }
 
 parameter_types! {
@@ -443,6 +524,7 @@ impl pallet_route_executor::Config for Runtime {
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
 	type AMM = (Omnipool, Stableswap, LBP);
+	type AmmTradeWeights = AmmWeights;
 	type WeightInfo = weights::route_executor::HydraWeight<Runtime>;
 }
 
@@ -489,6 +571,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }
 
+// Stableswap
 parameter_types! {
 	pub StableswapAmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 }

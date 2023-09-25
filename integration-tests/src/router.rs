@@ -4,10 +4,14 @@ use super::assert_balance;
 use crate::polkadot_test_net::*;
 use std::convert::Into;
 
-use hydradx_runtime::{BlockNumber, Omnipool, Router, RuntimeOrigin, LBP};
+use hydradx_adapters::OmnipoolHookAdapter;
+use hydradx_runtime::{AmmWeights, BlockNumber, Omnipool, Router, Runtime, RuntimeOrigin, LBP};
 use hydradx_traits::{router::PoolType, AMM};
+use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_lbp::WeightCurveType;
-use pallet_route_executor::Trade;
+use pallet_omnipool::traits::OmnipoolHooks;
+use pallet_omnipool::weights::WeightInfo as OmnipoolWeights;
+use pallet_route_executor::{AmmTradeWeights, Trade};
 use primitives::asset::AssetPair;
 use primitives::AssetId;
 
@@ -20,8 +24,8 @@ use hydradx_runtime::Stableswap;
 use hydradx_traits::Registry;
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use sp_runtime::Permill;
-use sp_runtime::{DispatchError, FixedU128};
+use sp_runtime::traits::ConstU32;
+use sp_runtime::{DispatchError, FixedU128, Permill};
 
 use orml_traits::MultiCurrency;
 
@@ -30,6 +34,7 @@ pub const LBP_SALE_END: BlockNumber = 40;
 
 mod router_different_pools_tests {
 	use super::*;
+	use sp_core::ConstU32;
 
 	#[test]
 	fn sell_should_work_when_route_contains_trades_with_different_pools() {
@@ -170,7 +175,7 @@ mod router_different_pools_tests {
 					limit,
 					trades
 				),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::PoolNotSupported
+				pallet_route_executor::Error::<Runtime>::PoolNotSupported
 			);
 		});
 	}
@@ -208,7 +213,83 @@ mod router_different_pools_tests {
 					limit,
 					trades
 				),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::PoolNotSupported
+				pallet_route_executor::Error::<Runtime>::PoolNotSupported
+			);
+		});
+	}
+
+	#[test]
+	fn trade_should_return_correct_weight() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+
+			let trades = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: DAI,
+					asset_out: ACA,
+				},
+				Trade {
+					pool: PoolType::LBP,
+					asset_in: ACA,
+					asset_out: DOT,
+				},
+			];
+
+			//Act & Assert
+			assert_eq!(
+				AmmWeights::sell_weight(trades.as_slice()),
+				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_sell()
+					.checked_add(
+						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_trade_weight()
+					)
+					.unwrap()
+					.checked_add(
+						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_liquidity_changed_weight()
+					)
+					.unwrap()
+					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_sell())
+					.unwrap()
+					.checked_add(&AmmWeights::sell_overhead_weight().checked_mul(2).unwrap())
+					.unwrap()
+			);
+			assert_eq!(
+				AmmWeights::buy_weight(trades.as_slice()),
+				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_buy()
+					.checked_add(
+						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_trade_weight()
+					)
+					.unwrap()
+					.checked_add(
+						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_liquidity_changed_weight()
+					)
+					.unwrap()
+					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_buy())
+					.unwrap()
+					.checked_add(&AmmWeights::buy_overhead_weight().checked_mul(2).unwrap())
+					.unwrap()
 			);
 		});
 	}
@@ -443,7 +524,7 @@ mod omnipool_router_tests {
 					limit,
 					trades
 				),
-				pallet_omnipool::Error::<hydradx_runtime::Runtime>::NotAllowed
+				pallet_omnipool::Error::<Runtime>::NotAllowed
 			);
 		});
 	}
@@ -547,7 +628,72 @@ mod omnipool_router_tests {
 					limit,
 					trades
 				),
-				pallet_omnipool::Error::<hydradx_runtime::Runtime>::AssetNotFound
+				pallet_omnipool::Error::<Runtime>::AssetNotFound
+			);
+		});
+	}
+
+	#[test]
+	fn trade_should_return_correct_weight() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+
+			let trades = vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: DAI,
+				asset_out: ACA,
+			}];
+
+			//Act & Assert
+			assert_eq!(
+				AmmWeights::sell_weight(trades.as_slice()),
+				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_sell()
+					.checked_add(
+						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_trade_weight()
+					)
+					.unwrap()
+					.checked_add(
+						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_liquidity_changed_weight()
+					)
+					.unwrap()
+					.checked_add(&AmmWeights::sell_overhead_weight())
+					.unwrap()
+			);
+			assert_eq!(
+				AmmWeights::buy_weight(trades.as_slice()),
+				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_buy()
+					.checked_add(
+						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_trade_weight()
+					)
+					.unwrap()
+					.checked_add(
+						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_liquidity_changed_weight()
+					)
+					.unwrap()
+					.checked_add(&AmmWeights::buy_overhead_weight())
+					.unwrap()
 			);
 		});
 	}
@@ -1141,7 +1287,36 @@ mod lbp_router_tests {
 					limit,
 					trades
 				),
-				pallet_lbp::Error::<hydradx_runtime::Runtime>::PoolNotFound
+				pallet_lbp::Error::<Runtime>::PoolNotFound
+			);
+		});
+	}
+
+	#[test]
+	fn trade_should_return_correct_weight() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+
+			let trades = vec![Trade {
+				pool: PoolType::LBP,
+				asset_in: DAI,
+				asset_out: ACA,
+			}];
+
+			//Act & Assert
+			assert_eq!(
+				AmmWeights::sell_weight(trades.as_slice()),
+				hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_sell()
+					.checked_add(&AmmWeights::sell_overhead_weight())
+					.unwrap()
+			);
+			assert_eq!(
+				AmmWeights::buy_weight(trades.as_slice()),
+				hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_buy()
+					.checked_add(&AmmWeights::buy_overhead_weight())
+					.unwrap()
 			);
 		});
 	}

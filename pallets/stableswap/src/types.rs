@@ -128,9 +128,11 @@ pub struct PoolState<AssetId> {
 	pub before: Vec<Balance>,
 	pub after: Vec<Balance>,
 	pub delta: Vec<Balance>,
-	pub shares: Balance,
+	pub issuance_before: Balance,
+	pub issuance_after: Balance,
 }
 
+/// Interface for populating oracle from stableswap, and getting their weights
 pub trait StableswapHooks<AssetId> {
 	fn on_liquidity_changed(pool_id: AssetId, state: PoolState<AssetId>) -> DispatchResult;
 	fn on_trade(pool_id: AssetId, asset_in: AssetId, asset_out: AssetId, state: PoolState<AssetId>) -> DispatchResult;
