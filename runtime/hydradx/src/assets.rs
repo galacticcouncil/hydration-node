@@ -492,35 +492,39 @@ pub struct AmmWeights;
 // This allows us to calculate the weight of any route by adding the weight of AMM trades to the overhead of a router extrinsic.
 impl AmmWeights {
 	pub fn sell_overhead_weight() -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::multi_trade_execution_sell_in_lbp(0, 1)
+		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(0, 1)
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1))
 	}
 
 	pub fn buy_overhead_weight() -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::multi_trade_execution_buy_in_lbp(0, 1)
+		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_buy_in_lbp(0, 1)
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1))
 	}
 
 	pub fn calculate_buy_trade_amounts_overhead_weight() -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::multi_trade_execution_buy_in_lbp(1, 0)
+		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_buy_in_lbp(1, 0)
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 0))
 	}
 	pub fn sell_and_calculate_sell_trade_amounts_overhead_weight() -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::multi_trade_execution_sell_in_lbp(1, 1)
+		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(1, 1)
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1))
 	}
 	pub fn buy_and_calculate_buy_trade_amounts_overhead_weight() -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::multi_trade_execution_buy_in_lbp(2, 1)
+		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_buy_in_lbp(2, 1)
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy(2, 1))
 	}
 }
 impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
+		let c = 1; // number of times AMM::calculate_sell is executed
+		let e = 1; // number of times AMM::execute_sell is executed
 
 		for trade in route {
+			weight.saturating_accrue(Self::sell_overhead_weight());
+
 			let amm_weight = match trade.pool {
-				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell()
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
 						RuntimeOrigin,
 						AccountId,
@@ -533,12 +537,11 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 						AssetId,
 						Balance,
 					>>::on_liquidity_changed_weight()),
-				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1),
-				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
 			};
 			weight.saturating_accrue(amm_weight);
-			weight.saturating_accrue(Self::sell_overhead_weight());
 		}
 
 		weight
@@ -546,10 +549,14 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 
 	fn buy_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
+		let c = 1; // number of times AMM::calculate_buy is executed
+		let e = 1; // number of times AMM::execute_buy is executed
 
 		for trade in route {
+			weight.saturating_accrue(Self::buy_overhead_weight());
+
 			let amm_weight = match trade.pool {
-				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy()
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
 						RuntimeOrigin,
 						AccountId,
@@ -562,12 +569,11 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 						AssetId,
 						Balance,
 					>>::on_liquidity_changed_weight()),
-				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1),
-				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(c, e),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
 			};
 			weight.saturating_accrue(amm_weight);
-			weight.saturating_accrue(Self::buy_overhead_weight());
 		}
 
 		weight
@@ -575,16 +581,19 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 
 	fn calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
+		let c = 1; // number of times AMM::calculate_buy is executed
+		let e = 0; // number of times AMM::execute_buy is executed
 
 		for trade in route {
+			weight.saturating_accrue(Self::calculate_buy_trade_amounts_overhead_weight());
+
 			let amm_weight = match trade.pool {
-				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(),
-				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 0),
-				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(c, e),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
 			};
 			weight.saturating_accrue(amm_weight);
-			weight.saturating_accrue(Self::calculate_buy_trade_amounts_overhead_weight());
 		}
 
 		weight
@@ -592,16 +601,19 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 
 	fn sell_and_calculate_sell_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
+		let c = 1; // number of times AMM::calculate_sell is executed
+		let e = 1; // number of times AMM::execute_sell is executed
 
 		for trade in route {
+			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight());
+
 			let amm_weight = match trade.pool {
-				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(),
-				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1),
-				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
 			};
 			weight.saturating_accrue(amm_weight);
-			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight());
 		}
 
 		weight
@@ -609,16 +621,19 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 
 	fn buy_and_calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
+		let c = 2; // number of times AMM::calculate_buy is executed
+		let e = 1; // number of times AMM::execute_buy is executed
 
 		for trade in route {
+			weight.saturating_accrue(Self::buy_and_calculate_buy_trade_amounts_overhead_weight());
+
 			let amm_weight = match trade.pool {
-				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(),
-				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(2, 1),
-				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(c, e),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e),
+				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
 			};
 			weight.saturating_accrue(amm_weight);
-			weight.saturating_accrue(Self::buy_and_calculate_buy_trade_amounts_overhead_weight());
 		}
 
 		weight

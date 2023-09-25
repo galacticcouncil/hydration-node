@@ -48,8 +48,8 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_route_executor.
 pub trait WeightInfo {
-	fn multi_trade_execution_sell_in_lbp(c: u32, s: u32) -> Weight;
-	fn multi_trade_execution_buy_in_lbp(c: u32, b: u32) -> Weight;
+	fn calculate_and_execute_sell_in_lbp(c: u32, s: u32) -> Weight;
+	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32) -> Weight;
 }
 
 /// Weights for pallet_route_executor using the hydraDX node and recommended hardware.
@@ -68,7 +68,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	/// The range of component `c` is `[0, 1]`.
 	/// The range of component `s` is `[0, 1]`.
-	fn multi_trade_execution_sell_in_lbp(c: u32, s: u32) -> Weight {
+	fn calculate_and_execute_sell_in_lbp(c: u32, s: u32) -> Weight {
 		// Minimum execution time: 73_855 nanoseconds.
 		Weight::from_ref_time(28_849_316 as u64) // Standard Error: 346_014
 			.saturating_add(Weight::from_ref_time(45_884_573 as u64).saturating_mul(c as u64))
@@ -90,7 +90,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `b` is `[0, 1]`.
-	fn multi_trade_execution_buy_in_lbp(c: u32, b: u32) -> Weight {
+	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32) -> Weight {
 		// Minimum execution time: 73_868 nanoseconds.
 		Weight::from_ref_time(74_256_000 as u64) // Standard Error: 570_570
 			.saturating_add(Weight::from_ref_time(2_334_290 as u64).saturating_mul(c as u64))
@@ -116,7 +116,7 @@ impl WeightInfo for () {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	/// The range of component `c` is `[0, 1]`.
 	/// The range of component `s` is `[0, 1]`.
-	fn multi_trade_execution_sell_in_lbp(c: u32, s: u32) -> Weight {
+	fn calculate_and_execute_sell_in_lbp(c: u32, s: u32) -> Weight {
 		// Minimum execution time: 73_855 nanoseconds.
 		Weight::from_ref_time(28_849_316)
 			// Standard Error: 346_014
@@ -139,7 +139,7 @@ impl WeightInfo for () {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `b` is `[0, 1]`.
-	fn multi_trade_execution_buy_in_lbp(c: u32, b: u32) -> Weight {
+	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32) -> Weight {
 		// Minimum execution time: 73_868 nanoseconds.
 		Weight::from_ref_time(74_256_000)
 			// Standard Error: 570_570

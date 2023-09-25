@@ -97,9 +97,10 @@ runtime_benchmarks! {
 	{Runtime, pallet_route_executor}
 
 	// Calculates the weight of LBP trade. Used in the calculation to determine the weight of the overhead.
-	multi_trade_execution_sell_in_lbp {
+	calculate_and_execute_sell_in_lbp {
 		let c in 0..1;	// if c == 1, calculate_sell_trade_amounts is executed
 		let s in 0..1;	// if e == 1, sell is executed
+
 		let asset_in = 0u32;
 		let asset_out = 1u32;
 		let caller: AccountId = funded_account("caller", 7, &[asset_in, asset_out]);
@@ -133,9 +134,10 @@ runtime_benchmarks! {
 	}
 
 	// Calculates the weight of LBP trade. Used in the calculation to determine the weight of the overhead.
-	multi_trade_execution_buy_in_lbp {
+	calculate_and_execute_buy_in_lbp {
 		let c in 1..2;	// number of times `calculate_buy_trade_amounts` is executed
 		let b in 0..1;	// if e == 1, buy is executed
+
 		let asset_in = 0u32;
 		let asset_out = 1u32;
 		let caller: AccountId = funded_account("caller", 0, &[asset_in, asset_out]);

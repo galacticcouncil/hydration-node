@@ -58,8 +58,8 @@ pub trait WeightInfo {
 	fn set_asset_tradable_state() -> Weight;
 	fn update_pool_fee() -> Weight;
 	fn update_amplification() -> Weight;
-	fn router_execution_sell() -> Weight;
-	fn router_execution_buy() -> Weight;
+	fn router_execution_sell(c: u32, e: u32) -> Weight;
+	fn router_execution_buy(c: u32, e: u32) -> Weight;
 }
 
 /// Weights for pallet_stableswap using the hydraDX node and recommended hardware.
@@ -258,7 +258,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	fn router_execution_sell() -> Weight {
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 739_292 nanoseconds.
 		Weight::from_ref_time(740_883_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(20 as u64))
@@ -280,7 +280,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	fn router_execution_buy() -> Weight {
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 726_292 nanoseconds.
 		Weight::from_ref_time(727_824_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(21 as u64))
@@ -482,7 +482,7 @@ impl WeightInfo for () {
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	fn router_execution_sell() -> Weight {
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 739_292 nanoseconds.
 		Weight::from_ref_time(740_883_000)
 			.saturating_add(RocksDbWeight::get().reads(20))
@@ -504,7 +504,7 @@ impl WeightInfo for () {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	fn router_execution_buy() -> Weight {
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 726_292 nanoseconds.
 		Weight::from_ref_time(727_824_000)
 			.saturating_add(RocksDbWeight::get().reads(21))

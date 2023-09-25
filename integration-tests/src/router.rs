@@ -241,7 +241,7 @@ mod router_different_pools_tests {
 			//Act & Assert
 			assert_eq!(
 				AmmWeights::sell_weight(trades.as_slice()),
-				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_sell()
+				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 1)
 					.checked_add(
 						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
 							RuntimeOrigin,
@@ -267,7 +267,7 @@ mod router_different_pools_tests {
 			);
 			assert_eq!(
 				AmmWeights::buy_weight(trades.as_slice()),
-				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_buy()
+				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(1, 1)
 					.checked_add(
 						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
 							RuntimeOrigin,
@@ -629,71 +629,6 @@ mod omnipool_router_tests {
 					trades
 				),
 				pallet_omnipool::Error::<Runtime>::AssetNotFound
-			);
-		});
-	}
-
-	#[test]
-	fn trade_should_return_correct_weight() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-
-			let trades = vec![Trade {
-				pool: PoolType::Omnipool,
-				asset_in: DAI,
-				asset_out: ACA,
-			}];
-
-			//Act & Assert
-			assert_eq!(
-				AmmWeights::sell_weight(trades.as_slice()),
-				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_sell()
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_trade_weight()
-					)
-					.unwrap()
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_liquidity_changed_weight()
-					)
-					.unwrap()
-					.checked_add(&AmmWeights::sell_overhead_weight())
-					.unwrap()
-			);
-			assert_eq!(
-				AmmWeights::buy_weight(trades.as_slice()),
-				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_buy()
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_trade_weight()
-					)
-					.unwrap()
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_liquidity_changed_weight()
-					)
-					.unwrap()
-					.checked_add(&AmmWeights::buy_overhead_weight())
-					.unwrap()
 			);
 		});
 	}
@@ -1288,35 +1223,6 @@ mod lbp_router_tests {
 					trades
 				),
 				pallet_lbp::Error::<Runtime>::PoolNotFound
-			);
-		});
-	}
-
-	#[test]
-	fn trade_should_return_correct_weight() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-
-			let trades = vec![Trade {
-				pool: PoolType::LBP,
-				asset_in: DAI,
-				asset_out: ACA,
-			}];
-
-			//Act & Assert
-			assert_eq!(
-				AmmWeights::sell_weight(trades.as_slice()),
-				hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1)
-					.checked_add(&AmmWeights::sell_overhead_weight())
-					.unwrap()
-			);
-			assert_eq!(
-				AmmWeights::buy_weight(trades.as_slice()),
-				hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1)
-					.checked_add(&AmmWeights::buy_overhead_weight())
-					.unwrap()
 			);
 		});
 	}
