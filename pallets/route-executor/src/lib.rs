@@ -17,15 +17,17 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::MaxEncodedLen;
-use frame_support::ensure;
-use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::Get;
-use frame_support::transactional;
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::{
+	ensure,
+	traits::{fungibles::Inspect, Get},
+	transactional,
+	weights::Weight,
+};
 use frame_system::ensure_signed;
-use hydradx_traits::router::ExecutorError;
-use hydradx_traits::router::{Trade, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError};
 use sp_std::vec::Vec;
 
@@ -51,9 +53,33 @@ pub trait TradeAmountsCalculator<AssetId, Balance> {
 	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError>;
 }
 
+///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
+#[derive(Encode, Decode, Debug, Eq, PartialEq, Copy, Clone, TypeInfo, MaxEncodedLen)]
+pub struct Trade<AssetId> {
+	pub pool: PoolType<AssetId>,
+	pub asset_in: AssetId,
+	pub asset_out: AssetId,
+}
+
 pub struct AmountInAndOut<Balance> {
 	pub amount_in: Balance,
 	pub amount_out: Balance,
+}
+
+/// Provides weight info for the router. Calculates the weight of a route based on the AMMs.
+/// We get the resulting weight as the router extrinsic overhead + AMM weights.
+pub trait AmmTradeWeights<AssetId> {
+	fn sell_weight(route: &[Trade<AssetId>]) -> Weight;
+	fn buy_weight(route: &[Trade<AssetId>]) -> Weight;
+}
+
+impl<AssetId> AmmTradeWeights<AssetId> for () {
+	fn sell_weight(_route: &[Trade<AssetId>]) -> Weight {
+		Weight::zero()
+	}
+	fn buy_weight(_route: &[Trade<AssetId>]) -> Weight {
+		Weight::zero()
+	}
 }
 
 #[frame_support::pallet]
@@ -99,8 +125,11 @@ pub mod pallet {
 			Error = DispatchError,
 		>;
 
+		/// AMMs trade weight information.
+		type AmmTradeWeights: AmmTradeWeights<Self::AssetId>;
+
 		/// Weight information for the extrinsics.
-		type WeightInfo: WeightInfo<Self::AssetId>;
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::event]
@@ -147,7 +176,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::sell(route.to_vec()))]
+		#[pallet::weight(T::AmmTradeWeights::sell_weight(route))]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -226,7 +255,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::buy(route.to_vec()))]
+		#[pallet::weight(T::AmmTradeWeights::buy_weight(route))]
 		#[transactional]
 		pub fn buy(
 			origin: OriginFor<T>,
