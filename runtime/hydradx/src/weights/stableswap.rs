@@ -244,11 +244,17 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	/// The range of component `c` is `[0, 1]`.
+	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(c: u32, e: u32) -> Weight {
-		// Minimum execution time: 739_292 nanoseconds.
-		Weight::from_ref_time(740_883_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(20 as u64))
-			.saturating_add(T::DbWeight::get().writes(6 as u64))
+		// Minimum execution time: 338_891 nanoseconds.
+		Weight::from_ref_time(33_706_401 as u64) // Standard Error: 190_018
+			.saturating_add(Weight::from_ref_time(306_731_583 as u64).saturating_mul(c as u64))
+			// Standard Error: 190_018
+			.saturating_add(Weight::from_ref_time(424_499_414 as u64).saturating_mul(e as u64))
+			.saturating_add(T::DbWeight::get().reads(11 as u64))
+			.saturating_add(T::DbWeight::get().reads((9 as u64).saturating_mul(e as u64)))
+			.saturating_add(T::DbWeight::get().writes((6 as u64).saturating_mul(e as u64)))
 	}
 	// Storage: Stableswap Pools (r:1 w:0)
 	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
@@ -266,9 +272,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	fn router_execution_buy(c: u32, e: u32) -> Weight {
-		// Minimum execution time: 726_292 nanoseconds.
-		Weight::from_ref_time(727_824_000 as u64)
+	/// The range of component `c` is `[1, 2]`.
+	/// The range of component `e` is `[0, 1]`.
+	fn router_execution_buy(c: u32, _e: u32) -> Weight {
+		// Minimum execution time: 441_418 nanoseconds.
+		Weight::from_ref_time(139_288_718 as u64) // Standard Error: 280_961
+			.saturating_add(Weight::from_ref_time(305_481_427 as u64).saturating_mul(c as u64))
 			.saturating_add(T::DbWeight::get().reads(21 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}

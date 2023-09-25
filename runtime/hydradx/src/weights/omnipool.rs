@@ -346,11 +346,17 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: CircuitBreaker LiquidityRemoveLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
 	// Storage: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (r:1 w:0)
 	// Proof: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	/// The range of component `c` is `[0, 1]`.
+	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(c: u32, e: u32) -> Weight {
-		// Minimum execution time: 269_857 nanoseconds.
-		Weight::from_ref_time(271_611_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(23 as u64))
-			.saturating_add(T::DbWeight::get().writes(14 as u64))
+		// Minimum execution time: 53_651 nanoseconds.
+		Weight::from_ref_time(38_695_736 as u64) // Standard Error: 82_956
+			.saturating_add(Weight::from_ref_time(15_865_763 as u64).saturating_mul(c as u64))
+			// Standard Error: 82_956
+			.saturating_add(Weight::from_ref_time(216_991_366 as u64).saturating_mul(e as u64))
+			.saturating_add(T::DbWeight::get().reads(7 as u64))
+			.saturating_add(T::DbWeight::get().reads((16 as u64).saturating_mul(e as u64)))
+			.saturating_add(T::DbWeight::get().writes((14 as u64).saturating_mul(e as u64)))
 	}
 	// Storage: Omnipool Assets (r:3 w:3)
 	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
@@ -382,9 +388,14 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: CircuitBreaker LiquidityRemoveLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
 	// Storage: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (r:1 w:0)
 	// Proof: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	/// The range of component `c` is `[1, 2]`.
+	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_buy(c: u32, e: u32) -> Weight {
-		// Minimum execution time: 288_769 nanoseconds.
-		Weight::from_ref_time(290_860_000 as u64)
+		// Minimum execution time: 275_021 nanoseconds.
+		Weight::from_ref_time(263_976_410 as u64) // Standard Error: 113_091
+			.saturating_add(Weight::from_ref_time(12_726_754 as u64).saturating_mul(c as u64))
+			// Standard Error: 113_091
+			.saturating_add(Weight::from_ref_time(896_680 as u64).saturating_mul(e as u64))
 			.saturating_add(T::DbWeight::get().reads(24 as u64))
 			.saturating_add(T::DbWeight::get().writes(15 as u64))
 	}
