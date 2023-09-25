@@ -24,7 +24,6 @@ use hydradx_runtime::Stableswap;
 use hydradx_traits::Registry;
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use sp_runtime::traits::ConstU32;
 use sp_runtime::{DispatchError, FixedU128, Permill};
 
 use orml_traits::MultiCurrency;
