@@ -155,10 +155,9 @@ benchmarks! {
 		assert_eq!(T::MultiCurrency::free_balance(asset_in, &caller), 999998851241411);
 	}
 
-	multi_trade_execution_sell {
+	router_execution_sell {
 		let c in 0..1;	// if c == 1, calculate_sell is executed
 		let e in 0..1;	// if e == 1, execute_sell is executed
-
 		let caller = funded_account::<T>("caller", 0);
 		let fee_collector = funded_account::<T>("fee_collector", 0);
 		let asset_in: AssetId = ASSET_A_ID;
@@ -193,10 +192,9 @@ benchmarks! {
 		}
 	}
 
-	multi_trade_execution_buy {
+	router_execution_buy {
 		let c in 1..2;	// number of times calculate_buy is executed
 		let e in 0..1;	// if e == 1, execute_buy is executed
-
 		let caller = funded_account::<T>("caller", 0);
 		let fee_collector = funded_account::<T>("fee_collector", 0);
 		let asset_in: AssetId = ASSET_A_ID;
@@ -245,8 +243,8 @@ mod tests {
 			assert_ok!(Pallet::<Test>::test_benchmark_remove_liquidity());
 			assert_ok!(Pallet::<Test>::test_benchmark_sell());
 			assert_ok!(Pallet::<Test>::test_benchmark_buy());
-			assert_ok!(Pallet::<Test>::test_benchmark_multi_trade_execution_sell());
-			assert_ok!(Pallet::<Test>::test_benchmark_multi_trade_execution_buy());
+			assert_ok!(Pallet::<Test>::test_benchmark_router_execution_sell());
+			assert_ok!(Pallet::<Test>::test_benchmark_router_execution_buy());
 		});
 	}
 }

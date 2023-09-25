@@ -477,7 +477,7 @@ benchmarks! {
 		assert_eq!(pool.final_block, 1000u32.into());
 	}
 
-	trade_execution_sell{
+	router_execution_sell{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let initial_liquidity = 1_000_000_000_000_000_000u128;
@@ -534,7 +534,7 @@ benchmarks! {
 		assert_eq!(T::Currency::free_balance(asset_out, &seller), 98_999_980_239_523);
 	}
 
-	trade_execution_buy{
+	router_execution_buy{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let initial_liquidity = 1_000_000_000_000_000_000u128;

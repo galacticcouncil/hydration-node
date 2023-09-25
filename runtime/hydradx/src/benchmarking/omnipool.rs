@@ -436,7 +436,7 @@ runtime_benchmarks! {
 		assert!(asset_state.cap == 100_000_000_000_000_000u128);
 	}
 
-	trade_execution_sell {
+	router_execution_sell {
 		// Initialize pool
 		let stable_amount: Balance = 1_000_000_000_000_000u128;
 		let native_amount: Balance = 1_000_000_000_000_000u128;
@@ -497,7 +497,7 @@ runtime_benchmarks! {
 		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(stable_id, &seller) >= buy_min_amount);
 	}
 
-	trade_execution_buy {
+	router_execution_buy {
 		// Initialize pool
 		let stable_amount: Balance = 1_000_000_000_000_000u128;
 		let native_amount: Balance = 1_000_000_000_000_000u128;

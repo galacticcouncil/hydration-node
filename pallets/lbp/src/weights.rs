@@ -54,8 +54,8 @@ pub trait WeightInfo {
 	fn remove_liquidity() -> Weight;
 	fn sell() -> Weight;
 	fn buy() -> Weight;
-	fn multi_trade_execution_sell(c: u32, e: u32) -> Weight;
-	fn multi_trade_execution_buy(c: u32, e: u32) -> Weight;
+	fn router_execution_sell(c: u32, e: u32) -> Weight;
+	fn router_execution_buy(c: u32, e: u32) -> Weight;
 }
 
 /// Weights for pallet_lbp using the hydraDX node and recommended hardware.
@@ -170,7 +170,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	/// The range of component `c` is `[0, 1]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn multi_trade_execution_sell(c: u32, e: u32) -> Weight {
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 66_338 nanoseconds.
 		Weight::from_ref_time(17_915_174 as u64) // Standard Error: 75_347
 			.saturating_add(Weight::from_ref_time(49_325_413 as u64).saturating_mul(c as u64))
@@ -192,7 +192,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn multi_trade_execution_buy(c: u32, _e: u32) -> Weight {
+	fn router_execution_buy(c: u32, _e: u32) -> Weight {
 		// Minimum execution time: 209_571 nanoseconds.
 		Weight::from_ref_time(164_574_414 as u64) // Standard Error: 418_487
 			.saturating_add(Weight::from_ref_time(49_466_763 as u64).saturating_mul(c as u64))
@@ -311,7 +311,7 @@ impl WeightInfo for () {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	/// The range of component `c` is `[0, 1]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn multi_trade_execution_sell(c: u32, e: u32) -> Weight {
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 66_338 nanoseconds.
 		Weight::from_ref_time(17_915_174)
 			// Standard Error: 75_347
@@ -334,12 +334,11 @@ impl WeightInfo for () {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn multi_trade_execution_buy(c: u32, _e: u32) -> Weight {
+	fn router_execution_buy(c: u32, _e: u32) -> Weight {
 		// Minimum execution time: 209_571 nanoseconds.
 		Weight::from_ref_time(164_574_414)
 			// Standard Error: 418_487
 			.saturating_add(Weight::from_ref_time(49_466_763).saturating_mul(c.into()))
-			.saturating_add(RocksDbWeight::get().reads(12))
 			.saturating_add(RocksDbWeight::get().writes(7))
 	}
 }
