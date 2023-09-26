@@ -1147,19 +1147,34 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades() {
 		let amount_to_sell = 100 * UNITS;
-		let amount_to_receive = 59987138377349;
+		let amount_to_receive = 131053972779710;
 		//With DCA
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				5000 * UNITS,
+				0,
+			));
 
 			init_omnipol();
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				3000 * UNITS as i128,
+				5000 * UNITS as i128,
 			));
 
 			assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -1242,7 +1257,21 @@ mod stableswap {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				5000 * UNITS,
+				0,
+			));
 
 			init_omnipol();
 
@@ -1250,7 +1279,7 @@ mod stableswap {
 				hydradx_runtime::RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				3000 * UNITS as i128,
+				5000 * UNITS as i128,
 			));
 
 			assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -1274,13 +1303,13 @@ mod stableswap {
 				0,
 			));
 
-			assert_balance!(ALICE.into(), pool_id, 96485546361450);
+			assert_balance!(ALICE.into(), pool_id, 97746177044407);
 
 			assert_ok!(Stableswap::remove_liquidity_one_asset(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				pool_id,
 				stable_asset_1,
-				96485546361450,
+				97746177044407,
 				0
 			));
 
@@ -1293,14 +1322,28 @@ mod stableswap {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				5000 * UNITS,
+				0,
+			));
 
 			init_omnipol();
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				3000 * UNITS as i128,
+				5000 * UNITS as i128,
 			));
 
 			assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -1353,7 +1396,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_stable_trades_and_omnipool() {
 		let amount_to_sell = 50 * UNITS;
-		let amount_to_receive = 12639842736549;
+		let amount_to_receive = 23983355708022;
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
@@ -1371,7 +1414,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				10000 * UNITS,
+				5000 * UNITS,
 				0,
 			));
 
@@ -1416,7 +1459,7 @@ mod stableswap {
 				Balance::MIN
 			));
 
-			set_relaychain_block_number(10);
+			set_relaychain_block_number(1000);
 
 			let alice_init_stable1_balance = 5000 * UNITS;
 			assert_ok!(Currencies::update_balance(
@@ -1464,7 +1507,7 @@ mod stableswap {
 			assert_balance!(&hydradx_runtime::Treasury::account_id(), stable_asset_1, 0);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(1001);
 
 			//Assert
 			let fee = Currencies::free_balance(stable_asset_1, &hydradx_runtime::Treasury::account_id());
@@ -1493,7 +1536,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				10000 * UNITS,
+				5000 * UNITS,
 				0,
 			));
 
@@ -1551,13 +1594,14 @@ mod stableswap {
 					amount: amount_to_sell,
 				}],
 			));
-			assert_balance!(ALICE.into(), pool_id, 17341478089956);
+			let alice_pool_id_balance = 33051396373724;
+			assert_balance!(ALICE.into(), pool_id, alice_pool_id_balance);
 
 			assert_ok!(hydradx_runtime::Omnipool::sell(
 				RuntimeOrigin::signed(ALICE.into()),
 				pool_id,
 				HDX,
-				17341478089956,
+				alice_pool_id_balance,
 				0,
 			));
 
@@ -1588,7 +1632,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				10000 * UNITS,
+				5000 * UNITS,
 				0,
 			));
 
@@ -1676,7 +1720,23 @@ mod stableswap {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			//To populate stableswap oracle
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				3000 * UNITS,
+				0,
+			));
 
 			init_omnipol();
 			assert_ok!(Currencies::update_balance(
