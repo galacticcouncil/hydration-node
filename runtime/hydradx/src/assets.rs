@@ -492,29 +492,37 @@ pub struct AmmWeights;
 // This allows us to calculate the weight of any route by adding the weight of AMM trades to the overhead of a router extrinsic.
 impl AmmWeights {
 	pub fn sell_overhead_weight() -> Weight {
+		// Router::sell - ( LBP::calculate_sell + LBP::execute_sell )
 		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(0, 1)
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1))
 	}
 
 	pub fn buy_overhead_weight() -> Weight {
+		// Router::buy - ( LBP::calculate_buy + LBP::execute_buy )
 		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_buy_in_lbp(0, 1)
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1))
 	}
 
 	pub fn calculate_buy_trade_amounts_overhead_weight() -> Weight {
+		// Router::calculate_buy_trade_amounts - LBP::calculate_buy
 		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_buy_in_lbp(1, 0)
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 0))
 	}
+
 	pub fn sell_and_calculate_sell_trade_amounts_overhead_weight() -> Weight {
+		// Router::calculate_sell_trade_amounts + Router::sell - ( 2 * LBP::calculate_sell + LBP::execute_sell )
 		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(1, 1)
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(2, 1))
 	}
+
 	pub fn buy_and_calculate_buy_trade_amounts_overhead_weight() -> Weight {
+		// 2 * Router::calculate_buy_trade_amounts + Router::buy - ( 3 * LBP::calculate_buy + LBP::execute_buy )
 		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_buy_in_lbp(2, 1)
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy(3, 1))
 	}
 }
 impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
+	// This weight is used in Router::sell extrinsic, which calls AMM::calculate_sell and AMM::execute_sell
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 1; // number of times AMM::calculate_sell is executed
@@ -547,6 +555,7 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 		weight
 	}
 
+	// This weight is used in Router::buy extrinsic, which calls AMM::calculate_buy and AMM::execute_buy
 	fn buy_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 1; // number of times AMM::calculate_buy is executed
@@ -579,6 +588,7 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 		weight
 	}
 
+	// This weight is used in DCA::schedule extrinsic, which calls Router::calculate_buy_trade_amounts
 	fn calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 1; // number of times AMM::calculate_buy is executed
@@ -599,6 +609,7 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 		weight
 	}
 
+	// This weight is used in DCA::on_initialize for Order::Sell, which calls Router::calculate_sell_trade_amounts and Router::sell.
 	fn sell_and_calculate_sell_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 2; // number of times AMM::calculate_sell is executed
@@ -619,6 +630,7 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 		weight
 	}
 
+	// This weight is used in DCA::on_initialize for Order::Buy, which calls 2 * Router::calculate_buy_trade_amounts and Router::buy.
 	fn buy_and_calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 3; // number of times AMM::calculate_buy is executed
