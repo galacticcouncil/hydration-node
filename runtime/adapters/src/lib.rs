@@ -885,9 +885,8 @@ where
 				state.delta[idx],
 				state.issuance_before.abs_diff(state.issuance_after),
 				state.after[idx],
-				state.shares,
-				todo!("determine stableswap price"),
-
+				state.issuance_after,
+				Price::new(state.share_price.0, state.share_price.1)
 			)
 			.map_err(|(_, e)| e)?;
 		}
@@ -925,8 +924,8 @@ where
 				state.delta[idx],
 				0, // Correct
 				state.after[idx],
-				state.shares,
-				todo!("determine stableswap price"),
+				state.issuance_after,
+				Price::new(state.share_price.0, state.share_price.1)
 			)
 			.map_err(|(_, e)| e)?;
 
@@ -936,10 +935,9 @@ where
 				state.assets[idx],
 				0, // Correct
 				state.delta[idx],
-				state.shares,
+				state.issuance_after,
 				state.after[idx],
-				todo!("determine stableswap price"),
-
+				Price::new(state.share_price.1, state.share_price.0) //TODO: the other way here ?!!
 			)
 			.map_err(|(_, e)| e)?;
 		}
