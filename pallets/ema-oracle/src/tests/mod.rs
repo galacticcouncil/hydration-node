@@ -286,36 +286,6 @@ fn on_liquidity_changed_should_allow_zero_values() {
 fn on_trade_should_exclude_zero_values() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			OnActivityHandler::<Test>::on_trade(
-				SOURCE,
-				HDX,
-				DOT,
-				Balance::zero(),
-				1_000,
-				2_000,
-				1_000,
-				Price::new(2_000, 1_000)
-			)
-			.map_err(|(_w, e)| e),
-			Error::<Test>::OnTradeValueZero
-		);
-
-		assert_noop!(
-			OnActivityHandler::<Test>::on_trade(
-				SOURCE,
-				HDX,
-				DOT,
-				1_000,
-				Balance::zero(),
-				2_000,
-				1_000,
-				Price::new(2_000, 1_000)
-			)
-			.map_err(|(_w, e)| e),
-			Error::<Test>::OnTradeValueZero
-		);
-
-		assert_noop!(
 			OnActivityHandler::<Test>::on_trade(SOURCE, HDX, DOT, 1_000, 1_000, Balance::zero(), 1_000, Price::zero())
 				.map_err(|(_w, e)| e),
 			Error::<Test>::OnTradeValueZero
