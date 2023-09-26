@@ -1,4 +1,5 @@
 use hydradx_traits::router::PoolType;
+use hydradx_traits::router::Trade;
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use sp_core::Get;
@@ -6,7 +7,6 @@ use sp_runtime::traits::{Convert, Zero};
 use sp_std::marker::PhantomData;
 use sp_std::vec;
 use xcm_executor::traits::AssetExchange;
-use pallet_route_executor::Trade;
 
 /// Implements `AssetExchange` to support the `ExchangeAsset` XCM instruction.
 ///

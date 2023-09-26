@@ -17,11 +17,11 @@
 
 //! Test environment for Assets pallet.
 
+use core::ops::RangeInclusive;
+use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
-
-use core::ops::RangeInclusive;
 use std::num::NonZeroU16;
 
 use crate as pallet_stableswap;
