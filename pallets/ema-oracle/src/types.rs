@@ -86,13 +86,7 @@ where
 	/// Return an inverted version of the entry where the meaning of assets a and b are inverted.
 	/// So the price of a/b become the price b/a and the volume switches correspondingly.
 	pub fn inverted(self) -> Self {
-		// It makes sense for the reciprocal of zero to be zero here.
-		let price = if self.price.is_zero() {
-			self.price
-		} else {
-			let (a, b) = self.price.into();
-			(b, a).into()
-		};
+		let price = self.price.inverted();
 		let volume = self.volume.inverted();
 		let liquidity = self.liquidity.inverted();
 		Self {

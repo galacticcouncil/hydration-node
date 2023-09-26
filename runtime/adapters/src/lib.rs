@@ -346,6 +346,7 @@ where
 			*asset.delta_changes.delta_hub_reserve,
 			asset.after.reserve,
 			asset.after.hub_reserve,
+			Price::new(asset.after.reserve, asset.after.hub_reserve),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -382,6 +383,7 @@ where
 			*asset_in.delta_changes.delta_hub_reserve,
 			asset_in.after.reserve,
 			asset_in.after.hub_reserve,
+			Price::new(asset_in.after.reserve, asset_in.after.hub_reserve),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -393,6 +395,7 @@ where
 			*asset_out.delta_changes.delta_reserve,
 			asset_out.after.hub_reserve,
 			asset_out.after.reserve,
+			Price::new(asset_out.after.hub_reserve, asset_out.after.reserve),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -420,6 +423,7 @@ where
 			*asset.delta_changes.delta_reserve,
 			asset.after.hub_reserve,
 			asset.after.reserve,
+			Price::new(asset.after.hub_reserve, asset.after.reserve),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -881,7 +885,9 @@ where
 				state.delta[idx],
 				state.issuance_before.abs_diff(state.issuance_after),
 				state.after[idx],
-				state.issuance_after,
+				state.shares,
+				todo!("determine stableswap price"),
+
 			)
 			.map_err(|(_, e)| e)?;
 		}
@@ -919,7 +925,21 @@ where
 				state.delta[idx],
 				0, // Correct
 				state.after[idx],
-				state.issuance_after,
+				state.shares,
+				todo!("determine stableswap price"),
+			)
+			.map_err(|(_, e)| e)?;
+
+			OnActivityHandler::<Runtime>::on_trade(
+				STABLESWAP_SOURCE,
+				pool_id,
+				state.assets[idx],
+				0, // Correct
+				state.delta[idx],
+				state.shares,
+				state.after[idx],
+				todo!("determine stableswap price"),
+
 			)
 			.map_err(|(_, e)| e)?;
 		}
