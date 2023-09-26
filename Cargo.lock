@@ -1880,7 +1880,7 @@ dependencies = [
  "async-trait",
  "cumulus-primitives-core",
  "cumulus-relay-chain-interface",
- "cumulus-test-relay-sproof-builder",
+ "cumulus-test-relay-sproof-builder 0.1.0 (git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38)",
  "parity-scale-codec",
  "sc-client-api",
  "scale-info",
@@ -2043,6 +2043,19 @@ dependencies = [
 name = "cumulus-test-relay-sproof-builder"
 version = "0.1.0"
 source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+dependencies = [
+ "cumulus-primitives-core",
+ "parity-scale-codec",
+ "polkadot-primitives",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-std",
+]
+
+[[package]]
+name = "cumulus-test-relay-sproof-builder"
+version = "0.1.0"
+source = "git+https://github.com/paritytech/cumulus.git?branch=polkadot-v0.9.38#9b4e0247137f158d1a35118197d34adfa58858b7"
 dependencies = [
  "cumulus-primitives-core",
  "parity-scale-codec",
@@ -3676,7 +3689,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.6.0"
+version = "7.6.1"
 dependencies = [
  "approx",
  "criterion",
@@ -3773,7 +3786,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5264,9 +5277,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.19"
+version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b06a4cde4c0f271a446782e3eff8de789548ce57dbc8eca9292c27f4a42004b4"
+checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 
 [[package]]
 name = "lru"
@@ -6584,7 +6597,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6897,7 +6910,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.6.14"
+version = "4.6.15"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7104,7 +7117,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "3.2.1"
+version = "3.2.2"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7280,7 +7293,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.0.6"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7373,7 +7386,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.1.0"
+version = "3.1.2"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -10217,7 +10230,7 @@ dependencies = [
  "cumulus-primitives-parachain-inherent",
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
- "cumulus-test-relay-sproof-builder",
+ "cumulus-test-relay-sproof-builder 0.1.0 (git+https://github.com/paritytech/cumulus.git?branch=polkadot-v0.9.38)",
  "frame-benchmarking",
  "frame-executive",
  "frame-remote-externalities",
@@ -15032,7 +15045,7 @@ dependencies = [
  "cumulus-pallet-xcmp-queue",
  "cumulus-primitives-core",
  "cumulus-primitives-parachain-inherent",
- "cumulus-test-relay-sproof-builder",
+ "cumulus-test-relay-sproof-builder 0.1.0 (git+https://github.com/paritytech/cumulus.git?branch=polkadot-v0.9.38)",
  "frame-support",
  "frame-system",
  "parachain-info",
@@ -15157,128 +15170,3 @@ dependencies = [
  "libc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "asset-test-utils"
-version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "bridge-hub-kusama-runtime"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "bridge-hub-polkadot-runtime"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "bridge-hub-rococo-runtime"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "collectives-polkadot-runtime"
-version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "contracts-rococo-runtime"
-version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "cumulus-pallet-session-benchmarking"
-version = "3.0.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "cumulus-pallet-solo-to-para"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "cumulus-ping"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "cumulus-test-client"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "cumulus-test-relay-validation-worker-provider"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "cumulus-test-runtime"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "cumulus-test-service"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "pallet-template"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "parachain-template-node"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "parachain-template-runtime"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "parachains-common"
-version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "penpal-runtime"
-version = "0.9.27"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "polkadot-parachain-bin"
-version = "0.9.380"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "rococo-parachain-runtime"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "seedling-runtime"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "shell-runtime"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "statemine-runtime"
-version = "2.0.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "statemint-runtime"
-version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
-
-[[patch.unused]]
-name = "westmint-runtime"
-version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"

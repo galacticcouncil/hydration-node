@@ -332,7 +332,11 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 
 	let y = calculate_y_internal::<Y>(&xp, Balance::try_from(d1).ok()?, amplification)?;
 
-	let fee = FixedU128::from(fee);
+	let fixed_fee = FixedU128::from(fee);
+	let fee = fixed_fee
+		.checked_mul(&FixedU128::from(n_coins as u128))?
+		.checked_div(&FixedU128::from(4 * (n_coins - 1) as u128))?;
+
 	let xp_hp: Vec<U256> = reserves.iter().map(|v| to_u256!(*v)).collect();
 	let y_hp = to_u256!(y);
 
