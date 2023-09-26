@@ -123,6 +123,7 @@ pub trait BenchmarkHelper<AssetId> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult;
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PoolState<AssetId> {
 	pub assets: Vec<AssetId>,
 	pub before: Vec<Balance>,

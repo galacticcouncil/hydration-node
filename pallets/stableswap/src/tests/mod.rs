@@ -1,6 +1,7 @@
 mod add_liquidity;
 mod amplification;
 mod creation;
+mod hooks;
 mod invariants;
 pub(crate) mod mock;
 mod remove_liquidity;
