@@ -522,7 +522,7 @@ impl AmmWeights {
 	}
 }
 impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
-	// This weight is used in Router::sell extrinsic, which calls AMM::calculate_sell and AMM::execute_sell
+	// Used in Router::sell extrinsic, which calls AMM::calculate_sell and AMM::execute_sell
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 1; // number of times AMM::calculate_sell is executed
@@ -555,7 +555,7 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 		weight
 	}
 
-	// This weight is used in Router::buy extrinsic, which calls AMM::calculate_buy and AMM::execute_buy
+	// Used in Router::buy extrinsic, which calls AMM::calculate_buy and AMM::execute_buy
 	fn buy_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 1; // number of times AMM::calculate_buy is executed
@@ -588,7 +588,7 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 		weight
 	}
 
-	// This weight is used in DCA::schedule extrinsic, which calls Router::calculate_buy_trade_amounts
+	// Used in DCA::schedule extrinsic, which calls Router::calculate_buy_trade_amounts
 	fn calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 1; // number of times AMM::calculate_buy is executed
@@ -609,7 +609,7 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 		weight
 	}
 
-	// This weight is used in DCA::on_initialize for Order::Sell, which calls Router::calculate_sell_trade_amounts and Router::sell.
+	// Used in DCA::on_initialize for Order::Sell, which calls Router::calculate_sell_trade_amounts and Router::sell.
 	fn sell_and_calculate_sell_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 2; // number of times AMM::calculate_sell is executed
@@ -630,7 +630,7 @@ impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
 		weight
 	}
 
-	// This weight is used in DCA::on_initialize for Order::Buy, which calls 2 * Router::calculate_buy_trade_amounts and Router::buy.
+	// Used in DCA::on_initialize for Order::Buy, which calls 2 * Router::calculate_buy_trade_amounts and Router::buy.
 	fn buy_and_calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 3; // number of times AMM::calculate_buy is executed
