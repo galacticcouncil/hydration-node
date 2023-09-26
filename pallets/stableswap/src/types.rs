@@ -131,6 +131,7 @@ pub struct PoolState<AssetId> {
 	pub delta: Vec<Balance>,
 	pub issuance_before: Balance,
 	pub issuance_after: Balance,
+	pub share_price: (Balance, Balance),
 }
 
 /// Interface for populating oracle from stableswap, and getting their weights

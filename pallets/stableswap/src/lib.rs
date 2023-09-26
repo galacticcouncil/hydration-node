@@ -599,28 +599,29 @@ pub mod pallet {
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
 			let updated_share_issuance = T::Currency::total_issuance(pool_id);
+			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+
+			let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+				&updated_balances,
+				amplification,
+				updated_share_issuance,
+				None,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
 			let assets = pool.assets.clone();
 
 			let state = PoolState {
 				assets: pool.assets.into_inner(),
-				before: balances.iter().map(|v| v.into()).collect(),
-				after: balances
-					.into_iter()
-					.enumerate()
-					.map(|(idx, v)| {
-						if idx == asset_idx {
-							v.amount.saturating_sub(amount)
-						} else {
-							v.into()
-						}
-					})
-					.collect(),
+				before: balances.into_iter().map(|v| v.into()).collect(),
+				after: updated_balances.into_iter().map(|v| v.into()).collect(),
 				delta: assets
 					.into_iter()
 					.map(|v| if v == asset_id { amount } else { 0 })
 					.collect(),
 				issuance_before: share_issuance,
 				issuance_after: updated_share_issuance,
+				share_price,
 			};
 
 			T::Hooks::on_liquidity_changed(pool_id, state)?;
@@ -695,28 +696,27 @@ pub mod pallet {
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
 			let updated_share_issuance = T::Currency::total_issuance(pool_id);
-			let assets = pool.assets.clone();
+			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+			let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+				&updated_balances,
+				amplification,
+				updated_share_issuance,
+				None,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
 
+			let assets = pool.assets.clone();
 			let state = PoolState {
 				assets: pool.assets.into_inner(),
-				before: balances.iter().map(|v| v.into()).collect(),
-				after: balances
-					.into_iter()
-					.enumerate()
-					.map(|(idx, v)| {
-						if idx == asset_idx {
-							v.amount.saturating_sub(amount)
-						} else {
-							v.into()
-						}
-					})
-					.collect(),
+				before: balances.into_iter().map(|v| v.into()).collect(),
+				after: updated_balances.into_iter().map(|v| v.into()).collect(),
 				delta: assets
 					.into_iter()
 					.map(|v| if v == asset_id { amount } else { 0 })
 					.collect(),
 				issuance_before: share_issuance,
 				issuance_after: updated_share_issuance,
+				share_price,
 			};
 
 			T::Hooks::on_liquidity_changed(pool_id, state)?;
@@ -776,6 +776,7 @@ pub mod pallet {
 
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let pool_account = Self::pool_account(pool_id);
+			let amplification = Self::get_amplification(&pool);
 			let initial_reserves = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
 
 			let (amount_out, fee_amount) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in)?;
@@ -787,22 +788,19 @@ pub mod pallet {
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let assets = pool.assets.clone();
 
+			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+			let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+				&updated_balances,
+				amplification,
+				share_issuance,
+				None,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
 			let state = PoolState {
 				assets: pool.assets.into_inner(),
-				before: initial_reserves.iter().map(|v| v.into()).collect(),
-				after: initial_reserves
-					.into_iter()
-					.zip(assets.iter())
-					.map(|(v, asset_id)| {
-						if *asset_id == asset_in {
-							v.amount.saturating_add(amount_in)
-						} else if *asset_id == asset_out {
-							v.amount.saturating_sub(amount_out)
-						} else {
-							v.into()
-						}
-					})
-					.collect(),
+				before: initial_reserves.into_iter().map(|v| v.into()).collect(),
+				after: updated_balances.into_iter().map(|v| v.into()).collect(),
 				delta: assets
 					.into_iter()
 					.map(|v| {
@@ -817,6 +815,7 @@ pub mod pallet {
 					.collect(),
 				issuance_before: share_issuance,
 				issuance_after: share_issuance,
+				share_price,
 			};
 
 			T::Hooks::on_trade(pool_id, asset_in, asset_out, state)?;
@@ -873,6 +872,7 @@ pub mod pallet {
 
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let pool_account = Self::pool_account(pool_id);
+			let amplification = Self::get_amplification(&pool);
 			let initial_reserves = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
 
 			let (amount_in, fee_amount) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out)?;
@@ -892,22 +892,19 @@ pub mod pallet {
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let assets = pool.assets.clone();
 
+			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+			let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+				&updated_balances,
+				amplification,
+				share_issuance,
+				None,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
 			let state = PoolState {
 				assets: pool.assets.into_inner(),
 				before: initial_reserves.iter().map(|v| v.into()).collect(),
-				after: initial_reserves
-					.into_iter()
-					.zip(assets.iter())
-					.map(|(v, asset_id)| {
-						if *asset_id == asset_in {
-							v.amount.saturating_add(amount_in)
-						} else if *asset_id == asset_out {
-							v.amount.saturating_sub(amount_out)
-						} else {
-							v.into()
-						}
-					})
-					.collect(),
+				after: updated_balances.iter().map(|v| v.into()).collect(),
 				delta: assets
 					.into_iter()
 					.map(|v| {
@@ -922,6 +919,7 @@ pub mod pallet {
 					.collect(),
 				issuance_before: share_issuance,
 				issuance_after: share_issuance,
+				share_price,
 			};
 
 			T::Hooks::on_trade(pool_id, asset_in, asset_out, state)?;
@@ -1159,13 +1157,23 @@ impl<T: Config> Pallet<T> {
 			T::Currency::transfer(asset.asset_id, who, &pool_account, asset.amount)?;
 		}
 
+		let updated_issuance = share_issuance.saturating_add(share_amount);
+		let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+			&updated_reserves,
+			amplification,
+			updated_issuance,
+			None,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
 		let state = PoolState {
 			assets: pool.assets.into_inner(),
 			before: initial_reserves.into_iter().map(|v| v.into()).collect(),
 			after: updated_reserves.into_iter().map(|v| v.into()).collect(),
 			delta: added_amounts,
 			issuance_before: share_issuance,
-			issuance_after: share_issuance.saturating_add(share_amount),
+			issuance_after: updated_issuance,
+			share_price,
 		};
 
 		T::Hooks::on_liquidity_changed(pool_id, state)?;
@@ -1215,20 +1223,21 @@ impl<T: Config> Pallet<T> {
 
 		T::Currency::deposit(pool_id, who, shares)?;
 		T::Currency::transfer(asset_id, who, &pool_account, amount_in)?;
+
+		let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+		let updated_issuance = share_issuance.saturating_add(shares);
+		let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+			&updated_balances,
+			amplification,
+			updated_issuance,
+			None,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
 		let state = PoolState {
 			assets: pool.assets.clone().into(),
-			before: balances.iter().map(|v| v.into()).collect(),
-			after: balances
-				.into_iter()
-				.enumerate()
-				.map(|(idx, v)| {
-					if idx == asset_idx {
-						v.amount.saturating_add(amount_in)
-					} else {
-						v.into()
-					}
-				})
-				.collect(),
+			before: balances.into_iter().map(|v| v.into()).collect(),
+			after: updated_balances.into_iter().map(|v| v.into()).collect(),
 			delta: pool
 				.assets
 				.iter()
@@ -1236,7 +1245,8 @@ impl<T: Config> Pallet<T> {
 				.map(|(idx, _)| if idx == asset_idx { amount_in } else { 0 })
 				.collect(),
 			issuance_before: share_issuance,
-			issuance_after: share_issuance.saturating_add(shares),
+			issuance_after: updated_issuance,
+			share_price,
 		};
 
 		T::Hooks::on_liquidity_changed(pool_id, state)?;

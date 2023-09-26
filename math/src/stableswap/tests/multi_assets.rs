@@ -747,3 +747,43 @@ fn calculate_exact_amount_of_shares_with_fee() {
 	);
 	assert_eq!(result, Some((1005001605353593, 2501371204363)));
 }
+
+#[test]
+fn share_price() {
+	let amp = 100_u128;
+	let balances: [AssetReserve; 3] = [
+		AssetReserve::new(1_000_000_000, 6),
+		AssetReserve::new(3_000_000_000, 6),
+		AssetReserve::new(5_000_000_000_000_000_000_000, 18),
+	];
+
+	let issuance: Balance = 20_000_000_000_000_000_000_000;
+
+	let result = calculate_share_price::<D_ITERATIONS>(&balances, amp, issuance, None);
+
+	assert_eq!(
+		result,
+		Some((
+			90493467232171121044370733201503753662,
+			202360104454432928970979452133178710938
+		))
+	);
+}
+
+#[test]
+fn share_price_01() {
+	let amp = 767_u128;
+	let balances: [AssetReserve; 2] = [AssetReserve::new(88555_000_000, 6), AssetReserve::new(66537_000_000, 6)];
+
+	let issuance: Balance = 155090960889496000000000;
+
+	let result = calculate_share_price::<D_ITERATIONS>(&balances, amp, issuance, None);
+
+	assert_eq!(
+		result,
+		Some((
+			306784859126955958580709235701688157860,
+			306759500450668829084113243870164441074
+		))
+	);
+}

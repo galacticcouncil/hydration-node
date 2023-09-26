@@ -1,4 +1,5 @@
 use crate::stableswap::types::AssetReserve;
+use crate::support::rational::round_to_rational;
 use crate::to_u256;
 use crate::types::Balance;
 use num_traits::{CheckedDiv, CheckedMul, One, Zero};
@@ -618,6 +619,46 @@ pub(crate) fn normalize_value(amount: Balance, decimals: u8, target_decimals: u8
 			Rounding::Up => amount.div(10u128.pow(diff as u32)).saturating_add(Balance::one()),
 		}
 	}
+}
+
+pub fn calculate_share_price<const D: u8>(
+	balances: &[AssetReserve],
+	amplification: Balance,
+	issuance: Balance,
+	provided_d: Option<Balance>,
+) -> Option<(Balance, Balance)> {
+	let n = balances.len() as u128;
+	if n <= 1 {
+		return None;
+	}
+	let d = if let Some(v) = provided_d {
+		v
+	} else {
+		calculate_d::<D>(balances, amplification)?
+	};
+	let reserves = normalize_reserves(balances);
+
+	let c = reserves
+		.iter()
+		.try_fold(FixedU128::one(), |acc, reserve| {
+			acc.checked_mul(&FixedU128::checked_from_rational(d, n.checked_mul(*reserve)?)?)
+		})?
+		.checked_mul_int(d)?;
+
+	let nn = n.pow(n as u32);
+
+	let (d, c, x0, a, n, nn, issuance) = to_u256!(d, c, reserves[0], amplification, n, nn, issuance);
+
+	let xann = x0.checked_mul(a.checked_mul(nn)?)?;
+	let p1 = d.checked_mul(xann)?;
+	let p2 = x0.checked_mul(c)?.checked_mul(n + 1)?;
+	let p3 = x0.checked_mul(d)?;
+
+	let num = p1.checked_add(p2)?.checked_sub(p3)?;
+	let denom = issuance.checked_mul(xann.checked_add(c)?)?;
+	let (num, denom) = round_to_rational((num, denom), crate::support::rational::Rounding::Down);
+	//dbg!(FixedU128::checked_from_rational(num, denom));
+	Some((num, denom))
 }
 
 #[cfg(test)]

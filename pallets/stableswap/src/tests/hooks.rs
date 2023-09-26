@@ -61,6 +61,10 @@ fn add_liquidity_should_provide_correct_values_in_the_hook() {
 					delta: vec![amount, 0, 0],
 					issuance_before: 217677687130232134753136480,
 					issuance_after: 217677689066649574177561306,
+					share_price: (
+						274526994944285284851115313033649172557,
+						267281151408777762099703170812400231060
+					),
 				}
 			)
 		});
@@ -126,6 +130,10 @@ fn add_liquidity_shares_should_provide_correct_values_in_the_hook() {
 					delta: vec![2011482020765837587, 0, 0],
 					issuance_before: 217677687130232134753136480,
 					issuance_after: 217677689077829756155082331,
+					share_price: (
+						274526995018510109258863123533517232439,
+						267281151481037663623537458420636124649
+					),
 				}
 			)
 		});
@@ -200,6 +208,10 @@ fn removing_liquidity_should_provide_correct_values_in_the_hook() {
 					delta: vec![1988517979440136516, 0, 0],
 					issuance_before: 217677689077829756155082331,
 					issuance_after: 217677687130232134753136480,
+					share_price: (
+						274526982163856750887334622910231248425,
+						267281138952739257321645731804954633465
+					),
 				}
 			)
 		});
@@ -274,6 +286,10 @@ fn withdraw_asset_amount_should_provide_correct_values_in_the_hook() {
 					delta: vec![1000000000000000000, 0, 0],
 					issuance_before: 217677689077829756155082331,
 					issuance_after: 217677688098441828103029128,
+					share_price: (
+						274526988554070995651320692108733882221,
+						267281145180759683324218172695500992618
+					),
 				}
 			)
 		});
@@ -342,6 +358,10 @@ fn sell_should_provide_correct_values_in_the_hook() {
 					delta: vec![1000000000000000000, 989993, 0],
 					issuance_before: 217677687130232134753136480,
 					issuance_after: 217677687130232134753136480,
+					share_price: (
+						274526987264157543280488507445843962471,
+						267281143933421736083636966541416790180
+					),
 				}
 			)
 		});
@@ -410,6 +430,10 @@ fn buy_should_provide_correct_values_in_the_hook() {
 					delta: vec![1010006896617500664, 1_000_000, 0],
 					issuance_before: 217677687130232134753136480,
 					issuance_after: 217677687130232134753136480,
+					share_price: (
+						274526987316558150926868429559029605460,
+						267281143984434362175021631530789792661
+					),
 				}
 			)
 		});
