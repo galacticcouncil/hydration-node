@@ -928,18 +928,6 @@ where
 				Price::new(state.share_price.0, state.share_price.1)
 			)
 			.map_err(|(_, e)| e)?;
-
-			OnActivityHandler::<Runtime>::on_trade(
-				STABLESWAP_SOURCE,
-				pool_id,
-				state.assets[idx],
-				0, // Correct
-				state.delta[idx],
-				state.issuance_after,
-				state.after[idx],
-				Price::new(state.share_price.1, state.share_price.0) //TODO: the other way here ?!!
-			)
-			.map_err(|(_, e)| e)?;
 		}
 
 		Ok(())
@@ -950,6 +938,6 @@ where
 	}
 
 	fn on_trade_weight(n: usize) -> Weight {
-		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(2 * n as u64)
+		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(n as u64)
 	}
 }
