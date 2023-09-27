@@ -1165,7 +1165,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				5000 * UNITS,
+				100 * UNITS,
 				0,
 			));
 
@@ -1174,7 +1174,7 @@ mod stableswap {
 				hydradx_runtime::RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				5000 * UNITS as i128,
+				10000 * UNITS as i128,
 			));
 
 			assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -1186,7 +1186,7 @@ mod stableswap {
 			));
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
-			set_relaychain_block_number(10);
+			set_relaychain_block_number(1000);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::set_balance(
@@ -1238,7 +1238,7 @@ mod stableswap {
 			);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(1001);
 
 			//Assert
 			let fee =
