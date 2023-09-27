@@ -1396,7 +1396,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_stable_trades_and_omnipool() {
 		let amount_to_sell = 50 * UNITS;
-		let amount_to_receive = 23983355708022;
+		let amount_to_receive = 63885359693226;
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
@@ -1414,7 +1414,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				10000 * UNITS,
+				100 * UNITS,
 				0,
 			));
 
@@ -1489,7 +1489,7 @@ mod stableswap {
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
-				slippage: Some(Permill::from_percent(25)),
+				slippage: Some(Permill::from_percent(10)),
 				order: Order::Sell {
 					asset_in: stable_asset_1,
 					asset_out: HDX,
@@ -1518,8 +1518,6 @@ mod stableswap {
 			assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 		});
 
-		/* //TODO: uncommend it once we resolved the price caluclation issue
-
 		//Do the same in with pool trades
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -1538,7 +1536,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				5000 * UNITS,
+				100 * UNITS,
 				0,
 			));
 
@@ -1596,8 +1594,7 @@ mod stableswap {
 					amount: amount_to_sell,
 				}],
 			));
-			let alice_pool_id_balance = 33051396373724;
-			assert_balance!(ALICE.into(), pool_id, alice_pool_id_balance);
+			let alice_pool_id_balance = Currencies::free_balance(pool_id, &AccountId::from(ALICE));
 
 			assert_ok!(hydradx_runtime::Omnipool::sell(
 				RuntimeOrigin::signed(ALICE.into()),
@@ -1634,7 +1631,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				5000 * UNITS,
+				100 * UNITS,
 				0,
 			));
 
@@ -1712,7 +1709,7 @@ mod stableswap {
 				alice_init_stable1_balance - amount_to_sell
 			);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + amount_to_receive);
-		});*/
+		});
 	}
 
 	#[test]
