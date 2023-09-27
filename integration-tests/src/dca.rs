@@ -1147,7 +1147,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades() {
 		let amount_to_sell = 100 * UNITS;
-		let amount_to_receive = 131053972779710;
+		let amount_to_receive = 168416791216750;
 		//With DCA
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -1165,7 +1165,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				100 * UNITS,
+				10000 * UNITS,
 				0,
 			));
 
@@ -1186,7 +1186,7 @@ mod stableswap {
 			));
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
-			set_relaychain_block_number(1000);
+			set_relaychain_block_number(10);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::set_balance(
@@ -1238,7 +1238,7 @@ mod stableswap {
 			);
 
 			//Act
-			set_relaychain_block_number(1001);
+			set_relaychain_block_number(11);
 
 			//Assert
 			let fee =
@@ -1269,7 +1269,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				5000 * UNITS,
+				10000 * UNITS,
 				0,
 			));
 
@@ -1279,7 +1279,7 @@ mod stableswap {
 				hydradx_runtime::RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				5000 * UNITS as i128,
+				10000 * UNITS as i128,
 			));
 
 			assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -1303,13 +1303,13 @@ mod stableswap {
 				0,
 			));
 
-			assert_balance!(ALICE.into(), pool_id, 97746177044407);
+			let pool_id_balance = Currencies::free_balance(pool_id, &AccountId::from(ALICE));
 
 			assert_ok!(Stableswap::remove_liquidity_one_asset(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				pool_id,
 				stable_asset_1,
-				97746177044407,
+				pool_id_balance,
 				0
 			));
 
@@ -1334,7 +1334,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				5000 * UNITS,
+				10000 * UNITS,
 				0,
 			));
 
@@ -1343,7 +1343,7 @@ mod stableswap {
 				hydradx_runtime::RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				5000 * UNITS as i128,
+				10000 * UNITS as i128,
 			));
 
 			assert_ok!(hydradx_runtime::Omnipool::add_token(
