@@ -82,7 +82,7 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 use frame_support::traits::LockIdentifier;
 use orml_traits::currency::{MultiCurrency, MultiLockableCurrency, OnDeposit, OnTransfer};
 use orml_traits::Happened;
-use sp_runtime::{DispatchResult, FixedPointNumber};
+use sp_runtime::{traits::Zero, DispatchResult, FixedPointNumber};
 
 pub const SUFFICIENCY_LOCK: LockIdentifier = *b"suffchck";
 pub struct SufficiencyCheck;
@@ -164,12 +164,20 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 		//NOTE: this probably should be frozen or something - we can end up in situation when
 		//locked tokens are not enough to return ED to all users becase locks overlay
 		//TODO: at least log error
-		let _ = <Currencies as MultiLockableCurrency<AccountId>>::set_lock(
-			SUFFICIENCY_LOCK,
-			NativeAssetId::get(),
-			&TreasuryAccount::get(),
-			to_lock,
-		);
+		if to_lock.is_zero() {
+			let _ = <Currencies as MultiLockableCurrency<AccountId>>::remove_lock(
+				SUFFICIENCY_LOCK,
+				NativeAssetId::get(),
+				&TreasuryAccount::get(),
+			);
+		} else {
+			let _ = <Currencies as MultiLockableCurrency<AccountId>>::set_lock(
+				SUFFICIENCY_LOCK,
+				NativeAssetId::get(),
+				&TreasuryAccount::get(),
+				to_lock,
+			);
+		}
 
 		//TODO: lock error
 		let _ =
