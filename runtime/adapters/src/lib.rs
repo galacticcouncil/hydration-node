@@ -928,18 +928,6 @@ where
 				Price::new(state.share_price.0, state.share_price.1)
 			)
 			.map_err(|(_, e)| e)?;
-
-			OnActivityHandler::<Runtime>::on_trade(
-				STABLESWAP_SOURCE,
-				pool_id,
-				state.assets[idx],
-				0, // Correct
-				state.delta[idx],
-				state.issuance_after,
-				state.after[idx],
-				Price::new(state.share_price.1, state.share_price.0) //TODO: the other way here ?!!
-			)
-			.map_err(|(_, e)| e)?;
 		}
 
 		Ok(())
