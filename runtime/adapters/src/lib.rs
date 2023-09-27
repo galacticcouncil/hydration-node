@@ -938,6 +938,6 @@ where
 	}
 
 	fn on_trade_weight(n: usize) -> Weight {
-		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(2 * n as u64)
+		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(n as u64)
 	}
 }
