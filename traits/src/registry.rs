@@ -78,6 +78,8 @@ use frame_support::dispatch::Parameter;
 pub trait Inspect<AssetNativeLocation, Balance> {
 	type Error;
 	type AssetId: Parameter;
+
+	fn is_sufficient(id: Self::AssetId) -> bool;
 }
 
 #[allow(clippy::too_many_arguments)]

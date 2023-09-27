@@ -8,6 +8,7 @@ mod dust;
 mod dust_removal_whitelist;
 mod dynamic_fees;
 mod exchange_asset;
+mod insufficient_assets_ed;
 mod non_native_fee;
 mod omnipool_init;
 mod omnipool_liquidity_mining;

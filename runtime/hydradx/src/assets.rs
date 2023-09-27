@@ -23,7 +23,7 @@ use hydradx_adapters::{
 	OracleAssetVolumeProvider, OraclePriceProviderAdapterForOmnipool, PriceAdjustmentAdapter, VestingInfo,
 };
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
+use hydradx_traits::{registry::Inspect, AssetKind, AssetPairAccountIdFor, NativePriceOracle, OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
@@ -71,12 +71,112 @@ pub struct CurrencyHooks;
 impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
 	type OnSlash = ();
-	type PreDeposit = ();
+	type PreDeposit = SufficiencyCheck;
 	type PostDeposit = ();
-	type PreTransfer = ();
+	type PreTransfer = SufficiencyCheck;
 	type PostTransfer = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
-	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Runtime>;
+	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
+}
+
+use frame_support::traits::LockIdentifier;
+use orml_traits::currency::{MultiCurrency, MultiLockableCurrency, OnDeposit, OnTransfer};
+use orml_traits::Happened;
+use sp_runtime::{DispatchResult, FixedPointNumber};
+
+pub const SUFFICIENCY_LOCK: LockIdentifier = *b"suffchck";
+pub struct SufficiencyCheck;
+impl SufficiencyCheck {
+	fn on_funds(asset: AssetId, paying_account: &AccountId) -> DispatchResult {
+		//NOTE: account existance means it already paid ED
+		//TODO: make sure try_get works as expected - storage returns valueQuery
+		if orml_tokens::Accounts::<Runtime>::try_get(paying_account, asset).is_err()
+			&& !AssetRegistry::is_sufficient(asset)
+		{
+			//TODO: make configurable
+			let ed = FixedU128::from_rational(11, 10)
+				.saturating_mul_int(<Runtime as pallet_balances::Config>::ExistentialDeposit::get());
+
+			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);
+
+			//TODO: handle unwrap
+			let ed = MultiTransactionPayment::price(fee_payment_asset)
+				.unwrap()
+				.saturating_mul_int(ed);
+
+			<Currencies as MultiCurrency<AccountId>>::transfer(
+				fee_payment_asset,
+				paying_account,
+				&TreasuryAccount::get(),
+				ed,
+			)?;
+
+			let to_lock = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
+				.iter()
+				.find(|x| x.id == SUFFICIENCY_LOCK)
+				.map(|p| p.amount)
+				.unwrap_or_default()
+				.saturating_add(ed);
+
+			//NOTE: this probably should be frozen or something - we can end up in situation when
+			//locked tokens are not enough to return ED to all users becase locks overlay
+			<Currencies as MultiLockableCurrency<AccountId>>::set_lock(
+				SUFFICIENCY_LOCK,
+				NativeAssetId::get(),
+				&TreasuryAccount::get(),
+				to_lock,
+			)?;
+
+			frame_system::Pallet::<Runtime>::inc_sufficients(paying_account);
+		}
+
+		Ok(())
+	}
+}
+
+impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
+	fn on_transfer(asset: AssetId, _from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
+		Self::on_funds(asset, to)
+	}
+}
+
+impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
+	fn on_deposit(asset: AssetId, to: &AccountId, _amount: Balance) -> DispatchResult {
+		Self::on_funds(asset, to)
+	}
+}
+
+pub struct OnKilledTokenAccount;
+impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
+	fn happened((who, _asset): &(AccountId, AssetId)) {
+		//TODO: unlock ED
+
+		let ed = FixedU128::from_rational(11, 10)
+			.saturating_mul_int(<Runtime as pallet_balances::Config>::ExistentialDeposit::get());
+
+		let to_lock = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
+			.iter()
+			.find(|x| x.id == SUFFICIENCY_LOCK)
+			.map(|p| p.amount)
+			.unwrap_or_default()
+			.saturating_sub(ed);
+
+		//NOTE: this probably should be frozen or something - we can end up in situation when
+		//locked tokens are not enough to return ED to all users becase locks overlay
+		//TODO: at least log error
+		let _ = <Currencies as MultiLockableCurrency<AccountId>>::set_lock(
+			SUFFICIENCY_LOCK,
+			NativeAssetId::get(),
+			&TreasuryAccount::get(),
+			to_lock,
+		);
+
+		//TODO: lock error
+		let _ =
+			<Currencies as MultiCurrency<AccountId>>::transfer(NativeAssetId::get(), &TreasuryAccount::get(), who, ed);
+
+		frame_system::Pallet::<Runtime>::dec_sufficients(who);
+	}
 }
 
 impl orml_tokens::Config for Runtime {

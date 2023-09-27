@@ -693,6 +693,13 @@ impl<T: Config> CreateRegistry<T::AssetId, Balance> for Pallet<T> {
 impl<T: Config> Inspect<T::AssetNativeLocation, Balance> for Pallet<T> {
 	type Error = DispatchError;
 	type AssetId = T::AssetId;
+
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		match Self::assets(id) {
+			Some(a) => a.is_sufficient,
+			None => false,
+		}
+	}
 }
 
 impl<T: Config> Mutate<T::AssetNativeLocation, Balance> for Pallet<T> {

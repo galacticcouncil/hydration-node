@@ -308,7 +308,7 @@ impl<T: Config> Pallet<T>
 where
 	BalanceOf<T>: FixedPointOperand,
 {
-	fn account_currency(who: &T::AccountId) -> AssetIdOf<T> {
+	pub fn account_currency(who: &T::AccountId) -> AssetIdOf<T> {
 		Pallet::<T>::get_currency(who).unwrap_or_else(T::NativeAssetId::get)
 	}
 
