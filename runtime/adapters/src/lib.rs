@@ -886,7 +886,7 @@ where
 				state.issuance_before.abs_diff(state.issuance_after),
 				state.after[idx],
 				state.issuance_after,
-				Price::new(state.share_price.0, state.share_price.1)
+				Price::new(state.share_price.0, state.share_price.1),
 			)
 			.map_err(|(_, e)| e)?;
 		}
@@ -925,7 +925,7 @@ where
 				0, // Correct
 				state.after[idx],
 				state.issuance_after,
-				Price::new(state.share_price.0, state.share_price.1)
+				Price::new(state.share_price.0, state.share_price.1),
 			)
 			.map_err(|(_, e)| e)?;
 		}

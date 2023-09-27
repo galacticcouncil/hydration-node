@@ -313,9 +313,6 @@ use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{AccountIdFor, InspectRegistry};
 use sp_runtime::traits::Zero;
 
-#[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::DispatchResult;
-
 pub struct DummyRegistry;
 
 impl InspectRegistry<AssetId> for DummyRegistry {

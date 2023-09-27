@@ -4,6 +4,7 @@ mod creation;
 mod hooks;
 mod invariants;
 pub(crate) mod mock;
+mod price;
 mod remove_liquidity;
 mod trades;
 mod update_pool;
