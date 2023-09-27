@@ -361,7 +361,6 @@ impl pallet_route_executor::Config for Test {
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
 	type AMM = Pools;
-	type AmmTradeWeights = ();
 	type WeightInfo = ();
 }
 

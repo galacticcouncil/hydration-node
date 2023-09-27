@@ -663,8 +663,7 @@ impl pallet_route_executor::Config for Runtime {
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
 	type AMM = (Omnipool, Stableswap, LBP);
-	type AmmTradeWeights = AmmWeights;
-	type WeightInfo = weights::route_executor::HydraWeight<Runtime>;
+	type WeightInfo = AmmWeights;
 }
 
 parameter_types! {

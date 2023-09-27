@@ -37,8 +37,6 @@ mod tests;
 
 pub mod weights;
 
-use weights::WeightInfo;
-
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -96,11 +94,8 @@ pub mod pallet {
 			Error = DispatchError,
 		>;
 
-		/// AMMs trade weight information.
-		type AmmTradeWeights: AmmTradeWeights<Trade<Self::AssetId>>;
-
 		/// Weight information for the extrinsics.
-		type WeightInfo: WeightInfo;
+		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
 	}
 
 	#[pallet::event]
@@ -147,7 +142,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::AmmTradeWeights::sell_weight(route))]
+		#[pallet::weight(T::WeightInfo::sell_weight(route))]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -226,7 +221,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::AmmTradeWeights::buy_weight(route))]
+		#[pallet::weight(T::WeightInfo::buy_weight(route))]
 		#[transactional]
 		pub fn buy(
 			origin: OriginFor<T>,
