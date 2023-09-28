@@ -5,7 +5,7 @@ use crate::polkadot_test_net::*;
 use std::convert::Into;
 
 use hydradx_adapters::OmnipoolHookAdapter;
-use hydradx_runtime::{RouterWeightInfo, BlockNumber, Omnipool, Router, Runtime, RuntimeOrigin, LBP};
+use hydradx_runtime::{BlockNumber, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, LBP};
 use hydradx_traits::{router::PoolType, AMM};
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_lbp::WeightCurveType;
@@ -261,7 +261,11 @@ mod router_different_pools_tests {
 					.unwrap()
 					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1))
 					.unwrap()
-					.checked_add(&RouterWeightInfo::sell_overhead_weight().checked_mul(2).unwrap())
+					.checked_add(
+						&RouterWeightInfo::sell_and_calculate_sell_trade_amounts_overhead_weight(0, 1)
+							.checked_mul(2)
+							.unwrap()
+					)
 					.unwrap()
 			);
 			assert_eq!(
@@ -287,7 +291,11 @@ mod router_different_pools_tests {
 					.unwrap()
 					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1))
 					.unwrap()
-					.checked_add(&RouterWeightInfo::buy_overhead_weight().checked_mul(2).unwrap())
+					.checked_add(
+						&RouterWeightInfo::buy_and_calculate_buy_trade_amounts_overhead_weight(0, 1)
+							.checked_mul(2)
+							.unwrap()
+					)
 					.unwrap()
 			);
 		});
