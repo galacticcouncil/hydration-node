@@ -5,7 +5,7 @@ use crate::polkadot_test_net::*;
 use std::convert::Into;
 
 use hydradx_adapters::OmnipoolHookAdapter;
-use hydradx_runtime::{AmmWeights, BlockNumber, Omnipool, Router, Runtime, RuntimeOrigin, LBP};
+use hydradx_runtime::{RouterWeightInfo, BlockNumber, Omnipool, Router, Runtime, RuntimeOrigin, LBP};
 use hydradx_traits::{router::PoolType, AMM};
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_lbp::WeightCurveType;
@@ -239,7 +239,7 @@ mod router_different_pools_tests {
 
 			//Act & Assert
 			assert_eq!(
-				AmmWeights::sell_weight(trades.as_slice()),
+				RouterWeightInfo::sell_weight(trades.as_slice()),
 				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 1)
 					.checked_add(
 						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
@@ -261,11 +261,11 @@ mod router_different_pools_tests {
 					.unwrap()
 					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1))
 					.unwrap()
-					.checked_add(&AmmWeights::sell_overhead_weight().checked_mul(2).unwrap())
+					.checked_add(&RouterWeightInfo::sell_overhead_weight().checked_mul(2).unwrap())
 					.unwrap()
 			);
 			assert_eq!(
-				AmmWeights::buy_weight(trades.as_slice()),
+				RouterWeightInfo::buy_weight(trades.as_slice()),
 				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(1, 1)
 					.checked_add(
 						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
@@ -287,7 +287,7 @@ mod router_different_pools_tests {
 					.unwrap()
 					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1))
 					.unwrap()
-					.checked_add(&AmmWeights::buy_overhead_weight().checked_mul(2).unwrap())
+					.checked_add(&RouterWeightInfo::buy_overhead_weight().checked_mul(2).unwrap())
 					.unwrap()
 			);
 		});

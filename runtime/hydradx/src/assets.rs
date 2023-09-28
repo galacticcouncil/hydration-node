@@ -481,16 +481,16 @@ impl pallet_dca::Config for Runtime {
 	type FeeReceiver = TreasuryAccount;
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
-	type AmmTradeWeights = AmmWeights;
+	type AmmTradeWeights = RouterWeightInfo;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
 // the router extrinsic overhead and the AMM weight.
-pub struct AmmWeights;
+pub struct RouterWeightInfo;
 // Calculates the overhead of Router extrinsics. To do that, we benchmark Router::sell with single LBP trade and subtract the weight of LBP::sell.
 // This allows us to calculate the weight of any route by adding the weight of AMM trades to the overhead of a router extrinsic.
-impl AmmWeights {
+impl RouterWeightInfo {
 	pub fn sell_overhead_weight() -> Weight {
 		// Router::sell - ( LBP::calculate_sell + LBP::execute_sell )
 		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(0, 1)
@@ -521,7 +521,7 @@ impl AmmWeights {
 			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy(3, 1))
 	}
 }
-impl AmmTradeWeights<Trade<AssetId>> for AmmWeights {
+impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	// Used in Router::sell extrinsic, which calls AMM::calculate_sell and AMM::execute_sell
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
@@ -663,7 +663,7 @@ impl pallet_route_executor::Config for Runtime {
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
 	type AMM = (Omnipool, Stableswap, LBP);
-	type WeightInfo = AmmWeights;
+	type WeightInfo = RouterWeightInfo;
 }
 
 parameter_types! {
