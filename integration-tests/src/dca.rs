@@ -1163,7 +1163,7 @@ mod stableswap {
 				pool_id,
 				asset_a,
 				asset_b,
-				100 * UNITS,
+				10_000_000,
 				0u128,
 			));
 
@@ -1207,7 +1207,7 @@ mod stableswap {
 			let fee = Currencies::free_balance(asset_a, &hydradx_runtime::Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 			assert_balance!(ALICE.into(), asset_a, alice_init_asset_a_balance - dca_budget);
-			assert_balance!(ALICE.into(), asset_b, 112752592194314);
+			assert_balance!(ALICE.into(), asset_b, 93176719400532);
 			assert_reserved_balance!(&ALICE.into(), asset_a, dca_budget - amount_to_sell - fee);
 		});
 	}
@@ -2347,8 +2347,8 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 	let amplification = 100u16;
 	let fee = Permill::from_percent(1);
 
-	let asset_in: AssetId = *asset_ids.last().unwrap();
-	let asset_out: AssetId = *asset_ids.first().unwrap();
+	let asset_in: AssetId = asset_ids[1];
+	let asset_out: AssetId = asset_ids[2];
 
 	Stableswap::create_pool(
 		hydradx_runtime::RuntimeOrigin::root(),
