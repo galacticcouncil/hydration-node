@@ -3710,7 +3710,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "10.0.1"
+version = "10.1.0"
 dependencies = [
  "clap 4.3.9",
  "cumulus-client-cli",
@@ -3935,7 +3935,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.6.0"
+version = "2.7.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6216,7 +6216,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.3.1"
+version = "3.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10191,7 +10191,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.12.1"
+version = "1.13.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
