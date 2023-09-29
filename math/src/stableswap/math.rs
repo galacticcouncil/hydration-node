@@ -729,10 +729,10 @@ mod tests {
 	#[test]
 	fn test_spot_price() {
 		let reserves = vec![
-			AssetReserve::new(478626_000_000_000_000_000, 12),
-			AssetReserve::new(487626_000_000_000_000_000, 12),
-			AssetReserve::new(866764_000_000_000_000_000, 12),
-			AssetReserve::new(518696_000_000_000_000_000, 12),
+			AssetReserve::new(478_626_000_000_000_000_000, 12),
+			AssetReserve::new(487_626_000_000_000_000_000, 12),
+			AssetReserve::new(866_764_000_000_000_000_000, 12),
+			AssetReserve::new(518_696_000_000_000_000_000, 12),
 		];
 		let amp = 319u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
@@ -746,10 +746,10 @@ mod tests {
 		);
 
 		let reserves = vec![
-			AssetReserve::new(1001_000_000_000_000_000, 12),
-			AssetReserve::new(1000_000_000_000_000_000, 12),
-			AssetReserve::new(1000_000_000_000_000_000, 12),
-			AssetReserve::new(1000_000_000_000_000_000, 12),
+			AssetReserve::new(1_001_000_000_000_000_000, 12),
+			AssetReserve::new(1_000_000_000_000_000_000, 12),
+			AssetReserve::new(1_000_000_000_000_000_000, 12),
+			AssetReserve::new(1_000_000_000_000_000_000, 12),
 		];
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();

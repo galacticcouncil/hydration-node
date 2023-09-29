@@ -773,7 +773,7 @@ fn share_price() {
 #[test]
 fn share_price_01() {
 	let amp = 767_u128;
-	let balances: [AssetReserve; 2] = [AssetReserve::new(88555_000_000, 6), AssetReserve::new(66537_000_000, 6)];
+	let balances: [AssetReserve; 2] = [AssetReserve::new(88_555_000_000, 6), AssetReserve::new(66_537_000_000, 6)];
 
 	let issuance: Balance = 155090960889496000000000;
 
