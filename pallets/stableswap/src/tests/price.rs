@@ -143,17 +143,11 @@ fn test_spot_price_in_buy() {
 
 			let a_balance = Tokens::free_balance(asset_a, &BOB);
 			let delta_a = 2_000_000_000_000_000_000 - a_balance;
-			dbg!(delta_a);
 			let exec_price = FixedU128::from_rational(delta_a, amount);
 			let exec_price = exec_price / FixedU128::from(1_000_000_000_000);
-			dbg!(exec_price);
 			assert!(exec_price >= initial_spot_price);
 
 			let final_spot_price = asset_spot_price(pool_id, asset_b);
-			let i = initial_spot_price;
-			let e = exec_price;
-			let f = final_spot_price;
-			dbg!(i, e, f);
 			assert!(exec_price <= final_spot_price);
 		});
 }
