@@ -1207,7 +1207,7 @@ mod stableswap {
 			let fee = Currencies::free_balance(asset_a, &hydradx_runtime::Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 			assert_balance!(ALICE.into(), asset_a, alice_init_asset_a_balance - dca_budget);
-			assert_balance!(ALICE.into(), asset_b, 107463939530242);
+			assert_balance!(ALICE.into(), asset_b, 112752592194314);
 			assert_reserved_balance!(&ALICE.into(), asset_a, dca_budget - amount_to_sell - fee);
 		});
 	}
@@ -2316,7 +2316,7 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 		vec![];
 
 	let mut asset_ids: Vec<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
-	let decimals_for_each_asset = vec![18u8, 6u8, 6u8];
+	let decimals_for_each_asset = vec![12u8, 6u8, 6u8];
 	for idx in 0u32..3 {
 		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
 		let asset_id = AssetRegistry::create_asset(&name, 1u128)?;
