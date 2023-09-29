@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "174.0.0"
+version = "179.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -30,6 +30,7 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-dca = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-dynamic-fees = { workspace = true }
+pallet-stableswap = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 
@@ -137,6 +138,7 @@ runtime-benchmarks = [
     "frame-system-benchmarking/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
     "orml-benchmarking",
+    "hydradx-adapters/runtime-benchmarks",
     "pallet-xcm/runtime-benchmarks",
     "xcm-builder/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",
@@ -169,6 +171,7 @@ runtime-benchmarks = [
     "pallet-route-executor/runtime-benchmarks",
     "pallet-staking/runtime-benchmarks",
     "pallet-bonds/runtime-benchmarks",
+    "pallet-stableswap/runtime-benchmarks",
     "pallet-lbp/runtime-benchmarks",
 ]
 std = [
@@ -253,6 +256,7 @@ std = [
     "pallet-dynamic-fees/std",
     "pallet-staking/std",
     "pallet-bonds/std",
+    "pallet-stableswap/std",
     "pallet-lbp/std",
 ]
 try-runtime= [
@@ -313,5 +317,6 @@ try-runtime= [
     "pallet-dynamic-fees/try-runtime",
     "pallet-staking/try-runtime",
     "pallet-bonds/try-runtime",
+    "pallet-stableswap/try-runtime",
     "pallet-lbp/try-runtime",
 ]

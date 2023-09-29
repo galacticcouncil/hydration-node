@@ -94,7 +94,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 174,
+	spec_version: 179,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -159,6 +159,7 @@ construct_runtime!(
 		Router: pallet_route_executor = 67,
 		DynamicFees: pallet_dynamic_fees = 68,
 		Staking: pallet_staking = 69,
+		Stableswap: pallet_stableswap = 70,
 		Bonds: pallet_bonds = 71,
 		LBP: pallet_lbp = 73,
 
@@ -403,12 +404,13 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 			list_benchmark!(list, extra, pallet_dca, DCA);
 			list_benchmark!(list, extra, pallet_bonds, Bonds);
+			list_benchmark!(list, extra, pallet_stableswap, Stableswap);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
 			list_benchmark!(list, extra, pallet_ema_oracle, EmaOracle);
 			list_benchmark!(list, extra, pallet_staking, Staking);
-			list_benchmark!(list, extra, pallet_staking, LBP);
+			list_benchmark!(list, extra, pallet_lbp, LBP);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
@@ -476,7 +478,8 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);
 			add_benchmark!(params, batches, pallet_bonds, Bonds);
 			add_benchmark!(params, batches, pallet_staking, Staking);
-			add_benchmark!(params, batches, pallet_staking, LBP);
+			add_benchmark!(params, batches, pallet_lbp, LBP);
+			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
@@ -490,7 +493,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_transaction_multi_payment, benchmarking::multi_payment);
 			orml_add_benchmark!(params, batches, pallet_duster, benchmarking::duster);
 			orml_add_benchmark!(params, batches, pallet_omnipool, benchmarking::omnipool);
-orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
+			orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

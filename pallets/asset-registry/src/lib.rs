@@ -746,3 +746,14 @@ impl<T: Config> Create<T::AssetNativeLocation, Balance> for Pallet<T> {
 		Self::do_register_asset(asset_id, &details, location)
 	}
 }
+
+use hydradx_traits::InspectRegistry;
+impl<T: Config> InspectRegistry<T::AssetId> for Pallet<T> {
+	fn exists(asset_id: T::AssetId) -> bool {
+		Assets::<T>::contains_key(asset_id)
+	}
+
+	fn decimals(asset_id: T::AssetId) -> Option<u8> {
+		Assets::<T>::get(asset_id)?.decimals
+	}
+}
