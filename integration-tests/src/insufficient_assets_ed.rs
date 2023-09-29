@@ -266,13 +266,13 @@ fn alice_should_pay_ed_only_once_when_insufficient_asset_is_depositted_to_her() 
 }
 
 #[test]
-fn hdx_ed_should_be_released_in_hdx_when_alice_account_is_killed_and_ed_was_paid_in_fee_asset() {
+fn hdx_ed_should_be_released_when_alice_account_is_killed_and_ed_was_paid_in_fee_asset() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let doge: AssetId = register_shitcoin(0_u128);
 		let fee_asset = BTC;
 
-		//NOTE: this is imporatant for this tests - it basically mean that Bob already paid ED.
+		//NOTE: this is important for this tests - it basically mean that Bob already paid ED.
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
@@ -429,7 +429,7 @@ fn alice_should_pay_ed_in_fee_asset_when_receive_insufficient_asset() {
 #[test]
 fn grandfathered_account_should_receive_hdx_when_account_is_killed() {
 	//NOTE: this is case simulating old account that received insufficient asset before sufficiency
-	//check and didn't paid ED. This test is important becase grandfathered accounts doesn't have
+	//check and didn't paid ED. This test is important because grandfathered accounts doesn't have
 	//incremented `sufficients`.
 
 	TestNet::reset();
@@ -461,7 +461,7 @@ fn grandfathered_account_should_receive_hdx_when_account_is_killed() {
 			treasury_hdx_balance - InsufficientEDinHDX::get()
 		);
 
-		//NOTE: this is zero becasue Alice paid ED and it was paid to grandfathered
+		//NOTE: this is zero because Alice paid ED and it was paid to grandfathered
 		assert_eq!(treasury_suffyciency_lock(), 0);
 	});
 }
@@ -551,7 +551,7 @@ fn sufficient_asset_should_not_release_ed_from_treasury_when_account_is_killed()
 		assert_eq!(Currencies::free_balance(sufficient_asset, &ALICE.into()), 0);
 		//NOTE: make sure storage was killed
 		assert!(orml_tokens::Accounts::<hydradx_runtime::Runtime>::try_get(
-			&sp_runtime::AccountId32::from(ALICE),
+			sp_runtime::AccountId32::from(ALICE),
 			sufficient_asset
 		)
 		.is_err());
@@ -574,7 +574,7 @@ fn each_insufficient_asset_should_pay_ed_when_transfer_or_depositted() {
 		let sht4: AssetId = register_shitcoin(3_u128);
 
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
-		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get().into());
+		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 		assert_eq!(treasury_suffyciency_lock(), 0);
 
 		assert_ok!(Tokens::set_balance(
@@ -657,7 +657,7 @@ fn each_insufficient_asset_should_release_ed_when_account_is_killed() {
 		assert_ok!(Tokens::deposit(sht4, &ALICE.into(), 10_000 * UNITS));
 
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
-		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get().into());
+		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get() * 4);
 
 		//Act  1
@@ -671,7 +671,7 @@ fn each_insufficient_asset_should_release_ed_when_account_is_killed() {
 		//Assert 1
 		assert_eq!(
 			Currencies::free_balance(HDX, &ALICE.into()),
-			alice_hdx_balance + InsufficientEDinHDX::get() * 1
+			alice_hdx_balance + InsufficientEDinHDX::get()
 		);
 		assert_eq!(
 			Currencies::free_balance(HDX, &TreasuryAccount::get()),
@@ -755,7 +755,7 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 
 		assert_ok!(Tokens::deposit(sht1, &ALICE.into(), 10_000 * UNITS));
 		assert_ok!(Tokens::deposit(sht4, &ALICE.into(), 10_000 * UNITS));
-		//NOTE: set_balance baypass mutation hooks so these doesn't pay ED
+		//NOTE: set_balance bypass mutation hooks so these doesn't pay ED
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
@@ -772,7 +772,7 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 		));
 
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
-		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get().into());
+		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get() * 2);
 
 		//Act  1
@@ -797,7 +797,7 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 		//Arrange 2
 		let alice_dai_balance = Currencies::free_balance(DAI, &ALICE.into());
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
-		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get().into());
+		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 
 		//Act 2
 		assert_ok!(Tokens::transfer(
@@ -817,7 +817,7 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 
 		//Arrange 3
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
-		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get().into());
+		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 
 		//Act 3
 		assert_ok!(Tokens::transfer(
@@ -840,7 +840,7 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 
 		//Arrange 4
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
-		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get().into());
+		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 
 		//Act 4 - unlocking ED for account that doesn't paid ED
 		assert_ok!(Tokens::transfer(
@@ -863,7 +863,7 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 
 		//Arrange 5
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
-		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get().into());
+		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 
 		//Act 5 - unlocking ED for account that doesn't paid ED
 		assert_ok!(Tokens::transfer(
@@ -918,7 +918,7 @@ fn whitelisted_account_should_not_pay_ed_when_transferred_or_deposited() {
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
 
 		//Act 2
-		assert_ok!(Tokens::deposit(sht2, &treasury.clone(), 20));
+		assert_ok!(Tokens::deposit(sht2, &treasury, 20));
 
 		//Assert 2
 		assert_eq!(Currencies::free_balance(HDX, &treasury), treasury_hdx_balance);
@@ -946,7 +946,7 @@ fn whitelisted_account_should_not_release_ed_when_killed() {
 
 		//Act 1
 		assert_ok!(Tokens::transfer(
-			hydra_origin::signed(treasury.clone().into()),
+			hydra_origin::signed(treasury.clone()),
 			BOB.into(),
 			sht1,
 			1_000_000 * UNITS
@@ -960,11 +960,7 @@ fn whitelisted_account_should_not_release_ed_when_killed() {
 		//BOB already paid ED for this asset
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
 
-		assert!(orml_tokens::Accounts::<hydradx_runtime::Runtime>::try_get(
-			&sp_runtime::AccountId32::from(treasury),
-			sht1
-		)
-		.is_err());
+		assert!(orml_tokens::Accounts::<hydradx_runtime::Runtime>::try_get(&treasury, sht1).is_err());
 	});
 }
 

@@ -34,17 +34,21 @@ use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 };
 
+use sp_runtime::{traits::Zero, DispatchResult, FixedPointNumber};
+
 use frame_support::{
 	parameter_types,
 	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
-	sp_runtime::traits::{One, PhantomData},
+	sp_runtime::traits::{Bounded, One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
-	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
+	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, LockIdentifier, NeverEnsureOrigin},
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use orml_traits::currency::MutationHooks;
-use orml_traits::GetByKey;
+use orml_traits::{
+	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
+	GetByKey, Happened,
+};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
@@ -79,13 +83,8 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
 }
 
-use frame_support::traits::LockIdentifier;
-use orml_traits::currency::{MultiCurrency, MultiLockableCurrency, OnDeposit, OnTransfer};
-use orml_traits::Happened;
-use sp_runtime::traits::Bounded;
-use sp_runtime::{traits::Zero, DispatchResult, FixedPointNumber};
+pub const SUFFICIENCY_LOCK: LockIdentifier = *b"insuffEd";
 
-pub const SUFFICIENCY_LOCK: LockIdentifier = *b"suffchck";
 parameter_types! {
 	pub InsufficientEDinHDX: Balance = FixedU128::from_rational(11, 10)
 		.saturating_mul_int(<Runtime as pallet_balances::Config>::ExistentialDeposit::get());
@@ -98,7 +97,7 @@ impl SufficiencyCheck {
 			return Ok(());
 		}
 
-		//NOTE: account existance means it already paid ED
+		//NOTE: account existence means it already paid ED
 		if orml_tokens::Accounts::<Runtime>::try_get(paying_account, asset).is_err()
 			&& !AssetRegistry::is_sufficient(asset)
 		{
@@ -106,7 +105,7 @@ impl SufficiencyCheck {
 
 			//NOTE: unwrap should never fail. MutiTransctionPayment should always provide price.
 			let ed = MultiTransactionPayment::price(fee_payment_asset)
-				.unwrap_or(FixedU128::max_value())
+				.unwrap_or_else(FixedU128::max_value)
 				.saturating_mul_int(InsufficientEDinHDX::get());
 
 			//NOTE: Account doesn't have enough funds to pay ED if this fail.
@@ -169,7 +168,6 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			.unwrap_or_default()
 			.saturating_sub(InsufficientEDinHDX::get());
 
-		//TODO: log error
 		if to_lock.is_zero() {
 			let _ = <Currencies as MultiLockableCurrency<AccountId>>::remove_lock(
 				SUFFICIENCY_LOCK,
@@ -185,7 +183,6 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			);
 		}
 
-		//TODO: log error
 		let _ = <Currencies as MultiCurrency<AccountId>>::transfer(
 			NativeAssetId::get(),
 			&TreasuryAccount::get(),
@@ -193,9 +190,9 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			InsufficientEDinHDX::get(),
 		);
 
-		//NOTE: This is necessary because grandfathered accounts doesn't have inc-ed suffients by
-		//`SufficiencyCheck` so without check it can overflow.
-		//`set_balanse` also baypass `MutationHooks`
+		//NOTE: This is necessary because grandfathered accounts doesn't have incremented
+		//sufficients by `SufficiencyCheck` so without check it can overflow.
+		//`set_balance` also bypass `MutationHooks`
 		if frame_system::Pallet::<Runtime>::account(who).sufficients > 0 {
 			frame_system::Pallet::<Runtime>::dec_sufficients(who);
 		}

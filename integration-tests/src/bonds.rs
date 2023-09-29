@@ -133,14 +133,14 @@ fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 fn set_fee_asset_and_fund(who: AccountId, fee_asset: AssetId, amount: Balance) {
 	assert_ok!(Tokens::set_balance(
 		RawOrigin::Root.into(),
-		who.clone().into(),
+		who.clone(),
 		fee_asset,
 		amount,
 		0,
 	));
 
 	assert_ok!(MultiTransactionPayment::set_currency(
-		hydradx_runtime::RuntimeOrigin::signed(who.into()),
+		hydradx_runtime::RuntimeOrigin::signed(who),
 		fee_asset
 	));
 }
