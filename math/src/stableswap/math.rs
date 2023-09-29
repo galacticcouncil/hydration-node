@@ -661,6 +661,37 @@ pub fn calculate_share_price<const D: u8>(
 	Some((num, denom))
 }
 
+pub fn calculate_spot_price(
+	balances: &[AssetReserve],
+	amplification: Balance,
+	d: Balance,
+	asset_idx: usize,
+) -> Option<(Balance, Balance)> {
+	let n = balances.len();
+	let ann = calculate_ann(n, amplification)?;
+
+	let mut reserves = normalize_reserves(balances);
+
+	let x0 = reserves[0];
+	let xi = reserves[asset_idx];
+
+	let (n, d, ann, x0, xi) = to_u256!(n, d, ann, x0, xi);
+
+	reserves.sort();
+	let reserves: Vec<U256> = reserves.iter().map(|v| U256::from(*v)).collect();
+	let c = reserves
+		.iter()
+		.try_fold(d, |acc, val| acc.checked_mul(d)?.checked_div(val.checked_mul(n)?))?;
+
+	let num = x0.checked_mul(ann.checked_mul(xi)?.checked_add(c)?)?;
+	let denom = xi.checked_mul(ann.checked_mul(x0)?.checked_add(c)?)?;
+
+	Some(round_to_rational(
+		(num, denom),
+		crate::support::rational::Rounding::Down,
+	))
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -693,5 +724,42 @@ mod tests {
 		let expected: Balance = 1_000_000_000_000;
 		let actual = normalize_value(amount, decimals, target_decimals, Rounding::Down);
 		assert_eq!(actual, expected);
+	}
+
+	#[test]
+	fn test_spot_price() {
+		let reserves = vec![
+			AssetReserve::new(478626_000_000_000_000_000, 12),
+			AssetReserve::new(487626_000_000_000_000_000, 12),
+			AssetReserve::new(866764_000_000_000_000_000, 12),
+			AssetReserve::new(518696_000_000_000_000_000, 12),
+		];
+		let amp = 319u128;
+		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
+		let p = calculate_spot_price(&reserves, amp, d, 1).unwrap();
+		assert_eq!(
+			p,
+			(
+				259416830506303392284340673024338472588,
+				259437723055509887749072196895052016056
+			)
+		);
+
+		let reserves = vec![
+			AssetReserve::new(1001_000_000_000_000_000, 12),
+			AssetReserve::new(1000_000_000_000_000_000, 12),
+			AssetReserve::new(1000_000_000_000_000_000, 12),
+			AssetReserve::new(1000_000_000_000_000_000, 12),
+		];
+		let amp = 10u128;
+		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
+		let p = calculate_spot_price(&reserves, amp, d, 1).unwrap();
+		assert_eq!(
+			p,
+			(
+				320469570070413807187663384895131457597,
+				320440458954331380180651678529102355242
+			)
+		);
 	}
 }
