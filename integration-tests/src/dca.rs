@@ -1145,6 +1145,74 @@ mod stableswap {
 	}
 
 	#[test]
+	fn two_stableswap_asssets_should_be_swapped_when_they_have_different_decimals() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			let (pool_id, asset_a, asset_b) = init_stableswap_with_three_assets_having_different_decimals().unwrap();
+
+			//Populate oracle
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				asset_b,
+				5000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				asset_a,
+				asset_b,
+				100 * UNITS,
+				0u128,
+			));
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				asset_a,
+				FixedU128::from_rational(88, 100),
+			));
+
+			let alice_init_asset_a_balance = 5000 * UNITS;
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ALICE.into(),
+				asset_a,
+				alice_init_asset_a_balance as i128,
+			));
+
+			let dca_budget = 1100 * UNITS;
+			let amount_to_sell = 100 * UNITS;
+			let schedule1 = schedule_fake_with_sell_order(
+				ALICE,
+				PoolType::Stableswap(pool_id),
+				dca_budget,
+				asset_a,
+				asset_b,
+				amount_to_sell,
+			);
+			set_relaychain_block_number(10);
+
+			create_schedule(ALICE, schedule1);
+
+			assert_balance!(ALICE.into(), asset_a, alice_init_asset_a_balance - dca_budget);
+			assert_balance!(ALICE.into(), asset_b, 0);
+			assert_reserved_balance!(&ALICE.into(), asset_a, dca_budget);
+			assert_balance!(&hydradx_runtime::Treasury::account_id(), asset_a, 0);
+
+			//Act
+			set_relaychain_block_number(11);
+
+			//Assert
+			let fee = Currencies::free_balance(asset_a, &hydradx_runtime::Treasury::account_id());
+			assert!(fee > 0, "The treasury did not receive the fee");
+			assert_balance!(ALICE.into(), asset_a, alice_init_asset_a_balance - dca_budget);
+			assert_balance!(ALICE.into(), asset_b, 107463939530242);
+			assert_reserved_balance!(&ALICE.into(), asset_a, dca_budget - amount_to_sell - fee);
+		});
+	}
+
+	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades() {
 		let amount_to_sell = 100 * UNITS;
 		let amount_to_receive = 168416791216750;
@@ -2201,6 +2269,63 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 		//let asset_id = regi_asset(name.clone(), 1_000_000, 10000 + idx as u32)?;
 		let asset_id = AssetRegistry::create_asset(&name, 1u128)?;
 		AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), asset_id, b"xDUM".to_vec(), 18u8)?;
+		asset_ids.push(asset_id);
+		Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			AccountId::from(BOB),
+			asset_id,
+			1_000_000_000_000_000i128,
+		)?;
+		Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			AccountId::from(CHARLIE),
+			asset_id,
+			1_000_000_000_000_000_000_000i128,
+		)?;
+		initial.push(AssetAmount::new(asset_id, initial_liquidity));
+		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
+	}
+	let pool_id = AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
+
+	let amplification = 100u16;
+	let fee = Permill::from_percent(1);
+
+	let asset_in: AssetId = *asset_ids.last().unwrap();
+	let asset_out: AssetId = *asset_ids.first().unwrap();
+
+	Stableswap::create_pool(
+		hydradx_runtime::RuntimeOrigin::root(),
+		pool_id,
+		asset_ids,
+		amplification,
+		fee,
+	)?;
+
+	Stableswap::add_liquidity(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
+
+	Ok((pool_id, asset_in, asset_out))
+}
+
+pub fn init_stableswap_with_three_assets_having_different_decimals(
+) -> Result<(AssetId, AssetId, AssetId), DispatchError> {
+	let initial_liquidity = 1_000_000_000_000_000u128;
+	let liquidity_added = 300_000_000_000_000u128;
+
+	let mut initial: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
+	let mut added_liquidity: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> =
+		vec![];
+
+	let mut asset_ids: Vec<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
+	let decimals_for_each_asset = vec![18u8, 6u8, 6u8];
+	for idx in 0u32..3 {
+		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
+		let asset_id = AssetRegistry::create_asset(&name, 1u128)?;
+		AssetRegistry::set_metadata(
+			hydradx_runtime::RuntimeOrigin::root(),
+			asset_id,
+			b"xDUM".to_vec(),
+			decimals_for_each_asset[idx as usize],
+		)?;
 		asset_ids.push(asset_id);
 		Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
