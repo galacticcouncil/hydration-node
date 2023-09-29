@@ -4,17 +4,20 @@ use crate::assert_balance;
 use crate::polkadot_test_net::*;
 
 use frame_support::{assert_noop, assert_ok};
+use frame_system::RawOrigin;
 use hydradx_traits::CreateRegistry;
 use orml_traits::MultiCurrency;
 use xcm_emulator::TestExt;
 
-use hydradx_runtime::{AssetRegistry, Bonds, Currencies, Runtime, RuntimeOrigin};
+use hydradx_runtime::{AssetRegistry, Bonds, Currencies, MultiTransactionPayment, Runtime, RuntimeOrigin, Tokens};
 use primitives::constants::time::unix_time::MONTH;
 
 #[test]
 fn issue_bonds_should_work_when_issued_for_native_asset() {
 	Hydra::execute_with(|| {
 		// Arrange
+		set_fee_asset_and_fund(ALICE.into(), BTC, 1_000_000);
+
 		let amount = 100 * UNITS;
 		let fee = <Runtime as pallet_bonds::Config>::ProtocolFee::get().mul_ceil(amount);
 		let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
@@ -50,6 +53,8 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 fn issue_bonds_should_work_when_issued_for_share_asset() {
 	Hydra::execute_with(|| {
 		// Arrange
+		set_fee_asset_and_fund(ALICE.into(), BTC, 1_000_000);
+
 		let amount = 100 * UNITS;
 		let fee = <Runtime as pallet_bonds::Config>::ProtocolFee::get().mul_ceil(amount);
 		let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
@@ -123,4 +128,19 @@ fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 			pallet_bonds::Error::<hydradx_runtime::Runtime>::DisallowedAsset
 		);
 	});
+}
+
+fn set_fee_asset_and_fund(who: AccountId, fee_asset: AssetId, amount: Balance) {
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
+		who.clone().into(),
+		fee_asset,
+		amount,
+		0,
+	));
+
+	assert_ok!(MultiTransactionPayment::set_currency(
+		hydradx_runtime::RuntimeOrigin::signed(who.into()),
+		fee_asset
+	));
 }

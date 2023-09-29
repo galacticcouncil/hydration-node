@@ -2,12 +2,12 @@
 
 use crate::insufficient_assets_ed::v3::Junction::GeneralIndex;
 use crate::polkadot_test_net::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, traits::Contains};
 use frame_system::RawOrigin;
 use hydradx_runtime::RuntimeOrigin as hydra_origin;
 use hydradx_runtime::{
-	AssetRegistry as Registry, Currencies, InsufficientEDinHDX, MultiTransactionPayment, Tokens, TreasuryAccount,
-	SUFFICIENCY_LOCK,
+	AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX, MultiTransactionPayment, Tokens,
+	TreasuryAccount, SUFFICIENCY_LOCK,
 };
 use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
@@ -883,6 +883,88 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 			treasury_hdx_balance - InsufficientEDinHDX::get()
 		);
 		assert_eq!(treasury_suffyciency_lock(), 0);
+	});
+}
+
+#[test]
+fn whitelisted_account_should_not_pay_ed_when_transferred_or_deposited() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht2: AssetId = register_shitcoin(1_u128);
+
+		assert_ok!(Tokens::deposit(sht1, &BOB.into(), 1_000_000 * UNITS));
+
+		let treasury = TreasuryAccount::get();
+
+		assert!(DustRemovalWhitelist::contains(&treasury));
+		assert_eq!(MultiTransactionPayment::account_currency(&treasury), HDX);
+
+		let treasury_hdx_balance = Currencies::free_balance(HDX, &treasury);
+
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+
+		//Act 1
+		assert_ok!(Tokens::transfer(
+			hydra_origin::signed(BOB.into()),
+			treasury.clone(),
+			sht1,
+			10
+		));
+
+		//Assert 1
+		assert_eq!(Currencies::free_balance(HDX, &treasury), treasury_hdx_balance);
+		assert_eq!(Currencies::free_balance(sht1, &treasury), 10);
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+
+		//Act 2
+		assert_ok!(Tokens::deposit(sht2, &treasury.clone(), 20));
+
+		//Assert 2
+		assert_eq!(Currencies::free_balance(HDX, &treasury), treasury_hdx_balance);
+		assert_eq!(Currencies::free_balance(sht1, &treasury), 10);
+		assert_eq!(Currencies::free_balance(sht2, &treasury), 20);
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+	});
+}
+
+#[test]
+fn whitelisted_account_should_not_release_ed_when_killed() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let sht1: AssetId = register_shitcoin(0_u128);
+		let treasury = TreasuryAccount::get();
+
+		assert_ok!(Tokens::deposit(sht1, &BOB.into(), 1_000_000 * UNITS));
+		assert_ok!(Tokens::deposit(sht1, &treasury, 1_000_000 * UNITS));
+
+		assert!(DustRemovalWhitelist::contains(&treasury));
+		assert_eq!(MultiTransactionPayment::account_currency(&treasury), HDX);
+		let treasury_hdx_balance = Currencies::free_balance(HDX, &treasury);
+
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+
+		//Act 1
+		assert_ok!(Tokens::transfer(
+			hydra_origin::signed(treasury.clone().into()),
+			BOB.into(),
+			sht1,
+			1_000_000 * UNITS
+		));
+
+		//Assert 1
+		assert_eq!(Currencies::free_balance(HDX, &treasury), treasury_hdx_balance);
+		assert_eq!(Currencies::free_balance(sht1, &treasury), 0);
+		assert_eq!(Currencies::free_balance(sht1, &BOB.into()), 2_000_000 * UNITS);
+
+		//BOB already paid ED for this asset
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+
+		assert!(orml_tokens::Accounts::<hydradx_runtime::Runtime>::try_get(
+			&sp_runtime::AccountId32::from(treasury),
+			sht1
+		)
+		.is_err());
 	});
 }
 

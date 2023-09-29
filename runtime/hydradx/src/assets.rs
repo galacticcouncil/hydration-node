@@ -94,6 +94,10 @@ parameter_types! {
 pub struct SufficiencyCheck;
 impl SufficiencyCheck {
 	fn on_funds(asset: AssetId, paying_account: &AccountId) -> DispatchResult {
+		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(paying_account) {
+			return Ok(());
+		}
+
 		//NOTE: account existance means it already paid ED
 		if orml_tokens::Accounts::<Runtime>::try_get(paying_account, asset).is_err()
 			&& !AssetRegistry::is_sufficient(asset)
@@ -154,6 +158,10 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			return;
 		}
 
+		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(who) {
+			return;
+		}
+
 		let to_lock = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
 			.iter()
 			.find(|x| x.id == SUFFICIENCY_LOCK)
@@ -185,9 +193,9 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			InsufficientEDinHDX::get(),
 		);
 
-		//NOTE: this is necessary becasue grandfathered accounts doesn't have inc-ed suffients by
-		//this `SufficiencyCheck` so without this `if` it can overflow.
-        //`set_balanse` also baypass `MutationHooks`
+		//NOTE: This is necessary because grandfathered accounts doesn't have inc-ed suffients by
+		//`SufficiencyCheck` so without check it can overflow.
+		//`set_balanse` also baypass `MutationHooks`
 		if frame_system::Pallet::<Runtime>::account(who).sufficients > 0 {
 			frame_system::Pallet::<Runtime>::dec_sufficients(who);
 		}
