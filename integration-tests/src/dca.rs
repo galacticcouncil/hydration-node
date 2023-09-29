@@ -1977,7 +1977,7 @@ mod stableswap {
 				pool_id,
 				stable_asset_1,
 				stable_asset_2,
-				4000 * UNITS,
+				1000 * UNITS,
 				0u128,
 			));
 
