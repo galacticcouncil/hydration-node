@@ -1,3 +1,4 @@
+mod bonds;
 mod call_filter;
 mod circuit_breaker;
 mod cross_chain_transfer;
@@ -17,3 +18,4 @@ mod router;
 mod staking;
 mod transact_call_filter;
 mod vesting;
+mod xyk;
