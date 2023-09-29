@@ -645,11 +645,11 @@ pub fn calculate_share_price<const D: u8>(
 		})?
 		.checked_mul_int(d)?;
 
-	let nn = n.pow(n as u32);
+	let ann = calculate_ann(reserves.len(), amplification)?;
 
-	let (d, c, x0, a, n, nn, issuance) = to_u256!(d, c, reserves[0], amplification, n, nn, issuance);
+	let (d, c, x0, n, ann, issuance) = to_u256!(d, c, reserves[0], n, ann, issuance);
 
-	let xann = x0.checked_mul(a.checked_mul(nn)?)?;
+	let xann = x0.checked_mul(ann)?;
 	let p1 = d.checked_mul(xann)?;
 	let p2 = x0.checked_mul(c)?.checked_mul(n + 1)?;
 	let p3 = x0.checked_mul(d)?;
