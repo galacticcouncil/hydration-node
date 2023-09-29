@@ -36,8 +36,9 @@ pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const ALICE_INITIAL_DAI_BALANCE: Balance = 2_000 * UNITS;
 pub const ALICE_INITIAL_LRNA_BALANCE: Balance = 200 * UNITS;
 pub const ALICE_INITIAL_DOT_BALANCE: Balance = 2_000 * UNITS;
-pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
+pub const BOB_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
+pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
 pub fn parachain_reserve_account() -> AccountId {
@@ -250,8 +251,8 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(ALICE), LRNA, ALICE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(ALICE), DAI, ALICE_INITIAL_DAI_BALANCE),
 			(AccountId::from(ALICE), DOT, ALICE_INITIAL_DOT_BALANCE),
-			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
-			(AccountId::from(BOB), DAI, 1_000_000_000 * UNITS),
+			(AccountId::from(BOB), LRNA, BOB_INITIAL_LRNA_BALANCE),
+			(AccountId::from(BOB), DAI, BOB_INITIAL_DAI_BALANCE),
 			(AccountId::from(BOB), BTC, 1_000_000),
 			(AccountId::from(CHARLIE), DAI, 80_000_000_000 * UNITS),
 			(AccountId::from(BOB), PEPE, 1_000 * UNITS * 1_000_000),

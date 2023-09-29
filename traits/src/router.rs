@@ -15,6 +15,7 @@ pub enum ExecutorError<E> {
 	Error(E),
 }
 
+/// All AMMs used in the router are required to implement this trait.
 pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 	type Error;
 
