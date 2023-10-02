@@ -288,12 +288,15 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_buy(c: u32, _e: u32) -> Weight {
-		// Minimum execution time: 441_418 nanoseconds.
-		Weight::from_ref_time(139_288_718 as u64) // Standard Error: 280_961
-			.saturating_add(Weight::from_ref_time(305_481_427 as u64).saturating_mul(c as u64))
-			.saturating_add(T::DbWeight::get().reads(21 as u64))
-			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
+		// Minimum execution time: 329_365 nanoseconds.
+		Weight::from_ref_time(330_796_000 as u64) // Standard Error: 3_493_414
+			.saturating_add(Weight::from_ref_time(13_182_028 as u64).saturating_mul(c as u64))
+			// Standard Error: 7_669_040
+			.saturating_add(Weight::from_ref_time(140_779_218 as u64).saturating_mul(e as u64))
+			.saturating_add(T::DbWeight::get().reads(11 as u64))
+			.saturating_add(T::DbWeight::get().reads((10 as u64).saturating_mul(e as u64)))
+			.saturating_add(T::DbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
 	}
 }
 
@@ -521,11 +524,14 @@ impl WeightInfo for () {
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_buy(c: u32, _e: u32) -> Weight {
-		// Minimum execution time: 441_418 nanoseconds.
-		Weight::from_ref_time(139_288_718 as u64) // Standard Error: 280_961
-			.saturating_add(Weight::from_ref_time(305_481_427 as u64).saturating_mul(c as u64))
-			.saturating_add(RocksDbWeight::get().reads(21 as u64))
-			.saturating_add(RocksDbWeight::get().writes(5 as u64))
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
+		// Minimum execution time: 329_365 nanoseconds.
+		Weight::from_ref_time(330_796_000 as u64) // Standard Error: 3_493_414
+			.saturating_add(Weight::from_ref_time(13_182_028 as u64).saturating_mul(c as u64))
+			// Standard Error: 7_669_040
+			.saturating_add(Weight::from_ref_time(140_779_218 as u64).saturating_mul(e as u64))
+			.saturating_add(RocksDbWeight::get().reads(11 as u64))
+			.saturating_add(RocksDbWeight::get().reads((10 as u64).saturating_mul(e as u64)))
+			.saturating_add(RocksDbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
 	}
 }
