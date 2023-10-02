@@ -124,7 +124,10 @@ benchmarks! {
 		assert_eq!(T::Currency::free_balance(asset_a, &caller), 1000001000000000);
 	}
 
-	trade_execution_sell {
+	router_execution_sell {
+		let c in 1..2;	// if c == 1, calculate_sell is executed
+		let e in 0..1;	// if e == 1, execute_sell is executed
+
 		let maker = funded_account::<T>("maker", 0);
 		let caller = funded_account::<T>("caller", 0);
 
@@ -138,14 +141,23 @@ benchmarks! {
 		XYK::<T>::create_pool(RawOrigin::Signed(maker).into(), asset_a, 1_000_000_000_000, asset_b, 3_000_000_000_000)?;
 
 	}: {
-		assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_sell(PoolType::XYK, asset_a, asset_b, amount).is_ok());
-		assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(caller.clone()).into(), PoolType::XYK, asset_a, asset_b, amount, min_bought).is_ok());
+		for _ in 1..c {
+			assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_sell(PoolType::XYK, asset_a, asset_b, amount).is_ok());
+		}
+		if e != 0 {
+			assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(caller.clone()).into(), PoolType::XYK, asset_a, asset_b, amount, min_bought).is_ok());
+		}
 	}
 	verify{
-		assert_eq!(T::Currency::free_balance(asset_a, &caller), 999999000000000);
+		if e != 0 {
+			assert_eq!(T::Currency::free_balance(asset_a, &caller), 999999000000000);
+		}
 	}
 
-	trade_execution_buy {
+	router_execution_buy {
+		let c in 1..3;	// number of times calculate_buy is executed
+		let e in 0..1;	// if e == 1, execute_buy is executed
+
 		let maker = funded_account::<T>("maker", 0);
 		let caller = funded_account::<T>("caller", 0);
 
@@ -159,11 +171,17 @@ benchmarks! {
 		XYK::<T>::create_pool(RawOrigin::Signed(maker).into(), asset_a, 1_000_000_000_000, asset_b, 3_000_000_000_000)?;
 
 	}: {
-		assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_buy(PoolType::XYK, asset_a, asset_b, amount).is_ok());
-		assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(caller.clone()).into(), PoolType::XYK, asset_a, asset_b, amount, max_sold).is_ok());
+		for _ in 1..c {
+			assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_buy(PoolType::XYK, asset_a, asset_b, amount).is_ok());
+		}
+		if e != 0 {
+			assert!(<XYK::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(caller.clone()).into(), PoolType::XYK, asset_a, asset_b, amount, max_sold).is_ok());
+		}
 	}
 	verify{
-		assert_eq!(T::Currency::free_balance(asset_b, &caller), 1000001000000000);
+		if e != 0 {
+			assert_eq!(T::Currency::free_balance(asset_b, &caller), 1000001000000000);
+		}
 	}
 }
 
@@ -182,8 +200,8 @@ mod tests {
 			assert_ok!(Pallet::<Test>::test_benchmark_remove_liquidity());
 			assert_ok!(Pallet::<Test>::test_benchmark_sell());
 			assert_ok!(Pallet::<Test>::test_benchmark_buy());
-			assert_ok!(Pallet::<Test>::test_benchmark_trade_execution_sell());
-			assert_ok!(Pallet::<Test>::test_benchmark_trade_execution_buy());
+			assert_ok!(Pallet::<Test>::test_benchmark_router_execution_sell());
+			assert_ok!(Pallet::<Test>::test_benchmark_router_execution_buy());
 		});
 	}
 }
