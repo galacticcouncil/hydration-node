@@ -24,7 +24,9 @@ use hydradx_adapters::{
 };
 
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
-use hydradx_traits::{router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OraclePeriod, Source};
+use hydradx_traits::{
+	router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OnTradeHandler, OraclePeriod, Source,
+};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{
 	traits::{EnsurePriceWithin, OmnipoolHooks},
@@ -56,6 +58,7 @@ use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, Trade};
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
+use pallet_xyk::weights::WeightInfo as XykWeights;
 use sp_std::num::NonZeroU16;
 
 parameter_types! {
@@ -545,7 +548,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					>>::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
+					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -578,7 +582,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					>>::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
+					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -599,7 +604,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
+					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -620,7 +626,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
+					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -641,7 +648,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e),
-				PoolType::XYK => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e), // TODO: replace by XYK weights + AMMHandler::on_trade_weight()
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
+					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
