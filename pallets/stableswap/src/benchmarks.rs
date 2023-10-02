@@ -598,7 +598,9 @@ benchmarks! {
 		for _ in 1..c {
 			assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_buy(PoolType::Stableswap(pool_id), asset_in, asset_out, amount_buy).is_ok());
 		}
-		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::execute_buy(RawOrigin::Signed(buyer.clone()).into(), PoolType::Stableswap(pool_id), asset_in, asset_out, amount_buy, sell_max_limit).is_ok());
+		if e != 0 {
+			assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::execute_buy(RawOrigin::Signed(buyer.clone()).into(), PoolType::Stableswap(pool_id), asset_in, asset_out, amount_buy, sell_max_limit).is_ok());
+		}
 	}
 	verify {
 		if e != 0 {
