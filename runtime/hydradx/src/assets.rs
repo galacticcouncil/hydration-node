@@ -660,8 +660,8 @@ impl pallet_route_executor::Config for Runtime {
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
-	type AMM = (Omnipool, Stableswap, LBP);
 	type WeightInfo = RouterWeightInfo;
+	type AMM = (Omnipool, Stableswap, XYK, LBP);
 }
 
 parameter_types! {
@@ -877,10 +877,6 @@ where
 	}
 }
 
-parameter_types! {
-	pub LBPExchangeFee: (u32, u32) = (2, 1_000);
-}
-
 impl pallet_lbp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
@@ -894,4 +890,27 @@ impl pallet_lbp::Config for Runtime {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+}
+
+parameter_types! {
+	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
+	pub const DiscountedFee: (u32, u32) = (7, 10_000);
+}
+
+impl pallet_xyk::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetRegistry = AssetRegistry;
+	type AssetPairAccountId = AssetPairAccountId<Self>;
+	type Currency = Currencies;
+	type NativeAssetId = NativeAssetId;
+	type WeightInfo = weights::xyk::HydraWeight<Runtime>;
+	type GetExchangeFee = XYKExchangeFee;
+	type MinTradingLimit = MinTradingLimit;
+	type MinPoolLiquidity = MinPoolLiquidity;
+	type MaxInRatio = MaxInRatio;
+	type MaxOutRatio = MaxOutRatio;
+	type CanCreatePool = pallet_lbp::DisallowWhenLBPPoolRunning<Runtime>;
+	type AMMHandler = pallet_ema_oracle::OnActivityHandler<Runtime>;
+	type DiscountedFee = DiscountedFee;
+	type NonDustableWhitelistHandler = Duster;
 }

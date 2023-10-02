@@ -161,6 +161,7 @@ construct_runtime!(
 		Stableswap: pallet_stableswap = 70,
 		Bonds: pallet_bonds = 71,
 		LBP: pallet_lbp = 73,
+		XYK: pallet_xyk = 74,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -409,6 +410,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ema_oracle, EmaOracle);
 			list_benchmark!(list, extra, pallet_staking, Staking);
 			list_benchmark!(list, extra, pallet_lbp, LBP);
+			list_benchmark!(list, extra, pallet_xyk, XYK);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
@@ -477,6 +479,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_bonds, Bonds);
 			add_benchmark!(params, batches, pallet_staking, Staking);
 			add_benchmark!(params, batches, pallet_lbp, LBP);
+			add_benchmark!(params, batches, pallet_xyk, XYK);
 			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
