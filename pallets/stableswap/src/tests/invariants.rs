@@ -461,6 +461,7 @@ proptest! {
 					Tokens::set_balance(RuntimeOrigin::root(), pool_account, asset_a, asset_a_balance, 0).unwrap();
 					Tokens::set_balance(RuntimeOrigin::root(), pool_account, asset_b, asset_b_balance, 0).unwrap();
 					Tokens::set_balance(RuntimeOrigin::root(), BOB, asset_a, bob_a_balance, 0).unwrap();
+					Tokens::set_balance(RuntimeOrigin::root(), BOB, asset_b, 0, 0).unwrap();
 
 					let asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
 					let asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
@@ -471,6 +472,8 @@ proptest! {
 
 					let d_prev = calculate_d::<128u8>(&reserves, amplification).unwrap();
 
+					let bob_a_balance = Tokens::free_balance(asset_a, &BOB);
+					let initial_spot_price = asset_spot_price(pool_id, asset_b);
 					assert_ok!(Stableswap::buy(
 						RuntimeOrigin::signed(BOB),
 						pool_id,
@@ -479,6 +482,14 @@ proptest! {
 						amount,
 						u128::MAX, // not interested in this
 					));
+
+					let a_balance = Tokens::free_balance(asset_a, &BOB);
+					let delta_a = bob_a_balance - a_balance;
+					let exec_price = FixedU128::from_rational(delta_a * 1_000_000, amount * 1_000_000);
+					assert!(exec_price >= initial_spot_price);
+
+					let final_spot_price = asset_spot_price(pool_id, asset_b);
+					assert!(exec_price <= final_spot_price);
 
 					let asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
 					let asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
@@ -559,6 +570,7 @@ proptest! {
 					Tokens::set_balance(RuntimeOrigin::root(), pool_account, asset_a, asset_a_balance, 0).unwrap();
 					Tokens::set_balance(RuntimeOrigin::root(), pool_account, asset_b, asset_b_balance, 0).unwrap();
 					Tokens::set_balance(RuntimeOrigin::root(), BOB, asset_a, bob_a_balance, 0).unwrap();
+					Tokens::set_balance(RuntimeOrigin::root(), BOB, asset_b, 0, 0).unwrap();
 
 					let asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
 					let asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
@@ -568,6 +580,9 @@ proptest! {
 					];
 
 					let d_prev = calculate_d::<128u8>(&reserves, amplification).unwrap();
+
+					let bob_a_balance = Tokens::free_balance(asset_a, &BOB);
+					let initial_spot_price = asset_spot_price(pool_id, asset_b);
 					assert_ok!(Stableswap::buy(
 						RuntimeOrigin::signed(BOB),
 						pool_id,
@@ -576,6 +591,13 @@ proptest! {
 						amount * adjustment,
 						u128::MAX, // not interested in this
 					));
+					let a_balance = Tokens::free_balance(asset_a, &BOB);
+					let delta_a = bob_a_balance - a_balance;
+					let exec_price = FixedU128::from_rational(delta_a , amount * adjustment );
+					assert!(exec_price >= initial_spot_price);
+
+					let final_spot_price = asset_spot_price(pool_id, asset_b);
+					assert!(exec_price <= final_spot_price);
 
 					let asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
 					let asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
