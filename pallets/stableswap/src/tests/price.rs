@@ -1,31 +1,8 @@
-use crate::tests::mock::*;
+use crate::tests::*;
 use crate::types::{AssetAmount, PoolInfo};
-use crate::*;
 use frame_support::assert_ok;
 use sp_runtime::{FixedU128, Permill};
 use std::num::NonZeroU16;
-
-fn get_share_price(pool_id: AssetId) -> FixedU128 {
-	let pool_account = pool_account(pool_id);
-	let pool = <Pools<Test>>::get(pool_id).unwrap();
-	let balances = pool.balances::<Test>(&pool_account).unwrap();
-	let amp = Pallet::<Test>::get_amplification(&pool);
-	let issuance = Tokens::total_issuance(pool_id);
-	let share_price =
-		hydra_dx_math::stableswap::calculate_share_price::<128u8>(&balances, amp, issuance, None).unwrap();
-	FixedU128::from_rational(share_price.0, share_price.1)
-}
-
-fn asset_spot_price(pool_id: AssetId, asset_id: AssetId) -> FixedU128 {
-	let pool_account = pool_account(pool_id);
-	let pool = <Pools<Test>>::get(pool_id).unwrap();
-	let balances = pool.balances::<Test>(&pool_account).unwrap();
-	let amp = Pallet::<Test>::get_amplification(&pool);
-	let asset_idx = pool.find_asset(asset_id).unwrap();
-	let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp).unwrap();
-	let p = hydra_dx_math::stableswap::calculate_spot_price(&balances, amp, d, asset_idx).unwrap();
-	FixedU128::from_rational(p.0, p.1)
-}
 
 #[test]
 fn test_spot_price_in_sell() {
