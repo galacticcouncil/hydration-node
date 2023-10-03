@@ -601,11 +601,10 @@ pub mod pallet {
 			let updated_share_issuance = T::Currency::total_issuance(pool_id);
 			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
 
-			let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+			let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
 				&updated_balances,
 				amplification,
 				updated_share_issuance,
-				None,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -621,7 +620,7 @@ pub mod pallet {
 					.collect(),
 				issuance_before: share_issuance,
 				issuance_after: updated_share_issuance,
-				share_price,
+				share_prices,
 			};
 
 			T::Hooks::on_liquidity_changed(pool_id, state)?;
@@ -697,11 +696,10 @@ pub mod pallet {
 
 			let updated_share_issuance = T::Currency::total_issuance(pool_id);
 			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
-			let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+			let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
 				&updated_balances,
 				amplification,
 				updated_share_issuance,
-				None,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -716,7 +714,7 @@ pub mod pallet {
 					.collect(),
 				issuance_before: share_issuance,
 				issuance_after: updated_share_issuance,
-				share_price,
+				share_prices,
 			};
 
 			T::Hooks::on_liquidity_changed(pool_id, state)?;
@@ -789,11 +787,10 @@ pub mod pallet {
 			let assets = pool.assets.clone();
 
 			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
-			let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+			let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
 				&updated_balances,
 				amplification,
 				share_issuance,
-				None,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -815,7 +812,7 @@ pub mod pallet {
 					.collect(),
 				issuance_before: share_issuance,
 				issuance_after: share_issuance,
-				share_price,
+				share_prices,
 			};
 
 			T::Hooks::on_trade(pool_id, asset_in, asset_out, state)?;
@@ -893,11 +890,10 @@ pub mod pallet {
 			let assets = pool.assets.clone();
 
 			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
-			let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+			let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
 				&updated_balances,
 				amplification,
 				share_issuance,
-				None,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -919,7 +915,7 @@ pub mod pallet {
 					.collect(),
 				issuance_before: share_issuance,
 				issuance_after: share_issuance,
-				share_price,
+				share_prices,
 			};
 
 			T::Hooks::on_trade(pool_id, asset_in, asset_out, state)?;
@@ -1158,11 +1154,10 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let updated_issuance = share_issuance.saturating_add(share_amount);
-		let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+		let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
 			&updated_reserves,
 			amplification,
 			updated_issuance,
-			None,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1173,7 +1168,7 @@ impl<T: Config> Pallet<T> {
 			delta: added_amounts,
 			issuance_before: share_issuance,
 			issuance_after: updated_issuance,
-			share_price,
+			share_prices,
 		};
 
 		T::Hooks::on_liquidity_changed(pool_id, state)?;
@@ -1226,11 +1221,10 @@ impl<T: Config> Pallet<T> {
 
 		let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
 		let updated_issuance = share_issuance.saturating_add(shares);
-		let share_price = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+		let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
 			&updated_balances,
 			amplification,
 			updated_issuance,
-			None,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1246,7 +1240,7 @@ impl<T: Config> Pallet<T> {
 				.collect(),
 			issuance_before: share_issuance,
 			issuance_after: updated_issuance,
-			share_price,
+			share_prices,
 		};
 
 		T::Hooks::on_liquidity_changed(pool_id, state)?;

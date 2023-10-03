@@ -621,10 +621,33 @@ pub(crate) fn normalize_value(amount: Balance, decimals: u8, target_decimals: u8
 	}
 }
 
+pub fn calculate_share_prices<const D: u8>(
+	balances: &[AssetReserve],
+	amplification: Balance,
+	issuance: Balance,
+) -> Option<Vec<(Balance, Balance)>> {
+	let n = balances.len();
+	if n <= 1 {
+		return None;
+	}
+
+	let d = calculate_d::<D>(balances, amplification)?;
+
+	let mut r = Vec::with_capacity(n);
+
+	for idx in 0..n {
+		let price = calculate_share_price::<D>(&balances,amplification,issuance,idx, Some(d))?;
+		r.push(price);
+	}
+	Some(r)
+}
+
+
 pub fn calculate_share_price<const D: u8>(
 	balances: &[AssetReserve],
 	amplification: Balance,
 	issuance: Balance,
+	asset_idx: usize,
 	provided_d: Option<Balance>,
 ) -> Option<(Balance, Balance)> {
 	let n = balances.len() as u128;
@@ -647,12 +670,12 @@ pub fn calculate_share_price<const D: u8>(
 
 	let ann = calculate_ann(reserves.len(), amplification)?;
 
-	let (d, c, x0, n, ann, issuance) = to_u256!(d, c, reserves[0], n, ann, issuance);
+	let (d, c, xi, n, ann, issuance) = to_u256!(d, c, reserves[asset_idx], n, ann, issuance);
 
-	let xann = x0.checked_mul(ann)?;
+	let xann = xi.checked_mul(ann)?;
 	let p1 = d.checked_mul(xann)?;
-	let p2 = x0.checked_mul(c)?.checked_mul(n + 1)?;
-	let p3 = x0.checked_mul(d)?;
+	let p2 = xi.checked_mul(c)?.checked_mul(n + 1)?;
+	let p3 = xi.checked_mul(d)?;
 
 	let num = p1.checked_add(p2)?.checked_sub(p3)?;
 	let denom = issuance.checked_mul(xann.checked_add(c)?)?;

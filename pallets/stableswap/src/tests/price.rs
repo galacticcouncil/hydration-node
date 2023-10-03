@@ -176,7 +176,7 @@ fn test_share_price_in_add_remove_liquidity() {
 
 			let pool_account = pool_account(pool_id);
 			let amount = 1_000_000_000_000_000_000;
-			let share_price_initial = get_share_price(pool_id);
+			let share_price_initial = get_share_price(pool_id, 0);
 			let initial_shares = Tokens::total_issuance(&pool_id);
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -191,7 +191,7 @@ fn test_share_price_in_add_remove_liquidity() {
 			assert!(share_price_initial <= exec_price);
 
 			// Remove liquidity
-			let share_price_initial = get_share_price(pool_id);
+			let share_price_initial = get_share_price(pool_id, 0);
 			let a_initial = Tokens::free_balance(asset_a, &pool_account);
 			assert_ok!(Stableswap::remove_liquidity_one_asset(
 				RuntimeOrigin::signed(BOB),
@@ -248,7 +248,7 @@ fn test_share_price_in_add_shares_remove_liquidity() {
 			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
 
 			let pool_account = pool_account(pool_id);
-			let share_price_initial = get_share_price(pool_id);
+			let share_price_initial = get_share_price(pool_id, 0);
 			let initial_shares = Tokens::total_issuance(&pool_id);
 			let desired_shares = 973798810707557758;
 			let intial_a = Tokens::free_balance(asset_a, &BOB);
@@ -269,7 +269,7 @@ fn test_share_price_in_add_shares_remove_liquidity() {
 			assert!(share_price_initial <= exec_price);
 
 			// Remove liquidity
-			let share_price_initial = get_share_price(pool_id);
+			let share_price_initial = get_share_price(pool_id, 0);
 			let a_initial = Tokens::free_balance(asset_a, &pool_account);
 			assert_ok!(Stableswap::remove_liquidity_one_asset(
 				RuntimeOrigin::signed(BOB),
@@ -321,7 +321,7 @@ fn test_share_price_case() {
 			let pool_id = get_pool_id_at(0);
 			let pool_account = pool_account(pool_id);
 			let amount = 1_000_000_000_000_000_000;
-			let share_price_initial = get_share_price(pool_id);
+			let share_price_initial = get_share_price(pool_id, 0);
 			let initial_shares = Tokens::total_issuance(&pool_id);
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -335,7 +335,7 @@ fn test_share_price_case() {
 			assert!(share_price_initial <= exec_price);
 
 			// Remove liquidity
-			let share_price_initial = get_share_price(pool_id);
+			let share_price_initial = get_share_price(pool_id, 0);
 			let a_initial = Tokens::free_balance(asset_a, &pool_account);
 			assert_ok!(Stableswap::remove_liquidity_one_asset(
 				RuntimeOrigin::signed(BOB),
