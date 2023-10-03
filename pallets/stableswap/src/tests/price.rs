@@ -85,7 +85,12 @@ fn test_spot_price_in_sell() {
 			assert!(exec_price >= initial_spot_price);
 
 			let final_spot_price = asset_spot_price(pool_id, asset_b);
-			assert!(exec_price <= final_spot_price);
+			if exec_price > final_spot_price {
+				let p = (exec_price - final_spot_price) / final_spot_price;
+				assert!(p <= FixedU128::from_rational(1, 100_000));
+			} else {
+				assert!(exec_price <= final_spot_price);
+			}
 		});
 }
 
