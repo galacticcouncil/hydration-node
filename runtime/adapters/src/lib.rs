@@ -876,6 +876,10 @@ where
 			state.delta.len() == pool_size,
 			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
 		);
+		ensure!(
+			state.share_prices.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
 
 		for idx in 0..pool_size {
 			OnActivityHandler::<Runtime>::on_liquidity_changed(
@@ -886,7 +890,7 @@ where
 				state.issuance_before.abs_diff(state.issuance_after),
 				state.after[idx],
 				state.issuance_after,
-				Price::new(state.share_price.0, state.share_price.1),
+				Price::new(state.share_prices[idx].0, state.share_prices[idx].1),
 			)
 			.map_err(|(_, e)| e)?;
 		}
@@ -915,6 +919,10 @@ where
 			state.delta.len() == pool_size,
 			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
 		);
+		ensure!(
+			state.share_prices.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
 
 		for idx in 0..pool_size {
 			OnActivityHandler::<Runtime>::on_trade(
@@ -925,7 +933,7 @@ where
 				0, // Correct
 				state.after[idx],
 				state.issuance_after,
-				Price::new(state.share_price.0, state.share_price.1),
+				Price::new(state.share_prices[idx].0, state.share_prices[idx].1),
 			)
 			.map_err(|(_, e)| e)?;
 		}
