@@ -293,8 +293,8 @@ fn test_share_price_case() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(BOB, asset_a, 1_000_000_000_000_000_000),
-			(ALICE, asset_a, 88555_000_000_000_000_000_000),
-			(ALICE, asset_b, 66537_000_000_000_000_000_000),
+			(ALICE, asset_a, 88_555_000_000_000_000_000_000),
+			(ALICE, asset_b, 66_537_000_000_000_000_000_000),
 		])
 		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 18)
 		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 18)
@@ -311,8 +311,8 @@ fn test_share_price_case() {
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
-					AssetAmount::new(asset_a, 88555_000_000_000_000_000_000),
-					AssetAmount::new(asset_b, 66537_000_000_000_000_000_000),
+					AssetAmount::new(asset_a, 88_555_000_000_000_000_000_000),
+					AssetAmount::new(asset_b, 66_537_000_000_000_000_000_000),
 				],
 			},
 		)
