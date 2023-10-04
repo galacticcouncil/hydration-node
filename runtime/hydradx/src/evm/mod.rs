@@ -164,7 +164,7 @@ impl pallet_evm_chain_id::Config for crate::Runtime {}
 
 parameter_types! {
 	pub DefaultBaseFeePerGas: U256 = U256::from(100_000_000);
-	pub DefaultElasticity: Permill = Permill::from_parts(125_000);
+	pub DefaultElasticity: Permill = Permill::zero();
 }
 
 impl pallet_base_fee::Config for crate::Runtime {
