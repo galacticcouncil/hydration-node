@@ -638,7 +638,7 @@ pub fn calculate_share_prices<const D: u8>(
 	let mut r = Vec::with_capacity(n);
 
 	for idx in 0..n {
-		let price = calculate_share_price::<D>(&balances, amplification, issuance, idx, Some(d))?;
+		let price = calculate_share_price::<D>(balances, amplification, issuance, idx, Some(d))?;
 		r.push(price);
 	}
 	Some(r)
