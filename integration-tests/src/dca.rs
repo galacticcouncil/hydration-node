@@ -1101,7 +1101,7 @@ mod stableswap {
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				CHARLIE.into(),
-				asset_b,
+				asset_a,
 				5000 * UNITS as i128,
 			));
 			assert_ok!(Stableswap::sell(
@@ -1909,7 +1909,7 @@ mod stableswap {
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				CHARLIE.into(),
-				asset_b,
+				asset_a,
 				5000 * UNITS as i128,
 			));
 			assert_ok!(Stableswap::sell(
@@ -2256,13 +2256,9 @@ pub fn count_failed_trade_events() -> u32 {
 }
 
 pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
-	let initial_liquidity = 1_000_000_000_000_000u128;
-	let liquidity_added = 300_000_000_000_000u128;
+	let initial_liquidity = 1_000_000_000_000_000_000_000u128;
 
 	let mut initial: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
-	let mut added_liquidity: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> =
-		vec![];
-
 	let mut asset_ids: Vec<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
 	for idx in 0u32..MAX_ASSETS_IN_POOL {
 		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
@@ -2274,16 +2270,9 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 			hydradx_runtime::RuntimeOrigin::root(),
 			AccountId::from(BOB),
 			asset_id,
-			1_000_000_000_000_000i128,
-		)?;
-		Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			AccountId::from(CHARLIE),
-			asset_id,
-			1_000_000_000_000_000_000_000i128,
+			initial_liquidity as i128,
 		)?;
 		initial.push(AssetAmount::new(asset_id, initial_liquidity));
-		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
 	}
 	let pool_id = AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
 
