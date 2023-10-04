@@ -3831,7 +3831,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "179.0.0"
+version = "180.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3905,6 +3905,7 @@ dependencies = [
  "pallet-utility",
  "pallet-xcm",
  "pallet-xcm-rate-limiter",
+ "pallet-xyk",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",
@@ -7777,6 +7778,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-xyk"
+version = "6.2.8"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "orml-utilities",
+ "pallet-asset-registry",
+ "parity-scale-codec",
+ "primitive-types",
+ "primitives",
+ "proptest",
+ "scale-info",
+ "serde",
+ "sp-api",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "parachain-info"
 version = "0.1.0"
 source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
@@ -10190,7 +10220,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.12.1"
+version = "1.12.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10256,6 +10286,7 @@ dependencies = [
  "pallet-uniques",
  "pallet-utility",
  "pallet-xcm",
+ "pallet-xyk",
  "parachain-info",
  "polkadot-parachain",
  "polkadot-primitives",

@@ -54,3 +54,6 @@ checksum:
 release: build checksum
 
 all: clippy build-benchmarks test-benchmarks test build checksum
+
+chopstics: release
+	npx @acala-network/chopsticks xcm --parachain=launch-configs/chopsticks/hydradx.yml --parachain=launch-configs/chopsticks/assethub.yml
