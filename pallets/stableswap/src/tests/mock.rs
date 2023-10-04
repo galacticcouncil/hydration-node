@@ -16,6 +16,7 @@
 // limitations under the License.
 
 //! Test environment for Assets pallet.
+#![allow(clippy::type_complexity)]
 
 use core::ops::RangeInclusive;
 use sp_runtime::DispatchResult;
