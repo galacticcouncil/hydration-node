@@ -612,11 +612,13 @@ pub(crate) fn normalize_value(amount: Balance, decimals: u8, target_decimals: u8
 	}
 	let diff = target_decimals.abs_diff(decimals);
 	if target_decimals > decimals {
-		amount.saturating_mul(10u128.pow(diff as u32))
+		amount.saturating_mul(10u128.saturating_pow(diff as u32))
 	} else {
 		match rounding {
-			Rounding::Down => amount.div(10u128.pow(diff as u32)),
-			Rounding::Up => amount.div(10u128.pow(diff as u32)).saturating_add(Balance::one()),
+			Rounding::Down => amount.div(10u128.saturating_pow(diff as u32)),
+			Rounding::Up => amount
+				.div(10u128.saturating_pow(diff as u32))
+				.saturating_add(Balance::one()),
 		}
 	}
 }
@@ -678,6 +680,17 @@ pub fn calculate_share_price<const D: u8>(
 
 	let num = p1.checked_add(p2)?.checked_sub(p3)?;
 	let denom = issuance.checked_mul(xann.checked_add(c)?)?;
+
+	let p_diff = U256::from(10u128.saturating_pow(18u8.saturating_sub(balances[asset_idx].decimals) as u32));
+	let (num, denom) = if let Some(v) = denom.checked_mul(p_diff) {
+		(num, v)
+	} else {
+		// Probably very unlikely scenario
+		// In case of overflow, we can just simply divide the numerator
+		// We loose little bit of precision but it is acceptable
+		let num = num.checked_div(p_diff)?;
+		(num, denom)
+	};
 	let (num, denom) = round_to_rational((num, denom), crate::support::rational::Rounding::Down);
 	//dbg!(FixedU128::checked_from_rational(num, denom));
 	Some((num, denom))

@@ -759,19 +759,37 @@ fn share_price() {
 
 	let issuance: Balance = 20_000_000_000_000_000_000_000;
 
-	let result = calculate_share_price::<D_ITERATIONS>(&balances, amp, issuance, None);
+	let result = calculate_share_price::<D_ITERATIONS>(&balances, amp, issuance, 0, None);
 
 	assert_eq!(
 		result,
-		Some((
-			81899584451764827264429748058319091796,
-			188369361026088431767835617065429687501
-		))
+		Some((74487238136284601991455700, 171320935829579349745322922049517444521))
 	);
 }
 
 #[test]
 fn share_price_01() {
+	let amp = 767_u128;
+	let balances: [AssetReserve; 2] = [
+		AssetReserve::new(88_555_000_000_000_000_000_000, 18),
+		AssetReserve::new(66_537_000_000_000_000_000_000, 18),
+	];
+
+	let issuance: Balance = 155090960889496000000000;
+
+	let result = calculate_share_price::<D_ITERATIONS>(&balances, amp, issuance, 0, None);
+
+	assert_eq!(
+		result,
+		Some((
+			306990873105158449836411708362502395175,
+			306938104415401205045813701852610681464
+		))
+	);
+}
+
+#[test]
+fn share_price_02() {
 	let amp = 767_u128;
 	let balances: [AssetReserve; 2] = [
 		AssetReserve::new(88_555_000_000, 6),
@@ -780,13 +798,10 @@ fn share_price_01() {
 
 	let issuance: Balance = 155090960889496000000000;
 
-	let result = calculate_share_price::<D_ITERATIONS>(&balances, amp, issuance, None);
+	let result = calculate_share_price::<D_ITERATIONS>(&balances, amp, issuance, 0, None);
 
 	assert_eq!(
 		result,
-		Some((
-			306990873105158449836411708362502395175,
-			306938104415401205045813701852610681464
-		))
+		Some((279206572581786940496760242, 279158579738033226972960348441675415837))
 	);
 }
