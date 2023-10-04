@@ -6,31 +6,25 @@ use pallet_evm::*;
 use sp_core::{blake2_256, H160, H256, U256};
 use std::borrow::Cow;
 use xcm_emulator::TestExt;
-type CurrencyPrecompile = MultiCurrencyPrecompile<hydradx_runtime::Runtime>;
 use crate::assert_balance;
 use fp_evm::{Context, Transfer};
 use frame_support::assert_ok;
 use frame_support::codec::Encode;
-use frame_support::dispatch::{DispatchInfo, GetDispatchInfo, Weight};
-use frame_support::traits::StorePreimage;
-use frame_support::traits::{Contains, IsType};
+use frame_support::dispatch::GetDispatchInfo;
+use frame_support::traits::Contains;
 use hex_literal::hex;
 use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
 use hydradx_runtime::evm::precompile::{Address, Bytes, EvmAddress};
 use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
 use hydradx_runtime::Balances;
 use hydradx_runtime::Currencies;
-use hydradx_runtime::{AssetRegistry, WeightToFee};
+use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::{CallFilter, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM};
 use orml_traits::MultiCurrency;
-use pallet_asset_registry::AssetMetadata;
 use pretty_assertions::assert_eq;
-use sp_core::crypto::AccountId32;
 use sp_runtime::traits::SignedExtension;
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 use frame_system::RawOrigin;
-use hydradx_runtime::Omnipool;
-use pallet_omnipool::WeightInfo;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 
@@ -150,7 +144,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), HDX, b"xHDX".to_vec(), 12u8);
+			AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), HDX, b"xHDX".to_vec(), 12u8).unwrap();
 
 			let data = EvmDataWriter::new_with_selector(Action::Symbol).build();
 
@@ -186,7 +180,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), HDX, b"xHDX".to_vec(), 12u8);
+			AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), HDX, b"xHDX".to_vec(), 12u8).unwrap();
 
 			let data = EvmDataWriter::new_with_selector(Action::Decimals).build();
 
@@ -277,7 +271,6 @@ mod currency_precompile {
 				.write(Address::from(evm_address()))
 				.build();
 
-			let alice = alice_evm_addr();
 			let mut handle = MockHandle {
 				input: data,
 				context: Context {
@@ -720,32 +713,6 @@ pub fn init_omnipol() {
 		hydradx_runtime::Treasury::account_id(),
 		TREASURY_ACCOUNT_INIT_BALANCE,
 		0,
-	));
-}
-
-fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {
-	assert_ok!(Tokens::set_balance(
-		RawOrigin::Root.into(),
-		CHARLIE.into(),
-		LRNA,
-		1000000000000 * UNITS,
-		0,
-	));
-
-	assert_ok!(Omnipool::sell(
-		hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
-		LRNA,
-		asset_1,
-		amount,
-		Balance::MIN
-	));
-
-	assert_ok!(Omnipool::sell(
-		hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
-		LRNA,
-		asset_2,
-		amount,
-		Balance::MIN
 	));
 }
 
