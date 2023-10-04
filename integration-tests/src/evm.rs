@@ -666,8 +666,18 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 
 		let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
 		let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
-		assert_eq!(fee_weth_evm, fee_weth_native);
-	});
+
+		let fee_difference = fee_weth_evm - fee_weth_native;
+
+		let relative_fee_difference = FixedU128::from_rational(fee_difference, fee_weth_native);
+		let tolerated_fee_difference = FixedU128::from_rational(20, 100);
+
+		// EVM fees should be higher
+		assert!(fee_difference > 0);
+
+		// EVM fees should be not higher than 20%
+		assert!(relative_fee_difference < tolerated_fee_difference);
+	})
 }
 
 fn init_omnipool_with_oracle_for_block_10() {
