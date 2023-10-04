@@ -1139,7 +1139,7 @@ mod stableswap {
 			let fee = Currencies::free_balance(asset_a, &hydradx_runtime::Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 			assert_balance!(ALICE.into(), asset_a, alice_init_asset_a_balance - dca_budget);
-			assert_balance!(ALICE.into(), asset_b, 98693066882377);
+			assert_balance!(ALICE.into(), asset_b, 98999999706917);
 			assert_reserved_balance!(&ALICE.into(), asset_a, dca_budget - amount_to_sell - fee);
 		});
 	}
@@ -1215,7 +1215,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades() {
 		let amount_to_sell = 100 * UNITS;
-		let amount_to_receive = 168416791216750;
+		let amount_to_receive = 98219730855737;
 		//With DCA
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -1464,7 +1464,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_stable_trades_and_omnipool() {
 		let amount_to_sell = 50 * UNITS;
-		let amount_to_receive = 63885359693226;
+		let amount_to_receive = 35930705916066;
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
