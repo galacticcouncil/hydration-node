@@ -10,7 +10,10 @@ use hydradx_runtime::{
 	AmmWeights, AssetRegistry, BlockNumber, Currencies, Omnipool, Router, Runtime, RuntimeOrigin, Stableswap, LBP, XYK,
 };
 use hydradx_traits::Registry;
-use hydradx_traits::{router::PoolType, AMM};
+use hydradx_traits::{
+	router::{PoolType, Trade},
+	AMM,
+};
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_lbp::WeightCurveType;
 use pallet_omnipool::traits::OmnipoolHooks;
