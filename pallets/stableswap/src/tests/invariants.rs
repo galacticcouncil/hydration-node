@@ -92,7 +92,7 @@ proptest! {
 				));
 				let final_shares = Tokens::total_issuance(&pool_id);
 				let delta_s = final_shares - initial_shares;
-				let exec_price = FixedU128::from_rational(added_liquidity * 1_000_000, delta_s);
+				let exec_price = FixedU128::from_rational(added_liquidity , delta_s);
 				assert!(share_price_initial <= exec_price);
 
 				let share_price_initial = get_share_price(pool_id, 0);
@@ -106,7 +106,7 @@ proptest! {
 				));
 				let a_final = Tokens::free_balance(asset_a, &pool_account);
 				let delta_a = a_initial - a_final;
-				let exec_price = FixedU128::from_rational(delta_a *1_000_000, delta_s);
+				let exec_price = FixedU128::from_rational(delta_a, delta_s);
 				assert!(share_price_initial >= exec_price);
 			});
 	}
