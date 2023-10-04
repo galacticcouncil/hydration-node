@@ -525,7 +525,7 @@ fn dispatch_should_work_with_transfer() {
 			data,
 			U256::from(0),
 			1000000,
-			gwei(1),
+			gas_price(),
 			None,
 			Some(U256::zero()),
 			[].into()
@@ -545,7 +545,6 @@ fn dispatch_should_respect_call_filter() {
 		let balance = Tokens::free_balance(WETH, &evm_account());
 		let amount = 1 * 10u128.pow(16);
 		let gas_limit = 1000000;
-		let gas_price = gwei(1);
 		let transfer_call = RuntimeCall::Tokens(orml_tokens::Call::transfer {
 			dest: ALICE.into(),
 			currency_id: WETH,
@@ -567,7 +566,7 @@ fn dispatch_should_respect_call_filter() {
 			transfer_call.encode(),
 			U256::from(0),
 			gas_limit,
-			gas_price,
+			gas_price(),
 			None,
 			Some(U256::zero()),
 			[].into(),
@@ -579,7 +578,7 @@ fn dispatch_should_respect_call_filter() {
 		assert!(new_balance > balance - amount, "more than fee was taken from account");
 		assert_eq!(
 			new_balance,
-			balance - (U256::from(gas_limit) * gas_price).as_u128(),
+			balance - (U256::from(gas_limit) * gas_price()).as_u128(),
 			"gas limit was not charged"
 		);
 		assert_eq!(
@@ -632,8 +631,6 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			});
 
 		let gas_limit = 1000000;
-		let gas_price = gwei(1);
-
 		//Execute omnipool via EVM
 		assert_ok!(EVM::call(
 			evm_signed_origin(evm_address()),
@@ -642,7 +639,7 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			omni_sell.encode(),
 			U256::from(0),
 			gas_limit,
-			gas_price,
+			gas_price(),
 			None,
 			Some(U256::zero()),
 			[].into(),
@@ -756,8 +753,8 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 
 const DISPATCH_ADDR: H160 = addr(1025);
 
-fn gwei(value: u128) -> U256 {
-	U256::from(value) * U256::from(10_u128.pow(9))
+fn gas_price() -> U256 {
+	U256::from(10_u128.pow(8))
 }
 
 fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
