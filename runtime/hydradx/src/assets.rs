@@ -306,7 +306,7 @@ impl pallet_ema_oracle::Config for Runtime {
 	type SupportedPeriods = SupportedPeriods;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 40 seems a decent upper bound for the forseeable future.
-	/// 
+	///
 	type MaxUniqueEntries = ConstU32<40>;
 }
 
