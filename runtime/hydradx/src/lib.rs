@@ -174,8 +174,7 @@ construct_runtime!(
 		// Frontier
 		EVM: pallet_evm = 90,
 		EVMChainId: pallet_evm_chain_id = 91,
-		BaseFee: pallet_base_fee = 92,
-		Ethereum: pallet_ethereum = 93,
+		Ethereum: pallet_ethereum = 92,
 
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
@@ -497,7 +496,7 @@ impl_runtime_apis! {
 		}
 
 		fn elasticity() -> Option<Permill> {
-			Some(BaseFee::elasticity())
+			None
 		}
 
 		fn gas_limit_multiplier_support() {}

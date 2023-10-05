@@ -33,14 +33,13 @@ use frame_support::{
 };
 use hex_literal::hex;
 use orml_tokens::CurrencyAdapter;
-use pallet_evm::EnsureAddressTruncated;
+use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
 use polkadot_xcm::latest::MultiLocation;
 use polkadot_xcm::prelude::{AccountKey20, PalletInstance, Parachain, X3};
 use primitives::{AccountId, AssetId};
 use sp_core::{Get, U256};
 use sp_runtime::traits::Convert;
-use sp_runtime::Permill;
 
 mod accounts_conversion;
 pub mod precompile;
@@ -56,22 +55,7 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
-pub struct BaseFeeThreshold;
-
-// Increase fees if block is >50% full
-impl pallet_base_fee::BaseFeeThreshold for BaseFeeThreshold {
-	fn lower() -> Permill {
-		Permill::zero()
-	}
-
-	fn ideal() -> Permill {
-		Permill::from_parts(500_000)
-	}
-
-	fn upper() -> Permill {
-		Permill::from_parts(1_000_000)
-	}
-}
+const DEFAULT_BASE_FEE_PER_GAS: u128 = 100_000_000;
 
 pub const GAS_TO_WEIGHT_RATIO: u64 = 9000;
 
@@ -140,6 +124,14 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 	}
 }
 
+pub struct FixedGasPrice;
+impl FeeCalculator for FixedGasPrice {
+	fn min_gas_price() -> (U256, Weight) {
+		// Return some meaningful gas price and weight
+		(DEFAULT_BASE_FEE_PER_GAS.into(), Weight::from_parts(7u64, 0))
+	}
+}
+
 impl pallet_evm::Config for crate::Runtime {
 	type AddressMapping = ExtendedAddressMapping;
 	type BlockGasLimit = BlockGasLimit;
@@ -147,7 +139,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type CallOrigin = EnsureAddressTruncated;
 	type ChainId = crate::EVMChainId;
 	type Currency = WethCurrency;
-	type FeeCalculator = crate::BaseFee;
+	type FeeCalculator = FixedGasPrice;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type OnChargeTransaction = TransferEvmFees<DealWithFees>;
@@ -161,18 +153,6 @@ impl pallet_evm::Config for crate::Runtime {
 }
 
 impl pallet_evm_chain_id::Config for crate::Runtime {}
-
-parameter_types! {
-	pub DefaultBaseFeePerGas: U256 = U256::from(100_000_000);
-	pub DefaultElasticity: Permill = Permill::zero();
-}
-
-impl pallet_base_fee::Config for crate::Runtime {
-	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
-	type DefaultElasticity = DefaultElasticity;
-	type RuntimeEvent = crate::RuntimeEvent;
-	type Threshold = BaseFeeThreshold;
-}
 
 impl pallet_ethereum::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;

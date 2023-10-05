@@ -220,7 +220,6 @@ fp-dynamic-fee = { git = "https://github.com/PureStake/frontier", branch = "moon
 fp-self-contained = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 fp-storage = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 
-pallet-base-fee = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 pallet-ethereum = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 pallet-evm = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 pallet-evm-chain-id = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }

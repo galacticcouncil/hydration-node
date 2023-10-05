@@ -4285,7 +4285,6 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
- "pallet-base-fee",
  "pallet-bonds",
  "pallet-circuit-breaker",
  "pallet-claims",
@@ -6819,20 +6818,6 @@ dependencies = [
  "scale-info",
  "sp-runtime",
  "sp-std 5.0.0",
-]
-
-[[package]]
-name = "pallet-base-fee"
-version = "1.0.0"
-source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
-dependencies = [
- "fp-evm 3.0.0-dev (git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38)",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
 ]
 
 [[package]]
