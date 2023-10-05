@@ -749,7 +749,7 @@ fn calculate_exact_amount_of_shares_with_fee() {
 }
 
 #[test]
-fn share_price() {
+fn share_price_calculation_should_work_with_different_decimals() {
 	let amp = 100_u128;
 	let balances: [AssetReserve; 3] = [
 		AssetReserve::new(1_000_000_000, 6),
