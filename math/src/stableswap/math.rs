@@ -685,9 +685,10 @@ pub fn calculate_share_price<const D: u8>(
 	let (num, denom) = if let Some(v) = denom.checked_mul(p_diff) {
 		(num, v)
 	} else {
-		// Probably very unlikely scenario
+		// Rare scenario
 		// In case of overflow, we can just simply divide the numerator
 		// We loose little bit of precision but it is acceptable
+		// Can be with asset with 6 decimals.
 		let num = num.checked_div(p_diff)?;
 		(num, denom)
 	};
@@ -703,6 +704,9 @@ pub fn calculate_spot_price(
 	asset_idx: usize,
 ) -> Option<(Balance, Balance)> {
 	let n = balances.len();
+	if n <= 1 || asset_idx > n {
+		return None;
+	}
 	let ann = calculate_ann(n, amplification)?;
 
 	let mut reserves = normalize_reserves(balances);
