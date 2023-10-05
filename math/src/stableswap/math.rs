@@ -762,7 +762,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_spot_price() {
+	fn spot_price_calculation_should_work_with_12_decimals() {
 		let reserves = vec![
 			AssetReserve::new(478_626_000_000_000_000_000, 12),
 			AssetReserve::new(487_626_000_000_000_000_000, 12),
