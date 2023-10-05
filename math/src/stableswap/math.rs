@@ -675,7 +675,7 @@ pub fn calculate_share_price<const D: u8>(
 
 	let xann = xi.checked_mul(ann)?;
 	let p1 = d.checked_mul(xann)?;
-	let p2 = xi.checked_mul(c)?.checked_mul(n + 1)?;
+	let p2 = xi.checked_mul(c)?.checked_mul(n.saturating_add(U256::one()))?;
 	let p3 = xi.checked_mul(d)?;
 
 	let num = p1.checked_add(p2)?.checked_sub(p3)?;
