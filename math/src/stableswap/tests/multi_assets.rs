@@ -789,7 +789,7 @@ fn share_price_calculation_should_work_with_18_decimals() {
 }
 
 #[test]
-fn share_price_02() {
+fn share_price_calculation_should_work_with_6_decimals() {
 	let amp = 767_u128;
 	let balances: [AssetReserve; 2] = [
 		AssetReserve::new(88_555_000_000, 6),
