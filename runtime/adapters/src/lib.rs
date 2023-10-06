@@ -28,11 +28,14 @@ use frame_support::{
 	traits::{Contains, LockIdentifier, OriginTrait},
 	weights::{Weight, WeightToFee},
 };
+use hydra_dx_math::support::rational::round_u512_to_rational;
 use hydra_dx_math::{
 	ema::EmaPrice,
+	ensure,
 	omnipool::types::BalanceUpdate,
 	support::rational::{round_to_rational, Rounding},
 };
+use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::{
 	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
 	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
@@ -41,11 +44,14 @@ use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
+use pallet_stableswap::types::{PoolState, StableswapHooks};
 use pallet_transaction_multi_payment::DepositFee;
 use polkadot_xcm::latest::prelude::*;
-use primitive_types::U128;
+use primitive_types::{U128, U512};
+use primitives::constants::chain::STABLESWAP_SOURCE;
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::BlockNumberProvider;
+use sp_std::vec::Vec;
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
 use warehouse_liquidity_mining::GlobalFarmData;
 use xcm_builder::TakeRevenue;
@@ -340,6 +346,7 @@ where
 			*asset.delta_changes.delta_hub_reserve,
 			asset.after.reserve,
 			asset.after.hub_reserve,
+			Price::new(asset.after.reserve, asset.after.hub_reserve),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -376,6 +383,7 @@ where
 			*asset_in.delta_changes.delta_hub_reserve,
 			asset_in.after.reserve,
 			asset_in.after.hub_reserve,
+			Price::new(asset_in.after.reserve, asset_in.after.hub_reserve),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -387,6 +395,7 @@ where
 			*asset_out.delta_changes.delta_reserve,
 			asset_out.after.hub_reserve,
 			asset_out.after.reserve,
+			Price::new(asset_out.after.hub_reserve, asset_out.after.reserve),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -414,6 +423,7 @@ where
 			*asset.delta_changes.delta_reserve,
 			asset.after.hub_reserve,
 			asset.after.reserve,
+			Price::new(asset.after.hub_reserve, asset.after.reserve),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -473,43 +483,96 @@ where
 	}
 }
 
-pub struct OraclePriceProviderAdapterForOmnipool<AssetId, AggregatedPriceGetter, Lrna>(
+pub struct OraclePriceProvider<AssetId, AggregatedPriceGetter, Lrna>(
 	PhantomData<(AssetId, AggregatedPriceGetter, Lrna)>,
 );
 
 impl<AssetId, AggregatedPriceGetter, Lrna> PriceOracle<AssetId>
-	for OraclePriceProviderAdapterForOmnipool<AssetId, AggregatedPriceGetter, Lrna>
+	for OraclePriceProvider<AssetId, AggregatedPriceGetter, Lrna>
 where
 	u32: From<AssetId>,
 	AggregatedPriceGetter: AggregatedPriceOracle<AssetId, BlockNumber, EmaPrice, Error = OracleError>,
 	Lrna: Get<AssetId>,
+	AssetId: Clone + Copy,
 {
 	type Price = EmaPrice;
 
-	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<EmaPrice> {
-		let price_asset_a_lrna = AggregatedPriceGetter::get_price(asset_a, Lrna::get(), period, OMNIPOOL_SOURCE);
+	/// We calculate prices for trade (in a route) then making the product of them
+	fn price(route: &[Trade<AssetId>], period: OraclePeriod) -> Option<EmaPrice> {
+		let mut prices: Vec<EmaPrice> = Vec::with_capacity(route.len());
+		for trade in route {
+			let asset_a = trade.asset_in;
+			let asset_b = trade.asset_out;
+			let price = match trade.pool {
+				PoolType::Omnipool => {
+					let price_asset_a_lrna =
+						AggregatedPriceGetter::get_price(asset_a, Lrna::get(), period, OMNIPOOL_SOURCE);
 
-		let price_asset_a_lrna = match price_asset_a_lrna {
-			Ok(price) => price.0,
-			Err(OracleError::SameAsset) => EmaPrice::from(1),
-			Err(_) => return None,
-		};
+					let price_asset_a_lrna = match price_asset_a_lrna {
+						Ok(price) => price.0,
+						Err(OracleError::SameAsset) => EmaPrice::from(1),
+						Err(_) => return None,
+					};
 
-		let price_lrna_asset_b = AggregatedPriceGetter::get_price(Lrna::get(), asset_b, period, OMNIPOOL_SOURCE);
+					let price_lrna_asset_b =
+						AggregatedPriceGetter::get_price(Lrna::get(), asset_b, period, OMNIPOOL_SOURCE);
 
-		let price_lrna_asset_b = match price_lrna_asset_b {
-			Ok(price) => price.0,
-			Err(OracleError::SameAsset) => EmaPrice::from(1),
-			Err(_) => return None,
-		};
+					let price_lrna_asset_b = match price_lrna_asset_b {
+						Ok(price) => price.0,
+						Err(OracleError::SameAsset) => EmaPrice::from(1),
+						Err(_) => return None,
+					};
 
-		let nominator = U128::full_mul(price_asset_a_lrna.n.into(), price_lrna_asset_b.n.into());
-		let denominator = U128::full_mul(price_asset_a_lrna.d.into(), price_lrna_asset_b.d.into());
+					let nominator = U128::full_mul(price_asset_a_lrna.n.into(), price_lrna_asset_b.n.into());
+					let denominator = U128::full_mul(price_asset_a_lrna.d.into(), price_lrna_asset_b.d.into());
 
-		let rational_as_u128 = round_to_rational((nominator, denominator), Rounding::Nearest);
-		let price_in_ema_price = EmaPrice::new(rational_as_u128.0, rational_as_u128.1);
+					let rational_as_u128 = round_to_rational((nominator, denominator), Rounding::Nearest);
 
-		Some(price_in_ema_price)
+					EmaPrice::new(rational_as_u128.0, rational_as_u128.1)
+				}
+				PoolType::Stableswap(pool_id) => {
+					let price_asset_a_vs_share =
+						AggregatedPriceGetter::get_price(asset_a, pool_id, period, STABLESWAP_SOURCE);
+
+					let price_asset_a_vs_share = match price_asset_a_vs_share {
+						Ok(price) => price.0,
+						Err(OracleError::SameAsset) => EmaPrice::from(1),
+						Err(_) => return None,
+					};
+
+					let price_share_vs_asset_b =
+						AggregatedPriceGetter::get_price(pool_id, asset_b, period, STABLESWAP_SOURCE);
+
+					let price_share_vs_asset_b = match price_share_vs_asset_b {
+						Ok(price) => price.0,
+						Err(OracleError::SameAsset) => EmaPrice::from(1),
+						Err(_) => return None,
+					};
+
+					let nominator = U128::full_mul(price_asset_a_vs_share.n.into(), price_share_vs_asset_b.n.into());
+					let denominator = U128::full_mul(price_asset_a_vs_share.d.into(), price_share_vs_asset_b.d.into());
+
+					let rational_as_u128 = round_to_rational((nominator, denominator), Rounding::Nearest);
+
+					EmaPrice::new(rational_as_u128.0, rational_as_u128.1)
+				}
+				_ => return None,
+			};
+
+			prices.push(price);
+		}
+
+		let nominator = prices
+			.iter()
+			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
+
+		let denominator = prices
+			.iter()
+			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
+
+		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
+
+		Some(EmaPrice::new(rat_as_u128.0, rat_as_u128.1))
 	}
 }
 
@@ -787,5 +850,102 @@ where
 				None => Zero::zero(),
 			}
 		}
+	}
+}
+
+/// Passes on trade and liquidity changed data from the stableswap to the oracle.
+pub struct StableswapHooksAdapter<Runtime>(PhantomData<Runtime>);
+
+impl<Runtime> StableswapHooks<AssetId> for StableswapHooksAdapter<Runtime>
+where
+	Runtime: pallet_ema_oracle::Config + pallet_stableswap::Config,
+{
+	fn on_liquidity_changed(pool_id: AssetId, state: PoolState<AssetId>) -> DispatchResult {
+		let pool_size = state.assets.len();
+
+		// As we access by index, let's ensure correct vec lengths.
+		ensure!(
+			state.before.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+		ensure!(
+			state.after.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+		ensure!(
+			state.delta.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+		ensure!(
+			state.share_prices.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+
+		for idx in 0..pool_size {
+			OnActivityHandler::<Runtime>::on_liquidity_changed(
+				STABLESWAP_SOURCE,
+				state.assets[idx],
+				pool_id,
+				state.delta[idx],
+				state.issuance_before.abs_diff(state.issuance_after),
+				state.after[idx],
+				state.issuance_after,
+				Price::new(state.share_prices[idx].0, state.share_prices[idx].1),
+			)
+			.map_err(|(_, e)| e)?;
+		}
+
+		Ok(())
+	}
+
+	fn on_trade(
+		pool_id: AssetId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		state: PoolState<AssetId>,
+	) -> DispatchResult {
+		let pool_size = state.assets.len();
+
+		// As we access by index, let's ensure correct vec lengths.
+		ensure!(
+			state.before.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+		ensure!(
+			state.after.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+		ensure!(
+			state.delta.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+		ensure!(
+			state.share_prices.len() == pool_size,
+			pallet_stableswap::Error::<Runtime>::IncorrectAssets.into()
+		);
+
+		for idx in 0..pool_size {
+			OnActivityHandler::<Runtime>::on_trade(
+				STABLESWAP_SOURCE,
+				state.assets[idx],
+				pool_id,
+				state.delta[idx],
+				0, // Correct
+				state.after[idx],
+				state.issuance_after,
+				Price::new(state.share_prices[idx].0, state.share_prices[idx].1),
+			)
+			.map_err(|(_, e)| e)?;
+		}
+
+		Ok(())
+	}
+
+	fn on_liquidity_changed_weight(n: usize) -> Weight {
+		OnActivityHandler::<Runtime>::on_liquidity_changed_weight().saturating_mul(n as u64)
+	}
+
+	fn on_trade_weight(n: usize) -> Weight {
+		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(n as u64)
 	}
 }

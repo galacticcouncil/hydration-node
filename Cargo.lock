@@ -3689,7 +3689,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.6.1"
+version = "7.6.2"
 dependencies = [
  "approx",
  "criterion",
@@ -3786,7 +3786,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -3810,6 +3810,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-route-executor",
+ "pallet-stableswap",
  "pallet-staking 1.0.1",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
@@ -3936,7 +3937,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.6.0"
+version = "2.6.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6597,7 +6598,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6776,7 +6777,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7293,7 +7294,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7386,7 +7387,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.1.2"
+version = "3.3.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7778,7 +7779,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.2.8"
+version = "6.2.9"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9466,7 +9467,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.8.4"
+version = "5.8.5"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
