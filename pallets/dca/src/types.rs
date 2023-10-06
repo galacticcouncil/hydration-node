@@ -1,5 +1,5 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use hydradx_traits::router::Trade;
+use hydradx_traits::router::{RouteProvider, Trade};
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
@@ -69,5 +69,22 @@ where
 			Order::Buy { asset_out, .. } => asset_out,
 		};
 		*asset_out
+	}
+
+	pub fn get_route(&self) -> &BoundedVec<Trade<AssetId>, ConstU32<5>> {
+		match &self {
+			Order::Sell { route, .. } => route,
+			Order::Buy { route, .. } => route,
+		}
+	}
+
+	pub fn get_route_or_default(
+		&self,
+		default_provider: impl RouteProvider<AssetId>,
+	) -> &BoundedVec<Trade<AssetId>, ConstU32<5>> {
+		match &self {
+			Order::Sell { route, .. } => route,
+			Order::Buy { route, .. } => route,
+		}
 	}
 }

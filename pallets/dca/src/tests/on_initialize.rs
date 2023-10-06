@@ -534,8 +534,7 @@ fn full_buy_should_be_completed_when_with_default_routes() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount =
-				CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + BUY_DCA_FEE_IN_NATIVE + BUY_DCA_FEE_IN_NATIVE / 2;
+			let total_amount = 3 * CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;
 			let amount_to_buy = 10 * ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -555,13 +554,13 @@ fn full_buy_should_be_completed_when_with_default_routes() {
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
-			proceed_to_blocknumber(501, 801);
+			proceed_to_blocknumber(501, 1001);
 
 			//Assert
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
-			assert_number_of_executed_buy_trades!(1);
-			assert_balance!(ALICE, BTC, CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY);
+			assert_number_of_executed_buy_trades!(2);
+			assert_balance!(ALICE, BTC, 2 * CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY);
 
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
