@@ -27,6 +27,7 @@ pallet-uniques = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-currencies = { workspace = true }
+pallet-stableswap = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }

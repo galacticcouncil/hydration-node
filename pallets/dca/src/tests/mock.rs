@@ -28,7 +28,7 @@ use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{AssetKind, OraclePeriod, PriceOracle, Registry};
+use hydradx_traits::{AssetKind, NativePriceOracle, OraclePeriod, PriceOracle, Registry};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
@@ -586,22 +586,11 @@ pub struct PriceProviderMock {}
 impl PriceOracle<AssetId> for PriceProviderMock {
 	type Price = Ratio;
 
-	fn price(_: AssetId, _: AssetId, _: OraclePeriod) -> Option<Ratio> {
+	fn price(_: &[Trade<AssetId>], period: OraclePeriod) -> Option<Ratio> {
+		if period == OraclePeriod::Short {
+			return Some(Ratio::new(80, 100));
+		}
 		Some(Ratio::new(88, 100))
-	}
-}
-
-pub struct SpotPriceProviderMock {}
-
-impl SpotPriceProvider<AssetId> for SpotPriceProviderMock {
-	type Price = FixedU128;
-
-	fn pair_exists(_: AssetId, _: AssetId) -> bool {
-		todo!()
-	}
-
-	fn spot_price(_: AssetId, _: AssetId) -> Option<Self::Price> {
-		Some(FixedU128::from_rational(80, 100))
 	}
 }
 
@@ -640,7 +629,6 @@ impl Config for Test {
 	type WeightToFee = IdentityFee<Balance>;
 	type WeightInfo = ();
 	type OraclePriceProvider = PriceProviderMock;
-	type SpotPriceProvider = SpotPriceProviderMock;
 	type Router = RouteExecutor;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
 	type NamedReserveId = NamedReserveId;
@@ -649,6 +637,15 @@ impl Config for Test {
 	type RelayChainBlockHashProvider = ParentHashGetterMock;
 	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
+	type NativePriceOracle = NativePriceOracleMock;
+}
+
+pub struct NativePriceOracleMock;
+
+impl NativePriceOracle<AssetId, FixedU128> for NativePriceOracleMock {
+	fn price(_: AssetId) -> Option<FixedU128> {
+		Some(FixedU128::from_rational(88, 100))
+	}
 }
 
 pub struct ParentHashGetterMock {}
@@ -665,8 +662,7 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::pools::SpotPriceProvider;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, Trade, TradeExecution};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
 use rand::SeedableRng;

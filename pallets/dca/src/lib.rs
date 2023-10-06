@@ -73,22 +73,19 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::{OraclePeriod, PriceOracle};
-use orml_traits::arithmetic::CheckedAdd;
-use orml_traits::MultiCurrency;
-use orml_traits::NamedMultiReservableCurrency;
+use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
+use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use sp_runtime::traits::CheckedMul;
-use sp_runtime::traits::One;
+use sp_runtime::traits::{CheckedMul, One};
 use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill,
 };
 use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};
+
 #[cfg(test)]
 mod tests;
 
@@ -116,8 +113,7 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::pools::SpotPriceProvider;
-	use hydradx_traits::PriceOracle;
+	use hydradx_traits::{NativePriceOracle, PriceOracle};
 	use orml_traits::NamedMultiReservableCurrency;
 
 	#[pallet::pallet]
@@ -225,8 +221,8 @@ pub mod pallet {
 		///Oracle price provider to get the price between two assets
 		type OraclePriceProvider: PriceOracle<Self::AssetId, Price = EmaPrice>;
 
-		///Spot price provider to get the current price between two asset
-		type SpotPriceProvider: SpotPriceProvider<Self::AssetId, Price = FixedU128>;
+		///Native price provider to get the price of assets that are accepted as fees
+		type NativePriceOracle: NativePriceOracle<Self::AssetId, FixedU128>;
 
 		///Router implementation
 		type Router: RouterT<Self::RuntimeOrigin, Self::AssetId, Balance, Trade<Self::AssetId>, AmountInAndOut<Balance>>;
@@ -635,9 +631,10 @@ impl<T: Config> Pallet<T> {
 
 				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
 
+				let route_for_slippage = reverse_route(route.to_vec());
 				let (estimated_amount_out, slippage_amount) =
-					Self::calculate_last_block_slippage(*asset_out, *asset_in, amount_to_sell, schedule.slippage)?;
-				let last_block_slippage_min_limit: Balance = estimated_amount_out
+					Self::calculate_last_block_slippage(&route_for_slippage, amount_to_sell, schedule.slippage)?;
+				let last_block_slippage_min_limit = estimated_amount_out
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
@@ -674,7 +671,7 @@ impl<T: Config> Pallet<T> {
 				Self::unallocate_amount(schedule_id, schedule, amount_in)?;
 
 				let (estimated_amount_in, slippage_amount) =
-					Self::calculate_last_block_slippage(*asset_in, *asset_out, *amount_out, schedule.slippage)?;
+					Self::calculate_last_block_slippage(route, *amount_out, schedule.slippage)?;
 				let last_block_slippage_max_limit = estimated_amount_in
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
@@ -778,13 +775,15 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn is_price_unstable(schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>) -> bool {
-		let asset_a = schedule.order.get_asset_in();
-		let asset_b = schedule.order.get_asset_out();
-		let Some(current_price) = T::SpotPriceProvider::spot_price(asset_a, asset_b) else {
+		let route = match &schedule.order {
+			Order::Sell { route, .. } | Order::Buy { route, .. } => route,
+		};
+
+		let Ok(last_block_price) = Self::get_price_from_last_block_oracle(route) else {
 			return true;
 		};
 
-		let Ok(price_from_short_oracle) = Self::get_price_from_short_oracle(asset_a, asset_b) else {
+		let Ok(price_from_short_oracle) = Self::get_price_from_short_oracle(route) else {
    			return true;
 		};
 
@@ -794,7 +793,7 @@ impl<T: Config> Pallet<T> {
 
 		let max_allowed = FixedU128::from(max_allowed_diff);
 
-		let Some(price_sum) = current_price
+		let Some(price_sum) = last_block_price
 			.checked_add(&price_from_short_oracle) else {
 			return true;
 		};
@@ -808,10 +807,10 @@ impl<T: Config> Pallet<T> {
 				return true;
 		};
 
-		let diff = if current_price > price_from_short_oracle {
-			current_price.saturating_sub(price_from_short_oracle)
+		let diff = if last_block_price > price_from_short_oracle {
+			last_block_price.saturating_sub(price_from_short_oracle)
 		} else {
-			price_from_short_oracle.saturating_sub(current_price)
+			price_from_short_oracle.saturating_sub(last_block_price)
 		};
 
 		let Some(diff) = diff.checked_mul(&FixedU128::from(2)) else {
@@ -988,12 +987,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn calculate_last_block_slippage(
-		asset_a: T::AssetId,
-		asset_b: T::AssetId,
+		route: &[Trade<T::AssetId>],
 		amount: Balance,
 		slippage: Option<Permill>,
 	) -> Result<(Balance, Balance), DispatchError> {
-		let price = Self::get_price_from_last_block_oracle(asset_a, asset_b)?;
+		let price = Self::get_price_from_last_block_oracle(route)?;
 
 		let estimated_amount = price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
@@ -1027,7 +1025,7 @@ impl<T: Config> Pallet<T> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
-			let price = Self::get_price_from_last_block_oracle(asset_id, T::NativeAssetId::get())?;
+			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 
 			price.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
 		};
@@ -1035,9 +1033,9 @@ impl<T: Config> Pallet<T> {
 		Ok(amount)
 	}
 
-	fn get_price_from_last_block_oracle(asset_a: T::AssetId, asset_b: T::AssetId) -> Result<FixedU128, DispatchError> {
-		let price = T::OraclePriceProvider::price(asset_a, asset_b, OraclePeriod::LastBlock)
-			.ok_or(Error::<T>::CalculatingPriceError)?;
+	fn get_price_from_last_block_oracle(route: &[Trade<T::AssetId>]) -> Result<FixedU128, DispatchError> {
+		let price =
+			T::OraclePriceProvider::price(route, OraclePeriod::LastBlock).ok_or(Error::<T>::CalculatingPriceError)?;
 
 		let price_from_rational =
 			FixedU128::checked_from_rational(price.n, price.d).ok_or(ArithmeticError::Overflow)?;
@@ -1045,9 +1043,11 @@ impl<T: Config> Pallet<T> {
 		Ok(price_from_rational)
 	}
 
-	fn get_price_from_short_oracle(asset_a: T::AssetId, asset_b: T::AssetId) -> Result<FixedU128, DispatchError> {
-		let price = T::OraclePriceProvider::price(asset_a, asset_b, OraclePeriod::Short)
-			.ok_or(Error::<T>::CalculatingPriceError)?;
+	fn get_price_from_short_oracle(
+		route: &BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
+	) -> Result<FixedU128, DispatchError> {
+		let price =
+			T::OraclePriceProvider::price(route, OraclePeriod::Short).ok_or(Error::<T>::CalculatingPriceError)?;
 
 		let price_from_rational =
 			FixedU128::checked_from_rational(price.n, price.d).ok_or(ArithmeticError::Overflow)?;
@@ -1082,4 +1082,18 @@ impl<T: Config> RandomnessProvider for Pallet<T> {
 
 		Ok(rand::rngs::StdRng::seed_from_u64(seed))
 	}
+}
+
+fn reverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
+	trades
+		.into_iter()
+		.map(|trade| Trade {
+			pool: trade.pool,
+			asset_in: trade.asset_out,
+			asset_out: trade.asset_in,
+		})
+		.collect::<Vec<Trade<AssetId>>>()
+		.into_iter()
+		.rev()
+		.collect()
 }

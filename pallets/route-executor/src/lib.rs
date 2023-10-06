@@ -18,9 +18,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::MaxEncodedLen;
-use frame_support::pallet_prelude::*;
 use frame_support::{
 	ensure,
+	pallet_prelude::*,
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
@@ -39,18 +39,6 @@ pub mod weights;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-
-pub trait TradeAmountsCalculator<AssetId, Balance> {
-	fn calculate_buy_trade_amounts(
-		route: &[Trade<AssetId>],
-		amount_out: Balance,
-	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError>;
-
-	fn calculate_sell_trade_amounts(
-		route: &[Trade<AssetId>],
-		amount_in: Balance,
-	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError>;
-}
 
 #[frame_support::pallet]
 pub mod pallet {

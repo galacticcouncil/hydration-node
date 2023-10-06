@@ -12,7 +12,6 @@ mod exchange_asset;
 mod non_native_fee;
 mod omnipool_init;
 mod omnipool_liquidity_mining;
-mod omnipool_price_provider;
 mod oracle;
 mod otc;
 mod polkadot_test_net;

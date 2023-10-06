@@ -11,12 +11,16 @@ use hydradx_runtime::{
 	LBP, XYK,
 };
 use hydradx_traits::Registry;
-use hydradx_traits::{router::PoolType, AMM};
+use hydradx_traits::{
+	router::{PoolType, Trade},
+	AMM,
+};
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_lbp::WeightCurveType;
 use pallet_omnipool::traits::OmnipoolHooks;
 use pallet_omnipool::weights::WeightInfo as OmnipoolWeights;
-use pallet_route_executor::{AmmTradeWeights, Trade};
+use pallet_route_executor::AmmTradeWeights;
+
 use primitives::asset::AssetPair;
 use primitives::AssetId;
 

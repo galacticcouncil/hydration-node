@@ -20,7 +20,7 @@ use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
 	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, PriceAdjustmentAdapter, VestingInfo,
+	OracleAssetVolumeProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
 };
 
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
@@ -51,11 +51,12 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use hydradx_traits::router::Trade;
 use orml_traits::currency::MutationHooks;
 use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
-use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, Trade};
+use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
 use pallet_xyk::weights::WeightInfo as XykWeights;
@@ -308,8 +309,9 @@ impl pallet_ema_oracle::Config for Runtime {
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
-	/// 20 seems a decent upper bound for the forseeable future.
-	type MaxUniqueEntries = ConstU32<20>;
+	/// 40 seems a decent upper bound for the forseeable future.
+	///
+	type MaxUniqueEntries = ConstU32<40>;
 }
 
 pub struct DustRemovalWhitelist;
@@ -425,13 +427,13 @@ pub struct DummyOraclePriceProvider;
 impl PriceOracle<AssetId> for DummyOraclePriceProvider {
 	type Price = EmaPrice;
 
-	fn price(_asset_a: AssetId, _asset_b: AssetId, _period: OraclePeriod) -> Option<Self::Price> {
+	fn price(_route: &[Trade<AssetId>], _period: OraclePeriod) -> Option<Self::Price> {
 		Some(EmaPrice::one())
 	}
 }
 
 #[cfg(not(feature = "runtime-benchmarks"))]
-use hydradx_adapters::OraclePriceProviderAdapterForOmnipool;
+use hydradx_adapters::OraclePriceProvider;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct DummySpotPriceProvider;
@@ -464,13 +466,9 @@ impl pallet_dca::Config for Runtime {
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 	type RandomnessProvider = DCA;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type OraclePriceProvider = OraclePriceProviderAdapterForOmnipool<AssetId, EmaOracle, LRNA>;
+	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type OraclePriceProvider = DummyOraclePriceProvider;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type SpotPriceProvider = Omnipool;
-	#[cfg(feature = "runtime-benchmarks")]
-	type SpotPriceProvider = DummySpotPriceProvider;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Router = Router;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -486,6 +484,7 @@ impl pallet_dca::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type AmmTradeWeights = RouterWeightInfo;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
+	type NativePriceOracle = MultiTransactionPayment;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -778,6 +777,7 @@ impl pallet_stableswap::Config for Runtime {
 	type AssetInspection = AssetRegistry;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type DustAccountHandler = Duster;
+	type Hooks = StableswapHooksAdapter<Runtime>;
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
 	type AmplificationRange = StableswapAmplificationRange;
