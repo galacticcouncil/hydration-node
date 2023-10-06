@@ -530,6 +530,36 @@ fn dispatch_should_work_with_transfer() {
 }
 
 #[test]
+fn dispatch_transfer_should_not_work_with_insufficient_fees() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		let data = hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+			.to_vec();
+		let balance = Tokens::free_balance(WETH, &evm_account());
+		let insufficient_gas_price = gas_price() - U256::one();
+
+		//Act
+		let call = EVM::call(
+			evm_signed_origin(evm_address()),
+			evm_address(),
+			DISPATCH_ADDR,
+			data,
+			U256::from(0),
+			1000000,
+			insufficient_gas_price,
+			None,
+			Some(U256::zero()),
+			[].into()
+			);
+
+		//Assert
+		call.expect_err("Expected GasPriceTooLow error");
+	});
+}
+
+#[test]
 fn dispatch_should_respect_call_filter() {
 	TestNet::reset();
 
