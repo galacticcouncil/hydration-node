@@ -3786,7 +3786,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.6.2"
+version = "0.6.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -3937,7 +3937,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.6.1"
+version = "2.7.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7387,7 +7387,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.3.0"
+version = "3.3.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7779,7 +7779,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.2.9"
+version = "6.2.10"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

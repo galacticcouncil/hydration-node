@@ -782,7 +782,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_en
 			//Assert
 			assert_number_of_executed_buy_trades!(4);
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
-			let left_over_which_is_not_enough_for_last_trade = 9994675720000;
+			let left_over_which_is_not_enough_for_last_trade = 9994679568000;
 			assert_balance!(
 				ALICE,
 				HDX,

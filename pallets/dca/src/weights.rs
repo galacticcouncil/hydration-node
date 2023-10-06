@@ -71,11 +71,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: DCA RetriesOnError (r:0 w:1)
 	// Proof: DCA RetriesOnError (max_values: None, max_size: Some(21), added: 2496, mode: MaxEncodedLen)
-    fn on_initialize_with_buy_trade() -> Weight {
-        // Minimum execution time: 202_152 nanoseconds.
-        Weight::from_ref_time(205_108_000 as u64)            .saturating_add(T::DbWeight::get().reads(17 as u64))
-            .saturating_add(T::DbWeight::get().writes(7 as u64))
-    }
+	fn on_initialize_with_buy_trade() -> Weight {
+		// Minimum execution time: 202_152 nanoseconds.
+		Weight::from_ref_time(205_108_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(17 as u64))
+			.saturating_add(T::DbWeight::get().writes(7 as u64))
+	}
 	// Storage: DCA ScheduleIdsPerBlock (r:12 w:2)
 	// Proof: DCA ScheduleIdsPerBlock (max_values: None, max_size: Some(101), added: 2576, mode: MaxEncodedLen)
 	// Storage: DCA Schedules (r:1 w:0)
@@ -88,17 +89,18 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: DCA RetriesOnError (r:0 w:1)
 	// Proof: DCA RetriesOnError (max_values: None, max_size: Some(21), added: 2496, mode: MaxEncodedLen)
-    fn on_initialize_with_sell_trade() -> Weight {
-        // Minimum execution time: 200_514 nanoseconds.
-        Weight::from_ref_time(204_215_000 as u64)            .saturating_add(T::DbWeight::get().reads(17 as u64))
-            .saturating_add(T::DbWeight::get().writes(7 as u64))
-    }
+	fn on_initialize_with_sell_trade() -> Weight {
+		// Minimum execution time: 200_514 nanoseconds.
+		Weight::from_ref_time(204_215_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(17 as u64))
+			.saturating_add(T::DbWeight::get().writes(7 as u64))
+	}
 	// Storage: DCA ScheduleIdsPerBlock (r:1 w:0)
 	// Proof: DCA ScheduleIdsPerBlock (max_values: None, max_size: Some(101), added: 2576, mode: MaxEncodedLen)
-    fn on_initialize_with_empty_block() -> Weight {
-        // Minimum execution time: 18_232 nanoseconds.
-        Weight::from_ref_time(18_655_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
-    }
+	fn on_initialize_with_empty_block() -> Weight {
+		// Minimum execution time: 18_232 nanoseconds.
+		Weight::from_ref_time(18_655_000 as u64).saturating_add(T::DbWeight::get().reads(1 as u64))
+	}
 	// Storage: DCA ScheduleIdSequencer (r:1 w:1)
 	// Proof: DCA ScheduleIdSequencer (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
 	// Storage: Balances Reserves (r:1 w:1)
@@ -115,11 +117,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: DCA ScheduleOwnership (max_values: None, max_size: Some(60), added: 2535, mode: MaxEncodedLen)
 	// Storage: DCA RemainingAmounts (r:0 w:1)
 	// Proof: DCA RemainingAmounts (max_values: None, max_size: Some(36), added: 2511, mode: MaxEncodedLen)
-    fn schedule() -> Weight {
-        // Minimum execution time: 133_110 nanoseconds.
-        Weight::from_ref_time(134_484_000 as u64)            .saturating_add(T::DbWeight::get().reads(14 as u64))
-            .saturating_add(T::DbWeight::get().writes(8 as u64))
-    }
+	fn schedule() -> Weight {
+		// Minimum execution time: 133_110 nanoseconds.
+		Weight::from_ref_time(134_484_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(14 as u64))
+			.saturating_add(T::DbWeight::get().writes(8 as u64))
+	}
 	// Storage: DCA Schedules (r:1 w:1)
 	// Proof: DCA Schedules (max_values: None, max_size: Some(191), added: 2666, mode: MaxEncodedLen)
 	// Storage: DCA RemainingAmounts (r:1 w:1)
@@ -134,11 +137,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: DCA RetriesOnError (max_values: None, max_size: Some(21), added: 2496, mode: MaxEncodedLen)
 	// Storage: DCA ScheduleOwnership (r:0 w:1)
 	// Proof: DCA ScheduleOwnership (max_values: None, max_size: Some(60), added: 2535, mode: MaxEncodedLen)
-    fn terminate() -> Weight {
-        // Minimum execution time: 74_610 nanoseconds.
-        Weight::from_ref_time(75_402_000 as u64)            .saturating_add(T::DbWeight::get().reads(5 as u64))
-            .saturating_add(T::DbWeight::get().writes(7 as u64))
-    }
+	fn terminate() -> Weight {
+		// Minimum execution time: 74_610 nanoseconds.
+		Weight::from_ref_time(75_402_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(7 as u64))
+	}
 }
 
 // For backwards compatibility and tests
@@ -155,11 +159,12 @@ impl WeightInfo for () {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: DCA RetriesOnError (r:0 w:1)
 	// Proof: DCA RetriesOnError (max_values: None, max_size: Some(21), added: 2496, mode: MaxEncodedLen)
-    fn on_initialize_with_buy_trade() -> Weight {
-        // Minimum execution time: 202_152 nanoseconds.
-        Weight::from_ref_time(205_108_000 as u64)            .saturating_add(RocksDbWeight::get().reads(17 as u64))
-            .saturating_add(RocksDbWeight::get().writes(7 as u64))
-    }
+	fn on_initialize_with_buy_trade() -> Weight {
+		// Minimum execution time: 202_152 nanoseconds.
+		Weight::from_ref_time(205_108_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(17 as u64))
+			.saturating_add(RocksDbWeight::get().writes(7 as u64))
+	}
 	// Storage: DCA ScheduleIdsPerBlock (r:12 w:2)
 	// Proof: DCA ScheduleIdsPerBlock (max_values: None, max_size: Some(101), added: 2576, mode: MaxEncodedLen)
 	// Storage: DCA Schedules (r:1 w:0)
@@ -172,17 +177,18 @@ impl WeightInfo for () {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: DCA RetriesOnError (r:0 w:1)
 	// Proof: DCA RetriesOnError (max_values: None, max_size: Some(21), added: 2496, mode: MaxEncodedLen)
-    fn on_initialize_with_sell_trade() -> Weight {
-        // Minimum execution time: 200_514 nanoseconds.
-        Weight::from_ref_time(204_215_000 as u64)            .saturating_add(RocksDbWeight::get().reads(17 as u64))
-            .saturating_add(RocksDbWeight::get().writes(7 as u64))
-    }
+	fn on_initialize_with_sell_trade() -> Weight {
+		// Minimum execution time: 200_514 nanoseconds.
+		Weight::from_ref_time(204_215_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(17 as u64))
+			.saturating_add(RocksDbWeight::get().writes(7 as u64))
+	}
 	// Storage: DCA ScheduleIdsPerBlock (r:1 w:0)
 	// Proof: DCA ScheduleIdsPerBlock (max_values: None, max_size: Some(101), added: 2576, mode: MaxEncodedLen)
-    fn on_initialize_with_empty_block() -> Weight {
-        // Minimum execution time: 18_232 nanoseconds.
-        Weight::from_ref_time(18_655_000 as u64)            .saturating_add(RocksDbWeight::get().reads(1 as u64))
-    }
+	fn on_initialize_with_empty_block() -> Weight {
+		// Minimum execution time: 18_232 nanoseconds.
+		Weight::from_ref_time(18_655_000 as u64).saturating_add(RocksDbWeight::get().reads(1 as u64))
+	}
 	// Storage: DCA ScheduleIdSequencer (r:1 w:1)
 	// Proof: DCA ScheduleIdSequencer (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
 	// Storage: Balances Reserves (r:1 w:1)
@@ -199,11 +205,12 @@ impl WeightInfo for () {
 	// Proof: DCA ScheduleOwnership (max_values: None, max_size: Some(60), added: 2535, mode: MaxEncodedLen)
 	// Storage: DCA RemainingAmounts (r:0 w:1)
 	// Proof: DCA RemainingAmounts (max_values: None, max_size: Some(36), added: 2511, mode: MaxEncodedLen)
-    fn schedule() -> Weight {
-        // Minimum execution time: 133_110 nanoseconds.
-        Weight::from_ref_time(134_484_000 as u64)            .saturating_add(RocksDbWeight::get().reads(14 as u64))
-            .saturating_add(RocksDbWeight::get().writes(8 as u64))
-    }
+	fn schedule() -> Weight {
+		// Minimum execution time: 133_110 nanoseconds.
+		Weight::from_ref_time(134_484_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(14 as u64))
+			.saturating_add(RocksDbWeight::get().writes(8 as u64))
+	}
 	// Storage: DCA Schedules (r:1 w:1)
 	// Proof: DCA Schedules (max_values: None, max_size: Some(191), added: 2666, mode: MaxEncodedLen)
 	// Storage: DCA RemainingAmounts (r:1 w:1)
@@ -218,9 +225,10 @@ impl WeightInfo for () {
 	// Proof: DCA RetriesOnError (max_values: None, max_size: Some(21), added: 2496, mode: MaxEncodedLen)
 	// Storage: DCA ScheduleOwnership (r:0 w:1)
 	// Proof: DCA ScheduleOwnership (max_values: None, max_size: Some(60), added: 2535, mode: MaxEncodedLen)
-    fn terminate() -> Weight {
-        // Minimum execution time: 74_610 nanoseconds.
-        Weight::from_ref_time(75_402_000 as u64)            .saturating_add(RocksDbWeight::get().reads(5 as u64))
-            .saturating_add(RocksDbWeight::get().writes(7 as u64))
-    }
+	fn terminate() -> Weight {
+		// Minimum execution time: 74_610 nanoseconds.
+		Weight::from_ref_time(75_402_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(5 as u64))
+			.saturating_add(RocksDbWeight::get().writes(7 as u64))
+	}
 }

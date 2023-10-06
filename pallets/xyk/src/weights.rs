@@ -87,11 +87,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: XYK TotalLiquidity (max_values: None, max_size: Some(64), added: 2539, mode: MaxEncodedLen)
 	// Storage: XYK PoolAssets (r:0 w:1)
 	// Proof: XYK PoolAssets (max_values: None, max_size: Some(56), added: 2531, mode: MaxEncodedLen)
-    fn create_pool() -> Weight {
-        // Minimum execution time: 190_185 nanoseconds.
-        Weight::from_ref_time(192_567_000 as u64)            .saturating_add(T::DbWeight::get().reads(17 as u64))
-            .saturating_add(T::DbWeight::get().writes(16 as u64))
-    }
+	fn create_pool() -> Weight {
+		// Minimum execution time: 190_185 nanoseconds.
+		Weight::from_ref_time(192_567_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(17 as u64))
+			.saturating_add(T::DbWeight::get().writes(16 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:5 w:5)
@@ -108,11 +109,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: EmaOracle Accumulator (r:1 w:1)
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
-    fn add_liquidity() -> Weight {
-        // Minimum execution time: 164_323 nanoseconds.
-        Weight::from_ref_time(165_841_000 as u64)            .saturating_add(T::DbWeight::get().reads(14 as u64))
-            .saturating_add(T::DbWeight::get().writes(9 as u64))
-    }
+	fn add_liquidity() -> Weight {
+		// Minimum execution time: 164_323 nanoseconds.
+		Weight::from_ref_time(165_841_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(14 as u64))
+			.saturating_add(T::DbWeight::get().writes(9 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: XYK TotalLiquidity (r:1 w:1)
@@ -127,11 +129,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	// Storage: EmaOracle Accumulator (r:1 w:1)
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
-    fn remove_liquidity() -> Weight {
-        // Minimum execution time: 155_404 nanoseconds.
-        Weight::from_ref_time(156_560_000 as u64)            .saturating_add(T::DbWeight::get().reads(13 as u64))
-            .saturating_add(T::DbWeight::get().writes(8 as u64))
-    }
+	fn remove_liquidity() -> Weight {
+		// Minimum execution time: 155_404 nanoseconds.
+		Weight::from_ref_time(156_560_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(13 as u64))
+			.saturating_add(T::DbWeight::get().writes(8 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:4 w:4)
@@ -142,11 +145,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: EmaOracle Accumulator (r:1 w:1)
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
-    fn sell() -> Weight {
-        // Minimum execution time: 119_610 nanoseconds.
-        Weight::from_ref_time(120_418_000 as u64)            .saturating_add(T::DbWeight::get().reads(10 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
+	fn sell() -> Weight {
+		// Minimum execution time: 119_610 nanoseconds.
+		Weight::from_ref_time(120_418_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(10 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:4 w:4)
@@ -157,11 +161,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: EmaOracle Accumulator (r:1 w:1)
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
-    fn buy() -> Weight {
-        // Minimum execution time: 119_865 nanoseconds.
-        Weight::from_ref_time(120_541_000 as u64)            .saturating_add(T::DbWeight::get().reads(10 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
+	fn buy() -> Weight {
+		// Minimum execution time: 119_865 nanoseconds.
+		Weight::from_ref_time(120_541_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(10 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:4 w:4)
@@ -174,16 +179,16 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-    fn router_execution_sell(c: u32, e: u32, ) -> Weight {
-        // Minimum execution time: 20_906 nanoseconds.
-        Weight::from_ref_time(8_365_948 as u64)            // Standard Error: 43_229
-            .saturating_add(Weight::from_ref_time(6_554_981 as u64).saturating_mul(c as u64))
-            // Standard Error: 43_229
-            .saturating_add(Weight::from_ref_time(105_218_621 as u64).saturating_mul(e as u64))
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
-            .saturating_add(T::DbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
-    }
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
+		// Minimum execution time: 20_906 nanoseconds.
+		Weight::from_ref_time(8_365_948 as u64) // Standard Error: 43_229
+			.saturating_add(Weight::from_ref_time(6_554_981 as u64).saturating_mul(c as u64))
+			// Standard Error: 43_229
+			.saturating_add(Weight::from_ref_time(105_218_621 as u64).saturating_mul(e as u64))
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
+			.saturating_add(T::DbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:4 w:4)
@@ -196,16 +201,16 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 3]`.
 	/// The range of component `e` is `[0, 1]`.
-    fn router_execution_buy(c: u32, e: u32, ) -> Weight {
-        // Minimum execution time: 27_261 nanoseconds.
-        Weight::from_ref_time(7_044_054 as u64)            // Standard Error: 46_197
-            .saturating_add(Weight::from_ref_time(7_022_106 as u64).saturating_mul(c as u64))
-            // Standard Error: 78_379
-            .saturating_add(Weight::from_ref_time(105_927_586 as u64).saturating_mul(e as u64))
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
-            .saturating_add(T::DbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
-    }
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
+		// Minimum execution time: 27_261 nanoseconds.
+		Weight::from_ref_time(7_044_054 as u64) // Standard Error: 46_197
+			.saturating_add(Weight::from_ref_time(7_022_106 as u64).saturating_mul(c as u64))
+			// Standard Error: 78_379
+			.saturating_add(Weight::from_ref_time(105_927_586 as u64).saturating_mul(e as u64))
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
+			.saturating_add(T::DbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
+	}
 }
 
 // For backwards compatibility and tests
@@ -236,11 +241,12 @@ impl WeightInfo for () {
 	// Proof: XYK TotalLiquidity (max_values: None, max_size: Some(64), added: 2539, mode: MaxEncodedLen)
 	// Storage: XYK PoolAssets (r:0 w:1)
 	// Proof: XYK PoolAssets (max_values: None, max_size: Some(56), added: 2531, mode: MaxEncodedLen)
-    fn create_pool() -> Weight {
-        // Minimum execution time: 190_185 nanoseconds.
-        Weight::from_ref_time(192_567_000 as u64)            .saturating_add(RocksDbWeight::get().reads(17 as u64))
-            .saturating_add(RocksDbWeight::get().writes(16 as u64))
-    }
+	fn create_pool() -> Weight {
+		// Minimum execution time: 190_185 nanoseconds.
+		Weight::from_ref_time(192_567_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(17 as u64))
+			.saturating_add(RocksDbWeight::get().writes(16 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:5 w:5)
@@ -257,11 +263,12 @@ impl WeightInfo for () {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: EmaOracle Accumulator (r:1 w:1)
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
-    fn add_liquidity() -> Weight {
-        // Minimum execution time: 164_323 nanoseconds.
-        Weight::from_ref_time(165_841_000 as u64)            .saturating_add(RocksDbWeight::get().reads(14 as u64))
-            .saturating_add(RocksDbWeight::get().writes(9 as u64))
-    }
+	fn add_liquidity() -> Weight {
+		// Minimum execution time: 164_323 nanoseconds.
+		Weight::from_ref_time(165_841_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(14 as u64))
+			.saturating_add(RocksDbWeight::get().writes(9 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: XYK TotalLiquidity (r:1 w:1)
@@ -276,11 +283,12 @@ impl WeightInfo for () {
 	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	// Storage: EmaOracle Accumulator (r:1 w:1)
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
-    fn remove_liquidity() -> Weight {
-        // Minimum execution time: 155_404 nanoseconds.
-        Weight::from_ref_time(156_560_000 as u64)            .saturating_add(RocksDbWeight::get().reads(13 as u64))
-            .saturating_add(RocksDbWeight::get().writes(8 as u64))
-    }
+	fn remove_liquidity() -> Weight {
+		// Minimum execution time: 155_404 nanoseconds.
+		Weight::from_ref_time(156_560_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(13 as u64))
+			.saturating_add(RocksDbWeight::get().writes(8 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:4 w:4)
@@ -291,11 +299,12 @@ impl WeightInfo for () {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: EmaOracle Accumulator (r:1 w:1)
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
-    fn sell() -> Weight {
-        // Minimum execution time: 119_610 nanoseconds.
-        Weight::from_ref_time(120_418_000 as u64)            .saturating_add(RocksDbWeight::get().reads(10 as u64))
-            .saturating_add(RocksDbWeight::get().writes(5 as u64))
-    }
+	fn sell() -> Weight {
+		// Minimum execution time: 119_610 nanoseconds.
+		Weight::from_ref_time(120_418_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(10 as u64))
+			.saturating_add(RocksDbWeight::get().writes(5 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:4 w:4)
@@ -306,11 +315,12 @@ impl WeightInfo for () {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: EmaOracle Accumulator (r:1 w:1)
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
-    fn buy() -> Weight {
-        // Minimum execution time: 119_865 nanoseconds.
-        Weight::from_ref_time(120_541_000 as u64)            .saturating_add(RocksDbWeight::get().reads(10 as u64))
-            .saturating_add(RocksDbWeight::get().writes(5 as u64))
-    }
+	fn buy() -> Weight {
+		// Minimum execution time: 119_865 nanoseconds.
+		Weight::from_ref_time(120_541_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(10 as u64))
+			.saturating_add(RocksDbWeight::get().writes(5 as u64))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:4 w:4)
@@ -323,16 +333,16 @@ impl WeightInfo for () {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-    fn router_execution_sell(c: u32, e: u32, ) -> Weight {
-        // Minimum execution time: 20_906 nanoseconds.
-        Weight::from_ref_time(8_365_948 as u64)            // Standard Error: 43_229
-            .saturating_add(Weight::from_ref_time(6_554_981 as u64).saturating_mul(c as u64))
-            // Standard Error: 43_229
-            .saturating_add(Weight::from_ref_time(105_218_621 as u64).saturating_mul(e as u64))
-            .saturating_add(RocksDbWeight::get().reads(3 as u64))
-            .saturating_add(RocksDbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
-            .saturating_add(RocksDbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
-    }
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
+		// Minimum execution time: 20_906 nanoseconds.
+		Weight::from_ref_time(8_365_948 as u64) // Standard Error: 43_229
+			.saturating_add(Weight::from_ref_time(6_554_981 as u64).saturating_mul(c as u64))
+			// Standard Error: 43_229
+			.saturating_add(Weight::from_ref_time(105_218_621 as u64).saturating_mul(e as u64))
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
+			.saturating_add(RocksDbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
+	}
 	// Storage: XYK ShareToken (r:1 w:0)
 	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:4 w:4)
@@ -345,14 +355,14 @@ impl WeightInfo for () {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 3]`.
 	/// The range of component `e` is `[0, 1]`.
-    fn router_execution_buy(c: u32, e: u32, ) -> Weight {
-        // Minimum execution time: 27_261 nanoseconds.
-        Weight::from_ref_time(7_044_054 as u64)            // Standard Error: 46_197
-            .saturating_add(Weight::from_ref_time(7_022_106 as u64).saturating_mul(c as u64))
-            // Standard Error: 78_379
-            .saturating_add(Weight::from_ref_time(105_927_586 as u64).saturating_mul(e as u64))
-            .saturating_add(RocksDbWeight::get().reads(3 as u64))
-            .saturating_add(RocksDbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
-            .saturating_add(RocksDbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
-    }
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
+		// Minimum execution time: 27_261 nanoseconds.
+		Weight::from_ref_time(7_044_054 as u64) // Standard Error: 46_197
+			.saturating_add(Weight::from_ref_time(7_022_106 as u64).saturating_mul(c as u64))
+			// Standard Error: 78_379
+			.saturating_add(Weight::from_ref_time(105_927_586 as u64).saturating_mul(e as u64))
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
+			.saturating_add(RocksDbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
+	}
 }
