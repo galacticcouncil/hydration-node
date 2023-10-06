@@ -641,6 +641,7 @@ impl Config for Test {
 	type WeightInfo = ();
 	type OraclePriceProvider = PriceProviderMock;
 	type SpotPriceProvider = SpotPriceProviderMock;
+	type RouteProvider = DefaultRouteProvider;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -648,6 +649,10 @@ impl Config for Test {
 	type RelayChainBlockHashProvider = ParentHashGetterMock;
 	type MinimumTradingLimit = MinTradeAmount;
 }
+
+pub struct DefaultRouteProvider;
+
+impl RouteProvider<AssetId> for DefaultRouteProvider {}
 
 pub struct ParentHashGetterMock {}
 
@@ -664,7 +669,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, TradeExecution};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
 use rand::SeedableRng;

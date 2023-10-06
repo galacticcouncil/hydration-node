@@ -74,12 +74,14 @@ use frame_support::{
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::router::RouteProvider;
+use hydradx_traits::router::Trade;
 use hydradx_traits::{OraclePeriod, PriceOracle};
 use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
 use orml_traits::NamedMultiReservableCurrency;
+use pallet_route_executor::AmountInAndOut;
 use pallet_route_executor::TradeAmountsCalculator;
-use pallet_route_executor::{AmountInAndOut, Trade};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sp_runtime::traits::CheckedMul;
@@ -88,6 +90,7 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill,
 };
+
 use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};
 #[cfg(test)]
@@ -232,6 +235,9 @@ pub mod pallet {
 
 		///Spot price provider to get the current price between two asset
 		type SpotPriceProvider: SpotPriceProvider<Self::AssetId, Price = FixedU128>;
+
+		///Spot price provider to get the current price between two asset
+		type RouteProvider: RouteProvider<Self::AssetId>;
 
 		///Max price difference allowed between blocks
 		#[pallet::constant]
@@ -423,8 +429,6 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(who == schedule.owner, Error::<T>::Forbidden);
 
-			ensure!(schedule.order.get_route_length() > 0, Error::<T>::RouteNotSpecified);
-
 			let min_budget = Self::convert_native_amount_to_currency(
 				schedule.order.get_asset_in(),
 				T::MinBudgetInNativeCurrency::get(),
@@ -439,8 +443,19 @@ pub mod pallet {
 			let amount_in = match schedule.order {
 				Order::Sell { amount_in, .. } => amount_in,
 				Order::Buy {
-					amount_out, ref route, ..
-				} => Self::get_amount_in_for_buy(&amount_out, route)?,
+					asset_in,
+					asset_out,
+					amount_out,
+					ref route,
+					..
+				} => {
+					let used_route = if route.is_empty() {
+						T::RouteProvider::get(asset_in, asset_out)
+					} else {
+						(*route).to_vec()
+					};
+					Self::get_amount_in_for_buy(&amount_out, &used_route)?
+				}
 			};
 			let min_trade_amount_in_from_fee = transaction_fee.saturating_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT);
 			ensure!(
@@ -843,10 +858,7 @@ where
 		diff > max_allowed_difference
 	}
 
-	fn get_amount_in_for_buy(
-		amount_out: &Balance,
-		route: &BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
-	) -> Result<Balance, DispatchError> {
+	fn get_amount_in_for_buy(amount_out: &Balance, route: &[Trade<T::AssetId>]) -> Result<Balance, DispatchError> {
 		let trade_amounts =
 			pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(route.as_ref(), (*amount_out).into())?;
 

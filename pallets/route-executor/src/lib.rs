@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::MaxEncodedLen;
 use frame_support::{
 	ensure,
 	traits::{fungibles::Inspect, Get},
@@ -25,12 +25,11 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::ensure_signed;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::Trade;
+use hydradx_traits::router::{ExecutorError, TradeExecution};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
-use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError};
 use sp_std::vec::Vec;
-
 #[cfg(test)]
 mod tests;
 
@@ -51,14 +50,6 @@ pub trait TradeAmountsCalculator<AssetId, Balance> {
 		route: &[Trade<AssetId>],
 		amount_in: Balance,
 	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError>;
-}
-
-///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Copy, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Trade<AssetId> {
-	pub pool: PoolType<AssetId>,
-	pub asset_in: AssetId,
-	pub asset_out: AssetId,
 }
 
 pub struct AmountInAndOut<Balance> {

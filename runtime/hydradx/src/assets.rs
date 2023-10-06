@@ -48,11 +48,12 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use hydradx_traits::router::{RouteProvider, Trade};
 use orml_traits::currency::MutationHooks;
 use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
-use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, Trade};
+use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
 use sp_std::num::NonZeroU16;
@@ -425,6 +426,7 @@ impl pallet_dca::Config for Runtime {
 	type RandomnessProvider = DCA;
 	type OraclePriceProvider = OraclePriceProviderAdapterForOmnipool<AssetId, EmaOracle, LRNA>;
 	type SpotPriceProvider = Omnipool;
+	type RouteProvider = Runtime;
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -436,6 +438,9 @@ impl pallet_dca::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 }
+
+//Using the default implementation, will be replaced with the real implementation once we have routes stored
+impl RouteProvider<AssetId> for Runtime {}
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
 // the router extrinsic overhead and the AMM weight.

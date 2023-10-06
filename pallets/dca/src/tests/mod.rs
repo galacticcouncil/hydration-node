@@ -1,7 +1,7 @@
 use crate::tests::mock::*;
 use crate::{Balance, Order, Schedule, ScheduleId};
 use hydradx_traits::router::PoolType;
-use pallet_route_executor::Trade;
+use hydradx_traits::router::Trade;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
 
