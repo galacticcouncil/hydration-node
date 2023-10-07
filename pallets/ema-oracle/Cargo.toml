@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-ema-oracle'
-version = '1.1.1'
+version = '1.1.2'
 description = 'Exponential moving average oracle for AMM pools'
 authors = ['GalacticCouncil']
 edition = '2021'

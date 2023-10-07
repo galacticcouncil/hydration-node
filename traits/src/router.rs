@@ -1,13 +1,8 @@
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::sp_runtime::{DispatchError, DispatchResult};
+use frame_support::weights::Weight;
 use scale_info::TypeInfo;
-
-///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Copy, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Trade<AssetId> {
-	pub pool: PoolType<AssetId>,
-	pub asset_in: AssetId,
-	pub asset_out: AssetId,
-}
+use sp_std::vec::Vec;
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum PoolType<AssetId> {
@@ -21,6 +16,44 @@ pub enum PoolType<AssetId> {
 pub enum ExecutorError<E> {
 	NotSupported,
 	Error(E),
+}
+
+///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
+#[derive(Encode, Decode, Debug, Eq, PartialEq, Copy, Clone, TypeInfo, MaxEncodedLen)]
+pub struct Trade<AssetId> {
+	pub pool: PoolType<AssetId>,
+	pub asset_in: AssetId,
+	pub asset_out: AssetId,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct AmountInAndOut<Balance> {
+	pub amount_in: Balance,
+	pub amount_out: Balance,
+}
+
+pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
+	fn sell(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_amount_out: Balance,
+		route: Vec<Trade>,
+	) -> DispatchResult;
+
+	fn buy(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+		max_amount_in: Balance,
+		route: Vec<Trade>,
+	) -> DispatchResult;
+
+	fn calculate_sell_trade_amounts(route: &[Trade], amount_in: Balance) -> Result<Vec<AmountInAndOut>, DispatchError>;
+
+	fn calculate_buy_trade_amounts(route: &[Trade], amount_out: Balance) -> Result<Vec<AmountInAndOut>, DispatchError>;
 }
 
 /// All AMMs used in the router are required to implement this trait.
@@ -142,5 +175,32 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 			)*
 		);
 		Err(value)
+	}
+}
+
+/// Provides weight info for the router. Calculates the weight of a route based on the AMMs.
+pub trait AmmTradeWeights<Trade> {
+	fn sell_weight(route: &[Trade]) -> Weight;
+	fn buy_weight(route: &[Trade]) -> Weight;
+	fn calculate_buy_trade_amounts_weight(route: &[Trade]) -> Weight;
+	fn sell_and_calculate_sell_trade_amounts_weight(route: &[Trade]) -> Weight;
+	fn buy_and_calculate_buy_trade_amounts_weight(route: &[Trade]) -> Weight;
+}
+
+impl<Trade> AmmTradeWeights<Trade> for () {
+	fn sell_weight(_route: &[Trade]) -> Weight {
+		Weight::zero()
+	}
+	fn buy_weight(_route: &[Trade]) -> Weight {
+		Weight::zero()
+	}
+	fn calculate_buy_trade_amounts_weight(_route: &[Trade]) -> Weight {
+		Weight::zero()
+	}
+	fn sell_and_calculate_sell_trade_amounts_weight(_route: &[Trade]) -> Weight {
+		Weight::zero()
+	}
+	fn buy_and_calculate_buy_trade_amounts_weight(_route: &[Trade]) -> Weight {
+		Weight::zero()
 	}
 }

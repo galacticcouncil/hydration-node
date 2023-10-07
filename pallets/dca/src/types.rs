@@ -71,12 +71,14 @@ where
 		*asset_out
 	}
 
-	pub fn get_route_length(&self) -> usize {
-		let route = match &self {
+	pub fn get_route(&self) -> &BoundedVec<Trade<AssetId>, ConstU32<5>> {
+		match &self {
 			Order::Sell { route, .. } => route,
 			Order::Buy { route, .. } => route,
-		};
+		}
+	}
 
-		route.len()
+	pub fn get_route_length(&self) -> usize {
+		self.get_route().len()
 	}
 }

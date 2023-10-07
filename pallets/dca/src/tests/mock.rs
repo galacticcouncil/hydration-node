@@ -58,10 +58,10 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const BUY_DCA_FEE_IN_NATIVE: Balance = 3181488000;
-pub const BUY_DCA_FEE_IN_DAI: Balance = 2799709440;
-pub const SELL_DCA_FEE_IN_NATIVE: Balance = 3175101000;
-pub const SELL_DCA_FEE_IN_DAI: Balance = 2794088880;
+pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1330108000;
+pub const BUY_DCA_FEE_IN_DAI: Balance = 1170495040;
+pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1329215000;
+pub const SELL_DCA_FEE_IN_DAI: Balance = 1169709200;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -361,7 +361,6 @@ impl pallet_route_executor::Config for Test {
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
 	type AMM = Pools;
-	type AmmTradeWeights = ();
 	type WeightInfo = ();
 }
 
@@ -620,6 +619,7 @@ impl RandomnessProvider for RandomnessProviderMock {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = RandomnessProviderMock;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
@@ -629,11 +629,13 @@ impl Config for Test {
 	type WeightToFee = IdentityFee<Balance>;
 	type WeightInfo = ();
 	type OraclePriceProvider = PriceProviderMock;
+	type Router = RouteExecutor;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type RelayChainBlockHashProvider = ParentHashGetterMock;
+	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
 	type NativePriceOracle = NativePriceOracleMock;
 }

@@ -478,6 +478,9 @@ benchmarks! {
 	}
 
 	router_execution_sell{
+		let c in 0..1;	// if c == 1, calculate_sell is executed
+		let e in 0..1;	// if e == 1, execute_sell is executed
+
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let initial_liquidity = 1_000_000_000_000_000_000u128;
@@ -526,15 +529,24 @@ benchmarks! {
 		)?;
 		System::<T>::set_block_number(500u32.into());
 	}: {
-		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_sell(PoolType::Stableswap(pool_id), asset_in, asset_out, amount_sell).is_ok());
-		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::execute_sell(RawOrigin::Signed(seller.clone()).into(), PoolType::Stableswap(pool_id), asset_in, asset_out, amount_sell, buy_min_amount).is_ok());
+		if c != 0 {
+			assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_sell(PoolType::Stableswap(pool_id), asset_in, asset_out, amount_sell).is_ok());
+		}
+		if e != 0 {
+			assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::execute_sell(RawOrigin::Signed(seller.clone()).into(), PoolType::Stableswap(pool_id), asset_in, asset_out, amount_sell, buy_min_amount).is_ok());
+		}
 	}
 	verify {
-		assert_eq!(T::Currency::free_balance(asset_in, &seller), 0u128);
-		assert_eq!(T::Currency::free_balance(asset_out, &seller), 98_999_980_239_523);
+		if e != 0 {
+			assert_eq!(T::Currency::free_balance(asset_in, &seller), 0u128);
+			assert_eq!(T::Currency::free_balance(asset_out, &seller), 98_999_980_239_523);
+		}
 	}
 
 	router_execution_buy{
+		let c in 1..2;	// number of times calculate_buy is executed
+		let e in 0..1;	// if e == 1, execute_buy is executed
+
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let initial_liquidity = 1_000_000_000_000_000_000u128;
@@ -583,12 +595,18 @@ benchmarks! {
 		)?;
 		System::<T>::set_block_number(500u32.into());
 	}: {
-		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_buy(PoolType::Stableswap(pool_id), asset_in, asset_out, amount_buy).is_ok());
-		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::execute_buy(RawOrigin::Signed(buyer.clone()).into(), PoolType::Stableswap(pool_id), asset_in, asset_out, amount_buy, sell_max_limit).is_ok());
+		for _ in 1..c {
+			assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_buy(PoolType::Stableswap(pool_id), asset_in, asset_out, amount_buy).is_ok());
+		}
+		if e != 0 {
+			assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::execute_buy(RawOrigin::Signed(buyer.clone()).into(), PoolType::Stableswap(pool_id), asset_in, asset_out, amount_buy, sell_max_limit).is_ok());
+		}
 	}
 	verify {
-		assert_eq!(T::Currency::free_balance(asset_out, &buyer), 10_000_000_000_000);
-		assert_eq!(T::Currency::free_balance(asset_in, &buyer), 89_899_999_798_401);
+		if e != 0 {
+			assert_eq!(T::Currency::free_balance(asset_out, &buyer), 10_000_000_000_000);
+			assert_eq!(T::Currency::free_balance(asset_in, &buyer), 89_899_999_798_401);
+		}
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);

@@ -22,8 +22,7 @@ use frame_benchmarking::account;
 use frame_support::dispatch::DispatchResult;
 use frame_support::{assert_ok, ensure};
 use frame_system::RawOrigin;
-use hydradx_traits::router::PoolType;
-use hydradx_traits::router::Trade;
+use hydradx_traits::router::{PoolType, RouterT, Trade};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::constants::currency::UNITS;
@@ -97,11 +96,14 @@ runtime_benchmarks! {
 	{Runtime, pallet_route_executor}
 
 	// Calculates the weight of LBP trade. Used in the calculation to determine the weight of the overhead.
-	sell_in_lbp {
+	calculate_and_execute_sell_in_lbp {
+		let c in 0..1;	// if c == 1, calculate_sell_trade_amounts is executed
+		let s in 0..1;	// if e == 1, sell is executed
+
 		let asset_in = 0u32;
 		let asset_out = 1u32;
 		let caller: AccountId = funded_account("caller", 7, &[asset_in, asset_out]);
-		let seller: AccountId = funded_account("caller2", 8, &[asset_in, asset_out]);
+		let seller: AccountId = funded_account("seller", 8, &[asset_in, asset_out]);
 
 		setup_lbp(caller, asset_in, asset_out)?;
 
@@ -113,20 +115,32 @@ runtime_benchmarks! {
 
 		let amount_to_sell: Balance = UNITS;
 
-	}: { Router::sell(RawOrigin::Signed(seller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades)? }
+	}: {
+		if c != 0 {
+			Router::calculate_sell_trade_amounts(trades.as_slice(), amount_to_sell)?;
+		}
+		if s != 0 {
+			Router::sell(RawOrigin::Signed(seller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades.clone())?;
+		}
+	}
 	verify {
-		assert_eq!(<Currencies as MultiCurrency<_>>::free_balance(
-		asset_in,
-		&seller,
-		), INITIAL_BALANCE - amount_to_sell);
+		if s != 0 {
+			assert_eq!(<Currencies as MultiCurrency<_>>::free_balance(
+			asset_in,
+			&seller,
+			), INITIAL_BALANCE - amount_to_sell);
+		}
 	}
 
 	// Calculates the weight of LBP trade. Used in the calculation to determine the weight of the overhead.
-	buy_in_lbp {
+	calculate_and_execute_buy_in_lbp {
+		let c in 1..2;	// number of times `calculate_buy_trade_amounts` is executed
+		let b in 0..1;	// if e == 1, buy is executed
+
 		let asset_in = 0u32;
 		let asset_out = 1u32;
 		let caller: AccountId = funded_account("caller", 0, &[asset_in, asset_out]);
-		let buyer: AccountId = funded_account("caller2", 1, &[asset_in, asset_out]);
+		let buyer: AccountId = funded_account("buyer", 1, &[asset_in, asset_out]);
 
 		setup_lbp(caller, asset_in, asset_out)?;
 
@@ -138,12 +152,21 @@ runtime_benchmarks! {
 
 		let amount_to_buy = UNITS;
 
-	}: { Router::buy(RawOrigin::Signed(buyer.clone()).into(), asset_in, asset_out, amount_to_buy, u128::MAX, trades)? }
+	}: {
+		for _ in 1..c {
+			Router::calculate_buy_trade_amounts(trades.as_slice(), amount_to_buy)?;
+		}
+		if b != 0 {
+			Router::buy(RawOrigin::Signed(buyer.clone()).into(), asset_in, asset_out, amount_to_buy, u128::MAX, trades)?
+		}
+	}
 	verify {
-		assert!(<Currencies as MultiCurrency<_>>::free_balance(
-		asset_in,
-		&buyer,
-		) < INITIAL_BALANCE);
+		if b != 0 {
+			assert!(<Currencies as MultiCurrency<_>>::free_balance(
+			asset_in,
+			&buyer,
+			) < INITIAL_BALANCE);
+		}
 	}
 }
 
@@ -156,14 +179,11 @@ mod tests {
 
 	fn new_test_ext() -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default()
-			.build_storage::<crate::Runtime>()
+			.build_storage::<Runtime>()
 			.unwrap();
 
-		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
-			registered_assets: vec![
-				(b"LRNA".to_vec(), 1_000u128, Some(1)),
-				(b"DAI".to_vec(), 1_000u128, Some(2)),
-			],
+		pallet_asset_registry::GenesisConfig::<Runtime> {
+			registered_assets: vec![(b"LRNA".to_vec(), 1_000u128, Some(1))],
 			native_asset_name: b"HDX".to_vec(),
 			native_existential_deposit: NativeExistentialDeposit::get(),
 		}
