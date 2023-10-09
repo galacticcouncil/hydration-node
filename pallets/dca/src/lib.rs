@@ -73,7 +73,6 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::NativePriceOracle;
@@ -346,8 +345,6 @@ pub mod pallet {
 		TradeLimitReached,
 		///Slippage limit calculated from oracle is reached, leading to retry
 		SlippageLimitReached,
-		///The route to execute the trade on is not specified
-		RouteNotSpecified, //TODO: Dani - delete it
 		///No parent hash has been found from relay chain
 		NoParentHashFound,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries

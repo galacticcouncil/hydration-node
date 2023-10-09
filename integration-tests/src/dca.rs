@@ -113,8 +113,7 @@ mod omnipool {
 
 			let amount_out = 100 * UNITS;
 			let no_route = vec![];
-			let schedule1 =
-				schedule_fake_with_buy_order_with_route(PoolType::Omnipool, HDX, DAI, amount_out, dca_budget, no_route);
+			let schedule1 = schedule_fake_with_buy_order_with_route(HDX, DAI, amount_out, dca_budget, no_route);
 			create_schedule(ALICE, schedule1);
 
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
@@ -549,15 +548,8 @@ mod omnipool {
 			let dca_budget = 1000 * UNITS;
 			let amount_to_sell = 700 * UNITS;
 			let no_route = vec![];
-			let schedule1 = schedule_fake_with_sell_order_with_route(
-				ALICE,
-				PoolType::Omnipool,
-				dca_budget,
-				HDX,
-				DAI,
-				amount_to_sell,
-				no_route,
-			);
+			let schedule1 =
+				schedule_fake_with_sell_order_with_route(ALICE, dca_budget, HDX, DAI, amount_to_sell, no_route);
 			create_schedule(ALICE, schedule1);
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -2132,7 +2124,6 @@ fn schedule_fake_with_buy_order(
 	budget: Balance,
 ) -> Schedule<AccountId, AssetId, u32> {
 	schedule_fake_with_buy_order_with_route(
-		pool,
 		asset_in,
 		asset_out,
 		amount,
@@ -2146,7 +2137,6 @@ fn schedule_fake_with_buy_order(
 }
 
 fn schedule_fake_with_buy_order_with_route(
-	pool: PoolType<AssetId>,
 	asset_in: AssetId,
 	asset_out: AssetId,
 	amount: Balance,
@@ -2180,7 +2170,6 @@ fn schedule_fake_with_sell_order(
 ) -> Schedule<AccountId, AssetId, u32> {
 	schedule_fake_with_sell_order_with_route(
 		owner,
-		pool,
 		total_amount,
 		asset_in,
 		asset_out,
@@ -2195,7 +2184,6 @@ fn schedule_fake_with_sell_order(
 
 fn schedule_fake_with_sell_order_with_route(
 	owner: [u8; 32],
-	pool: PoolType<AssetId>,
 	total_amount: Balance,
 	asset_in: AssetId,
 	asset_out: AssetId,
