@@ -494,6 +494,54 @@ mod omnipool {
 		});
 	}
 
+	//TODO: continue from here
+	#[test]
+	fn sell_schedule_should_work_without_route() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			let alice_init_hdx_balance = 5000 * UNITS;
+			assert_ok!(Balances::set_balance(
+				RuntimeOrigin::root(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+				0,
+			));
+
+			let dca_budget = 1000 * UNITS;
+			let amount_to_sell = 700 * UNITS;
+			let no_route = vec![];
+			let schedule1 = schedule_fake_with_sell_order_with_route(
+				ALICE,
+				PoolType::Omnipool,
+				dca_budget,
+				HDX,
+				DAI,
+				amount_to_sell,
+				no_route,
+			);
+			create_schedule(ALICE, schedule1);
+
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
+
+			//Act
+			run_to_block(11, 15);
+			assert!(false);
+
+			//Assert
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_reserved_balance!(&ALICE.into(), HDX, 0);
+
+			let schedule_id = 0;
+			let schedule = DCA::schedules(schedule_id);
+			assert!(schedule.is_none());
+		});
+	}
+
 	#[test]
 	fn sell_schedule_should_be_terminated_after_retries() {
 		TestNet::reset();
@@ -2076,6 +2124,30 @@ fn schedule_fake_with_sell_order(
 	asset_out: AssetId,
 	amount: Balance,
 ) -> Schedule<AccountId, AssetId, u32> {
+	schedule_fake_with_sell_order_with_route(
+		owner,
+		pool,
+		total_amount,
+		asset_in,
+		asset_out,
+		amount,
+		vec![Trade {
+			pool,
+			asset_in,
+			asset_out,
+		}],
+	)
+}
+
+fn schedule_fake_with_sell_order_with_route(
+	owner: [u8; 32],
+	pool: PoolType<AssetId>,
+	total_amount: Balance,
+	asset_in: AssetId,
+	asset_out: AssetId,
+	amount: Balance,
+	route: Vec<Trade<AssetId>>,
+) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
 		owner: AccountId::from(owner),
 		period: 3u32,
@@ -2088,11 +2160,7 @@ fn schedule_fake_with_sell_order(
 			asset_out,
 			amount_in: amount,
 			min_amount_out: Balance::MIN,
-			route: create_bounded_vec(vec![Trade {
-				pool,
-				asset_in,
-				asset_out,
-			}]),
+			route: create_bounded_vec(route),
 		},
 	}
 }
