@@ -86,8 +86,8 @@ proptest! {
 		(asset_a, asset_b) in valid_asset_ids(),
 		(amount_a, amount_b) in (non_zero_amount(), non_zero_amount())
 	) {
-		let a_then_b = determine_normalized_price(asset_a, asset_b, amount_a, amount_b);
-		let b_then_a = determine_normalized_price(asset_b, asset_a, amount_b, amount_a);
+		let a_then_b = determine_normalized_price(asset_a, asset_b, Price::new(amount_a, amount_b));
+		let b_then_a = determine_normalized_price(asset_b, asset_a, Price::new(amount_b, amount_a));
 		prop_assert_eq!(a_then_b, b_then_a);
 	}
 }
@@ -104,9 +104,9 @@ proptest! {
 		new_test_ext().execute_with(|| {
 			let updated_at = 5;
 			System::set_block_number(updated_at);
-			assert_ok!(OnActivityHandler::<Test>::on_trade(SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_a, liquidity_b));
+			assert_ok!(OnActivityHandler::<Test>::on_trade(SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_a, liquidity_b, Price::new(liquidity_a, liquidity_b)));
 			let volume_before = get_accumulator_entry(SOURCE, (asset_a, asset_b)).unwrap().volume;
-			assert_ok!(OnActivityHandler::<Test>::on_liquidity_changed(SOURCE, asset_a, asset_b, second_amount_a, second_amount_b, second_liquidity_a, second_liquidity_b));
+			assert_ok!(OnActivityHandler::<Test>::on_liquidity_changed(SOURCE, asset_a, asset_b, second_amount_a, second_amount_b, second_liquidity_a, second_liquidity_b, Price::new(second_liquidity_a, second_liquidity_b)));
 			let volume_after = get_accumulator_entry(SOURCE, (asset_a, asset_b)).unwrap().volume;
 			assert_eq!(volume_before, volume_after);
 		});
@@ -151,7 +151,7 @@ proptest! {
 	) {
 		new_test_ext().execute_with(|| -> Result<(), TestCaseError> {
 			System::set_block_number(1);
-			assert_ok!(OnActivityHandler::<Test>::on_trade(SOURCE, HDX, DOT, amount_hdx, amount_dot, liquidity_hdx, liquidity_dot));
+			assert_ok!(OnActivityHandler::<Test>::on_trade(SOURCE, HDX, DOT, amount_hdx, amount_dot, liquidity_hdx, liquidity_dot, Price::new(liquidity_hdx, liquidity_dot)));
 			EmaOracle::on_finalize(1);
 			let oracle_age: u32 = 98;
 			System::set_block_number(u64::from(oracle_age) + 2);

@@ -20,63 +20,29 @@
 use codec::MaxEncodedLen;
 use frame_support::{
 	ensure,
+	pallet_prelude::*,
 	traits::{fungibles::Inspect, Get},
 	transactional,
-	weights::Weight,
 };
 use frame_system::ensure_signed;
-use hydradx_traits::router::Trade;
-use hydradx_traits::router::{ExecutorError, TradeExecution};
+pub use hydradx_traits::router::{
+	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
+};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_runtime::{ArithmeticError, DispatchError};
-use sp_std::vec::Vec;
+use sp_std::{vec, vec::Vec};
+
 #[cfg(test)]
 mod tests;
 
 pub mod weights;
 
-use weights::WeightInfo;
-
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-
-pub trait TradeAmountsCalculator<AssetId, Balance> {
-	fn calculate_buy_trade_amounts(
-		route: &[Trade<AssetId>],
-		amount_out: Balance,
-	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError>;
-
-	fn calculate_sell_trade_amounts(
-		route: &[Trade<AssetId>],
-		amount_in: Balance,
-	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError>;
-}
-
-pub struct AmountInAndOut<Balance> {
-	pub amount_in: Balance,
-	pub amount_out: Balance,
-}
-
-/// Provides weight info for the router. Calculates the weight of a route based on the AMMs.
-/// We get the resulting weight as the router extrinsic overhead + AMM weights.
-pub trait AmmTradeWeights<AssetId> {
-	fn sell_weight(route: &[Trade<AssetId>]) -> Weight;
-	fn buy_weight(route: &[Trade<AssetId>]) -> Weight;
-}
-
-impl<AssetId> AmmTradeWeights<AssetId> for () {
-	fn sell_weight(_route: &[Trade<AssetId>]) -> Weight {
-		Weight::zero()
-	}
-	fn buy_weight(_route: &[Trade<AssetId>]) -> Weight {
-		Weight::zero()
-	}
-}
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
 
@@ -116,11 +82,8 @@ pub mod pallet {
 			Error = DispatchError,
 		>;
 
-		/// AMMs trade weight information.
-		type AmmTradeWeights: AmmTradeWeights<Self::AssetId>;
-
 		/// Weight information for the extrinsics.
-		type WeightInfo: WeightInfo;
+		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
 	}
 
 	#[pallet::event]
@@ -167,7 +130,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::AmmTradeWeights::sell_weight(route))]
+		#[pallet::weight(T::WeightInfo::sell_weight(route))]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -246,7 +209,7 @@ pub mod pallet {
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::AmmTradeWeights::buy_weight(route))]
+		#[pallet::weight(T::WeightInfo::buy_weight(route))]
 		#[transactional]
 		pub fn buy(
 			origin: OriginFor<T>,
@@ -357,9 +320,7 @@ impl<T: Config> Pallet<T> {
 		}
 		Ok(())
 	}
-}
 
-impl<T: Config> TradeAmountsCalculator<T::AssetId, T::Balance> for Pallet<T> {
 	fn calculate_sell_trade_amounts(
 		route: &[Trade<T::AssetId>],
 		amount_in: T::Balance,
@@ -403,6 +364,93 @@ impl<T: Config> TradeAmountsCalculator<T::AssetId, T::Balance> for Pallet<T> {
 		}
 
 		Ok(amount_in_and_outs)
+	}
+}
+
+impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::AssetId>, AmountInAndOut<T::Balance>>
+	for Pallet<T>
+{
+	fn sell(
+		origin: T::RuntimeOrigin,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_in: T::Balance,
+		min_amount_out: T::Balance,
+		route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResult {
+		Pallet::<T>::sell(origin, asset_in, asset_out, amount_in, min_amount_out, route)
+	}
+
+	fn buy(
+		origin: T::RuntimeOrigin,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_out: T::Balance,
+		max_amount_in: T::Balance,
+		route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResult {
+		Pallet::<T>::buy(origin, asset_in, asset_out, amount_out, max_amount_in, route)
+	}
+
+	fn calculate_sell_trade_amounts(
+		route: &[Trade<T::AssetId>],
+		amount_in: T::Balance,
+	) -> Result<Vec<AmountInAndOut<T::Balance>>, DispatchError> {
+		Pallet::<T>::calculate_sell_trade_amounts(route, amount_in)
+	}
+
+	fn calculate_buy_trade_amounts(
+		route: &[Trade<T::AssetId>],
+		amount_out: T::Balance,
+	) -> Result<Vec<AmountInAndOut<T::Balance>>, DispatchError> {
+		Pallet::<T>::calculate_buy_trade_amounts(route, amount_out)
+	}
+}
+
+pub struct DummyRouter<T>(PhantomData<T>);
+impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::AssetId>, AmountInAndOut<T::Balance>>
+	for DummyRouter<T>
+{
+	fn sell(
+		_origin: T::RuntimeOrigin,
+		_asset_in: T::AssetId,
+		_asset_out: T::AssetId,
+		_amount_in: T::Balance,
+		_min_amount_out: T::Balance,
+		_route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResult {
+		Ok(())
+	}
+
+	fn buy(
+		_origin: T::RuntimeOrigin,
+		_asset_in: T::AssetId,
+		_asset_out: T::AssetId,
+		_amount_out: T::Balance,
+		_max_amount_in: T::Balance,
+		_route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResult {
+		Ok(())
+	}
+
+	fn calculate_sell_trade_amounts(
+		_route: &[Trade<T::AssetId>],
+		amount_in: T::Balance,
+	) -> Result<Vec<AmountInAndOut<T::Balance>>, DispatchError> {
+		Ok(vec![AmountInAndOut::<T::Balance> {
+			amount_in,
+			amount_out: amount_in,
+		}])
+	}
+
+	fn calculate_buy_trade_amounts(
+		_route: &[Trade<T::AssetId>],
+		amount_out: T::Balance,
+	) -> Result<Vec<AmountInAndOut<T::Balance>>, DispatchError> {
+		Ok(vec![AmountInAndOut::<T::Balance> {
+			amount_in: amount_out,
+			amount_out,
+		}])
 	}
 }
 

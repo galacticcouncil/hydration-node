@@ -3,6 +3,7 @@ use hydradx_traits::router::{RouteProvider, Trade};
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
+use sp_std::vec::Vec;
 
 pub type Balance = u128;
 pub type ScheduleId = u32;
@@ -69,6 +70,14 @@ where
 			Order::Buy { asset_out, .. } => asset_out,
 		};
 		*asset_out
+	}
+
+	//TODO: we should remove this, also from benchmark, and but the new method
+	pub fn get_route(&self) -> &BoundedVec<Trade<AssetId>, ConstU32<5>> {
+		match &self {
+			Order::Sell { route, .. } => route,
+			Order::Buy { route, .. } => route,
+		}
 	}
 
 	pub fn get_route_or_default<Provider: RouteProvider<AssetId>>(&self) -> Vec<Trade<AssetId>> {

@@ -22,8 +22,7 @@ use crate::tests::{create_bounded_vec, ScheduleBuilder};
 use crate::{Error, Event, Order};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
-use hydradx_traits::router::PoolType;
-use hydradx_traits::router::Trade;
+use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError::BadOrigin;
@@ -750,7 +749,7 @@ fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in_plus_fee() 
 		.execute_with(|| {
 			//Arrange
 			let amount_in = ONE;
-			let total_amount = amount_in + BUY_DCA_FEE_IN_NATIVE;
+			let total_amount = amount_in + SELL_DCA_FEE_IN_NATIVE;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_order(Order::Sell {

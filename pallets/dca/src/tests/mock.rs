@@ -28,7 +28,7 @@ use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{AssetKind, OraclePeriod, PriceOracle, Registry};
+use hydradx_traits::{AssetKind, NativePriceOracle, OraclePeriod, PriceOracle, Registry};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
@@ -58,10 +58,10 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const BUY_DCA_FEE_IN_NATIVE: Balance = 3181488000;
-pub const BUY_DCA_FEE_IN_DAI: Balance = 2799709440;
-pub const SELL_DCA_FEE_IN_NATIVE: Balance = 3175101000;
-pub const SELL_DCA_FEE_IN_DAI: Balance = 2794088880;
+pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1330108000;
+pub const BUY_DCA_FEE_IN_DAI: Balance = 1170495040;
+pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1329215000;
+pub const SELL_DCA_FEE_IN_DAI: Balance = 1169709200;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -361,7 +361,6 @@ impl pallet_route_executor::Config for Test {
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
 	type AMM = Pools;
-	type AmmTradeWeights = ();
 	type WeightInfo = ();
 }
 
@@ -587,22 +586,11 @@ pub struct PriceProviderMock {}
 impl PriceOracle<AssetId> for PriceProviderMock {
 	type Price = Ratio;
 
-	fn price(_: AssetId, _: AssetId, _: OraclePeriod) -> Option<Ratio> {
+	fn price(_: &[Trade<AssetId>], period: OraclePeriod) -> Option<Ratio> {
+		if period == OraclePeriod::Short {
+			return Some(Ratio::new(80, 100));
+		}
 		Some(Ratio::new(88, 100))
-	}
-}
-
-pub struct SpotPriceProviderMock {}
-
-impl SpotPriceProvider<AssetId> for SpotPriceProviderMock {
-	type Price = FixedU128;
-
-	fn pair_exists(_: AssetId, _: AssetId) -> bool {
-		todo!()
-	}
-
-	fn spot_price(_: AssetId, _: AssetId) -> Option<Self::Price> {
-		Some(FixedU128::from_rational(80, 100))
 	}
 }
 
@@ -631,6 +619,7 @@ impl RandomnessProvider for RandomnessProviderMock {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = RandomnessProviderMock;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
@@ -640,14 +629,24 @@ impl Config for Test {
 	type WeightToFee = IdentityFee<Balance>;
 	type WeightInfo = ();
 	type OraclePriceProvider = PriceProviderMock;
-	type SpotPriceProvider = SpotPriceProviderMock;
+	type Router = RouteExecutor;
 	type RouteProvider = DefaultRouteProvider;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type RelayChainBlockHashProvider = ParentHashGetterMock;
+	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
+	type NativePriceOracle = NativePriceOracleMock;
+}
+
+pub struct NativePriceOracleMock;
+
+impl NativePriceOracle<AssetId, FixedU128> for NativePriceOracleMock {
+	fn price(_: AssetId) -> Option<FixedU128> {
+		Some(FixedU128::from_rational(88, 100))
+	}
 }
 
 pub struct DefaultRouteProvider;
@@ -668,8 +667,7 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::pools::SpotPriceProvider;
-use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
 use rand::SeedableRng;

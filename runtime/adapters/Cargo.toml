@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "0.6.1"
+version = "0.6.3"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -27,6 +27,7 @@ pallet-uniques = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-currencies = { workspace = true }
+pallet-stableswap = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }

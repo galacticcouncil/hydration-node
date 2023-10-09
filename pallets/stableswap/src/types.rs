@@ -9,11 +9,13 @@ use sp_std::prelude::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::ConstU32;
+use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
+use sp_runtime::DispatchResult;
 pub(crate) type Balance = u128;
 
 /// Pool properties for 2-asset pool (v1)
@@ -87,6 +89,11 @@ impl<AssetId> From<AssetAmount<AssetId>> for u128 {
 		value.amount
 	}
 }
+impl<AssetId> From<&AssetAmount<AssetId>> for u128 {
+	fn from(value: &AssetAmount<AssetId>) -> Self {
+		value.amount
+	}
+}
 
 bitflags::bitflags! {
 	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.
@@ -112,16 +119,49 @@ impl Default for Tradability {
 }
 
 #[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::DispatchResult;
-
-#[cfg(feature = "runtime-benchmarks")]
 pub trait BenchmarkHelper<AssetId> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult;
 }
 
-#[cfg(feature = "runtime-benchmarks")]
-impl<AssetId> BenchmarkHelper<AssetId> for () {
-	fn register_asset(_asset_id: AssetId, _decimals: u8) -> DispatchResult {
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct PoolState<AssetId> {
+	pub assets: Vec<AssetId>,
+	pub before: Vec<Balance>,
+	pub after: Vec<Balance>,
+	pub delta: Vec<Balance>,
+	pub issuance_before: Balance,
+	pub issuance_after: Balance,
+	pub share_prices: Vec<(Balance, Balance)>,
+}
+
+/// Interface for populating oracle from stableswap, and getting their weights
+pub trait StableswapHooks<AssetId> {
+	fn on_liquidity_changed(pool_id: AssetId, state: PoolState<AssetId>) -> DispatchResult;
+	fn on_trade(pool_id: AssetId, asset_in: AssetId, asset_out: AssetId, state: PoolState<AssetId>) -> DispatchResult;
+
+	fn on_liquidity_changed_weight(n: usize) -> Weight;
+	fn on_trade_weight(n: usize) -> Weight;
+}
+
+impl<AssetId> StableswapHooks<AssetId> for () {
+	fn on_liquidity_changed(_pool_id: AssetId, _state: PoolState<AssetId>) -> DispatchResult {
 		Ok(())
+	}
+
+	fn on_trade(
+		_pool_id: AssetId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_state: PoolState<AssetId>,
+	) -> DispatchResult {
+		Ok(())
+	}
+
+	fn on_liquidity_changed_weight(_n: usize) -> Weight {
+		Weight::zero()
+	}
+
+	fn on_trade_weight(_n: usize) -> Weight {
+		Weight::zero()
 	}
 }

@@ -1,5 +1,4 @@
-use hydradx_traits::router::PoolType;
-use hydradx_traits::router::Trade;
+use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use sp_core::Get;
@@ -72,7 +71,7 @@ where
 					asset_out,
 					amount.into(),
 					min_buy_amount.into(),
-					vec![Trade {
+					vec![Trade::<Runtime::AssetId> {
 						pool: Pool::get(),
 						asset_in,
 						asset_out,
@@ -104,7 +103,7 @@ where
 					asset_out,
 					amount.into(),
 					max_sell_amount.into(),
-					vec![Trade {
+					vec![Trade::<Runtime::AssetId> {
 						pool: Pool::get(),
 						asset_in,
 						asset_out,

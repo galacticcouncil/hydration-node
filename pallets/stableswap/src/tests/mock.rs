@@ -16,12 +16,13 @@
 // limitations under the License.
 
 //! Test environment for Assets pallet.
+#![allow(clippy::type_complexity)]
 
+use core::ops::RangeInclusive;
+use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
-
-use core::ops::RangeInclusive;
 use std::num::NonZeroU16;
 
 use crate as pallet_stableswap;
@@ -29,6 +30,7 @@ use crate as pallet_stableswap;
 use crate::Config;
 
 use frame_support::assert_ok;
+use frame_support::dispatch::Weight;
 use frame_support::traits::{Contains, Everything, GenesisBuild};
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -71,6 +73,8 @@ thread_local! {
 	pub static ASSET_IDENTS: RefCell<HashMap<Vec<u8>, u32>> = RefCell::new(HashMap::default());
 	pub static POOL_IDS: RefCell<Vec<AssetId>> = RefCell::new(Vec::new());
 	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
+	pub static LAST_LIQUDITY_CHANGE_HOOK: RefCell<Option<(AssetId, PoolState<AssetId>)>> = RefCell::new(None);
+	pub static LAST_TRADE_HOOK: RefCell<Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)>> = RefCell::new(None);
 }
 
 construct_runtime!(
@@ -181,6 +185,7 @@ impl Config for Test {
 	type WeightInfo = ();
 	type BlockNumberProvider = System;
 	type DustAccountHandler = Whitelist;
+	type Hooks = DummyHookAdapter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = DummyRegistry;
 }
@@ -304,13 +309,10 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
-use crate::types::{AssetAmount, PoolInfo};
+use crate::types::{AssetAmount, PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{AccountIdFor, InspectRegistry};
 use sp_runtime::traits::Zero;
-
-#[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::DispatchResult;
 
 pub struct DummyRegistry;
 
@@ -368,4 +370,40 @@ pub(crate) fn retrieve_current_asset_id() -> AssetId {
 
 pub(crate) fn get_pool_id_at(idx: usize) -> AssetId {
 	POOL_IDS.with(|v| v.borrow()[idx])
+}
+
+pub struct DummyHookAdapter;
+
+impl StableswapHooks<AssetId> for DummyHookAdapter {
+	fn on_liquidity_changed(pool_id: AssetId, state: PoolState<AssetId>) -> DispatchResult {
+		LAST_LIQUDITY_CHANGE_HOOK.with(|v| {
+			*v.borrow_mut() = Some((pool_id, state));
+		});
+
+		Ok(())
+	}
+
+	fn on_trade(pool_id: AssetId, asset_in: AssetId, asset_out: AssetId, state: PoolState<AssetId>) -> DispatchResult {
+		LAST_TRADE_HOOK.with(|v| {
+			*v.borrow_mut() = Some((pool_id, asset_in, asset_out, state));
+		});
+
+		Ok(())
+	}
+
+	fn on_liquidity_changed_weight(_n: usize) -> Weight {
+		Weight::zero()
+	}
+
+	fn on_trade_weight(_n: usize) -> Weight {
+		Weight::zero()
+	}
+}
+
+pub(crate) fn last_liquidity_changed_hook_state() -> Option<(AssetId, PoolState<AssetId>)> {
+	LAST_LIQUDITY_CHANGE_HOOK.with(|v| v.borrow().clone())
+}
+
+pub(crate) fn last_trade_hook_state() -> Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)> {
+	LAST_TRADE_HOOK.with(|v| v.borrow().clone())
 }
