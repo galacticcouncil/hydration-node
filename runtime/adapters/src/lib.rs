@@ -562,6 +562,10 @@ where
 			prices.push(price);
 		}
 
+		if prices.is_empty() {
+			return None;
+		}
+
 		let nominator = prices
 			.iter()
 			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
