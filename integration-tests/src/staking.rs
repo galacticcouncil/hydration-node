@@ -858,3 +858,100 @@ fn stake_should_fail_when_tokens_are_already_staked() {
 		);
 	});
 }
+
+#[test]
+fn staking_should_assign_less_action_points_when_portion_of_staking_lock_is_vested() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			(10_000 * UNITS) as i128,
+		));
+
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			vesting_account(),
+			HDX,
+			(1_000_000 * UNITS) as i128,
+		));
+
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			HDX,
+			(1_000_000 * UNITS) as i128,
+		));
+
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			HDX,
+			(99_000 * UNITS) as i128,
+		));
+
+		assert_ok!(Vesting::vested_transfer(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			vesting_schedule()
+		));
+
+		assert_eq!(Currencies::free_balance(HDX, &BOB.into()), 200_000 * UNITS);
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			100_000 * UNITS
+		));
+
+		//Transfer 50% so there is not enough tokens to satify both locks withou overlay.
+		assert_ok!(Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			ALICE.into(),
+			HDX,
+			50_000 * UNITS
+		));
+
+		let r = begin_referendum();
+
+		assert_ok!(Democracy::vote(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			r,
+			AccountVote::Standard {
+				vote: Vote {
+					aye: true,
+					conviction: Conviction::Locked6x,
+				},
+				balance: 150_000 * UNITS,
+			}
+		));
+		end_referendum();
+
+		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
+			&sp_runtime::AccountId32::from(BOB),
+		)
+		.unwrap()
+		.unwrap();
+		let position_votes =
+			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id).votes;
+
+		assert_eq!(position_votes.len(), 1);
+		assert_eq!(
+			position_votes[0].1,
+			pallet_staking::types::Vote::new(50_000 * UNITS, pallet_staking::types::Conviction::Locked6x)
+		);
+
+		assert_ok!(Staking::claim(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			stake_position_id
+		));
+
+		let position = pallet_staking::Pallet::<hydradx_runtime::Runtime>::positions(stake_position_id).unwrap();
+
+		assert_eq!(position.get_action_points(), 50_u128);
+	});
+}

@@ -863,6 +863,9 @@ impl pallet_staking::Config for Runtime {
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
 	type WeightInfo = weights::staking::HydraWeight<Runtime>;
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type MaxLocks = MaxLocks;
 }
 
 // LBP
