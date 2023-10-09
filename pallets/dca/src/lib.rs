@@ -411,7 +411,8 @@ pub mod pallet {
 		/// Emits `Scheduled` and `ExecutionPlanned` event when successful.
 		///
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule() + <T as Config>::AmmTradeWeights::calculate_buy_trade_amounts_weight(schedule.order.get_route()))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule()
+			+ <T as Config>::AmmTradeWeights::calculate_buy_trade_amounts_weight(&schedule.order.get_route_or_default::<T::RouteProvider>()))]
 		#[transactional]
 		pub fn schedule(
 			origin: OriginFor<T>,

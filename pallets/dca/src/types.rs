@@ -72,14 +72,6 @@ where
 		*asset_out
 	}
 
-	//TODO: we should remove this, also from benchmark, and but the new method
-	pub fn get_route(&self) -> &BoundedVec<Trade<AssetId>, ConstU32<5>> {
-		match &self {
-			Order::Sell { route, .. } => route,
-			Order::Buy { route, .. } => route,
-		}
-	}
-
 	pub fn get_route_or_default<Provider: RouteProvider<AssetId>>(&self) -> Vec<Trade<AssetId>> {
 		let route = match &self {
 			Order::Sell { route, .. } => route,
