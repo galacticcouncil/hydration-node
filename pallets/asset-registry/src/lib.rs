@@ -162,7 +162,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn assets)]
 	/// Details of an asset.
-	pub type Assets<T: Config> = StorageMap<_, Twox64Concat, T::AssetId, AssetDetailsT<T>, OptionQuery>;
+	pub type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetDetailsT<T>, OptionQuery>;
 
 	#[pallet::storage]
 	/// Next available asset id. This is sequential id assigned for each new registered asset.
@@ -177,7 +177,8 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn locations)]
 	/// Native location of an asset.
-	pub type AssetLocations<T: Config> = StorageMap<_, Twox64Concat, T::AssetId, T::AssetNativeLocation, OptionQuery>;
+	pub type AssetLocations<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, T::AssetNativeLocation, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn location_assets)]
@@ -387,14 +388,10 @@ pub mod pallet {
 			decimals: Option<u8>,
 			location: Option<T::AssetNativeLocation>,
 		) -> DispatchResult {
-			let is_registry_origin = match T::RegistryOrigin::ensure_origin(origin.clone()) {
-				Ok(_) => true,
-				Err(_) => {
-					T::UpdateOrigin::ensure_origin(origin)?;
-
-					false
-				}
-			};
+			let is_registry_origin = T::RegistryOrigin::ensure_origin(origin.clone()).is_ok();
+			if !is_registry_origin {
+				T::UpdateOrigin::ensure_origin(origin)?;
+			}
 
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
 				let mut details = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
