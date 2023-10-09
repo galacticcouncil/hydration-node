@@ -50,3 +50,5 @@ fork-testing/local-raw.json
 .env
 
 SNAPSHOT*
+
+db.sqlite

@@ -36,6 +36,7 @@ pallet-dca = { workspace = true}
 pallet-dynamic-fees = { workspace = true }
 pallet-staking = { workspace = true}
 pallet-lbp = { workspace = true}
+pallet-xyk = { workspace = true}
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -183,4 +184,9 @@ std = [
     "polkadot-runtime/std",
     "hydradx-runtime/std",
     "pallet-staking/std",
+]
+
+# we don't include integration tests when benchmarking feature is enabled
+runtime-benchmarks = [
+    "hydradx-runtime/runtime-benchmarks",
 ]

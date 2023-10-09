@@ -34,7 +34,7 @@ use std::borrow::Borrow;
 use std::ops::RangeInclusive;
 
 #[test]
-fn successfull_sell_dca_execution_should_emit_trade_executed_event() {
+fn successful_sell_dca_execution_should_emit_trade_executed_event() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -87,7 +87,7 @@ fn successfull_sell_dca_execution_should_emit_trade_executed_event() {
 }
 
 #[test]
-fn successfull_buy_dca_execution_should_emit_trade_executed_event() {
+fn successful_buy_dca_execution_should_emit_trade_executed_event() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -481,7 +481,7 @@ fn full_sell_dca_should_be_completed_with_selling_leftover_in_last_trade() {
 }
 
 #[test]
-fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happened_but_less_than_fee_left() {
+fn full_sell_dca_should_be_completed_when_some_successful_dca_execution_happened_but_less_than_fee_left() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -526,7 +526,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 }
 
 #[test]
-fn full_buy_dca_should_be_completed_when_some_successfull_dca_execution_happened_but_less_than_fee_left() {
+fn full_buy_dca_should_be_completed_when_some_successful_dca_execution_happened_but_less_than_fee_left() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -743,7 +743,7 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 }
 
 #[test]
-fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_enough_balance() {
+fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_enough_balance() {
 	let alice_init_hdx_balance = 10000 * ONE;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, alice_init_hdx_balance)])
@@ -782,7 +782,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 			//Assert
 			assert_number_of_executed_buy_trades!(4);
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
-			let left_over_which_is_not_enough_for_last_trade = 9987274048000;
+			let left_over_which_is_not_enough_for_last_trade = 9994679568000;
 			assert_balance!(
 				ALICE,
 				HDX,
@@ -1346,7 +1346,7 @@ fn sell_dca_schedule_continue_on_slippage_error() {
 }
 
 #[test]
-fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones() {
+fn dca_schedule_retry_should_be_reset_when_successful_trade_after_failed_ones() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
 		.with_max_price_difference(Permill::from_percent(9))
@@ -2437,7 +2437,7 @@ fn dca_should_continue_when_remainder_is_equal_to_min_trading_limit() {
 }
 
 #[test]
-fn execution_is_still_successfull_when_no_parent_hash_present() {
+fn execution_is_still_successful_when_no_parent_hash_present() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()

@@ -169,6 +169,7 @@ use sp_runtime::{
 	ArithmeticError, DispatchError, DispatchResult,
 };
 use sp_std::prelude::*;
+use sp_std::vec;
 
 mod conviction;
 pub mod traits;

@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "179.0.0"
+version = "183.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -33,6 +33,7 @@ pallet-dynamic-fees = { workspace = true }
 pallet-stableswap = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
+pallet-xyk = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -138,6 +139,7 @@ runtime-benchmarks = [
     "frame-system-benchmarking/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
     "orml-benchmarking",
+    "hydradx-adapters/runtime-benchmarks",
     "pallet-xcm/runtime-benchmarks",
     "xcm-builder/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",
@@ -172,6 +174,7 @@ runtime-benchmarks = [
     "pallet-bonds/runtime-benchmarks",
     "pallet-stableswap/runtime-benchmarks",
     "pallet-lbp/runtime-benchmarks",
+    "pallet-xyk/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -257,6 +260,7 @@ std = [
     "pallet-bonds/std",
     "pallet-stableswap/std",
     "pallet-lbp/std",
+    "pallet-xyk/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -318,4 +322,5 @@ try-runtime= [
     "pallet-bonds/try-runtime",
     "pallet-stableswap/try-runtime",
     "pallet-lbp/try-runtime",
+    "pallet-xyk/try-runtime",
 ]

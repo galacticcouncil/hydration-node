@@ -1,7 +1,6 @@
 .PHONY: build
 build:
-	cargo build --release
-	ln -f $(CURDIR)/target/release/hydradx $(CURDIR)/target/release/testing-hydradx
+	cargo build --release --locked
 
 .PHONY: check
 check:
@@ -13,7 +12,7 @@ build-benchmarks:
 
 .PHONY: test
 test:
-	cargo test --release
+	cargo test --release --locked
 
 .PHONY: test-benchmarks
 test-benchmarks:
@@ -55,3 +54,6 @@ checksum:
 release: build checksum
 
 all: clippy build-benchmarks test-benchmarks test build checksum
+
+chopstics: release
+	npx @acala-network/chopsticks xcm --parachain=launch-configs/chopsticks/hydradx.yml --parachain=launch-configs/chopsticks/assethub.yml
