@@ -791,9 +791,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn is_price_unstable(schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>) -> bool {
-		let route = match &schedule.order {
-			Order::Sell { route, .. } | Order::Buy { route, .. } => route,
-		};
+		let route = &schedule.order.get_route_or_default::<T::RouteProvider>();
 
 		let Ok(last_block_price) = Self::get_price_from_last_block_oracle(route) else {
 			return true;
@@ -1056,9 +1054,7 @@ impl<T: Config> Pallet<T> {
 		Ok(price_from_rational)
 	}
 
-	fn get_price_from_short_oracle(
-		route: &BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
-	) -> Result<FixedU128, DispatchError> {
+	fn get_price_from_short_oracle(route: &[Trade<T::AssetId>]) -> Result<FixedU128, DispatchError> {
 		let price =
 			T::OraclePriceProvider::price(route, OraclePeriod::Short).ok_or(Error::<T>::CalculatingPriceError)?;
 

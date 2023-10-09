@@ -494,7 +494,6 @@ mod omnipool {
 		});
 	}
 
-	//TODO: continue from here
 	#[test]
 	fn sell_schedule_should_work_without_route() {
 		TestNet::reset();
@@ -530,7 +529,6 @@ mod omnipool {
 
 			//Act
 			run_to_block(11, 15);
-			assert!(false);
 
 			//Assert
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
