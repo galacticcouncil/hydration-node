@@ -964,6 +964,52 @@ fn whitelisted_account_should_not_release_ed_when_killed() {
 	});
 }
 
+#[test]
+fn tx_should_fail_with_unsupported_currency_error_when_fee_asset_price_wasn_not_provided() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let sht1: AssetId = register_shitcoin(0_u128);
+		let fee_asset = BTC;
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			sht1,
+			100_000_000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			fee_asset,
+			1_000_000,
+			0,
+		));
+
+		assert_ok!(MultiTransactionPayment::set_currency(
+			hydra_origin::signed(ALICE.into()),
+			fee_asset
+		));
+
+		assert_ok!(MultiTransactionPayment::remove_currency(RawOrigin::Root.into(), BTC));
+
+		polkadot_run_to_block(2);
+
+		//Act 1 - transfer
+		assert_noop!(
+			Tokens::transfer(hydra_origin::signed(BOB.into()), ALICE.into(), sht1, 1_000_000 * UNITS),
+			pallet_transaction_multi_payment::Error::<hydradx_runtime::Runtime>::UnsupportedCurrency
+		);
+
+		//Act 2 - deposit
+		assert_noop!(
+			Tokens::deposit(sht1, &ALICE.into(), 1_000_000 * UNITS),
+			pallet_transaction_multi_payment::Error::<hydradx_runtime::Runtime>::UnsupportedCurrency
+		);
+	});
+}
+
 fn register_shitcoin(general_index: u128) -> AssetId {
 	let location = hydradx_runtime::AssetLocation(MultiLocation::new(
 		1,

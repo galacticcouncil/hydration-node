@@ -46,7 +46,7 @@ use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
 	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
-	sp_runtime::traits::{Bounded, One, PhantomData},
+	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, LockIdentifier, NeverEnsureOrigin},
 	BoundedVec, PalletId,
@@ -113,9 +113,8 @@ impl SufficiencyCheck {
 		{
 			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);
 
-			//NOTE: unwrap should never fail. MutiTransctionPayment should always provide price.
 			let ed = MultiTransactionPayment::price(fee_payment_asset)
-				.unwrap_or_else(FixedU128::max_value)
+				.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
 				.saturating_mul_int(InsufficientEDinHDX::get());
 
 			//NOTE: Account doesn't have enough funds to pay ED if this fail.
