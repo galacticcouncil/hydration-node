@@ -60,11 +60,12 @@ impl<AssetId> From<AssetType<AssetId>> for AssetKind {
 	}
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(StringLimit))]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AssetDetails<AssetId, BoundedString> {
+pub struct AssetDetails<AssetId, StringLimit: Get<u32>> {
 	/// The name of this asset. Limited in length by `StringLimit`.
-	pub name: Option<BoundedString>,
+	pub name: Option<BoundedVec<u8, StringLimit>>,
 
 	/// Asset type
 	pub asset_type: AssetType<AssetId>,
@@ -73,7 +74,7 @@ pub struct AssetDetails<AssetId, BoundedString> {
 	pub existential_deposit: Balance,
 
 	/// The ticker symbol for this asset. Limited in length by `StringLimit`.
-	pub symbol: Option<BoundedString>,
+	pub symbol: Option<BoundedVec<u8, StringLimit>>,
 
 	/// The number of decimals this asset uses to represent one unit.
 	pub decimals: Option<u8>,
@@ -85,12 +86,12 @@ pub struct AssetDetails<AssetId, BoundedString> {
 	pub is_sufficient: bool,
 }
 
-impl<AssetId, BoundedString> AssetDetails<AssetId, BoundedString> {
+impl<AssetId, StringLimit: Get<u32>> AssetDetails<AssetId, StringLimit> {
 	pub fn new(
-		name: Option<BoundedString>,
+		name: Option<BoundedVec<u8, StringLimit>>,
 		asset_type: AssetType<AssetId>,
 		existential_deposit: Balance,
-		symbol: Option<BoundedString>,
+		symbol: Option<BoundedVec<u8, StringLimit>>,
 		decimals: Option<u8>,
 		xcm_rate_limit: Option<Balance>,
 		is_sufficient: bool,

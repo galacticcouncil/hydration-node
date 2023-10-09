@@ -59,6 +59,7 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 63;
 	pub const NativeAssetId: AssetId = 0;
+	#[derive(PartialEq, Debug)]
 	pub const RegistryStringLimit: u32 = 10;
 	pub const SequentialIdStart: u32 = 1_000_000;
 }

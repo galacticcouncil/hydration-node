@@ -59,7 +59,7 @@ pub const DEFAULT_ED: Balance = 1;
 pub mod pallet {
 	use super::*;
 
-	pub type AssetDetailsT<T> = AssetDetails<<T as Config>::AssetId, BoundedVec<u8, <T as Config>::StringLimit>>;
+	pub type AssetDetailsT<T> = AssetDetails<<T as Config>::AssetId, <T as Config>::StringLimit>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -84,9 +84,6 @@ pub mod pallet {
 		/// Asset location type
 		type AssetNativeLocation: Parameter + Member + Default + MaxEncodedLen;
 
-		/// The maximum length of a name or symbol stored on-chain.
-		type StringLimit: Get<u32>;
-
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
@@ -104,6 +101,10 @@ pub mod pallet {
 		/// Storage fees for external asset creation.
 		#[pallet::constant]
 		type StorageFeesBeneficiary: Get<Self::AccountId>;
+
+		/// The maximum length of a name or symbol stored on-chain.
+		#[pallet::constant]
+		type StringLimit: Get<u32>;
 
 		/// Weight information for the extrinsics
 		type WeightInfo: WeightInfo;
@@ -144,7 +145,7 @@ pub mod pallet {
 		/// Location already registered with different asset
 		LocationAlreadyRegistered,
 
-		/// Origin is fobiddent to set/update value
+		/// Origin is forbidden to set/update value
 		Forbidden,
 
 		/// Balance too low
@@ -520,7 +521,7 @@ impl<T: Config> Pallet<T> {
 
 	fn do_register_asset(
 		selected_asset_id: Option<T::AssetId>,
-		details: &AssetDetails<T::AssetId, BoundedVec<u8, T::StringLimit>>,
+		details: &AssetDetails<T::AssetId, T::StringLimit>,
 		location: Option<T::AssetNativeLocation>,
 	) -> Result<T::AssetId, DispatchError> {
 		let asset_id = if let Some(id) = selected_asset_id {
