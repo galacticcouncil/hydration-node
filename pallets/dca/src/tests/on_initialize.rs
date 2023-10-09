@@ -480,8 +480,6 @@ fn full_sell_dca_should_be_completed_with_selling_leftover_in_last_trade() {
 		});
 }
 
-//TODO: continue from here
-#[ignore]
 #[test]
 fn full_sell_dca_should_be_completed_when_default_routes_used() {
 	ExtBuilder::default()

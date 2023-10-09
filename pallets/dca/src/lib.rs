@@ -347,7 +347,7 @@ pub mod pallet {
 		///Slippage limit calculated from oracle is reached, leading to retry
 		SlippageLimitReached,
 		///The route to execute the trade on is not specified
-		RouteNotSpecified,
+		RouteNotSpecified, //TODO: Dani - delete it
 		///No parent hash has been found from relay chain
 		NoParentHashFound,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
@@ -630,8 +630,9 @@ impl<T: Config> Pallet<T> {
 				asset_out,
 				amount_in,
 				min_amount_out,
-				route,
+				..
 			} => {
+				let route = &schedule.order.get_route_or_default::<T::RouteProvider>();
 				let remaining_amount =
 					RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_to_sell = min(remaining_amount, *amount_in);
@@ -645,7 +646,6 @@ impl<T: Config> Pallet<T> {
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				let route = route.to_vec();
 				let trade_amounts = T::Router::calculate_sell_trade_amounts(&route, amount_to_sell)?;
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
@@ -659,7 +659,14 @@ impl<T: Config> Pallet<T> {
 					);
 				};
 
-				T::Router::sell(origin, *asset_in, *asset_out, amount_to_sell, amount_out, route)?;
+				T::Router::sell(
+					origin,
+					*asset_in,
+					*asset_out,
+					amount_to_sell,
+					amount_out,
+					route.to_vec(),
+				)?;
 
 				Ok(AmountInAndOut {
 					amount_in: amount_to_sell,
