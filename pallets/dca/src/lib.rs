@@ -443,7 +443,7 @@ pub mod pallet {
 			let amount_in = match schedule.order {
 				Order::Sell { amount_in, .. } => amount_in,
 				Order::Buy { amount_out, .. } => {
-					let route = Self::get_route_or_default(&schedule.order);
+					let route = schedule.order.get_route_or_default::<T::RouteProvider>();
 					Self::get_amount_in_for_buy(&amount_out, &route)?
 				}
 			};
@@ -572,14 +572,6 @@ where
 	<T as pallet_route_executor::Config>::Balance: From<Balance>,
 	Balance: From<<T as pallet_route_executor::Config>::Balance>,
 {
-	fn get_route_or_default(order: &Order<T::AssetId>) -> Vec<Trade<T::AssetId>> {
-		if order.get_route().is_empty() {
-			T::RouteProvider::get(order.get_asset_in(), order.get_asset_out())
-		} else {
-			order.get_route().to_vec()
-		}
-	}
-
 	fn get_randomness_generator(current_blocknumber: T::BlockNumber, salt: Option<u32>) -> StdRng {
 		match T::RandomnessProvider::generator(salt) {
 			Ok(generator) => generator,
@@ -697,7 +689,7 @@ where
 				max_amount_in,
 				..
 			} => {
-				let route = Self::get_route_or_default(&schedule.order);
+				let route = schedule.order.get_route_or_default::<T::RouteProvider>();
 				let amount_in = Self::get_amount_in_for_buy(amount_out, &route)?;
 
 				Self::unallocate_amount(schedule_id, schedule, amount_in)?;
@@ -761,7 +753,7 @@ where
 
 		//In buy we complete with returning leftover, in sell we sell the leftover in the next trade
 		if let Order::Buy { amount_out, .. } = &schedule.order {
-			let route = Self::get_route_or_default(&schedule.order);
+			let route = schedule.order.get_route_or_default::<T::RouteProvider>();
 			let amount_to_unreserve: Balance = Self::get_amount_in_for_buy(amount_out, &route)?;
 
 			let amount_for_next_trade: Balance = amount_to_unreserve
