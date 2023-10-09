@@ -101,6 +101,44 @@ mod omnipool {
 	}
 
 	#[test]
+	fn buy_schedule_execution_should_work_without_route() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+
+			let dca_budget = 1000 * UNITS;
+
+			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+
+			let amount_out = 100 * UNITS;
+			let no_route = vec![];
+			let schedule1 =
+				schedule_fake_with_buy_order_with_route(PoolType::Omnipool, HDX, DAI, amount_out, dca_budget, no_route);
+			create_schedule(ALICE, schedule1);
+
+			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
+
+			//Act
+			set_relaychain_block_number(11);
+
+			//Assert
+			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
+			let amount_in = 140421094431120;
+
+			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_in - fee);
+
+			let treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
+			assert!(treasury_balance > TREASURY_ACCOUNT_INIT_BALANCE);
+		});
+	}
+
+	#[test]
 	fn buy_schedule_should_be_retried_multiple_times_then_terminated() {
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -2093,6 +2131,28 @@ fn schedule_fake_with_buy_order(
 	amount: Balance,
 	budget: Balance,
 ) -> Schedule<AccountId, AssetId, u32> {
+	schedule_fake_with_buy_order_with_route(
+		pool,
+		asset_in,
+		asset_out,
+		amount,
+		budget,
+		vec![Trade {
+			pool,
+			asset_in,
+			asset_out,
+		}],
+	)
+}
+
+fn schedule_fake_with_buy_order_with_route(
+	pool: PoolType<AssetId>,
+	asset_in: AssetId,
+	asset_out: AssetId,
+	amount: Balance,
+	budget: Balance,
+	route: Vec<Trade<AssetId>>,
+) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
 		owner: AccountId::from(ALICE),
 		period: 2u32,
@@ -2105,11 +2165,7 @@ fn schedule_fake_with_buy_order(
 			asset_out,
 			amount_out: amount,
 			max_amount_in: Balance::MAX,
-			route: create_bounded_vec(vec![Trade {
-				pool,
-				asset_in,
-				asset_out,
-			}]),
+			route: create_bounded_vec(route),
 		},
 	}
 }
