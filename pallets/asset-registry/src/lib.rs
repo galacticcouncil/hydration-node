@@ -98,7 +98,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type StorageFees: Get<Balance>;
 
-		/// Storage fees for external asset creation.
+		/// Beneficiary account of storage fees for external asset creation.
 		#[pallet::constant]
 		type StorageFeesBeneficiary: Get<Self::AccountId>;
 
@@ -153,8 +153,8 @@ pub mod pallet {
 	}
 
 	#[pallet::type_value]
-	/// Default value of NextAssetId if storage is empty. 1 is used to offset for native token
-	/// which id is 0.
+	/// Default value of NextAssetId if storage is empty.
+	/// 1 is used to offset the native asset with id 0.
 	pub fn DefaultNextAssetId<T: Config>() -> T::AssetId {
 		1.into()
 	}
@@ -688,7 +688,7 @@ impl<T: Config> CreateRegistry<T::AssetId, Balance> for Pallet<T> {
 	}
 }
 
-impl<T: Config> Inspect<T::AssetNativeLocation, Balance> for Pallet<T> {
+impl<T: Config> Inspect for Pallet<T> {
 	type Error = DispatchError;
 	type AssetId = T::AssetId;
 

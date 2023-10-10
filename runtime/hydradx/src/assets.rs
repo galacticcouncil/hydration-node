@@ -102,6 +102,18 @@ parameter_types! {
 
 pub struct SufficiencyCheck;
 impl SufficiencyCheck {
+	/// This function is used by `orml-toknes` `MutationHooks` before a transaction is executed.
+	/// It is called from `PreDeposit` and `PreTransfer`.
+	/// If transferred asset is not sufficient asset it calculates ED amount in user's fee asset
+	/// and transfers it from user to treasury account.
+	/// Function also locks corresponding HDX amount in the treasury because returned ED to the users
+	/// when the account is killed is in the HDX.
+	///
+	/// NOTE: `OnNewTokenAccount` mutation hooks is not used because it can't fail so we would not
+	/// be able to fail transactions e.g. if the user doesn't have enough funds to pay ED.
+	///
+	/// NOTE: Changing of ED in the `pallet_balances` requires migration of all the users with
+	/// insufficient assets to the new ED amount.
 	fn on_funds(asset: AssetId, paying_account: &AccountId) -> DispatchResult {
 		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(paying_account) {
 			return Ok(());

@@ -80,7 +80,7 @@ pub trait AccountIdFor<Assets> {
 
 use frame_support::dispatch::Parameter;
 
-pub trait Inspect<AssetNativeLocation, Balance> {
+pub trait Inspect {
 	type Error;
 	type AssetId: Parameter;
 
@@ -88,7 +88,7 @@ pub trait Inspect<AssetNativeLocation, Balance> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub trait Create<AssetNativeLocation, Balance>: Inspect<AssetNativeLocation, Balance> {
+pub trait Create<AssetNativeLocation, Balance>: Inspect {
 	fn register_asset(
 		asset_id: Option<Self::AssetId>,
 		name: Option<&[u8]>,
@@ -148,10 +148,7 @@ pub trait Create<AssetNativeLocation, Balance>: Inspect<AssetNativeLocation, Bal
 	}
 }
 
-pub trait Mutate<AssetNativeLocation, Balance>: Inspect<AssetNativeLocation, Balance> {
+pub trait Mutate<AssetNativeLocation, Balance>: Inspect {
 	/// Set location for existing asset id if it wasn't set yet.
 	fn set_location(asset_id: Self::AssetId, location: AssetNativeLocation) -> Result<(), Self::Error>;
-
-	// /// Set or update location of existing asset
-	// fn force_set_location(asset_id: Self::AssetId, location: AssetNativeLocation) -> Result<(, Self::Error)>
 }
