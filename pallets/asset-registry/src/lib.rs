@@ -31,8 +31,7 @@ use sp_std::vec::Vec;
 mod tests;
 
 mod benchmarking;
-//TODO
-//pub mod migration;
+pub mod migration;
 mod types;
 pub mod weights;
 
