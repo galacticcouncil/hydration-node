@@ -132,7 +132,8 @@ fn increase_stake_should_work_when_user_already_staked() {
 				stake: 100_000 * ONE,
 				total_stake: 200_000 * ONE,
 				locked_rewards: 432_086_451_705_829_u128,
-				slashed_points: 12
+				slashed_points: 12,
+				payable_percentage: FixedU128::from_inner(4_181_481_790_701_572_u128)
 			}
 			.into());
 			assert_staking_data!(
@@ -188,7 +189,8 @@ fn increase_stake_should_slash_no_points_when_increase_is_small() {
 				stake: 10 * ONE,
 				total_stake: 100_010 * ONE,
 				locked_rewards: 432_086_451_705_829_u128,
-				slashed_points: 0
+				slashed_points: 0,
+				payable_percentage: FixedU128::from_inner(4_181_481_790_701_572_u128)
 			}
 			.into());
 			assert_eq!(
@@ -231,6 +233,7 @@ fn increase_stake_should_slash_all_points_when_increase_is_big() {
 				total_stake: 15_100_000 * ONE,
 				locked_rewards: 432_086_451_705_829_u128,
 				slashed_points: 24,
+				payable_percentage: FixedU128::from_inner(4_181_481_790_701_572_u128)
 			}
 			.into());
 			assert_eq!(
@@ -272,7 +275,8 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 				stake: 100_000 * ONE,
 				total_stake: 200_000 * ONE,
 				locked_rewards: 432_086_451_705_829_u128,
-				slashed_points: 12
+				slashed_points: 12,
+				payable_percentage: FixedU128::from_inner(4_181_481_790_701_572_u128)
 			}
 			.into());
 			assert_eq!(
@@ -294,7 +298,8 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 				stake: 100_000 * ONE,
 				total_stake: 300_000 * ONE,
 				locked_rewards: 26_998_317_793_092_u128,
-				slashed_points: 3
+				slashed_points: 3,
+				payable_percentage: FixedU128::from_inner(262_371_143_317_147_u128)
 			}
 			.into());
 			assert_eq!(
@@ -318,7 +323,8 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 				stake: 100_000 * ONE,
 				total_stake: 400_000 * ONE,
 				locked_rewards: 506_092_568_094_174_u128,
-				slashed_points: 4
+				slashed_points: 4,
+				payable_percentage: FixedU128::from_inner(4_919_526_267_840_874_u128)
 			}
 			.into());
 			assert_staking_data!(
@@ -386,6 +392,117 @@ fn increase_stake_should_not_work_when_tokens_are_are_alredy_staked() {
 			//Act & assert
 			assert_noop!(
 				Staking::increase_stake(RuntimeOrigin::signed(ALICE), alice_position_id, staked_amount),
+				Error::<Test>::InsufficientBalance
+			);
+		});
+}
+
+#[test]
+fn increase_stake_should_not_work_when_staking_locked_rewards() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 250_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
+		.with_stakes(vec![
+			(ALICE, 100_000 * ONE, 1_452_987, 1_000_000 * ONE),
+			(BOB, 50_000 * ONE, 1_452_987, 1_000_000 * ONE),
+		])
+		.start_at_block(1_452_987)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_pending_rewards(1_000_000 * ONE);
+			set_block_number(1_600_000);
+
+			let alice_position_id = 0;
+			let alice_locked_rewards = 11_150_618_108_537_525_u128;
+			//1-th increase to receive locked rewards
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(ALICE),
+				alice_position_id,
+				100_000 * ONE
+			));
+
+			assert_last_event!(Event::<Test>::StakeAdded {
+				who: ALICE,
+				position_id: alice_position_id,
+				stake: 100_000 * ONE,
+				total_stake: 200_000 * ONE,
+				locked_rewards: alice_locked_rewards,
+				slashed_points: 12,
+				payable_percentage: FixedU128::from_inner(4_181_481_790_701_572_u128)
+			}
+			.into());
+
+			assert_eq!(Tokens::free_balance(HDX, &ALICE), 250_000 * ONE + alice_locked_rewards);
+
+			//NOTE: balance structure: 200K locked in staking + ~11K locked in staking rewards
+			//total balance is ~260K, Alice is trying to stake 60K from which 11K is locked in
+			//rewards.
+			//Act
+			assert_noop!(
+				Staking::increase_stake(
+					RuntimeOrigin::signed(ALICE),
+					alice_position_id,
+					//NOTE: Alice has 50K unlocked + ~11k as locked rewards
+					60_000 * ONE
+				),
+				Error::<Test>::InsufficientBalance
+			);
+		});
+}
+
+#[test]
+fn increase_stake_should_not_return_arithmetic_error_when_vested_and_locked_rewards_are_bigger_than_free_balance() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(VESTED_100K, HDX, 250_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
+		.with_stakes(vec![
+			(VESTED_100K, 100_000 * ONE, 1_452_987, 1_000_000 * ONE),
+			(BOB, 50_000 * ONE, 1_452_987, 1_000_000 * ONE),
+		])
+		.start_at_block(1_452_987)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_pending_rewards(1_000_000 * ONE);
+			set_block_number(1_600_000);
+
+			let vested_position_id = 0;
+			let vested_locked_rewards = 11_150_618_108_537_525_u128;
+			//1-th increase to receive locked rewards
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(VESTED_100K),
+				vested_position_id,
+				25_000 * ONE
+			));
+
+			assert_last_event!(Event::<Test>::StakeAdded {
+				who: VESTED_100K,
+				position_id: vested_position_id,
+				stake: 25_000 * ONE,
+				total_stake: 125_000 * ONE,
+				locked_rewards: vested_locked_rewards,
+				slashed_points: 3,
+				payable_percentage: FixedU128::from_inner(4_181_481_790_701_572_u128)
+			}
+			.into());
+
+			Tokens::transfer(RuntimeOrigin::signed(VESTED_100K), ALICE, HDX, 100_000 * ONE).unwrap();
+			assert_eq!(
+				Tokens::free_balance(HDX, &VESTED_100K),
+				150_000 * ONE + vested_locked_rewards
+			);
+
+			//NOTE: balance structure: 125K locked in staking + ~11K locked in staking rewards
+			//+100K in vesting => sum of locked tokens is bigger than user's balance.
+			//Act
+			assert_noop!(
+				Staking::increase_stake(
+					RuntimeOrigin::signed(VESTED_100K),
+					vested_position_id,
+					//NOTE: Alice has 25K unlocked + ~11k as locked rewards
+					25_000 * ONE
+				),
 				Error::<Test>::InsufficientBalance
 			);
 		});

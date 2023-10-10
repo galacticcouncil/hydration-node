@@ -3811,7 +3811,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 1.0.1",
+ "pallet-staking 2.0.0",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "parity-scale-codec",
@@ -3831,7 +3831,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "182.0.0"
+version = "183.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3893,7 +3893,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 1.0.1",
+ "pallet-staking 2.0.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -7411,7 +7411,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "1.0.1"
+version = "2.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10220,7 +10220,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.12.4"
+version = "1.13.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10275,7 +10275,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 1.0.1",
+ "pallet-staking 2.0.0",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
