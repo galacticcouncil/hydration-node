@@ -229,7 +229,13 @@ pub mod pallet {
 		type NativePriceOracle: NativePriceOracle<Self::AssetId, FixedU128>;
 
 		///Router implementation
-		type Router: RouterT<Self::RuntimeOrigin, Self::AssetId, Balance, Trade<Self::AssetId>, AmountInAndOut<Balance>>;
+		type RouteExecutor: RouterT<
+			Self::RuntimeOrigin,
+			Self::AssetId,
+			Balance,
+			Trade<Self::AssetId>,
+			AmountInAndOut<Balance>,
+		>;
 
 		///Spot price provider to get the current price between two asset
 		type RouteProvider: RouteProvider<Self::AssetId>;
@@ -644,7 +650,7 @@ impl<T: Config> Pallet<T> {
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				let trade_amounts = T::Router::calculate_sell_trade_amounts(&route, amount_to_sell)?;
+				let trade_amounts = T::RouteExecutor::calculate_sell_trade_amounts(route, amount_to_sell)?;
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
@@ -657,7 +663,7 @@ impl<T: Config> Pallet<T> {
 					);
 				};
 
-				T::Router::sell(
+				T::RouteExecutor::sell(
 					origin,
 					*asset_in,
 					*asset_out,
@@ -698,7 +704,7 @@ impl<T: Config> Pallet<T> {
 					);
 				};
 
-				T::Router::buy(origin, *asset_in, *asset_out, *amount_out, amount_in, route.to_vec())?;
+				T::RouteExecutor::buy(origin, *asset_in, *asset_out, *amount_out, amount_in, route.to_vec())?;
 
 				Ok(AmountInAndOut {
 					amount_in,
@@ -833,7 +839,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn get_amount_in_for_buy(amount_out: &Balance, route: &[Trade<T::AssetId>]) -> Result<Balance, DispatchError> {
-		let trade_amounts = T::Router::calculate_buy_trade_amounts(route.as_ref(), *amount_out)?;
+		let trade_amounts = T::RouteExecutor::calculate_buy_trade_amounts(route, *amount_out)?;
 
 		let first_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 

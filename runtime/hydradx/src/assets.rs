@@ -470,9 +470,9 @@ impl pallet_dca::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type OraclePriceProvider = DummyOraclePriceProvider;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type Router = Router;
+	type RouteExecutor = Router;
 	#[cfg(feature = "runtime-benchmarks")]
-	type Router = pallet_route_executor::DummyRouter<Runtime>;
+	type RouteExecutor = pallet_route_executor::DummyRouter<Runtime>;
 	type RouteProvider = Runtime;
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
