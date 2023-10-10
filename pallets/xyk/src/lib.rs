@@ -56,10 +56,9 @@ pub use impls::XYKSpotPrice;
 use weights::WeightInfo;
 
 /// Oracle source identifier for this pallet.
-pub const SOURCE: Source = *b"hydraxyk";
-
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+use primitives::constants::chain::XYK_SOURCE;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -461,7 +460,7 @@ pub mod pallet {
 			let liquidity_a = T::Currency::total_balance(asset_a, &pair_account);
 			let liquidity_b = T::Currency::total_balance(asset_b, &pair_account);
 			T::AMMHandler::on_liquidity_changed(
-				SOURCE,
+				XYK_SOURCE,
 				asset_a,
 				asset_b,
 				amount_a,
@@ -567,7 +566,7 @@ pub mod pallet {
 			let liquidity_a = T::Currency::total_balance(asset_a, &pair_account);
 			let liquidity_b = T::Currency::total_balance(asset_b, &pair_account);
 			T::AMMHandler::on_liquidity_changed(
-				SOURCE,
+				XYK_SOURCE,
 				asset_a,
 				asset_b,
 				remove_amount_a,
@@ -870,7 +869,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		let liquidity_in = T::Currency::total_balance(transfer.assets.asset_in, &pair_account);
 		let liquidity_out = T::Currency::total_balance(transfer.assets.asset_out, &pair_account);
 		T::AMMHandler::on_trade(
-			SOURCE,
+			XYK_SOURCE,
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
 			transfer.amount,
@@ -1032,7 +1031,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		let liquidity_in = T::Currency::total_balance(transfer.assets.asset_in, &pair_account);
 		let liquidity_out = T::Currency::total_balance(transfer.assets.asset_out, &pair_account);
 		T::AMMHandler::on_trade(
-			SOURCE,
+			XYK_SOURCE,
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
 			transfer.amount,

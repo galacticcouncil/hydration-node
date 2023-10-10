@@ -6,6 +6,7 @@ use frame_support::assert_ok;
 
 use crate::{assert_balance, assert_reserved_balance};
 use frame_system::RawOrigin;
+use hydradx_runtime::XYK;
 use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin, Stableswap, Tokens,
 	Treasury, DCA,
@@ -2035,6 +2036,143 @@ mod stableswap {
 	}
 }
 
+#[test]
+fn sell_should_work_for_xyk() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			BOB.into(),
+			5000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			DAI,
+			5000 * UNITS,
+			0,
+		));
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			1000 * UNITS,
+			DAI,
+			2000 * UNITS,
+		));
+
+		//For populating oracle
+		assert_ok!(XYK::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+			false
+		));
+
+		let alice_init_hdx_balance = 5000 * UNITS;
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_init_hdx_balance,
+			0,
+		));
+
+		set_relaychain_block_number(10);
+
+		let dca_budget = 1100 * UNITS;
+		let amount_to_sell = 100 * UNITS;
+		let schedule1 = schedule_fake_with_sell_order(ALICE, PoolType::XYK, dca_budget, HDX, DAI, amount_to_sell);
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+		assert_balance!(&Treasury::account_id(), HDX, 0);
+
+		//Act
+		set_relaychain_block_number(11);
+
+		//Assert
+		let amount_out = 151105924242426;
+		let fee = Currencies::free_balance(HDX, &Treasury::account_id());
+
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - fee);
+	});
+}
+
+#[test]
+fn buy_should_work_for_xyk() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			BOB.into(),
+			5000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			DAI,
+			5000 * UNITS,
+			0,
+		));
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			1000 * UNITS,
+			DAI,
+			2000 * UNITS,
+		));
+
+		//For populating oracle
+		assert_ok!(XYK::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			100 * UNITS,
+			0,
+			false
+		));
+
+		let alice_init_hdx_balance = 5000 * UNITS;
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_init_hdx_balance,
+			0,
+		));
+
+		set_relaychain_block_number(10);
+
+		let dca_budget = 1100 * UNITS;
+		let amount_to_buy = 100 * UNITS;
+		let schedule1 = schedule_fake_with_buy_order(PoolType::XYK, HDX, DAI, amount_to_buy, dca_budget);
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+		assert_balance!(&Treasury::account_id(), HDX, 0);
+
+		//Act
+		set_relaychain_block_number(11);
+
+		//Assert
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_to_buy);
+	});
+}
+
 fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
 	assert_ok!(DCA::schedule(RuntimeOrigin::signed(owner.into()), schedule1, None));
 }
@@ -2052,7 +2190,7 @@ fn schedule_fake_with_buy_order(
 		total_amount: budget,
 		max_retries: None,
 		stability_threshold: None,
-		slippage: Some(Permill::from_percent(5)),
+		slippage: Some(Permill::from_percent(10)),
 		order: Order::Buy {
 			asset_in,
 			asset_out,
