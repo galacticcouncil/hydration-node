@@ -93,7 +93,7 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
 }
 
-pub const SUFFICIENCY_LOCK: LockIdentifier = *b"insuffEd";
+pub const SUFFICIENCY_LOCK: LockIdentifier = *b"insuffED";
 
 parameter_types! {
 	pub InsufficientEDinHDX: Balance = FixedU128::from_rational(11, 10)
@@ -293,6 +293,7 @@ impl pallet_claims::Config for Runtime {
 }
 
 parameter_types! {
+	#[derive(PartialEq, Debug)]
 	pub const RegistryStrLimit: u32 = 32;
 	pub const SequentialIdOffset: u32 = 1_000_000;
 	pub const StoreFees: Balance = 100 * UNITS; //TODO:

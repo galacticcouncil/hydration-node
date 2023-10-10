@@ -57,6 +57,8 @@ pub const DEFAULT_ED: Balance = 1;
 #[frame_support::pallet]
 #[allow(clippy::too_many_arguments)]
 pub mod pallet {
+	use sp_std::fmt::Debug;
+
 	use super::*;
 
 	pub type AssetDetailsT<T> = AssetDetails<<T as Config>::AssetId, <T as Config>::StringLimit>;
@@ -104,7 +106,7 @@ pub mod pallet {
 
 		/// The maximum length of a name or symbol stored on-chain.
 		#[pallet::constant]
-		type StringLimit: Get<u32>;
+		type StringLimit: Get<u32> + Debug + PartialEq;
 
 		/// Weight information for the extrinsics
 		type WeightInfo: WeightInfo;

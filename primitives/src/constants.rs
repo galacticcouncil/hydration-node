@@ -23,6 +23,8 @@ pub mod currency {
 	pub const DOLLARS: Balance = UNITS * 100; // 100 UNITS ~= 1 $
 	pub const CENTS: Balance = DOLLARS / 100; // 1 UNITS ~= 1 cent
 	pub const MILLICENTS: Balance = CENTS / 1_000;
+	//NOTE: Changing of this value require migration.
+	//See `SufficiencyCheck.on_fund()` doc.
 	pub const NATIVE_EXISTENTIAL_DEPOSIT: Balance = CENTS;
 
 	pub fn deposit(items: u32, bytes: u32) -> Balance {
