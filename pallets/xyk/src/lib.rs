@@ -33,7 +33,7 @@ use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional
 use frame_system::ensure_signed;
 use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
-	OnTradeHandler, Source, AMM,
+	OnTradeHandler, AMM,
 };
 use primitives::{asset::AssetPair, AssetId, Balance};
 use sp_std::{vec, vec::Vec};
