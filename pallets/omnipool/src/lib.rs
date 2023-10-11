@@ -390,6 +390,12 @@ pub mod pallet {
 		InvalidWithdrawalFee,
 		/// More than allowed amount of fee has been transferred.
 		FeeOverdraft,
+		///
+		SharesLeft,
+		///
+		OwnerNotFound,
+		///
+		PositionsLeft,
 	}
 
 	#[pallet::call]
@@ -1496,6 +1502,125 @@ pub mod pallet {
 			Self::deposit_event(Event::TVLCapUpdated { cap });
 			Ok(())
 		}
+
+		#[pallet::call_index(11)]
+		#[pallet::weight(<T as Config>::WeightInfo::force_withdraw_position())]
+		#[transactional]
+		pub fn force_withdraw_position(origin: OriginFor<T>,
+			position_id: T::PositionItemId ) -> DispatchResult {
+			ensure_root(origin.clone())?;
+
+			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
+
+			let owner = T::NFTHandler::owner(&T::NFTCollectionId::get(), &position_id).ok_or(Error::<T>::OwnerNotFound)?;
+
+			let asset_id = position.asset_id;
+			let asset_state = Self::load_asset_state(asset_id)?;
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+			let amount = position.shares;
+
+			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
+				&(&asset_state).into(),
+				amount,
+				&(&position).into(),
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
+				FixedU128::zero(),
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
+			let new_asset_state = asset_state
+				.clone()
+				.delta_update(&state_changes.asset)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			// Update position state
+			let updated_position = position
+				.delta_update(
+					&state_changes.delta_position_reserve,
+					&state_changes.delta_position_shares,
+				)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			T::Currency::transfer(
+				asset_id,
+				&Self::protocol_account(),
+				&owner,
+				*state_changes.asset.delta_reserve,
+			)?;
+
+			Self::update_imbalance(state_changes.delta_imbalance)?;
+
+			// burn only difference between delta hub and lp hub amount.
+			Self::update_hub_asset_liquidity(
+				&state_changes
+					.asset
+					.delta_hub_reserve
+					.merge(BalanceUpdate::Increase(state_changes.lp_hub_amount))
+					.ok_or(ArithmeticError::Overflow)?,
+			)?;
+
+			// LP receives some hub asset
+			if state_changes.lp_hub_amount > Balance::zero() {
+				T::Currency::transfer(
+					T::HubAssetId::get(),
+					&Self::protocol_account(),
+					&owner,
+					state_changes.lp_hub_amount,
+				)?;
+			}
+
+			ensure!(updated_position.shares == Balance::zero(), Error::<T>::SharesLeft);
+
+			<Positions<T>>::remove(position_id);
+			T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&owner))?;
+
+			Self::deposit_event(Event::PositionDestroyed {
+				position_id,
+				owner: owner.clone(),
+			});
+
+			// Callback hook info
+			let info: AssetInfo<T::AssetId, Balance> =
+				AssetInfo::new(asset_id, &asset_state, &new_asset_state, &state_changes.asset);
+
+			Self::set_asset_state(asset_id, new_asset_state);
+
+			Self::deposit_event(Event::LiquidityRemoved {
+				who: owner,
+				position_id,
+				asset_id,
+				shares_removed: amount,
+				fee: FixedU128::zero(),
+			});
+
+			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
+
+
+			Ok(())
+		}
+
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_protocol_shares())]
+		#[transactional]
+		pub fn withdraw_protocol_shares(origin: OriginFor<T>,
+			asset_id: T::AssetId) -> DispatchResult {
+			ensure_root(origin.clone())?;
+
+			let asset_state = Self::load_asset_state(asset_id)?;
+
+			ensure!(asset_state.shares == asset_state.protocol_shares, Error::<T>::PositionsLeft);
+
+
+			Ok(())
+		}
+
 	}
 
 	#[pallet::hooks]
