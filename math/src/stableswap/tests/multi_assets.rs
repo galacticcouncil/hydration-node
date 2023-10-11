@@ -747,3 +747,61 @@ fn calculate_exact_amount_of_shares_with_fee() {
 	);
 	assert_eq!(result, Some((1005001605353593, 2501371204363)));
 }
+
+#[test]
+fn share_price_calculation_should_work_with_different_decimals() {
+	let amp = 100_u128;
+	let balances: [AssetReserve; 3] = [
+		AssetReserve::new(1_000_000_000, 6),
+		AssetReserve::new(3_000_000_000, 6),
+		AssetReserve::new(5_000_000_000_000_000_000_000, 18),
+	];
+
+	let issuance: Balance = 20_000_000_000_000_000_000_000;
+
+	let result = calculate_share_price::<D_ITERATIONS>(&balances, amp, issuance, 0, None);
+
+	assert_eq!(
+		result,
+		Some((74487238136284601991455700, 171320935829579349745322922049517444521))
+	);
+}
+
+#[test]
+fn share_price_calculation_should_work_with_18_decimals() {
+	let amp = 767_u128;
+	let balances: [AssetReserve; 2] = [
+		AssetReserve::new(88_555_000_000_000_000_000_000, 18),
+		AssetReserve::new(66_537_000_000_000_000_000_000, 18),
+	];
+
+	let issuance: Balance = 155090960889496000000000;
+
+	let result = calculate_share_price::<D_ITERATIONS>(&balances, amp, issuance, 0, None);
+
+	assert_eq!(
+		result,
+		Some((
+			306990873105158449836411708362502395175,
+			306938104415401205045813701852610681464
+		))
+	);
+}
+
+#[test]
+fn share_price_calculation_should_work_with_6_decimals() {
+	let amp = 767_u128;
+	let balances: [AssetReserve; 2] = [
+		AssetReserve::new(88_555_000_000, 6),
+		AssetReserve::new(66_537_000_000, 6),
+	];
+
+	let issuance: Balance = 155090960889496000000000;
+
+	let result = calculate_share_price::<D_ITERATIONS>(&balances, amp, issuance, 0, None);
+
+	assert_eq!(
+		result,
+		Some((279206572581786940496760242, 279158579738033226972960348441675415837))
+	);
+}

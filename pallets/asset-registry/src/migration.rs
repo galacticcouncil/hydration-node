@@ -107,7 +107,7 @@ pub mod v2 {
 			};
 
 			details_updated.push((
-				k.clone(),
+				k,
 				AssetDetails {
 					name: Some(v.name),
 					asset_type: v.asset_type,
@@ -120,7 +120,7 @@ pub mod v2 {
 				},
 			));
 
-            //NOTE: problem is with stablepool - probably becasue master is not merged yet
+			//NOTE: problem is with stablepool - probably becasue master is not merged yet
 			let _ = Assets::<T>::clear(u32::MAX, None);
 			for (k, v) in &details_updated {
 				log::info!(

@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc dfba9d405ba61bbd3bc1917de4383fc12c9b7ad4707420aa05918f7bd2952d8c # shrinks to pool = [AssetReserve { amount: 10000000000, decimals: 6 }, AssetReserve { amount: 160124693000000, decimals: 6 }], amount = 1257, amp = 2

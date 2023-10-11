@@ -75,6 +75,7 @@ fn claim_should_work_when_claiming_multiple_times() {
 				unlocked_rewards: 0,
 				slashed_points: 16,
 				slashed_unpaid_rewards: 57_516_815_324_327_787_u128,
+				payable_percentage: FixedU128::from_inner(828_752_599_443_917_u128),
 			}
 			.into());
 
@@ -160,6 +161,7 @@ fn claim_should_work_when_staking_position_exists() {
 				unlocked_rewards: 0,
 				slashed_points: 40,
 				slashed_unpaid_rewards: 10_336_797_680_797_565_u128,
+				payable_percentage: FixedU128::from_inner(31_383_184_812_088_337_u128),
 			}
 			.into());
 
@@ -327,6 +329,7 @@ fn claim_should_work_when_claiming_after_unclaimable_periods() {
 				unlocked_rewards: 0,
 				slashed_points: 29,
 				slashed_unpaid_rewards: 65_631_977_451_377_841_u128,
+				payable_percentage: FixedU128::from_inner(8_872_106_273_751_589_u128),
 			}
 			.into());
 
@@ -407,14 +410,15 @@ fn claim_should_work_when_staked_was_increased() {
 				who: BOB,
 				position_id: bob_position_id,
 				paid_rewards: 17_792_982_258_382_321_u128,
-				unlocked_rewards: 14_186_603_458_327_466_u128,
+				unlocked_rewards: 46_073_370_138_355_002_u128,
 				slashed_points: 77,
 				slashed_unpaid_rewards: 39_992_706_885_866_227_u128,
+				payable_percentage: FixedU128::from_inner(307_913_300_366_917_409_u128),
 			}
 			.into());
 
-			assert_unlocked_balance!(&BOB, HDX, 281_979_585_716_709_787_u128);
-			assert_hdx_lock!(BOB, 281_886_766_680_027_536_u128, STAKING_LOCK);
+			assert_unlocked_balance!(&BOB, HDX, 313_866_352_396_737_323_u128);
+			assert_hdx_lock!(BOB, 250_000 * ONE, STAKING_LOCK);
 			assert_eq!(
 				Staking::positions(bob_position_id).unwrap(),
 				Position {
@@ -423,7 +427,7 @@ fn claim_should_work_when_staked_was_increased() {
 					created_at: 1_452_987,
 					reward_per_stake: FixedU128::from_inner(3_061_853_686_489_680_776_u128),
 					accumulated_slash_points: 104,
-					accumulated_locked_rewards: 31_886_766_680_027_536_u128,
+					accumulated_locked_rewards: Zero::zero(),
 					accumulated_unpaid_rewards: Zero::zero(),
 				}
 			);
@@ -495,11 +499,12 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 				unlocked_rewards: 0,
 				slashed_points: 0,
 				slashed_unpaid_rewards: 27_771_941_672_360_647_u128,
+				payable_percentage: FixedU128::from_inner(0_u128),
 			}
 			.into());
 
-			assert_unlocked_balance!(&BOB, HDX, 281_979_585_716_709_787_u128);
-			assert_hdx_lock!(BOB, 281_886_766_680_027_536_u128, STAKING_LOCK);
+			assert_unlocked_balance!(&BOB, HDX, 313_866_352_396_737_323_u128);
+			assert_hdx_lock!(BOB, 250_000 * ONE, STAKING_LOCK);
 			assert_eq!(
 				Staking::positions(1).unwrap(),
 				Position {
@@ -508,7 +513,7 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 					created_at: 1_452_987,
 					reward_per_stake: FixedU128::from_inner(3_172_941_453_179_123_366_u128),
 					accumulated_slash_points: 104,
-					accumulated_locked_rewards: 31_886_766_680_027_536_u128,
+					accumulated_locked_rewards: Zero::zero(),
 					accumulated_unpaid_rewards: Zero::zero(),
 				}
 			);

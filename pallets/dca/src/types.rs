@@ -1,5 +1,5 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use pallet_route_executor::Trade;
+use hydradx_traits::router::Trade;
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
@@ -71,12 +71,14 @@ where
 		*asset_out
 	}
 
-	pub fn get_route_length(&self) -> usize {
-		let route = match &self {
+	pub fn get_route(&self) -> &BoundedVec<Trade<AssetId>, ConstU32<5>> {
+		match &self {
 			Order::Sell { route, .. } => route,
 			Order::Buy { route, .. } => route,
-		};
+		}
+	}
 
-		route.len()
+	pub fn get_route_length(&self) -> usize {
+		self.get_route().len()
 	}
 }

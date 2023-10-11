@@ -1,4 +1,5 @@
 use crate::stableswap::types::AssetReserve;
+use crate::support::rational::round_to_rational;
 use crate::to_u256;
 use crate::types::Balance;
 use num_traits::{CheckedDiv, CheckedMul, One, Zero};
@@ -611,13 +612,123 @@ pub(crate) fn normalize_value(amount: Balance, decimals: u8, target_decimals: u8
 	}
 	let diff = target_decimals.abs_diff(decimals);
 	if target_decimals > decimals {
-		amount.saturating_mul(10u128.pow(diff as u32))
+		amount.saturating_mul(10u128.saturating_pow(diff as u32))
 	} else {
 		match rounding {
-			Rounding::Down => amount.div(10u128.pow(diff as u32)),
-			Rounding::Up => amount.div(10u128.pow(diff as u32)).saturating_add(Balance::one()),
+			Rounding::Down => amount.div(10u128.saturating_pow(diff as u32)),
+			Rounding::Up => amount
+				.div(10u128.saturating_pow(diff as u32))
+				.saturating_add(Balance::one()),
 		}
 	}
+}
+
+pub fn calculate_share_prices<const D: u8>(
+	balances: &[AssetReserve],
+	amplification: Balance,
+	issuance: Balance,
+) -> Option<Vec<(Balance, Balance)>> {
+	let n = balances.len();
+	if n <= 1 {
+		return None;
+	}
+
+	let d = calculate_d::<D>(balances, amplification)?;
+
+	let mut r = Vec::with_capacity(n);
+
+	for idx in 0..n {
+		let price = calculate_share_price::<D>(balances, amplification, issuance, idx, Some(d))?;
+		r.push(price);
+	}
+	Some(r)
+}
+
+pub fn calculate_share_price<const D: u8>(
+	balances: &[AssetReserve],
+	amplification: Balance,
+	issuance: Balance,
+	asset_idx: usize,
+	provided_d: Option<Balance>,
+) -> Option<(Balance, Balance)> {
+	let n = balances.len() as u128;
+	if n <= 1 {
+		return None;
+	}
+	let d = if let Some(v) = provided_d {
+		v
+	} else {
+		calculate_d::<D>(balances, amplification)?
+	};
+	let reserves = normalize_reserves(balances);
+
+	let c = reserves
+		.iter()
+		.try_fold(FixedU128::one(), |acc, reserve| {
+			acc.checked_mul(&FixedU128::checked_from_rational(d, n.checked_mul(*reserve)?)?)
+		})?
+		.checked_mul_int(d)?;
+
+	let ann = calculate_ann(reserves.len(), amplification)?;
+
+	let (d, c, xi, n, ann, issuance) = to_u256!(d, c, reserves[asset_idx], n, ann, issuance);
+
+	let xann = xi.checked_mul(ann)?;
+	let p1 = d.checked_mul(xann)?;
+	let p2 = xi.checked_mul(c)?.checked_mul(n.saturating_add(U256::one()))?;
+	let p3 = xi.checked_mul(d)?;
+
+	let num = p1.checked_add(p2)?.checked_sub(p3)?;
+	let denom = issuance.checked_mul(xann.checked_add(c)?)?;
+
+	let p_diff = U256::from(10u128.saturating_pow(18u8.saturating_sub(balances[asset_idx].decimals) as u32));
+	let (num, denom) = if let Some(v) = denom.checked_mul(p_diff) {
+		(num, v)
+	} else {
+		// Rare scenario
+		// In case of overflow, we can just simply divide the numerator
+		// We loose little bit of precision but it is acceptable
+		// Can be with asset with 6 decimals.
+		let num = num.checked_div(p_diff)?;
+		(num, denom)
+	};
+	let (num, denom) = round_to_rational((num, denom), crate::support::rational::Rounding::Down);
+	//dbg!(FixedU128::checked_from_rational(num, denom));
+	Some((num, denom))
+}
+
+pub fn calculate_spot_price(
+	balances: &[AssetReserve],
+	amplification: Balance,
+	d: Balance,
+	asset_idx: usize,
+) -> Option<(Balance, Balance)> {
+	let n = balances.len();
+	if n <= 1 || asset_idx > n {
+		return None;
+	}
+	let ann = calculate_ann(n, amplification)?;
+
+	let mut reserves = normalize_reserves(balances);
+
+	let x0 = reserves[0];
+	let xi = reserves[asset_idx];
+
+	let (n, d, ann, x0, xi) = to_u256!(n, d, ann, x0, xi);
+
+	reserves.sort();
+	let reserves: Vec<U256> = reserves.iter().map(|v| U256::from(*v)).collect();
+	let c = reserves
+		.iter()
+		.try_fold(d, |acc, val| acc.checked_mul(d)?.checked_div(val.checked_mul(n)?))?;
+
+	let num = x0.checked_mul(ann.checked_mul(xi)?.checked_add(c)?)?;
+	let denom = xi.checked_mul(ann.checked_mul(x0)?.checked_add(c)?)?;
+
+	Some(round_to_rational(
+		(num, denom),
+		crate::support::rational::Rounding::Down,
+	))
 }
 
 #[cfg(test)]
@@ -652,5 +763,42 @@ mod tests {
 		let expected: Balance = 1_000_000_000_000;
 		let actual = normalize_value(amount, decimals, target_decimals, Rounding::Down);
 		assert_eq!(actual, expected);
+	}
+
+	#[test]
+	fn spot_price_calculation_should_work_with_12_decimals() {
+		let reserves = vec![
+			AssetReserve::new(478_626_000_000_000_000_000, 12),
+			AssetReserve::new(487_626_000_000_000_000_000, 12),
+			AssetReserve::new(866_764_000_000_000_000_000, 12),
+			AssetReserve::new(518_696_000_000_000_000_000, 12),
+		];
+		let amp = 319u128;
+		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
+		let p = calculate_spot_price(&reserves, amp, d, 1).unwrap();
+		assert_eq!(
+			p,
+			(
+				259416830506303392284340673024338472588,
+				259437723055509887749072196895052016056
+			)
+		);
+
+		let reserves = vec![
+			AssetReserve::new(1_001_000_000_000_000_000, 12),
+			AssetReserve::new(1_000_000_000_000_000_000, 12),
+			AssetReserve::new(1_000_000_000_000_000_000, 12),
+			AssetReserve::new(1_000_000_000_000_000_000, 12),
+		];
+		let amp = 10u128;
+		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
+		let p = calculate_spot_price(&reserves, amp, d, 1).unwrap();
+		assert_eq!(
+			p,
+			(
+				320469570070413807187663384895131457597,
+				320440458954331380180651678529102355242
+			)
+		);
 	}
 }
