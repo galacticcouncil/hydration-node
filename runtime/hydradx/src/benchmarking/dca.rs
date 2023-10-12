@@ -329,7 +329,7 @@ mod tests {
 			registered_assets: vec![(Some(DAI), Some(b"DAI".to_vec()), 1_000u128, None, None, None, false)],
 			native_asset_name: b"HDX".to_vec(),
 			native_existential_deposit: NativeExistentialDeposit::get(),
-            native_decimals: 12,
+			native_decimals: 12,
 			native_symbol: b"HDX".to_vec(),
 		}
 		.assimilate_storage(&mut t)

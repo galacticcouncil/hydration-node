@@ -26,7 +26,6 @@ use frame_support::{
 use crate::*;
 
 pub mod v1 {
-
 	use super::*;
 	use codec::{Decode, Encode};
 	use frame_support::storage_alias;
@@ -35,7 +34,7 @@ pub mod v1 {
 	use sp_runtime::BoundedVec;
 
 	#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo)]
-	pub struct OldAssetDetails<AssetId, Balance, BoundedString> {
+	pub struct AssetDetails<AssetId, Balance, BoundedString> {
 		pub name: BoundedString,
 		pub asset_type: AssetType<AssetId>,
 		pub existential_deposit: Balance,
@@ -43,7 +42,7 @@ pub mod v1 {
 	}
 
 	#[derive(Clone, Encode, Decode, Eq, PartialEq, Default, RuntimeDebug, TypeInfo)]
-	pub struct OldAssetMetadata<BoundedString> {
+	pub struct AssetMetadata<BoundedString> {
 		pub(super) symbol: BoundedString,
 		pub(super) decimals: u8,
 	}
@@ -53,7 +52,7 @@ pub mod v1 {
 		Pallet<T>,
 		Twox64Concat,
 		<T as crate::Config>::AssetId,
-		OldAssetDetails<<T as crate::Config>::AssetId, Balance, BoundedVec<u8, <T as crate::Config>::StringLimit>>,
+		AssetDetails<<T as crate::Config>::AssetId, Balance, BoundedVec<u8, <T as crate::Config>::StringLimit>>,
 		OptionQuery,
 	>;
 
@@ -62,14 +61,22 @@ pub mod v1 {
 		Pallet<T>,
 		Twox64Concat,
 		<T as crate::Config>::AssetId,
-		OldAssetMetadata<BoundedVec<u8, <T as crate::Config>::StringLimit>>,
+		AssetMetadata<BoundedVec<u8, <T as crate::Config>::StringLimit>>,
+		OptionQuery,
+	>;
+
+	#[storage_alias]
+	pub type AssetLocations<T: Config> = StorageMap<
+		Pallet<T>,
+		Twox64Concat,
+		<T as crate::Config>::AssetId,
+		<T as crate::Config>::AssetNativeLocation,
 		OptionQuery,
 	>;
 }
 
 pub mod v2 {
 	use super::*;
-	use sp_std::vec::Vec;
 
 	pub fn pre_migrate<T: Config>() {
 		assert_eq!(StorageVersion::get::<Pallet<T>>(), 1, "Storage version too high.");
@@ -86,27 +93,25 @@ pub mod v2 {
 			"Running migration to v2 for Asset Registry"
 		);
 
+		log::info!(
+			target: "runtime::asset-registry",
+			"Migrating Assets storage"
+		);
+
 		let mut i = 0;
-		let mut details_updated = Vec::<(
+		let mut v2_assets_details = Vec::<(
 			<T as crate::Config>::AssetId,
 			AssetDetails<<T as crate::Config>::AssetId, <T as crate::Config>::StringLimit>,
 		)>::new();
-
 		for (k, v) in v1::Assets::<T>::iter() {
-			log::info!(
-				target: "runtime::asset-registry",
-				"key: {:?}, name: {:?}", k, v.name
-			);
-
-			//insert + old metada read = 2
-			i += 2;
+			i += 1;
 			let (symbol, decimals) = if let Some(meta) = v1::AssetMetadataMap::<T>::get(k) {
 				(Some(meta.symbol), Some(meta.decimals))
 			} else {
 				(None, None)
 			};
 
-			details_updated.push((
+			v2_assets_details.push((
 				k,
 				AssetDetails {
 					name: Some(v.name),
@@ -115,24 +120,42 @@ pub mod v2 {
 					symbol,
 					decimals,
 					xcm_rate_limit: v.xcm_rate_limit,
-					//All assets created until this point are sufficient
+					//All assets created before this are sufficient
 					is_sufficient: true,
 				},
 			));
-
-			//NOTE: problem is with stablepool - probably becasue master is not merged yet
-			let _ = Assets::<T>::clear(u32::MAX, None);
-			for (k, v) in &details_updated {
-				log::info!(
-					target: "runtime::asset-registry",
-					"Inserting asset: {:?}:", k
-				);
-				Assets::<T>::insert(k, v);
-			}
 		}
 
-		StorageVersion::new(1).put::<Pallet<T>>();
+		for (k, v) in v2_assets_details {
+			i += 1;
+			Assets::<T>::insert(k, v);
+			log::info!(
+				target: "runtime::asset-registry",
+				"Migrated asset: {:?}", k
+			);
+		}
 
+		//This assumes every asset has metadata and each metadata is touched.
+		i += i;
+		let _ = v1::AssetMetadataMap::<T>::clear(u32::MAX, None);
+
+		log::info!(
+			target: "runtime::asset-registry",
+			"Migrating AssetLocations storage"
+		);
+
+		for k in v1::AssetLocations::<T>::iter_keys() {
+			i += 1;
+
+			AssetLocations::<T>::migrate_key::<Twox64Concat, <T as crate::Config>::AssetId>(k);
+
+			log::info!(
+				target: "runtime::asset-registry",
+				"Migrated asset's location: {:?}", k
+			);
+		}
+
+		StorageVersion::new(2).put::<Pallet<T>>();
 		T::DbWeight::get().reads_writes(i, i)
 	}
 
