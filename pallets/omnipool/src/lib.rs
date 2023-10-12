@@ -267,6 +267,13 @@ pub mod pallet {
 			shares_removed: Balance,
 			fee: FixedU128,
 		},
+		/// Liquidity of an asset was removed to Omnipool.
+		ProtocolLiquidityRemoved {
+			who: T::AccountId,
+			asset_id: T::AssetId,
+			shares_removed: Balance,
+			hub_amount: Balance,
+		},
 		/// Sell trade executed.
 		SellExecuted {
 			who: T::AccountId,
@@ -1607,17 +1614,95 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(12)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw_protocol_shares())]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_protocol_liquidity())]
 		#[transactional]
-		pub fn withdraw_protocol_shares(origin: OriginFor<T>,
-			asset_id: T::AssetId) -> DispatchResult {
+		pub fn withdraw_protocol_liquidity(origin: OriginFor<T>,
+			asset_id: T::AssetId,
+			amount: Balance,
+			price: (Balance, Balance),
+			dest: T::AccountId,
+		) -> DispatchResult {
 			ensure_root(origin.clone())?;
 
 			let asset_state = Self::load_asset_state(asset_id)?;
+			ensure!(amount >= asset_state.protocol_shares, Error::<T>::InsufficientShares);
 
-			ensure!(asset_state.shares == asset_state.protocol_shares, Error::<T>::PositionsLeft);
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
+			// dev note: as we no longer have the position details for sacrificed one, we just need to
+			// construct temporary position.
+			// Note that amount is ok to set to zero in this case. Although the remove liquidity calculation
+			// calculates the delta for this field, it does not make any difference afterwards.
+			let position = hydra_dx_math::omnipool::types::Position::<Balance> {
+				amount: 0,
+				price,
+				shares: amount,
+			};
 
+			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
+				&(&asset_state).into(),
+				amount,
+				&position,
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
+				FixedU128::zero(),
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
+			let mut new_asset_state = asset_state
+				.clone()
+				.delta_update(&state_changes.asset)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			new_asset_state.protocol_shares = new_asset_state.protocol_shares.saturating_sub(amount);
+
+			T::Currency::transfer(
+				asset_id,
+				&Self::protocol_account(),
+				&dest,
+				*state_changes.asset.delta_reserve,
+			)?;
+
+			Self::update_imbalance(state_changes.delta_imbalance)?;
+
+			// burn only difference between delta hub and lp hub amount.
+			Self::update_hub_asset_liquidity(
+				&state_changes
+					.asset
+					.delta_hub_reserve
+					.merge(BalanceUpdate::Increase(state_changes.lp_hub_amount))
+					.ok_or(ArithmeticError::Overflow)?,
+			)?;
+
+			// LP receives some hub asset
+			if state_changes.lp_hub_amount > Balance::zero() {
+				T::Currency::transfer(
+					T::HubAssetId::get(),
+					&Self::protocol_account(),
+					&dest,
+					state_changes.lp_hub_amount,
+				)?;
+			}
+
+			// Callback hook info
+			let info: AssetInfo<T::AssetId, Balance> =
+				AssetInfo::new(asset_id, &asset_state, &new_asset_state, &state_changes.asset);
+
+			Self::set_asset_state(asset_id, new_asset_state);
+
+			Self::deposit_event(Event::ProtocolLiquidityRemoved {
+				who: dest,
+				asset_id,
+				shares_removed: amount,
+				hub_amount: state_changes.lp_hub_amount,
+			});
+
+			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 			Ok(())
 		}
 

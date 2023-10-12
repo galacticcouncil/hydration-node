@@ -61,7 +61,7 @@ pub trait WeightInfo {
 	fn router_execution_sell(c: u32, e: u32) -> Weight;
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
 	fn force_withdraw_position() -> Weight;
-	fn withdraw_protocol_shares() -> Weight;
+	fn withdraw_protocol_liquidity() -> Weight;
 }
 
 /// Weights for pallet_omnipool using the hydraDX node and recommended hardware.
@@ -424,7 +424,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::zero()
 	}
 
-	fn withdraw_protocol_shares() -> Weight {
+	fn withdraw_protocol_liquidity() -> Weight {
 		Weight::zero()
 	}
 }
@@ -786,7 +786,7 @@ impl WeightInfo for () {
 		Weight::zero()
 	}
 
-	fn withdraw_protocol_shares() -> Weight {
+	fn withdraw_protocol_liquidity() -> Weight {
 		Weight::zero()
 	}
 }
