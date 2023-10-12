@@ -1513,13 +1513,13 @@ pub mod pallet {
 		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::force_withdraw_position())]
 		#[transactional]
-		pub fn force_withdraw_position(origin: OriginFor<T>,
-			position_id: T::PositionItemId ) -> DispatchResult {
+		pub fn force_withdraw_position(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
 			ensure_root(origin.clone())?;
 
 			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
 
-			let owner = T::NFTHandler::owner(&T::NFTCollectionId::get(), &position_id).ok_or(Error::<T>::OwnerNotFound)?;
+			let owner =
+				T::NFTHandler::owner(&T::NFTCollectionId::get(), &position_id).ok_or(Error::<T>::OwnerNotFound)?;
 
 			let asset_id = position.asset_id;
 			let asset_state = Self::load_asset_state(asset_id)?;
@@ -1609,14 +1609,14 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 
-
 			Ok(())
 		}
 
 		#[pallet::call_index(12)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw_protocol_liquidity())]
 		#[transactional]
-		pub fn withdraw_protocol_liquidity(origin: OriginFor<T>,
+		pub fn withdraw_protocol_liquidity(
+			origin: OriginFor<T>,
 			asset_id: T::AssetId,
 			amount: Balance,
 			price: (Balance, Balance),
@@ -1705,7 +1705,6 @@ pub mod pallet {
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 			Ok(())
 		}
-
 	}
 
 	#[pallet::hooks]

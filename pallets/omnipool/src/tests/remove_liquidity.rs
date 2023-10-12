@@ -605,3 +605,92 @@ fn remove_liquidity_should_apply_correct_fee_when_price_is_different() {
 			assert_eq!(position, expected);
 		});
 }
+
+#[test]
+fn force_withdraw_position_should_work_correctly() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_min_withdrawal_fee(Permill::from_float(0.01))
+		.build()
+		.execute_with(|| {
+			let liq_added = 400 * ONE;
+
+			let current_position_id = <NextPositionId<Test>>::get();
+
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
+
+			assert_balance!(LP1, 1_000, 4600 * ONE);
+
+			assert_ok!(Omnipool::force_withdraw_position(
+				RuntimeOrigin::root(),
+				current_position_id,
+			));
+
+			assert_asset_state!(
+				1_000,
+				AssetReserveState {
+					reserve: 2000000000000000,
+					hub_reserve: 1300000000000000,
+					shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+
+			let position = Positions::<Test>::get(current_position_id);
+			assert!(position.is_none());
+
+			assert_balance!(LP1, 1_000, 5000000000000000);
+			assert_balance!(LP1, LRNA, 0);
+		});
+}
+
+#[test]
+fn force_withdraw_position_should_transfer_lrna() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP2, DAI, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_min_withdrawal_fee(Permill::from_float(0.01))
+		.build()
+		.execute_with(|| {
+			let liq_added = 400 * ONE;
+
+			let current_position_id = <NextPositionId<Test>>::get();
+
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
+
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP2),
+				1_000,
+				DAI,
+				200 * ONE,
+				500000 * ONE
+			));
+
+			assert_ok!(Omnipool::force_withdraw_position(
+				RuntimeOrigin::root(),
+				current_position_id,
+			));
+
+			let position = Positions::<Test>::get(current_position_id);
+			assert!(position.is_none());
+
+			assert_balance!(LP1, 1_000, 4966666666666666);
+			assert_balance!(LP1, LRNA, 24617495711835);
+		});
+}
