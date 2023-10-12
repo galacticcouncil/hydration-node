@@ -160,6 +160,16 @@ pub mod v2 {
 	}
 
 	pub fn post_migrate<T: Config>() {
+		for a in Assets::<T>::iter_keys() {
+			let _ = Assets::<T>::get(a).expect("Assets data must be valid");
+		}
+
+		for l in AssetLocations::<T>::iter_keys() {
+			let _ = AssetLocations::<T>::get(l).expect("AssetLocations data must be valid");
+		}
+
+		assert_eq!(v1::AssetMetadataMap::<T>::iter().count(), 0);
+
 		assert_eq!(StorageVersion::get::<Pallet<T>>(), 2, "Unexpected storage version.");
 
 		log::info!(
