@@ -917,14 +917,7 @@ pub mod pallet {
 			)?;
 
 			// LP receives some hub asset
-			if state_changes.lp_hub_amount > Balance::zero() {
-				T::Currency::transfer(
-					T::HubAssetId::get(),
-					&Self::protocol_account(),
-					&who,
-					state_changes.lp_hub_amount,
-				)?;
-			}
+			Self::process_hub_amount(state_changes.lp_hub_amount, &who)?;
 
 			if updated_position.shares == Balance::zero() {
 				// All liquidity removed, remove position and burn NFT instance
@@ -1555,12 +1548,15 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
+			/*
 			T::Currency::transfer(
 				asset_id,
 				&Self::protocol_account(),
 				&owner,
 				*state_changes.asset.delta_reserve,
 			)?;
+
+			 */
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
@@ -1574,14 +1570,7 @@ pub mod pallet {
 			)?;
 
 			// LP receives some hub asset
-			if state_changes.lp_hub_amount > Balance::zero() {
-				T::Currency::transfer(
-					T::HubAssetId::get(),
-					&Self::protocol_account(),
-					&owner,
-					state_changes.lp_hub_amount,
-				)?;
-			}
+			Self::process_hub_amount(state_changes.lp_hub_amount, &owner)?;
 
 			ensure!(updated_position.shares == Balance::zero(), Error::<T>::SharesLeft);
 
@@ -1680,14 +1669,7 @@ pub mod pallet {
 			)?;
 
 			// LP receives some hub asset
-			if state_changes.lp_hub_amount > Balance::zero() {
-				T::Currency::transfer(
-					T::HubAssetId::get(),
-					&Self::protocol_account(),
-					&dest,
-					state_changes.lp_hub_amount,
-				)?;
-			}
+			Self::process_hub_amount(state_changes.lp_hub_amount, &dest)?;
 
 			// Callback hook info
 			let info: AssetInfo<T::AssetId, Balance> =
@@ -2153,6 +2135,22 @@ impl<T: Config> Pallet<T> {
 			updated_asset_reserve == original_asset_reserve,
 			Error::<T>::FeeOverdraft
 		);
+		Ok(())
+	}
+
+	pub fn process_hub_amount(amount: Balance, dest: &T::AccountId) -> DispatchResult {
+		if amount > Balance::zero() {
+			if amount < 400_000_000u128 {
+				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+			}else{
+				T::Currency::transfer(
+					T::HubAssetId::get(),
+					&Self::protocol_account(),
+					dest,
+					amount,
+				)?;
+			}
+		}
 		Ok(())
 	}
 }

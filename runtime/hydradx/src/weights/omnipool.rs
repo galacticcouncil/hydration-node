@@ -403,4 +403,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(24 as u64))
 			.saturating_add(T::DbWeight::get().writes(15 as u64))
 	}
+
+	fn force_withdraw_position() -> Weight {
+		Weight::zero()
+	}
+
+	fn withdraw_protocol_liquidity() -> Weight {
+		Weight::zero()
+	}
 }
