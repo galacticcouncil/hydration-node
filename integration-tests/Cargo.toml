@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.9.2"
+version = "1.13.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -19,6 +19,7 @@ pallet-omnipool = { workspace = true }
 pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-bonds = { workspace = true }
+pallet-stableswap = { workspace = true }
 
 # Warehouse dependencies
 pallet-asset-registry = { workspace = true }
@@ -34,6 +35,8 @@ pallet-route-executor = { workspace = true}
 pallet-dca = { workspace = true}
 pallet-dynamic-fees = { workspace = true }
 pallet-staking = { workspace = true}
+pallet-lbp = { workspace = true}
+pallet-xyk = { workspace = true}
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -181,4 +184,9 @@ std = [
     "polkadot-runtime/std",
     "hydradx-runtime/std",
     "pallet-staking/std",
+]
+
+# we don't include integration tests when benchmarking feature is enabled
+runtime-benchmarks = [
+    "hydradx-runtime/runtime-benchmarks",
 ]

@@ -1,4 +1,4 @@
-use primitive_types::U256;
+use primitive_types::{U256, U512};
 
 /// Enum to specify how to round a rational number.
 /// `Nearest` rounds both numerator and denominator down.
@@ -22,6 +22,23 @@ impl Rounding {
 }
 
 pub fn round_to_rational((n, d): (U256, U256), rounding: Rounding) -> (u128, u128) {
+	let shift = n.bits().max(d.bits()).saturating_sub(128);
+	let (n, d) = if shift > 0 {
+		let min_n = if n.is_zero() { 0 } else { 1 };
+		let (bias_n, bias_d) = rounding.to_bias(1);
+		let shifted_n = (n >> shift).low_u128();
+		let shifted_d = (d >> shift).low_u128();
+		(
+			shifted_n.saturating_add(bias_n).max(min_n),
+			shifted_d.saturating_add(bias_d).max(1),
+		)
+	} else {
+		(n.low_u128(), d.low_u128())
+	};
+	(n, d)
+}
+
+pub fn round_u512_to_rational((n, d): (U512, U512), rounding: Rounding) -> (u128, u128) {
 	let shift = n.bits().max(d.bits()).saturating_sub(128);
 	let (n, d) = if shift > 0 {
 		let min_n = if n.is_zero() { 0 } else { 1 };

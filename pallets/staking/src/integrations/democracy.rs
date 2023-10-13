@@ -1,12 +1,13 @@
 use crate::pallet::{PositionVotes, Positions};
-use crate::traits::DemocracyReferendum;
+use crate::traits::{DemocracyReferendum, VestingDetails};
 use crate::types::{Balance, Conviction, Vote};
 use crate::{Config, Error, Pallet};
 use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
-use orml_traits::MultiCurrencyExtended;
+use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_democracy::traits::DemocracyHooks;
 use pallet_democracy::{AccountVote, ReferendumIndex, ReferendumInfo};
+use sp_core::Get;
 
 pub struct StakingDemocracy<T>(sp_std::marker::PhantomData<T>);
 
@@ -28,7 +29,7 @@ where
 					let e = crate::Error::<T>::InconsistentState(crate::InconsistentStateError::PositionNotFound);
 					defensive!(e);
 
-					//NOTE: This is intetional, user can't recover from this state and we don't want
+					//NOTE: This is intentional, user can't recover from this state and we don't want
 					//to block voting.
 					return Ok(());
 				}
@@ -51,8 +52,17 @@ where
 				Conviction::default()
 			};
 
+			// We are capping vote by min(position stake, user's balance - vested amount - locked
+			// rewards).
+			// Sub of vested and lockek rewards is necessary because locks overlay so users may end
+			// up in the situation where portion of the staking lock is also vested or locked
+			// rewads and we don't want to assign points for it.
+			let max_vote = T::Currency::free_balance(T::NativeAssetId::get(), who)
+				.saturating_sub(T::Vesting::locked(who.clone()))
+				.saturating_sub(position.accumulated_locked_rewards)
+				.min(position.stake);
 			let staking_vote = Vote {
-				amount: amount.min(position.stake), // use only max staked amount
+				amount: amount.min(position.stake).min(max_vote),
 				conviction,
 			};
 
@@ -87,7 +97,7 @@ where
 					let e = crate::Error::<T>::InconsistentState(crate::InconsistentStateError::PositionNotFound);
 					defensive!(e);
 
-					//NOTE: This is intetional, user can't recover from this state and we don't want
+					//NOTE: This is intentional, user can't recover from this state and we don't want
 					//to block voting.
 					return Ok(());
 				}
@@ -102,8 +112,11 @@ where
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn on_vote_worst_case(who: &T::AccountId) {
+		use crate::LockIdentifier;
+		#[cfg(not(feature = "std"))]
+		use codec::alloc::string::ToString;
 		use frame_system::Origin;
-		use sp_core::Get;
+		use orml_traits::MultiLockableCurrency;
 
 		T::Currency::update_balance(
 			T::NativeAssetId::get(),
@@ -128,6 +141,15 @@ where
 			));
 		}
 
+		for i in 0..<T as crate::pallet::Config>::MaxLocks::get() - 5 {
+			let id: LockIdentifier = scale_info::prelude::format!("{:a>8}", i.to_string())
+				.as_bytes()
+				.try_into()
+				.unwrap();
+
+			T::Currency::set_lock(id, T::NativeAssetId::get(), who, 10_000_000_000_000_u128).unwrap();
+		}
+
 		let voting = crate::types::Voting::<T::MaxVotes> {
 			votes: votes.try_into().unwrap(),
 		};
@@ -138,7 +160,6 @@ where
 	#[cfg(feature = "runtime-benchmarks")]
 	fn on_remove_vote_worst_case(who: &T::AccountId) {
 		use frame_system::Origin;
-		use sp_core::Get;
 
 		T::Currency::update_balance(
 			T::NativeAssetId::get(),

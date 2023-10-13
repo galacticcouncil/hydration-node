@@ -24,18 +24,17 @@ use frame_support::{assert_ok, traits::EnsureOrigin};
 use frame_system::RawOrigin;
 
 use orml_traits::MultiCurrency;
-use primitives::constants::time::unix_time::MONTH;
+use primitives::{constants::time::unix_time::MONTH, AssetId, Balance};
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
-pub const ONE: u128 = 1_000_000_000_000;
-pub const HDX: u32 = 0;
+pub const ONE: Balance = 1_000_000_000_000;
+pub const HDX: AssetId = 0;
 
 benchmarks! {
 	 where_clause {
 		where
 		T: Config,
 		T: pallet_timestamp::Config,
-		T::AssetId: From<u32> + Into<u32>,
 		T::Balance: From<u32> + From<u128>,
 		T::Moment: From<u64>
 	}
@@ -48,11 +47,11 @@ benchmarks! {
 		let amount: T::Balance = (200 * ONE).into();
 		let maturity = NOW + MONTH;
 
-		T::Currency::deposit(HDX.into(), &issuer, amount)?;
+		T::Currency::deposit(HDX, &issuer, amount)?;
 
-	}: _(RawOrigin::Signed(issuer), HDX.into(), (100 * ONE).into(), maturity)
+	}: _(RawOrigin::Signed(issuer), HDX, (100 * ONE).into(), maturity)
 	verify {
-		assert!(BondIds::<T>::get::<(T::AssetId, Moment)>((HDX.into(), maturity)).is_some());
+		assert!(BondIds::<T>::get::<(AssetId, Moment)>((HDX, maturity)).is_some());
 	}
 
 	redeem {
@@ -61,11 +60,11 @@ benchmarks! {
 		let origin = T::IssueOrigin::try_successful_origin().unwrap();
 		let issuer = T::IssueOrigin::ensure_origin(origin).unwrap();
 		let amount: T::Balance = (200 * ONE).into();
-		T::Currency::deposit(HDX.into(), &issuer, amount)?;
+		T::Currency::deposit(HDX, &issuer, amount)?;
 
 		let maturity = NOW + MONTH;
 
-		assert_ok!(crate::Pallet::<T>::issue(RawOrigin::Signed(issuer.clone()).into(), HDX.into(), amount, maturity));
+		assert_ok!(crate::Pallet::<T>::issue(RawOrigin::Signed(issuer.clone()).into(), HDX, amount, maturity));
 
 		let fee = <T as Config>::ProtocolFee::get().mul_ceil(amount);
 		let amount_without_fee: T::Balance = amount.checked_sub(&fee).unwrap();

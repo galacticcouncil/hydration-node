@@ -29,7 +29,7 @@ use frame_support::{
 use hydra_dx_math::staking as math;
 use orml_traits::{GetByKey, MultiCurrency, MultiLockableCurrency};
 use sp_core::Get;
-use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One, Scale};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One};
 use sp_runtime::{
 	traits::{BlockNumberProvider, Zero},
 	Perbill, Permill, SaturatedConversion,
@@ -49,6 +49,7 @@ pub mod types;
 pub mod weights;
 
 pub use pallet::*;
+use types::Conviction;
 pub use weights::WeightInfo;
 
 /// Lock ID for staked assets.
@@ -130,11 +131,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type CurrentStakeWeight: Get<u8>;
 
-		/// Unit we are distributing action points for.
-		/// e.g if RewardedVoteUnit is 1HDX user will receive `x` action points per each voted 1 HDX.
-		#[pallet::constant]
-		type RewardedVoteUnit: Get<Balance>;
-
 		/// Max amount of votes the user can have at any time.
 		#[pallet::constant]
 		type MaxVotes: Get<u32>;
@@ -165,14 +161,20 @@ pub mod pallet {
 			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>
 			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
+		/// Max amount of action points user can receive for action. Users receives
+		/// percentage of this based on how much of staking power they used. e.g. for democracy
+		/// vote it is percentage of stake used for voting.
+		type MaxPointsPerAction: GetByKey<Action, u32>;
+
 		/// Democracy referendum state.
 		type ReferendumInfo: DemocracyReferendum;
 
-		/// Amount of action points user will receive for each voted HDX.
-		type ActionMultiplier: GetByKey<Action, u32>;
-
 		/// Provides information about amount of vested tokens.
 		type Vesting: VestingDetails<Self::AccountId, Balance>;
+
+		#[cfg(feature = "runtime-benchmarks")]
+		/// Max mumber of locks per account.  It's used in on_vote_worst_case benchmarks.
+		type MaxLocks: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -217,6 +219,7 @@ pub mod pallet {
 			total_stake: Balance,
 			locked_rewards: Balance,
 			slashed_points: Point,
+			payable_percentage: FixedU128,
 		},
 
 		/// Rewards were claimed.
@@ -227,6 +230,7 @@ pub mod pallet {
 			unlocked_rewards: Balance,
 			slashed_points: Point,
 			slashed_unpaid_rewards: Balance,
+			payable_percentage: FixedU128,
 		},
 
 		/// Staked amount was withdrawn and NFT was burned.
@@ -234,8 +238,6 @@ pub mod pallet {
 			who: T::AccountId,
 			position_id: T::PositionItemId,
 			unlocked_stake: Balance,
-			rewards: Balance,
-			unlocked_rewards: Balance,
 		},
 
 		/// Staking was initialized.
@@ -437,13 +439,14 @@ pub mod pallet {
 					let created_at = Self::get_period_number(position.created_at)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
-					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, _) = Self::calculate_rewards(
-						position,
-						staking.accumulated_reward_per_stake,
-						current_period,
-						created_at,
-					)
-					.ok_or(Error::<T>::Arithmetic)?;
+					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, payable_percentage) =
+						Self::calculate_rewards(
+							position,
+							staking.accumulated_reward_per_stake,
+							current_period,
+							created_at,
+						)
+						.ok_or(Error::<T>::Arithmetic)?;
 
 					let rewards = claimable_rewards
 						.checked_add(claimable_unpaid_rewards)
@@ -502,6 +505,7 @@ pub mod pallet {
 						total_stake: position.stake,
 						locked_rewards: rewards,
 						slashed_points: slash_points,
+						payable_percentage,
 					});
 
 					Ok(())
@@ -512,7 +516,7 @@ pub mod pallet {
 		/// Claim rewards accumulated for specific staking position.
 		///
 		/// Function calculates amount of rewards to pay for specified staking position based on
-		/// the amount of points position accumulated. Function also unlocks portion of the rewards locked
+		/// the amount of points position accumulated. Function also unlocks all the rewards locked
 		/// from `increase_stake` based on the amount of the points.
 		///
 		/// This action is penalized by removing all the points and returning allocated unpaid rewards
@@ -563,13 +567,8 @@ pub mod pallet {
 					let pot = Self::pot_account_id();
 					T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards_to_pay)?;
 
-					let rewards_to_unlock =
-						math::calculate_percentage_amount(position.accumulated_locked_rewards, payable_percentage);
-
-					position.accumulated_locked_rewards = position
-						.accumulated_locked_rewards
-						.checked_sub(rewards_to_unlock)
-						.ok_or(Error::<T>::Arithmetic)?;
+					let rewards_to_unlock = position.accumulated_locked_rewards;
+					position.accumulated_locked_rewards = Zero::zero();
 
 					position.accumulated_unpaid_rewards = position
 						.accumulated_unpaid_rewards
@@ -619,6 +618,7 @@ pub mod pallet {
 						unlocked_rewards: rewards_to_unlock,
 						slashed_points: points_to_slash,
 						slashed_unpaid_rewards,
+						payable_percentage,
 					});
 
 					Ok(())
@@ -636,7 +636,7 @@ pub mod pallet {
 		/// Parameters:
 		/// - `position_id`: The identifier of the position to be destroyed.
 		///
-		/// Emits `Unstaked` event when successful.
+		/// Emits `RewardsClaimed` and `Unstaked` events when successful.
 		///
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::unstake())]
@@ -662,13 +662,14 @@ pub mod pallet {
 					let created_at = Self::get_period_number(position.created_at)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
-					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, _) = Self::calculate_rewards(
-						position,
-						staking.accumulated_reward_per_stake,
-						current_period,
-						created_at,
-					)
-					.ok_or(Error::<T>::Arithmetic)?;
+					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, payable_percentage) =
+						Self::calculate_rewards(
+							position,
+							staking.accumulated_reward_per_stake,
+							current_period,
+							created_at,
+						)
+						.ok_or(Error::<T>::Arithmetic)?;
 
 					let rewards_to_pay = claimable_rewards
 						.checked_add(claimable_unpaid_rewards)
@@ -699,12 +700,21 @@ pub mod pallet {
 					T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
 					T::Currency::remove_lock(STAKING_LOCK_ID, T::NativeAssetId::get(), &who)?;
 
+					Self::deposit_event(Event::RewardsClaimed {
+						who: who.clone(),
+						position_id,
+						paid_rewards: rewards_to_pay,
+						unlocked_rewards: position.accumulated_locked_rewards,
+						slashed_points: Self::get_points(position, current_period, created_at)
+							.ok_or(Error::<T>::Arithmetic)?,
+						slashed_unpaid_rewards: return_to_pot,
+						payable_percentage,
+					});
+
 					Self::deposit_event(Event::Unstaked {
 						who,
 						position_id,
 						unlocked_stake: position.stake,
-						rewards: rewards_to_pay,
-						unlocked_rewards: position.accumulated_locked_rewards,
 					});
 
 					PositionVotes::<T>::remove(position_id);
@@ -732,14 +742,16 @@ impl<T: Config> Pallet<T> {
 		position: Option<&Position<T::BlockNumber>>,
 	) -> Result<(), DispatchError> {
 		let free_balance = T::Currency::free_balance(T::NativeAssetId::get(), who);
-		let staked = position.map(|p| p.stake).unwrap_or_default();
+		let staked = position
+			.map(|p| p.stake.saturating_add(p.accumulated_locked_rewards))
+			.unwrap_or_default();
 		let vested = T::Vesting::locked(who.clone());
 
+		//NOTE: locks overlay so vested + staked can be bigger than free_balance
 		let stakeable = free_balance
 			.checked_sub(vested)
 			.ok_or(Error::<T>::Arithmetic)?
-			.checked_sub(staked)
-			.ok_or(Error::<T>::Arithmetic)?;
+			.saturating_sub(staked);
 
 		ensure!(stakeable >= stake, Error::<T>::InsufficientBalance);
 
@@ -934,9 +946,11 @@ impl<T: Config> Pallet<T> {
 		position: &mut Position<T::BlockNumber>,
 	) -> DispatchResult {
 		PositionVotes::<T>::mutate(position_id, |voting| {
+			let max_position_vote = Conviction::max_multiplier().saturating_mul_int(position.stake);
+
 			voting.votes.retain(|(ref_idx, vote)| {
 				if T::ReferendumInfo::is_referendum_finished(*ref_idx) {
-					let points = Self::calculate_points_for_action(Action::DemocracyVote, vote);
+					let points = Self::calculate_points_for_action(Action::DemocracyVote, vote, max_position_vote);
 					position.action_points = position.action_points.saturating_add(points);
 					false
 				} else {
@@ -947,12 +961,18 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn calculate_points_for_action<V: ActionData>(action: Action, data: V) -> Balance {
-		let total = data
-			.conviction()
+	/// Returns amount of action points user receives for action.
+	///
+	/// params:
+	/// - action: action for which points are calculated
+	/// - data: action's data necessary for points calculation
+	/// - action_max_value: max value that can be used by user for `action`. It is used to calculate
+	/// percentage of points user will receive based on how much action's power user used.
+	fn calculate_points_for_action<V: ActionData>(action: Action, data: V, action_max_value: Balance) -> Balance {
+		data.conviction()
 			.saturating_mul_int(data.amount())
-			.div(T::RewardedVoteUnit::get());
-		total.saturating_mul(T::ActionMultiplier::get(&action) as u128)
+			.saturating_mul(T::MaxPointsPerAction::get(&action) as u128)
+			.saturating_div(action_max_value)
 	}
 
 	#[inline]

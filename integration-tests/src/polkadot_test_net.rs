@@ -9,7 +9,7 @@ use frame_support::{
 	traits::GenesisBuild,
 	weights::Weight,
 };
-pub use hydradx_runtime::{AccountId, NativeExistentialDeposit, Treasury, VestingPalletId};
+pub use hydradx_runtime::{AccountId, Currencies, NativeExistentialDeposit, Treasury, VestingPalletId};
 use pallet_transaction_multi_payment::Price;
 pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};
 
@@ -33,10 +33,12 @@ pub const MOONBEAM_PARA_ID: u32 = 2_004;
 pub const INTERLAY_PARA_ID: u32 = 2_032;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
-pub const ALICE_INITIAL_DAI_BALANCE: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_DAI_BALANCE: Balance = 2_000 * UNITS;
 pub const ALICE_INITIAL_LRNA_BALANCE: Balance = 200 * UNITS;
-pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000 * UNITS * 1_000_000;
+pub const ALICE_INITIAL_DOT_BALANCE: Balance = 2_000 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
+pub const BOB_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
+pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
 pub fn parachain_reserve_account() -> AccountId {
@@ -50,6 +52,7 @@ pub const DOT: AssetId = 3;
 pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
+pub const PEPE: AssetId = 420;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
@@ -226,6 +229,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(b"ETH".to_vec(), 1_000u128, Some(ETH)),
 			(b"BTC".to_vec(), 1_000u128, Some(BTC)),
 			(b"ACA".to_vec(), 1_000u128, Some(ACA)),
+			(b"PEPE".to_vec(), 1_000u128, Some(PEPE)),
 			// workaround for next_asset_id() to return correct values
 			(b"DUMMY".to_vec(), 1_000u128, None),
 		],
@@ -246,13 +250,15 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 		balances: vec![
 			(AccountId::from(ALICE), LRNA, ALICE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(ALICE), DAI, ALICE_INITIAL_DAI_BALANCE),
-			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
-			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
+			(AccountId::from(ALICE), DOT, ALICE_INITIAL_DOT_BALANCE),
+			(AccountId::from(BOB), LRNA, BOB_INITIAL_LRNA_BALANCE),
+			(AccountId::from(BOB), DAI, BOB_INITIAL_DAI_BALANCE),
 			(AccountId::from(BOB), BTC, 1_000_000),
-			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
+			(AccountId::from(CHARLIE), DAI, 80_000_000_000 * UNITS),
+			(AccountId::from(BOB), PEPE, 1_000 * UNITS * 1_000_000),
 			(AccountId::from(CHARLIE), LRNA, CHARLIE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
-			(AccountId::from(DAVE), DAI, 1_000 * UNITS * 1_000_000),
+			(AccountId::from(DAVE), DAI, 1_000_000_000 * UNITS),
 			(omnipool_account.clone(), DAI, stable_amount),
 			(omnipool_account.clone(), ETH, eth_amount),
 			(omnipool_account.clone(), BTC, btc_amount),
@@ -467,4 +473,18 @@ pub fn init_omnipool() {
 		Permill::from_percent(100),
 		Permill::from_percent(10)
 	));
+}
+
+#[macro_export]
+macro_rules! assert_balance {
+	( $who:expr, $asset:expr, $amount:expr) => {{
+		assert_eq!(Currencies::free_balance($asset, &$who), $amount);
+	}};
+}
+
+#[macro_export]
+macro_rules! assert_reserved_balance {
+	( $who:expr, $asset:expr, $amount:expr) => {{
+		assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
+	}};
 }

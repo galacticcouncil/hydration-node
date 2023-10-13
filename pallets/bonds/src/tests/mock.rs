@@ -45,7 +45,6 @@ type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
 pub type Balance = u128;
-pub type AssetId = u32;
 
 pub const HDX: AssetId = 0;
 pub const DAI: AssetId = 1;
@@ -106,7 +105,6 @@ impl Contains<AssetKind> for AssetTypeWhitelist {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type AssetId = AssetId;
 	type Balance = Balance;
 	type Currency = Tokens;
 	type AssetRegistry = DummyRegistry<Test>;
@@ -174,10 +172,7 @@ impl pallet_timestamp::Config for Test {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> CreateRegistry<AssetId, Balance> for DummyRegistry<T>
-where
-	T::AssetId: Into<AssetId> + From<u32>,
-{
+impl<T: Config> CreateRegistry<AssetId, Balance> for DummyRegistry<T> {
 	type Error = DispatchError;
 
 	fn create_asset(_name: &[u8], _kind: AssetKind, existential_deposit: Balance) -> Result<AssetId, DispatchError> {

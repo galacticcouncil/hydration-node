@@ -27,6 +27,7 @@ use frame_support::sp_runtime::{
 	MultiSignature,
 };
 
+pub mod asset;
 pub mod constants;
 
 /// An index to a block.
