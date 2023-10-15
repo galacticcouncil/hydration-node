@@ -23,14 +23,14 @@ use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 use sp_std::vec::Vec;
 
 use scale_info::TypeInfo;
+use scale_info::prelude::string::String;
+use scale_info::prelude::format;
 
-#[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, Debug, TypeInfo, MaxEncodedLen)]
 pub struct EthereumAddress(pub [u8; 20]);
 
-#[cfg(feature = "std")]
 impl Serialize for EthereumAddress {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where
@@ -41,7 +41,6 @@ impl Serialize for EthereumAddress {
 	}
 }
 
-#[cfg(feature = "std")]
 impl<'de> Deserialize<'de> for EthereumAddress {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where

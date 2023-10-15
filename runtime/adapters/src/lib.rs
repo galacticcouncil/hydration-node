@@ -56,7 +56,7 @@ use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
 use warehouse_liquidity_mining::GlobalFarmData;
 use xcm_builder::TakeRevenue;
 use xcm_executor::{
-	traits::{Convert as MoreConvert, MatchesFungible, TransactAsset, WeightTrader},
+	traits::{ConvertLocation, MatchesFungible, TransactAsset, WeightTrader},
 	Assets,
 };
 
@@ -146,7 +146,7 @@ impl<
 	/// per buy.
 	/// The fee is determined by `ConvertWeightToFee` in combination with the price determined by
 	/// `AcceptedCurrencyPrices`.
-	fn buy_weight(&mut self, weight: Weight, payment: Assets) -> Result<Assets, XcmError> {
+	fn buy_weight(&mut self, weight: Weight, payment: Assets, _context: &XcmContext) -> Result<Assets, XcmError> {
 		log::trace!(
 			target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {:?}, payment: {:?}",
 			weight, payment
@@ -169,7 +169,7 @@ impl<
 	}
 
 	/// Will refund up to `weight` from the first asset tracked by the trader.
-	fn refund_weight(&mut self, weight: Weight) -> Option<MultiAsset> {
+	fn refund_weight(&mut self, weight: Weight, _context: &XcmContext) -> Option<MultiAsset> {
 		log::trace!(
 			target: "xcm::weight", "MultiCurrencyTrader::refund_weight weight: {:?}, paid_assets: {:?}",
 			weight, self.paid_assets
@@ -666,7 +666,7 @@ impl<
 		UnknownAsset: UnknownAssetT,
 		Match: MatchesFungible<MultiCurrency::Balance>,
 		AccountId: sp_std::fmt::Debug + Clone,
-		AccountIdConvert: MoreConvert<MultiLocation, AccountId>,
+		AccountIdConvert: ConvertLocation<AccountId>,
 		CurrencyId: FullCodec + Eq + PartialEq + Copy + MaybeSerializeDeserialize + Debug,
 		CurrencyIdConvert: Convert<MultiAsset, Option<CurrencyId>>,
 		DepositFailureHandler: OnDepositFail<CurrencyId, AccountId, MultiCurrency::Balance>,
@@ -688,12 +688,12 @@ impl<
 {
 	fn deposit_asset(asset: &MultiAsset, location: &MultiLocation, _context: &XcmContext) -> Result<(), XcmError> {
 		match (
-			AccountIdConvert::convert_ref(location),
+			AccountIdConvert::convert_location(location),
 			CurrencyIdConvert::convert(asset.clone()),
 			Match::matches_fungible(asset),
 		) {
 			// known asset
-			(Ok(who), Some(currency_id), Some(amount)) => {
+			(Some(who), Some(currency_id), Some(amount)) => {
 				if RerouteFilter::contains(&(currency_id, who.clone())) {
 					MultiCurrency::deposit(currency_id, &RerouteDestination::get(), amount)
 						.or_else(|err| DepositFailureHandler::on_deposit_currency_fail(err, currency_id, &who, amount))
@@ -714,8 +714,8 @@ impl<
 		_maybe_context: Option<&XcmContext>,
 	) -> Result<Assets, XcmError> {
 		UnknownAsset::withdraw(asset, location).or_else(|_| {
-			let who = AccountIdConvert::convert_ref(location)
-				.map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
+			let who = AccountIdConvert::convert_location(location)
+				.ok_or_else(|| XcmError::from(Error::AccountIdConversionFailed))?;
 			let currency_id = CurrencyIdConvert::convert(asset.clone())
 				.ok_or_else(|| XcmError::from(Error::CurrencyIdConversionFailed))?;
 			let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
@@ -734,9 +734,9 @@ impl<
 		_context: &XcmContext,
 	) -> Result<Assets, XcmError> {
 		let from_account =
-			AccountIdConvert::convert_ref(from).map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
+			AccountIdConvert::convert_location(from).ok_or_else(|| XcmError::from(Error::AccountIdConversionFailed))?;
 		let to_account =
-			AccountIdConvert::convert_ref(to).map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
+			AccountIdConvert::convert_location(to).ok_or_else(|| XcmError::from(Error::AccountIdConversionFailed))?;
 		let currency_id = CurrencyIdConvert::convert(asset.clone())
 			.ok_or_else(|| XcmError::from(Error::CurrencyIdConversionFailed))?;
 		let to_account = if RerouteFilter::contains(&(currency_id, to_account.clone())) {

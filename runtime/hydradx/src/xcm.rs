@@ -84,7 +84,7 @@ pub type XcmOriginToCallOrigin = (
 
 parameter_types! {
 	/// The amount of weight an XCM operation takes. This is a safe overestimate.
-	pub const BaseXcmWeight: XcmWeight = XcmWeight::from_ref_time(100_000_000);
+	pub const BaseXcmWeight: XcmWeight = XcmWeight::from_parts(100_000_000, 0);
 	pub const MaxInstructions: u32 = 100;
 	pub const MaxAssetsForTransfer: usize = 2;
 
@@ -131,6 +131,7 @@ impl Config for XcmConfig {
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
 	type SafeCallFilter = SafeCallFilter;
+	type Aliasers = Nothing;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -148,10 +149,6 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
 	type PriceForSiblingDelivery = ();
 	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
-	type ExecuteDeferredOrigin = EnsureRoot<AccountId>;
-	type MaxDeferredMessages = ConstU32<100>;
-	type RelayChainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
-	type XcmDeferFilter = ();
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
@@ -226,6 +223,9 @@ impl pallet_xcm::Config for Runtime {
 	type WeightInfo = weights::xcm::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
+	type AdminOrigin = MajorityOfCouncil;
+	type MaxRemoteLockConsumers = ConstU32<0>;
+	type RemoteLockConsumerIdentifier = ();
 }
 pub struct CurrencyIdConvert;
 use primitives::constants::chain::CORE_ASSET_ID;

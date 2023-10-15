@@ -33,6 +33,7 @@ use frame_support::{
 	transactional,
 };
 use frame_system::ensure_signed;
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
 use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
@@ -198,7 +199,7 @@ pub mod pallet {
 		type CreatePoolOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Function for calculation of LBP weights
-		type LBPWeightFunction: LBPWeightCalculation<Self::BlockNumber>;
+		type LBPWeightFunction: LBPWeightCalculation<BlockNumberFor<Self>>;
 
 		/// Mapping of asset pairs to unique pool identities
 		type AssetPairAccountId: AssetPairAccountIdFor<AssetId, PoolId<Self>>;
@@ -223,11 +224,11 @@ pub mod pallet {
 		type MaxOutRatio: Get<u128>;
 
 		/// The block number provider
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn integrity_test() {
 			// The exponentiation used in the math can overflow for values smaller than 3
 			assert!(T::MaxInRatio::get() >= 3, "LBP: MaxInRatio is set to invalid value.");
@@ -314,13 +315,13 @@ pub mod pallet {
 		/// Pool was created by the `CreatePool` origin.
 		PoolCreated {
 			pool: PoolId<T>,
-			data: Pool<T::AccountId, T::BlockNumber>,
+			data: Pool<T::AccountId, BlockNumberFor<T>>,
 		},
 
 		/// Pool data were updated.
 		PoolUpdated {
 			pool: PoolId<T>,
-			data: Pool<T::AccountId, T::BlockNumber>,
+			data: Pool<T::AccountId, BlockNumberFor<T>>,
 		},
 
 		/// New liquidity was provided to the pool.
@@ -368,7 +369,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn pool_data)]
 	pub type PoolData<T: Config> =
-		StorageMap<_, Blake2_128Concat, PoolId<T>, Pool<T::AccountId, T::BlockNumber>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, PoolId<T>, Pool<T::AccountId, BlockNumberFor<T>>, OptionQuery>;
 
 	/// Storage used for tracking existing fee collectors
 	/// Not more than one fee collector per asset possible
@@ -527,8 +528,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			pool_id: PoolId<T>,
 			pool_owner: Option<T::AccountId>,
-			start: Option<T::BlockNumber>,
-			end: Option<T::BlockNumber>,
+			start: Option<BlockNumberFor<T>>,
+			end: Option<BlockNumberFor<T>>,
 			initial_weight: Option<LBPWeight>,
 			final_weight: Option<LBPWeight>,
 			fee: Option<(u32, u32)>,
@@ -769,8 +770,8 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	fn calculate_weights(
-		pool_data: &Pool<T::AccountId, T::BlockNumber>,
-		at: T::BlockNumber,
+		pool_data: &Pool<T::AccountId, BlockNumberFor<T>>,
+		at: BlockNumberFor<T>,
 	) -> Result<(LBPWeight, LBPWeight), DispatchError> {
 		let weight_a = T::LBPWeightFunction::calculate_weight(
 			pool_data.weight_curve,
@@ -787,7 +788,7 @@ impl<T: Config> Pallet<T> {
 		Ok((weight_a, weight_b))
 	}
 
-	fn validate_pool_data(pool_data: &Pool<T::AccountId, T::BlockNumber>) -> DispatchResult {
+	fn validate_pool_data(pool_data: &Pool<T::AccountId, BlockNumberFor<T>>) -> DispatchResult {
 		let now = T::BlockNumberProvider::current_block_number();
 
 		ensure!(
@@ -831,8 +832,8 @@ impl<T: Config> Pallet<T> {
 
 	fn get_sorted_weight(
 		asset_in: AssetId,
-		now: T::BlockNumber,
-		pool_data: &Pool<T::AccountId, T::BlockNumber>,
+		now: BlockNumberFor<T>,
+		pool_data: &Pool<T::AccountId, BlockNumberFor<T>>,
 	) -> Result<(LBPWeight, LBPWeight), Error<T>> {
 		match Self::calculate_weights(pool_data, now) {
 			Ok(weights) => {
@@ -848,7 +849,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// return true if now is in interval <pool.start, pool.end>
-	fn is_pool_running(pool_data: &Pool<T::AccountId, T::BlockNumber>) -> bool {
+	fn is_pool_running(pool_data: &Pool<T::AccountId, BlockNumberFor<T>>) -> bool {
 		let now = T::BlockNumberProvider::current_block_number();
 		match (pool_data.start, pool_data.end) {
 			(Some(start), Some(end)) => start <= now && now <= end,
@@ -857,7 +858,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// return true if now is > pool.start and pool has been initialized
-	fn has_pool_started(pool_data: &Pool<T::AccountId, T::BlockNumber>) -> bool {
+	fn has_pool_started(pool_data: &Pool<T::AccountId, BlockNumberFor<T>>) -> bool {
 		let now = T::BlockNumberProvider::current_block_number();
 		match pool_data.start {
 			Some(start) => start <= now,
@@ -867,12 +868,12 @@ impl<T: Config> Pallet<T> {
 
 	/// returns fees collected and locked in the fee collector account
 	/// note: after LBP finishes and liquidity is removed this will be 0
-	fn collected_fees(pool: &Pool<T::AccountId, T::BlockNumber>) -> BalanceOf<T> {
+	fn collected_fees(pool: &Pool<T::AccountId, BlockNumberFor<T>>) -> BalanceOf<T> {
 		T::LockedBalance::get_by_lock(COLLECTOR_LOCK_ID, pool.assets.0, pool.fee_collector.clone())
 	}
 
 	/// repay fee is applied until repay target amount is reached
-	fn is_repay_fee_applied(pool: &Pool<T::AccountId, T::BlockNumber>) -> bool {
+	fn is_repay_fee_applied(pool: &Pool<T::AccountId, BlockNumberFor<T>>) -> bool {
 		Self::collected_fees(pool) < pool.repay_target
 	}
 
@@ -914,7 +915,7 @@ impl<T: Config> Pallet<T> {
 
 	/// determines fee rate and applies it to the amount
 	fn calculate_fees(
-		pool: &Pool<T::AccountId, T::BlockNumber>,
+		pool: &Pool<T::AccountId, BlockNumberFor<T>>,
 		amount: BalanceOf<T>,
 	) -> Result<BalanceOf<T>, DispatchError> {
 		let fee = if Self::is_repay_fee_applied(pool) {

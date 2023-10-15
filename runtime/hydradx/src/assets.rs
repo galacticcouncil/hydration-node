@@ -47,7 +47,7 @@ use frame_support::{
 	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
-	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
+	traits::{AsEnsureOriginWithArg, ConstU32, Contains, Currency, EnsureOrigin, NeverEnsureOrigin, Imbalance, OnUnbalanced},
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
@@ -68,9 +68,20 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 }
 
+// pallet-treasury did not impl OnUnbalanced<Credit>, need an adapter to handle dust.
+type CreditOf = frame_support::traits::fungible::Credit<<Runtime as frame_system::Config>::AccountId, Balances>;
+type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
+pub struct DustRemovalAdapter;
+impl OnUnbalanced<CreditOf> for DustRemovalAdapter {
+	fn on_nonzero_unbalanced(amount: CreditOf) {
+		let new_amount = NegativeImbalance::new(amount.peek());
+		Treasury::on_nonzero_unbalanced(new_amount);
+	}
+}
+
 impl pallet_balances::Config for Runtime {
 	type Balance = Balance;
-	type DustRemoval = Treasury;
+	type DustRemoval = DustRemovalAdapter;
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = NativeExistentialDeposit;
 	type AccountStore = System;
@@ -78,6 +89,10 @@ impl pallet_balances::Config for Runtime {
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 pub struct CurrencyHooks;

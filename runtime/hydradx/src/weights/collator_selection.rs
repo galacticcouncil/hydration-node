@@ -50,38 +50,44 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn set_invulnerables(b: u32) -> Weight {
-		Weight::from_ref_time(12_265_000 as u64) // Standard Error: 7_000
-			.saturating_add(Weight::from_ref_time(87_000 as u64).saturating_mul(b as u64))
+		Weight::from_parts(12_265_000, 0) // Standard Error: 7_000
+			.saturating_add(Weight::from_parts(87_000, 0).saturating_mul(b as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn set_desired_candidates() -> Weight {
-		Weight::from_ref_time(15_221_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(15_221_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn set_candidacy_bond() -> Weight {
-		Weight::from_ref_time(11_762_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(11_762_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn register_as_candidate(c: u32) -> Weight {
-		Weight::from_ref_time(47_945_000 as u64) // Standard Error: 8_000
-			.saturating_add(Weight::from_ref_time(459_000 as u64).saturating_mul(c as u64))
+		Weight::from_parts(47_945_000, 0) // Standard Error: 8_000
+			.saturating_add(Weight::from_parts(459_000, 0).saturating_mul(c as u64))
 			.saturating_add(T::DbWeight::get().reads(5 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn leave_intent(c: u32) -> Weight {
-		Weight::from_ref_time(34_269_000 as u64) // Standard Error: 7_000
-			.saturating_add(Weight::from_ref_time(488_000 as u64).saturating_mul(c as u64))
+		Weight::from_parts(34_269_000, 0) // Standard Error: 7_000
+			.saturating_add(Weight::from_parts(488_000, 0).saturating_mul(c as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn note_author() -> Weight {
-		Weight::from_ref_time(43_846_000 as u64)
+		Weight::from_parts(43_846_000, 0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 	fn new_session(r: u32, c: u32) -> Weight {
 		Weight::zero()
-			.saturating_add(Weight::from_ref_time(4_049_000 as u64).saturating_mul(r as u64)) // Standard Error: 1_694_000
-			.saturating_add(Weight::from_ref_time(18_735_000 as u64).saturating_mul(c as u64))
+			.saturating_add(Weight::from_parts(4_049_000, 0).saturating_mul(r as u64)) // Standard Error: 1_694_000
+			.saturating_add(Weight::from_parts(18_735_000, 0).saturating_mul(c as u64))
 			.saturating_add(T::DbWeight::get().reads((2 as u64).saturating_mul(c as u64)))
 			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(c as u64)))
+	}
+	fn add_invulnerable(_b: u32, _c: u32) -> Weight {
+		Weight::zero()
+	}
+	fn remove_invulnerable(_b: u32) -> Weight {
+		Weight::zero()
 	}
 }

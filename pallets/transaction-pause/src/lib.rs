@@ -20,9 +20,8 @@
 #![allow(clippy::unused_unit)]
 
 use frame_support::{
-	dispatch::{CallMetadata, GetCallMetadata},
 	pallet_prelude::*,
-	traits::{Contains, PalletInfoAccess},
+	traits::{Contains, CallMetadata, GetCallMetadata, PalletInfoAccess},
 	BoundedVec,
 };
 use frame_system::pallet_prelude::*;
@@ -93,7 +92,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {

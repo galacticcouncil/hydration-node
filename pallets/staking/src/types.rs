@@ -1,6 +1,6 @@
 use crate::traits::ActionData;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::RuntimeDebug;
+use sp_runtime::RuntimeDebug;
 use pallet_democracy::ReferendumIndex;
 use scale_info::TypeInfo;
 use sp_core::bounded::BoundedVec;

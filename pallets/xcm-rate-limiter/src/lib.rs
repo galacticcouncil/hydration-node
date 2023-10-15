@@ -64,8 +64,19 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-use cumulus_pallet_xcmp_queue::XcmDeferFilter;
+// use cumulus_pallet_xcmp_queue::XcmDeferFilter;
+// TODO: remove cumulus-primitives-core dependency
+// TODO:
+use cumulus_primitives_core::{ParaId, relay_chain::BlockNumber as RelayBlockNumber};
+pub trait XcmDeferFilter<TRuntimeCall> {
+	fn deferred_by(
+		para: ParaId,
+		sent_at: RelayBlockNumber,
+		xcm: &VersionedXcm<TRuntimeCall>,
+	) -> (Weight, Option<RelayBlockNumber>);
+}
 
+use frame_system::pallet_prelude::BlockNumberFor;
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::Get;
 use hydra_dx_math::rate_limiter::{calculate_deferred_duration, calculate_new_accumulated_amount};
@@ -107,7 +118,7 @@ pub mod pallet {
 	use xcm::lts::MultiLocation;
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -144,7 +155,6 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]

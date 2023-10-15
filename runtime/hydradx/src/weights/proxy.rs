@@ -59,8 +59,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `p` is `[1, 31]`.
 	fn proxy(p: u32) -> Weight {
 		// Minimum execution time: 21_677 nanoseconds.
-		Weight::from_ref_time(21_692_373 as u64) // Standard Error: 5_242
-			.saturating_add(Weight::from_ref_time(117_691 as u64).saturating_mul(p as u64))
+		Weight::from_parts(21_692_373, 0) // Standard Error: 5_242
+			.saturating_add(Weight::from_parts(117_691, 0).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 	}
 	// Storage: Proxy Proxies (r:1 w:0)
@@ -73,10 +73,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `p` is `[1, 31]`.
 	fn proxy_announced(a: u32, p: u32) -> Weight {
 		// Minimum execution time: 44_286 nanoseconds.
-		Weight::from_ref_time(45_544_640 as u64) // Standard Error: 5_443
-			.saturating_add(Weight::from_ref_time(164_483 as u64).saturating_mul(a as u64))
+		Weight::from_parts(45_544_640, 0) // Standard Error: 5_443
+			.saturating_add(Weight::from_parts(164_483, 0).saturating_mul(a as u64))
 			// Standard Error: 5_660
-			.saturating_add(Weight::from_ref_time(24_257 as u64).saturating_mul(p as u64))
+			.saturating_add(Weight::from_parts(24_257, 0).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -88,10 +88,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `p` is `[1, 31]`.
 	fn remove_announcement(a: u32, p: u32) -> Weight {
 		// Minimum execution time: 28_480 nanoseconds.
-		Weight::from_ref_time(29_279_330 as u64) // Standard Error: 4_280
-			.saturating_add(Weight::from_ref_time(192_685 as u64).saturating_mul(a as u64))
+		Weight::from_parts(29_279_330, 0) // Standard Error: 4_280
+			.saturating_add(Weight::from_parts(192_685, 0).saturating_mul(a as u64))
 			// Standard Error: 4_450
-			.saturating_add(Weight::from_ref_time(7_973 as u64).saturating_mul(p as u64))
+			.saturating_add(Weight::from_parts(7_973, 0).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -103,10 +103,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `p` is `[1, 31]`.
 	fn reject_announcement(a: u32, p: u32) -> Weight {
 		// Minimum execution time: 28_308 nanoseconds.
-		Weight::from_ref_time(28_999_683 as u64) // Standard Error: 4_300
-			.saturating_add(Weight::from_ref_time(196_827 as u64).saturating_mul(a as u64))
+		Weight::from_parts(28_999_683, 0) // Standard Error: 4_300
+			.saturating_add(Weight::from_parts(196_827, 0).saturating_mul(a as u64))
 			// Standard Error: 4_471
-			.saturating_add(Weight::from_ref_time(14_183 as u64).saturating_mul(p as u64))
+			.saturating_add(Weight::from_parts(14_183, 0).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -120,10 +120,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `p` is `[1, 31]`.
 	fn announce(a: u32, p: u32) -> Weight {
 		// Minimum execution time: 39_239 nanoseconds.
-		Weight::from_ref_time(39_072_787 as u64) // Standard Error: 4_455
-			.saturating_add(Weight::from_ref_time(190_030 as u64).saturating_mul(a as u64))
+		Weight::from_parts(39_072_787, 0) // Standard Error: 4_455
+			.saturating_add(Weight::from_parts(190_030, 0).saturating_mul(a as u64))
 			// Standard Error: 4_632
-			.saturating_add(Weight::from_ref_time(42_751 as u64).saturating_mul(p as u64))
+			.saturating_add(Weight::from_parts(42_751, 0).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -132,8 +132,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `p` is `[1, 31]`.
 	fn add_proxy(p: u32) -> Weight {
 		// Minimum execution time: 29_935 nanoseconds.
-		Weight::from_ref_time(30_909_501 as u64) // Standard Error: 5_224
-			.saturating_add(Weight::from_ref_time(63_272 as u64).saturating_mul(p as u64))
+		Weight::from_parts(30_909_501, 0) // Standard Error: 5_224
+			.saturating_add(Weight::from_parts(63_272, 0).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -142,8 +142,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `p` is `[1, 31]`.
 	fn remove_proxy(p: u32) -> Weight {
 		// Minimum execution time: 29_577 nanoseconds.
-		Weight::from_ref_time(30_710_353 as u64) // Standard Error: 7_177
-			.saturating_add(Weight::from_ref_time(88_813 as u64).saturating_mul(p as u64))
+		Weight::from_parts(30_710_353, 0) // Standard Error: 7_177
+			.saturating_add(Weight::from_parts(88_813, 0).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -152,8 +152,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `p` is `[1, 31]`.
 	fn remove_proxies(p: u32) -> Weight {
 		// Minimum execution time: 24_462 nanoseconds.
-		Weight::from_ref_time(25_078_965 as u64) // Standard Error: 4_049
-			.saturating_add(Weight::from_ref_time(43_040 as u64).saturating_mul(p as u64))
+		Weight::from_parts(25_078_965, 0) // Standard Error: 4_049
+			.saturating_add(Weight::from_parts(43_040, 0).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -162,8 +162,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `p` is `[1, 31]`.
 	fn create_pure(p: u32) -> Weight {
 		// Minimum execution time: 32_673 nanoseconds.
-		Weight::from_ref_time(33_296_803 as u64) // Standard Error: 3_055
-			.saturating_add(Weight::from_ref_time(10_014 as u64).saturating_mul(p as u64))
+		Weight::from_parts(33_296_803, 0) // Standard Error: 3_055
+			.saturating_add(Weight::from_parts(10_014, 0).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -172,8 +172,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `p` is `[0, 30]`.
 	fn kill_pure(p: u32) -> Weight {
 		// Minimum execution time: 26_331 nanoseconds.
-		Weight::from_ref_time(26_958_368 as u64) // Standard Error: 2_427
-			.saturating_add(Weight::from_ref_time(961 as u64).saturating_mul(p as u64))
+		Weight::from_parts(26_958_368, 0) // Standard Error: 2_427
+			.saturating_add(Weight::from_parts(961, 0).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}

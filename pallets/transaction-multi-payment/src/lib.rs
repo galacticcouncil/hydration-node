@@ -30,7 +30,7 @@ mod tests;
 mod traits;
 
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
-use frame_system::ensure_signed;
+use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use sp_runtime::{
 	traits::{DispatchInfoOf, One, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
@@ -67,12 +67,11 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_initialize(_n: T::BlockNumber) -> Weight {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			let native_asset = T::NativeAssetId::get();
 
 			let mut weight: u64 = 0;
@@ -87,10 +86,10 @@ pub mod pallet {
 				weight += T::WeightInfo::get_spot_price().ref_time();
 			}
 
-			Weight::from_ref_time(weight)
+			Weight::from_parts(weight, 0)
 		}
 
-		fn on_finalize(_n: T::BlockNumber) {
+		fn on_finalize(_n: BlockNumberFor<T>) {
 			let _ = <AcceptedCurrencyPrice<T>>::clear(u32::MAX, None);
 		}
 	}
@@ -189,23 +188,14 @@ pub mod pallet {
 	pub type AcceptedCurrencyPrice<T: Config> = StorageMap<_, Twox64Concat, AssetIdOf<T>, Price, OptionQuery>;
 
 	#[pallet::genesis_config]
+	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		pub currencies: Vec<(AssetIdOf<T>, Price)>,
 		pub account_currencies: Vec<(T::AccountId, AssetIdOf<T>)>,
 	}
 
-	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			GenesisConfig {
-				currencies: vec![],
-				account_currencies: vec![],
-			}
-		}
-	}
-
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			for (asset, price) in &self.currencies {
 				AcceptedCurrencies::<T>::insert(asset, price);

@@ -36,6 +36,7 @@ polkadot-parachain = { workspace = true }
 
 # Cumulus
 cumulus-pallet-xcmp-queue = { workspace = true }
+cumulus-primitives-core = { workspace = true }
 
 # orml
 orml-traits = { workspace = true }

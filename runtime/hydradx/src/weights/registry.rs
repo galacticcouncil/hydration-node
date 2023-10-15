@@ -68,7 +68,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: AssetRegistry Assets (max_values: None, max_size: None, mode: Measured)
 	fn register() -> Weight {
 		// Minimum execution time: 44_102 nanoseconds.
-		Weight::from_ref_time(44_514_000 as u64)
+		Weight::from_parts(44_514_000, 0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
@@ -78,7 +78,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: AssetRegistry AssetIds (max_values: None, max_size: None, mode: Measured)
 	fn update() -> Weight {
 		// Minimum execution time: 28_233 nanoseconds.
-		Weight::from_ref_time(28_610_000 as u64)
+		Weight::from_parts(28_610_000, 0)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -88,7 +88,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: AssetRegistry AssetMetadataMap (max_values: None, max_size: None, mode: Measured)
 	fn set_metadata() -> Weight {
 		// Minimum execution time: 20_998 nanoseconds.
-		Weight::from_ref_time(21_273_000 as u64)
+		Weight::from_parts(21_273_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -100,7 +100,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: AssetRegistry AssetLocations (max_values: None, max_size: None, mode: Measured)
 	fn set_location() -> Weight {
 		// Minimum execution time: 25_144 nanoseconds.
-		Weight::from_ref_time(25_552_000 as u64)
+		Weight::from_parts(25_552_000, 0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}

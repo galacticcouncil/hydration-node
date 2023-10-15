@@ -19,8 +19,9 @@
 #![allow(clippy::unused_unit)]
 
 use codec::{Decode, Encode};
+use frame_system::pallet_prelude::BlockNumberFor;
 use frame_support::{
-	dispatch::{DispatchClass, DispatchError, DispatchResult, Pays},
+	dispatch::{DispatchClass, DispatchResult, Pays},
 	ensure,
 	sp_runtime::{
 		traits::{DispatchInfoOf, SignedExtension},
@@ -28,6 +29,7 @@ use frame_support::{
 	},
 	traits::{Currency, Get, Imbalance, IsSubType},
 };
+use sp_runtime::DispatchError;
 use frame_system::ensure_signed;
 use primitives::Balance;
 use scale_info::TypeInfo;
@@ -61,7 +63,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -100,19 +102,13 @@ pub mod pallet {
 	pub type Claims<T: Config> = StorageMap<_, Blake2_128Concat, EthereumAddress, BalanceOf<T>, ValueQuery>;
 
 	#[pallet::genesis_config]
+	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		pub claims: Vec<(EthereumAddress, BalanceOf<T>)>,
 	}
 
-	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			GenesisConfig { claims: vec![] }
-		}
-	}
-
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			self.claims.iter().for_each(|(eth_address, initial_balance)| {
 				Claims::<T>::mutate(eth_address, |amount| *amount += *initial_balance)

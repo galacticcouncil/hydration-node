@@ -62,7 +62,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Uniques ClassAccount (max_values: None, max_size: Some(80), added: 2555, mode: MaxEncodedLen)
 	fn initialize_staking() -> Weight {
 		// Minimum execution time: 46_503 nanoseconds.
-		Weight::from_ref_time(47_119_000 as u64)
+		Weight::from_parts(47_119_000, 0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -86,7 +86,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Staking Positions (max_values: None, max_size: Some(132), added: 2607, mode: MaxEncodedLen)
 	fn stake() -> Weight {
 		// Minimum execution time: 93_410 nanoseconds.
-		Weight::from_ref_time(94_534_000 as u64)
+		Weight::from_parts(94_534_000, 0)
 			.saturating_add(T::DbWeight::get().reads(9 as u64))
 			.saturating_add(T::DbWeight::get().writes(8 as u64))
 	}
@@ -106,7 +106,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy ReferendumInfoOf (max_values: None, max_size: Some(201), added: 2676, mode: MaxEncodedLen)
 	fn increase_stake() -> Weight {
 		// Minimum execution time: 237_592 nanoseconds.
-		Weight::from_ref_time(239_395_000 as u64)
+		Weight::from_parts(239_395_000, 0)
 			.saturating_add(T::DbWeight::get().reads(107 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
@@ -126,7 +126,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
 	fn claim() -> Weight {
 		// Minimum execution time: 233_614 nanoseconds.
-		Weight::from_ref_time(236_034_000 as u64)
+		Weight::from_parts(236_034_000, 0)
 			.saturating_add(T::DbWeight::get().reads(107 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
@@ -152,7 +152,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Uniques ItemPriceOf (max_values: None, max_size: Some(113), added: 2588, mode: MaxEncodedLen)
 	fn unstake() -> Weight {
 		// Minimum execution time: 264_098 nanoseconds.
-		Weight::from_ref_time(266_429_000 as u64)
+		Weight::from_parts(266_429_000, 0)
 			.saturating_add(T::DbWeight::get().reads(108 as u64))
 			.saturating_add(T::DbWeight::get().writes(10 as u64))
 	}

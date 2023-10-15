@@ -71,7 +71,7 @@ use frame_support::{
 	transactional,
 	weights::WeightToFee as FrameSupportWeight,
 };
-use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
+use frame_system::{ensure_signed, pallet_prelude::{BlockNumberFor, OriginFor}, Origin};
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
@@ -99,8 +99,6 @@ pub use pallet::*;
 
 use crate::types::*;
 
-type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
-
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
@@ -117,12 +115,11 @@ pub mod pallet {
 	use orml_traits::NamedMultiReservableCurrency;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(current_blocknumber: BlockNumberFor<T>) -> Weight {
 			let mut weight = <T as pallet::Config>::WeightInfo::on_initialize_with_empty_block();
 
 			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber, None);
@@ -556,7 +553,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn get_randomness_generator(current_blocknumber: T::BlockNumber, salt: Option<u32>) -> StdRng {
+	fn get_randomness_generator(current_blocknumber: BlockNumberFor<T>, salt: Option<u32>) -> StdRng {
 		match T::RandomnessProvider::generator(salt) {
 			Ok(generator) => generator,
 			Err(err) => {
@@ -577,10 +574,10 @@ impl<T: Config> Pallet<T> {
 			None => {
 				let current_block_number = frame_system::Pallet::<T>::current_block_number();
 				let next_block_number = current_block_number
-					.checked_add(&T::BlockNumber::one())
+					.checked_add(&BlockNumberFor::<T>::one())
 					.ok_or(ArithmeticError::Overflow)?;
 
-				Ok::<T::BlockNumber, ArithmeticError>(next_block_number)
+				Ok::<BlockNumberFor<T>, ArithmeticError>(next_block_number)
 			}
 		}?;
 
@@ -588,10 +585,10 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn prepare_schedule(
-		current_blocknumber: T::BlockNumber,
+		current_blocknumber: BlockNumberFor<T>,
 		weight_for_dca_execution: Weight,
 		schedule_id: ScheduleId,
-		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
+		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_dca_execution)?;
@@ -613,7 +610,7 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	pub fn execute_trade(
 		schedule_id: ScheduleId,
-		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
+		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
@@ -697,8 +694,8 @@ impl<T: Config> Pallet<T> {
 
 	fn replan_or_complete(
 		schedule_id: ScheduleId,
-		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
-		current_blocknumber: T::BlockNumber,
+		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
+		current_blocknumber: BlockNumberFor<T>,
 		amounts: AmountInAndOut<Balance>,
 		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
@@ -745,8 +742,8 @@ impl<T: Config> Pallet<T> {
 
 	fn retry_schedule(
 		schedule_id: ScheduleId,
-		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
-		current_blocknumber: T::BlockNumber,
+		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
+		current_blocknumber: BlockNumberFor<T>,
 		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		let number_of_retries = Self::retries_on_error(schedule_id);
@@ -774,7 +771,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn is_price_unstable(schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>) -> bool {
+	fn is_price_unstable(schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>) -> bool {
 		let route = match &schedule.order {
 			Order::Sell { route, .. } | Order::Buy { route, .. } => route,
 		};
@@ -837,7 +834,7 @@ impl<T: Config> Pallet<T> {
 
 	fn unallocate_amount(
 		schedule_id: ScheduleId,
-		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
+		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		amount_to_unreserve: Balance,
 	) -> DispatchResult {
 		RemainingAmounts::<T>::try_mutate_exists(schedule_id, |maybe_remaining_amount| -> DispatchResult {
@@ -870,7 +867,7 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	fn take_transaction_fee_from_user(
 		schedule_id: ScheduleId,
-		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
+		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		weight_to_charge: Weight,
 	) -> DispatchResult {
 		let fee_currency = schedule.order.get_asset_in();
@@ -890,7 +887,7 @@ impl<T: Config> Pallet<T> {
 
 	fn terminate_schedule(
 		schedule_id: ScheduleId,
-		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
+		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		error: DispatchError,
 	) {
 		Self::try_unreserve_all(schedule_id, schedule);
@@ -904,7 +901,7 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	fn complete_schedule(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>) {
+	fn complete_schedule(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>) {
 		Self::try_unreserve_all(schedule_id, schedule);
 
 		Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
@@ -915,7 +912,7 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	fn try_unreserve_all(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>) {
+	fn try_unreserve_all(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>) {
 		let sold_currency = schedule.order.get_asset_in();
 
 		let Some(remaining_amount) = RemainingAmounts::<T>::get(schedule_id) else {
@@ -940,7 +937,7 @@ impl<T: Config> Pallet<T> {
 
 	fn plan_schedule_for_block(
 		who: &T::AccountId,
-		blocknumber: T::BlockNumber,
+		blocknumber: BlockNumberFor<T>,
 		schedule_id: ScheduleId,
 		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
@@ -965,9 +962,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn find_next_free_block(
-		blocknumber: T::BlockNumber,
+		blocknumber: BlockNumberFor<T>,
 		randomness_generator: &mut StdRng,
-	) -> Result<T::BlockNumber, DispatchError> {
+	) -> Result<BlockNumberFor<T>, DispatchError> {
 		let mut next_execution_block = blocknumber;
 
 		for i in 0..=MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING {

@@ -55,6 +55,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_system::pallet_prelude::BlockNumberFor;
 use frame_support::traits::Get;
 use orml_traits::GetByKey;
 use sp_runtime::traits::{BlockNumberProvider, Saturating};
@@ -84,7 +85,6 @@ pub mod pallet {
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
@@ -92,14 +92,14 @@ pub mod pallet {
 	/// Stores last calculated fee of an asset and block number in which it was changed..
 	/// Stored as (Asset fee, Protocol fee, Block number)
 	pub type AssetFee<T: Config> =
-		StorageMap<_, Twox64Concat, T::AssetId, FeeEntry<T::Fee, T::BlockNumber>, OptionQuery>;
+		StorageMap<_, Twox64Concat, T::AssetId, FeeEntry<T::Fee, BlockNumberFor<T>>, OptionQuery>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Provider for the current block number.
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		/// Fee PerThing type
 		type Fee: Parameter + MaybeSerializeDeserialize + MaxEncodedLen + PerThing;
@@ -164,7 +164,7 @@ where
 		let current_fee_entry = Self::current_fees(asset_id).unwrap_or(FeeEntry {
 			asset_fee: asset_fee_params.min_fee,
 			protocol_fee: protocol_fee_params.min_fee,
-			timestamp: T::BlockNumber::default(),
+			timestamp: BlockNumberFor::<T>::default(),
 		});
 
 		// Update only if it has not yet been updated this block

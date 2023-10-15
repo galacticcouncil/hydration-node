@@ -107,6 +107,7 @@ pub fn parachain_genesis(
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
+			..Default::default()
 		},
 		session: SessionConfig {
 			keys: initial_authorities
@@ -175,7 +176,10 @@ pub fn parachain_genesis(
 
 		genesis_history: GenesisHistoryConfig::default(),
 		claims: ClaimsConfig { claims: claims_data },
-		parachain_info: ParachainInfoConfig { parachain_id },
+		parachain_info: ParachainInfoConfig {
+			parachain_id,
+			..Default::default()
+		},
 		aura_ext: Default::default(),
 		polkadot_xcm: Default::default(),
 		ema_oracle: Default::default(),

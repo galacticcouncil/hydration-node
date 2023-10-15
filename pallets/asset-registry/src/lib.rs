@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::dispatch::DispatchError;
+use sp_runtime::DispatchError;
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::CheckedAdd;
 use frame_system::pallet_prelude::*;
@@ -104,7 +104,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -176,18 +176,17 @@ pub mod pallet {
 		pub native_existential_deposit: T::Balance,
 	}
 
-	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
 			GenesisConfig::<T> {
-				registered_assets: vec![],
-				native_asset_name: b"BSX".to_vec(),
+				registered_assets: sp_std::vec![],
+				native_asset_name: b"HDX".to_vec(),
 				native_existential_deposit: Default::default(),
 			}
 		}
 	}
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			// Register native asset first
 			// It is to make sure that native is registered as any other asset

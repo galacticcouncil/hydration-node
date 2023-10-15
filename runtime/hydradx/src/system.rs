@@ -29,14 +29,15 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
-	sp_runtime::{traits::IdentityLookup, FixedPointNumber, Perbill, Perquintill},
+	sp_runtime::{traits::{ConstU32, IdentityLookup}, RuntimeDebug, FixedPointNumber, Perbill, Perquintill},
 	traits::{Contains, InstanceFilter},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
-	PalletId, RuntimeDebug,
+	PalletId,
 };
+use frame_support::traits::ConstBool;
 use hydradx_adapters::RelayChainBlockNumberProvider;
 use scale_info::TypeInfo;
 
@@ -145,9 +146,9 @@ impl frame_system::Config for Runtime {
 	/// The aggregated dispatch type that is available for extrinsics.
 	type RuntimeCall = RuntimeCall;
 	/// The index type for storing how many extrinsics an account has signed.
-	type Index = Index;
+	type Nonce = Index;
 	/// The index type for blocks.
-	type BlockNumber = BlockNumber;
+	type Block = Block;
 	/// The type for hashing blocks and tries.
 	type Hash = Hash;
 	/// The hashing algorithm used.
@@ -156,8 +157,6 @@ impl frame_system::Config for Runtime {
 	type AccountId = AccountId;
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
 	type Lookup = IdentityLookup<AccountId>;
-	/// The header type.
-	type Header = generic::Header<BlockNumber, BlakeTwo256>;
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
@@ -216,12 +215,14 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 
 parameter_types! {
 	pub const MaxAuthorities: u32 = 50;
+	pub const AllowMultipleBlocksPerSlot: bool = false;
 }
 
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type MaxAuthorities = MaxAuthorities;
 	type DisabledValidators = ();
+	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
 impl parachain_info::Config for Runtime {}
@@ -236,7 +237,6 @@ impl pallet_authorship::Config for Runtime {
 parameter_types! {
 	pub const PotId: PalletId = PalletId(*b"PotStake");
 	pub const MaxCandidates: u32 = 0;
-	pub const MinCandidates: u32 = 0;
 	pub const MaxInvulnerables: u32 = 50;
 }
 
@@ -246,7 +246,6 @@ impl pallet_collator_selection::Config for Runtime {
 	type UpdateOrigin = MoreThanHalfCouncil;
 	type PotId = PotId;
 	type MaxCandidates = MaxCandidates;
-	type MinCandidates = MinCandidates;
 	type MaxInvulnerables = MaxInvulnerables;
 	// should be a multiple of session or things will get inconsistent
 	type KickThreshold = Period;
@@ -254,6 +253,7 @@ impl pallet_collator_selection::Config for Runtime {
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
 	type ValidatorRegistration = Session;
 	type WeightInfo = weights::collator_selection::HydraWeight<Runtime>;
+	type MinEligibleCollators = ConstU32<4>;
 }
 
 parameter_types! {

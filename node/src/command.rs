@@ -30,6 +30,7 @@ use sc_cli::{
 	RuntimeVersion, SharedParams, SubstrateCli,
 };
 use sc_service::config::{BasePath, PrometheusConfig};
+use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Block as BlockT;
@@ -81,10 +82,6 @@ impl SubstrateCli for Cli {
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		})
 	}
-
-	fn native_runtime_version(_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&hydradx_runtime::VERSION
-	}
 }
 
 impl SubstrateCli for RelayChainCli {
@@ -114,10 +111,6 @@ impl SubstrateCli for RelayChainCli {
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
-	}
-
-	fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		polkadot_cli::Cli::native_runtime_version(chain_spec)
 	}
 }
 
@@ -198,7 +191,10 @@ pub fn run() -> sc_cli::Result<()> {
 			match cmd {
 				BenchmarkCmd::Pallet(cmd) => {
 					if cfg!(feature = "runtime-benchmarks") {
-						runner.sync_run(|config| cmd.run::<Block, service::HydraDXExecutorDispatch>(config))
+						runner.sync_run(|config| cmd.run::<Block, ExtendedHostFunctions<
+                                    sp_io::SubstrateHostFunctions,
+                                    <HydraDXExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
+                                >>(config))
 					} else {
 						Err("Benchmarking wasn't enabled when building the node. \
 			   You can enable it with `--features runtime-benchmarks`."
@@ -237,7 +233,7 @@ pub fn run() -> sc_cli::Result<()> {
 			let _ = builder.init();
 
 			let spec = load_spec(&params.shared_params.chain.clone().unwrap_or_default())?;
-			let state_version = Cli::native_runtime_version(&spec).state_version();
+			let state_version = Cli::runtime_version(&spec).state_version();
 
 			let block: Block = generate_genesis_block(&*spec, state_version)?;
 			let raw_header = block.header().encode();
@@ -323,9 +319,9 @@ pub fn run() -> sc_cli::Result<()> {
 				let id = ParaId::from(para_id);
 
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v2::AccountId>::into_account_truncating(&id);
+					AccountIdConversion::<polkadot_primitives::v5::AccountId>::into_account_truncating(&id);
 
-				let state_version = Cli::native_runtime_version(&config.chain_spec).state_version();
+				let state_version = Cli::runtime_version(&config.chain_spec).state_version();
 
 				let block: Block =
 					generate_genesis_block(&*config.chain_spec, state_version).map_err(|e| format!("{e:?}"))?;
@@ -359,12 +355,8 @@ impl DefaultConfigurationValues for RelayChainCli {
 		30334
 	}
 
-	fn rpc_ws_listen_port() -> u16 {
+	fn rpc_listen_port() -> u16 {
 		9945
-	}
-
-	fn rpc_http_listen_port() -> u16 {
-		9934
 	}
 
 	fn prometheus_listen_port() -> u16 {
@@ -394,18 +386,6 @@ impl CliConfiguration<Self> for RelayChainCli {
 			.shared_params()
 			.base_path()?
 			.or_else(|| self.base_path.clone().map(Into::into)))
-	}
-
-	fn rpc_http(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
-		self.base.base.rpc_http(default_listen_port)
-	}
-
-	fn rpc_ipc(&self) -> Result<Option<String>> {
-		self.base.base.rpc_ipc()
-	}
-
-	fn rpc_ws(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
-		self.base.base.rpc_ws(default_listen_port)
 	}
 
 	fn prometheus_config(
@@ -451,10 +431,6 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.rpc_methods()
 	}
 
-	fn rpc_ws_max_connections(&self) -> Result<Option<usize>> {
-		self.base.base.rpc_ws_max_connections()
-	}
-
 	fn rpc_cors(&self, is_dev: bool) -> Result<Option<Vec<String>>> {
 		self.base.base.rpc_cors(is_dev)
 	}
@@ -481,5 +457,11 @@ impl CliConfiguration<Self> for RelayChainCli {
 
 	fn telemetry_endpoints(&self, chain_spec: &Box<dyn ChainSpec>) -> Result<Option<sc_telemetry::TelemetryEndpoints>> {
 		self.base.base.telemetry_endpoints(chain_spec)
+	}
+}
+
+impl Cli {
+	fn runtime_version(spec: &Box<dyn sc_service::ChainSpec>) -> &'static RuntimeVersion {
+		&hydradx_runtime::VERSION
 	}
 }

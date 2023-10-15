@@ -31,6 +31,7 @@ pub use hydradx_traits::router::{
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_runtime::{ArithmeticError, DispatchError};
 use sp_std::{vec, vec::Vec};
+use frame_support::traits::tokens::{Fortitude, Preservation};
 
 #[cfg(test)]
 mod tests;
@@ -143,8 +144,8 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, false);
-			let user_balance_of_asset_out_before_trade = T::Currency::reducible_balance(asset_out, &who, false);
+			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+			let user_balance_of_asset_out_before_trade = T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 			ensure!(
 				user_balance_of_asset_in_before_trade >= amount_in,
 				Error::<T>::InsufficientBalance
@@ -159,7 +160,7 @@ pub mod pallet {
 			);
 
 			for (trade_amount, trade) in trade_amounts.iter().zip(route) {
-				let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(trade.asset_in, &who, true);
+				let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
@@ -222,7 +223,7 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, true);
+			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
@@ -234,7 +235,7 @@ pub mod pallet {
 
 			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
 				let user_balance_of_asset_out_before_trade =
-					T::Currency::reducible_balance(trade.asset_out, &who, false);
+					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
@@ -291,7 +292,7 @@ impl<T: Config> Pallet<T> {
 		user_balance_of_asset_out_before_trade: T::Balance,
 		received_amount: T::Balance,
 	) -> Result<(), DispatchError> {
-		let user_balance_of_asset_out_after_trade = T::Currency::reducible_balance(asset_out, &who, false);
+		let user_balance_of_asset_out_after_trade = T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 		let user_expected_balance_of_asset_out_after_trade = user_balance_of_asset_out_before_trade
 			.checked_add(&received_amount)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -311,7 +312,7 @@ impl<T: Config> Pallet<T> {
 		spent_amount: T::Balance,
 	) -> Result<(), DispatchError> {
 		if spent_amount < user_balance_of_asset_in_before_trade {
-			let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, true);
+			let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
 			ensure!(
 				user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,

@@ -1,5 +1,5 @@
 use crate::types::AssetReserveState;
-use frame_support::dispatch::fmt::Debug;
+use sp_std::fmt::Debug;
 use frame_support::ensure;
 use frame_support::traits::Contains;
 use frame_support::weights::Weight;

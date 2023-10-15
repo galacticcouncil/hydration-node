@@ -25,22 +25,22 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use frame_system::pallet_prelude::BlockNumberFor;
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::traits::BlockNumberProvider;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Provider of relay chain block number
-		type RelaychainBlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		type RelaychainBlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 	}
 
 	#[pallet::error]
@@ -52,8 +52,8 @@ pub mod pallet {
 		/// Current block numbers
 		/// [ Parachain block number, Relaychain Block number ]
 		CurrentBlockNumbers {
-			parachain_block_number: T::BlockNumber,
-			relaychain_block_number: T::BlockNumber,
+			parachain_block_number: BlockNumberFor<T>,
+			relaychain_block_number: BlockNumberFor<T>,
 		},
 	}
 

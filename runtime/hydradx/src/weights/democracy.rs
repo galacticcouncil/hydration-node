@@ -62,7 +62,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy DepositOf (max_values: None, max_size: Some(3230), added: 5705, mode: MaxEncodedLen)
 	fn propose() -> Weight {
 		// Minimum execution time: 45_683 nanoseconds.
-		Weight::from_ref_time(46_213_000 as u64)
+		Weight::from_parts(46_213_000, 0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -70,7 +70,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy DepositOf (max_values: None, max_size: Some(3230), added: 5705, mode: MaxEncodedLen)
 	fn second() -> Weight {
 		// Minimum execution time: 41_709 nanoseconds.
-		Weight::from_ref_time(42_180_000 as u64)
+		Weight::from_parts(42_180_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -88,7 +88,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Staking PositionVotes (max_values: None, max_size: Some(2134), added: 4609, mode: MaxEncodedLen)
 	fn vote_new() -> Weight {
 		// Minimum execution time: 416_420 nanoseconds.
-		Weight::from_ref_time(420_164_000 as u64)
+		Weight::from_parts(420_164_000, 0)
 			.saturating_add(T::DbWeight::get().reads(106 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
@@ -106,7 +106,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Staking PositionVotes (max_values: None, max_size: Some(2134), added: 4609, mode: MaxEncodedLen)
 	fn vote_existing() -> Weight {
 		// Minimum execution time: 415_618 nanoseconds.
-		Weight::from_ref_time(418_917_000 as u64)
+		Weight::from_parts(418_917_000, 0)
 			.saturating_add(T::DbWeight::get().reads(106 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
@@ -116,7 +116,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy Cancellations (max_values: None, max_size: Some(33), added: 2508, mode: MaxEncodedLen)
 	fn emergency_cancel() -> Weight {
 		// Minimum execution time: 22_130 nanoseconds.
-		Weight::from_ref_time(22_516_000 as u64)
+		Weight::from_parts(22_516_000, 0)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -134,7 +134,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy Blacklist (max_values: None, max_size: Some(3238), added: 5713, mode: MaxEncodedLen)
 	fn blacklist() -> Weight {
 		// Minimum execution time: 102_512 nanoseconds.
-		Weight::from_ref_time(103_621_000 as u64)
+		Weight::from_parts(103_621_000, 0)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(7 as u64))
 	}
@@ -144,7 +144,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy Blacklist (max_values: None, max_size: Some(3238), added: 5713, mode: MaxEncodedLen)
 	fn external_propose() -> Weight {
 		// Minimum execution time: 15_705 nanoseconds.
-		Weight::from_ref_time(16_110_000 as u64)
+		Weight::from_parts(16_110_000, 0)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -152,13 +152,13 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy NextExternal (max_values: Some(1), max_size: Some(132), added: 627, mode: MaxEncodedLen)
 	fn external_propose_majority() -> Weight {
 		// Minimum execution time: 5_151 nanoseconds.
-		Weight::from_ref_time(5_478_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(5_478_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Democracy NextExternal (r:0 w:1)
 	// Proof: Democracy NextExternal (max_values: Some(1), max_size: Some(132), added: 627, mode: MaxEncodedLen)
 	fn external_propose_default() -> Weight {
 		// Minimum execution time: 5_449 nanoseconds.
-		Weight::from_ref_time(5_654_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(5_654_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Democracy NextExternal (r:1 w:1)
 	// Proof: Democracy NextExternal (max_values: Some(1), max_size: Some(132), added: 627, mode: MaxEncodedLen)
@@ -168,7 +168,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy ReferendumInfoOf (max_values: None, max_size: Some(201), added: 2676, mode: MaxEncodedLen)
 	fn fast_track() -> Weight {
 		// Minimum execution time: 21_249 nanoseconds.
-		Weight::from_ref_time(21_560_000 as u64)
+		Weight::from_parts(21_560_000, 0)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -178,7 +178,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy Blacklist (max_values: None, max_size: Some(3238), added: 5713, mode: MaxEncodedLen)
 	fn veto_external() -> Weight {
 		// Minimum execution time: 27_789 nanoseconds.
-		Weight::from_ref_time(28_426_000 as u64)
+		Weight::from_parts(28_426_000, 0)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -190,7 +190,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	fn cancel_proposal() -> Weight {
 		// Minimum execution time: 81_206 nanoseconds.
-		Weight::from_ref_time(81_785_000 as u64)
+		Weight::from_parts(81_785_000, 0)
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
@@ -198,7 +198,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy ReferendumInfoOf (max_values: None, max_size: Some(201), added: 2676, mode: MaxEncodedLen)
 	fn cancel_referendum() -> Weight {
 		// Minimum execution time: 12_168 nanoseconds.
-		Weight::from_ref_time(12_379_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(12_379_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Democracy LowestUnbaked (r:1 w:1)
 	// Proof: Democracy LowestUnbaked (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
@@ -209,8 +209,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `r` is `[0, 99]`.
 	fn on_initialize_base(r: u32) -> Weight {
 		// Minimum execution time: 6_027 nanoseconds.
-		Weight::from_ref_time(7_967_274 as u64) // Standard Error: 15_297
-			.saturating_add(Weight::from_ref_time(3_181_785 as u64).saturating_mul(r as u64))
+		Weight::from_parts(7_967_274, 0) // Standard Error: 15_297
+			.saturating_add(Weight::from_parts(3_181_785, 0).saturating_mul(r as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(r as u64)))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
@@ -230,8 +230,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `r` is `[0, 99]`.
 	fn on_initialize_base_with_launch_period(r: u32) -> Weight {
 		// Minimum execution time: 9_463 nanoseconds.
-		Weight::from_ref_time(11_351_448 as u64) // Standard Error: 20_855
-			.saturating_add(Weight::from_ref_time(3_232_061 as u64).saturating_mul(r as u64))
+		Weight::from_parts(11_351_448, 0) // Standard Error: 20_855
+			.saturating_add(Weight::from_parts(3_232_061, 0).saturating_mul(r as u64))
 			.saturating_add(T::DbWeight::get().reads(5 as u64))
 			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(r as u64)))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
@@ -245,8 +245,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `r` is `[0, 99]`.
 	fn delegate(r: u32) -> Weight {
 		// Minimum execution time: 44_617 nanoseconds.
-		Weight::from_ref_time(48_848_842 as u64) // Standard Error: 13_644
-			.saturating_add(Weight::from_ref_time(4_709_492 as u64).saturating_mul(r as u64))
+		Weight::from_parts(48_848_842, 0) // Standard Error: 13_644
+			.saturating_add(Weight::from_parts(4_709_492, 0).saturating_mul(r as u64))
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(r as u64)))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
@@ -259,8 +259,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `r` is `[0, 99]`.
 	fn undelegate(r: u32) -> Weight {
 		// Minimum execution time: 25_601 nanoseconds.
-		Weight::from_ref_time(28_142_536 as u64) // Standard Error: 15_036
-			.saturating_add(Weight::from_ref_time(4_603_513 as u64).saturating_mul(r as u64))
+		Weight::from_parts(28_142_536, 0) // Standard Error: 15_036
+			.saturating_add(Weight::from_parts(4_603_513, 0).saturating_mul(r as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(r as u64)))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
@@ -270,7 +270,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy PublicProps (max_values: Some(1), max_size: Some(16702), added: 17197, mode: MaxEncodedLen)
 	fn clear_public_proposals() -> Weight {
 		// Minimum execution time: 5_167 nanoseconds.
-		Weight::from_ref_time(5_294_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(5_294_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Democracy VotingOf (r:1 w:1)
 	// Proof: Democracy VotingOf (max_values: None, max_size: Some(3795), added: 6270, mode: MaxEncodedLen)
@@ -281,8 +281,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `r` is `[0, 99]`.
 	fn unlock_remove(r: u32) -> Weight {
 		// Minimum execution time: 23_905 nanoseconds.
-		Weight::from_ref_time(27_865_439 as u64) // Standard Error: 10_086
-			.saturating_add(Weight::from_ref_time(82_552 as u64).saturating_mul(r as u64))
+		Weight::from_parts(27_865_439, 0) // Standard Error: 10_086
+			.saturating_add(Weight::from_parts(82_552, 0).saturating_mul(r as u64))
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -295,8 +295,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `r` is `[0, 99]`.
 	fn unlock_set(r: u32) -> Weight {
 		// Minimum execution time: 31_411 nanoseconds.
-		Weight::from_ref_time(31_838_954 as u64) // Standard Error: 803
-			.saturating_add(Weight::from_ref_time(61_046 as u64).saturating_mul(r as u64))
+		Weight::from_parts(31_838_954, 0) // Standard Error: 803
+			.saturating_add(Weight::from_parts(61_046, 0).saturating_mul(r as u64))
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -311,8 +311,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `r` is `[1, 100]`.
 	fn remove_vote(r: u32) -> Weight {
 		// Minimum execution time: 40_945 nanoseconds.
-		Weight::from_ref_time(43_077_999 as u64) // Standard Error: 5_059
-			.saturating_add(Weight::from_ref_time(121_781 as u64).saturating_mul(r as u64))
+		Weight::from_parts(43_077_999, 0) // Standard Error: 5_059
+			.saturating_add(Weight::from_parts(121_781, 0).saturating_mul(r as u64))
 			.saturating_add(T::DbWeight::get().reads(5 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -327,8 +327,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `r` is `[1, 100]`.
 	fn remove_other_vote(r: u32) -> Weight {
 		// Minimum execution time: 41_589 nanoseconds.
-		Weight::from_ref_time(43_200_170 as u64) // Standard Error: 4_502
-			.saturating_add(Weight::from_ref_time(122_627 as u64).saturating_mul(r as u64))
+		Weight::from_parts(43_200_170, 0) // Standard Error: 4_502
+			.saturating_add(Weight::from_parts(122_627, 0).saturating_mul(r as u64))
 			.saturating_add(T::DbWeight::get().reads(5 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}

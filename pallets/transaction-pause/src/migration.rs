@@ -17,7 +17,7 @@
 
 use super::*;
 use frame_support::{
-	log, storage_alias,
+	storage_alias,
 	traits::{Get, OnRuntimeUpgrade, StorageVersion},
 	weights::Weight,
 };

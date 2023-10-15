@@ -74,7 +74,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Duster AccountBlacklist (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
 	fn create_pool() -> Weight {
 		// Minimum execution time: 50_068 nanoseconds.
-		Weight::from_ref_time(50_557_000 as u64)
+		Weight::from_parts(50_557_000, 0)
 			.saturating_add(T::DbWeight::get().reads(7 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -100,7 +100,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn add_liquidity() -> Weight {
 		// Minimum execution time: 1_140_516 nanoseconds.
-		Weight::from_ref_time(1_143_845_000 as u64)
+		Weight::from_parts(1_143_845_000, 0)
 			.saturating_add(T::DbWeight::get().reads(33 as u64))
 			.saturating_add(T::DbWeight::get().writes(14 as u64))
 	}
@@ -124,7 +124,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn add_liquidity_shares() -> Weight {
 		// Minimum execution time: 783_827 nanoseconds.
-		Weight::from_ref_time(787_422_000 as u64)
+		Weight::from_parts(787_422_000, 0)
 			.saturating_add(T::DbWeight::get().reads(20 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
@@ -150,7 +150,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	fn remove_liquidity_one_asset() -> Weight {
 		// Minimum execution time: 817_053 nanoseconds.
-		Weight::from_ref_time(821_506_000 as u64)
+		Weight::from_parts(821_506_000, 0)
 			.saturating_add(T::DbWeight::get().reads(21 as u64))
 			.saturating_add(T::DbWeight::get().writes(7 as u64))
 	}
@@ -176,7 +176,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn withdraw_asset_amount() -> Weight {
 		// Minimum execution time: 1_124_456 nanoseconds.
-		Weight::from_ref_time(1_133_226_000 as u64)
+		Weight::from_parts(1_133_226_000, 0)
 			.saturating_add(T::DbWeight::get().reads(22 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
@@ -202,7 +202,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	fn sell() -> Weight {
 		// Minimum execution time: 768_776 nanoseconds.
-		Weight::from_ref_time(772_108_000 as u64)
+		Weight::from_parts(772_108_000, 0)
 			.saturating_add(T::DbWeight::get().reads(22 as u64))
 			.saturating_add(T::DbWeight::get().writes(7 as u64))
 	}
@@ -228,7 +228,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn buy() -> Weight {
 		// Minimum execution time: 747_434 nanoseconds.
-		Weight::from_ref_time(751_463_000 as u64)
+		Weight::from_parts(751_463_000, 0)
 			.saturating_add(T::DbWeight::get().reads(23 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
@@ -238,7 +238,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
 	fn set_asset_tradable_state() -> Weight {
 		// Minimum execution time: 24_470 nanoseconds.
-		Weight::from_ref_time(24_889_000 as u64)
+		Weight::from_parts(24_889_000, 0)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -246,7 +246,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
 	fn update_pool_fee() -> Weight {
 		// Minimum execution time: 22_217 nanoseconds.
-		Weight::from_ref_time(22_890_000 as u64)
+		Weight::from_parts(22_890_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -254,7 +254,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
 	fn update_amplification() -> Weight {
 		// Minimum execution time: 24_168 nanoseconds.
-		Weight::from_ref_time(24_902_000 as u64)
+		Weight::from_parts(24_902_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -282,10 +282,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 333_504 nanoseconds.
-		Weight::from_ref_time(30_352_727 as u64) // Standard Error: 262_827
-			.saturating_add(Weight::from_ref_time(304_810_632 as u64).saturating_mul(c as u64))
+		Weight::from_parts(30_352_727, 0) // Standard Error: 262_827
+			.saturating_add(Weight::from_parts(304_810_632, 0).saturating_mul(c as u64))
 			// Standard Error: 262_827
-			.saturating_add(Weight::from_ref_time(742_434_706 as u64).saturating_mul(e as u64))
+			.saturating_add(Weight::from_parts(742_434_706, 0).saturating_mul(e as u64))
 			.saturating_add(T::DbWeight::get().reads(11 as u64))
 			.saturating_add(T::DbWeight::get().reads((11 as u64).saturating_mul(e as u64)))
 			.saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(e as u64)))
@@ -314,10 +314,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 333_253 nanoseconds.
-		Weight::from_ref_time(334_206_000 as u64) // Standard Error: 3_608_102
-			.saturating_add(Weight::from_ref_time(13_465_646 as u64).saturating_mul(c as u64))
+		Weight::from_parts(334_206_000, 0) // Standard Error: 3_608_102
+			.saturating_add(Weight::from_parts(13_465_646, 0).saturating_mul(c as u64))
 			// Standard Error: 7_920_813
-			.saturating_add(Weight::from_ref_time(456_375_218 as u64).saturating_mul(e as u64))
+			.saturating_add(Weight::from_parts(456_375_218, 0).saturating_mul(e as u64))
 			.saturating_add(T::DbWeight::get().reads(11 as u64))
 			.saturating_add(T::DbWeight::get().reads((12 as u64).saturating_mul(e as u64)))
 			.saturating_add(T::DbWeight::get().writes((6 as u64).saturating_mul(e as u64)))
@@ -334,7 +334,7 @@ impl WeightInfo for () {
 	// Proof: Duster AccountBlacklist (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
 	fn create_pool() -> Weight {
 		// Minimum execution time: 50_068 nanoseconds.
-		Weight::from_ref_time(50_557_000 as u64)
+		Weight::from_parts(50_557_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(7 as u64))
 			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
@@ -360,7 +360,7 @@ impl WeightInfo for () {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn add_liquidity() -> Weight {
 		// Minimum execution time: 1_140_516 nanoseconds.
-		Weight::from_ref_time(1_143_845_000 as u64)
+		Weight::from_parts(1_143_845_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(33 as u64))
 			.saturating_add(RocksDbWeight::get().writes(14 as u64))
 	}
@@ -384,7 +384,7 @@ impl WeightInfo for () {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn add_liquidity_shares() -> Weight {
 		// Minimum execution time: 783_827 nanoseconds.
-		Weight::from_ref_time(787_422_000 as u64)
+		Weight::from_parts(787_422_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(20 as u64))
 			.saturating_add(RocksDbWeight::get().writes(6 as u64))
 	}
@@ -410,7 +410,7 @@ impl WeightInfo for () {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	fn remove_liquidity_one_asset() -> Weight {
 		// Minimum execution time: 817_053 nanoseconds.
-		Weight::from_ref_time(821_506_000 as u64)
+		Weight::from_parts(821_506_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(21 as u64))
 			.saturating_add(RocksDbWeight::get().writes(7 as u64))
 	}
@@ -436,7 +436,7 @@ impl WeightInfo for () {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn withdraw_asset_amount() -> Weight {
 		// Minimum execution time: 1_124_456 nanoseconds.
-		Weight::from_ref_time(1_133_226_000 as u64)
+		Weight::from_parts(1_133_226_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(22 as u64))
 			.saturating_add(RocksDbWeight::get().writes(6 as u64))
 	}
@@ -462,7 +462,7 @@ impl WeightInfo for () {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	fn sell() -> Weight {
 		// Minimum execution time: 768_776 nanoseconds.
-		Weight::from_ref_time(772_108_000 as u64)
+		Weight::from_parts(772_108_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(22 as u64))
 			.saturating_add(RocksDbWeight::get().writes(7 as u64))
 	}
@@ -488,7 +488,7 @@ impl WeightInfo for () {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn buy() -> Weight {
 		// Minimum execution time: 747_434 nanoseconds.
-		Weight::from_ref_time(751_463_000 as u64)
+		Weight::from_parts(751_463_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(23 as u64))
 			.saturating_add(RocksDbWeight::get().writes(6 as u64))
 	}
@@ -498,7 +498,7 @@ impl WeightInfo for () {
 	// Proof: Stableswap AssetTradability (max_values: None, max_size: Some(41), added: 2516, mode: MaxEncodedLen)
 	fn set_asset_tradable_state() -> Weight {
 		// Minimum execution time: 24_470 nanoseconds.
-		Weight::from_ref_time(24_889_000 as u64)
+		Weight::from_parts(24_889_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(2 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
@@ -506,7 +506,7 @@ impl WeightInfo for () {
 	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
 	fn update_pool_fee() -> Weight {
 		// Minimum execution time: 22_217 nanoseconds.
-		Weight::from_ref_time(22_890_000 as u64)
+		Weight::from_parts(22_890_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
@@ -514,7 +514,7 @@ impl WeightInfo for () {
 	// Proof: Stableswap Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
 	fn update_amplification() -> Weight {
 		// Minimum execution time: 24_168 nanoseconds.
-		Weight::from_ref_time(24_902_000 as u64)
+		Weight::from_parts(24_902_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
@@ -542,10 +542,10 @@ impl WeightInfo for () {
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 333_504 nanoseconds.
-		Weight::from_ref_time(30_352_727 as u64) // Standard Error: 262_827
-			.saturating_add(Weight::from_ref_time(304_810_632 as u64).saturating_mul(c as u64))
+		Weight::from_parts(30_352_727, 0) // Standard Error: 262_827
+			.saturating_add(Weight::from_parts(304_810_632, 0).saturating_mul(c as u64))
 			// Standard Error: 262_827
-			.saturating_add(Weight::from_ref_time(742_434_706 as u64).saturating_mul(e as u64))
+			.saturating_add(Weight::from_parts(742_434_706, 0).saturating_mul(e as u64))
 			.saturating_add(RocksDbWeight::get().reads(11 as u64))
 			.saturating_add(RocksDbWeight::get().reads((11 as u64).saturating_mul(e as u64)))
 			.saturating_add(RocksDbWeight::get().writes((7 as u64).saturating_mul(e as u64)))
@@ -574,10 +574,10 @@ impl WeightInfo for () {
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 333_253 nanoseconds.
-		Weight::from_ref_time(334_206_000 as u64) // Standard Error: 3_608_102
-			.saturating_add(Weight::from_ref_time(13_465_646 as u64).saturating_mul(c as u64))
+		Weight::from_parts(334_206_000, 0) // Standard Error: 3_608_102
+			.saturating_add(Weight::from_parts(13_465_646, 0).saturating_mul(c as u64))
 			// Standard Error: 7_920_813
-			.saturating_add(Weight::from_ref_time(456_375_218 as u64).saturating_mul(e as u64))
+			.saturating_add(Weight::from_parts(456_375_218, 0).saturating_mul(e as u64))
 			.saturating_add(RocksDbWeight::get().reads(11 as u64))
 			.saturating_add(RocksDbWeight::get().reads((12 as u64).saturating_mul(e as u64)))
 			.saturating_add(RocksDbWeight::get().writes((6 as u64).saturating_mul(e as u64)))

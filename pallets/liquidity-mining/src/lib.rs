@@ -128,7 +128,7 @@ use sp_std::{
 	vec::Vec,
 };
 
-type PeriodOf<T> = <T as frame_system::Config>::BlockNumber;
+type PeriodOf<T> = BlockNumberFor<T>;
 
 //WARN: MIN_YIELD_FARM_MULTIPLIER.check_mul_int(MIN_DEPOSIT) >= 1. This rule is important otherwise
 //non-zero deposit can result in a zero stake in global-farm and farm can be falsely identified as
@@ -143,7 +143,6 @@ pub mod pallet {
 	use super::*;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T, I = ()>(PhantomData<(T, I)>);
 
 	#[pallet::hooks]
@@ -157,11 +156,13 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_config]
-	#[cfg_attr(feature = "std", derive(Default))]
-	pub struct GenesisConfig {}
+	#[derive(frame_support::DefaultNoBound)]
+	pub struct GenesisConfig<T: Config<I>, I: 'static = ()> {
+		pub _phantom: PhantomData<(T, I)>,
+	}
 
 	#[pallet::genesis_build]
-	impl<T: Config<I>, I: 'static> GenesisBuild<T, I> for GenesisConfig {
+	impl<T: Config<I>, I: 'static> BuildGenesisConfig for GenesisConfig<T, I> {
 		fn build(&self) {
 			let pot = <Pallet<T, I>>::pot_account_id().unwrap();
 
@@ -189,10 +190,10 @@ pub mod pallet {
 
 		/// Minimum number of periods to run liquidity mining program.
 		#[pallet::constant]
-		type MinPlannedYieldingPeriods: Get<Self::BlockNumber>;
+		type MinPlannedYieldingPeriods: Get<BlockNumberFor<Self>>;
 
 		/// The block number provider
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		/// Id used to identify amm pool in liquidity mining pallet.
 		type AmmPoolId: Parameter + Member + Clone + FullCodec + MaxEncodedLen;
