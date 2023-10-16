@@ -40,7 +40,6 @@ members = [
 ]
 
 [workspace.dependencies]
-getrandom = { version = "0.2.10", features = ["js"] }
 async-trait = "0.1"
 futures = "0.3.25"
 hydra-dx-math = { path = "math", default-features = false }
@@ -208,15 +207,14 @@ pallet-collator-selection = { git = "https://github.com/galacticcouncil/cumulus.
 parachain-info = { git = "https://github.com/galacticcouncil/cumulus.git", branch = "feat/xcmp-defer-xcm-v9-38", default-features = false }
 
 # Frontier
-fp-rpc = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 fc-consensus = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 fc-db = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 fc-mapping-sync = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 fc-rpc = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 fc-rpc-core = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 
-fp-consensus = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
-fp-dynamic-fee = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+fp-evm = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
+fp-rpc = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 fp-self-contained = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 fp-storage = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 
@@ -225,7 +223,7 @@ pallet-evm = { git = "https://github.com/PureStake/frontier", branch = "moonbeam
 pallet-evm-chain-id = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 pallet-evm-precompile-dispatch = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 
-#Evm from acala
+# EVM from acala
 module-evm-utility-macro = { path = "runtime/hydradx/src/evm/modules/evm-utility/macro", default-features = false}
 
 # Polkadot dependencies

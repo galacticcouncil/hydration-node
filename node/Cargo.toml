@@ -104,8 +104,6 @@ fc-db = { workspace = true }
 fc-mapping-sync = { workspace = true }
 fc-rpc = { workspace = true }
 fc-rpc-core = { workspace = true }
-fp-consensus = { workspace = true }
-fp-dynamic-fee = { workspace = true }
 fp-rpc = { workspace = true }
 fp-storage = { workspace = true }
 
@@ -126,4 +124,3 @@ try-runtime = [
     "hydradx-runtime/try-runtime",
     "try-runtime-cli/try-runtime",
 ]
-
