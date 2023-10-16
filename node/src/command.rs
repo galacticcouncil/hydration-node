@@ -341,7 +341,6 @@ pub fn run() -> sc_cli::Result<()> {
 					if config.role.is_authority() { "yes" } else { "no" }
 				);
 
-				// evmTODO ethereum_config
 				crate::service::start_node(config, polkadot_config, cli.ethereum_config, collator_options, id)
 					.await
 					.map(|r| r.1)

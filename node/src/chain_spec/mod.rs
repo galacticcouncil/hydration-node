@@ -91,7 +91,6 @@ pub fn parachain_genesis(
 	wasm_binary: &[u8],
 	_root_key: AccountId,
 	initial_authorities: (Vec<(AccountId, AuraId)>, Balance), // (initial auths, candidacy bond)
-	// evmTODO: endowed accounts for Ethereum?
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
