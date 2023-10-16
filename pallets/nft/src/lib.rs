@@ -26,7 +26,7 @@ use frame_support::{
 	traits::{tokens::nonfungibles::*, Get},
 	BoundedVec,
 };
-use frame_system::ensure_signed;
+use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use pallet_uniques::DestroyWitness;
 
 use hydradx_traits::nft::{CreateTypedCollection, ReserveCollectionId};
@@ -254,7 +254,7 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]

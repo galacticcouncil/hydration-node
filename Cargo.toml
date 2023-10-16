@@ -32,6 +32,7 @@ members = [
   'pallets/otc',
   'pallets/bonds',
   'pallets/lbp',
+  'pallets/nft',
   'math',
   'pallets/staking',
   'pallets/democracy',
