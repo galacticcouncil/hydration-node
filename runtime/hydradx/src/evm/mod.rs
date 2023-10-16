@@ -22,7 +22,7 @@
 use crate::TreasuryAccount;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
-	AssetLocation, Aura,
+	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
 use frame_support::traits::{Defensive, Imbalance, OnUnbalanced};
 use frame_support::{
@@ -37,9 +37,8 @@ use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
 use polkadot_xcm::latest::MultiLocation;
 use polkadot_xcm::prelude::{AccountKey20, PalletInstance, Parachain, X3};
-use primitives::{AccountId, AssetId};
+use primitives::{AccountId, AssetId, constants::chain::MAXIMUM_BLOCK_WEIGHT};
 use sp_core::{Get, U256};
-use sp_runtime::traits::Convert;
 
 mod accounts_conversion;
 pub mod precompile;
@@ -58,11 +57,8 @@ const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 const DEFAULT_BASE_FEE_PER_GAS: u128 = 100_000_000;
 
 parameter_types! {
-	//TODO: set value
-	pub BlockGasLimit: U256 = U256::from(u32::max_value());
-	// Centrifuge uses max block weight limits within the runtime based on calculation of 0.5s for 6s block times;
-	// it's interesting, check out: https://github.com/centrifuge/centrifuge-chain/blob/main/libs/primitives/src/lib.rs#L217:L228
-	// pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
+	// We allow for a 75% fullness of a 0.5s block
+	pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
 
 	pub PrecompilesValue: precompiles::HydraDXPrecompiles<crate::Runtime> = precompiles::HydraDXPrecompiles::<_>::new();
 	pub WeightPerGas: Weight = Weight::from_ref_time(WEIGHT_PER_GAS);
