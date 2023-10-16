@@ -102,6 +102,10 @@ impl Conviction {
 			Conviction::Locked6x => FixedU128::from(6_u128),
 		}
 	}
+
+	pub fn max_multiplier() -> FixedU128 {
+		Conviction::Locked6x.multiplier()
+	}
 }
 
 #[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

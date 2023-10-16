@@ -207,6 +207,23 @@ fn transfer_should_not_work_when_transfering_omnipool_assets_to_omnipool_account
 }
 
 #[test]
+fn xyk_create_pool_with_lrna_should_be_filtered_by_call_filter() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// the values here don't need to make sense, all we need is a valid Call
+		let call = hydradx_runtime::RuntimeCall::XYK(pallet_xyk::Call::create_pool {
+			asset_a: LRNA,
+			amount_a: UNITS,
+			asset_b: DOT,
+			amount_b: UNITS,
+		});
+
+		assert!(!hydradx_runtime::CallFilter::contains(&call));
+	});
+}
+
+#[test]
 fn calling_pallet_xcm_send_extrinsic_should_not_be_filtered_by_call_filter() {
 	TestNet::reset();
 

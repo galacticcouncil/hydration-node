@@ -93,6 +93,7 @@ pub mod chain {
 
 	/// The source of the data for the oracle.
 	pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
+	pub const STABLESWAP_SOURCE: [u8; 8] = *b"stablesw";
 }
 
 #[cfg(test)]

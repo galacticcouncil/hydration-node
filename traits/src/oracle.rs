@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::router::Trade;
 use codec::MaxEncodedLen;
 use frame_support::sp_runtime::traits::{AtLeast32BitUnsigned, One};
 use scale_info::TypeInfo;
@@ -25,7 +26,7 @@ impl<AssetId, Price> NativePriceOracle<AssetId, Price> for () {
 pub trait PriceOracle<AssetId> {
 	type Price;
 
-	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<Self::Price>;
+	fn price(route: &[Trade<AssetId>], period: OraclePeriod) -> Option<Self::Price>;
 }
 
 pub struct AlwaysPriceOfOne;

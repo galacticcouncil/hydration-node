@@ -57,6 +57,8 @@ impl Contains<RuntimeCall> for CallFilter {
 			return false;
 		}
 
+		let hub_asset_id = <Runtime as pallet_omnipool::Config>::HubAssetId::get();
+
 		// filter transfers of LRNA and omnipool assets to the omnipool account
 		if let RuntimeCall::Tokens(orml_tokens::Call::transfer { dest, currency_id, .. })
 		| RuntimeCall::Tokens(orml_tokens::Call::transfer_keep_alive { dest, currency_id, .. })
@@ -64,9 +66,7 @@ impl Contains<RuntimeCall> for CallFilter {
 		| RuntimeCall::Currencies(pallet_currencies::Call::transfer { dest, currency_id, .. }) = call
 		{
 			// Lookup::lookup() is not necessary thanks to IdentityLookup
-			if dest == &Omnipool::protocol_account()
-				&& (*currency_id == <Runtime as pallet_omnipool::Config>::HubAssetId::get()
-					|| Omnipool::exists(*currency_id))
+			if dest == &Omnipool::protocol_account() && (*currency_id == hub_asset_id || Omnipool::exists(*currency_id))
 			{
 				return false;
 			}
@@ -79,6 +79,13 @@ impl Contains<RuntimeCall> for CallFilter {
 		{
 			// Lookup::lookup() is not necessary thanks to IdentityLookup
 			if dest == &Omnipool::protocol_account() {
+				return false;
+			}
+		}
+
+		// XYK pools with LRNA are not allowed
+		if let RuntimeCall::XYK(pallet_xyk::Call::create_pool { asset_a, asset_b, .. }) = call {
+			if *asset_a == hub_asset_id || *asset_b == hub_asset_id {
 				return false;
 			}
 		}

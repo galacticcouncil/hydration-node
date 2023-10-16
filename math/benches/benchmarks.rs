@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use fixed::traits::{FixedUnsigned, ToFixed};
-use fixed::types::U89F39 as FixedBalance;
+use fixed::types::U32F96;
 
 use hydra_dx_math::transcendental::pow;
 
@@ -66,5 +66,5 @@ where
 	});
 }
 
-criterion_group!(benches, bench_pow<FixedBalance>);
+criterion_group!(benches, bench_pow<U32F96>);
 criterion_main!(benches);

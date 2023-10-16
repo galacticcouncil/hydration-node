@@ -26,18 +26,12 @@ jobs:
         uses: codota/toolchain@00a8bf2bdcfe93aefd70422d3dec07337959d3a4
         with:
           profile: minimal
+      - name: Run tests
+        run: make test
       - name: Run clippy
         run: make clippy
-      - name: Install tarpaulin
-        run: cargo install cargo-tarpaulin
-      - name: Test && Generate code coverage
-        run: make coverage
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v1
-        with:
-          fail_ci_if_error: false
       - name: Build release
-        run: time cargo build --release --quiet --locked
+        run: time make build
       - name: Version info
         run: ./target/release/hydradx --version
       - name: Upload release binary
@@ -50,6 +44,9 @@ jobs:
         with:
           name: hydradx_runtime.compact.compressed.wasm
           path: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
+      - name: Run benchmark tests
+        run: make test-benchmarks
+
 
   docker:
     needs: [build]

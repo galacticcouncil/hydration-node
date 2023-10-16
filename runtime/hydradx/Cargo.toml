@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "180.0.0"
+version = "183.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -31,8 +31,10 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-dca = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-dynamic-fees = { workspace = true }
+pallet-stableswap = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
+pallet-xyk = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -148,6 +150,7 @@ runtime-benchmarks = [
     "frame-system-benchmarking/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
     "orml-benchmarking",
+    "hydradx-adapters/runtime-benchmarks",
     "pallet-xcm/runtime-benchmarks",
     "xcm-builder/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",
@@ -182,7 +185,9 @@ runtime-benchmarks = [
     "pallet-evm/runtime-benchmarks",
     "pallet-staking/runtime-benchmarks",
     "pallet-bonds/runtime-benchmarks",
+    "pallet-stableswap/runtime-benchmarks",
     "pallet-lbp/runtime-benchmarks",
+    "pallet-xyk/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -266,6 +271,7 @@ std = [
     "pallet-dynamic-fees/std",
     "pallet-staking/std",
     "pallet-bonds/std",
+    "pallet-stableswap/std",
     "pallet-lbp/std",
     "fp-rpc/std",
     "fp-self-contained/std",
@@ -273,6 +279,7 @@ std = [
     "pallet-evm/std",
     "pallet-evm-chain-id/std",
     "pallet-evm-precompile-dispatch/std",
+    "pallet-xyk/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -332,9 +339,11 @@ try-runtime= [
     "pallet-dynamic-fees/try-runtime",
     "pallet-staking/try-runtime",
     "pallet-bonds/try-runtime",
+    "pallet-stableswap/try-runtime",
     "pallet-lbp/try-runtime",
     "fp-self-contained/try-runtime",
     "pallet-ethereum/try-runtime",
     "pallet-evm/try-runtime",
     "pallet-evm-chain-id/try-runtime",
+    "pallet-xyk/try-runtime",
 ]

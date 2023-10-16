@@ -1,4 +1,4 @@
-FROM ubuntu:21.04
+FROM ubuntu:22.04
 LABEL org.opencontainers.image.source = "https://github.com/galacticcouncil/HydraDX-node"
 
 RUN useradd -m -u 1000 -U -s /bin/sh -d /hydra hydra && \

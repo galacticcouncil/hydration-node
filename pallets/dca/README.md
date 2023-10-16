@@ -25,7 +25,7 @@ The fee is deducted in the sold (`amount_in`) currency.
 
 A trade can fail due to two main reasons:
 
-1. Price Stability Error: If the price difference between the short oracle price and the current price 
+1. Price Stability Error: If the price difference between the short oracle price and the last block oracle price 
 exceeds the specified threshold. The user can customize this threshold, 
 or the default value from the pallet configuration will be used.
 2. Slippage Error: If the minimum amount out (sell) or maximum amount in (buy) slippage limits are not reached. 
