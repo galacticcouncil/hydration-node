@@ -258,7 +258,7 @@ mod currency_precompile {
 			//Arrange
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
-				evm_account().into(),
+				evm_account(),
 				HDX,
 				100 * UNITS as i128,
 			));
@@ -306,7 +306,7 @@ mod currency_precompile {
 			//Arrange
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
-				evm_account().into(),
+				evm_account(),
 				HDX,
 				100 * UNITS as i128,
 			));
@@ -385,7 +385,7 @@ mod currency_precompile {
 			//Arrange
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
-				evm_account().into(),
+				evm_account(),
 				HDX,
 				100 * UNITS as i128,
 			));
@@ -425,7 +425,7 @@ mod currency_precompile {
 			//Arrange
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
-				evm_account2().into(),
+				evm_account2(),
 				HDX,
 				100 * UNITS as i128,
 			));
@@ -521,7 +521,7 @@ fn dispatch_should_work_with_transfer() {
 		));
 
 		//Assert
-		assert!(Tokens::free_balance(WETH, &evm_account()) < balance - 1 * 10u128.pow(16));
+		assert!(Tokens::free_balance(WETH, &evm_account()) < balance - 10u128.pow(16));
 	});
 }
 
@@ -533,7 +533,6 @@ fn dispatch_transfer_should_not_work_with_insufficient_fees() {
 		//Arrange
 		let data = hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
 			.to_vec();
-		let balance = Tokens::free_balance(WETH, &evm_account());
 		let insufficient_gas_price = gas_price() - U256::one();
 
 		//Act
@@ -562,7 +561,7 @@ fn dispatch_should_respect_call_filter() {
 	Hydra::execute_with(|| {
 		//Arrange
 		let balance = Tokens::free_balance(WETH, &evm_account());
-		let amount = 1 * 10u128.pow(16);
+		let amount = 10u128.pow(16);
 		let gas_limit = 1000000;
 		let transfer_call = RuntimeCall::Tokens(orml_tokens::Call::transfer {
 			dest: ALICE.into(),
@@ -631,7 +630,7 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 		//Fund evm account with HDX to dispatch omnipool sell
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			evm_account().into(),
+			evm_account(),
 			HDX,
 			100 * UNITS as i128,
 		));

@@ -82,12 +82,10 @@ where
 				Err(e) => return Err(e),
 			};
 
-			if let Err(err) = handle.check_function_modifier(match selector {
+			handle.check_function_modifier(match selector {
 				Action::Approve | Action::Transfer | Action::TransferFrom => FunctionModifier::NonPayable,
 				_ => FunctionModifier::View,
-			}) {
-				return Err(err);
-			}
+			})?;
 
 			return match selector {
 				Action::Name => Self::name(asset_id, handle),
@@ -171,7 +169,7 @@ where
 			Ok(decimals) => {
 				log::debug!(target: "evm", "multicurrency: decimals: {:?}", decimals);
 
-				let encoded = Output::encode_uint::<u8>(decimals.into());
+				let encoded = Output::encode_uint::<u8>(decimals);
 
 				Ok(succeed(encoded))
 			}
@@ -192,7 +190,7 @@ where
 
 		log::debug!(target: "evm", "multicurrency: totalSupply: {:?}", total_issuance);
 
-		let encoded = Output::encode_uint::<u128>(total_issuance.into());
+		let encoded = Output::encode_uint::<u128>(total_issuance);
 
 		Ok(succeed(encoded))
 	}
@@ -211,7 +209,7 @@ where
 
 		log::debug!(target: "evm", "multicurrency: balanceOf: {:?}", free_balance);
 
-		let encoded = Output::encode_uint::<u128>(free_balance.into());
+		let encoded = Output::encode_uint::<u128>(free_balance);
 
 		Ok(succeed(encoded))
 	}
@@ -232,10 +230,10 @@ where
 		log::debug!(target: "evm", "multicurrency: transfer from: {:?}, to: {:?}, amount: {:?}", origin, to, amount);
 
 		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
-			asset_id.into(),
+			asset_id,
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
-			amount.into(),
+			amount,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,
@@ -269,7 +267,7 @@ where
 		let from: H160 = input.read::<Address>()?.into();
 		if !handle.context().caller.eq(&from) {
 			return Err(PrecompileFailure::Error {
-				exit_status: pallet_evm::ExitError::Other("not supported".into()).into(),
+				exit_status: pallet_evm::ExitError::Other("not supported".into()),
 			});
 		}
 		let to: H160 = input.read::<Address>()?.into();
@@ -281,10 +279,10 @@ where
 		log::debug!(target: "evm", "multicurrency: transferFrom from: {:?}, to: {:?}, amount: {:?}", origin, to, amount);
 
 		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
-			asset_id.into(),
+			asset_id,
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
-			amount.into(),
+			amount,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,

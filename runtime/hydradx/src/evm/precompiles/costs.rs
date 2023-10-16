@@ -23,7 +23,7 @@
 //! TODO: PR EVM to make those cost calculations public.
 
 use crate::evm::precompiles::EvmResult;
-use pallet_evm::{ExitError, PrecompileFailure, PrecompileResult};
+use pallet_evm::{ExitError, PrecompileFailure};
 
 // TODO CHANGE
 pub fn log_costs(topics: usize, data_len: usize) -> EvmResult<u64> {
