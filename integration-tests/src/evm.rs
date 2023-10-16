@@ -1,32 +1,20 @@
 #![cfg(test)]
 
-use crate::polkadot_test_net::*;
-use hydradx_runtime::evm::precompile::multicurrency::{Action, MultiCurrencyPrecompile};
+use crate::{assert_balance, polkadot_test_net::*};
+use fp_evm::{Context, Transfer};
+use frame_support::{assert_ok, codec::Encode, dispatch::GetDispatchInfo, traits::Contains};
+use frame_system::RawOrigin;
+use hex_literal::hex;
+use hydradx_runtime::{AssetRegistry, Balances, CallFilter, Currencies, EVM, evm::precompiles::{Address, addr, Bytes, EvmAddress, handle::EvmDataWriter, HydraDXPrecompiles, multicurrency::{Action, MultiCurrencyPrecompile}}, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause};
+use orml_traits::MultiCurrency;
 use pallet_evm::*;
+use pretty_assertions::assert_eq;
 use sp_core::{blake2_256, H160, H256, U256};
+use sp_runtime::{FixedU128, Permill, traits::SignedExtension};
 use std::borrow::Cow;
 use xcm_emulator::TestExt;
-use crate::assert_balance;
-use fp_evm::{Context, Transfer};
-use frame_support::assert_ok;
-use frame_support::codec::Encode;
-use frame_support::dispatch::GetDispatchInfo;
-use frame_support::traits::Contains;
-use hex_literal::hex;
-use hydradx_runtime::evm::precompile::handle::EvmDataWriter;
-use hydradx_runtime::evm::precompile::{Address, Bytes, EvmAddress};
-use hydradx_runtime::evm::precompiles::{addr, HydraDXPrecompiles};
-use hydradx_runtime::Balances;
-use hydradx_runtime::Currencies;
-use hydradx_runtime::AssetRegistry;
-use hydradx_runtime::{CallFilter, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM};
-use orml_traits::MultiCurrency;
-use pretty_assertions::assert_eq;
-use sp_runtime::traits::SignedExtension;
+
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
-use frame_system::RawOrigin;
-use sp_runtime::FixedU128;
-use sp_runtime::Permill;
 
 mod currency_precompile {
 	use super::*;

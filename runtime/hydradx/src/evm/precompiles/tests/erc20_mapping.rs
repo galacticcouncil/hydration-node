@@ -1,4 +1,4 @@
-use crate::evm::precompile::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
+use crate::evm::precompiles::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
 use hex_literal::hex;
 use primitive_types::H160;
 

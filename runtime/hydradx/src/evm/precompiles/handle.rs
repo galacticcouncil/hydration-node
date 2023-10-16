@@ -19,7 +19,7 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::evm::precompile::{costs, revert, Address, Bytes, EvmResult};
+use crate::evm::precompiles::{costs, revert, Address, Bytes, EvmResult};
 use frame_support::log;
 use pallet_evm::{Context, Log, PrecompileHandle};
 use primitive_types::{H160, H256, U256};

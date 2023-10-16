@@ -19,7 +19,7 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::evm::precompile::EvmAddress;
+use crate::evm::precompiles::EvmAddress;
 use hex_literal::hex;
 use primitive_types::H160;
 use primitives::AssetId;

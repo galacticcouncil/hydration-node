@@ -23,7 +23,7 @@
 //! - Substrate call dispatch.
 //! - Substrate DB read and write costs
 
-use crate::evm::precompile::{revert, EvmResult};
+use crate::evm::precompiles::{revert, EvmResult};
 use smallvec::alloc;
 use {
 	core::marker::PhantomData,

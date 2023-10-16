@@ -21,13 +21,13 @@
 
 use crate::TreasuryAccount;
 pub use crate::{
+	AssetLocation, Aura,
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
-	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
+	NORMAL_DISPATCH_RATIO,
 };
-use frame_support::traits::{Defensive, Imbalance, OnUnbalanced};
 use frame_support::{
 	parameter_types,
-	traits::FindAuthor,
+	traits::{Defensive, FindAuthor, Imbalance, OnUnbalanced},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 	ConsensusEngineId,
 };
@@ -35,13 +35,11 @@ use hex_literal::hex;
 use orml_tokens::CurrencyAdapter;
 use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
-use polkadot_xcm::latest::MultiLocation;
-use polkadot_xcm::prelude::{AccountKey20, PalletInstance, Parachain, X3};
+use polkadot_xcm::{latest::MultiLocation, prelude::{AccountKey20, PalletInstance, Parachain, X3}};
 use primitives::{AccountId, AssetId, constants::chain::MAXIMUM_BLOCK_WEIGHT};
 use sp_core::{Get, U256};
 
 mod accounts_conversion;
-pub mod precompile;
 pub mod precompiles;
 
 // Centrifuge / Moonbeam:
@@ -54,6 +52,8 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
+// Fixed gas price of 0.1 gwei per gas
+// pallet-base-fee to be implemented after migration to polkadot-v1.1.0
 const DEFAULT_BASE_FEE_PER_GAS: u128 = 100_000_000;
 
 parameter_types! {

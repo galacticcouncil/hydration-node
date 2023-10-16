@@ -1,4 +1,5 @@
-use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
+use frame_support::{codec::alloc::vec, traits::OnRuntimeUpgrade, weights::Weight};
+use crate::Vec;
 
 pub struct OnRuntimeUpgradeMigration;
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {

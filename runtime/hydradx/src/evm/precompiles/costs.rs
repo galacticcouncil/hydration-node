@@ -22,9 +22,10 @@
 //! Cost calculations.
 //! TODO: PR EVM to make those cost calculations public.
 
-use crate::evm::precompile::EvmResult;
-use pallet_evm::{ExitError, PrecompileFailure};
+use crate::evm::precompiles::EvmResult;
+use pallet_evm::{ExitError, PrecompileFailure, PrecompileResult};
 
+// TODO CHANGE
 pub fn log_costs(topics: usize, data_len: usize) -> EvmResult<u64> {
 	// Cost calculation is copied from EVM code that is not publicly exposed by the crates.
 	// https://github.com/rust-blockchain/evm/blob/master/gasometer/src/costs.rs#L148

@@ -24,16 +24,16 @@ use frame_support::log;
 use codec::EncodeLike;
 use frame_support::traits::OriginTrait;
 //use input::Erc20InfoMappingT;
-use crate::evm::precompile::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
-use crate::evm::precompile::handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt};
-use crate::evm::precompile::substrate::RuntimeHelper;
-use crate::evm::precompile::{succeed, Address, EvmResult, Output};
+use crate::evm::precompiles::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
+use crate::evm::precompiles::handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt};
+use crate::evm::precompiles::substrate::RuntimeHelper;
+use crate::evm::precompiles::{succeed, Address, Output};
 use crate::evm::ExtendedAddressMapping;
 use crate::Currencies;
 use hydradx_traits::RegistryQueryForEvm;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
-use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput};
+use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
 use primitive_types::H160;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::Dispatchable;
@@ -118,7 +118,7 @@ where
 	<Runtime as frame_system::Config>::AccountId: core::convert::From<sp_runtime::AccountId32>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 {
-	fn name(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn name(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
@@ -139,7 +139,7 @@ where
 		}
 	}
 
-	fn symbol(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn symbol(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
@@ -160,7 +160,7 @@ where
 		}
 	}
 
-	fn decimals(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn decimals(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
@@ -181,7 +181,7 @@ where
 		}
 	}
 
-	fn total_supply(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn total_supply(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
@@ -197,7 +197,7 @@ where
 		Ok(succeed(encoded))
 	}
 
-	fn balance_of(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn balance_of(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
@@ -216,7 +216,7 @@ where
 		Ok(succeed(encoded))
 	}
 
-	fn transfer(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn transfer(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
@@ -245,7 +245,7 @@ where
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
-	fn allowance(_: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn allowance(_: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
@@ -258,7 +258,7 @@ where
 		Ok(succeed(encoded))
 	}
 
-	fn transfer_from(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn transfer_from(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		// Parse input
@@ -294,7 +294,7 @@ where
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
-	fn not_supported(_: AssetId, _: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
+	fn not_supported(_: AssetId, _: &mut impl PrecompileHandle) -> PrecompileResult {
 		Err(PrecompileFailure::Error {
 			exit_status: pallet_evm::ExitError::Other("not supported".into()),
 		})

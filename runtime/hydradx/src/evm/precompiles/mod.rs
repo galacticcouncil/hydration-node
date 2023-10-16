@@ -21,12 +21,46 @@
 
 use core::marker::PhantomData;
 
-use crate::evm::precompile::erc20_mapping::is_asset_address;
-use crate::evm::precompile::multicurrency::MultiCurrencyPrecompile;
+use crate::evm::precompiles::{erc20_mapping::is_asset_address, multicurrency::MultiCurrencyPrecompile};
 use codec::Decode;
 use frame_support::dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo};
-use pallet_evm::{Precompile, PrecompileHandle, PrecompileResult, PrecompileSet};
-use sp_core::H160;
+use pallet_evm::{ExitError, ExitRevert, ExitSucceed, Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput, PrecompileResult, PrecompileSet};
+
+use codec::alloc;
+use ethabi::Token;
+use primitive_types::{H160, U256};
+use sp_std::{borrow::ToOwned, vec::Vec};
+
+pub mod costs;
+pub mod erc20_mapping;
+pub mod handle;
+pub mod multicurrency;
+pub mod substrate;
+
+pub type EvmResult<T = ()> = Result<T, PrecompileFailure>;
+
+#[cfg(test)]
+mod tests;
+
+pub type EvmAddress = sp_core::H160;
+
+/// The `address` type of Solidity.
+/// H160 could represent 2 types of data (bytes20 and address) that are not encoded the same way.
+/// To avoid issues writing H160 is thus not supported.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Address(pub H160);
+
+impl From<H160> for Address {
+	fn from(a: H160) -> Address {
+		Address(a)
+	}
+}
+
+impl From<Address> for H160 {
+	fn from(a: Address) -> H160 {
+		a.0
+	}
+}
 
 pub struct HydraDXPrecompiles<R>(PhantomData<R>);
 
@@ -75,4 +109,114 @@ pub const fn addr(a: u64) -> H160 {
 	H160([
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
 	])
+}
+
+
+#[must_use]
+pub fn error<T: Into<alloc::borrow::Cow<'static, str>>>(text: T) -> PrecompileFailure {
+	PrecompileFailure::Error {
+		exit_status: ExitError::Other(text.into()),
+	}
+}
+
+#[must_use]
+pub fn revert(output: impl AsRef<[u8]>) -> PrecompileFailure {
+	PrecompileFailure::Revert {
+		exit_status: ExitRevert::Reverted,
+		output: output.as_ref().to_owned(),
+	}
+}
+
+#[must_use]
+pub fn succeed(output: impl AsRef<[u8]>) -> PrecompileOutput {
+	PrecompileOutput {
+		exit_status: ExitSucceed::Returned,
+		output: output.as_ref().to_owned(),
+	}
+}
+
+pub struct Output;
+
+impl Output {
+	pub fn encode_bool(b: bool) -> Vec<u8> {
+		ethabi::encode(&[Token::Bool(b)])
+	}
+
+	pub fn encode_uint<T>(b: T) -> Vec<u8>
+	where
+		U256: From<T>,
+	{
+		ethabi::encode(&[Token::Uint(U256::from(b))])
+	}
+
+	pub fn encode_uint_tuple<T>(b: Vec<T>) -> Vec<u8>
+	where
+		U256: From<T>,
+	{
+		ethabi::encode(&[Token::Tuple(b.into_iter().map(U256::from).map(Token::Uint).collect())])
+	}
+
+	pub fn encode_uint_array<T>(b: Vec<T>) -> Vec<u8>
+	where
+		U256: From<T>,
+	{
+		ethabi::encode(&[Token::Array(b.into_iter().map(U256::from).map(Token::Uint).collect())])
+	}
+
+	pub fn encode_bytes(b: &[u8]) -> Vec<u8> {
+		ethabi::encode(&[Token::Bytes(b.to_vec())])
+	}
+
+	pub fn encode_fixed_bytes(b: &[u8]) -> Vec<u8> {
+		ethabi::encode(&[Token::FixedBytes(b.to_vec())])
+	}
+
+	pub fn encode_address(b: H160) -> Vec<u8> {
+		ethabi::encode(&[Token::Address(b)])
+	}
+
+	pub fn encode_address_tuple(b: Vec<H160>) -> Vec<u8> {
+		ethabi::encode(&[Token::Tuple(b.into_iter().map(Token::Address).collect())])
+	}
+
+	pub fn encode_address_array(b: Vec<H160>) -> Vec<u8> {
+		ethabi::encode(&[Token::Array(b.into_iter().map(Token::Address).collect())])
+	}
+}
+
+/// The `bytes`/`string` type of Solidity.
+/// It is different from `Vec<u8>` which will be serialized with padding for each `u8` element
+/// of the array, while `Bytes` is tightly packed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Bytes(pub Vec<u8>);
+
+impl Bytes {
+	/// Interpret as `bytes`.
+	pub fn as_bytes(&self) -> &[u8] {
+		&self.0
+	}
+
+	/// Interpret as `string`.
+	/// Can fail if the string is not valid UTF8.
+	pub fn as_str(&self) -> Result<&str, sp_std::str::Utf8Error> {
+		sp_std::str::from_utf8(&self.0)
+	}
+}
+
+impl From<&[u8]> for Bytes {
+	fn from(a: &[u8]) -> Self {
+		Self(a.to_owned())
+	}
+}
+
+impl From<&str> for Bytes {
+	fn from(a: &str) -> Self {
+		a.as_bytes().into()
+	}
+}
+
+impl Into<Vec<u8>> for Bytes {
+	fn into(self) -> Vec<u8> {
+		self.0
+	}
 }
