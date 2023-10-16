@@ -21,9 +21,8 @@
 
 use crate::TreasuryAccount;
 pub use crate::{
-	AssetLocation, Aura,
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
-	NORMAL_DISPATCH_RATIO,
+	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
 use frame_support::{
 	parameter_types,
@@ -35,8 +34,11 @@ use hex_literal::hex;
 use orml_tokens::CurrencyAdapter;
 use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
-use polkadot_xcm::{latest::MultiLocation, prelude::{AccountKey20, PalletInstance, Parachain, X3}};
-use primitives::{AccountId, AssetId, constants::chain::MAXIMUM_BLOCK_WEIGHT};
+use polkadot_xcm::{
+	latest::MultiLocation,
+	prelude::{AccountKey20, PalletInstance, Parachain, X3},
+};
+use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId};
 use sp_core::{Get, U256};
 
 mod accounts_conversion;

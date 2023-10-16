@@ -5,12 +5,20 @@ use fp_evm::{Context, Transfer};
 use frame_support::{assert_ok, codec::Encode, dispatch::GetDispatchInfo, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::{AssetRegistry, Balances, CallFilter, Currencies, EVM, evm::precompiles::{Address, addr, Bytes, EvmAddress, handle::EvmDataWriter, HydraDXPrecompiles, multicurrency::{Action, MultiCurrencyPrecompile}}, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause};
+use hydradx_runtime::{
+	evm::precompiles::{
+		addr,
+		handle::EvmDataWriter,
+		multicurrency::{Action, MultiCurrencyPrecompile},
+		Address, Bytes, EvmAddress, HydraDXPrecompiles,
+	},
+	AssetRegistry, Balances, CallFilter, Currencies, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM,
+};
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
 use sp_core::{blake2_256, H160, H256, U256};
-use sp_runtime::{FixedU128, Permill, traits::SignedExtension};
+use sp_runtime::{traits::SignedExtension, FixedU128, Permill};
 use std::borrow::Cow;
 use xcm_emulator::TestExt;
 
@@ -539,8 +547,8 @@ fn dispatch_transfer_should_not_work_with_insufficient_fees() {
 			insufficient_gas_price,
 			None,
 			Some(U256::zero()),
-			[].into()
-			);
+			[].into(),
+		);
 
 		//Assert
 		call.expect_err("Expected GasPriceTooLow error");
