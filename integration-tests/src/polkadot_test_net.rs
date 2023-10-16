@@ -9,7 +9,9 @@ use frame_support::{
 	traits::GenesisBuild,
 	weights::Weight,
 };
-pub use hydradx_runtime::{AccountId, Currencies, evm::ExtendedAddressMapping, NativeExistentialDeposit, Treasury, VestingPalletId};
+pub use hydradx_runtime::{
+	evm::ExtendedAddressMapping, AccountId, Currencies, NativeExistentialDeposit, Treasury, VestingPalletId,
+};
 use pallet_transaction_multi_payment::Price;
 pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};
 
