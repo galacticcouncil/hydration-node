@@ -57,19 +57,6 @@ const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
 const DEFAULT_BASE_FEE_PER_GAS: u128 = 100_000_000;
 
-pub const GAS_TO_WEIGHT_RATIO: u64 = 9000;
-
-/// Convert weight to gas
-pub struct WeightToGas;
-impl Convert<Weight, u64> for WeightToGas {
-	fn convert(weight: Weight) -> u64 {
-		weight
-			.ref_time()
-			.checked_div(GAS_TO_WEIGHT_RATIO)
-			.expect("Compile-time constant is not zero; qed;")
-	}
-}
-
 parameter_types! {
 	//TODO: set value
 	pub BlockGasLimit: U256 = U256::from(u32::max_value());
