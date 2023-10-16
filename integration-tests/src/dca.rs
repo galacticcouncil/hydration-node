@@ -2284,7 +2284,16 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 
 		initial.push(AssetAmount::new(asset_id, initial_liquidity));
 	}
-	let pool_id = AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
+	let pool_id = AssetRegistry::register_sufficient_asset(
+		None,
+		Some(b"pool".as_ref()),
+		AssetKind::Token,
+		Some(1u128),
+		None,
+		None,
+		None,
+		None,
+	)?;
 
 	let amplification = 100u16;
 	let fee = Permill::from_percent(1);

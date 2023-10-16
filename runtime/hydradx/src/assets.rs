@@ -117,15 +117,8 @@ impl SufficiencyCheck {
 	///
 	/// NOTE: Changing of ED in the `pallet_balances` requires migration of all the users with
 	/// insufficient assets to the new ED amount.
-	fn on_funds(asset: AssetId, paying_account: &AccountId) -> DispatchResult {
-		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(paying_account) {
-			return Ok(());
-		}
-
-		//NOTE: account existence means it already paid ED
-		if orml_tokens::Accounts::<Runtime>::try_get(paying_account, asset).is_err()
-			&& !AssetRegistry::is_sufficient(asset)
-		{
+	fn on_funds(asset: AssetId, paying_account: &AccountId, to: &AccountId) -> DispatchResult {
+		if orml_tokens::Accounts::<Runtime>::try_get(to, asset).is_err() && !AssetRegistry::is_sufficient(asset) {
 			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);
 
 			let ed = MultiTransactionPayment::price(fee_payment_asset)
@@ -163,14 +156,20 @@ impl SufficiencyCheck {
 }
 
 impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
-	fn on_transfer(asset: AssetId, _from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
-		Self::on_funds(asset, to)
+	fn on_transfer(asset: AssetId, from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
+		//NOTE: `to` is paying ED if `from` is whitelisted.
+		//This can happen if pallet's account transfers insufficient tokens to another account.
+		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(from) {
+			Self::on_funds(asset, to, to)
+		} else {
+			Self::on_funds(asset, from, to)
+		}
 	}
 }
 
 impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
 	fn on_deposit(asset: AssetId, to: &AccountId, _amount: Balance) -> DispatchResult {
-		Self::on_funds(asset, to)
+		Self::on_funds(asset, to, to)
 	}
 }
 
@@ -178,10 +177,6 @@ pub struct OnKilledTokenAccount;
 impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 	fn happened((who, asset): &(AccountId, AssetId)) {
 		if AssetRegistry::is_sufficient(*asset) {
-			return;
-		}
-
-		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(who) {
 			return;
 		}
 
