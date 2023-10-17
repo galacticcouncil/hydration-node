@@ -82,7 +82,7 @@ where
 			};
 
 			handle.check_function_modifier(match selector {
-				Action::Approve | Action::Transfer | Action::TransferFrom => FunctionModifier::NonPayable,
+				Action::Transfer => FunctionModifier::NonPayable,
 				_ => FunctionModifier::View,
 			})?;
 
@@ -93,9 +93,9 @@ where
 				Action::TotalSupply => Self::total_supply(asset_id, handle),
 				Action::BalanceOf => Self::balance_of(asset_id, handle),
 				Action::Transfer => Self::transfer(asset_id, handle),
-				Action::Allowance => Self::allowance(asset_id, handle),
+				Action::Allowance => Self::not_supported(asset_id, handle),
 				Action::Approve => Self::not_supported(asset_id, handle),
-				Action::TransferFrom => Self::transfer_from(asset_id, handle),
+				Action::TransferFrom => Self::not_supported(asset_id, handle),
 			};
 		}
 		Err(PrecompileFailure::Revert {
@@ -227,55 +227,6 @@ where
 		let to = ExtendedAddressMapping::into_account_id(to);
 
 		log::debug!(target: "evm", "multicurrency: transfer from: {:?}, to: {:?}, amount: {:?}", origin, to, amount);
-
-		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
-			asset_id,
-			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
-			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
-			amount,
-		)
-		.map_err(|e| PrecompileFailure::Revert {
-			exit_status: ExitRevert::Reverted,
-			output: Into::<&str>::into(e).as_bytes().to_vec(),
-		})?;
-
-		Ok(succeed(EvmDataWriter::new().write(true).build()))
-	}
-
-	fn allowance(_: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
-		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
-
-		// Parse input
-		let input = handle.read_input()?;
-		input.expect_arguments(2)?;
-
-		//As approve is not supported yet, we always return 0
-		let encoded = Output::encode_uint::<u128>(0);
-
-		Ok(succeed(encoded))
-	}
-
-	fn transfer_from(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
-		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
-
-		// Parse input
-		let mut input = handle.read_input()?;
-		input.expect_arguments(2)?;
-
-		//TODO: DOUBLE CHECK WITH SOMEONE IF THIS IS THE CORRECT WAY TO PREVENT MALICIOUS TRANSFER
-		let from: H160 = input.read::<Address>()?.into();
-		if !handle.context().caller.eq(&from) {
-			return Err(PrecompileFailure::Error {
-				exit_status: pallet_evm::ExitError::Other("can't transfer from other than caller origin".into()),
-			});
-		}
-		let to: H160 = input.read::<Address>()?.into();
-		let amount = input.read::<Balance>()?;
-
-		let origin = ExtendedAddressMapping::into_account_id(handle.context().caller);
-		let to = ExtendedAddressMapping::into_account_id(to);
-
-		log::debug!(target: "evm", "multicurrency: transferFrom from: {:?}, to: {:?}, amount: {:?}", origin, to, amount);
 
 		<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
 			asset_id,

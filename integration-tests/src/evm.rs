@@ -337,7 +337,49 @@ mod currency_precompile {
 	}
 
 	#[test]
-	fn precompile_for_currency_allowance_should_return_0_as_not_supported_yet() {
+	fn precompile_for_currency_approve_allowance_should_fail_as_not_supported() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_account(),
+				HDX,
+				100 * UNITS as i128,
+			));
+
+			let data = EvmDataWriter::new_with_selector(Action::Approve)
+				.write(Address::from(evm_address2()))
+				.write(U256::from(50u128 * UNITS))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: evm_address(),
+					caller: native_asset_ethereum_address(),
+					apparent_value: U256::from(0),
+				},
+				core_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			//Act
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			//Assert
+			assert_eq!(
+				result,
+				Err(PrecompileFailure::Error {
+					exit_status: pallet_evm::ExitError::Other("not supported".into())
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn precompile_for_currency_allowance_should_fail_as_not_supported() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -362,23 +404,17 @@ mod currency_precompile {
 			let result = CurrencyPrecompile::execute(&mut handle);
 
 			//Assert
-			//0
-			let expected_output = hex! {"
-				00000000000000000000000000000000 00000000000000000000000000000000
-			"};
-
 			assert_eq!(
 				result,
-				Ok(PrecompileOutput {
-					exit_status: ExitSucceed::Returned,
-					output: expected_output.to_vec()
+				Err(PrecompileFailure::Error {
+					exit_status: pallet_evm::ExitError::Other("not supported".into())
 				})
 			);
 		});
 	}
 
 	#[test]
-	fn precompile_for_transfer_from_should_work_only_for_caller_address() {
+	fn precompile_for_transfer_from_should_fail_as_not_supported() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -411,54 +447,13 @@ mod currency_precompile {
 			let result = CurrencyPrecompile::execute(&mut handle);
 
 			//Assert
-			assert_eq!(result.unwrap().exit_status, ExitSucceed::Returned);
-			assert_balance!(evm_account2(), HDX, 50u128 * UNITS);
-		});
-	}
-
-	//TODO: MANUALLY VERIFY THAT IT FAILS
-	#[test]
-	fn precompile_for_transfer_from_should_fail_when_from_address_is_different_than_caller() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				evm_account2(),
-				HDX,
-				100 * UNITS as i128,
-			));
-
-			let data = EvmDataWriter::new_with_selector(Action::TransferFrom)
-				.write(Address::from(evm_address2()))
-				.write(Address::from(evm_address()))
-				.write(U256::from(50u128 * UNITS))
-				.build();
-
-			let mut handle = MockHandle {
-				input: data,
-				context: Context {
-					address: evm_address(),
-					caller: evm_address(),
-					apparent_value: U256::from(0),
-				},
-				core_address: native_asset_ethereum_address(),
-				is_static: false,
-			};
-
-			//Act
-			let result = CurrencyPrecompile::execute(&mut handle);
-
-			//Assert
 			assert_eq!(
 				result,
 				Err(PrecompileFailure::Error {
-					exit_status: pallet_evm::ExitError::Other("can't transfer from other than caller origin".into())
+					exit_status: pallet_evm::ExitError::Other("not supported".into())
 				})
 			);
-
-			assert_balance!(evm_account(), HDX, 0);
+			assert_balance!(evm_account2(), HDX, 0);
 		});
 	}
 
