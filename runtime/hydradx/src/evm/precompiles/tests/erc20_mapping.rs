@@ -44,7 +44,7 @@ fn decode_asset_id_from_evm_address_should_not_work_with_invalid_asset_addresses
 }
 
 #[test]
-fn encode_asset_id_to_evm_address() {
+fn encode_asset_id_to_evm_address_should_work() {
 	assert_eq!(encode!(0), H160::from(hex!("0000000000000000000000000000000100000000")));
 	assert_eq!(encode!(1), H160::from(hex!("0000000000000000000000000000000100000001")));
 	assert_eq!(encode!(2), H160::from(hex!("0000000000000000000000000000000100000002")));
