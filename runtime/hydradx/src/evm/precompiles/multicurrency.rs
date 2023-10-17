@@ -268,7 +268,7 @@ where
 		let to: H160 = input.read::<Address>()?.into();
 		let amount = input.read::<Balance>()?;
 
-		let origin = ExtendedAddressMapping::into_account_id(from);
+		let origin = ExtendedAddressMapping::into_account_id(handle.context().caller);
 		let to = ExtendedAddressMapping::into_account_id(to);
 
 		log::debug!(target: "evm", "multicurrency: transferFrom from: {:?}, to: {:?}, amount: {:?}", origin, to, amount);
