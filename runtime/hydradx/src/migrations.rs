@@ -1,7 +1,6 @@
+#![allow(unused_imports)]
 use crate::Vec;
 use frame_support::{codec::alloc::vec, traits::OnRuntimeUpgrade, weights::Weight};
-#[cfg(feature = "try-runtime")]
-use sp_std::prelude::*;
 
 pub struct OnRuntimeUpgradeMigration;
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {

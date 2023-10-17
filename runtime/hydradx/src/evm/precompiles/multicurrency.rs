@@ -21,23 +21,27 @@
 
 use frame_support::log;
 
+use crate::{
+	evm::{
+		precompiles::{
+			erc20_mapping::{Erc20Mapping, HydraErc20Mapping},
+			handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt},
+			substrate::RuntimeHelper,
+			succeed, Address, Output,
+		},
+		ExtendedAddressMapping,
+	},
+	Currencies,
+};
 use codec::EncodeLike;
 use frame_support::traits::OriginTrait;
-//use input::Erc20InfoMappingT;
-use crate::evm::precompiles::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
-use crate::evm::precompiles::handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt};
-use crate::evm::precompiles::substrate::RuntimeHelper;
-use crate::evm::precompiles::{succeed, Address, Output};
-use crate::evm::ExtendedAddressMapping;
-use crate::Currencies;
 use hydradx_traits::RegistryQueryForEvm;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
 use primitive_types::H160;
 use primitives::{AssetId, Balance};
-use sp_runtime::traits::Dispatchable;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::{traits::Dispatchable, RuntimeDebug};
 use sp_std::{marker::PhantomData, prelude::*};
 
 #[module_evm_utility_macro::generate_function_selector]
