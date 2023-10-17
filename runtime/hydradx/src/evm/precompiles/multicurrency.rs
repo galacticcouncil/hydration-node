@@ -40,11 +40,6 @@ use sp_runtime::traits::Dispatchable;
 use sp_runtime::RuntimeDebug;
 use sp_std::{marker::PhantomData, prelude::*};
 
-//TODO: copied from runtime/common/recompile
-pub fn target_gas_limit(target_gas: Option<u64>) -> Option<u64> {
-	target_gas.map(|x| x.saturating_div(10).saturating_mul(9)) // 90%
-}
-
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
