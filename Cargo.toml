@@ -36,7 +36,6 @@ members = [
   'pallets/staking',
   'pallets/democracy',
   'runtime/hydradx/src/evm/modules/evm-utility/macro',
-  #'runtime/hydradx/src/evm/modules/evm',
 ]
 
 [workspace.dependencies]
