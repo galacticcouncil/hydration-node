@@ -454,7 +454,7 @@ mod currency_precompile {
 			assert_eq!(
 				result,
 				Err(PrecompileFailure::Error {
-					exit_status: pallet_evm::ExitError::Other("not supported".into())
+					exit_status: pallet_evm::ExitError::Other("can't transfer from other than caller origin".into())
 				})
 			);
 

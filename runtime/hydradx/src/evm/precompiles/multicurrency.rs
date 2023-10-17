@@ -262,7 +262,7 @@ where
 		let from: H160 = input.read::<Address>()?.into();
 		if !handle.context().caller.eq(&from) {
 			return Err(PrecompileFailure::Error {
-				exit_status: pallet_evm::ExitError::Other("not supported".into()),
+				exit_status: pallet_evm::ExitError::Other("can't transfer from other than caller origin".into()),
 			});
 		}
 		let to: H160 = input.read::<Address>()?.into();
