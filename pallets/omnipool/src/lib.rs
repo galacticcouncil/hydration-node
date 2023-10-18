@@ -1534,7 +1534,7 @@ pub mod pallet {
 			ensure_root(origin.clone())?;
 
 			let asset_state = Self::load_asset_state(asset_id)?;
-			ensure!(amount >= asset_state.protocol_shares, Error::<T>::InsufficientShares);
+			ensure!(amount <= asset_state.protocol_shares, Error::<T>::InsufficientShares);
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 			let current_hub_asset_liquidity =
