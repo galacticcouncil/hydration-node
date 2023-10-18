@@ -116,6 +116,12 @@ pub mod pallet {
 		RouteCalculationFailed,
 	}
 
+	/// Storing routes for asset pairs
+	#[pallet::storage]
+	#[pallet::getter(fn route)]
+	pub type Routes<T: Config> =
+		StorageMap<_, Blake2_128Concat, (T::AssetId, T::AssetId), BoundedVec<Trade<T::AssetId>, ConstU32<5>>>; //TODO: consider making it config
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Executes a sell with a series of trades specified in the route.
@@ -268,6 +274,23 @@ pub mod pallet {
 				amount_in: last_trade_amount.amount_in,
 				amount_out,
 			});
+
+			Ok(())
+		}
+
+		/// TODO: Add documentation
+		#[pallet::call_index(2)]
+		#[pallet::weight(T::WeightInfo::sell_weight(route))] //TODO: adjust weight
+		#[transactional]
+		pub fn set_route(
+			origin: OriginFor<T>,
+			asset_pair: (T::AssetId, T::AssetId),
+			route: BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
+		) -> DispatchResult {
+			//let who = ensure_signed(origin.clone())?;
+			//Self::ensure_route_size(route.len())?;
+
+			Routes::<T>::insert(asset_pair, route);
 
 			Ok(())
 		}

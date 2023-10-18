@@ -157,12 +157,14 @@ pub type AccountId = u64;
 pub const ALICE: AccountId = 1;
 pub const ASSET_PAIR_ACCOUNT: AccountId = 2;
 
+pub const HDX: AssetId = 0;
 pub const BSX: AssetId = 1000;
 pub const AUSD: AssetId = 1001;
 pub const MOVR: AssetId = 1002;
 pub const KSM: AssetId = 1003;
 pub const RMRK: AssetId = 1004;
 pub const SDN: AssetId = 1005;
+pub const STABLE_SHARE_ASSET: AssetId = 1006;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
 
