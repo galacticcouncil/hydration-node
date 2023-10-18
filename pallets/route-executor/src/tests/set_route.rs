@@ -17,6 +17,7 @@
 
 use crate::tests::create_bounded_vec;
 use crate::tests::mock::*;
+use crate::Error::RouteHasNoTrades;
 use crate::{Error, Event, Trade};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::router::PoolType;
@@ -55,6 +56,65 @@ fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
 	});
 }
 
-//TODO
-//- can not be set with empty route
-//- check for origin
+#[test]
+fn set_route_should_fail_when_called_by_unsigned() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = (HDX, AUSD);
+		let route = create_bounded_vec(vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: STABLE_SHARE_ASSET,
+			},
+			Trade {
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
+			},
+		]);
+
+		//Act and assert
+		assert_noop!(
+			Router::set_route(RuntimeOrigin::none(), asset_pair, route.clone()),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
+fn set_route_should_fail_when_called_with_empty_route() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = (HDX, AUSD);
+		let empty_route = create_bounded_vec(vec![]);
+
+		//Act and assert
+		assert_noop!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, empty_route.clone()),
+			Error::<Test>::RouteHasNoTrades
+		);
+	});
+}
+
+#[test]
+fn set_route_should_fail_when_called_with_too_long_route() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = (HDX, AUSD);
+
+		let trades = [Trade {
+			pool: PoolType::XYK,
+			asset_in: BSX,
+			asset_out: AUSD,
+		}; 4];
+
+		let empty_route = create_bounded_vec(trades.to_vec());
+
+		//Act and assert
+		assert_noop!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, empty_route.clone()),
+			Error::<Test>::MaxTradesExceeded
+		);
+	});
+}

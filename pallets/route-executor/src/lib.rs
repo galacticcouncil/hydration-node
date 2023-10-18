@@ -280,15 +280,15 @@ pub mod pallet {
 
 		/// TODO: Add documentation
 		#[pallet::call_index(2)]
-		#[pallet::weight(T::WeightInfo::sell_weight(route))] //TODO: adjust weight
+		#[pallet::weight(T::WeightInfo::sell_weight(route))] //TODO: add proper weight
 		#[transactional]
 		pub fn set_route(
 			origin: OriginFor<T>,
 			asset_pair: (T::AssetId, T::AssetId),
 			route: BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
 		) -> DispatchResult {
-			//let who = ensure_signed(origin.clone())?;
-			//Self::ensure_route_size(route.len())?;
+			let _ = ensure_signed(origin.clone())?;
+			Self::ensure_route_size(route.len())?;
 
 			Routes::<T>::insert(asset_pair, route);
 
