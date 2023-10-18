@@ -79,7 +79,6 @@ std = [
   "hydradx-traits/std",
   "hydradx-adapters/std",
   "pallet-relaychain-info/std",
-  "orml-tokens/std",
   "pallet-omnipool/std",
   "pallet-ema-oracle/std",
 ]

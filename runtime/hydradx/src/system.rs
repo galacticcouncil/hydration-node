@@ -30,14 +30,13 @@ use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
 	sp_runtime::{traits::{ConstU32, IdentityLookup}, RuntimeDebug, FixedPointNumber, Perbill, Perquintill},
-	traits::{Contains, InstanceFilter},
+	traits::{Contains, ConstBool, InstanceFilter},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 	PalletId,
 };
-use frame_support::traits::ConstBool;
 use hydradx_adapters::RelayChainBlockNumberProvider;
 use scale_info::TypeInfo;
 
@@ -215,7 +214,6 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 
 parameter_types! {
 	pub const MaxAuthorities: u32 = 50;
-	pub const AllowMultipleBlocksPerSlot: bool = false;
 }
 
 impl pallet_aura::Config for Runtime {
