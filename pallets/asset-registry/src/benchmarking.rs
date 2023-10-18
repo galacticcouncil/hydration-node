@@ -34,9 +34,9 @@ benchmarks! {
 
 	register {
 		let asset_id= T::AssetId::from(3);
-		let name = b"Test name".to_vec();
+        let name = vec![97u8; T::StringLimit::get() as usize];
 		let ed = 1_000_000_u128;
-		let symbol = b"TKN".to_vec();
+		let symbol = vec![97u8; T::StringLimit::get() as usize];
 		let decimals = 12_u8;
 		let location: T::AssetNativeLocation = Default::default();
 		let xcm_rate_limit = 1_000_u128;
@@ -52,9 +52,9 @@ benchmarks! {
 
 	update {
 		let asset_id = T::AssetId::from(3);
-		let name = b"Test name".to_vec();
+		let name = vec![97u8; T::StringLimit::get() as usize];
 		let ed = 1_000_000_u128;
-		let symbol = b"TKN".to_vec();
+		let symbol = vec![97u8; T::StringLimit::get() as usize];
 		let decimals = 12_u8;
 		let location: T::AssetNativeLocation = Default::default();
 		let xcm_rate_limit = 1_000_u128;
@@ -62,12 +62,12 @@ benchmarks! {
 
 		let _ = Pallet::<T>::register(RawOrigin::Root.into(), Some(asset_id), Some(name), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient);
 
-		let new_name= b"New name".to_vec();
+		let new_name= vec![98u8; T::StringLimit::get() as usize];
 		let new_type = AssetType::PoolShare(T::AssetId::from(10u8),T::AssetId::from(20u8));
 		let new_ed = 1_000_000_u128;
 		let new_xcm_rate_limit = 1_000_u128;
 		let new_is_sufficient = false;
-		let new_symbol = b"TKNn".to_vec();
+		let new_symbol = vec![98u8; T::StringLimit::get() as usize];
 		let new_decimals = 12_u8;
 
 
