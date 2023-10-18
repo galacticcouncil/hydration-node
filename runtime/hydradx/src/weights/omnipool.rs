@@ -404,7 +404,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(15 as u64))
 	}
 
-	fn force_withdraw_position() -> Weight {
+	fn remove_token() -> Weight {
 		Weight::zero()
 	}
 

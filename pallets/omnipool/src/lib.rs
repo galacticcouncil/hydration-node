@@ -252,6 +252,8 @@ pub mod pallet {
 			initial_amount: Balance,
 			initial_price: Price,
 		},
+		/// An asset was removed from Omnipool
+		TokenRemoved { asset_id: T::AssetId },
 		/// Liquidity of an asset was added to Omnipool.
 		LiquidityAdded {
 			who: T::AccountId,
@@ -397,12 +399,10 @@ pub mod pallet {
 		InvalidWithdrawalFee,
 		/// More than allowed amount of fee has been transferred.
 		FeeOverdraft,
-		///
-		SharesLeft,
-		///
-		OwnerNotFound,
-		///
-		PositionsLeft,
+		/// Token cannot be removed from Omnipool due to some shares are remaining owned by other users.
+		SharesRemaining,
+		/// Token cannot be removed from Omnipool because asset is not frozen.
+		AssetNotFrozen,
 	}
 
 	#[pallet::call]
@@ -627,7 +627,7 @@ pub mod pallet {
 			};
 			T::OmnipoolHooks::on_liquidity_changed(
 				origin,
-				AssetInfo::new(asset, &AssetReserveState::default(), &reserve_state, &changes),
+				AssetInfo::new(asset, &AssetReserveState::default(), &reserve_state, &changes, false),
 			)?;
 
 			<Assets<T>>::insert(asset, state);
@@ -771,7 +771,7 @@ pub mod pallet {
 
 			// Callback hook info
 			let info: AssetInfo<T::AssetId, Balance> =
-				AssetInfo::new(asset, &asset_state, &new_asset_state, &state_changes.asset);
+				AssetInfo::new(asset, &asset_state, &new_asset_state, &state_changes.asset, false);
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
@@ -840,30 +840,32 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
-			T::PriceBarrier::ensure_price(
-				&who,
-				T::HubAssetId::get(),
-				asset_id,
-				EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
-			)
-			.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
-
-			let current_imbalance = <HubAssetImbalance<T>>::get();
-			let current_hub_asset_liquidity =
-				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-
+			let safe_withdrawal = asset_state.tradable.is_safe_withdrawal();
+			// Skip price check if safe withdrawal - trading disabled.
+			if !safe_withdrawal {
+				T::PriceBarrier::ensure_price(
+					&who,
+					T::HubAssetId::get(),
+					asset_id,
+					EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
+				)
+				.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
+			}
 			let ext_asset_price = T::ExternalPriceOracle::get_price(T::HubAssetId::get(), asset_id)?;
 
 			if ext_asset_price.is_zero() {
 				return Err(Error::<T>::InvalidOraclePrice.into());
 			}
-
 			let withdrawal_fee = hydra_dx_math::omnipool::calculate_withdrawal_fee(
 				asset_state.price().ok_or(ArithmeticError::DivisionByZero)?,
 				FixedU128::checked_from_rational(ext_asset_price.n, ext_asset_price.d)
 					.defensive_ok_or(Error::<T>::InvalidOraclePrice)?,
 				T::MinWithdrawalFee::get(),
 			);
+
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
 			//
 			// calculate state changes of remove liquidity
@@ -897,7 +899,6 @@ pub mod pallet {
 			//
 			// Post - update states
 			//
-
 			T::Currency::transfer(
 				asset_id,
 				&Self::protocol_account(),
@@ -945,8 +946,13 @@ pub mod pallet {
 			}
 
 			// Callback hook info
-			let info: AssetInfo<T::AssetId, Balance> =
-				AssetInfo::new(asset_id, &asset_state, &new_asset_state, &state_changes.asset);
+			let info: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				asset_id,
+				&asset_state,
+				&new_asset_state,
+				&state_changes.asset,
+				safe_withdrawal,
+			);
 
 			Self::set_asset_state(asset_id, new_asset_state);
 
@@ -1158,14 +1164,20 @@ pub mod pallet {
 			};
 
 			// Callback hook info
-			let info_in: AssetInfo<T::AssetId, Balance> =
-				AssetInfo::new(asset_in, &asset_in_state, &new_asset_in_state, &state_changes.asset_in);
+			let info_in: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				asset_in,
+				&asset_in_state,
+				&new_asset_in_state,
+				&state_changes.asset_in,
+				false,
+			);
 
 			let info_out: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
 				asset_out,
 				&asset_out_state,
 				&new_asset_out_state,
 				&state_changes.asset_out,
+				false,
 			);
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
@@ -1344,14 +1356,20 @@ pub mod pallet {
 			};
 
 			// Callback hook info
-			let info_in: AssetInfo<T::AssetId, Balance> =
-				AssetInfo::new(asset_in, &asset_in_state, &new_asset_in_state, &state_changes.asset_in);
+			let info_in: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				asset_in,
+				&asset_in_state,
+				&new_asset_in_state,
+				&state_changes.asset_in,
+				false,
+			);
 
 			let info_out: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
 				asset_out,
 				&asset_out_state,
 				&new_asset_out_state,
 				&state_changes.asset_out,
+				false,
 			);
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
@@ -1504,104 +1522,6 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(<T as Config>::WeightInfo::force_withdraw_position())]
-		#[transactional]
-		pub fn force_withdraw_position(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
-			ensure_root(origin.clone())?;
-
-			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
-
-			let owner =
-				T::NFTHandler::owner(&T::NFTCollectionId::get(), &position_id).ok_or(Error::<T>::OwnerNotFound)?;
-
-			let asset_id = position.asset_id;
-			let asset_state = Self::load_asset_state(asset_id)?;
-			let current_imbalance = <HubAssetImbalance<T>>::get();
-			let current_hub_asset_liquidity =
-				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-
-			let amount = position.shares;
-
-			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
-				&(&asset_state).into(),
-				amount,
-				&(&position).into(),
-				I129 {
-					value: current_imbalance.value,
-					negative: current_imbalance.negative,
-				},
-				current_hub_asset_liquidity,
-				FixedU128::zero(),
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-			let new_asset_state = asset_state
-				.clone()
-				.delta_update(&state_changes.asset)
-				.ok_or(ArithmeticError::Overflow)?;
-
-			// Update position state
-			let updated_position = position
-				.delta_update(
-					&state_changes.delta_position_reserve,
-					&state_changes.delta_position_shares,
-				)
-				.ok_or(ArithmeticError::Overflow)?;
-
-			/*
-			T::Currency::transfer(
-				asset_id,
-				&Self::protocol_account(),
-				&owner,
-				*state_changes.asset.delta_reserve,
-			)?;
-
-			 */
-
-			Self::update_imbalance(state_changes.delta_imbalance)?;
-
-			// burn only difference between delta hub and lp hub amount.
-			Self::update_hub_asset_liquidity(
-				&state_changes
-					.asset
-					.delta_hub_reserve
-					.merge(BalanceUpdate::Increase(state_changes.lp_hub_amount))
-					.ok_or(ArithmeticError::Overflow)?,
-			)?;
-
-			// LP receives some hub asset
-			Self::process_hub_amount(state_changes.lp_hub_amount, &owner)?;
-
-			ensure!(updated_position.shares == Balance::zero(), Error::<T>::SharesLeft);
-
-			<Positions<T>>::remove(position_id);
-			T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&owner))?;
-
-			Self::deposit_event(Event::PositionDestroyed {
-				position_id,
-				owner: owner.clone(),
-			});
-
-			// Callback hook info
-			let info: AssetInfo<T::AssetId, Balance> =
-				AssetInfo::new(asset_id, &asset_state, &new_asset_state, &state_changes.asset);
-
-			Self::set_asset_state(asset_id, new_asset_state);
-
-			Self::deposit_event(Event::LiquidityRemoved {
-				who: owner,
-				position_id,
-				asset_id,
-				shares_removed: amount,
-				fee: FixedU128::zero(),
-			});
-
-			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
-
-			Ok(())
-		}
-
-		#[pallet::call_index(12)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw_protocol_liquidity())]
 		#[transactional]
 		pub fn withdraw_protocol_liquidity(
@@ -1673,7 +1593,7 @@ pub mod pallet {
 
 			// Callback hook info
 			let info: AssetInfo<T::AssetId, Balance> =
-				AssetInfo::new(asset_id, &asset_state, &new_asset_state, &state_changes.asset);
+				AssetInfo::new(asset_id, &asset_state, &new_asset_state, &state_changes.asset, true);
 
 			Self::set_asset_state(asset_id, new_asset_state);
 
@@ -1685,6 +1605,35 @@ pub mod pallet {
 			});
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
+			Ok(())
+		}
+
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_token())]
+		#[transactional]
+		pub fn remove_token(origin: OriginFor<T>, asset_id: T::AssetId, beneficiary: T::AccountId) -> DispatchResult {
+			ensure_root(origin)?;
+			let asset_state = Self::load_asset_state(asset_id)?;
+
+			// Allow only if no shares owned by LPs and asset is frozen.
+			ensure!(asset_state.shares == Balance::zero(), Error::<T>::SharesRemaining);
+			ensure!(asset_state.tradable == Tradability::FROZEN, Error::<T>::AssetNotFrozen);
+
+			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), asset_state.hub_reserve)?;
+
+			/*
+			T::Currency::transfer(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				&beneficiary,
+				asset_state.hub_reserve,
+			)?;
+
+			 */
+			T::Currency::transfer(asset_id, &Self::protocol_account(), &beneficiary, asset_state.reserve)?;
+			<Assets<T>>::remove(asset_id);
+
+			Self::deposit_event(Event::TokenRemoved { asset_id });
 			Ok(())
 		}
 	}
@@ -1775,8 +1724,13 @@ impl<T: Config> Pallet<T> {
 				..Default::default()
 			};
 
-			let info: AssetInfo<T::AssetId, Balance> =
-				AssetInfo::new(T::HdxAssetId::get(), &hdx_state, &updated_hdx_state, &delta_changes);
+			let info: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				T::HdxAssetId::get(),
+				&hdx_state,
+				&updated_hdx_state,
+				&delta_changes,
+				false,
+			);
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 		}
@@ -1905,8 +1859,13 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_reserve,
 		)?;
 
-		let info: AssetInfo<T::AssetId, Balance> =
-			AssetInfo::new(asset_out, &asset_state, &new_asset_out_state, &state_changes.asset);
+		let info: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+			asset_out,
+			&asset_state,
+			&new_asset_out_state,
+			&state_changes.asset,
+			false,
+		);
 
 		Self::update_imbalance(state_changes.delta_imbalance)?;
 
@@ -2006,8 +1965,13 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_reserve,
 		)?;
 
-		let info: AssetInfo<T::AssetId, Balance> =
-			AssetInfo::new(asset_out, &asset_state, &new_asset_out_state, &state_changes.asset);
+		let info: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+			asset_out,
+			&asset_state,
+			&new_asset_out_state,
+			&state_changes.asset,
+			false,
+		);
 
 		Self::update_imbalance(state_changes.delta_imbalance)?;
 
@@ -2142,13 +2106,8 @@ impl<T: Config> Pallet<T> {
 		if amount > Balance::zero() {
 			if amount < 400_000_000u128 {
 				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-			}else{
-				T::Currency::transfer(
-					T::HubAssetId::get(),
-					&Self::protocol_account(),
-					dest,
-					amount,
-				)?;
+			} else {
+				T::Currency::transfer(T::HubAssetId::get(), &Self::protocol_account(), dest, amount)?;
 			}
 		}
 		Ok(())

@@ -607,7 +607,7 @@ fn remove_liquidity_should_apply_correct_fee_when_price_is_different() {
 }
 
 #[test]
-fn force_withdraw_position_should_work_correctly() {
+fn safe_withdrawal_should_work_correctly_when_trading_is_disabled() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -621,40 +621,45 @@ fn force_withdraw_position_should_work_correctly() {
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
-
 			let current_position_id = <NextPositionId<Test>>::get();
-
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
-			assert_balance!(LP1, 1_000, 4600 * ONE);
-
-			assert_ok!(Omnipool::force_withdraw_position(
+			assert_ok!(Omnipool::set_asset_tradable_state(
 				RuntimeOrigin::root(),
+				1_000,
+				Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
+			));
+
+			let position = Positions::<Test>::get(current_position_id).unwrap();
+
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP1),
 				current_position_id,
+				position.shares,
 			));
 
 			assert_asset_state!(
 				1_000,
 				AssetReserveState {
-					reserve: 2000000000000000,
-					hub_reserve: 1300000000000000,
+					reserve: 2004000000000000,
+					hub_reserve: 1302600000000000,
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
-					tradable: Tradability::default(),
+					tradable: Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
 				}
 			);
 
 			let position = Positions::<Test>::get(current_position_id);
 			assert!(position.is_none());
 
-			assert_balance!(LP1, 1_000, 5000000000000000);
+			assert_balance!(LP1, 1_000, 4996000000000000);
 			assert_balance!(LP1, LRNA, 0);
 		});
 }
 
 #[test]
-fn force_withdraw_position_should_transfer_lrna() {
+fn safe_withdrawal_should_transfer_lrna() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -681,17 +686,25 @@ fn force_withdraw_position_should_transfer_lrna() {
 				200 * ONE,
 				500000 * ONE
 			));
-
-			assert_ok!(Omnipool::force_withdraw_position(
+			assert_ok!(Omnipool::set_asset_tradable_state(
 				RuntimeOrigin::root(),
+				1_000,
+				Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
+			));
+
+			let position = Positions::<Test>::get(current_position_id).unwrap();
+
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP1),
 				current_position_id,
+				position.shares,
 			));
 
 			let position = Positions::<Test>::get(current_position_id);
 			assert!(position.is_none());
 
-			assert_balance!(LP1, 1_000, 4966666666666666);
-			assert_balance!(LP1, LRNA, 24617495711835);
+			assert_balance!(LP1, 1_000, 4962999999999999);
+			assert_balance!(LP1, LRNA, 24371320754716);
 		});
 }
 
@@ -711,17 +724,13 @@ fn withdraw_protocol_liquidity_should_work_correctly() {
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
-
 			let current_position_id = <NextPositionId<Test>>::get();
-
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
-
 			let position = Positions::<Test>::get(current_position_id).unwrap();
 			assert_ok!(Omnipool::sacrifice_position(
 				RuntimeOrigin::signed(LP1),
 				current_position_id
 			));
-
 			assert_asset_state!(
 				1_000,
 				AssetReserveState {
@@ -741,10 +750,6 @@ fn withdraw_protocol_liquidity_should_work_correctly() {
 				position.price,
 				1234,
 			));
-
-			let position = Positions::<Test>::get(current_position_id);
-			assert!(position.is_none());
-
 			assert_balance!(1234, 1_000, 400 * ONE);
 			assert_balance!(1234, LRNA, 0);
 			assert_asset_state!(
@@ -832,5 +837,73 @@ fn withdraw_protocol_liquidity_should_transfer_lrna_when_price_is_different() {
 					tradable: Tradability::default(),
 				}
 			);
+		});
+}
+
+#[test]
+fn remove_liquidity_should_skip_price_check_when_price_is_higher_and_is_safe_to_withdraw() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_max_allowed_price_difference(Permill::from_percent(1))
+		.build()
+		.execute_with(|| {
+			let current_position_id = <NextPositionId<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE));
+
+			EXT_PRICE_ADJUSTMENT.with(|v| {
+				*v.borrow_mut() = (3, 100, false);
+			});
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				1_000,
+				Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
+			));
+
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP1),
+				current_position_id,
+				200 * ONE,
+			),);
+		});
+}
+
+#[test]
+fn remove_liquidity_should_skip_price_check_when_price_is_lower_and_is_safe_to_withdraw() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_max_allowed_price_difference(Permill::from_percent(1))
+		.build()
+		.execute_with(|| {
+			let current_position_id = <NextPositionId<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE));
+
+			EXT_PRICE_ADJUSTMENT.with(|v| {
+				*v.borrow_mut() = (3, 100, true);
+			});
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				1_000,
+				Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
+			));
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP1),
+				current_position_id,
+				200 * ONE,
+			),);
 		});
 }

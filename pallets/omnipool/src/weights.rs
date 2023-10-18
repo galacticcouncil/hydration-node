@@ -60,8 +60,8 @@ pub trait WeightInfo {
 	fn set_asset_weight_cap() -> Weight;
 	fn router_execution_sell(c: u32, e: u32) -> Weight;
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
-	fn force_withdraw_position() -> Weight;
 	fn withdraw_protocol_liquidity() -> Weight;
+	fn remove_token() -> Weight;
 }
 
 /// Weights for pallet_omnipool using the hydraDX node and recommended hardware.
@@ -420,7 +420,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(15 as u64))
 	}
 
-	fn force_withdraw_position() -> Weight {
+	fn remove_token() -> Weight {
 		Weight::zero()
 	}
 
@@ -782,7 +782,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(24 as u64))
 			.saturating_add(RocksDbWeight::get().writes(15 as u64))
 	}
-	fn force_withdraw_position() -> Weight {
+	fn remove_token() -> Weight {
 		Weight::zero()
 	}
 
