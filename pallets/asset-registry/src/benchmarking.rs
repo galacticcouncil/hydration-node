@@ -23,6 +23,7 @@ use crate::types::AssetDetails;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use orml_traits::MultiCurrencyExtended;
+use sp_std::vec;
 
 const UNIT: u128 = 1_000_000_000_000;
 
@@ -34,7 +35,7 @@ benchmarks! {
 
 	register {
 		let asset_id= T::AssetId::from(3);
-        let name = vec![97u8; T::StringLimit::get() as usize];
+		let name = vec![97u8; T::StringLimit::get() as usize];
 		let ed = 1_000_000_u128;
 		let symbol = vec![97u8; T::StringLimit::get() as usize];
 		let decimals = 12_u8;

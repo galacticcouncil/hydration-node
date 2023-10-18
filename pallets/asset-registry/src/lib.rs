@@ -462,7 +462,8 @@ pub mod pallet {
 			})
 		}
 
-		#[pallet::call_index(3)]
+		//NOTE: call indices 2 and 3 were used by removed extrinsics. 
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_external())]
 		pub fn register_external(origin: OriginFor<T>, location: T::AssetNativeLocation) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -498,8 +499,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Convert Vec<u8> to BoundedVec so it respects the max set limit, otherwise return TooLong error
-	//TODO: remove pub
-	pub fn try_into_bounded(name: Option<Vec<u8>>) -> Result<Option<BoundedVec<u8, T::StringLimit>>, Error<T>> {
+	fn try_into_bounded(name: Option<Vec<u8>>) -> Result<Option<BoundedVec<u8, T::StringLimit>>, Error<T>> {
 		if let Some(name) = name {
 			TryInto::<BoundedVec<u8, T::StringLimit>>::try_into(name)
 				.map_err(|_| Error::<T>::TooLong)
