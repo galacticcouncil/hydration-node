@@ -48,16 +48,16 @@ fn update_should_work_when_asset_exists() {
 			));
 
 			//Assert
-			let bounded_name = Pallet::<Test>::to_bounded_name(name).unwrap();
-			let bounded_symbol = Pallet::<Test>::to_bounded_name(symbol).unwrap();
+			let bounded_name = Pallet::<Test>::try_into_bounded(Some(name)).unwrap();
+			let bounded_symbol = Pallet::<Test>::try_into_bounded(Some(symbol)).unwrap();
 			assert_eq!(
 				Registry::assets(asset_id),
 				Some(AssetDetails {
-					name: Some(bounded_name.clone()),
+					name: bounded_name.clone(),
 					asset_type: AssetType::External,
 					existential_deposit: ed,
 					xcm_rate_limit: Some(xcm_rate_limit),
-					symbol: Some(bounded_symbol.clone()),
+					symbol: bounded_symbol.clone(),
 					decimals: Some(decimals),
 					is_sufficient: false
 				})
@@ -67,18 +67,18 @@ fn update_should_work_when_asset_exists() {
 			assert_eq!(Registry::location_assets(asset_location.clone()), Some(asset_id));
 			assert_eq!(Registry::locations(asset_id), Some(asset_location));
 
-			let old_bounded_name = Pallet::<Test>::to_bounded_name(old_asset_name).unwrap();
-			assert_eq!(Registry::asset_ids(bounded_name.clone()).unwrap(), asset_id);
-			assert!(Registry::asset_ids(old_bounded_name).is_none());
+			let old_bounded_name = Pallet::<Test>::try_into_bounded(Some(old_asset_name)).unwrap();
+			assert_eq!(Registry::asset_ids(bounded_name.clone().unwrap()).unwrap(), asset_id);
+			assert!(Registry::asset_ids(old_bounded_name.unwrap()).is_none());
 
 			assert_last_event!(Event::<Test>::Updated {
 				asset_id,
-				asset_name: Some(bounded_name),
+				asset_name: bounded_name,
 				asset_type: AssetType::External,
 				existential_deposit: ed,
 				xcm_rate_limit: Some(xcm_rate_limit),
 				decimals: Some(decimals),
-				symbol: Some(bounded_symbol),
+				symbol: bounded_symbol,
 				is_sufficient,
 			}
 			.into());
@@ -129,16 +129,16 @@ fn update_should_update_provided_params_when_values_was_previously_set() {
 		));
 
 		//Assert
-		let bounded_name = Pallet::<Test>::to_bounded_name(name).unwrap();
-		let bounded_symbol = Pallet::<Test>::to_bounded_name(symbol).unwrap();
+		let bounded_name = Pallet::<Test>::try_into_bounded(Some(name)).unwrap();
+		let bounded_symbol = Pallet::<Test>::try_into_bounded(Some(symbol)).unwrap();
 		assert_eq!(
 			Registry::assets(asset_id),
 			Some(AssetDetails {
-				name: Some(bounded_name.clone()),
+				name: bounded_name.clone(),
 				asset_type: AssetType::External,
 				existential_deposit: ed,
 				xcm_rate_limit: Some(xcm_rate_limit),
-				symbol: Some(bounded_symbol.clone()),
+				symbol: bounded_symbol.clone(),
 				decimals: Some(decimals),
 				is_sufficient: false
 			})
@@ -148,18 +148,18 @@ fn update_should_update_provided_params_when_values_was_previously_set() {
 		assert_eq!(Registry::location_assets(asset_location.clone()), Some(asset_id));
 		assert_eq!(Registry::locations(asset_id), Some(asset_location));
 
-		let old_bounded_name = Pallet::<Test>::to_bounded_name(old_asset_name).unwrap();
-		assert_eq!(Registry::asset_ids(bounded_name.clone()).unwrap(), asset_id);
-		assert!(Registry::asset_ids(old_bounded_name).is_none());
+		let old_bounded_name = Pallet::<Test>::try_into_bounded(Some(old_asset_name)).unwrap();
+		assert_eq!(Registry::asset_ids(bounded_name.clone().unwrap()).unwrap(), asset_id);
+		assert!(Registry::asset_ids(old_bounded_name.unwrap()).is_none());
 
 		assert_last_event!(Event::<Test>::Updated {
 			asset_id,
-			asset_name: Some(bounded_name),
+			asset_name: bounded_name,
 			asset_type: AssetType::External,
 			existential_deposit: ed,
 			xcm_rate_limit: Some(xcm_rate_limit),
 			decimals: Some(decimals),
-			symbol: Some(bounded_symbol),
+			symbol: bounded_symbol,
 			is_sufficient,
 		}
 		.into());
@@ -202,8 +202,8 @@ fn update_should_not_change_values_when_param_is_none() {
 			//Assert
 			assert_eq!(Registry::assets(asset_id).unwrap(), details_0);
 
-			let old_bounded_name = Pallet::<Test>::to_bounded_name(b"Tkn2".to_vec()).unwrap();
-			assert_eq!(Registry::asset_ids(old_bounded_name).unwrap(), asset_id);
+			let old_bounded_name = Pallet::<Test>::try_into_bounded(Some(b"Tkn2".to_vec())).unwrap();
+			assert_eq!(Registry::asset_ids(old_bounded_name.unwrap()).unwrap(), asset_id);
 
 			//NOTE: location should't change
 			assert_eq!(Registry::location_assets(asset_location.clone()), Some(asset_id));
@@ -570,5 +570,48 @@ fn update_should_update_location_when_origin_is_registry_origin() {
 				}
 				.into()
 			));
+		});
+}
+
+#[test]
+fn update_should_not_work_when_name_is_same_as_old() {
+	let old_asset_name = b"Tkn2".to_vec();
+	ExtBuilder::default()
+		.with_assets(vec![
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
+			(Some(2), Some(old_asset_name.clone()), UNIT, None, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+		])
+		.build()
+		.execute_with(|| {
+			let asset_id = 2;
+			let name = old_asset_name.clone();
+			let ed = 10_000 * UNIT;
+			let xcm_rate_limit = 463;
+			let symbol = b"nTkn2".to_vec();
+			let decimals = 23;
+			let is_sufficient = false;
+
+			//Arrange
+			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
+			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
+			Pallet::<Test>::set_location(asset_id, asset_location).unwrap();
+
+			//Act
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					Some(name),
+					Some(AssetType::External),
+					Some(ed),
+					Some(xcm_rate_limit),
+					Some(is_sufficient),
+					Some(symbol),
+					Some(decimals),
+					None
+				),
+				Error::<Test>::AssetAlreadyRegistered
+			);
 		});
 }

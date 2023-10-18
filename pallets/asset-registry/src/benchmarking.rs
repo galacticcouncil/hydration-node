@@ -44,7 +44,7 @@ benchmarks! {
 
 	}: _(RawOrigin::Root, Some(asset_id), Some(name.clone()), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient)
 	verify {
-		let b_name = Pallet::<T>::to_bounded_name(name).unwrap();
+		let b_name = Pallet::<T>::try_into_bounded(Some(name)).unwrap().unwrap();
 		assert!(Pallet::<T>::asset_ids(b_name).is_some());
 
 		assert!(Pallet::<T>::assets(asset_id).is_some());
@@ -73,8 +73,8 @@ benchmarks! {
 
 	}: _(RawOrigin::Root, asset_id, Some(new_name.clone()), Some(new_type), Some(new_ed), Some(new_xcm_rate_limit), Some(new_is_sufficient), Some(new_symbol.clone()), Some(new_decimals), Some(Default::default()))
 	verify {
-		let b_name = Pallet::<T>::to_bounded_name(new_name).unwrap();
-		let b_symbol = Pallet::<T>::to_bounded_name(new_symbol).unwrap();
+		let b_name = Pallet::<T>::try_into_bounded(Some(new_name)).unwrap().unwrap();
+		let b_symbol = Pallet::<T>::try_into_bounded(Some(new_symbol)).unwrap().unwrap();
 
 		assert_eq!(Pallet::<T>::asset_ids(&b_name), Some(asset_id));
 

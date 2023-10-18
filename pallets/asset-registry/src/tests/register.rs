@@ -39,22 +39,22 @@ fn register_should_work_when_all_params_are_provided() {
 		));
 
 		//Assert
-		let bounded_name = Pallet::<Test>::to_bounded_name(name).unwrap();
-		let bounded_symbol = Pallet::<Test>::to_bounded_name(symbol).unwrap();
+		let bounded_name = Pallet::<Test>::try_into_bounded(Some(name)).unwrap();
+		let bounded_symbol = Pallet::<Test>::try_into_bounded(Some(symbol)).unwrap();
 		assert_eq!(
 			Registry::assets(asset_id),
 			Some(AssetDetails {
-				name: Some(bounded_name.clone()),
+				name: bounded_name.clone(),
 				asset_type: AssetType::Token,
 				existential_deposit: ed,
 				xcm_rate_limit: Some(xcm_rate_limit),
-				symbol: Some(bounded_symbol.clone()),
+				symbol: bounded_symbol.clone(),
 				decimals: Some(decimals),
 				is_sufficient
 			})
 		);
 
-		assert_eq!(Registry::asset_ids(bounded_name.clone()), Some(asset_id));
+		assert_eq!(Registry::asset_ids(bounded_name.clone().unwrap()), Some(asset_id));
 
 		assert_eq!(Registry::location_assets(asset_location.clone()), Some(asset_id));
 		assert_eq!(Registry::locations(asset_id), Some(asset_location.clone()));
@@ -62,11 +62,11 @@ fn register_should_work_when_all_params_are_provided() {
 		assert!(has_event(
 			Event::<Test>::Registered {
 				asset_id,
-				asset_name: Some(bounded_name),
+				asset_name: bounded_name,
 				asset_type: AssetType::Token,
 				existential_deposit: ed,
 				xcm_rate_limit: Some(xcm_rate_limit),
-				symbol: Some(bounded_symbol),
+				symbol: bounded_symbol,
 				decimals: Some(decimals),
 				is_sufficient
 			}
