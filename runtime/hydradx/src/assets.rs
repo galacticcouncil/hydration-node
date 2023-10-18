@@ -662,7 +662,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 }
 
 parameter_types! {
-	pub const MaxNumberOfTrades: u8 = 3;
+	pub const MaxNumberOfTrades: u8 = 5;
 }
 
 impl pallet_route_executor::Config for Runtime {
