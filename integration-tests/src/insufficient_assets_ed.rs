@@ -1,13 +1,14 @@
 #![cfg(test)]
 
+use crate::assert_event_times;
 use crate::insufficient_assets_ed::v3::Junction::GeneralIndex;
 use crate::polkadot_test_net::*;
 use frame_support::{assert_noop, assert_ok, traits::Contains};
 use frame_system::RawOrigin;
 use hydradx_runtime::RuntimeOrigin as hydra_origin;
 use hydradx_runtime::{
-	AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX, MultiTransactionPayment, Tokens,
-	TreasuryAccount, SUFFICIENCY_LOCK,
+	AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX, MultiTransactionPayment,
+	RuntimeEvent, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
 };
 use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
@@ -56,8 +57,21 @@ fn sender_should_pay_ed_in_hdx_when_it_is_not_whitelisted() {
 			Currencies::free_balance(HDX, &TreasuryAccount::get()),
 			treasury_balance + InsufficientEDinHDX::get()
 		);
-
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: BOB.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
 	});
 }
 
@@ -96,6 +110,20 @@ fn reciever_should_pay_ed_in_hdx_when_insuficcient_asset_was_depositted() {
 		);
 
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: ALICE.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
 	});
 }
 
@@ -140,6 +168,20 @@ fn hdx_ed_should_be_released_when_account_is_killed_and_ed_was_paid_in_hdx() {
 		);
 
 		assert_eq!(treasury_suffyciency_lock(), 0);
+
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			0_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: ALICE.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
 	});
 }
 
@@ -208,7 +250,22 @@ fn sender_should_pay_ed_only_when_dest_didnt_pay_yet() {
 		let ed_in_hdx: Balance = MultiTransactionPayment::price(fee_asset)
 			.unwrap()
 			.saturating_mul_int(InsufficientEDinHDX::get());
-		assert_eq!(treasury_suffyciency_lock(), ed_in_hdx);
+
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: BOB.into(),
+				fee_asset,
+				amount: ed_in_hdx
+			}),
+			1
+		);
 	});
 }
 
@@ -258,10 +315,25 @@ fn dest_should_pay_ed_only_once_when_insufficient_asset_was_depsitted() {
 			Currencies::free_balance(fee_asset, &TreasuryAccount::get()),
 			treasury_fee_asset_balance
 		);
-		let ed_in_hdx: Balance = MultiTransactionPayment::price(fee_asset)
+		let ed_in_fee_asset: Balance = MultiTransactionPayment::price(fee_asset)
 			.unwrap()
 			.saturating_mul_int(InsufficientEDinHDX::get());
-		assert_eq!(treasury_suffyciency_lock(), ed_in_hdx);
+
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: ALICE.into(),
+				fee_asset,
+				amount: ed_in_fee_asset
+			}),
+			1
+		);
 	});
 }
 
@@ -330,7 +402,22 @@ fn hdx_ed_should_be_released_when_account_is_killed_and_ed_was_paid_in_fee_asset
 			Currencies::free_balance(fee_asset, &TreasuryAccount::get()),
 			treasury_fee_asset_balance
 		);
+
 		assert_eq!(treasury_suffyciency_lock(), 0);
+
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			0_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: ALICE.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
 	});
 }
 
@@ -403,7 +490,7 @@ fn sender_should_pay_ed_in_fee_asset_when_sending_insufficient_asset() {
 		));
 
 		//Assert
-		let ed_in_hdx: Balance = MultiTransactionPayment::price(fee_asset)
+		let ed_in_fee_asset: Balance = MultiTransactionPayment::price(fee_asset)
 			.unwrap()
 			.saturating_mul_int(InsufficientEDinHDX::get());
 		assert_eq!(Currencies::free_balance(HDX, &ALICE.into()), alice_hdx_balance);
@@ -414,7 +501,7 @@ fn sender_should_pay_ed_in_fee_asset_when_sending_insufficient_asset() {
 		);
 		assert_eq!(
 			Currencies::free_balance(fee_asset, &BOB.into()),
-			bob_fee_asset_balance - ed_in_hdx
+			bob_fee_asset_balance - ed_in_fee_asset
 		);
 
 		assert_eq!(
@@ -423,9 +510,24 @@ fn sender_should_pay_ed_in_fee_asset_when_sending_insufficient_asset() {
 		);
 		assert_eq!(
 			Currencies::free_balance(fee_asset, &TreasuryAccount::get()),
-			treasury_fee_asset_balance + ed_in_hdx
+			treasury_fee_asset_balance + ed_in_fee_asset
 		);
-		assert_eq!(treasury_suffyciency_lock(), ed_in_hdx);
+
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: BOB.into(),
+				fee_asset,
+				amount: ed_in_fee_asset
+			}),
+			1
+		);
 	});
 }
 
@@ -439,6 +541,10 @@ fn grandfathered_account_should_receive_hdx_when_account_is_killed() {
 		let dummy: AssetId = 1_000_001;
 
 		assert_ok!(Tokens::deposit(dummy, &ALICE.into(), 1_000_000 * UNITS));
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
 
 		let grandfathered_balance = Currencies::free_balance(HDX, &GRANDFATHERED_UNPAID_ED.into());
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
@@ -465,6 +571,19 @@ fn grandfathered_account_should_receive_hdx_when_account_is_killed() {
 
 		//NOTE: this is zero because Alice paid ED and it was paid to grandfathered
 		assert_eq!(treasury_suffyciency_lock(), 0);
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			0_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: ALICE.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
 	});
 }
 
@@ -476,13 +595,17 @@ fn ed_should_not_be_collected_when_transfering_or_depositing_sufficient_assets()
 		let sufficient_asset = DAI;
 
 		//This pays ED.
-		assert_ok!(Tokens::deposit(sht1, &BOB.into(), 100_000_000 * UNITS,));
+		assert_ok!(Tokens::deposit(sht1, &BOB.into(), 100_000_000 * UNITS));
 
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let alice_sufficient_asset_balance = Currencies::free_balance(DAI, &ALICE.into());
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
 
 		//Act 1 - transfer
 		assert_ok!(Tokens::transfer(
@@ -504,6 +627,10 @@ fn ed_should_not_be_collected_when_transfering_or_depositing_sufficient_assets()
 			treasury_hdx_balance
 		);
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
 
 		//Arrange 2
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
@@ -525,6 +652,19 @@ fn ed_should_not_be_collected_when_transfering_or_depositing_sufficient_assets()
 			treasury_hdx_balance
 		);
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: BOB.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
 	});
 }
 
@@ -532,13 +672,25 @@ fn ed_should_not_be_collected_when_transfering_or_depositing_sufficient_assets()
 fn ed_should_not_be_released_when_sufficient_asset_killed_account() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		let sht1: AssetId = register_shitcoin(0_u128);
 		let sufficient_asset = DAI;
+
+		//This pays ED.
+		assert_ok!(Tokens::deposit(sht1, &BOB.into(), 100_000_000 * UNITS));
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
 
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let alice_sufficient_asset_balance = Currencies::free_balance(DAI, &ALICE.into());
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 
-		assert_eq!(treasury_suffyciency_lock(), 0);
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
 
 		//Act
 		assert_ok!(Tokens::transfer(
@@ -562,7 +714,20 @@ fn ed_should_not_be_released_when_sufficient_asset_killed_account() {
 			Currencies::free_balance(HDX, &TreasuryAccount::get()),
 			treasury_hdx_balance
 		);
-		assert_eq!(treasury_suffyciency_lock(), 0);
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: BOB.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
 	});
 }
 
@@ -647,6 +812,28 @@ fn ed_should_be_collected_for_each_insufficient_asset_when_transfered_or_deposit
 			treasury_hdx_balance + InsufficientEDinHDX::get() * 4
 		);
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get() * 4);
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			4_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: BOB.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			3
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: ALICE.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
 	});
 }
 
@@ -670,6 +857,15 @@ fn ed_should_be_released_for_each_insufficient_asset_when_account_is_killed() {
 		assert_ok!(Tokens::deposit(sht3, &ALICE.into(), 10_000 * UNITS));
 		assert_ok!(Tokens::deposit(sht4, &ALICE.into(), 10_000 * UNITS));
 
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: ALICE.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			4
+		);
+
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get() * 4);
@@ -692,6 +888,10 @@ fn ed_should_be_released_for_each_insufficient_asset_when_account_is_killed() {
 			treasury_hdx_balance - InsufficientEDinHDX::get()
 		);
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get() * 3);
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			3_u128
+		);
 
 		//Act 2
 		assert_ok!(Tokens::transfer(
@@ -711,6 +911,10 @@ fn ed_should_be_released_for_each_insufficient_asset_when_account_is_killed() {
 			treasury_hdx_balance - InsufficientEDinHDX::get() * 2
 		);
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get() * 2);
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			2_u128
+		);
 
 		//Act 3
 		assert_ok!(Tokens::transfer(
@@ -730,6 +934,10 @@ fn ed_should_be_released_for_each_insufficient_asset_when_account_is_killed() {
 			treasury_hdx_balance - InsufficientEDinHDX::get() * 3
 		);
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
 
 		//Act 4
 		assert_ok!(Tokens::transfer(
@@ -749,6 +957,10 @@ fn ed_should_be_released_for_each_insufficient_asset_when_account_is_killed() {
 			treasury_hdx_balance - InsufficientEDinHDX::get() * 4
 		);
 		assert_eq!(treasury_suffyciency_lock(), 0);
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			0_u128
+		);
 	});
 }
 
@@ -785,9 +997,22 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 			0
 		));
 
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: ALICE.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			2
+		);
+
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get() * 2);
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			2_u128
+		);
 
 		//Act  1
 		assert_ok!(Tokens::transfer(
@@ -807,6 +1032,10 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 			treasury_hdx_balance - InsufficientEDinHDX::get()
 		);
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
 
 		//Arrange 2
 		let alice_dai_balance = Currencies::free_balance(DAI, &ALICE.into());
@@ -828,6 +1057,10 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 			treasury_hdx_balance
 		);
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
 
 		//Arrange 3
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
@@ -851,12 +1084,16 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 			treasury_hdx_balance - InsufficientEDinHDX::get()
 		);
 		assert_eq!(treasury_suffyciency_lock(), 0);
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			0_u128
+		);
 
 		//Arrange 4
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 
-		//Act 4 - unlocking ED for account that doesn't paid ED
+		//Act 4
 		assert_ok!(Tokens::transfer(
 			hydra_origin::signed(ALICE.into()),
 			BOB.into(),
@@ -864,22 +1101,23 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 			10_000 * UNITS
 		));
 
-		//Assert 4
-		assert_eq!(
-			Currencies::free_balance(HDX, &ALICE.into()),
-			alice_hdx_balance + InsufficientEDinHDX::get()
-		);
+		//Assert 4 - we used set_balance, nobody paid for this ED so nothing can be unlocked.
+		assert_eq!(Currencies::free_balance(HDX, &ALICE.into()), alice_hdx_balance);
 		assert_eq!(
 			Currencies::free_balance(HDX, &TreasuryAccount::get()),
-			treasury_hdx_balance - InsufficientEDinHDX::get()
+			treasury_hdx_balance
 		);
 		assert_eq!(treasury_suffyciency_lock(), 0);
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			0_u128
+		);
 
 		//Arrange 5
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 
-		//Act 5 - unlocking ED for account that doesn't paid ED
+		//Act 5 - we used set_balance, nobody paid for this ED so nothing can be unlocked.
 		assert_ok!(Tokens::transfer(
 			hydra_origin::signed(ALICE.into()),
 			BOB.into(),
@@ -888,15 +1126,16 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 		));
 
 		//Assert 5
-		assert_eq!(
-			Currencies::free_balance(HDX, &ALICE.into()),
-			alice_hdx_balance + InsufficientEDinHDX::get()
-		);
+		assert_eq!(Currencies::free_balance(HDX, &ALICE.into()), alice_hdx_balance);
 		assert_eq!(
 			Currencies::free_balance(HDX, &TreasuryAccount::get()),
-			treasury_hdx_balance - InsufficientEDinHDX::get()
+			treasury_hdx_balance
 		);
 		assert_eq!(treasury_suffyciency_lock(), 0);
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			0_u128
+		);
 	});
 }
 
@@ -942,6 +1181,10 @@ fn sender_should_pay_ed_when_tranferred_or_deposited_to_whitelisted_dest() {
 		);
 		assert_eq!(Currencies::free_balance(sht1, &treasury), 10);
 		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
 
 		//Act 2
 		assert_ok!(Tokens::deposit(sht2, &treasury, 20));
@@ -955,6 +1198,27 @@ fn sender_should_pay_ed_when_tranferred_or_deposited_to_whitelisted_dest() {
 		assert_eq!(Currencies::free_balance(sht2, &treasury), 20);
 		//NOTE: treasury paid ED in hdx so hdx balance didn't changed but locked was increased.
 		assert_eq!(treasury_suffyciency_lock(), 2 * InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			2_u128
+		);
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: BOB.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: treasury.clone().into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
 	});
 }
 
@@ -969,23 +1233,36 @@ fn ed_should_be_released_when_whitelisted_account_was_killed() {
 			RawOrigin::Root.into(),
 			BOB.into(),
 			sht1,
-			1_000_000 * UNITS,
+			2_000_000 * UNITS,
 			0,
 		));
-		assert_ok!(Tokens::set_balance(
-			RawOrigin::Root.into(),
+
+		assert_ok!(Tokens::transfer(
+			hydra_origin::signed(BOB.into()),
 			treasury.clone().into(),
 			sht1,
-			1_000_000 * UNITS,
-			0,
+			1_000_000 * UNITS
 		));
+
+		assert_event_times!(
+			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+				who: BOB.into(),
+				fee_asset: HDX,
+				amount: InsufficientEDinHDX::get()
+			}),
+			1
+		);
 
 		assert!(DustRemovalWhitelist::contains(&treasury.clone().into()));
 		assert_eq!(MultiTransactionPayment::account_currency(&treasury), HDX);
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &treasury);
 
 		//NOTE: set_balance bypass mutation hooks so none was paid.
-		assert_eq!(treasury_suffyciency_lock(), 0);
+		assert_eq!(treasury_suffyciency_lock(), InsufficientEDinHDX::get());
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			1_u128
+		);
 
 		//Act 1
 		assert_ok!(Tokens::transfer(
@@ -1002,6 +1279,10 @@ fn ed_should_be_released_when_whitelisted_account_was_killed() {
 
 		//NOTE: bob already holds sht1 so it means additional ed is not necessary.
 		assert_eq!(treasury_suffyciency_lock(), 0);
+		assert_eq!(
+			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
+			0_u128
+		);
 
 		assert!(orml_tokens::Accounts::<hydradx_runtime::Runtime>::try_get(&treasury, sht1).is_err());
 	});
@@ -1072,4 +1353,38 @@ fn treasury_suffyciency_lock() -> Balance {
 		.find(|x| x.id == SUFFICIENCY_LOCK)
 		.map(|p| p.amount)
 		.unwrap_or_default()
+}
+
+/// Assert RuntimeEvent specified number of times.
+///
+/// Parameters:
+/// - `event`
+/// - `times` - number of times event should occure.
+#[macro_export]
+macro_rules! assert_event_times {
+	( $x:expr, $y: expr ) => {{
+		let mut found: u32 = 0;
+
+		let runtime_events: Vec<RuntimeEvent> = frame_system::Pallet::<hydradx_runtime::Runtime>::events()
+			.into_iter()
+			.map(|e| e.event)
+			.collect();
+
+		for evt in runtime_events {
+			if evt == $x {
+				found += 1;
+			}
+
+			if found > $y {
+				panic!("Event found more than: {:?} times.", $y);
+			}
+		}
+		if found != $y {
+			if found == 0 {
+				panic!("Event not found.");
+			}
+
+			panic!("Event found {:?} times, expected: {:?}", found, $y);
+		}
+	}};
 }

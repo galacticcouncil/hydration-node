@@ -187,6 +187,11 @@ pub mod pallet {
 	pub type LocationAssets<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetNativeLocation, T::AssetId, OptionQuery>;
 
+	#[pallet::storage]
+	/// Number of accounts that paid existential deposits for insufficient assets.
+	/// This storage is used by `SufficiencyCheck`.
+	pub type ExistentialDepositCounter<T: Config> = StorageValue<_, u128, ValueQuery>;
+
 	#[allow(clippy::type_complexity)]
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -274,8 +279,16 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	#[pallet::generate_deposit(pub fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// Existential deposit for insufficinet asset was paid.
+		/// `SufficiencyCheck` triggers this event.
+		ExistentialDepositPaid {
+			who: T::AccountId,
+			fee_asset: T::AssetId,
+			amount: Balance,
+		},
+
 		/// Asset was registered.
 		Registered {
 			asset_id: T::AssetId,
