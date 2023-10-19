@@ -385,7 +385,7 @@ pub mod pallet {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
-				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
+				let pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
 				pool.fee = fee;
 				Self::deposit_event(Event::FeeUpdated { pool_id, fee });
@@ -421,7 +421,7 @@ pub mod pallet {
 			);
 
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
-				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
+				let pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
 				let current_amplification = Self::get_amplification(pool);
 

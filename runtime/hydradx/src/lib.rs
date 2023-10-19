@@ -73,6 +73,10 @@ pub use pallet_claims;
 /// to even the core data structures.
 pub mod opaque {
 	use super::*;
+	use sp_runtime::{
+		generic,
+		traits::{BlakeTwo256, Hash as HashT},
+	};
 
 	pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
@@ -82,6 +86,8 @@ pub mod opaque {
 	pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 	/// Opaque block identifier type.
 	pub type BlockId = generic::BlockId<Block>;
+	/// Opaque block hash type.
+	pub type Hash = <BlakeTwo256 as HashT>::Output;
 	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub aura: Aura,

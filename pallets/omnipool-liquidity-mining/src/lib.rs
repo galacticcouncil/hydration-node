@@ -80,7 +80,6 @@ type PeriodOf<T> = BlockNumberFor<T>;
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);

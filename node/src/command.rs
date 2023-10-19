@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate::cli::{Cli, RelayChainCli, Subcommand};
-use crate::service::{new_partial, HydraDXExecutorDispatch};
+use crate::service::{new_partial, HydraDXNativeExecutor};
 use crate::{chain_spec, service};
 
 use codec::Encode;
@@ -136,28 +136,28 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>(&config)?;
+				let partials = new_partial(&config)?;
 				Ok((cmd.run(partials.client, partials.import_queue), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>(&config)?;
+				let partials = new_partial(&config)?;
 				Ok((cmd.run(partials.client, config.database), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>(&config)?;
+				let partials = new_partial(&config)?;
 				Ok((cmd.run(partials.client, config.chain_spec), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial::<hydradx_runtime::RuntimeApi, service::HydraDXExecutorDispatch>(&config)?;
+				let partials = new_partial(&config)?;
 				Ok((cmd.run(partials.client, partials.import_queue), partials.task_manager))
 			})
 		}
@@ -181,7 +181,7 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>(&config)?;
+				let partials = new_partial(&config)?;
 				Ok((cmd.run(partials.client, partials.backend, None), partials.task_manager))
 			})
 		}
@@ -193,7 +193,7 @@ pub fn run() -> sc_cli::Result<()> {
 					if cfg!(feature = "runtime-benchmarks") {
 						runner.sync_run(|config| cmd.run::<Block, ExtendedHostFunctions<
                                     sp_io::SubstrateHostFunctions,
-                                    <HydraDXExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
+                                    <HydraDXNativeExecutor as NativeExecutionDispatch>::ExtendHostFunctions,
                                 >>(config))
 					} else {
 						Err("Benchmarking wasn't enabled when building the node. \
@@ -202,10 +202,7 @@ pub fn run() -> sc_cli::Result<()> {
 					}
 				}
 				BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
-					let partials = crate::service::new_partial::<
-						hydradx_runtime::RuntimeApi,
-						service::HydraDXExecutorDispatch,
-					>(&config)?;
+					let partials = crate::service::new_partial(&config)?;
 					cmd.run(partials.client)
 				}),
 				#[cfg(not(feature = "runtime-benchmarks"))]
@@ -213,7 +210,7 @@ pub fn run() -> sc_cli::Result<()> {
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
 					let partials =
-						new_partial::<hydradx_runtime::RuntimeApi, service::HydraDXExecutorDispatch>(&config)?;
+						new_partial(&config)?;
 					let db = partials.backend.expose_db();
 					let storage = partials.backend.expose_storage();
 
@@ -287,7 +284,7 @@ pub fn run() -> sc_cli::Result<()> {
 				Ok((
 					cmd.run::<Block, ExtendedHostFunctions<
 						sp_io::SubstrateHostFunctions,
-						<service::HydraDXExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
+						<service::HydraDXNativeExecutor as NativeExecutionDispatch>::ExtendHostFunctions,
 					>>(),
 					task_manager,
 				))
@@ -304,6 +301,13 @@ pub fn run() -> sc_cli::Result<()> {
 				if cfg!(feature = "runtime-benchmarks") && config.role.is_authority() {
 					return Err("It is not allowed to run a collator node with the benchmarking runtime.".into());
 				};
+
+				let hwbench = (!cli.no_hardware_benchmarks)
+					.then_some(config.database.path().map(|database_path| {
+						let _ = std::fs::create_dir_all(database_path);
+						sc_sysinfo::gather_hwbench(Some(database_path))
+					}))
+					.flatten();
 
 				let polkadot_cli = RelayChainCli::new(
 					&config,
@@ -341,9 +345,9 @@ pub fn run() -> sc_cli::Result<()> {
 					if config.role.is_authority() { "yes" } else { "no" }
 				);
 
-				crate::service::start_node(config, polkadot_config, collator_options, id)
+				crate::service::start_node(config, polkadot_config, collator_options, id, hwbench)
 					.await
-					.map(|r| r.1)
+					.map(|r| r.0)
 					.map_err(Into::into)
 			})
 		}

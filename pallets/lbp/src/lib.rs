@@ -540,7 +540,7 @@ pub mod pallet {
 
 			<PoolData<T>>::try_mutate_exists(pool_id.clone(), |maybe_pool| -> DispatchResult {
 				// check existence of the pool
-				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
+				let pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
 				ensure!(
 					start.is_some()

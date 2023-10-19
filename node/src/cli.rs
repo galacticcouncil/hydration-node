@@ -32,6 +32,16 @@ pub struct Cli {
 	#[clap(flatten)]
 	pub run: RunCmd,
 
+	/// Disable automatic hardware benchmarks.
+	///
+	/// By default these benchmarks are automatically ran at startup and measure
+	/// the CPU speed, the memory bandwidth and the disk speed.
+	///
+	/// The results are then printed out in the logs, and also sent as part of
+	/// telemetry, if telemetry is enabled.
+	#[arg(long)]
+	pub no_hardware_benchmarks: bool,
+
 	/// Relaychain arguments
 	#[clap(raw = true)]
 	pub relaychain_args: Vec<String>,
