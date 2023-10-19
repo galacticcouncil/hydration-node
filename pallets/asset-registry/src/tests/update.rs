@@ -144,7 +144,7 @@ fn update_should_update_provided_params_when_values_was_previously_set() {
 			})
 		);
 
-		//NOTE: location should't change
+		//NOTE: location shouldn't change
 		assert_eq!(Registry::location_assets(asset_location.clone()), Some(asset_id));
 		assert_eq!(Registry::locations(asset_id), Some(asset_location));
 
@@ -205,7 +205,7 @@ fn update_should_not_change_values_when_param_is_none() {
 			let old_bounded_name = Pallet::<Test>::try_into_bounded(Some(b"Tkn2".to_vec())).unwrap();
 			assert_eq!(Registry::asset_ids(old_bounded_name.unwrap()).unwrap(), asset_id);
 
-			//NOTE: location should't change
+			//NOTE: location shouldn't change
 			assert_eq!(Registry::location_assets(asset_location.clone()), Some(asset_id));
 			assert_eq!(Registry::locations(asset_id), Some(asset_location));
 
@@ -517,6 +517,7 @@ fn update_should_update_location_when_origin_is_registry_origin() {
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
 
+			let details_0 = Registry::assets(asset_id).unwrap();
 			assert_ok!(Registry::update(
 				RuntimeOrigin::root(),
 				asset_id,
@@ -530,6 +531,7 @@ fn update_should_update_location_when_origin_is_registry_origin() {
 				Some(asset_location.clone()),
 			));
 
+			assert_eq!(Registry::assets(asset_id).unwrap(), details_0);
 			assert_eq!(Registry::location_assets(asset_location.clone()), Some(asset_id));
 			assert_eq!(Registry::locations(asset_id), Some(asset_location.clone()));
 			assert!(has_event(
@@ -543,6 +545,7 @@ fn update_should_update_location_when_origin_is_registry_origin() {
 			//Arrange - location should not be updated if it exists
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let second_location = AssetLocation(MultiLocation::new(0, X2(Parachain(400), key)));
+			let details_0 = Registry::assets(asset_id).unwrap();
 
 			//Act
 			assert_ok!(Registry::update(
@@ -558,6 +561,7 @@ fn update_should_update_location_when_origin_is_registry_origin() {
 				Some(second_location.clone())
 			));
 
+			assert_eq!(Registry::assets(asset_id).unwrap(), details_0);
 			assert!(Registry::location_assets(asset_location).is_none());
 
 			assert_eq!(Registry::location_assets(second_location.clone()), Some(asset_id));
@@ -626,7 +630,7 @@ fn update_should_fail_when_name_is_too_long() {
 		.build()
 		.execute_with(|| {
 			let asset_id = 2;
-		    let name = vec![97u8; <Test as crate::Config>::StringLimit::get() as usize + 1];
+			let name = vec![97u8; <Test as crate::Config>::StringLimit::get() as usize + 1];
 			let ed = 10_000 * UNIT;
 			let xcm_rate_limit = 463;
 			let symbol = b"nTkn2".to_vec();
@@ -634,18 +638,21 @@ fn update_should_fail_when_name_is_too_long() {
 			let is_sufficient = false;
 
 			//Act
-			assert_noop!(Registry::update(
-				RuntimeOrigin::root(),
-				asset_id,
-				Some(name.clone()),
-				Some(AssetType::External),
-				Some(ed),
-				Some(xcm_rate_limit),
-				Some(is_sufficient),
-				Some(symbol.clone()),
-				Some(decimals),
-				None
-			), Error::<Test>::TooLong);
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					Some(name.clone()),
+					Some(AssetType::External),
+					Some(ed),
+					Some(xcm_rate_limit),
+					Some(is_sufficient),
+					Some(symbol.clone()),
+					Some(decimals),
+					None
+				),
+				Error::<Test>::TooLong
+			);
 		});
 }
 
@@ -660,25 +667,28 @@ fn update_should_fail_when_symbolis_too_long() {
 		.build()
 		.execute_with(|| {
 			let asset_id = 2;
-		    let name = b"New Token Name".to_vec();
+			let name = b"New Token Name".to_vec();
 			let ed = 10_000 * UNIT;
 			let xcm_rate_limit = 463;
-		    let symbol = vec![97u8; <Test as crate::Config>::StringLimit::get() as usize + 1];
+			let symbol = vec![97u8; <Test as crate::Config>::StringLimit::get() as usize + 1];
 			let decimals = 23;
 			let is_sufficient = false;
 
 			//Act
-			assert_noop!(Registry::update(
-				RuntimeOrigin::root(),
-				asset_id,
-				Some(name.clone()),
-				Some(AssetType::External),
-				Some(ed),
-				Some(xcm_rate_limit),
-				Some(is_sufficient),
-				Some(symbol.clone()),
-				Some(decimals),
-				None
-			), Error::<Test>::TooLong);
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					Some(name.clone()),
+					Some(AssetType::External),
+					Some(ed),
+					Some(xcm_rate_limit),
+					Some(is_sufficient),
+					Some(symbol.clone()),
+					Some(decimals),
+					None
+				),
+				Error::<Test>::TooLong
+			);
 		});
 }

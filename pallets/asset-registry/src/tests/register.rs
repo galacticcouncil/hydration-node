@@ -517,18 +517,21 @@ fn register_should_fail_when_name_is_too_long() {
 		let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
 
 		//Act
-		assert_noop!(Registry::register(
-			RuntimeOrigin::root(),
-			Some(asset_id),
-			Some(name.clone()),
-			AssetType::Token,
-			Some(ed),
-			Some(symbol.clone()),
-			Some(decimals),
-			Some(asset_location.clone()),
-			Some(xcm_rate_limit),
-			is_sufficient
-		), Error::<Test>::TooLong);
+		assert_noop!(
+			Registry::register(
+				RuntimeOrigin::root(),
+				Some(asset_id),
+				Some(name.clone()),
+				AssetType::Token,
+				Some(ed),
+				Some(symbol.clone()),
+				Some(decimals),
+				Some(asset_location.clone()),
+				Some(xcm_rate_limit),
+				is_sufficient
+			),
+			Error::<Test>::TooLong
+		);
 	});
 }
 
@@ -547,17 +550,20 @@ fn register_should_fail_when_symbol_is_too_long() {
 		let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
 
 		//Act
-		assert_noop!(Registry::register(
-			RuntimeOrigin::root(),
-			Some(asset_id),
-			Some(name.clone()),
-			AssetType::Token,
-			Some(ed),
-			Some(symbol.clone()),
-			Some(decimals),
-			Some(asset_location.clone()),
-			Some(xcm_rate_limit),
-			is_sufficient
-		), Error::<Test>::TooLong);
+		assert_noop!(
+			Registry::register(
+				RuntimeOrigin::root(),
+				Some(asset_id),
+				Some(name.clone()),
+				AssetType::Token,
+				Some(ed),
+				Some(symbol.clone()),
+				Some(decimals),
+				Some(asset_location.clone()),
+				Some(xcm_rate_limit),
+				is_sufficient
+			),
+			Error::<Test>::TooLong
+		);
 	});
 }
