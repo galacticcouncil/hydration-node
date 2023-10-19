@@ -108,16 +108,34 @@ pub struct SufficiencyCheck;
 impl SufficiencyCheck {
 	/// This function is used by `orml-toknes` `MutationHooks` before a transaction is executed.
 	/// It is called from `PreDeposit` and `PreTransfer`.
-	/// If transferred asset is not sufficient asset it calculates ED amount in user's fee asset
+	/// If transferred asset is not sufficient asset, it calculates ED amount in user's fee asset
 	/// and transfers it from user to treasury account.
 	/// Function also locks corresponding HDX amount in the treasury because returned ED to the users
 	/// when the account is killed is in the HDX.
 	///
+	/// We assume account already paid ED if it holds transferred insufficient asset so additional
+	/// ED payment is not necessary.
+	///
 	/// NOTE: `OnNewTokenAccount` mutation hooks is not used because it can't fail so we would not
 	/// be able to fail transactions e.g. if the user doesn't have enough funds to pay ED.
 	///
-	/// NOTE: Changing of ED in the `pallet_balances` requires migration of all the users with
-	/// insufficient assets to the new ED amount.
+	/// ED payment - transfer:
+	/// - if both sender and dest. accounts are regular accounts, sender pays ED for dest. account.
+	/// - if sender is whitelisted account, dest. accounts pays its own ED.
+	///
+	/// ED payment - deposit:
+	/// - dest. accounts always pays its own ED no matter if it's whitelisted or not.
+	///
+	/// ED release:
+	/// ED is always released on account kill to killed account, whitelisting doesn't matter.
+	/// Released ED amount is calculated from locked HDX divided by number of accounts that paid
+	/// ED.
+	///
+	/// WARN:
+	/// `set_balance` - bypass `MutationHooks` so no one pays ED for these account but ED is still released
+	/// when account is killed.
+	///
+	/// Emits `pallet_asset_registry::Event::ExistentialDepositPaid` when ED was paid.
 	fn on_funds(asset: AssetId, paying_account: &AccountId, to: &AccountId) -> DispatchResult {
 		if orml_tokens::Accounts::<Runtime>::try_get(to, asset).is_err() && !AssetRegistry::is_sufficient(asset) {
 			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);

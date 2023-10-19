@@ -462,7 +462,7 @@ pub mod pallet {
 			})
 		}
 
-		//NOTE: call indices 2 and 3 were used by removed extrinsics. 
+		//NOTE: call indices 2 and 3 were used by removed extrinsics.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_external())]
 		pub fn register_external(origin: OriginFor<T>, location: T::AssetNativeLocation) -> DispatchResult {
