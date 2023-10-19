@@ -501,3 +501,63 @@ fn register_external_asset_should_not_work_when_user_cant_pay_storage_fees() {
 		);
 	});
 }
+
+#[test]
+fn register_should_fail_when_name_is_too_long() {
+	ExtBuilder::default().build().execute_with(|| {
+		let asset_id = 1;
+		let name = vec![97u8; <Test as crate::Config>::StringLimit::get() as usize + 1];
+		let symbol = b"TKN".to_vec();
+		let decimals = 12;
+		let xcm_rate_limit = 1_000;
+		let ed = 10_000;
+		let is_sufficient = true;
+
+		let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
+		let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
+
+		//Act
+		assert_noop!(Registry::register(
+			RuntimeOrigin::root(),
+			Some(asset_id),
+			Some(name.clone()),
+			AssetType::Token,
+			Some(ed),
+			Some(symbol.clone()),
+			Some(decimals),
+			Some(asset_location.clone()),
+			Some(xcm_rate_limit),
+			is_sufficient
+		), Error::<Test>::TooLong);
+	});
+}
+
+#[test]
+fn register_should_fail_when_symbol_is_too_long() {
+	ExtBuilder::default().build().execute_with(|| {
+		let asset_id = 1;
+		let name = b"Test asset".to_vec();
+		let symbol = vec![97u8; <Test as crate::Config>::StringLimit::get() as usize + 1];
+		let decimals = 12;
+		let xcm_rate_limit = 1_000;
+		let ed = 10_000;
+		let is_sufficient = true;
+
+		let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
+		let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
+
+		//Act
+		assert_noop!(Registry::register(
+			RuntimeOrigin::root(),
+			Some(asset_id),
+			Some(name.clone()),
+			AssetType::Token,
+			Some(ed),
+			Some(symbol.clone()),
+			Some(decimals),
+			Some(asset_location.clone()),
+			Some(xcm_rate_limit),
+			is_sufficient
+		), Error::<Test>::TooLong);
+	});
+}

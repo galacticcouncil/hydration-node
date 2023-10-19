@@ -243,7 +243,7 @@ fn update_origin_should_set_decimals_if_its_none() {
 
 			let details_0 = Registry::assets(asset_id).unwrap();
 
-			//NOTE: update origin is ste to ensure_signed
+			//NOTE: update origin is set to ensure_signed
 			//Act
 			assert_ok!(Registry::update(
 				RuntimeOrigin::signed(ALICE),
@@ -344,7 +344,6 @@ fn create_origin_should_always_set_decimals() {
 
 			let details_0 = Registry::assets(asset_id).unwrap();
 
-			//NOTE: update origin is ste to ensure_signed
 			//Act
 			assert_ok!(Registry::update(
 				RuntimeOrigin::root(),
@@ -613,5 +612,73 @@ fn update_should_not_work_when_name_is_same_as_old() {
 				),
 				Error::<Test>::AssetAlreadyRegistered
 			);
+		});
+}
+
+#[test]
+fn update_should_fail_when_name_is_too_long() {
+	ExtBuilder::default()
+		.with_assets(vec![
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+		])
+		.build()
+		.execute_with(|| {
+			let asset_id = 2;
+		    let name = vec![97u8; <Test as crate::Config>::StringLimit::get() as usize + 1];
+			let ed = 10_000 * UNIT;
+			let xcm_rate_limit = 463;
+			let symbol = b"nTkn2".to_vec();
+			let decimals = 23;
+			let is_sufficient = false;
+
+			//Act
+			assert_noop!(Registry::update(
+				RuntimeOrigin::root(),
+				asset_id,
+				Some(name.clone()),
+				Some(AssetType::External),
+				Some(ed),
+				Some(xcm_rate_limit),
+				Some(is_sufficient),
+				Some(symbol.clone()),
+				Some(decimals),
+				None
+			), Error::<Test>::TooLong);
+		});
+}
+
+#[test]
+fn update_should_fail_when_symbolis_too_long() {
+	ExtBuilder::default()
+		.with_assets(vec![
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+		])
+		.build()
+		.execute_with(|| {
+			let asset_id = 2;
+		    let name = b"New Token Name".to_vec();
+			let ed = 10_000 * UNIT;
+			let xcm_rate_limit = 463;
+		    let symbol = vec![97u8; <Test as crate::Config>::StringLimit::get() as usize + 1];
+			let decimals = 23;
+			let is_sufficient = false;
+
+			//Act
+			assert_noop!(Registry::update(
+				RuntimeOrigin::root(),
+				asset_id,
+				Some(name.clone()),
+				Some(AssetType::External),
+				Some(ed),
+				Some(xcm_rate_limit),
+				Some(is_sufficient),
+				Some(symbol.clone()),
+				Some(decimals),
+				None
+			), Error::<Test>::TooLong);
 		});
 }
