@@ -2,6 +2,7 @@ use super::*;
 use crate::types::Tradability;
 use frame_support::assert_noop;
 use sp_runtime::traits::One;
+use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
 fn remove_liquidity_works() {
@@ -829,13 +830,95 @@ fn withdraw_protocol_liquidity_should_transfer_lrna_when_price_is_different() {
 			assert_asset_state!(
 				1_000,
 				AssetReserveState {
-					reserve: 1833_333_333_333_334,
+					reserve: 1_833_333_333_333_334,
 					hub_reserve: 1418181818181819,
 					shares: 2000000000000000,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
+			);
+		});
+}
+
+#[test]
+fn withdraw_protocol_liquidity_fail_when_not_root() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP2, DAI, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_min_withdrawal_fee(Permill::from_float(0.01))
+		.build()
+		.execute_with(|| {
+			let liq_added = 400 * ONE;
+
+			let current_position_id = <NextPositionId<Test>>::get();
+
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
+
+			let position = Positions::<Test>::get(current_position_id).unwrap();
+			assert_ok!(Omnipool::sacrifice_position(
+				RuntimeOrigin::signed(LP1),
+				current_position_id
+			));
+
+			assert_noop!(
+				Omnipool::withdraw_protocol_liquidity(
+					RuntimeOrigin::signed(LP1),
+					1000,
+					position.shares,
+					position.price,
+					1234,
+				),
+				BadOrigin
+			);
+		});
+}
+
+#[test]
+fn withdraw_protocol_liquidity_fail_when_withdrawing_more_protocol_shares() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP2, DAI, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_min_withdrawal_fee(Permill::from_float(0.01))
+		.build()
+		.execute_with(|| {
+			let liq_added = 400 * ONE;
+
+			let current_position_id = <NextPositionId<Test>>::get();
+
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
+
+			let position = Positions::<Test>::get(current_position_id).unwrap();
+			assert_ok!(Omnipool::sacrifice_position(
+				RuntimeOrigin::signed(LP1),
+				current_position_id
+			));
+
+			let state = Assets::<Test>::get(1_000).unwrap();
+
+			assert_noop!(
+				Omnipool::withdraw_protocol_liquidity(
+					RuntimeOrigin::root(),
+					1000,
+					state.protocol_shares + 1,
+					position.price,
+					1234,
+				),
+				Error::<Test>::InsufficientShares
 			);
 		});
 }

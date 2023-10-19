@@ -253,7 +253,11 @@ pub mod pallet {
 			initial_price: Price,
 		},
 		/// An asset was removed from Omnipool
-		TokenRemoved { asset_id: T::AssetId },
+		TokenRemoved {
+			asset_id: T::AssetId,
+			amount: Balance,
+			hub_withdrawn: Balance,
+		},
 		/// Liquidity of an asset was added to Omnipool.
 		LiquidityAdded {
 			who: T::AccountId,
@@ -403,6 +407,8 @@ pub mod pallet {
 		SharesRemaining,
 		/// Token cannot be removed from Omnipool because asset is not frozen.
 		AssetNotFrozen,
+		/// Configured stable asset cannot be removed from Omnipool.
+		StableAssetCannotBeRemoved,
 	}
 
 	#[pallet::call]
@@ -1613,27 +1619,29 @@ pub mod pallet {
 		#[transactional]
 		pub fn remove_token(origin: OriginFor<T>, asset_id: T::AssetId, beneficiary: T::AccountId) -> DispatchResult {
 			ensure_root(origin)?;
+
+			ensure!(
+				asset_id != T::StableCoinAssetId::get(),
+				Error::<T>::StableAssetCannotBeRemoved
+			);
+
 			let asset_state = Self::load_asset_state(asset_id)?;
 
 			// Allow only if no shares owned by LPs and asset is frozen.
-			ensure!(asset_state.shares == Balance::zero(), Error::<T>::SharesRemaining);
 			ensure!(asset_state.tradable == Tradability::FROZEN, Error::<T>::AssetNotFrozen);
+			ensure!(
+				asset_state.shares == asset_state.protocol_shares,
+				Error::<T>::SharesRemaining
+			);
 
 			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), asset_state.hub_reserve)?;
-
-			/*
-			T::Currency::transfer(
-				T::HubAssetId::get(),
-				&Self::protocol_account(),
-				&beneficiary,
-				asset_state.hub_reserve,
-			)?;
-
-			 */
 			T::Currency::transfer(asset_id, &Self::protocol_account(), &beneficiary, asset_state.reserve)?;
 			<Assets<T>>::remove(asset_id);
-
-			Self::deposit_event(Event::TokenRemoved { asset_id });
+			Self::deposit_event(Event::TokenRemoved {
+				asset_id,
+				amount: asset_state.reserve,
+				hub_withdrawn: asset_state.hub_reserve,
+			});
 			Ok(())
 		}
 	}
