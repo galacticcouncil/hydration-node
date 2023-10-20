@@ -2112,10 +2112,13 @@ impl<T: Config> Pallet<T> {
 
 	pub fn process_hub_amount(amount: Balance, dest: &T::AccountId) -> DispatchResult {
 		if amount > Balance::zero() {
-			if amount < 400_000_000u128 {
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-			} else {
-				T::Currency::transfer(T::HubAssetId::get(), &Self::protocol_account(), dest, amount)?;
+			// If transfers fails and the amount is less than ED, it failed due to ED limit, so we simply burn it
+			if let Err(e) = T::Currency::transfer(T::HubAssetId::get(), &Self::protocol_account(), dest, amount) {
+				if amount < 400_000_000u128 {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				} else {
+					return Err(e)
+				}
 			}
 		}
 		Ok(())
