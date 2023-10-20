@@ -39,7 +39,7 @@ pub mod v1 {
 
 	impl<T: Config> OnRuntimeUpgrade for Migration<T> {
 		#[cfg(feature = "try-runtime")]
-		fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+		fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::TryRuntimeError> {
 			assert_eq!(StorageVersion::get::<Pallet<T>>(), 0, "Storage version too high.");
 
 			let iter = v0::PausedTransactions::<T>::iter_keys();
@@ -80,7 +80,7 @@ pub mod v1 {
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
+		fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
 			assert_eq!(StorageVersion::get::<Pallet<T>>(), 1, "Unexpected storage version.");
 
 			let previous_state = <Vec<(Vec<u8>, Vec<u8>)> as codec::Decode>::decode(&mut state.as_slice()).unwrap();

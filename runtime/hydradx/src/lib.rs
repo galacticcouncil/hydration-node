@@ -34,7 +34,7 @@ pub mod weights;
 mod assets;
 mod governance;
 mod system;
-mod xcm;
+pub mod xcm;
 
 pub use assets::*;
 pub use governance::*;
@@ -125,10 +125,7 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = opaque::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
+	pub enum Runtime
 	{
 		System: frame_system exclude_parts { Origin } = 1,
 		Timestamp: pallet_timestamp = 3,
@@ -449,7 +446,8 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
+			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark};
+			use frame_support::traits::TrackedStorageKey;
 			use orml_benchmarking::add_benchmark as orml_add_benchmark;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {}

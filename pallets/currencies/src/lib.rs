@@ -851,7 +851,9 @@ impl<T: Config> TransferAll<T::AccountId> for Pallet<T> {
 }
 
 use frame_support::traits::fungible::{Dust, Inspect, Mutate, Unbalanced};
-use frame_support::traits::tokens::{DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence};
+use frame_support::traits::tokens::{
+	DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+};
 
 impl<T: Config, AccountId, Currency, Amount, Moment> Inspect<AccountId>
 	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
@@ -863,7 +865,6 @@ where
 	fn total_issuance() -> Self::Balance {
 		<Currency as Inspect<AccountId>>::total_issuance()
 	}
-
 
 	fn minimum_balance() -> Self::Balance {
 		<Currency as Inspect<AccountId>>::minimum_balance()
@@ -925,7 +926,12 @@ where
 		<Currency as Mutate<AccountId>>::mint_into(who, amount)
 	}
 
-	fn burn_from(who: &AccountId, amount: Self::Balance, precision: Precision, force: Fortitude) -> Result<Self::Balance, DispatchError> {
+	fn burn_from(
+		who: &AccountId,
+		amount: Self::Balance,
+		precision: Precision,
+		force: Fortitude,
+	) -> Result<Self::Balance, DispatchError> {
 		<Currency as Mutate<AccountId>>::burn_from(who, amount, precision, force)
 	}
 }

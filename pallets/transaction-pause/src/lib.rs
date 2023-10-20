@@ -21,7 +21,7 @@
 
 use frame_support::{
 	pallet_prelude::*,
-	traits::{Contains, CallMetadata, GetCallMetadata, PalletInfoAccess},
+	traits::{CallMetadata, Contains, GetCallMetadata, PalletInfoAccess},
 	BoundedVec,
 };
 use frame_system::pallet_prelude::*;

@@ -164,11 +164,11 @@ use frame_support::{
 	},
 	weights::Weight,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::{
 	traits::{Bounded as ArithBounded, One, Saturating, StaticLookup, Zero},
 	ArithmeticError, DispatchError, DispatchResult,
 };
-use frame_system::pallet_prelude::BlockNumberFor;
 use sp_std::prelude::*;
 use sp_std::vec;
 
@@ -1021,7 +1021,10 @@ pub mod pallet {
 			T::BlacklistOrigin::ensure_origin(origin)?;
 
 			// Insert the proposal into the blacklist.
-			let permanent = (BlockNumberFor::<T>::max_value(), BoundedVec::<T::AccountId, _>::default());
+			let permanent = (
+				BlockNumberFor::<T>::max_value(),
+				BoundedVec::<T::AccountId, _>::default(),
+			);
 			Blacklist::<T>::insert(&proposal_hash, permanent);
 
 			// Remove the queued proposal, if it's there.

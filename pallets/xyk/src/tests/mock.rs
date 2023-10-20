@@ -23,11 +23,11 @@ use frame_system as system;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
+	BuildStorage,
 };
 
-use frame_support::traits::{Everything, GenesisBuild, Get, Nothing};
+use frame_support::traits::{Everything, Get, Nothing};
 use hydradx_traits::{AssetPairAccountIdFor, CanCreatePool};
 use primitives::{AssetId, Balance};
 
@@ -50,14 +50,10 @@ pub const HDX_DOT_POOL_ID: AccountId = 1_002_000;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	 Block = Block,
-	 NodeBlock = Block,
-	 UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	 {
 		 System: frame_system,
 		 XYK: xyk,
@@ -120,13 +116,12 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -254,7 +249,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self.endowed_accounts,

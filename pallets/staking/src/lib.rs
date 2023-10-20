@@ -19,7 +19,6 @@
 
 use crate::traits::{ActionData, DemocracyReferendum, PayablePercentage, VestingDetails};
 use crate::types::{Action, Balance, Period, Point, Position, StakingData, Voting};
-use frame_system::pallet_prelude::BlockNumberFor;
 use frame_support::ensure;
 use frame_support::{
 	pallet_prelude::DispatchResult,
@@ -27,6 +26,7 @@ use frame_support::{
 	traits::nonfungibles::{Create, Inspect, InspectEnumerable, Mutate},
 	traits::{DefensiveOption, LockIdentifier},
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::staking as math;
 use orml_traits::{GetByKey, MultiCurrency, MultiLockableCurrency};
 use sp_core::Get;
@@ -188,7 +188,8 @@ pub mod pallet {
 	#[pallet::storage]
 	/// User's position state.
 	#[pallet::getter(fn positions)]
-	pub(super) type Positions<T: Config> = StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<BlockNumberFor<T>>>;
+	pub(super) type Positions<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<BlockNumberFor<T>>>;
 
 	#[pallet::storage]
 	/// Position ids sequencer.

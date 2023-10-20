@@ -13,7 +13,6 @@ use hydradx_traits::{
 	OraclePeriod::{self, *},
 };
 use pallet_ema_oracle::OracleError;
-use polkadot_primitives::v2::BlockNumber;
 use primitives::constants::chain::OMNIPOOL_SOURCE;
 use xcm_emulator::TestExt;
 

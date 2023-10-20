@@ -1,6 +1,8 @@
 use crate::module::{BalanceOf, CurrencyIdOf};
 use crate::{Config, Pallet};
-use frame_support::traits::tokens::{fungible, fungibles, DepositConsequence, WithdrawConsequence, Preservation, Precision, Fortitude, Provenance};
+use frame_support::traits::tokens::{
+	fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+};
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::Get;
 use sp_runtime::DispatchError;
@@ -43,20 +45,40 @@ where
 		}
 	}
 
-	fn reducible_balance(asset: Self::AssetId, who: &T::AccountId, preservation: Preservation, force: Fortitude) -> Self::Balance {
+	fn reducible_balance(
+		asset: Self::AssetId,
+		who: &T::AccountId,
+		preservation: Preservation,
+		force: Fortitude,
+	) -> Self::Balance {
 		if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Inspect<T::AccountId>>::reducible_balance(who, preservation, force).into()
 		} else {
-			<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::reducible_balance(asset.into(), who, preservation, force)
-				.into()
+			<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::reducible_balance(
+				asset.into(),
+				who,
+				preservation,
+				force,
+			)
+			.into()
 		}
 	}
 
-	fn can_deposit(asset: Self::AssetId, who: &T::AccountId, amount: Self::Balance, provenance: Provenance) -> DepositConsequence {
+	fn can_deposit(
+		asset: Self::AssetId,
+		who: &T::AccountId,
+		amount: Self::Balance,
+		provenance: Provenance,
+	) -> DepositConsequence {
 		if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Inspect<T::AccountId>>::can_deposit(who, amount.into(), provenance)
 		} else {
-			<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::can_deposit(asset.into(), who, amount.into(), provenance)
+			<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::can_deposit(
+				asset.into(),
+				who,
+				amount.into(),
+				provenance,
+			)
 		}
 	}
 
@@ -82,11 +104,10 @@ where
 	}
 }
 
-impl<T: Config> fungibles::Unbalanced<T::AccountId>
-	for FungibleCurrencies<T>
+impl<T: Config> fungibles::Unbalanced<T::AccountId> for FungibleCurrencies<T>
 where
 	T::MultiCurrency: fungibles::Unbalanced<T::AccountId>,
-	T::NativeCurrency: fungible::Unbalanced<T::AccountId>,// + fungible::Inspect<T::AccountId>,
+	T::NativeCurrency: fungible::Unbalanced<T::AccountId>, // + fungible::Inspect<T::AccountId>,
 	T::MultiCurrency: fungibles::Inspect<T::AccountId>,
 	<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::AssetId: From<CurrencyIdOf<T>>,
 	<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::Balance: Into<BalanceOf<T>> + From<BalanceOf<T>>,
@@ -98,20 +119,31 @@ where
 		From<WithdrawConsequence<<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance>>,
 {
 	fn handle_dust(dust: fungibles::Dust<T::AccountId, Self>) {
-		let asset= dust.0;
+		let asset = dust.0;
 		if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Unbalanced<T::AccountId>>::handle_dust(fungible::Dust(dust.1.into()))
 		} else {
-			<T::MultiCurrency as fungibles::Unbalanced<T::AccountId>>::handle_dust(fungibles::Dust(dust.0.into(), dust.1.into()))
+			<T::MultiCurrency as fungibles::Unbalanced<T::AccountId>>::handle_dust(fungibles::Dust(
+				dust.0.into(),
+				dust.1.into(),
+			))
 		}
 	}
 
-	fn write_balance(asset: Self::AssetId, who: &T::AccountId, amount: Self::Balance) -> Result<Option<Self::Balance>, DispatchError> {
+	fn write_balance(
+		asset: Self::AssetId,
+		who: &T::AccountId,
+		amount: Self::Balance,
+	) -> Result<Option<Self::Balance>, DispatchError> {
 		if asset == T::GetNativeCurrencyId::get() {
 			let result = <T::NativeCurrency as fungible::Unbalanced<T::AccountId>>::write_balance(who, amount.into())?;
 			Ok(result.map(|balance| balance.into()))
 		} else {
-			let result = <T::MultiCurrency as fungibles::Unbalanced<T::AccountId>>::write_balance(asset.into(), who, amount.into())?;
+			let result = <T::MultiCurrency as fungibles::Unbalanced<T::AccountId>>::write_balance(
+				asset.into(),
+				who,
+				amount.into(),
+			)?;
 			Ok(result.map(|balance| balance.into()))
 		}
 	}
@@ -157,7 +189,11 @@ where
 	Result<Self::Balance, DispatchError>:
 		From<Result<<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::Balance, DispatchError>>,
 {
-	fn mint_into(asset: Self::AssetId, who: &T::AccountId, amount: Self::Balance) -> Result<Self::Balance, DispatchError> {
+	fn mint_into(
+		asset: Self::AssetId,
+		who: &T::AccountId,
+		amount: Self::Balance,
+	) -> Result<Self::Balance, DispatchError> {
 		if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::mint_into(who, amount.into()).into()
 		} else {
@@ -173,9 +209,17 @@ where
 		force: Fortitude,
 	) -> Result<Self::Balance, DispatchError> {
 		if asset == T::GetNativeCurrencyId::get() {
-			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::burn_from(who, amount.into(), precision, force).into()
+			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::burn_from(who, amount.into(), precision, force)
+				.into()
 		} else {
-			<T::MultiCurrency as fungibles::Mutate<T::AccountId>>::burn_from(asset.into(), who, amount.into(), precision, force).into()
+			<T::MultiCurrency as fungibles::Mutate<T::AccountId>>::burn_from(
+				asset.into(),
+				who,
+				amount.into(),
+				precision,
+				force,
+			)
+			.into()
 		}
 	}
 }

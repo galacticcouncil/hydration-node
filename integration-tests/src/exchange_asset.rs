@@ -3,6 +3,7 @@
 use crate::polkadot_test_net::*;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::traits::fungible::Balanced;
+use frame_support::traits::tokens::Precision;
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, pallet_prelude::*};
 use orml_traits::currency::MultiCurrency;
@@ -61,7 +62,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		let res = hydradx_runtime::PolkadotXcm::execute(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			Box::new(xcm),
-			Weight::from_ref_time(399_600_000_000),
+			Weight::from_parts(399_600_000_000, 0),
 		);
 		assert_ok!(res);
 
@@ -131,7 +132,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 		let res = hydradx_runtime::PolkadotXcm::execute(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			Box::new(xcm),
-			Weight::from_ref_time(399_600_000_000),
+			Weight::from_parts(399_600_000_000, 0),
 		);
 		assert_ok!(res);
 
@@ -205,17 +206,19 @@ fn transfer_and_swap_should_work_with_4_hops() {
 	});
 
 	Moonbeam::execute_with(|| {
-		use xcm_executor::traits::Convert;
+		use xcm_executor::traits::ConvertLocation;
 		let para_account =
-			hydradx_runtime::LocationToAccountId::convert((Parent, Parachain(ACALA_PARA_ID)).into()).unwrap();
-		let _ = hydradx_runtime::Balances::deposit(&para_account, 1000 * UNITS).expect("Failed to deposit");
+			hydradx_runtime::LocationToAccountId::convert_location(&(Parent, Parachain(ACALA_PARA_ID)).into()).unwrap();
+		let _ = hydradx_runtime::Balances::deposit(&para_account, 1000 * UNITS, Precision::Exact)
+			.expect("Failed to deposit");
 	});
 
 	Interlay::execute_with(|| {
-		use xcm_executor::traits::Convert;
+		use xcm_executor::traits::ConvertLocation;
 		let para_account =
-			hydradx_runtime::LocationToAccountId::convert((Parent, Parachain(HYDRA_PARA_ID)).into()).unwrap();
-		let _ = hydradx_runtime::Balances::deposit(&para_account, 1000 * UNITS).expect("Failed to deposit");
+			hydradx_runtime::LocationToAccountId::convert_location(&(Parent, Parachain(HYDRA_PARA_ID)).into()).unwrap();
+		let _ = hydradx_runtime::Balances::deposit(&para_account, 1000 * UNITS, Precision::Exact)
+			.expect("Failed to deposit");
 	});
 
 	Acala::execute_with(|| {
@@ -240,7 +243,7 @@ fn transfer_and_swap_should_work_with_4_hops() {
 		assert_ok!(hydradx_runtime::PolkadotXcm::execute(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			Box::new(xcm),
-			Weight::from_ref_time(399_600_000_000),
+			Weight::from_parts(399_600_000_000, 0),
 		));
 
 		//Assert

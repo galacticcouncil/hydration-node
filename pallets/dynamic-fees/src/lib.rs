@@ -55,8 +55,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_system::pallet_prelude::BlockNumberFor;
 use frame_support::traits::Get;
+use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::GetByKey;
 use sp_runtime::traits::{BlockNumberProvider, Saturating};
 use sp_runtime::{FixedPointOperand, PerThing, SaturatedConversion};

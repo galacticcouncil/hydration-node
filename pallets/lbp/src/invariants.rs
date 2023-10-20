@@ -126,7 +126,7 @@ proptest! {
 				));
 
 				let block_num = 10;
-				set_block_number::<Test>(block_num);
+				set_block_number(block_num);
 
 				let before = invariant(pool_id, asset_a, asset_b, block_num);
 				assert_ok!(filter_errors(LBPPallet::sell(Origin::signed(ALICE), asset_a, asset_b, sell_amount, 0,)));
@@ -186,7 +186,7 @@ proptest! {
 				));
 
 				let block_num = 10;
-				set_block_number::<Test>(block_num);
+				set_block_number(block_num);
 
 				let before = invariant(pool_id, asset_a, asset_b, block_num);
 				assert_ok!(filter_errors(LBPPallet::sell(Origin::signed(ALICE), asset_b, asset_a, sell_amount, 0,)));
@@ -245,7 +245,7 @@ proptest! {
 				));
 
 				let block_num = 10;
-				set_block_number::<Test>(block_num);
+				set_block_number(block_num);
 
 				let before = invariant(pool_id, asset_a, asset_b, block_num);
 				assert_ok!(filter_errors(LBPPallet::buy(Origin::signed(ALICE), asset_b, asset_a, buy_amount, u128::MAX,)));
@@ -304,7 +304,7 @@ proptest! {
 				));
 
 				let block_num = 10;
-				set_block_number::<Test>(block_num);
+				set_block_number(block_num);
 
 				let before = invariant(pool_id, asset_a, asset_b, block_num);
 				assert_ok!(filter_errors(LBPPallet::buy(Origin::signed(ALICE), asset_a, asset_b, buy_amount, u128::MAX,)));

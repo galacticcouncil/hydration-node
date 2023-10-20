@@ -125,8 +125,6 @@ fn omnipool_launch_init_params_should_be_correct() {
 	});
 }
 
-use polkadot_primitives::v2::BlockNumber;
-
 pub fn hydra_run_to_block(to: BlockNumber) {
 	use frame_support::traits::{OnFinalize, OnInitialize};
 	while hydradx_runtime::System::block_number() < to {

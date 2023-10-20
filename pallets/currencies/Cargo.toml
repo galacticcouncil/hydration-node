@@ -37,7 +37,9 @@ std = [
 	"sp-io/std",
 	"frame-support/std",
 	"frame-system/std",
+	"pallet-balances/std",
 	"orml-traits/std",
+	"orml-tokens/std",
 	"orml-utilities/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

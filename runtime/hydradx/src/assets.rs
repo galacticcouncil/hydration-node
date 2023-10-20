@@ -47,7 +47,9 @@ use frame_support::{
 	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
-	traits::{AsEnsureOriginWithArg, ConstU32, Contains, Currency, EnsureOrigin, NeverEnsureOrigin, Imbalance, OnUnbalanced},
+	traits::{
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, EnsureOrigin, Imbalance, NeverEnsureOrigin, OnUnbalanced,
+	},
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};

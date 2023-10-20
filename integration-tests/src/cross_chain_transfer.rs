@@ -131,7 +131,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 
 		// Assert
@@ -182,7 +182,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 					)
 					.into()
 				),
-				WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+				WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 			),
 			orml_xtokens::Error::<hydradx_runtime::Runtime>::XcmExecutionFailed
 		);
@@ -241,7 +241,7 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 
 		// Assert
@@ -282,7 +282,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
@@ -293,9 +293,10 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
 			cumulus_pallet_xcmp_queue::Event::Fail {
-				message_hash: Some(hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"]),
+				message_hash: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
+				message_id: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
 				error: XcmError::AssetNotFound,
-				weight: Weight::from_ref_time(300_000_000),
+				weight: Weight::from_parts(300_000_000, 0),
 			}
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
@@ -362,7 +363,7 @@ fn trap_asset() -> MultiAsset {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
@@ -376,9 +377,10 @@ fn trap_asset() -> MultiAsset {
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
 			cumulus_pallet_xcmp_queue::Event::Fail {
-				message_hash: Some(hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"]),
+				message_hash: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
+				message_id: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
 				error: XcmError::AssetNotFound,
-				weight: Weight::from_ref_time(300_000_000),
+				weight: Weight::from_parts(300_000_000, 0),
 			}
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
@@ -445,7 +447,7 @@ fn polkadot_xcm_execute_extrinsic_should_not_be_allowed() {
 			hydradx_runtime::PolkadotXcm::execute(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				Box::new(message),
-				Weight::from_ref_time(400_000_000_000)
+				Weight::from_parts(400_000_000_000, 0)
 			),
 			pallet_xcm::Error::<hydradx_runtime::Runtime>::Filtered
 		);

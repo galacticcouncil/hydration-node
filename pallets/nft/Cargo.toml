@@ -47,6 +47,7 @@ std = [
     "sp-std/std",
     "sp-runtime/std",
     "pallet-uniques/std",
+    "pallet-balances/std",
     "scale-info/std",
 ]
 runtime-benchmarks = [

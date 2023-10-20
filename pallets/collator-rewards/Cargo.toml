@@ -58,6 +58,7 @@ std = [
     "frame-system/std",
     "sp-std/std",
     "orml-traits/std",
+    "orml-tokens/std",
     "scale-info/std",
     "sp-runtime/std",
     "pallet-balances/std",

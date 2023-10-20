@@ -258,7 +258,7 @@ runtime_benchmarks! {
 		let execution_block = 100u32;
 		assert_eq!(DCA::schedules::<ScheduleId>(execution_block), None);
 		let r = DCA::schedules::<ScheduleId>(execution_block);
-		let mut weight = Weight::from_ref_time(0);
+		let mut weight = Weight::zero();
 	}: {
 		weight = DCA::on_initialize(execution_block);
 	}

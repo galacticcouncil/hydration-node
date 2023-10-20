@@ -17,7 +17,6 @@ use orml_traits::MultiReservableCurrency;
 use pallet_dca::types::{Order, Schedule};
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use polkadot_primitives::v2::BlockNumber;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
@@ -420,11 +419,10 @@ mod omnipool {
 			//Arrange
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let dca_budget = 1100 * UNITS;
@@ -462,11 +460,10 @@ mod omnipool {
 			//Arrange
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let dca_budget = 1000 * UNITS;
@@ -500,11 +497,10 @@ mod omnipool {
 			//Arrange
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let dca_budget = 1100 * UNITS;
@@ -616,11 +612,10 @@ mod omnipool {
 			//Arrange
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let dca_budget = 1100 * UNITS;
@@ -648,11 +643,10 @@ mod omnipool {
 			//Arrange
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			//Act
@@ -675,11 +669,10 @@ mod omnipool {
 			//Arrange
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			//Act
@@ -796,11 +789,10 @@ mod omnipool {
 		Hydra::execute_with(|| {
 			//Arrange
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			init_omnipool_with_oracle_for_block_10();
@@ -838,19 +830,17 @@ mod omnipool {
 		Hydra::execute_with(|| {
 			//Arrange
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let bob_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				BOB.into(),
 				bob_init_hdx_balance,
-				0,
 			));
 
 			init_omnipool_with_oracle_for_block_10();
@@ -900,11 +890,10 @@ mod omnipool {
 		Hydra::execute_with(|| {
 			//Arrange
 			let alice_init_hdx_balance = 50000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			init_omnipool_with_oracle_for_block_10();
@@ -1032,11 +1021,10 @@ mod omnipool {
 			.unwrap();
 
 			let alice_init_hdx_balance = 1000 * UNITS + fee + 1;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let dca_budget = 1000 * UNITS + fee;
@@ -1243,11 +1231,10 @@ mod stableswap {
 			set_relaychain_block_number(10);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RawOrigin::Root.into(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let trades = vec![
@@ -1407,11 +1394,10 @@ mod stableswap {
 			set_relaychain_block_number(10);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RawOrigin::Root.into(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let trades = vec![
@@ -1806,11 +1792,10 @@ mod stableswap {
 			set_relaychain_block_number(10);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RawOrigin::Root.into(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let trades = vec![
@@ -2142,11 +2127,10 @@ pub fn init_omnipol() {
 		Permill::from_percent(60)
 	));
 
-	assert_ok!(Balances::set_balance(
+	assert_ok!(Balances::force_set_balance(
 		RawOrigin::Root.into(),
 		Treasury::account_id(),
 		TREASURY_ACCOUNT_INIT_BALANCE,
-		0,
 	));
 }
 

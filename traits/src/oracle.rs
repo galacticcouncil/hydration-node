@@ -200,7 +200,9 @@ impl<Balance> From<Volume<Balance>> for (Balance, Balance, Balance, Balance) {
 }
 
 /// Struct to represent pool liquidity for an asset pair.
-#[derive(RuntimeDebug, Encode, Decode, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
+#[derive(
+	RuntimeDebug, Encode, Decode, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen,
+)]
 pub struct Liquidity<Balance> {
 	pub a: Balance,
 	pub b: Balance,

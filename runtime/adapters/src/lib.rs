@@ -19,6 +19,7 @@
 
 use codec::FullCodec;
 use cumulus_primitives_core::relay_chain::Hash;
+use frame_system::pallet_prelude::BlockNumberFor;
 use frame_support::{
 	sp_runtime::{
 		traits::{AtLeast32BitUnsigned, Convert, Get, MaybeSerializeDeserialize, Saturating, Zero},
@@ -275,7 +276,7 @@ impl<T: cumulus_pallet_parachain_system::Config> BlockNumberProvider for RelayCh
 
 #[cfg(feature = "runtime-benchmarks")]
 impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
-	type BlockNumber = <T as frame_system::Config>::BlockNumber;
+	type BlockNumber = BlockNumberFor<T>;
 
 	fn current_block_number() -> Self::BlockNumber {
 		frame_system::Pallet::<T>::current_block_number()

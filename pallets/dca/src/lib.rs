@@ -71,7 +71,11 @@ use frame_support::{
 	transactional,
 	weights::WeightToFee as FrameSupportWeight,
 };
-use frame_system::{ensure_signed, pallet_prelude::{BlockNumberFor, OriginFor}, Origin};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::{BlockNumberFor, OriginFor},
+	Origin,
+};
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};

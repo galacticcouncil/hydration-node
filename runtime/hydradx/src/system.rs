@@ -29,8 +29,11 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
-	sp_runtime::{traits::{ConstU32, IdentityLookup}, RuntimeDebug, FixedPointNumber, Perbill, Perquintill},
-	traits::{Contains, ConstBool, InstanceFilter},
+	sp_runtime::{
+		traits::{ConstU32, IdentityLookup},
+		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
+	},
+	traits::{ConstBool, Contains, InstanceFilter},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,

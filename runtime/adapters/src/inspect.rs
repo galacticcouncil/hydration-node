@@ -59,7 +59,12 @@ where
 		}
 	}
 
-	fn reducible_balance(asset: Self::AssetId, who: &AccountId, preservation: Preservation, force: Fortitude) -> Self::Balance {
+	fn reducible_balance(
+		asset: Self::AssetId,
+		who: &AccountId,
+		preservation: Preservation,
+		force: Fortitude,
+	) -> Self::Balance {
 		if GetNativeCurrencyId::get() == asset {
 			NativeCurrency::reducible_balance(who, preservation, force)
 		} else {
@@ -67,7 +72,12 @@ where
 		}
 	}
 
-	fn can_deposit(asset: Self::AssetId, who: &AccountId, amount: Self::Balance, provenance: Provenance) -> DepositConsequence {
+	fn can_deposit(
+		asset: Self::AssetId,
+		who: &AccountId,
+		amount: Self::Balance,
+		provenance: Provenance,
+	) -> DepositConsequence {
 		if GetNativeCurrencyId::get() == asset {
 			NativeCurrency::can_deposit(who, amount, provenance)
 		} else {

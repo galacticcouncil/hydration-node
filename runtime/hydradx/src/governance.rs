@@ -27,8 +27,8 @@ use frame_support::{
 	traits::{ConstU32, EitherOfDiverse, LockIdentifier, NeverEnsureOrigin, PrivilegeCmp},
 	PalletId,
 };
-use sp_staking::currency_to_vote::U128CurrencyToVote;
 use frame_system::EnsureRoot;
+use sp_staking::currency_to_vote::U128CurrencyToVote;
 use sp_std::cmp::Ordering;
 
 parameter_types! {

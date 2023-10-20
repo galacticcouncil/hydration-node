@@ -15,9 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::chain_spec;
 use crate::cli::{Cli, RelayChainCli, Subcommand};
 use crate::service::{new_partial, HydraDXNativeExecutor};
-use crate::{chain_spec, service};
 
 use codec::Encode;
 use cumulus_client_cli::generate_genesis_block;
@@ -29,12 +29,12 @@ use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams, Result,
 	RuntimeVersion, SharedParams, SubstrateCli,
 };
-use sc_service::config::{BasePath, PrometheusConfig};
 use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
+use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Block as BlockT;
-use std::{io::Write, net::SocketAddr};
+use std::io::Write;
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	Ok(match id {
@@ -191,10 +191,12 @@ pub fn run() -> sc_cli::Result<()> {
 			match cmd {
 				BenchmarkCmd::Pallet(cmd) => {
 					if cfg!(feature = "runtime-benchmarks") {
-						runner.sync_run(|config| cmd.run::<Block, ExtendedHostFunctions<
-                                    sp_io::SubstrateHostFunctions,
-                                    <HydraDXNativeExecutor as NativeExecutionDispatch>::ExtendHostFunctions,
-                                >>(config))
+						runner.sync_run(|config| {
+							cmd.run::<Block, ExtendedHostFunctions<
+								sp_io::SubstrateHostFunctions,
+								<HydraDXNativeExecutor as NativeExecutionDispatch>::ExtendHostFunctions,
+							>>(config)
+						})
 					} else {
 						Err("Benchmarking wasn't enabled when building the node. \
 			   You can enable it with `--features runtime-benchmarks`."
@@ -209,8 +211,7 @@ pub fn run() -> sc_cli::Result<()> {
 				BenchmarkCmd::Storage(_) => Err("Storage benchmarking can be enabled with `--features runtime-benchmarks`.".into()),
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
-					let partials =
-						new_partial(&config)?;
+					let partials = new_partial(&config)?;
 					let db = partials.backend.expose_db();
 					let storage = partials.backend.expose_storage();
 
@@ -230,7 +231,7 @@ pub fn run() -> sc_cli::Result<()> {
 			let _ = builder.init();
 
 			let spec = load_spec(&params.shared_params.chain.clone().unwrap_or_default())?;
-			let state_version = Cli::runtime_version(&spec).state_version();
+			let state_version = Cli::runtime_version().state_version();
 
 			let block: Block = generate_genesis_block(&*spec, state_version)?;
 			let raw_header = block.header().encode();
@@ -325,7 +326,7 @@ pub fn run() -> sc_cli::Result<()> {
 				let parachain_account =
 					AccountIdConversion::<polkadot_primitives::v5::AccountId>::into_account_truncating(&id);
 
-				let state_version = Cli::runtime_version(&config.chain_spec).state_version();
+				let state_version = Cli::runtime_version().state_version();
 
 				let block: Block =
 					generate_genesis_block(&*config.chain_spec, state_version).map_err(|e| format!("{e:?}"))?;
@@ -465,7 +466,7 @@ impl CliConfiguration<Self> for RelayChainCli {
 }
 
 impl Cli {
-	fn runtime_version(spec: &Box<dyn sc_service::ChainSpec>) -> &'static RuntimeVersion {
+	fn runtime_version() -> &'static RuntimeVersion {
 		&hydradx_runtime::VERSION
 	}
 }

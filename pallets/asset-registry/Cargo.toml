@@ -63,6 +63,7 @@ std = [
   "sp-api/std",
   "frame-benchmarking/std",
   "scale-info/std",
+  "polkadot-xcm/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
 

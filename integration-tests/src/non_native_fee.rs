@@ -1,19 +1,16 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use primitives::Price;
-
 use frame_support::{
 	assert_ok,
+	dispatch::DispatchInfo,
+	sp_runtime::traits::SignedExtension,
 	traits::{OnFinalize, OnInitialize},
+	weights::Weight,
 };
-
 use hydradx_runtime::{Balances, Currencies, MultiTransactionPayment, RuntimeOrigin, Tokens};
-
-use frame_support::dispatch::{DispatchInfo, Weight};
 use orml_traits::currency::MultiCurrency;
-use polkadot_primitives::v2::BlockNumber;
-use sp_runtime::traits::SignedExtension;
+use primitives::Price;
 use xcm_emulator::TestExt;
 
 pub fn hydra_run_to_block(to: BlockNumber) {
@@ -40,7 +37,7 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 		);
 
 		let info = DispatchInfo {
-			weight: Weight::from_ref_time(106_957_000),
+			weight: Weight::from_parts(106_957_000, 0),
 			..Default::default()
 		};
 		let len: usize = 10;
@@ -56,11 +53,10 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 		assert_eq!(bob_balance, 999_959);
 
-		assert_ok!(hydradx_runtime::Balances::set_balance(
+		assert_ok!(hydradx_runtime::Balances::force_set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			2_000_000_000_000 * UNITS,
-			0,
 		));
 
 		init_omnipool();
@@ -175,11 +171,10 @@ fn fee_currency_cannot_be_set_to_not_accepted_asset() {
 fn fee_currency_should_not_change_when_account_holds_native_currency_already() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RuntimeOrigin::root(),
 			HITCHHIKER.into(),
 			UNITS,
-			0,
 		));
 
 		assert_ok!(Currencies::transfer(

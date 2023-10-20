@@ -42,9 +42,9 @@
 
 extern crate core;
 
-use frame_system::pallet_prelude::BlockNumberFor;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional};
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
 pub use pallet::*;
 use sp_runtime::traits::{BlockNumberProvider, Zero};

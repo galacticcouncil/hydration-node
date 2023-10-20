@@ -18,7 +18,7 @@
 use crate as dca;
 use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
-use frame_support::traits::{Everything, GenesisBuild, Nothing};
+use frame_support::traits::{Everything, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
@@ -37,9 +37,8 @@ use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
-	DispatchError,
+	BuildStorage, DispatchError,
 };
 
 use hydradx_adapters::inspect::MultiInspectAdapter;
@@ -50,7 +49,6 @@ use sp_runtime::{DispatchResult, FixedU128};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type Balance = u128;
@@ -77,10 +75,7 @@ pub const GENERATED_SEARCH_RADIUSES: [u64; 10] = [1, 3, 6, 10, 28, 34, 114, 207,
 pub const ONE: Balance = 1_000_000_000_000;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	 Block = Block,
-	 NodeBlock = Block,
-	 UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	 {
 		 System: frame_system,
 		 DCA: dca,
@@ -178,13 +173,12 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -336,6 +330,10 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = NamedReserveIdentifier;
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 impl pallet_currencies::Config for Test {
@@ -801,7 +799,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 		// Add DAi and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {
 			if self.register_stable_asset {

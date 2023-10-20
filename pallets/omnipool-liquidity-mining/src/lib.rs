@@ -54,7 +54,10 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::{ensure_signed, pallet_prelude::{OriginFor, BlockNumberFor}};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::{BlockNumberFor, OriginFor},
+};
 use hydra_dx_math::ema::EmaPrice as Price;
 use hydradx_traits::{
 	liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId},

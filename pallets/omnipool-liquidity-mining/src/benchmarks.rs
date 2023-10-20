@@ -70,8 +70,8 @@ where
 	Pallet::<T>::create_global_farm(
 		RawOrigin::Root.into(),
 		G_FARM_TOTAL_REWARDS,
-		T::BlockNumber::from(100_000_u32),
-		T::BlockNumber::from(1_u32),
+		BlockNumberFor::<T>::from(100_000_u32),
+		BlockNumberFor::<T>::from(1_u32),
 		REWARD_CURRENCY.into(),
 		owner,
 		Perquintill::from_percent(20),
@@ -231,8 +231,8 @@ benchmarks! {
 	}
 
 	create_global_farm {
-		let planned_yielding_periods = T::BlockNumber::from(100_000_u32);
-		let blocks_per_period = T::BlockNumber::from(100_u32);
+		let planned_yielding_periods = BlockNumberFor::<T>::from(100_000_u32);
+		let blocks_per_period = BlockNumberFor::<T>::from(100_u32);
 		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
 		let yield_per_period = Perquintill::from_percent(20);
 		let min_deposit = 1_000;

@@ -26,7 +26,6 @@ use warehouse_liquidity_mining::{
 };
 
 use orml_traits::MultiCurrency;
-use polkadot_primitives::v2::BlockNumber;
 use primitives::AssetId;
 use sp_runtime::{
 	traits::{One, Zero},
@@ -57,11 +56,10 @@ fn create_global_farm_should_work_when_origin_is_root() {
 		let yield_per_period = Perquintill::from_parts(570_776_255_707);
 		let min_deposit = 1_000;
 
-		assert_ok!(hydradx_runtime::Balances::set_balance(
+		assert_ok!(hydradx_runtime::Balances::force_set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			owner.clone(),
 			total_rewards,
-			0,
 		));
 
 		set_relaychain_block_number(100);
@@ -599,11 +597,10 @@ fn init_omnipool() {
 fn create_global_farm() {
 	let total_rewards = 1_000_000 * UNITS;
 
-	assert_ok!(hydradx_runtime::Balances::set_balance(
+	assert_ok!(hydradx_runtime::Balances::force_set_balance(
 		hydradx_runtime::RuntimeOrigin::root(),
 		Treasury::account_id(),
 		total_rewards,
-		0,
 	));
 
 	assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::create_global_farm(

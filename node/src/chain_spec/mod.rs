@@ -28,8 +28,8 @@ use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use hydradx_runtime::{
 	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
-	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
-	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SystemConfig,
+	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisHistoryConfig,
+	MultiTransactionPaymentConfig, ParachainInfoConfig, RuntimeGenesisConfig, SessionConfig, Signature, SystemConfig,
 	TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
 };
 use primitives::{
@@ -68,7 +68,7 @@ impl Extensions {
 }
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
 /// Generate a crypto pair from seed.
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -102,8 +102,8 @@ pub fn parachain_genesis(
 	elections: Vec<(AccountId, Balance)>,
 	parachain_id: ParaId,
 	duster: DusterConfig,
-) -> GenesisConfig {
-	GenesisConfig {
+) -> RuntimeGenesisConfig {
+	RuntimeGenesisConfig {
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),

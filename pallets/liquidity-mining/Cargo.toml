@@ -50,6 +50,8 @@ std = [
     "frame-system/std",
     "sp-std/std",
     "orml-traits/std",
+    "orml-tokens/std",
+    "pallet-balances/std",
     "hydradx-traits/std",
     "sp-arithmetic/std",
     "sp-runtime/std",

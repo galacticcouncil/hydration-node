@@ -21,18 +21,15 @@ use super::*;
 use crate as pallet_democracy;
 use frame_support::{
 	assert_noop, assert_ok, ord_parameter_types, parameter_types,
-	traits::{
-		ConstU32, ConstU64, Contains, EqualPrivilegeOnly, GenesisBuild, OnInitialize, SortedMembers, StorePreimage,
-	},
+	traits::{ConstU32, ConstU64, Contains, EqualPrivilegeOnly, OnInitialize, SortedMembers, StorePreimage},
 	weights::Weight,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use pallet_balances::{BalanceLock, Error as BalancesError};
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BadOrigin, BlakeTwo256, IdentityLookup},
-	Perbill,
+	BuildStorage, Perbill,
 };
 mod cancellation;
 mod decoders;
@@ -61,20 +58,16 @@ const BIG_NAY: Vote = Vote {
 	conviction: Conviction::Locked1x,
 };
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		System: frame_system,
+		Balances: pallet_balances,
 		Preimage: pallet_preimage,
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Scheduler: pallet_scheduler,
+		Democracy: pallet_democracy,
 	}
 );
 
@@ -82,7 +75,10 @@ frame_support::construct_runtime!(
 pub struct BaseFilter;
 impl Contains<RuntimeCall> for BaseFilter {
 	fn contains(call: &RuntimeCall) -> bool {
-		!matches!(call, &RuntimeCall::Balances(pallet_balances::Call::set_balance { .. }))
+		!matches!(
+			call,
+			&RuntimeCall::Balances(pallet_balances::Call::force_set_balance { .. })
+		)
 	}
 }
 
@@ -98,14 +94,13 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type DbWeight = ();
 	type RuntimeOrigin = RuntimeOrigin;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type RuntimeCall = RuntimeCall;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
@@ -154,6 +149,10 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ConstU64<1>;
 	type AccountStore = System;
 	type WeightInfo = ();
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 parameter_types! {
 	pub static PreimageByteDeposit: u64 = 0;
@@ -209,7 +208,7 @@ impl Config for Test {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	pallet_balances::GenesisConfig::<Test> {
 		balances: vec![(1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (6, 60)],
 	}
@@ -233,10 +232,9 @@ fn params_should_work() {
 }
 
 fn set_balance_proposal(value: u64) -> BoundedCallOf<Test> {
-	let inner = pallet_balances::Call::set_balance {
+	let inner = pallet_balances::Call::force_set_balance {
 		who: 42,
 		new_free: value,
-		new_reserved: 0,
 	};
 	let outer = RuntimeCall::Balances(inner);
 	Preimage::bound(outer).unwrap()

@@ -31,7 +31,9 @@ mod tests;
 
 pub mod migration;
 
-#[derive(Encode, Decode, Serialize, Deserialize, Clone, Default, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Encode, Decode, Serialize, Deserialize, Clone, Default, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub struct Chain {
 	pub genesis_hash: H256,
 	pub last_block_hash: H256,

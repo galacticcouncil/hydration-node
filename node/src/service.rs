@@ -34,8 +34,8 @@ use cumulus_client_collator::service::CollatorService;
 use cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImport;
 use cumulus_client_consensus_proposer::Proposer;
 use cumulus_client_service::{
-	build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks,
-	BuildNetworkParams, CollatorSybilResistance, DARecoveryProfile, StartRelayChainTasksParams,
+	build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks, BuildNetworkParams,
+	CollatorSybilResistance, DARecoveryProfile, StartRelayChainTasksParams,
 };
 use cumulus_primitives_core::{relay_chain::CollatorPair, ParaId};
 use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
@@ -43,9 +43,7 @@ use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 // Substrate Imports
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
-use sc_executor::{
-	HeapAllocStrategy, NativeElseWasmExecutor, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY,
-};
+use sc_executor::{HeapAllocStrategy, NativeElseWasmExecutor, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 use sc_network::NetworkBlock;
 use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
@@ -76,7 +74,6 @@ type ParachainClient = TFullClient<Block, RuntimeApi, ParachainExecutor>;
 type ParachainBackend = TFullBackend<Block>;
 
 type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
-
 
 // /// Build the import queue for the parachain runtime.
 // pub fn parachain_build_import_queue<RuntimeApi, Executor>(
@@ -153,7 +150,9 @@ pub fn new_partial(
 
 	let heap_pages = config
 		.default_heap_pages
-		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
+		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
+			extra_pages: h as _,
+		});
 
 	let wasm = WasmExecutor::builder()
 		.with_execution_method(config.wasm_method)
@@ -165,12 +164,11 @@ pub fn new_partial(
 
 	let executor = ParachainExecutor::new_with_wasm_executor(wasm);
 
-	let (client, backend, keystore_container, task_manager) =
-		sc_service::new_full_parts::<Block, RuntimeApi, _>(
-			config,
-			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
-			executor,
-		)?;
+	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts::<Block, RuntimeApi, _>(
+		config,
+		telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+		executor,
+	)?;
 	let client = Arc::new(client);
 
 	let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
@@ -294,9 +292,7 @@ async fn start_node_impl(
 				runtime_api_provider: client.clone(),
 				keystore: Some(params.keystore_container.keystore()),
 				offchain_db: backend.offchain_storage(),
-				transaction_pool: Some(OffchainTransactionPoolFactory::new(
-					transaction_pool.clone(),
-				)),
+				transaction_pool: Some(OffchainTransactionPoolFactory::new(transaction_pool.clone())),
 				network_provider: network.clone(),
 				is_validator: parachain_config.role.is_authority(),
 				enable_http_requests: false,
@@ -421,24 +417,26 @@ fn build_import_queue(
 ) -> Result<sc_consensus::DefaultImportQueue<Block>, sc_service::Error> {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 
-	Ok(cumulus_client_consensus_aura::equivocation_import_queue::fully_verifying_import_queue::<
-		sp_consensus_aura::sr25519::AuthorityPair,
-		_,
-		_,
-		_,
-		_,
-	>(
-		client,
-		block_import,
-		move |_, _| async move {
-			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
-			Ok(timestamp)
-		},
-		slot_duration,
-		&task_manager.spawn_essential_handle(),
-		config.prometheus_registry(),
-		telemetry,
-	))
+	Ok(
+		cumulus_client_consensus_aura::equivocation_import_queue::fully_verifying_import_queue::<
+			sp_consensus_aura::sr25519::AuthorityPair,
+			_,
+			_,
+			_,
+			_,
+		>(
+			client,
+			block_import,
+			move |_, _| async move {
+				let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+				Ok(timestamp)
+			},
+			slot_duration,
+			&task_manager.spawn_essential_handle(),
+			config.prometheus_registry(),
+			telemetry,
+		),
+	)
 }
 
 fn start_consensus(
@@ -457,9 +455,7 @@ fn start_consensus(
 	overseer_handle: OverseerHandle,
 	announce_block: Arc<dyn Fn(Hash, Option<Vec<u8>>) + Send + Sync>,
 ) -> Result<(), sc_service::Error> {
-	use cumulus_client_consensus_aura::collators::basic::{
-		self as basic_aura, Params as BasicAuraParams,
-	};
+	use cumulus_client_consensus_aura::collators::basic::{self as basic_aura, Params as BasicAuraParams};
 
 	// NOTE: because we use Aura here explicitly, we can use `CollatorSybilResistance::Resistant`
 	// when starting the network.
@@ -501,10 +497,7 @@ fn start_consensus(
 		authoring_duration: Duration::from_millis(500),
 	};
 
-	let fut =
-		basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _>(
-			params,
-		);
+	let fut = basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _>(params);
 	task_manager.spawn_essential_handle().spawn("aura", None, fut);
 
 	Ok(())

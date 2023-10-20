@@ -22,9 +22,9 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 use sp_std::vec::Vec;
 
-use scale_info::TypeInfo;
-use scale_info::prelude::string::String;
 use scale_info::prelude::format;
+use scale_info::prelude::string::String;
+use scale_info::TypeInfo;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

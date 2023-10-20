@@ -31,11 +31,7 @@ fn vesting_schedule() -> Schedule {
 }
 
 fn set_balance_proposal(who: AccountId, value: u128) -> BoundedCallOf<hydradx_runtime::Runtime> {
-	let inner = pallet_balances::Call::set_balance {
-		who,
-		new_free: value,
-		new_reserved: 0,
-	};
+	let inner = pallet_balances::Call::force_set_balance { who, new_free: value };
 	let outer = hydradx_runtime::RuntimeCall::Balances(inner);
 	Preimage::bound(outer).unwrap()
 }
@@ -122,11 +118,10 @@ fn democracy_vote_should_record_stake_vote() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -173,11 +168,10 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -228,11 +222,10 @@ fn staking_should_transfer_rewards_when_claimed() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -294,11 +287,10 @@ fn staking_should_not_reward_when_double_claimed() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -354,11 +346,10 @@ fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -420,11 +411,10 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -483,11 +473,10 @@ fn staking_should_remove_vote_when_democracy_removes_vote() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -540,11 +529,10 @@ fn staking_should_not_reward_when_refenrendum_is_ongoing() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -591,11 +579,10 @@ fn democracy_vote_should_work_correctly_when_account_has_no_stake() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Democracy::vote(
@@ -623,11 +610,10 @@ fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
 			10_000 * UNITS,
 			0,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Democracy::vote(
@@ -658,11 +644,10 @@ fn staking_position_transfer_should_fail_when_origin_is_owner() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 
 		assert_ok!(Staking::stake(
@@ -705,11 +690,10 @@ fn thaw_staking_position_should_fail_when_origin_is_position_owner() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 
 		assert_ok!(Staking::stake(
@@ -751,11 +735,10 @@ fn thaw_staking_collection_should_fail_when_origin_is_not_pallet_account() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 
 		assert_ok!(Staking::stake(

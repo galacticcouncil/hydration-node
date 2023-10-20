@@ -232,7 +232,7 @@ benchmarks! {
 			.collect::<Vec<_>>()
 			.try_into()
 			.unwrap();
-		Blacklist::<T>::insert(proposal.hash(), (T::BlockNumber::zero(), addresses));
+		Blacklist::<T>::insert(proposal.hash(), (BlockNumberFor::<T>::zero(), addresses));
 	}: _<T::RuntimeOrigin>(origin, proposal)
 	verify {
 		// External proposal created
@@ -289,7 +289,7 @@ benchmarks! {
 			vetoers.try_push(account::<T::AccountId>("vetoer", i, SEED)).unwrap();
 		}
 		vetoers.sort();
-		Blacklist::<T>::insert(proposal_hash, (T::BlockNumber::zero(), vetoers));
+		Blacklist::<T>::insert(proposal_hash, (BlockNumberFor::<T>::zero(), vetoers));
 
 		let origin = T::VetoOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
 		ensure!(NextExternal::<T>::get().is_some(), "no external proposal");

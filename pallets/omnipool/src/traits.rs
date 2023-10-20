@@ -1,5 +1,4 @@
 use crate::types::AssetReserveState;
-use sp_std::fmt::Debug;
 use frame_support::ensure;
 use frame_support::traits::Contains;
 use frame_support::weights::Weight;
@@ -7,6 +6,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::AssetStateChange;
 use sp_runtime::traits::{CheckedAdd, CheckedMul, Get, Saturating};
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128, Permill};
+use sp_std::fmt::Debug;
 
 pub struct AssetInfo<AssetId, Balance>
 where

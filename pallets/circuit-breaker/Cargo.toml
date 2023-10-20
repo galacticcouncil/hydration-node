@@ -47,6 +47,8 @@ std = [
     'frame-system/std',
     'serde/std',
     'scale-info/std',
+    'pallet-balances/std',
+    'orml-tokens/std',
 ]
 runtime-benchmarks = [
   "frame-benchmarking",

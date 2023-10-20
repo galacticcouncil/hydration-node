@@ -30,7 +30,7 @@ pub use oracle::*;
 
 use codec::{Decode, Encode};
 use frame_support::dispatch::{self};
-use frame_support::sp_runtime::{DispatchError, RuntimeDebug, traits::Zero};
+use frame_support::sp_runtime::{traits::Zero, DispatchError, RuntimeDebug};
 use frame_support::traits::LockIdentifier;
 use frame_support::weights::Weight;
 use serde::{Deserialize, Serialize};
