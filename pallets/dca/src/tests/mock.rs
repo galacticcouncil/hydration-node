@@ -359,6 +359,7 @@ impl pallet_route_executor::Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
+	type NativeAssetId = NativeCurrencyId;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
 	type AMM = Pools;
 	type WeightInfo = ();
@@ -482,6 +483,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 
 		Ok(())
 	}
+
+	fn get_liquidity_depth(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		todo!("Not implemented as not used directly within DCA context")
+	}
 }
 
 pub const XYK_SELL_CALCULATION_RESULT: Balance = ONE * 5 / 4;
@@ -578,6 +587,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 			.map_err(ExecutorError::Error)?;
 
 		Ok(())
+	}
+
+	fn get_liquidity_depth(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		todo!("No need to implement it as this is not used directly in DCA")
 	}
 }
 

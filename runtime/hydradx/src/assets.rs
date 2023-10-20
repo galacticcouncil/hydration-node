@@ -673,6 +673,7 @@ impl pallet_route_executor::Config for Runtime {
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
 	type WeightInfo = RouterWeightInfo;
 	type AMM = (Omnipool, Stableswap, XYK, LBP);
+	type NativeAssetId = NativeAssetId;
 }
 
 parameter_types! {

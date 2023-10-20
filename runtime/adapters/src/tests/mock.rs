@@ -265,6 +265,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPoolF
 	) -> Result<(), ExecutorError<Self::Error>> {
 		Omnipool::execute_buy(who, pool_type, asset_in, asset_out, amount_out, max_limit)
 	}
+
+	fn get_liquidity_depth(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		Omnipool::get_liquidity_depth(pool_type, asset_a, asset_b)
+	}
 }
 
 parameter_types! {
@@ -278,6 +286,7 @@ impl pallet_route_executor::Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
+	type NativeAssetId = NativeCurrencyId;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
 	type AMM = Pools;
 	type WeightInfo = ();

@@ -147,6 +147,7 @@ impl Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
+	type NativeAssetId = NativeCurrencyId;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
 	type AMM = Pools;
 	type WeightInfo = ();
@@ -355,6 +356,14 @@ macro_rules! impl_fake_executor {
 				.map_err(|e| ExecutorError::Error(e))?;
 
 				Ok(())
+			}
+
+			fn get_liquidity_depth(
+				pool_type: PoolType<AssetId>,
+				asset_a: AssetId,
+				asset_b: AssetId,
+			) -> Result<Balance, ExecutorError<Self::Error>> {
+				todo!("Implement it to be able to unit test it")
 			}
 		}
 	};

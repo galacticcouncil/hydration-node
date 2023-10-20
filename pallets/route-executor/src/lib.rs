@@ -29,6 +29,7 @@ pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use sp_runtime::traits::CheckedDiv;
 use sp_runtime::{ArithmeticError, DispatchError};
 use sp_std::{vec, vec::Vec};
 
@@ -45,6 +46,8 @@ pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
+	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, CheckedMul};
+	use sp_runtime::{FixedU128, Permill};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -54,7 +57,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset id type
-		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
+		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + AtLeast32BitUnsigned;
 
 		/// Balance type
 		type Balance: Parameter
@@ -62,13 +65,19 @@ pub mod pallet {
 			+ Copy
 			+ PartialOrd
 			+ MaybeSerializeDeserialize
+			+ From<u128>
 			+ Default
 			+ CheckedSub
-			+ CheckedAdd;
+			+ CheckedAdd
+			+ CheckedDiv;
 
 		/// Max limit for the number of trades within a route
 		#[pallet::constant]
 		type MaxNumberOfTrades: Get<u8>;
+
+		/// Native Asset Id
+		#[pallet::constant]
+		type NativeAssetId: Get<Self::AssetId>;
 
 		/// Currency for checking balances
 		type Currency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>;
@@ -290,8 +299,32 @@ pub mod pallet {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			Routes::<T>::insert(asset_pair, route);
+			//TODO: what happens when someones sets a completely different trade, so the amount in of first trade does not patxch with asset pair first stuff?
+			//TODO: do we need some validation to check when the first route is set?
 
+			let maybe_route = Routes::<T>::get(asset_pair);
+
+			match maybe_route {
+				Some(existing_route) => {
+					//TODO: we need to calculate with 1% of the pool for both route?. I guess yes
+					let amount_out_for_existing_route = Self::calculate_expected_amount_out(&existing_route)?;
+					let amount_out_for_new_route = Self::calculate_expected_amount_out(&route)?;
+
+					let amount_in_for_existing_route = Self::calculate_expected_amount_in(&existing_route)?;
+					let amount_in_for_new_route = Self::calculate_expected_amount_in(&route)?;
+
+					if amount_out_for_new_route > amount_out_for_existing_route
+						&& amount_in_for_new_route < amount_in_for_existing_route
+					{
+						Routes::<T>::insert(asset_pair, route.clone());
+					}
+				}
+				None => {
+					Routes::<T>::insert(asset_pair, route.clone());
+				}
+			}
+
+			//TODO: refund if successfully set
 			Ok(())
 		}
 	}
@@ -342,6 +375,69 @@ impl<T: Config> Pallet<T> {
 			);
 		}
 		Ok(())
+	}
+
+	fn calculate_expected_amount_out(
+		route: &BoundedVec<Trade<<T as Config>::AssetId>, ConstU32<5>>,
+	) -> Result<T::Balance, DispatchError> {
+		let first_route = route.first().ok_or(Error::<T>::RouteCalculationFailed)?;
+		let asset_b = match first_route.pool {
+			PoolType::Omnipool => T::NativeAssetId::get(),
+			PoolType::Stableswap(pool_id) => pool_id,
+			PoolType::XYK => first_route.asset_out,
+			PoolType::LBP => first_route.asset_out,
+		};
+
+		let asset_in_liquidity = T::AMM::get_liquidity_depth(first_route.pool, first_route.asset_in, asset_b);
+
+		let liq = match asset_in_liquidity {
+			Err(ExecutorError::NotSupported) => return Err(Error::<T>::PoolNotSupported.into()),
+			Err(ExecutorError::Error(dispatch_error)) => return Err(dispatch_error),
+			Ok(liq) => liq,
+		};
+
+		//TODO: Check if it is a corrrect way to get 1%
+		let one_percent_asset_in_liq = liq.checked_div(&100u128.into()).ok_or(ArithmeticError::Overflow)?; //TODO: magic number - remove
+
+		let sell_trade_amounts = Self::calculate_sell_trade_amounts(&route, one_percent_asset_in_liq.into())?;
+		let amount_out = sell_trade_amounts
+			.last()
+			.ok_or(Error::<T>::RouteCalculationFailed)?
+			.amount_out;
+
+		Ok(amount_out)
+	}
+
+	fn calculate_expected_amount_in(
+		route: &BoundedVec<Trade<<T as Config>::AssetId>, ConstU32<5>>,
+	) -> Result<T::Balance, DispatchError> {
+		let last_route = route.last().ok_or(Error::<T>::RouteCalculationFailed)?;
+		let asset_b = match last_route.pool {
+			PoolType::Omnipool => T::NativeAssetId::get(),
+			PoolType::Stableswap(pool_id) => pool_id,
+			PoolType::XYK => last_route.asset_in,
+			PoolType::LBP => last_route.asset_in,
+		};
+
+		let asset_out_liquidity = T::AMM::get_liquidity_depth(last_route.pool, last_route.asset_out, asset_b);
+
+		let liq = match asset_out_liquidity {
+			Err(ExecutorError::NotSupported) => return Err(Error::<T>::PoolNotSupported.into()),
+			Err(ExecutorError::Error(dispatch_error)) => return Err(dispatch_error),
+			Ok(liq) => liq,
+		};
+
+		let one_percent_asset_in_liq = liq.checked_div(&100u128.into()).ok_or(ArithmeticError::Overflow)?; //TODO: magic number - remove
+
+		//TODO: use the one_percent_asset_in_liq instead of hardcoded 100 * UNITS
+		//let buy_trade_amounts = Self::calculate_buy_trade_amounts(&route, (2000000000000).into())?;
+		let buy_trade_amounts = Self::calculate_buy_trade_amounts(&route, one_percent_asset_in_liq.into())?;
+		let amount_in = buy_trade_amounts
+			.last()
+			.ok_or(Error::<T>::RouteCalculationFailed)?
+			.amount_in;
+
+		Ok(amount_in)
 	}
 
 	fn calculate_sell_trade_amounts(

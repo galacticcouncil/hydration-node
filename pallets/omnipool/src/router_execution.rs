@@ -148,4 +148,22 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 
 		Self::buy(who, asset_out, asset_in, amount_out, max_limit).map_err(ExecutorError::Error)
 	}
+
+	fn get_liquidity_depth(
+		pool_type: PoolType<T::AssetId>,
+		asset_a: T::AssetId,
+		asset_b: T::AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		if pool_type != PoolType::Omnipool {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		//TODO: We can use balance of protocol account
+		//TODO: only outlier is LRNA, which you have to get from that omnipool asset state
+		//TODO: add test for it
+
+		let asset_state = Self::load_asset_state(asset_a).map_err(ExecutorError::Error)?;
+
+		Ok(asset_state.reserve)
+	}
 }

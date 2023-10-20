@@ -101,6 +101,12 @@ pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 		amount_out: Balance,
 		max_limit: Balance,
 	) -> Result<(), ExecutorError<Self::Error>>;
+
+	fn get_liquidity_depth(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>>;
 }
 
 #[allow(clippy::redundant_clone)] //Needed as it complains about redundant clone, but clone is needed as Origin is moved and it is not copy type.
@@ -178,6 +184,23 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 		for_tuples!(
 			#(
 				let value = match Tuple::execute_buy(who.clone(), pool_type,asset_in, asset_out, amount_out, max_limit) {
+					Ok(result) => return Ok(result),
+					Err(v) if v == ExecutorError::NotSupported => v,
+					Err(v) => return Err(v),
+				};
+			)*
+		);
+		Err(value)
+	}
+
+	fn get_liquidity_depth(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		for_tuples!(
+			#(
+				let value = match Tuple::get_liquidity_depth(pool_type,asset_a, asset_b){
 					Ok(result) => return Ok(result),
 					Err(v) if v == ExecutorError::NotSupported => v,
 					Err(v) => return Err(v),
