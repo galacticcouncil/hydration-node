@@ -86,9 +86,26 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(104 as u64))
 			.saturating_add(T::DbWeight::get().writes(103 as u64))
 	}
+	// TODO: update weights
 	// Storage: XcmpQueue DeferredXcmMessages (r:1 w:1)
 	// Proof Skipped: XcmpQueue DeferredXcmMessages (max_values: None, max_size: None, mode: Measured)
-	fn discard_deferred() -> Weight {
+	fn discard_deferred_bucket() -> Weight {
+		// Minimum execution time: 62_131_073 nanoseconds.
+		Weight::from_ref_time(63_092_826_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+
+	// Storage: XcmpQueue DeferredXcmMessages (r:1 w:1)
+	// Proof Skipped: XcmpQueue DeferredXcmMessages (max_values: None, max_size: None, mode: Measured)
+	fn discard_deferred_individual() -> Weight {
+		// Minimum execution time: 62_131_073 nanoseconds.
+		Weight::from_ref_time(63_092_826_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+
+	fn try_place_in_deferred_queue() -> Weight {
 		// Minimum execution time: 62_131_073 nanoseconds.
 		Weight::from_ref_time(63_092_826_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
