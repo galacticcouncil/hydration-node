@@ -1,6 +1,7 @@
 use super::*;
 use crate::types::Tradability;
 use frame_support::assert_noop;
+use orml_traits::MultiCurrencyExtended;
 use sp_runtime::traits::One;
 use sp_runtime::DispatchError::BadOrigin;
 
@@ -243,6 +244,86 @@ fn lp_receives_lrna_when_price_is_higher() {
 			assert_balance!(LP1, LRNA, 203_921_568_627_449);
 
 			assert_pool_state!(10391666666666667, 64723183391003641, SimpleImbalance::default());
+		});
+}
+
+#[test]
+fn remove_liquiduity_should_burn_lrna_when_amount_is_below_ed() {
+	let asset_id = 1_000;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP3, asset_id, 500 * ONE),
+			(LP1, asset_id, 2 * ONE),
+			(LP2, DAI, 50000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(asset_id, FixedU128::from_float(0.65), LP3, 500 * ONE)
+		.build()
+		.execute_with(|| {
+			let liq_added = 2 * ONE;
+			let current_position_id = <NextPositionId<Test>>::get();
+
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), asset_id, liq_added));
+
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP2),
+				asset_id,
+				DAI,
+				100_000_000_000,
+				500000 * ONE
+			));
+
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP1),
+				current_position_id,
+				liq_added
+			));
+			assert_balance!(LP1, LRNA, 0);
+			let lrna_issuance = Tokens::total_issuance(LRNA);
+			assert!(lrna_issuance < 10826000000025799); // this value is when lrna is transferred
+		});
+}
+
+#[test]
+fn remove_liquiduity_should_transfer_lrna_below_ed_when_lp_has_sufficient_lrna_amount() {
+	let asset_id = 1_000;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP3, asset_id, 500 * ONE),
+			(LP1, asset_id, 2 * ONE),
+			(LP2, DAI, 50000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(asset_id, FixedU128::from_float(0.65), LP3, 500 * ONE)
+		.build()
+		.execute_with(|| {
+			let liq_added = 2 * ONE;
+			let current_position_id = <NextPositionId<Test>>::get();
+
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), asset_id, liq_added));
+
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP2),
+				asset_id,
+				DAI,
+				100_000_000_000,
+				500000 * ONE
+			));
+
+			Tokens::update_balance(LRNA, &LP1, ONE as i128).unwrap();
+
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP1),
+				current_position_id,
+				liq_added
+			));
+			assert_balance!(LP1, LRNA, 1000259041538);
+			let lrna_issuance = Tokens::total_issuance(LRNA);
+			assert_eq!(lrna_issuance, 10826000000025799);
 		});
 }
 

@@ -2117,7 +2117,7 @@ impl<T: Config> Pallet<T> {
 				if amount < 400_000_000u128 {
 					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
 				} else {
-					return Err(e)
+					return Err(e);
 				}
 			}
 		}
