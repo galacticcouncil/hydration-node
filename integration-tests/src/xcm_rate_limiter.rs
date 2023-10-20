@@ -84,8 +84,10 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 			cumulus_pallet_xcmp_queue::Event::XcmDeferred {
 				sender: ACALA_PARA_ID.into(),
 				sent_at: 3,
-				deferred_to: 604, // received at 4 plus 600 blocks of deferral
+				deferred_to: hydradx_runtime::DeferDuration::get() + 4,
 				message_hash,
+				index: (hydradx_runtime::DeferDuration::get() + 4, 0),
+				position: 0,
 			}
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
@@ -223,8 +225,10 @@ fn deferred_messages_should_be_executable_by_root() {
 			cumulus_pallet_xcmp_queue::Event::XcmDeferred {
 				sender: ACALA_PARA_ID.into(),
 				sent_at: 3,
-				deferred_to: 604, // received at 4 plus 600 blocks of deferral
+				deferred_to: hydradx_runtime::DeferDuration::get() + 4,
 				message_hash,
+				index: (hydradx_runtime::DeferDuration::get() + 4, 0),
+				position: 0,
 			}
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
@@ -235,7 +239,7 @@ fn deferred_messages_should_be_executable_by_root() {
 		]);
 		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
 
-		set_relaychain_block_number(604);
+		set_relaychain_block_number(hydradx_runtime::DeferDuration::get() + 4);
 
 		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
 		assert_ok!(hydradx_runtime::XcmpQueue::service_deferred(
