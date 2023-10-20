@@ -277,8 +277,9 @@ pub mod pallet {
 		ProtocolLiquidityRemoved {
 			who: T::AccountId,
 			asset_id: T::AssetId,
-			shares_removed: Balance,
+			amount: Balance,
 			hub_amount: Balance,
+			shares_removed: Balance,
 		},
 		/// Sell trade executed.
 		SellExecuted {
@@ -1606,8 +1607,9 @@ pub mod pallet {
 			Self::deposit_event(Event::ProtocolLiquidityRemoved {
 				who: dest,
 				asset_id,
-				shares_removed: amount,
+				amount: *state_changes.asset.delta_reserve,
 				hub_amount: state_changes.lp_hub_amount,
+				shares_removed: amount,
 			});
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
@@ -1633,6 +1635,19 @@ pub mod pallet {
 				asset_state.shares == asset_state.protocol_shares,
 				Error::<T>::SharesRemaining
 			);
+			// Imbalance update
+			let imbalance = <HubAssetImbalance<T>>::get();
+			let hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
+			let delta_imbalance = hydra_dx_math::omnipool::calculate_delta_imbalance(
+				asset_state.hub_reserve,
+				I129 {
+					value: imbalance.value,
+					negative: imbalance.negative,
+				},
+				hub_asset_liquidity,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+			Self::update_imbalance(BalanceUpdate::Increase(delta_imbalance))?;
 
 			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), asset_state.hub_reserve)?;
 			T::Currency::transfer(asset_id, &Self::protocol_account(), &beneficiary, asset_state.reserve)?;
