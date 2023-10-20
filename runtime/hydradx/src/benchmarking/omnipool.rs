@@ -483,7 +483,7 @@ runtime_benchmarks! {
 
 		let position =  Omnipool::positions(current_position_id).unwrap();
 
-		Omnipool::sacrifice_position(RawOrigin::Signed(lp_provider.clone()).into(), current_position_id)?;
+		Omnipool::sacrifice_position(RawOrigin::Signed(lp_provider).into(), current_position_id)?;
 
 		let beneficiary: AccountId = account("beneficiary", 1, 1);
 
