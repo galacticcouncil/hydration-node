@@ -474,17 +474,3 @@ pub fn init_omnipool() {
 		Permill::from_percent(10)
 	));
 }
-
-#[macro_export]
-macro_rules! assert_balance {
-	( $who:expr, $asset:expr, $amount:expr) => {{
-		assert_eq!(Currencies::free_balance($asset, &$who), $amount);
-	}};
-}
-
-#[macro_export]
-macro_rules! assert_reserved_balance {
-	( $who:expr, $asset:expr, $amount:expr) => {{
-		assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
-	}};
-}
