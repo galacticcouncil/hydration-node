@@ -2,7 +2,7 @@
 #![allow(clippy::identity_op)]
 use super::assert_balance;
 use crate::polkadot_test_net::*;
-
+use sp_runtime::BoundedVec;
 use std::convert::Into;
 
 use hydradx_adapters::OmnipoolHookAdapter;
@@ -2204,6 +2204,164 @@ mod omnipool_stableswap_router_tests {
 	}
 }
 
+mod set_route {
+	use super::*;
+	use hydradx_traits::router::PoolType;
+
+	#[test]
+	fn set_route_should_work_with_all_pools_involved() {
+		{
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					pool_id,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					pool_id,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				create_xyk_pool_with_amounts(DOT, 1000 * UNITS, stable_asset_1, 1000 * UNITS);
+
+				create_lbp_pool_with_amounts(DOT, 1000 * UNITS, stable_asset_1, 1000 * UNITS);
+				start_lbp_campaign();
+
+				let route1 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: pool_id,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: pool_id,
+						asset_out: stable_asset_1,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: stable_asset_1,
+						asset_out: DOT,
+					},
+				];
+
+				let route2_cheaper = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: pool_id,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: pool_id,
+						asset_out: stable_asset_1,
+					},
+					Trade {
+						pool: PoolType::LBP,
+						asset_in: stable_asset_1,
+						asset_out: DOT,
+					},
+				];
+
+				let asset_pair = (HDX, DOT);
+
+				//Test which is better
+				//TODO: once this feature is finalized, we can remove these helper trades, they were just used to check which price is really better
+				let amount_to_sell = 100 * UNITS;
+				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE);
+
+				//A scenario
+				/*assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					DOT,
+					amount_to_sell,
+					0,
+					route1.clone()
+				));
+				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE + 5464509074720);*/
+
+				//B scenario
+				/*assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					DOT,
+					amount_to_sell,
+					0,
+					route2_cheaper.clone()
+				));
+				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE + 10191854707103);*/
+
+				//A BUY scenario
+				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+
+				/*assert_ok!(Router::buy(
+									hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+									HDX,
+									DOT,
+									2000000000000,
+									Balance::MAX,
+									route1.clone()
+								));
+								assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 35260285057170);
+				*/
+				//B BUY scenario
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS);
+				/*assert_ok!(Router::buy(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					stable_asset_1,
+					2000000000000,
+					Balance::MAX,
+					route2_cheaper.clone()
+				));
+				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 19493069730044);*/
+
+				//We set first the more expensive route
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					create_bounded_vec(route1.clone())
+				));
+				assert_eq!(Router::route(asset_pair).unwrap(), route1);
+
+				//We set the cheaper one so it should replace
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					create_bounded_vec(route2_cheaper.clone())
+				));
+				assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
+
+				//We try to set back the more expensive but did not replace
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					create_bounded_vec(route1.clone())
+				));
+				assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
+			});
+		}
+	}
+}
+
+pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
+	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
+	bounded_vec
+}
+
 fn create_lbp_pool(accumulated_asset: u32, distributed_asset: u32) {
 	assert_ok!(LBP::create_pool(
 		RuntimeOrigin::root(),
@@ -2236,6 +2394,51 @@ fn create_lbp_pool(accumulated_asset: u32, distributed_asset: u32) {
 	));
 }
 
+fn create_lbp_pool_with_amounts(accumulated_asset: u32, amount_a: u128, distributed_asset: u32, amount_b: u128) {
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		accumulated_asset,
+		amount_a as i128,
+	));
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		distributed_asset,
+		amount_b as i128,
+	));
+
+	assert_ok!(LBP::create_pool(
+		RuntimeOrigin::root(),
+		DAVE.into(),
+		accumulated_asset,
+		amount_a,
+		distributed_asset,
+		amount_b,
+		20_000_000,
+		80_000_000,
+		WeightCurveType::Linear,
+		(2, 1_000),
+		CHARLIE.into(),
+		0,
+	));
+
+	let account_id = get_lbp_pair_account_id(accumulated_asset, distributed_asset);
+
+	assert_ok!(LBP::update_pool_data(
+		RuntimeOrigin::signed(DAVE.into()),
+		account_id,
+		None,
+		Some(LBP_SALE_START),
+		Some(LBP_SALE_END),
+		None,
+		None,
+		None,
+		None,
+		None,
+	));
+}
+
 fn get_lbp_pair_account_id(asset_a: AssetId, asset_b: AssetId) -> AccountId {
 	let asset_pair = AssetPair {
 		asset_in: asset_a,
@@ -2255,6 +2458,29 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 		100 * UNITS,
 		asset_b,
 		50 * UNITS,
+	));
+}
+
+fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		asset_a,
+		amount_a as i128,
+	));
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		asset_b,
+		amount_b as i128,
+	));
+
+	assert_ok!(XYK::create_pool(
+		RuntimeOrigin::signed(DAVE.into()),
+		asset_a,
+		amount_a,
+		asset_b,
+		amount_b,
 	));
 }
 
