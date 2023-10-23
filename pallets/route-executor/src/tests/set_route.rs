@@ -57,6 +57,173 @@ fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
 }
 
 #[test]
+fn set_route_should_work_when_new_price_is_better() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = (HDX, AUSD);
+		let route = create_bounded_vec(vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: STABLE_SHARE_ASSET,
+			},
+			Trade {
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
+			},
+		]);
+
+		assert_ok!(Router::set_route(
+			RuntimeOrigin::signed(ALICE),
+			asset_pair,
+			route.clone()
+		));
+
+		//Act
+		let cheaper_route = create_bounded_vec(vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: AUSD,
+		}]);
+
+		assert_ok!(Router::set_route(
+			RuntimeOrigin::signed(ALICE),
+			asset_pair,
+			cheaper_route.clone()
+		));
+
+		//Assert
+		let stored_route = Router::route(asset_pair).unwrap();
+		assert_eq!(stored_route, cheaper_route);
+	});
+}
+
+#[test]
+fn set_route_should_not_override_when_only_sell_price_is_better() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = (HDX, AUSD);
+
+		let route = create_bounded_vec(vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: STABLE_SHARE_ASSET,
+			},
+			Trade {
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
+			},
+		]);
+
+		assert_ok!(Router::set_route(
+			RuntimeOrigin::signed(ALICE),
+			asset_pair,
+			route.clone()
+		));
+
+		//Act
+		let new_route = create_bounded_vec(vec![Trade {
+			pool: PoolType::LBP,
+			asset_in: DOT,
+			asset_out: AUSD,
+		}]);
+
+		assert_ok!(Router::set_route(
+			RuntimeOrigin::signed(ALICE),
+			asset_pair,
+			new_route.clone()
+		));
+
+		//Assert
+		let stored_route = Router::route(asset_pair).unwrap();
+		assert_eq!(stored_route, route);
+	});
+}
+
+#[test]
+fn set_route_should_not_override_when_only_buy_price_is_better() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = (HDX, AUSD);
+
+		let route = create_bounded_vec(vec![Trade {
+			pool: PoolType::LBP,
+			asset_in: HDX,
+			asset_out: AUSD,
+		}]);
+
+		assert_ok!(Router::set_route(
+			RuntimeOrigin::signed(ALICE),
+			asset_pair,
+			route.clone()
+		));
+
+		//Act
+		let new_route = create_bounded_vec(vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: DOT,
+			asset_out: AUSD,
+		}]);
+
+		assert_ok!(Router::set_route(
+			RuntimeOrigin::signed(ALICE),
+			asset_pair,
+			new_route.clone()
+		));
+
+		//Assert
+		let stored_route = Router::route(asset_pair).unwrap();
+		assert_eq!(stored_route, route);
+	});
+}
+
+#[test]
+fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = (HDX, AUSD);
+		let cheaper_route = create_bounded_vec(vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: AUSD,
+		}]);
+
+		assert_ok!(Router::set_route(
+			RuntimeOrigin::signed(ALICE),
+			asset_pair,
+			cheaper_route.clone()
+		));
+
+		let route = create_bounded_vec(vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: STABLE_SHARE_ASSET,
+			},
+			Trade {
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
+			},
+		]);
+
+		//Act
+		assert_ok!(Router::set_route(
+			RuntimeOrigin::signed(ALICE),
+			asset_pair,
+			route.clone()
+		));
+
+		//Assert
+		let stored_route = Router::route(asset_pair).unwrap();
+		assert_eq!(stored_route, cheaper_route);
+	});
+}
+
+#[test]
 fn set_route_should_fail_when_called_by_unsigned() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange

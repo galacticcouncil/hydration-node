@@ -135,7 +135,7 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-type Pools = (XYK, StableSwap, OmniPool);
+type Pools = (XYK, StableSwap, OmniPool, LBP);
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = 1000;
@@ -166,15 +166,18 @@ pub const KSM: AssetId = 1003;
 pub const RMRK: AssetId = 1004;
 pub const SDN: AssetId = 1005;
 pub const STABLE_SHARE_ASSET: AssetId = 1006;
+pub const DOT: AssetId = 1007;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
 
 pub const XYK_SELL_CALCULATION_RESULT: Balance = 6;
-pub const XYK_BUY_CALCULATION_RESULT: Balance = 5;
+pub const XYK_BUY_CALCULATION_RESULT: Balance = 1;
 pub const STABLESWAP_SELL_CALCULATION_RESULT: Balance = 4;
 pub const STABLESWAP_BUY_CALCULATION_RESULT: Balance = 3;
 pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = 2;
-pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 1;
+pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 5;
+pub const LBP_SELL_CALCULATION_RESULT: Balance = 9;
+pub const LBP_BUY_CALCULATION_RESULT: Balance = 8;
 pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
 
 pub const BSX_AUSD_TRADE_IN_XYK: Trade<AssetId> = Trade {
@@ -363,7 +366,7 @@ macro_rules! impl_fake_executor {
 				asset_a: AssetId,
 				asset_b: AssetId,
 			) -> Result<Balance, ExecutorError<Self::Error>> {
-				todo!("Implement it to be able to unit test it")
+				Ok(100)
 			}
 		}
 	};
@@ -373,6 +376,7 @@ macro_rules! impl_fake_executor {
 pub struct XYK;
 pub struct StableSwap;
 pub struct OmniPool;
+pub struct LBP;
 
 impl_fake_executor!(
 	XYK,
@@ -391,6 +395,13 @@ impl_fake_executor!(
 	PoolType::Omnipool,
 	OMNIPOOL_SELL_CALCULATION_RESULT,
 	OMNIPOOL_BUY_CALCULATION_RESULT
+);
+
+impl_fake_executor!(
+	LBP,
+	PoolType::LBP,
+	LBP_SELL_CALCULATION_RESULT,
+	LBP_BUY_CALCULATION_RESULT
 );
 
 pub fn assert_executed_sell_trades(expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>) {

@@ -306,7 +306,6 @@ pub mod pallet {
 
 			match maybe_route {
 				Some(existing_route) => {
-					//TODO: we need to calculate with 1% of the pool for both route?. I guess yes
 					let amount_out_for_existing_route = Self::calculate_expected_amount_out(&existing_route)?;
 					let amount_out_for_new_route = Self::calculate_expected_amount_out(&route)?;
 
