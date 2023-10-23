@@ -111,7 +111,7 @@ impl pallet_asset_registry::Config for Test {
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStringLimit;
 	type SequentialIdStartAt = SequentialIdStart;
-	type NativeAssetId = NativeAssetId;
+	type StorageFeesAssetId = NativeAssetId;
 	type StorageFees = StoreFees;
 	type StorageFeesBeneficiary = FeesBeneficiarry;
 	type WeightInfo = ();

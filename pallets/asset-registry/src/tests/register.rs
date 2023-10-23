@@ -521,12 +521,12 @@ fn register_should_fail_when_name_is_too_long() {
 			Registry::register(
 				RuntimeOrigin::root(),
 				Some(asset_id),
-				Some(name.clone()),
+				Some(name),
 				AssetType::Token,
 				Some(ed),
-				Some(symbol.clone()),
+				Some(symbol),
 				Some(decimals),
-				Some(asset_location.clone()),
+				Some(asset_location),
 				Some(xcm_rate_limit),
 				is_sufficient
 			),
@@ -554,12 +554,12 @@ fn register_should_fail_when_symbol_is_too_long() {
 			Registry::register(
 				RuntimeOrigin::root(),
 				Some(asset_id),
-				Some(name.clone()),
+				Some(name),
 				AssetType::Token,
 				Some(ed),
-				Some(symbol.clone()),
+				Some(symbol),
 				Some(decimals),
-				Some(asset_location.clone()),
+				Some(asset_location),
 				Some(xcm_rate_limit),
 				is_sufficient
 			),

@@ -92,7 +92,7 @@ benchmarks! {
 
 	register_external {
 		let caller: T::AccountId = account("caller", 0, 1);
-		T::Currency::update_balance(T::NativeAssetId::get(), &caller, (100_000 * UNIT) as i128)?;
+		T::Currency::update_balance(T::StorageFeesAssetId::get(), &caller, (100_000 * UNIT) as i128)?;
 
 		let expected_asset_id = Pallet::<T>::next_asset_id().unwrap();
 		let location: T::AssetNativeLocation = Default::default();

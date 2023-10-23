@@ -93,9 +93,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type SequentialIdStartAt: Get<Self::AssetId>;
 
-		/// Native Asset Id
+		/// Id of the asset that is used to pay storage fees.
 		#[pallet::constant]
-		type NativeAssetId: Get<Self::AssetId>;
+		type StorageFeesAssetId: Get<Self::AssetId>;
 
 		/// Storage fees for external asset creation.
 		#[pallet::constant]
@@ -237,9 +237,10 @@ pub mod pallet {
 				let native_symbol = Pallet::<T>::try_into_bounded(Some(self.native_symbol.to_vec()))
 					.expect("Invalid native asset symbol!");
 
+				let native_asset_id = T::AssetId::from(0);
 				AssetIds::<T>::insert(
 					native_asset_name.as_ref().expect("Invalid native asset name!"),
-					T::NativeAssetId::get(),
+					native_asset_id,
 				);
 				let details = AssetDetails {
 					name: native_asset_name,
@@ -251,7 +252,7 @@ pub mod pallet {
 					is_sufficient: true,
 				};
 
-				Assets::<T>::insert(T::NativeAssetId::get(), details);
+				Assets::<T>::insert(native_asset_id, details);
 
 				self.registered_assets.iter().for_each(
 					|(id, name, ed, symbol, decimals, xcm_rate_limit, is_sufficient)| {
@@ -470,12 +471,12 @@ pub mod pallet {
 
 			if !T::StorageFees::get().is_zero() {
 				ensure!(
-					T::Currency::ensure_can_withdraw(T::NativeAssetId::get(), &who, T::StorageFees::get()).is_ok(),
+					T::Currency::ensure_can_withdraw(T::StorageFeesAssetId::get(), &who, T::StorageFees::get()).is_ok(),
 					Error::<T>::InsufficientBalance
 				);
 
 				T::Currency::transfer(
-					T::NativeAssetId::get(),
+					T::StorageFeesAssetId::get(),
 					&who,
 					&T::StorageFeesBeneficiary::get(),
 					T::StorageFees::get(),

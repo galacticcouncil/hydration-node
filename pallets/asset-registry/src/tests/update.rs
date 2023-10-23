@@ -642,12 +642,12 @@ fn update_should_fail_when_name_is_too_long() {
 				Registry::update(
 					RuntimeOrigin::root(),
 					asset_id,
-					Some(name.clone()),
+					Some(name),
 					Some(AssetType::External),
 					Some(ed),
 					Some(xcm_rate_limit),
 					Some(is_sufficient),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
 					None
 				),
@@ -679,12 +679,12 @@ fn update_should_fail_when_symbolis_too_long() {
 				Registry::update(
 					RuntimeOrigin::root(),
 					asset_id,
-					Some(name.clone()),
+					Some(name),
 					Some(AssetType::External),
 					Some(ed),
 					Some(xcm_rate_limit),
 					Some(is_sufficient),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
 					None
 				),
