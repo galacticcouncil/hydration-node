@@ -127,6 +127,8 @@ pub mod pallet {
 		InvalidRouteExecution,
 		///The calculation of route trade amounts failed in the underlying AMM
 		RouteCalculationFailed,
+		///The asset pair is invalid for the specified route
+		InvalidRouteForAssetPair,
 	}
 
 	/// Storing routes for asset pairs
@@ -302,6 +304,15 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
+
+			ensure!(
+				asset_pair.0 == route.first().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_in,
+				Error::<T>::InvalidRouteForAssetPair
+			);
+			ensure!(
+				asset_pair.1 == route.last().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_out,
+				Error::<T>::InvalidRouteForAssetPair
+			);
 
 			//TODO: handle the case when we do save the same for the other way around
 			let maybe_route = Routes::<T>::get(asset_pair);
