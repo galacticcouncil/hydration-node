@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::MaxEncodedLen;
+use frame_support::{dispatch::GetDispatchInfo, traits::UnfilteredDispatchable};
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -295,7 +296,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_pair: (T::AssetId, T::AssetId),
 			route: BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
@@ -316,15 +317,16 @@ pub mod pallet {
 						&& amount_in_for_new_route < amount_in_for_existing_route
 					{
 						Routes::<T>::insert(asset_pair, route.clone());
+						return Ok(Pays::No.into());
 					}
 				}
 				None => {
 					Routes::<T>::insert(asset_pair, route.clone());
+					return Ok(Pays::No.into());
 				}
 			}
 
-			//TODO: refund if successfully set
-			Ok(())
+			Ok(Pays::Yes.into())
 		}
 	}
 }

@@ -19,11 +19,15 @@ use crate::tests::create_bounded_vec;
 use crate::tests::mock::*;
 use crate::Error::RouteHasNoTrades;
 use crate::{Error, Event, Trade};
+use frame_support::pallet_prelude::*;
 use frame_support::{assert_noop, assert_ok};
+use frame_support::{dispatch::GetDispatchInfo, traits::UnfilteredDispatchable};
 use hydradx_traits::router::PoolType;
+use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
+use test_utils::assert_balance;
 
 #[test]
 fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
@@ -44,11 +48,10 @@ fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
 		]);
 
 		//Act
-		assert_ok!(Router::set_route(
-			RuntimeOrigin::signed(ALICE),
-			asset_pair,
-			route.clone()
-		));
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Pays::No.into()
+		);
 
 		//Assert
 		let stored_route = Router::route(asset_pair).unwrap();
@@ -74,11 +77,10 @@ fn set_route_should_work_when_new_price_is_better() {
 			},
 		]);
 
-		assert_ok!(Router::set_route(
-			RuntimeOrigin::signed(ALICE),
-			asset_pair,
-			route.clone()
-		));
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Pays::No.into()
+		);
 
 		//Act
 		let cheaper_route = create_bounded_vec(vec![Trade {
@@ -87,11 +89,10 @@ fn set_route_should_work_when_new_price_is_better() {
 			asset_out: AUSD,
 		}]);
 
-		assert_ok!(Router::set_route(
-			RuntimeOrigin::signed(ALICE),
-			asset_pair,
-			cheaper_route.clone()
-		));
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, cheaper_route.clone()),
+			Pays::No.into()
+		);
 
 		//Assert
 		let stored_route = Router::route(asset_pair).unwrap();
@@ -118,11 +119,10 @@ fn set_route_should_not_override_when_only_sell_price_is_better() {
 			},
 		]);
 
-		assert_ok!(Router::set_route(
-			RuntimeOrigin::signed(ALICE),
-			asset_pair,
-			route.clone()
-		));
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Pays::No.into()
+		);
 
 		//Act
 		let new_route = create_bounded_vec(vec![Trade {
@@ -131,11 +131,10 @@ fn set_route_should_not_override_when_only_sell_price_is_better() {
 			asset_out: AUSD,
 		}]);
 
-		assert_ok!(Router::set_route(
-			RuntimeOrigin::signed(ALICE),
-			asset_pair,
-			new_route.clone()
-		));
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route.clone()),
+			Pays::Yes.into()
+		);
 
 		//Assert
 		let stored_route = Router::route(asset_pair).unwrap();
@@ -155,11 +154,10 @@ fn set_route_should_not_override_when_only_buy_price_is_better() {
 			asset_out: AUSD,
 		}]);
 
-		assert_ok!(Router::set_route(
-			RuntimeOrigin::signed(ALICE),
-			asset_pair,
-			route.clone()
-		));
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Pays::No.into()
+		);
 
 		//Act
 		let new_route = create_bounded_vec(vec![Trade {
@@ -168,11 +166,10 @@ fn set_route_should_not_override_when_only_buy_price_is_better() {
 			asset_out: AUSD,
 		}]);
 
-		assert_ok!(Router::set_route(
-			RuntimeOrigin::signed(ALICE),
-			asset_pair,
-			new_route.clone()
-		));
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route.clone()),
+			Pays::Yes.into()
+		);
 
 		//Assert
 		let stored_route = Router::route(asset_pair).unwrap();
@@ -191,11 +188,10 @@ fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
 			asset_out: AUSD,
 		}]);
 
-		assert_ok!(Router::set_route(
-			RuntimeOrigin::signed(ALICE),
-			asset_pair,
-			cheaper_route.clone()
-		));
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, cheaper_route.clone()),
+			Pays::No.into()
+		);
 
 		let route = create_bounded_vec(vec![
 			Trade {
@@ -211,11 +207,10 @@ fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
 		]);
 
 		//Act
-		assert_ok!(Router::set_route(
-			RuntimeOrigin::signed(ALICE),
-			asset_pair,
-			route.clone()
-		));
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Pays::Yes.into()
+		);
 
 		//Assert
 		let stored_route = Router::route(asset_pair).unwrap();
