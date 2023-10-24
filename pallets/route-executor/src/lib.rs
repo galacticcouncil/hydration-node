@@ -301,9 +301,6 @@ pub mod pallet {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			//TODO: what happens when someones sets a completely different trade, so the amount in of first trade does not patxch with asset pair first stuff?
-			//TODO: do we need some validation to check when the first route is set?
-
 			let maybe_route = Routes::<T>::get(asset_pair);
 
 			match maybe_route {
@@ -322,6 +319,12 @@ pub mod pallet {
 					}
 				}
 				None => {
+					//We validate if the route is correct
+					let _ =
+						Self::calculate_expected_amount_out(&route).map_err(|_| Error::<T>::RouteCalculationFailed)?;
+					let _ =
+						Self::calculate_expected_amount_in(&route).map_err(|_| Error::<T>::RouteCalculationFailed)?;
+
 					Routes::<T>::insert(asset_pair, route.clone());
 					return Ok(Pays::No.into());
 				}

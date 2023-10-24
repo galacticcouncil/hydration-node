@@ -2355,6 +2355,60 @@ mod set_route {
 			});
 		}
 	}
+
+	#[test]
+	fn set_route_should_fail_with_invalid_route() {
+		{
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				let pool_id = 11;
+				let stable_asset_1 = 9876;
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				let route1 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				let asset_pair = (HDX, stable_asset_1);
+
+				//Act and assert
+				assert_noop!(
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						create_bounded_vec(route1.clone())
+					),
+					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteCalculationFailed
+				);
+			});
+		}
+	}
 }
 
 pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
