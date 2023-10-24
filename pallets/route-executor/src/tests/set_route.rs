@@ -56,6 +56,11 @@ fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
 		//Assert
 		let stored_route = Router::route(asset_pair).unwrap();
 		assert_eq!(stored_route, route);
+
+		expect_events(vec![Event::RouteUpdated {
+			asset_ids: vec![HDX, AUSD],
+		}
+		.into()]);
 	});
 }
 
@@ -82,6 +87,11 @@ fn set_route_should_work_when_new_price_is_better() {
 			Pays::No.into()
 		);
 
+		expect_events(vec![Event::RouteUpdated {
+			asset_ids: vec![HDX, AUSD],
+		}
+		.into()]);
+
 		//Act
 		let cheaper_route = create_bounded_vec(vec![Trade {
 			pool: PoolType::XYK,
@@ -97,6 +107,17 @@ fn set_route_should_work_when_new_price_is_better() {
 		//Assert
 		let stored_route = Router::route(asset_pair).unwrap();
 		assert_eq!(stored_route, cheaper_route);
+
+		expect_events(vec![
+			Event::RouteUpdated {
+				asset_ids: vec![HDX, AUSD],
+			}
+			.into(),
+			Event::RouteUpdated {
+				asset_ids: vec![HDX, AUSD],
+			}
+			.into(),
+		]);
 	});
 }
 

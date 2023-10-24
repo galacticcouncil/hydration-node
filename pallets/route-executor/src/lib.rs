@@ -107,6 +107,8 @@ pub mod pallet {
 			amount_in: T::Balance,
 			amount_out: T::Balance,
 		},
+		///The route with trades has been successfully executed
+		RouteUpdated { asset_ids: Vec<T::AssetId> },
 	}
 
 	#[pallet::error]
@@ -301,6 +303,7 @@ pub mod pallet {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
+			//TODO: handle the case when we do save the same for the other way around
 			let maybe_route = Routes::<T>::get(asset_pair);
 
 			match maybe_route {
@@ -315,17 +318,25 @@ pub mod pallet {
 						&& amount_in_for_new_route < amount_in_for_existing_route
 					{
 						Routes::<T>::insert(asset_pair, route.clone());
+
+						let mut assets = vec![asset_pair.0, asset_pair.1];
+						assets.sort();
+						Self::deposit_event(Event::RouteUpdated { asset_ids: assets });
+
 						return Ok(Pays::No.into());
 					}
 				}
 				None => {
 					//We validate if the route is correct
-					let _ =
-						Self::calculate_expected_amount_out(&route).map_err(|_| Error::<T>::RouteCalculationFailed)?;
-					let _ =
-						Self::calculate_expected_amount_in(&route).map_err(|_| Error::<T>::RouteCalculationFailed)?;
+					Self::calculate_expected_amount_out(&route).map_err(|_| Error::<T>::RouteCalculationFailed)?;
+					Self::calculate_expected_amount_in(&route).map_err(|_| Error::<T>::RouteCalculationFailed)?;
 
 					Routes::<T>::insert(asset_pair, route.clone());
+
+					let mut assets = vec![asset_pair.0, asset_pair.1];
+					assets.sort();
+					Self::deposit_event(Event::RouteUpdated { asset_ids: assets });
+
 					return Ok(Pays::No.into());
 				}
 			}
