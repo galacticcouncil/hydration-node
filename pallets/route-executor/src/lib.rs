@@ -26,6 +26,7 @@ use frame_support::{
 	transactional,
 };
 use frame_system::ensure_signed;
+use hydradx_traits::router::RouteProvider;
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
@@ -584,4 +585,21 @@ macro_rules! handle_execution_error {
 			};
 		}
 	}};
+}
+
+impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
+	fn get(asset_in: T::AssetId, asset_out: T::AssetId) -> Vec<Trade<T::AssetId>> {
+		let onchain_route = Routes::<T>::get((asset_in, asset_out));
+
+		let default_route = vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in,
+			asset_out,
+		}];
+
+		match onchain_route {
+			Some(route) => route.to_vec(),
+			None => default_route,
+		}
+	}
 }

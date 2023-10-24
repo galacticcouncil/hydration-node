@@ -473,7 +473,7 @@ impl pallet_dca::Config for Runtime {
 	type RouteExecutor = Router;
 	#[cfg(feature = "runtime-benchmarks")]
 	type RouteExecutor = pallet_route_executor::DummyRouter<Runtime>;
-	type RouteProvider = Runtime;
+	type RouteProvider = Router;
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -487,9 +487,6 @@ impl pallet_dca::Config for Runtime {
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 	type NativePriceOracle = MultiTransactionPayment;
 }
-
-//Using the default implementation, will be replaced with the real implementation once we have routes stored
-impl RouteProvider<AssetId> for Runtime {}
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
 // the router extrinsic overhead and the AMM weight.

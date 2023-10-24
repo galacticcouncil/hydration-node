@@ -2112,6 +2112,119 @@ mod stableswap {
 	}
 }
 
+mod with_onchain_route {
+	use super::*;
+
+	#[test]
+	fn buy_should_work_with_omnipool_and_stable_with_onchain_routes() {
+		let amount_to_buy = 200 * UNITS;
+		//With DCA
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			//To populate stableswap oracle
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				3000 * UNITS,
+				0,
+			));
+
+			init_omnipol();
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				pool_id,
+				3000 * UNITS as i128,
+			));
+
+			assert_ok!(Omnipool::add_token(
+				RuntimeOrigin::root(),
+				pool_id,
+				FixedU128::from_rational(50, 100),
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+			do_trade_to_populate_oracle(DAI, HDX, UNITS);
+
+			set_relaychain_block_number(10);
+
+			let alice_init_hdx_balance = 5000 * UNITS;
+			assert_ok!(Balances::set_balance(
+				RawOrigin::Root.into(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+				0,
+			));
+
+			let trades = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: pool_id,
+				},
+				Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: pool_id,
+					asset_out: stable_asset_1,
+				},
+			];
+
+			let asset_pair = (HDX, stable_asset_1);
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				asset_pair,
+				create_bounded_vec(trades.clone())
+			));
+			assert_eq!(Router::route(asset_pair).unwrap(), trades);
+
+			let dca_budget = 1100 * UNITS;
+
+			let schedule = Schedule {
+				owner: AccountId::from(ALICE),
+				period: 3u32,
+				total_amount: dca_budget,
+				max_retries: None,
+				stability_threshold: None,
+				slippage: Some(Permill::from_percent(10)),
+				order: Order::Buy {
+					asset_in: HDX,
+					asset_out: stable_asset_1,
+					amount_out: amount_to_buy,
+					max_amount_in: Balance::MAX,
+					route: create_bounded_vec(vec![]),
+				},
+			};
+
+			create_schedule(ALICE, schedule);
+
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_balance!(ALICE.into(), stable_asset_1, 0);
+			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
+
+			//Act
+			set_relaychain_block_number(11);
+
+			//Assert
+			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
+			assert!(fee > 0, "The treasury did not receive the fee");
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_balance!(ALICE.into(), stable_asset_1, amount_to_buy);
+		});
+	}
+}
+
 fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
 	assert_ok!(DCA::schedule(RuntimeOrigin::signed(owner.into()), schedule1, None));
 }
