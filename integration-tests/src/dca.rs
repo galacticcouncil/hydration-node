@@ -10,6 +10,7 @@ use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin, Stableswap, Tokens,
 	Treasury, DCA,
 };
+use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::Trade;
 use hydradx_traits::Registry;
@@ -2183,7 +2184,7 @@ mod with_onchain_route {
 				},
 			];
 
-			let asset_pair = (HDX, stable_asset_1);
+			let asset_pair = AssetPair::new(HDX, stable_asset_1);
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
@@ -2290,7 +2291,7 @@ mod with_onchain_route {
 				},
 			];
 
-			let asset_pair = (HDX, stable_asset_1);
+			let asset_pair = AssetPair::new(HDX, stable_asset_1);
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,

@@ -4,12 +4,37 @@ use frame_support::weights::Weight;
 use scale_info::TypeInfo;
 use sp_std::vec;
 use sp_std::vec::Vec;
+//TODO: merge this with xyk asset pair. Over there the asset id is not generic, so we have to make it like that
+#[derive(Debug, Encode, Decode, Copy, Clone, PartialOrd, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
+pub struct AssetPair<AssetId> {
+	pub asset_in: AssetId,
+	pub asset_out: AssetId,
+}
+
+impl<AssetId> AssetPair<AssetId> {
+	pub fn new(asset_in: AssetId, asset_out: AssetId) -> Self {
+		Self { asset_in, asset_out }
+	}
+
+	/// Return ordered asset tuple (A,B) where A < B
+	/// Used in storage
+	pub fn ordered_pair(&self) -> (AssetId, AssetId)
+	where
+		AssetId: PartialOrd + Copy,
+	{
+		match self.asset_in <= self.asset_out {
+			true => (self.asset_in, self.asset_out),
+			false => (self.asset_out, self.asset_in),
+		}
+	}
+}
+
 pub trait RouteProvider<AssetId> {
-	fn get(asset_in: AssetId, asset_out: AssetId) -> Vec<Trade<AssetId>> {
+	fn get(asset_pair: AssetPair<AssetId>) -> Vec<Trade<AssetId>> {
 		vec![Trade {
 			pool: PoolType::Omnipool,
-			asset_in,
-			asset_out,
+			asset_in: asset_pair.asset_in,
+			asset_out: asset_pair.asset_out,
 		}]
 	}
 }

@@ -19,11 +19,11 @@ use crate::tests::create_bounded_vec;
 use crate::tests::mock::*;
 use crate::{Error, Event, Trade};
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
-
 #[test]
 fn buy_should_work_when_route_has_single_trade() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -310,7 +310,11 @@ fn buy_should_work_with_onchain_route_when_no_route_specified() {
 			};
 			let trades = vec![trade1, trade2, trade3];
 
-			Router::set_route(RuntimeOrigin::signed(ALICE), (HDX, KSM), create_bounded_vec(trades));
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				AssetPair::new(HDX, KSM),
+				create_bounded_vec(trades),
+			);
 
 			//Act
 			assert_ok!(Router::buy(

@@ -22,6 +22,9 @@ use pallet_omnipool::weights::WeightInfo as OmnipoolWeights;
 use pallet_route_executor::AmmTradeWeights;
 
 use primitives::asset::AssetPair;
+
+use hydradx_traits::router::AssetPair as Pair;
+
 use primitives::AssetId;
 
 use frame_support::{assert_noop, assert_ok};
@@ -2275,7 +2278,7 @@ mod set_route {
 					},
 				];
 
-				let asset_pair = (HDX, DOT);
+				let asset_pair = Pair::new(HDX, DOT);
 
 				//Test which is better
 				//TODO: once this feature is finalized, we can remove these helper trades, they were just used to check which price is really better
@@ -2398,7 +2401,7 @@ mod set_route {
 					},
 				];
 
-				let asset_pair = (HDX, BTC);
+				let asset_pair = Pair::new(HDX, BTC);
 
 				//Act and assert
 				assert_noop!(
@@ -2462,7 +2465,7 @@ mod with_on_chain_and_default_route {
 				},
 			];
 
-			let asset_pair = (HDX, DOT);
+			let asset_pair = Pair::new(HDX, DOT);
 			let amount_to_buy = 100 * UNITS;
 
 			assert_ok!(Router::set_route(
@@ -2539,7 +2542,7 @@ mod with_on_chain_and_default_route {
 				},
 			];
 
-			let asset_pair = (HDX, DOT);
+			let asset_pair = Pair::new(HDX, DOT);
 			let amount_to_sell = 100 * UNITS;
 
 			assert_ok!(Router::set_route(

@@ -22,7 +22,7 @@ use crate::{Error, Event, Trade};
 use frame_support::pallet_prelude::*;
 use frame_support::{assert_noop, assert_ok};
 use frame_support::{dispatch::GetDispatchInfo, traits::UnfilteredDispatchable};
-use hydradx_traits::router::PoolType;
+use hydradx_traits::router::{AssetPair, PoolType};
 use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError;
@@ -33,7 +33,7 @@ use test_utils::assert_balance;
 fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let asset_pair = (HDX, AUSD);
+		let asset_pair = AssetPair::new(HDX, AUSD);
 		let route = create_bounded_vec(vec![
 			Trade {
 				pool: PoolType::Omnipool,
@@ -68,7 +68,7 @@ fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
 fn set_route_should_work_when_new_price_is_better() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let asset_pair = (HDX, AUSD);
+		let asset_pair = AssetPair::new(HDX, AUSD);
 		let route = create_bounded_vec(vec![
 			Trade {
 				pool: PoolType::Omnipool,
@@ -125,7 +125,7 @@ fn set_route_should_work_when_new_price_is_better() {
 fn set_route_should_not_override_when_only_sell_price_is_better() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let asset_pair = (HDX, AUSD);
+		let asset_pair = AssetPair::new(HDX, AUSD);
 
 		let route = create_bounded_vec(vec![
 			Trade {
@@ -167,7 +167,7 @@ fn set_route_should_not_override_when_only_sell_price_is_better() {
 fn set_route_should_not_override_when_only_buy_price_is_better() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let asset_pair = (HDX, AUSD);
+		let asset_pair = AssetPair::new(HDX, AUSD);
 
 		let route = create_bounded_vec(vec![Trade {
 			pool: PoolType::LBP,
@@ -202,7 +202,7 @@ fn set_route_should_not_override_when_only_buy_price_is_better() {
 fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let asset_pair = (HDX, AUSD);
+		let asset_pair = AssetPair::new(HDX, AUSD);
 		let cheaper_route = create_bounded_vec(vec![Trade {
 			pool: PoolType::XYK,
 			asset_in: HDX,
@@ -243,7 +243,7 @@ fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
 fn set_route_should_fail_when_called_by_unsigned() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let asset_pair = (HDX, AUSD);
+		let asset_pair = AssetPair::new(HDX, AUSD);
 		let route = create_bounded_vec(vec![
 			Trade {
 				pool: PoolType::Omnipool,
@@ -269,7 +269,7 @@ fn set_route_should_fail_when_called_by_unsigned() {
 fn set_route_should_fail_when_asset_pair_is_invalid_for_route() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let asset_pair = (HDX, DOT);
+		let asset_pair = AssetPair::new(HDX, DOT);
 		let route = create_bounded_vec(vec![
 			Trade {
 				pool: PoolType::Omnipool,
@@ -295,7 +295,7 @@ fn set_route_should_fail_when_asset_pair_is_invalid_for_route() {
 fn set_route_should_fail_when_called_with_empty_route() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let asset_pair = (HDX, AUSD);
+		let asset_pair = AssetPair::new(HDX, AUSD);
 		let empty_route = create_bounded_vec(vec![]);
 
 		//Act and assert
@@ -310,7 +310,7 @@ fn set_route_should_fail_when_called_with_empty_route() {
 fn set_route_should_fail_when_called_with_too_long_route() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let asset_pair = (HDX, AUSD);
+		let asset_pair = AssetPair::new(HDX, AUSD);
 
 		let trades = [Trade {
 			pool: PoolType::XYK,

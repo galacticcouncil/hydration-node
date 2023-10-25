@@ -25,11 +25,12 @@ use frame_support::{
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
+
 use frame_system::ensure_signed;
-use hydradx_traits::router::RouteProvider;
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
+use hydradx_traits::router::{AssetPair, RouteProvider};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_runtime::traits::CheckedDiv;
 use sp_runtime::{ArithmeticError, DispatchError};
@@ -137,7 +138,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn route)]
 	pub type Routes<T: Config> =
-		StorageMap<_, Blake2_128Concat, (T::AssetId, T::AssetId), BoundedVec<Trade<T::AssetId>, ConstU32<5>>>; //TODO: consider making it config
+		StorageMap<_, Blake2_128Concat, AssetPair<T::AssetId>, BoundedVec<Trade<T::AssetId>, ConstU32<5>>>; //TODO: consider making it config
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -166,7 +167,7 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let route = Self::get_route_or_default(route, asset_in, asset_out)?;
+			let route = Self::get_route_or_default(route, AssetPair::new(asset_in, asset_out))?;
 
 			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, false);
 			let user_balance_of_asset_out_before_trade = T::Currency::reducible_balance(asset_out, &who, false);
@@ -247,7 +248,7 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let route = Self::get_route_or_default(route, asset_in, asset_out)?;
+			let route = Self::get_route_or_default(route, AssetPair::new(asset_in, asset_out))?;
 
 			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, true);
 
@@ -305,18 +306,18 @@ pub mod pallet {
 		#[transactional]
 		pub fn set_route(
 			origin: OriginFor<T>,
-			asset_pair: (T::AssetId, T::AssetId),
+			asset_pair: AssetPair<T::AssetId>,
 			route: BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
 			ensure!(
-				asset_pair.0 == route.first().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_in,
+				asset_pair.asset_in == route.first().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_in,
 				Error::<T>::InvalidRouteForAssetPair
 			);
 			ensure!(
-				asset_pair.1 == route.last().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_out,
+				asset_pair.asset_out == route.last().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_out,
 				Error::<T>::InvalidRouteForAssetPair
 			);
 
@@ -337,7 +338,7 @@ pub mod pallet {
 						Routes::<T>::insert(asset_pair, route.clone());
 
 						//TODO: refactor with using AssetPaor that has ordered function. We could also add to to_vec method
-						let mut assets = vec![asset_pair.0, asset_pair.1];
+						let mut assets = vec![asset_pair.asset_in, asset_pair.asset_out];
 						assets.sort();
 						Self::deposit_event(Event::RouteUpdated { asset_ids: assets });
 
@@ -351,7 +352,7 @@ pub mod pallet {
 
 					Routes::<T>::insert(asset_pair, route.clone());
 
-					let mut assets = vec![asset_pair.0, asset_pair.1];
+					let mut assets = vec![asset_pair.asset_in, asset_pair.asset_out];
 					assets.sort();
 					Self::deposit_event(Event::RouteUpdated { asset_ids: assets });
 
@@ -443,13 +444,12 @@ impl<T: Config> Pallet<T> {
 
 	fn get_route_or_default(
 		route: Vec<Trade<T::AssetId>>,
-		asset_in: T::AssetId,
-		asset_out: T::AssetId,
+		asset_pair: AssetPair<T::AssetId>,
 	) -> Result<Vec<Trade<T::AssetId>>, DispatchError> {
 		let route = if !route.is_empty() {
 			route.clone()
 		} else {
-			<Pallet<T> as RouteProvider<T::AssetId>>::get(asset_in, asset_out)
+			<Pallet<T> as RouteProvider<T::AssetId>>::get(asset_pair)
 		};
 		Ok(route)
 	}
@@ -632,13 +632,13 @@ macro_rules! handle_execution_error {
 }
 
 impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
-	fn get(asset_in: T::AssetId, asset_out: T::AssetId) -> Vec<Trade<T::AssetId>> {
-		let onchain_route = Routes::<T>::get((asset_in, asset_out));
+	fn get(asset_pair: AssetPair<T::AssetId>) -> Vec<Trade<T::AssetId>> {
+		let onchain_route = Routes::<T>::get(asset_pair);
 
 		let default_route = vec![Trade {
 			pool: PoolType::Omnipool,
-			asset_in,
-			asset_out,
+			asset_in: asset_pair.asset_in,
+			asset_out: asset_pair.asset_out,
 		}];
 
 		match onchain_route {
