@@ -70,9 +70,7 @@ use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::{BlockNumberProvider, One, Zero};
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
-	OnLiquidityChangedHandler, OnTradeHandler,
-	OraclePeriod::*,
-	Volume,
+	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod::*, Volume,
 };
 use sp_arithmetic::traits::Saturating;
 use sp_std::marker::PhantomData;
@@ -308,26 +306,28 @@ impl<T: Config> Pallet<T> {
 				// update the entry to the parent block if it hasn't been updated for a while
 				if parent > prev_entry.updated_at {
 					Self::last_block_oracle(src, assets, parent)
-                        .and_then(|(last_block, _)| {
-                            prev_entry.update_outdated_to_current(period, &last_block).map(|_| ())
-                        }).unwrap_or_else(|| {
-                            log::warn!(
-                                target: LOG_TARGET,
-                                "Updating EMA oracle ({src:?}, {assets:?}, {period:?}) to parent block failed. Defaulting to previous value."
-                            );
-                            debug_assert!(false, "Updating to parent block should not fail.");
-                        })
+						.and_then(|(last_block, _)| {
+							prev_entry.update_outdated_to_current(period, &last_block).map(|_| ())
+						})
+						.unwrap_or_else(|| {
+							log::warn!(
+								target: LOG_TARGET,
+								"Updating EMA oracle ({src:?}, {assets:?}, {period:?}) to parent block failed. Defaulting to previous value."
+							);
+							debug_assert!(false, "Updating to parent block should not fail.");
+						})
 				}
 				// calculate the actual update with the new value
-				prev_entry.update_to_new_by_integrating_incoming(period, &incoming_entry)
-                    .map(|_| ())
-                    .unwrap_or_else(|| {
-                        log::warn!(
-                            target: LOG_TARGET,
-                            "Updating EMA oracle ({src:?}, {assets:?}, {period:?}) to new value failed. Defaulting to previous value."
-                        );
-                        debug_assert!(false, "Updating to new value should not fail.");
-                });
+				prev_entry
+					.update_to_new_by_integrating_incoming(period, &incoming_entry)
+					.map(|_| ())
+					.unwrap_or_else(|| {
+						log::warn!(
+							target: LOG_TARGET,
+							"Updating EMA oracle ({src:?}, {assets:?}, {period:?}) to new value failed. Defaulting to previous value."
+						);
+						debug_assert!(false, "Updating to new value should not fail.");
+					});
 			};
 		});
 	}

@@ -21,7 +21,7 @@ mod tvl;
 mod types;
 mod verification;
 
-use mock::{*, Balance};
+use mock::{Balance, *};
 
 #[macro_export]
 macro_rules! assert_eq_approx {

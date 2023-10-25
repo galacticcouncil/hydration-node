@@ -54,14 +54,20 @@ where
 			return Err(give);
 		};
 
-		let Some(asset_in) = CurrencyIdConvert::convert(given.clone()) else { return Err(give) };
+		let Some(asset_in) = CurrencyIdConvert::convert(given.clone()) else {
+			return Err(give);
+		};
 		let Some(wanted) = want.get(0) else { return Err(give) };
-		let Some(asset_out) = CurrencyIdConvert::convert(wanted.clone()) else { return Err(give) };
+		let Some(asset_out) = CurrencyIdConvert::convert(wanted.clone()) else {
+			return Err(give);
+		};
 
 		if maximal {
 			// sell
 			let Fungible(amount) = given.fun else { return Err(give) };
-			let Fungible(min_buy_amount) = wanted.fun else { return Err(give) };
+			let Fungible(min_buy_amount) = wanted.fun else {
+				return Err(give);
+			};
 
 			with_transaction_result(|| {
 				Currency::deposit(asset_in, &account, amount.into())?; // mint the incoming tokens
@@ -93,7 +99,9 @@ where
 		} else {
 			// buy
 			let Fungible(amount) = wanted.fun else { return Err(give) };
-			let Fungible(max_sell_amount) = given.fun else { return Err(give) };
+			let Fungible(max_sell_amount) = given.fun else {
+				return Err(give);
+			};
 
 			with_transaction_result(|| {
 				Currency::deposit(asset_in, &account, max_sell_amount.into())?; // mint the incoming tokens

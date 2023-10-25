@@ -195,10 +195,14 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 	) -> (Weight, Option<RelayChainBlockNumber>) {
 		use xcm::IntoVersion;
 		let maybe_xcm = versioned_xcm.clone().into_version(3);
-		let Ok(V3(xcm)) = maybe_xcm else { return (Weight::default(), Some(T::MaxDeferDuration::get())) };
+		let Ok(V3(xcm)) = maybe_xcm else {
+			return (Weight::default(), Some(T::MaxDeferDuration::get()));
+		};
 		// SAFETY NOTE: It is fine to only look at the first instruction because that is how assets will arrive on chain.
 		//              This is guaranteed by `AllowTopLevelExecution` which is standard in the ecosystem.
-		let Some(instruction) = xcm.first() else { return (Weight::default(), None) };
+		let Some(instruction) = xcm.first() else {
+			return (Weight::default(), None);
+		};
 		let mut total_weight = Weight::default();
 		let mut total_deferred_by: RelayChainBlockNumber = 0;
 		for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
@@ -207,12 +211,12 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 			// We assume that it's fine to not track assets whose id cannot be determined...
 			let Some(asset_id) = T::CurrencyIdConvert::convert(location) else {
 				total_weight.saturating_accrue(T::DbWeight::get().reads(1));
-				continue
+				continue;
 			};
 			// ... or that don't have a rate limit configured.
 			let Some(limit_per_duration) = T::RateLimitFor::get(&asset_id) else {
 				total_weight.saturating_accrue(T::DbWeight::get().reads(2));
-				continue
+				continue;
 			};
 			let defer_duration: u32 = T::DeferDuration::get();
 
