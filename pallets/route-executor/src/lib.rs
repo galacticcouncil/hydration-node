@@ -129,6 +129,8 @@ pub mod pallet {
 		RouteCalculationFailed,
 		///The asset pair is invalid for the specified route
 		InvalidRouteForAssetPair,
+		///The route update was not successful
+		RouteUpdateIsNotSuccessful,
 	}
 
 	/// Storing routes for asset pairs
@@ -352,7 +354,7 @@ pub mod pallet {
 				}
 			}
 
-			Ok(Pays::Yes.into())
+			Err(Error::<T>::RouteUpdateIsNotSuccessful.into())
 		}
 	}
 }

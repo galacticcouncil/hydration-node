@@ -152,9 +152,9 @@ fn set_route_should_not_override_when_only_sell_price_is_better() {
 			asset_out: AUSD,
 		}]);
 
-		assert_ok!(
+		assert_noop!(
 			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route.clone()),
-			Pays::Yes.into()
+			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
 		//Assert
@@ -187,9 +187,9 @@ fn set_route_should_not_override_when_only_buy_price_is_better() {
 			asset_out: AUSD,
 		}]);
 
-		assert_ok!(
+		assert_noop!(
 			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route.clone()),
-			Pays::Yes.into()
+			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
 		//Assert
@@ -228,9 +228,9 @@ fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
 		]);
 
 		//Act
-		assert_ok!(
+		assert_noop!(
 			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
-			Pays::Yes.into()
+			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
 		//Assert

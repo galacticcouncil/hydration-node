@@ -2346,11 +2346,14 @@ mod set_route {
 				assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
 
 				//We try to set back the more expensive but did not replace
-				assert_ok!(Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					create_bounded_vec(route1.clone())
-				));
+				assert_noop!(
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						create_bounded_vec(route1.clone())
+					),
+					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
+				);
 				assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
 			});
 		}

@@ -162,6 +162,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		//TODO: only outlier is LRNA, which you have to get from that omnipool asset state
 		//TODO: add test for it
 
+		//let free_balance = T::Currency::free_balance(asset_a, &Self::protocol_account());
 		let asset_state = Self::load_asset_state(asset_a).map_err(ExecutorError::Error)?;
 
 		Ok(asset_state.reserve)
