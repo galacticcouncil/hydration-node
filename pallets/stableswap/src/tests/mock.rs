@@ -319,7 +319,7 @@ pub struct DummyRegistry;
 impl InspectRegistry<AssetId> for DummyRegistry {
 	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied());
-		matches!(asset, Some(_))
+		asset.is_some()
 	}
 
 	fn decimals(asset_id: AssetId) -> Option<u8> {

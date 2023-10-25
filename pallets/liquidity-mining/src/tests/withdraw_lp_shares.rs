@@ -523,7 +523,7 @@ fn withdraw_shares_should_work() {
 						updated_at: 18,
 						valued_shares: 2_500 * ONE,
 						stopped_at_creation: Zero::zero(),
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					}]
 					.try_into()
 					.unwrap(),
@@ -1110,7 +1110,6 @@ fn trait_withdraw_lp_shares_should_claim_and_withdraw_when_yield_farm_is_claimab
 	predefined_test_ext_with_deposits().execute_with(|| {
 		let _ = with_transaction(|| {
 			const REWARD_CURRENCY: u32 = BSX;
-			const GLOBAL_FARM_ID: GlobalFarmId = GC_FARM;
 
 			let global_farm_account = LiquidityMining::farm_account_id(GC_FARM).unwrap();
 
@@ -1286,7 +1285,6 @@ fn trait_withdraw_lp_shares_should_claim_zero_when_user_already_claimed_rewards(
 	predefined_test_ext_with_deposits().execute_with(|| {
 		let _ = with_transaction(|| {
 			const REWARD_CURRENCY: u32 = BSX;
-			const GLOBAL_FARM_ID: GlobalFarmId = GC_FARM;
 
 			let global_farm_account = LiquidityMining::farm_account_id(GC_FARM).unwrap();
 

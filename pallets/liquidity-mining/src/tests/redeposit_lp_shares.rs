@@ -77,7 +77,7 @@ fn redeposit_lp_shares_should_work() {
 						entered_at: 18,
 						updated_at: 18,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 					YieldFarmEntry {
 						global_farm_id: EVE_FARM,
@@ -88,7 +88,7 @@ fn redeposit_lp_shares_should_work() {
 						entered_at: 50,
 						updated_at: 50,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 					YieldFarmEntry {
 						global_farm_id: DAVE_FARM,
@@ -99,7 +99,7 @@ fn redeposit_lp_shares_should_work() {
 						entered_at: 800,
 						updated_at: 800,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 				]
 			);

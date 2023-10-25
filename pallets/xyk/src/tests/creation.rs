@@ -35,7 +35,7 @@ fn create_pool_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 900000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 0);
 		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000000);
-		assert_eq!(XYK::total_liquidity(&pair_account), 100000000000000);
+		assert_eq!(XYK::total_liquidity(pair_account), 100000000000000);
 
 		let name: Vec<u8> = vec![232, 3, 0, 0, 72, 68, 84, 184, 11, 0, 0];
 		let bounded_name: BoundedVec<u8, <Test as pallet_asset_registry::Config>::StringLimit> =
@@ -199,7 +199,7 @@ fn create_pool_small_fixed_point_amount_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 900000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 999999000000000);
 		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000000);
-		assert_eq!(XYK::total_liquidity(&pair_account), 100000000000000);
+		assert_eq!(XYK::total_liquidity(pair_account), 100000000000000);
 
 		expect_events(vec![Event::PoolCreated {
 			who: ALICE,
@@ -245,7 +245,7 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 			100_000_000
 		));
 
-		assert_eq!(XYK::total_liquidity(&pair_account), 0);
+		assert_eq!(XYK::total_liquidity(pair_account), 0);
 
 		assert!(!XYK::exists(asset_pair));
 

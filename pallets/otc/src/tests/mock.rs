@@ -141,7 +141,7 @@ pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T> {
 	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
-		matches!(asset, Some(_))
+		asset.is_some()
 	}
 
 	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {

@@ -340,7 +340,7 @@ pub mod pallet {
 			T::RegistryOrigin::ensure_origin(origin)?;
 
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
-				let mut detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+				let detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
 				let bounded_name = Self::to_bounded_name(name)?;
 

@@ -71,7 +71,7 @@ use frame_support::sp_runtime::traits::{BlockNumberProvider, One, Zero};
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
 	OnLiquidityChangedHandler, OnTradeHandler,
-	OraclePeriod::{self, *},
+	OraclePeriod::*,
 	Volume,
 };
 use sp_arithmetic::traits::Saturating;

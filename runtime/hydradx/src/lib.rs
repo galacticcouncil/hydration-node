@@ -24,9 +24,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-#[cfg(test)]
-mod tests;
-
 mod benchmarking;
 mod migrations;
 pub mod weights;
@@ -530,3 +527,6 @@ cumulus_pallet_parachain_system::register_validate_block! {
 	BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
 	CheckInherents = CheckInherents,
 }
+
+#[cfg(test)]
+mod tests;

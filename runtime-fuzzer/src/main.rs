@@ -147,11 +147,11 @@ fn main() {
 					.collect(),
 			},
 			council: CouncilConfig {
-				members: endowed_accounts.iter().cloned().collect(),
+				members: endowed_accounts.clone(),
 				phantom: Default::default(),
 			},
 			technical_committee: TechnicalCommitteeConfig {
-				members: endowed_accounts.iter().cloned().collect(),
+				members: endowed_accounts.clone(),
 				phantom: Default::default(),
 			},
 			vesting: VestingConfig { vesting: vec![] },

@@ -229,7 +229,7 @@ impl<T: Config<I>, I: 'static> YieldFarmData<T, I> {
 			entries_count: Default::default(),
 			left_to_distribute: Default::default(),
 			total_stopped: Default::default(),
-			_phantom: PhantomData::default(),
+			_phantom: PhantomData,
 		}
 	}
 

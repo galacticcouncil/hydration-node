@@ -114,7 +114,7 @@ fn work_flow_happy_path_should_work() {
 		);
 
 		// Total liquidity
-		assert_eq!(XYK::total_liquidity(&pair_account), 350_000_000_000);
+		assert_eq!(XYK::total_liquidity(pair_account), 350_000_000_000);
 
 		let share_token = XYK::share_token(pair_account);
 
@@ -142,7 +142,7 @@ fn work_flow_happy_path_should_work() {
 			current_b_balance
 		));
 
-		assert_eq!(XYK::total_liquidity(&pair_account), 650_000_000_000);
+		assert_eq!(XYK::total_liquidity(pair_account), 650_000_000_000);
 
 		// Check balance after add liquidity for user 1 and user 2
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_650_000_000_000);
@@ -243,7 +243,7 @@ fn work_flow_happy_path_should_work() {
 			user_2_remove_2_balance_2 - user_2_remove_1_balance_2
 		);
 
-		assert_eq!(XYK::total_liquidity(&pair_account), 649_999_980_000);
+		assert_eq!(XYK::total_liquidity(pair_account), 649_999_980_000);
 
 		assert_ok!(XYK::remove_liquidity(
 			RuntimeOrigin::signed(user_2),
@@ -253,7 +253,7 @@ fn work_flow_happy_path_should_work() {
 		));
 		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_962_000);
 
-		assert_eq!(XYK::total_liquidity(&pair_account), 649_999_962_000);
+		assert_eq!(XYK::total_liquidity(pair_account), 649_999_962_000);
 
 		expect_events(vec![
 			Event::PoolCreated {
@@ -798,7 +798,7 @@ fn money_in_money_out_should_leave_the_same_balance_for_both_accounts() {
 			100_000_000
 		));
 
-		assert_eq!(XYK::total_liquidity(&pair_account), 0);
+		assert_eq!(XYK::total_liquidity(pair_account), 0);
 
 		let user_1_balance_a_after = Currency::free_balance(asset_a, &user_1);
 		let user_1_balance_b_after = Currency::free_balance(asset_b, &user_1);
