@@ -3936,6 +3936,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "hydradx-runtime-fuzzer"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "hydradx-runtime",
+ "pallet-balances",
+ "pallet-grandpa",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-transaction-storage-proof",
+ "ziggy",
+]
+
+[[package]]
 name = "hydradx-traits"
 version = "2.7.0"
 dependencies = [
@@ -15141,6 +15161,12 @@ dependencies = [
  "quote",
  "syn 2.0.22",
 ]
+
+[[package]]
+name = "ziggy"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ed1afaa44eff173fdf130422f4016d9dacfd3033c932ea1064718e376c1311f"
 
 [[package]]
 name = "zstd"
