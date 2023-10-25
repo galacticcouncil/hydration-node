@@ -429,8 +429,7 @@ impl<T: Config> Pallet<T> {
 			Ok(liq) => liq,
 		};
 
-		//TODO: Check if it is a corrrect way to get 1%
-		let one_percent_asset_in_liq = liq.checked_div(&100u128.into()).ok_or(ArithmeticError::Overflow)?; //TODO: magic number - remove
+		let one_percent_asset_in_liq = liq.checked_div(&100u128.into()).ok_or(ArithmeticError::Overflow)?;
 
 		let sell_trade_amounts = Self::calculate_sell_trade_amounts(&route, one_percent_asset_in_liq.into())?;
 		let amount_out = sell_trade_amounts
@@ -472,10 +471,8 @@ impl<T: Config> Pallet<T> {
 			Ok(liq) => liq,
 		};
 
-		let one_percent_asset_in_liq = liq.checked_div(&100u128.into()).ok_or(ArithmeticError::Overflow)?; //TODO: magic number - remove
+		let one_percent_asset_in_liq = liq.checked_div(&100u128.into()).ok_or(ArithmeticError::Overflow)?;
 
-		//TODO: use the one_percent_asset_in_liq instead of hardcoded 100 * UNITS
-		//let buy_trade_amounts = Self::calculate_buy_trade_amounts(&route, (2000000000000).into())?;
 		let buy_trade_amounts = Self::calculate_buy_trade_amounts(&route, one_percent_asset_in_liq.into())?;
 		let amount_in = buy_trade_amounts
 			.last()
