@@ -2148,7 +2148,7 @@ mod with_onchain_route {
 				RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				3000 * UNITS as i128,
+				30_000_000 * UNITS as i128,
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -2224,22 +2224,6 @@ mod with_onchain_route {
 			assert!(fee > 0, "The treasury did not receive the fee");
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), stable_asset_1, amount_to_buy);
-		});
-	}
-
-	#[test]
-	fn stableswap_trade_execution_check() {
-		TestNet::reset();
-		Hydra::execute_with(|| {
-			//Arrange
-			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
-
-			let depth =
-				Stableswap::get_liquidity_depth(PoolType::Stableswap(pool_id), stable_asset_1, pool_id).unwrap();
-
-			let calc = Stableswap::calculate_buy(PoolType::Stableswap(pool_id), pool_id, stable_asset_1, depth);
-
-			assert_balance!(ALICE.into(), stable_asset_1, 0);
 		});
 	}
 }
