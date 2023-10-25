@@ -16,6 +16,7 @@ use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pallet_dca::types::{Order, Schedule};
+use pallet_route_executor::TradeExecution;
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use polkadot_primitives::v2::BlockNumber;
@@ -2114,6 +2115,8 @@ mod stableswap {
 
 mod with_onchain_route {
 	use super::*;
+	use hydradx_traits::router::PoolType;
+	use pallet_lbp::Pool;
 
 	#[test]
 	fn buy_should_work_with_omnipool_and_stable_with_onchain_routes() {
@@ -2221,6 +2224,22 @@ mod with_onchain_route {
 			assert!(fee > 0, "The treasury did not receive the fee");
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), stable_asset_1, amount_to_buy);
+		});
+	}
+
+	#[test]
+	fn stableswap_trade_execution_check() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			let depth =
+				Stableswap::get_liquidity_depth(PoolType::Stableswap(pool_id), stable_asset_1, pool_id).unwrap();
+
+			let calc = Stableswap::calculate_buy(PoolType::Stableswap(pool_id), pool_id, stable_asset_1, depth);
+
+			assert_balance!(ALICE.into(), stable_asset_1, 0);
 		});
 	}
 }
