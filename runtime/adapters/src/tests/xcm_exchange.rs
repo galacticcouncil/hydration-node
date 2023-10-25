@@ -71,7 +71,9 @@ fn omni_exchanger_allows_selling_supported_assets() {
 			let mut iter = received.fungible_assets_iter();
 			let asset_received = iter.next().expect("there should be at least one asset");
 			assert!(iter.next().is_none(), "there should only be one asset returned");
-			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
+			let Fungible(received_amount) = asset_received.fun else {
+				panic!("should be fungible")
+			};
 			assert!(received_amount >= wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
 			assert_eq!(Balances::free_balance(ExchangeTempAccount::get()), 0);
@@ -104,11 +106,15 @@ fn omni_exchanger_allows_buying_supported_assets() {
 			let asset_received = iter.next().expect("there should be at least one asset");
 			let left_over = iter.next().expect("there should be at least some left_over asset_in");
 			assert!(iter.next().is_none(), "there should only be two assets returned");
-			let Fungible(left_over_amount) = left_over.fun else { panic!("should be fungible")};
+			let Fungible(left_over_amount) = left_over.fun else {
+				panic!("should be fungible")
+			};
 			assert_eq!(left_over, (GeneralIndex(DAI.into()), left_over_amount).into());
 			assert!(left_over_amount < given_amount);
 			assert_eq!(asset_received, want_asset);
-			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
+			let Fungible(received_amount) = asset_received.fun else {
+				panic!("should be fungible")
+			};
 			assert!(received_amount == wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
 			assert_eq!(Balances::free_balance(ExchangeTempAccount::get()), 0);
