@@ -301,7 +301,7 @@ fn set_route_should_fail_when_called_with_empty_route() {
 		//Act and assert
 		assert_noop!(
 			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, empty_route.clone()),
-			Error::<Test>::RouteHasNoTrades
+			Error::<Test>::InvalidRouteForAssetPair
 		);
 	});
 }
@@ -314,7 +314,7 @@ fn set_route_should_fail_when_called_with_too_long_route() {
 
 		let trades = [Trade {
 			pool: PoolType::XYK,
-			asset_in: BSX,
+			asset_in: HDX,
 			asset_out: AUSD,
 		}; 4];
 

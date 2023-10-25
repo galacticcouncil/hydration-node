@@ -138,7 +138,7 @@ impl pallet_currencies::Config for Test {
 type Pools = (XYK, StableSwap, OmniPool, LBP);
 
 parameter_types! {
-	pub NativeCurrencyId: AssetId = 1000;
+	pub NativeCurrencyId: AssetId = HDX;
 	pub MaxNumberOfTrades: u8 = MAX_LIMIT_FOR_TRADES;
 }
 
@@ -159,7 +159,6 @@ pub const ALICE: AccountId = 1;
 pub const ASSET_PAIR_ACCOUNT: AccountId = 2;
 
 pub const HDX: AssetId = 0;
-pub const BSX: AssetId = 1000;
 pub const AUSD: AssetId = 1001;
 pub const MOVR: AssetId = 1002;
 pub const KSM: AssetId = 1003;
@@ -180,9 +179,9 @@ pub const LBP_SELL_CALCULATION_RESULT: Balance = 9;
 pub const LBP_BUY_CALCULATION_RESULT: Balance = 8;
 pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
 
-pub const BSX_AUSD_TRADE_IN_XYK: Trade<AssetId> = Trade {
+pub const HDX_AUSD_TRADE_IN_XYK: Trade<AssetId> = Trade {
 	pool: PoolType::XYK,
-	asset_in: BSX,
+	asset_in: HDX,
 	asset_out: AUSD,
 };
 
@@ -196,7 +195,7 @@ pub struct ExtBuilder {
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
-			endowed_accounts: vec![(ALICE, BSX, 1000u128)],
+			endowed_accounts: vec![(ALICE, HDX, 1000u128)],
 		}
 	}
 }
@@ -225,6 +224,7 @@ impl ExtBuilder {
 			(ASSET_PAIR_ACCOUNT, KSM, 1000u128),
 			(ASSET_PAIR_ACCOUNT, RMRK, 1000u128),
 			(ASSET_PAIR_ACCOUNT, SDN, 1000u128),
+			(ASSET_PAIR_ACCOUNT, DOT, 1000u128),
 		];
 
 		initial_accounts.extend(self.endowed_accounts);

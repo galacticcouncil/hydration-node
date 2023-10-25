@@ -166,6 +166,8 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
+			let route = Self::get_route_or_default(route, asset_in, asset_out)?;
+
 			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, false);
 			let user_balance_of_asset_out_before_trade = T::Currency::reducible_balance(asset_out, &who, false);
 			ensure!(
@@ -244,6 +246,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
+
+			let route = Self::get_route_or_default(route, asset_in, asset_out)?;
 
 			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, true);
 
@@ -362,7 +366,6 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	fn ensure_route_size(route_length: usize) -> Result<(), DispatchError> {
-		ensure!(route_length > 0, Error::<T>::RouteHasNoTrades);
 		ensure!(
 			(route_length as u8) <= T::MaxNumberOfTrades::get(),
 			Error::<T>::MaxTradesExceeded
@@ -436,6 +439,19 @@ impl<T: Config> Pallet<T> {
 			.amount_out;
 
 		Ok(amount_out)
+	}
+
+	fn get_route_or_default(
+		route: Vec<Trade<T::AssetId>>,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+	) -> Result<Vec<Trade<T::AssetId>>, DispatchError> {
+		let route = if !route.is_empty() {
+			route.clone()
+		} else {
+			<Pallet<T> as RouteProvider<T::AssetId>>::get(asset_in, asset_out)
+		};
+		Ok(route)
 	}
 
 	fn calculate_expected_amount_in(
