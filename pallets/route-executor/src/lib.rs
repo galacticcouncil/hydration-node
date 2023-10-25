@@ -337,10 +337,9 @@ pub mod pallet {
 					{
 						Routes::<T>::insert(asset_pair, route.clone());
 
-						//TODO: refactor with using AssetPaor that has ordered function. We could also add to to_vec method
-						let mut assets = vec![asset_pair.asset_in, asset_pair.asset_out];
-						assets.sort();
-						Self::deposit_event(Event::RouteUpdated { asset_ids: assets });
+						Self::deposit_event(Event::RouteUpdated {
+							asset_ids: asset_pair.to_ordered_vec(),
+						});
 
 						return Ok(Pays::No.into());
 					}
@@ -352,9 +351,9 @@ pub mod pallet {
 
 					Routes::<T>::insert(asset_pair, route.clone());
 
-					let mut assets = vec![asset_pair.asset_in, asset_pair.asset_out];
-					assets.sort();
-					Self::deposit_event(Event::RouteUpdated { asset_ids: assets });
+					Self::deposit_event(Event::RouteUpdated {
+						asset_ids: asset_pair.to_ordered_vec(),
+					});
 
 					return Ok(Pays::No.into());
 				}

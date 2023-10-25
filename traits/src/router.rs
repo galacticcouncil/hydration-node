@@ -27,6 +27,14 @@ impl<AssetId> AssetPair<AssetId> {
 			false => (self.asset_out, self.asset_in),
 		}
 	}
+
+	pub fn to_ordered_vec(&self) -> Vec<AssetId>
+	where
+		AssetId: PartialOrd + Copy,
+	{
+		let (asset_a, asset_b) = self.ordered_pair();
+		vec![asset_a, asset_b]
+	}
 }
 
 pub trait RouteProvider<AssetId> {
