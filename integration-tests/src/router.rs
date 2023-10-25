@@ -2404,7 +2404,7 @@ mod set_route {
 						asset_pair,
 						create_bounded_vec(route1.clone())
 					),
-					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteCalculationFailed
+					pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRouteForAssetPair
 				);
 			});
 		}
