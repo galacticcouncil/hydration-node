@@ -2395,7 +2395,7 @@ mod set_route {
 					},
 				];
 
-				let asset_pair = (HDX, stable_asset_1);
+				let asset_pair = (HDX, BTC);
 
 				//Act and assert
 				assert_noop!(
@@ -2404,7 +2404,7 @@ mod set_route {
 						asset_pair,
 						create_bounded_vec(route1.clone())
 					),
-					pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRouteForAssetPair
+					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteCalculationFailed
 				);
 			});
 		}
