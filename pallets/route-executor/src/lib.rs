@@ -332,6 +332,7 @@ pub mod pallet {
 					{
 						Routes::<T>::insert(asset_pair, route.clone());
 
+						//TODO: refactor with using AssetPaor that has ordered function. We could also add to to_vec method
 						let mut assets = vec![asset_pair.0, asset_pair.1];
 						assets.sort();
 						Self::deposit_event(Event::RouteUpdated { asset_ids: assets });
