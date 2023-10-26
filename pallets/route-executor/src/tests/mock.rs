@@ -31,7 +31,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One},
 	BuildStorage, DispatchError,
 };
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ops::Deref;
 
@@ -381,14 +380,14 @@ impl_fake_executor!(
 );
 
 pub fn assert_executed_sell_trades(expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>) {
-	EXECUTED_SELLS.borrow().with(|v| {
+	EXECUTED_SELLS.with(|v| {
 		let trades = v.borrow().deref().clone();
 		assert_eq!(trades, expected_trades);
 	});
 }
 
 pub fn assert_executed_buy_trades(expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>) {
-	EXECUTED_BUYS.borrow().with(|v| {
+	EXECUTED_BUYS.with(|v| {
 		let trades = v.borrow().deref().clone();
 		assert_eq!(trades, expected_trades);
 	});

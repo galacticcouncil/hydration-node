@@ -5,7 +5,7 @@ use sp_std::prelude::*;
 pub struct OnRuntimeUpgradeMigration;
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	#[cfg(feature = "try-runtime")]
-	fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
+	fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::DispatchError> {
 		Ok(vec![])
 	}
 
@@ -14,7 +14,7 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	}
 
 	#[cfg(feature = "try-runtime")]
-	fn post_upgrade(_state: Vec<u8>) -> Result<(), DispatchError> {
+	fn post_upgrade(_state: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
 		Ok(())
 	}
 }

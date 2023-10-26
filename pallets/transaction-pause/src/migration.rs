@@ -111,7 +111,7 @@ mod test {
 
 	#[test]
 	fn migration_works() {
-		ExtBuilder::default().build().execute_with(|| {
+		ExtBuilder.build().execute_with(|| {
 			assert_eq!(StorageVersion::get::<Pallet<T>>(), 0);
 
 			v0::PausedTransactions::<T>::insert(

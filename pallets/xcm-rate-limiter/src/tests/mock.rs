@@ -40,7 +40,6 @@ use std::collections::HashMap;
 
 use xcm::lts::prelude::*;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;

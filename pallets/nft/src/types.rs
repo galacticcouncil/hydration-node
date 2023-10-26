@@ -43,17 +43,12 @@ pub struct ItemInfo<BoundedVec> {
 	pub metadata: BoundedVec,
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Default, Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CollectionType {
+	#[default]
 	Marketplace = 0_isize,
 	LiquidityMining = 1_isize,
-}
-
-impl Default for CollectionType {
-	fn default() -> Self {
-		CollectionType::Marketplace
-	}
 }
 
 pub trait NftPermission<InnerCollectionType> {

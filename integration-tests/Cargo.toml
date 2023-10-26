@@ -119,7 +119,7 @@ sc-consensus-grandpa = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true, features = ["full-node"] }
 polkadot-runtime-parachains = { workspace = true }
-polkadot-runtime = { workspace = true }
+polkadot-runtime = { workspace = true, features = ["try-runtime"] }
 
 [dev-dependencies]
 hex-literal = "0.4.1"
@@ -194,4 +194,5 @@ std = [
 # we don't include integration tests when benchmarking feature is enabled
 runtime-benchmarks = [
     "hydradx-runtime/runtime-benchmarks",
+    "polkadot-runtime/runtime-benchmarks",
 ]

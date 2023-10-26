@@ -275,7 +275,7 @@ impl<T: cumulus_pallet_parachain_system::Config> BlockNumberProvider for RelayCh
 
 #[cfg(feature = "runtime-benchmarks")]
 impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
-	type BlockNumber = BlockNumberFor<T>;
+	type BlockNumber = frame_system::pallet_prelude::BlockNumberFor<T>;
 
 	fn current_block_number() -> Self::BlockNumber {
 		frame_system::Pallet::<T>::current_block_number()

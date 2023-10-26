@@ -580,12 +580,12 @@ runtime_benchmarks! {
 mod tests {
 	use super::*;
 	use crate::NativeExistentialDeposit;
-	use frame_support::traits::GenesisBuild;
 	use orml_benchmarking::impl_benchmark_test_suite;
+	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default()
-			.build_storage::<crate::Runtime>()
+		let mut t = frame_system::GenesisConfig::<crate::Runtime>::default()
+			.build_storage()
 			.unwrap();
 
 		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
