@@ -149,9 +149,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.7.6"
+version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcb51a0695d8f838b1ee009b3fbf66bda078cd64590202a864a8f3e8c4315c47"
+checksum = "5a824f2aa7e75a0c98c5a504fceb80649e9c35265d44525b5f94de4771a395cd"
 dependencies = [
  "getrandom 0.2.10",
  "once_cell",
@@ -160,14 +160,15 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.3"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c99f64d1e06488f620f932677e24bc6e2897582980441ae90a671415bd7ec2f"
+checksum = "91429305e9f0a25f6205c5b8e0d2db09e0708a7a6df0f42212bb56c32c8ac97a"
 dependencies = [
  "cfg-if",
  "getrandom 0.2.10",
  "once_cell",
  "version_check",
+ "zerocopy",
 ]
 
 [[package]]
@@ -646,9 +647,9 @@ dependencies = [
  "log",
  "parking",
  "polling",
- "rustix 0.37.25",
+ "rustix 0.37.26",
  "slab",
- "socket2 0.4.9",
+ "socket2 0.4.10",
  "waker-fn",
 ]
 
@@ -685,7 +686,7 @@ dependencies = [
  "cfg-if",
  "event-listener 3.0.0",
  "futures-lite",
- "rustix 0.38.19",
+ "rustix 0.38.20",
  "windows-sys 0.48.0",
 ]
 
@@ -712,7 +713,7 @@ dependencies = [
  "cfg-if",
  "futures-core",
  "futures-io",
- "rustix 0.38.19",
+ "rustix 0.38.20",
  "signal-hook-registry",
  "slab",
  "windows-sys 0.48.0",
@@ -846,9 +847,9 @@ checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
 name = "base64"
-version = "0.21.4"
+version = "0.21.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ba43ea6f343b788c8764558649e08df62f86c6ef251fdaeb1ffd010a9ae50a2"
+checksum = "35636a1494ede3b646cc98f74f8e62c773a38a659ebc777a2cf26b9b74171df9"
 
 [[package]]
 name = "base64ct"
@@ -868,7 +869,7 @@ dependencies = [
 [[package]]
 name = "binary-merkle-tree"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "hash-db",
  "log",
@@ -1445,23 +1446,23 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.4.6"
+version = "4.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d04704f56c2cde07f43e8e2c154b43f216dc5c92fc98ada720177362f953b956"
+checksum = "ac495e00dcec98c83465d5ad66c5c4fabd652fd6686e7c6269b117e729a6f17b"
 dependencies = [
  "clap_builder",
- "clap_derive 4.4.2",
+ "clap_derive 4.4.7",
 ]
 
 [[package]]
 name = "clap_builder"
-version = "4.4.6"
+version = "4.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e231faeaca65ebd1ea3c737966bf858971cd38c3849107aa3ea7de90a804e45"
+checksum = "c77ed9a32a62e6ca27175d00d29d05ca32e396ea1eb5fb01d8256b669cec7663"
 dependencies = [
  "anstream",
  "anstyle",
- "clap_lex 0.5.1",
+ "clap_lex 0.6.0",
  "strsim",
 ]
 
@@ -1480,9 +1481,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.4.2"
+version = "4.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0862016ff20d69b84ef8247369fabf5c008a7417002411897d40ee1f4532b873"
+checksum = "cf9804afaaf59a91e75b022a30fb7229a7901f60c755489cc61c9b423b836442"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -1501,9 +1502,9 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
+checksum = "702fc72eb24e5a1e48ce58027a675bc24edd52096d5397d4aea7c6dd9eca0bd1"
 
 [[package]]
 name = "coarsetime"
@@ -1535,12 +1536,12 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
 name = "comfy-table"
-version = "7.0.1"
+version = "7.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ab77dbd8adecaf3f0db40581631b995f312a8a5ae3aa9993188bb8f23d83a5b"
+checksum = "7c64043d6c7b7a4c58e39e7efccfdea7b93d885a795d0c054a69dbbf4dd52686"
 dependencies = [
- "strum",
- "strum_macros",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
  "unicode-width",
 ]
 
@@ -1594,23 +1595,21 @@ checksum = "28c122c3980598d243d63d9a704629a2d748d101f278052ff068be5a4423ab6f"
 
 [[package]]
 name = "const-random"
-version = "0.1.15"
+version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "368a7a772ead6ce7e1de82bfb04c485f3db8ec744f72925af5735e29a22cc18e"
+checksum = "11df32a13d7892ec42d51d3d175faba5211ffe13ed25d4fb348ac9e9ce835593"
 dependencies = [
  "const-random-macro",
- "proc-macro-hack",
 ]
 
 [[package]]
 name = "const-random-macro"
-version = "0.1.15"
+version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d7d6ab3c3a2282db210df5f02c4dab6e0a7057af0fb7ebd4070f30fe05c0ddb"
+checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
 dependencies = [
  "getrandom 0.2.10",
  "once_cell",
- "proc-macro-hack",
  "tiny-keccak",
 ]
 
@@ -1678,9 +1677,9 @@ dependencies = [
 
 [[package]]
 name = "cpufeatures"
-version = "0.2.9"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a17b76ff3a4162b0b27f354a0c87015ddad39d35f9c0c36607a3bdd175dde1f1"
+checksum = "3fbc60abd742b35f2492f808e1abbb83d45f72db402e14c55057edc9c7b1e9e4"
 dependencies = [
  "libc",
 ]
@@ -1968,9 +1967,9 @@ dependencies = [
 [[package]]
 name = "cumulus-client-cli"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
- "clap 4.4.6",
+ "clap 4.4.7",
  "parity-scale-codec",
  "sc-chain-spec",
  "sc-cli",
@@ -1984,7 +1983,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-collator"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-client-consensus-common",
  "cumulus-client-network",
@@ -2007,7 +2006,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-aura"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "cumulus-client-collator",
@@ -2049,7 +2048,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-common"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "cumulus-client-pov-recovery",
@@ -2078,7 +2077,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-proposer"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2093,7 +2092,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-relay-chain"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "cumulus-client-consensus-common",
@@ -2116,7 +2115,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-network"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "cumulus-relay-chain-interface",
@@ -2139,7 +2138,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-pov-recovery"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -2163,7 +2162,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-service"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-client-cli",
  "cumulus-client-collator",
@@ -2198,7 +2197,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-aura-ext"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "frame-support",
@@ -2216,7 +2215,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-dmp-queue"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -2233,7 +2232,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-parachain-system"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bytes",
  "cumulus-pallet-parachain-system-proc-macro",
@@ -2263,7 +2262,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-parachain-system-proc-macro"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2274,7 +2273,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-xcm"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -2290,7 +2289,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-xcmp-queue"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-primitives-core",
  "frame-benchmarking",
@@ -2301,6 +2300,7 @@ dependencies = [
  "polkadot-runtime-common",
  "rand_chacha 0.3.1",
  "scale-info",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -2311,7 +2311,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-aura"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "polkadot-core-primitives",
@@ -2325,7 +2325,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-core"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "polkadot-core-primitives",
@@ -2342,7 +2342,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-parachain-inherent"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -2365,7 +2365,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-timestamp"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-primitives-core",
  "futures",
@@ -2378,7 +2378,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-utility"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -2396,7 +2396,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-inprocess-interface"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -2420,7 +2420,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-interface"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -2438,7 +2438,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-minimal-node"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "async-trait",
@@ -2473,7 +2473,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-rpc-interface"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -2511,7 +2511,7 @@ dependencies = [
 [[package]]
 name = "cumulus-test-relay-sproof-builder"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-primitives-core",
  "parity-scale-codec",
@@ -3073,7 +3073,7 @@ checksum = "7d9ce6874da5d4415896cd45ffbc4d1cfc0c4f9c079427bd870742c30f2f65a9"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "ed25519",
- "hashbrown 0.14.1",
+ "hashbrown 0.14.2",
  "hex",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -3371,7 +3371,7 @@ dependencies = [
 [[package]]
 name = "fflonk"
 version = "0.1.0"
-source = "git+https://github.com/w3f/fflonk#26a5045b24e169cffc1f9328ca83d71061145c40"
+source = "git+https://github.com/w3f/fflonk#e141d4b6f42fb481aefe1b479788694945b6940d"
 dependencies = [
  "ark-ec",
  "ark-ff",
@@ -3491,7 +3491,7 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 [[package]]
 name = "fork-tree"
 version = "3.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
 ]
@@ -3514,7 +3514,7 @@ checksum = "6c2141d6d6c8512188a7891b4b01590a45f6dac67afb4f255c4124dbb86d4eaa"
 [[package]]
 name = "frame-benchmarking"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-support-procedural",
@@ -3530,7 +3530,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-runtime-interface",
+ "sp-runtime-interface 17.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "sp-std",
  "sp-storage",
  "static_assertions",
@@ -3539,12 +3539,12 @@ dependencies = [
 [[package]]
 name = "frame-benchmarking-cli"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "Inflector",
  "array-bytes",
  "chrono",
- "clap 4.4.6",
+ "clap 4.4.7",
  "comfy-table",
  "frame-benchmarking",
  "frame-support",
@@ -3579,7 +3579,7 @@ dependencies = [
  "sp-state-machine",
  "sp-storage",
  "sp-trie",
- "sp-wasm-interface",
+ "sp-wasm-interface 14.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "thiserror",
  "thousands",
 ]
@@ -3587,7 +3587,7 @@ dependencies = [
 [[package]]
 name = "frame-election-provider-solution-type"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -3598,7 +3598,7 @@ dependencies = [
 [[package]]
 name = "frame-election-provider-support"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-election-provider-solution-type",
  "frame-support",
@@ -3615,7 +3615,7 @@ dependencies = [
 [[package]]
 name = "frame-executive"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -3645,7 +3645,7 @@ dependencies = [
 [[package]]
 name = "frame-remote-externalities"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-recursion",
  "futures",
@@ -3667,7 +3667,7 @@ dependencies = [
 [[package]]
 name = "frame-support"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "aquamarine",
  "bitflags 1.3.2",
@@ -3707,7 +3707,7 @@ dependencies = [
 [[package]]
 name = "frame-support-procedural"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "Inflector",
  "cfg-expr",
@@ -3725,7 +3725,7 @@ dependencies = [
 [[package]]
 name = "frame-support-procedural-tools"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support-procedural-tools-derive",
  "proc-macro-crate",
@@ -3737,7 +3737,7 @@ dependencies = [
 [[package]]
 name = "frame-support-procedural-tools-derive"
 version = "3.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3747,7 +3747,7 @@ dependencies = [
 [[package]]
 name = "frame-system"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cfg-if",
  "frame-support",
@@ -3766,7 +3766,7 @@ dependencies = [
 [[package]]
 name = "frame-system-benchmarking"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -3781,7 +3781,7 @@ dependencies = [
 [[package]]
 name = "frame-system-rpc-runtime-api"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "sp-api",
@@ -3790,7 +3790,7 @@ dependencies = [
 [[package]]
 name = "frame-try-runtime"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -3821,7 +3821,7 @@ version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2eeb4ed9e12f43b7fa0baae3f9cdda28352770132ef2e09a23760c29cae8bd47"
 dependencies = [
- "rustix 0.38.19",
+ "rustix 0.38.20",
  "windows-sys 0.48.0",
 ]
 
@@ -4182,7 +4182,7 @@ version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 dependencies = [
- "ahash 0.7.6",
+ "ahash 0.7.7",
 ]
 
 [[package]]
@@ -4191,16 +4191,16 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 dependencies = [
- "ahash 0.8.3",
+ "ahash 0.8.6",
 ]
 
 [[package]]
 name = "hashbrown"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dfda62a12f55daeae5015f81b0baea145391cb4520f86c248fc615d72640d12"
+checksum = "f93e7192158dbcda357bdec5fb5788eebf8bbac027f3f33e719d29135ae84156"
 dependencies = [
- "ahash 0.8.3",
+ "ahash 0.8.6",
  "allocator-api2",
  "serde",
 ]
@@ -4392,7 +4392,7 @@ dependencies = [
 name = "hydradx"
 version = "10.0.1"
 dependencies = [
- "clap 4.4.6",
+ "clap 4.4.7",
  "cumulus-client-cli",
  "cumulus-client-collator",
  "cumulus-client-consensus-aura",
@@ -4650,7 +4650,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite 0.2.13",
- "socket2 0.4.9",
+ "socket2 0.4.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -4667,7 +4667,7 @@ dependencies = [
  "http",
  "hyper",
  "log",
- "rustls 0.21.7",
+ "rustls 0.21.8",
  "rustls-native-certs",
  "tokio",
  "tokio-rustls",
@@ -4819,7 +4819,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8adf3ddd720272c6ea8bf59463c04e0f93d0bbf7c5439b691bca2987e0270897"
 dependencies = [
  "equivalent",
- "hashbrown 0.14.1",
+ "hashbrown 0.14.2",
 ]
 
 [[package]]
@@ -4916,7 +4916,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b58db92f96b720de98181bbbe63c831e87005ab460c1bf306eb2622b4707997f"
 dependencies = [
- "socket2 0.5.4",
+ "socket2 0.5.5",
  "widestring",
  "windows-sys 0.48.0",
  "winreg",
@@ -4924,9 +4924,9 @@ dependencies = [
 
 [[package]]
 name = "ipnet"
-version = "2.8.0"
+version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28b29a3cd74f0f4598934efe3aeba42bae0eb4680554128851ebbecb02af14e6"
+checksum = "8f518f335dce6725a761382244631d86cf0ccb2863413590b31338feb467f9c3"
 
 [[package]]
 name = "is-terminal"
@@ -4935,7 +4935,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb0889898416213fab133e1d33a0e5858a48177452750691bde3666d0fdbaf8b"
 dependencies = [
  "hermit-abi 0.3.3",
- "rustix 0.38.19",
+ "rustix 0.38.20",
  "windows-sys 0.48.0",
 ]
 
@@ -5266,7 +5266,7 @@ dependencies = [
 [[package]]
 name = "kusama-runtime-constants"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "polkadot-primitives",
@@ -5541,7 +5541,7 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "smallvec",
- "socket2 0.4.9",
+ "socket2 0.4.10",
  "tokio",
  "trust-dns-proto",
  "void",
@@ -5683,7 +5683,7 @@ dependencies = [
  "libc",
  "libp2p-core",
  "log",
- "socket2 0.4.9",
+ "socket2 0.4.10",
  "tokio",
 ]
 
@@ -6084,7 +6084,7 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2cffa4ad52c6f791f4f8b15f0c05f9824b2ced1160e88cc393d64fff9a8ac64"
 dependencies = [
- "rustix 0.38.19",
+ "rustix 0.38.20",
 ]
 
 [[package]]
@@ -6184,9 +6184,9 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.8.8"
+version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "927a765cd3fc26206e66b296465fa9d3e5ab003e651c1b3c060e7956d96b19d2"
+checksum = "3dce281c5e46beae905d4de1870d8b1509a9142b62eedf18b443b011ca8343d0"
 dependencies = [
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
@@ -6196,7 +6196,7 @@ dependencies = [
 [[package]]
 name = "mmr-gadget"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "log",
@@ -6215,7 +6215,7 @@ dependencies = [
 [[package]]
 name = "mmr-rpc"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "anyhow",
  "jsonrpsee 0.16.3",
@@ -6693,7 +6693,7 @@ dependencies = [
  "sp-api",
  "sp-io",
  "sp-runtime",
- "sp-runtime-interface",
+ "sp-runtime-interface 17.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-std",
  "sp-storage",
 ]
@@ -6903,7 +6903,7 @@ dependencies = [
 [[package]]
 name = "pallet-asset-tx-payment"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6921,7 +6921,7 @@ dependencies = [
 [[package]]
 name = "pallet-assets"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6937,7 +6937,7 @@ dependencies = [
 [[package]]
 name = "pallet-aura"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6954,7 +6954,7 @@ dependencies = [
 [[package]]
 name = "pallet-authority-discovery"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6970,7 +6970,7 @@ dependencies = [
 [[package]]
 name = "pallet-authorship"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6984,7 +6984,7 @@ dependencies = [
 [[package]]
 name = "pallet-babe"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7008,7 +7008,7 @@ dependencies = [
 [[package]]
 name = "pallet-bags-list"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "aquamarine",
  "docify",
@@ -7030,7 +7030,7 @@ dependencies = [
 [[package]]
 name = "pallet-balances"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7045,7 +7045,7 @@ dependencies = [
 [[package]]
 name = "pallet-beefy"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7065,7 +7065,7 @@ dependencies = [
 [[package]]
 name = "pallet-beefy-mmr"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "binary-merkle-tree",
@@ -7115,7 +7115,7 @@ dependencies = [
 [[package]]
 name = "pallet-bounties"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7133,7 +7133,7 @@ dependencies = [
 [[package]]
 name = "pallet-child-bounties"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7229,7 +7229,7 @@ dependencies = [
 [[package]]
 name = "pallet-collator-selection"
 version = "3.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7248,7 +7248,7 @@ dependencies = [
 [[package]]
 name = "pallet-collective"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7265,7 +7265,7 @@ dependencies = [
 [[package]]
 name = "pallet-conviction-voting"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "assert_matches",
  "frame-benchmarking",
@@ -7342,7 +7342,7 @@ dependencies = [
 [[package]]
 name = "pallet-democracy"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7427,7 +7427,7 @@ dependencies = [
 [[package]]
 name = "pallet-election-provider-multi-phase"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -7444,13 +7444,13 @@ dependencies = [
  "sp-npos-elections",
  "sp-runtime",
  "sp-std",
- "strum",
+ "strum 0.24.1",
 ]
 
 [[package]]
 name = "pallet-election-provider-support-benchmarking"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -7464,7 +7464,7 @@ dependencies = [
 [[package]]
 name = "pallet-elections-phragmen"
 version = "5.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7507,7 +7507,7 @@ dependencies = [
 [[package]]
 name = "pallet-fast-unstake"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -7544,7 +7544,7 @@ dependencies = [
 [[package]]
 name = "pallet-grandpa"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7567,7 +7567,7 @@ dependencies = [
 [[package]]
 name = "pallet-identity"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "enumflags2",
  "frame-benchmarking",
@@ -7583,7 +7583,7 @@ dependencies = [
 [[package]]
 name = "pallet-im-online"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7603,7 +7603,7 @@ dependencies = [
 [[package]]
 name = "pallet-indices"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7673,7 +7673,7 @@ dependencies = [
 [[package]]
 name = "pallet-membership"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7690,7 +7690,7 @@ dependencies = [
 [[package]]
 name = "pallet-message-queue"
 version = "7.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7709,7 +7709,7 @@ dependencies = [
 [[package]]
 name = "pallet-mmr"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7727,7 +7727,7 @@ dependencies = [
 [[package]]
 name = "pallet-multisig"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7764,7 +7764,7 @@ dependencies = [
 [[package]]
 name = "pallet-nis"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7780,7 +7780,7 @@ dependencies = [
 [[package]]
 name = "pallet-nomination-pools"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7799,7 +7799,7 @@ dependencies = [
 [[package]]
 name = "pallet-nomination-pools-benchmarking"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -7811,7 +7811,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
- "sp-runtime-interface",
+ "sp-runtime-interface 17.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "sp-staking",
  "sp-std",
 ]
@@ -7819,7 +7819,7 @@ dependencies = [
 [[package]]
 name = "pallet-nomination-pools-runtime-api"
 version = "1.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "pallet-nomination-pools",
  "parity-scale-codec",
@@ -7830,7 +7830,7 @@ dependencies = [
 [[package]]
 name = "pallet-offences"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7847,7 +7847,7 @@ dependencies = [
 [[package]]
 name = "pallet-offences-benchmarking"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -7950,7 +7950,7 @@ dependencies = [
 [[package]]
 name = "pallet-preimage"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7967,7 +7967,7 @@ dependencies = [
 [[package]]
 name = "pallet-proxy"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7982,7 +7982,7 @@ dependencies = [
 [[package]]
 name = "pallet-ranked-collective"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8000,7 +8000,7 @@ dependencies = [
 [[package]]
 name = "pallet-recovery"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8015,7 +8015,7 @@ dependencies = [
 [[package]]
 name = "pallet-referenda"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "assert_matches",
  "frame-benchmarking",
@@ -8073,7 +8073,7 @@ dependencies = [
 [[package]]
 name = "pallet-scheduler"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -8091,7 +8091,7 @@ dependencies = [
 [[package]]
 name = "pallet-session"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8113,7 +8113,7 @@ dependencies = [
 [[package]]
 name = "pallet-session-benchmarking"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8130,7 +8130,7 @@ dependencies = [
 [[package]]
 name = "pallet-society"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8196,7 +8196,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -8219,7 +8219,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking-reward-curve"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -8230,7 +8230,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking-reward-fn"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "log",
  "sp-arithmetic",
@@ -8239,7 +8239,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking-runtime-api"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "sp-api",
@@ -8248,7 +8248,7 @@ dependencies = [
 [[package]]
 name = "pallet-state-trie-migration"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8265,7 +8265,7 @@ dependencies = [
 [[package]]
 name = "pallet-sudo"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8280,7 +8280,7 @@ dependencies = [
 [[package]]
 name = "pallet-timestamp"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8299,7 +8299,7 @@ dependencies = [
 [[package]]
 name = "pallet-tips"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8362,7 +8362,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8378,7 +8378,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment-rpc"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "jsonrpsee 0.16.3",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -8394,7 +8394,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment-rpc-runtime-api"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "pallet-transaction-payment",
  "parity-scale-codec",
@@ -8406,7 +8406,7 @@ dependencies = [
 [[package]]
 name = "pallet-treasury"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8423,7 +8423,7 @@ dependencies = [
 [[package]]
 name = "pallet-uniques"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8438,7 +8438,7 @@ dependencies = [
 [[package]]
 name = "pallet-utility"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8454,7 +8454,7 @@ dependencies = [
 [[package]]
 name = "pallet-vesting"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8469,7 +8469,7 @@ dependencies = [
 [[package]]
 name = "pallet-whitelist"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8484,7 +8484,7 @@ dependencies = [
 [[package]]
 name = "pallet-xcm"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bounded-collections",
  "frame-benchmarking",
@@ -8505,7 +8505,7 @@ dependencies = [
 [[package]]
 name = "pallet-xcm-benchmarks"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8526,7 +8526,6 @@ name = "pallet-xcm-rate-limiter"
 version = "0.1.1"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
- "cumulus-primitives-core",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -8583,7 +8582,7 @@ dependencies = [
 [[package]]
 name = "parachain-info"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -8597,7 +8596,7 @@ dependencies = [
 [[package]]
 name = "parachains-common"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-primitives-core",
  "cumulus-primitives-utility",
@@ -8814,9 +8813,9 @@ checksum = "9b2a4787296e9989611394c33f193f676704af1686e70b8f8033ab5ba9a35a94"
 
 [[package]]
 name = "pest"
-version = "2.7.4"
+version = "2.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c022f1e7b65d6a24c0dbbd5fb344c66881bc01f3e5ae74a1c8100f2f985d98a4"
+checksum = "ae9cee2a55a544be8b89dc6848072af97a20f2422603c10865be2a42b580fff5"
 dependencies = [
  "memchr",
  "thiserror",
@@ -8825,9 +8824,9 @@ dependencies = [
 
 [[package]]
 name = "pest_derive"
-version = "2.7.4"
+version = "2.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35513f630d46400a977c4cb58f78e1bfbe01434316e60c37d27b9ad6139c66d8"
+checksum = "81d78524685f5ef2a3b3bd1cafbc9fcabb036253d9b1463e726a91cd16e2dfc2"
 dependencies = [
  "pest",
  "pest_generator",
@@ -8835,9 +8834,9 @@ dependencies = [
 
 [[package]]
 name = "pest_generator"
-version = "2.7.4"
+version = "2.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc9fc1b9e7057baba189b5c626e2d6f40681ae5b6eb064dc7c7834101ec8123a"
+checksum = "68bd1206e71118b5356dae5ddc61c8b11e28b09ef6a31acbd15ea48a28e0c227"
 dependencies = [
  "pest",
  "pest_meta",
@@ -8848,9 +8847,9 @@ dependencies = [
 
 [[package]]
 name = "pest_meta"
-version = "2.7.4"
+version = "2.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1df74e9e7ec4053ceb980e7c0c8bd3594e977fde1af91daba9c928e8e8c6708d"
+checksum = "7c747191d4ad9e4a4ab9c8798f1e82a39affe7ef9648390b7e5548d18e099de6"
 dependencies = [
  "once_cell",
  "pest",
@@ -8995,7 +8994,7 @@ dependencies = [
 [[package]]
 name = "polkadot-approval-distribution"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "futures-timer",
@@ -9013,7 +9012,7 @@ dependencies = [
 [[package]]
 name = "polkadot-availability-bitfield-distribution"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "always-assert",
  "futures",
@@ -9029,7 +9028,7 @@ dependencies = [
 [[package]]
 name = "polkadot-availability-distribution"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "derive_more",
  "fatality",
@@ -9052,7 +9051,7 @@ dependencies = [
 [[package]]
 name = "polkadot-availability-recovery"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "fatality",
  "futures",
@@ -9073,9 +9072,9 @@ dependencies = [
 [[package]]
 name = "polkadot-cli"
 version = "1.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
- "clap 4.4.6",
+ "clap 4.4.7",
  "frame-benchmarking-cli",
  "futures",
  "log",
@@ -9100,7 +9099,7 @@ dependencies = [
 [[package]]
 name = "polkadot-collator-protocol"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bitvec",
  "fatality",
@@ -9122,7 +9121,7 @@ dependencies = [
 [[package]]
 name = "polkadot-core-primitives"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -9134,7 +9133,7 @@ dependencies = [
 [[package]]
 name = "polkadot-dispute-distribution"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "derive_more",
  "fatality",
@@ -9159,7 +9158,7 @@ dependencies = [
 [[package]]
 name = "polkadot-erasure-coding"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "polkadot-node-primitives",
@@ -9173,7 +9172,7 @@ dependencies = [
 [[package]]
 name = "polkadot-gossip-support"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "futures-timer",
@@ -9194,7 +9193,7 @@ dependencies = [
 [[package]]
 name = "polkadot-network-bridge"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "always-assert",
  "async-trait",
@@ -9217,7 +9216,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-collation-generation"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "parity-scale-codec",
@@ -9235,7 +9234,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-approval-voting"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bitvec",
  "derive_more",
@@ -9264,7 +9263,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-av-store"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bitvec",
  "futures",
@@ -9286,7 +9285,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-backing"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bitvec",
  "fatality",
@@ -9305,7 +9304,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-bitfield-signing"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "polkadot-node-subsystem",
@@ -9320,7 +9319,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-candidate-validation"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "futures",
@@ -9341,7 +9340,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-chain-api"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "polkadot-node-metrics",
@@ -9356,7 +9355,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-chain-selection"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "futures-timer",
@@ -9373,7 +9372,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-dispute-coordinator"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "fatality",
  "futures",
@@ -9392,7 +9391,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-parachains-inherent"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "futures",
@@ -9409,7 +9408,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-prospective-parachains"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bitvec",
  "fatality",
@@ -9426,7 +9425,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-provisioner"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bitvec",
  "fatality",
@@ -9443,7 +9442,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-pvf"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "always-assert",
  "futures",
@@ -9461,7 +9460,7 @@ dependencies = [
  "slotmap",
  "sp-core",
  "sp-maybe-compressed-blob",
- "sp-wasm-interface",
+ "sp-wasm-interface 14.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "substrate-build-script-utils",
  "tempfile",
  "tokio",
@@ -9471,7 +9470,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-pvf-checker"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "polkadot-node-primitives",
@@ -9487,7 +9486,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-pvf-common"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cpu-time",
  "futures",
@@ -9510,7 +9509,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-pvf-prepare-worker"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "libc",
@@ -9533,7 +9532,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-runtime-api"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "polkadot-node-metrics",
@@ -9548,7 +9547,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-jaeger"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "lazy_static",
  "log",
@@ -9566,7 +9565,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-metrics"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bs58 0.5.0",
  "futures",
@@ -9585,7 +9584,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-network-protocol"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -9601,7 +9600,7 @@ dependencies = [
  "rand 0.8.5",
  "sc-authority-discovery",
  "sc-network",
- "strum",
+ "strum 0.24.1",
  "thiserror",
  "tracing-gum",
 ]
@@ -9609,7 +9608,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-primitives"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bounded-vec",
  "futures",
@@ -9631,7 +9630,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-subsystem"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "polkadot-node-jaeger",
  "polkadot-node-subsystem-types",
@@ -9641,7 +9640,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-subsystem-types"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "derive_more",
@@ -9665,7 +9664,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-subsystem-util"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "derive_more",
@@ -9698,7 +9697,7 @@ dependencies = [
 [[package]]
 name = "polkadot-overseer"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "futures",
@@ -9721,7 +9720,7 @@ dependencies = [
 [[package]]
 name = "polkadot-parachain-primitives"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bounded-collections",
  "derive_more",
@@ -9738,7 +9737,7 @@ dependencies = [
 [[package]]
 name = "polkadot-performance-test"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "env_logger 0.9.3",
  "log",
@@ -9756,7 +9755,7 @@ dependencies = [
 [[package]]
 name = "polkadot-primitives"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bitvec",
  "hex-literal 0.4.1",
@@ -9782,7 +9781,7 @@ dependencies = [
 [[package]]
 name = "polkadot-rpc"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "jsonrpsee 0.16.3",
  "mmr-rpc",
@@ -9814,7 +9813,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bitvec",
  "frame-benchmarking",
@@ -9911,7 +9910,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-common"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bitvec",
  "frame-benchmarking",
@@ -9957,7 +9956,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-constants"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "polkadot-primitives",
@@ -9971,7 +9970,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-metrics"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bs58 0.5.0",
  "frame-benchmarking",
@@ -9984,7 +9983,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-parachains"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bitflags 1.3.2",
  "bitvec",
@@ -10030,7 +10029,7 @@ dependencies = [
 [[package]]
 name = "polkadot-service"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "frame-benchmarking",
@@ -10149,7 +10148,7 @@ dependencies = [
 [[package]]
 name = "polkadot-statement-distribution"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "arrayvec 0.7.4",
  "bitvec",
@@ -10173,7 +10172,7 @@ dependencies = [
 [[package]]
 name = "polkadot-statement-table"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "polkadot-primitives",
@@ -10244,9 +10243,9 @@ dependencies = [
 
 [[package]]
 name = "portable-atomic"
-version = "1.4.3"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31114a898e107c51bb1609ffaf55a0e011cf6a4d7f1170d0015a165082c0338b"
+checksum = "b559898e0b4931ed2d3b959ab0c2da4d99cc644c4b0b1a35b4d344027f474023"
 
 [[package]]
 name = "powerfmt"
@@ -10397,12 +10396,6 @@ dependencies = [
  "quote",
  "version_check",
 ]
-
-[[package]]
-name = "proc-macro-hack"
-version = "0.5.20+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc375e1527247fe1a97d8b7156678dfe7c1af2fc075c9a4db3690ecd2a148068"
 
 [[package]]
 name = "proc-macro-warning"
@@ -10961,9 +10954,9 @@ dependencies = [
 
 [[package]]
 name = "ring"
-version = "0.17.4"
+version = "0.17.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fce3045ffa7c981a6ee93f640b538952e155f1ae3a1a02b84547fc7a56b7059a"
+checksum = "fb0205304757e5d899b9c2e448b867ffd03ae7f988002e47cd24954391394d0b"
 dependencies = [
  "cc",
  "getrandom 0.2.10",
@@ -10986,7 +10979,7 @@ dependencies = [
 [[package]]
 name = "rococo-runtime"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "binary-merkle-tree",
  "frame-benchmarking",
@@ -11074,7 +11067,7 @@ dependencies = [
 [[package]]
 name = "rococo-runtime-constants"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "polkadot-primitives",
@@ -11206,6 +11199,7 @@ dependencies = [
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
+ "pallet-im-online",
  "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-omnipool",
@@ -11233,12 +11227,16 @@ dependencies = [
  "polkadot-primitives",
  "polkadot-runtime",
  "polkadot-runtime-parachains",
+ "polkadot-service",
  "pretty_assertions",
  "primitives",
+ "sc-consensus-grandpa",
  "scraper",
  "sp-api",
+ "sp-authority-discovery",
  "sp-block-builder",
  "sp-consensus-aura",
+ "sp-consensus-babe",
  "sp-core",
  "sp-externalities",
  "sp-inherents",
@@ -11310,9 +11308,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.37.25"
+version = "0.37.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4eb579851244c2c03e7c24f501c3432bed80b8f720af1d6e5b0e0f01555a035"
+checksum = "84f3f8f960ed3b5a59055428714943298bf3fa2d4a1d53135084e0544829d995"
 dependencies = [
  "bitflags 1.3.2",
  "errno",
@@ -11324,9 +11322,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.19"
+version = "0.38.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "745ecfa778e66b2b63c88a61cb36e0eea109e803b0b86bf9879fbc77c70e86ed"
+checksum = "67ce50cb2e16c2903e30d1cbccfd8387a74b9d4c938b6a4c5ec6cc7556f7a8a0"
 dependencies = [
  "bitflags 2.4.1",
  "errno",
@@ -11356,20 +11354,20 @@ checksum = "1b80e3dec595989ea8510028f30c408a4630db12c9cbb8de34203b89d6577e99"
 dependencies = [
  "log",
  "ring 0.16.20",
- "sct 0.7.0",
+ "sct 0.7.1",
  "webpki 0.22.4",
 ]
 
 [[package]]
 name = "rustls"
-version = "0.21.7"
+version = "0.21.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd8d6c9f025a446bc4d18ad9632e69aec8f287aa84499ee335599fabd20c3fd8"
+checksum = "446e14c5cda4f3f30fe71863c34ec70f5ac79d6087097ad0bb433e1be5edf04c"
 dependencies = [
  "log",
- "ring 0.16.20",
- "rustls-webpki 0.101.6",
- "sct 0.7.0",
+ "ring 0.17.5",
+ "rustls-webpki 0.101.7",
+ "sct 0.7.1",
 ]
 
 [[package]]
@@ -11390,7 +11388,7 @@ version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d3987094b1d07b653b7dfdc3f70ce9a1da9c51ac18c1b06b662e4f9a0e9f4b2"
 dependencies = [
- "base64 0.21.4",
+ "base64 0.21.5",
 ]
 
 [[package]]
@@ -11405,12 +11403,12 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.101.6"
+version = "0.101.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c7d5dece342910d9ba34d259310cae3e0154b873b35408b787b59bce53d34fe"
+checksum = "8b6275d1ee7a1cd780b64aca7726599a1dbc893b1e64144529e55c3c2f745765"
 dependencies = [
- "ring 0.16.20",
- "untrusted 0.7.1",
+ "ring 0.17.5",
+ "untrusted 0.9.0",
 ]
 
 [[package]]
@@ -11480,18 +11478,18 @@ dependencies = [
 [[package]]
 name = "sc-allocator"
 version = "4.1.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "log",
  "sp-core",
- "sp-wasm-interface",
+ "sp-wasm-interface 14.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "thiserror",
 ]
 
 [[package]]
 name = "sc-authority-discovery"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "futures",
@@ -11519,7 +11517,7 @@ dependencies = [
 [[package]]
 name = "sc-basic-authorship"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "futures-timer",
@@ -11542,7 +11540,7 @@ dependencies = [
 [[package]]
 name = "sc-block-builder"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "sc-client-api",
@@ -11557,7 +11555,7 @@ dependencies = [
 [[package]]
 name = "sc-chain-spec"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "memmap2",
  "sc-chain-spec-derive",
@@ -11576,7 +11574,7 @@ dependencies = [
 [[package]]
 name = "sc-chain-spec-derive"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -11587,11 +11585,11 @@ dependencies = [
 [[package]]
 name = "sc-cli"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "chrono",
- "clap 4.4.6",
+ "clap 4.4.7",
  "fdlimit",
  "futures",
  "libp2p-identity",
@@ -11626,7 +11624,7 @@ dependencies = [
 [[package]]
 name = "sc-client-api"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "fnv",
  "futures",
@@ -11652,7 +11650,7 @@ dependencies = [
 [[package]]
 name = "sc-client-db"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "hash-db",
  "kvdb",
@@ -11678,7 +11676,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "futures",
@@ -11703,7 +11701,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-aura"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "futures",
@@ -11732,7 +11730,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-babe"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "fork-tree",
@@ -11768,7 +11766,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-babe-rpc"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "jsonrpsee 0.16.3",
@@ -11790,7 +11788,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-beefy"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "async-channel",
@@ -11824,7 +11822,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-beefy-rpc"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "jsonrpsee 0.16.3",
@@ -11843,7 +11841,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-epochs"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "fork-tree",
  "parity-scale-codec",
@@ -11856,9 +11854,9 @@ dependencies = [
 [[package]]
 name = "sc-consensus-grandpa"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
- "ahash 0.8.3",
+ "ahash 0.8.6",
  "array-bytes",
  "async-trait",
  "dyn-clone",
@@ -11897,7 +11895,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-grandpa-rpc"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "finality-grandpa",
  "futures",
@@ -11917,7 +11915,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-slots"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "futures",
@@ -11940,7 +11938,7 @@ dependencies = [
 [[package]]
 name = "sc-executor"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.1",
@@ -11952,21 +11950,21 @@ dependencies = [
  "sp-externalities",
  "sp-io",
  "sp-panic-handler",
- "sp-runtime-interface",
+ "sp-runtime-interface 17.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "sp-trie",
  "sp-version",
- "sp-wasm-interface",
+ "sp-wasm-interface 14.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "tracing",
 ]
 
 [[package]]
 name = "sc-executor-common"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "sc-allocator",
  "sp-maybe-compressed-blob",
- "sp-wasm-interface",
+ "sp-wasm-interface 14.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "thiserror",
  "wasm-instrument",
 ]
@@ -11974,7 +11972,7 @@ dependencies = [
 [[package]]
 name = "sc-executor-wasmtime"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -11983,15 +11981,15 @@ dependencies = [
  "rustix 0.36.16",
  "sc-allocator",
  "sc-executor-common",
- "sp-runtime-interface",
- "sp-wasm-interface",
+ "sp-runtime-interface 17.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
+ "sp-wasm-interface 14.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "wasmtime",
 ]
 
 [[package]]
 name = "sc-informant"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "ansi_term",
  "futures",
@@ -12007,7 +12005,7 @@ dependencies = [
 [[package]]
 name = "sc-keystore"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "parking_lot 0.12.1",
@@ -12021,7 +12019,7 @@ dependencies = [
 [[package]]
 name = "sc-network"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "async-channel",
@@ -12062,7 +12060,7 @@ dependencies = [
 [[package]]
 name = "sc-network-bitswap"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-channel",
  "cid",
@@ -12082,7 +12080,7 @@ dependencies = [
 [[package]]
 name = "sc-network-common"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "bitflags 1.3.2",
@@ -12099,9 +12097,9 @@ dependencies = [
 [[package]]
 name = "sc-network-gossip"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
- "ahash 0.8.3",
+ "ahash 0.8.6",
  "futures",
  "futures-timer",
  "libp2p",
@@ -12117,7 +12115,7 @@ dependencies = [
 [[package]]
 name = "sc-network-light"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "async-channel",
@@ -12138,7 +12136,7 @@ dependencies = [
 [[package]]
 name = "sc-network-sync"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "async-channel",
@@ -12172,7 +12170,7 @@ dependencies = [
 [[package]]
 name = "sc-network-transactions"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "futures",
@@ -12190,7 +12188,7 @@ dependencies = [
 [[package]]
 name = "sc-offchain"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "bytes",
@@ -12224,7 +12222,7 @@ dependencies = [
 [[package]]
 name = "sc-proposer-metrics"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "log",
  "substrate-prometheus-endpoint",
@@ -12233,7 +12231,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "jsonrpsee 0.16.3",
@@ -12264,7 +12262,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc-api"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "jsonrpsee 0.16.3",
  "parity-scale-codec",
@@ -12283,7 +12281,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc-server"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "http",
  "jsonrpsee 0.16.3",
@@ -12298,7 +12296,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc-spec-v2"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "futures",
@@ -12326,7 +12324,7 @@ dependencies = [
 [[package]]
 name = "sc-service"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "directories",
@@ -12390,7 +12388,7 @@ dependencies = [
 [[package]]
 name = "sc-state-db"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "log",
  "parity-scale-codec",
@@ -12401,9 +12399,9 @@ dependencies = [
 [[package]]
 name = "sc-storage-monitor"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
- "clap 4.4.6",
+ "clap 4.4.7",
  "fs4",
  "log",
  "sc-client-db",
@@ -12415,7 +12413,7 @@ dependencies = [
 [[package]]
 name = "sc-sync-state-rpc"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "jsonrpsee 0.16.3",
  "parity-scale-codec",
@@ -12434,7 +12432,7 @@ dependencies = [
 [[package]]
 name = "sc-sysinfo"
 version = "6.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "libc",
@@ -12453,7 +12451,7 @@ dependencies = [
 [[package]]
 name = "sc-telemetry"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "chrono",
  "futures",
@@ -12472,7 +12470,7 @@ dependencies = [
 [[package]]
 name = "sc-tracing"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "ansi_term",
  "atty",
@@ -12501,7 +12499,7 @@ dependencies = [
 [[package]]
 name = "sc-tracing-proc-macro"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -12512,7 +12510,7 @@ dependencies = [
 [[package]]
 name = "sc-transaction-pool"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "futures",
@@ -12538,7 +12536,7 @@ dependencies = [
 [[package]]
 name = "sc-transaction-pool-api"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "futures",
@@ -12554,7 +12552,7 @@ dependencies = [
 [[package]]
 name = "sc-utils"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-channel",
  "futures",
@@ -12568,9 +12566,9 @@ dependencies = [
 
 [[package]]
 name = "scale-info"
-version = "2.9.0"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35c0a159d0c45c12b20c5a844feb1fe4bea86e28f17b92a5f0c42193634d3782"
+checksum = "7f7d66a1128282b7ef025a8ead62a4a9fcf017382ec53b8ffbf4d7bf77bd3c60"
 dependencies = [
  "bitvec",
  "cfg-if",
@@ -12582,9 +12580,9 @@ dependencies = [
 
 [[package]]
 name = "scale-info-derive"
-version = "2.9.0"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "912e55f6d20e0e80d63733872b40e1227c0bce1e1ab81ba67d696339bfd7fd29"
+checksum = "abf2c68b89cafb3b8d918dd07b42be0da66ff202cf1155c5739a4e0c1ea0dc19"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -12607,7 +12605,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "772575a524feeb803e5b0fcbc6dd9f367e579488197c94c6e4023aad2305774d"
 dependencies = [
- "ahash 0.8.3",
+ "ahash 0.8.6",
  "cfg-if",
  "hashbrown 0.13.2",
 ]
@@ -12686,12 +12684,12 @@ dependencies = [
 
 [[package]]
 name = "sct"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d53dcdb7c9f8158937a7981b48accfd39a43af418591a5d008c7b22b5e1b7ca4"
+checksum = "da046153aa2352493d6cb7da4b6e5c0c057d8a1d0a9aa8560baffdd945acd414"
 dependencies = [
- "ring 0.16.20",
- "untrusted 0.7.1",
+ "ring 0.17.5",
+ "untrusted 0.9.0",
 ]
 
 [[package]]
@@ -12851,9 +12849,9 @@ dependencies = [
 
 [[package]]
 name = "serde_spanned"
-version = "0.6.3"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96426c9936fd7a0124915f9185ea1d20aa9445cc9821142f0a73bc9207a2e186"
+checksum = "12022b835073e5b11e90a14f86838ceb1c8fb0325b72416845c487ac0fa95e80"
 dependencies = [
  "serde",
 ]
@@ -13009,7 +13007,7 @@ checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
 [[package]]
 name = "slot-range-helper"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "enumn",
  "parity-scale-codec",
@@ -13059,7 +13057,7 @@ dependencies = [
  "arrayvec 0.7.4",
  "async-lock",
  "atomic-take",
- "base64 0.21.4",
+ "base64 0.21.5",
  "bip39",
  "blake2-rfc",
  "bs58 0.5.0",
@@ -13072,7 +13070,7 @@ dependencies = [
  "fnv",
  "futures-lite",
  "futures-util",
- "hashbrown 0.14.1",
+ "hashbrown 0.14.2",
  "hex",
  "hmac 0.12.1",
  "itertools 0.11.0",
@@ -13112,7 +13110,7 @@ checksum = "256b5bad1d6b49045e95fe87492ce73d5af81545d8b4d8318a872d2007024c33"
 dependencies = [
  "async-channel",
  "async-lock",
- "base64 0.21.4",
+ "base64 0.21.5",
  "blake2-rfc",
  "derive_more",
  "either",
@@ -13121,7 +13119,7 @@ dependencies = [
  "futures-channel",
  "futures-lite",
  "futures-util",
- "hashbrown 0.14.1",
+ "hashbrown 0.14.2",
  "hex",
  "itertools 0.11.0",
  "log",
@@ -13165,9 +13163,9 @@ dependencies = [
 
 [[package]]
 name = "socket2"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64a4a911eed85daf18834cfaa86a79b7d266ff93ff5ba14005426219480ed662"
+checksum = "9f7916fc008ca5542385b89a3d3ce689953c143e9304a9bf8beec1de48994c0d"
 dependencies = [
  "libc",
  "winapi",
@@ -13175,9 +13173,9 @@ dependencies = [
 
 [[package]]
 name = "socket2"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4031e820eb552adee9295814c0ced9e5cf38ddf1e8b7d566d6de8e2538ea989e"
+checksum = "7b5fac59a5cb5dd637972e5fca70daf0523c9067fcdc4842f053dae04a18f8e9"
 dependencies = [
  "libc",
  "windows-sys 0.48.0",
@@ -13203,7 +13201,7 @@ dependencies = [
 [[package]]
 name = "sp-api"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "hash-db",
  "log",
@@ -13224,7 +13222,7 @@ dependencies = [
 [[package]]
 name = "sp-api-proc-macro"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "Inflector",
  "blake2",
@@ -13238,7 +13236,7 @@ dependencies = [
 [[package]]
 name = "sp-application-crypto"
 version = "23.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -13251,7 +13249,7 @@ dependencies = [
 [[package]]
 name = "sp-arithmetic"
 version = "16.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "integer-sqrt",
  "num-traits",
@@ -13265,7 +13263,7 @@ dependencies = [
 [[package]]
 name = "sp-authority-discovery"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -13278,7 +13276,7 @@ dependencies = [
 [[package]]
 name = "sp-block-builder"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "sp-api",
  "sp-inherents",
@@ -13289,7 +13287,7 @@ dependencies = [
 [[package]]
 name = "sp-blockchain"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "futures",
  "log",
@@ -13307,7 +13305,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "futures",
@@ -13322,7 +13320,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-aura"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -13339,7 +13337,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-babe"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -13358,7 +13356,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-beefy"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "lazy_static",
  "parity-scale-codec",
@@ -13371,13 +13369,13 @@ dependencies = [
  "sp-mmr-primitives",
  "sp-runtime",
  "sp-std",
- "strum",
+ "strum 0.24.1",
 ]
 
 [[package]]
 name = "sp-consensus-grandpa"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "finality-grandpa",
  "log",
@@ -13395,7 +13393,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-slots"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -13407,7 +13405,7 @@ dependencies = [
 [[package]]
 name = "sp-core"
 version = "21.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "array-bytes",
  "arrayvec 0.7.4",
@@ -13440,7 +13438,7 @@ dependencies = [
  "sp-core-hashing",
  "sp-debug-derive",
  "sp-externalities",
- "sp-runtime-interface",
+ "sp-runtime-interface 17.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "sp-std",
  "sp-storage",
  "ss58-registry",
@@ -13454,7 +13452,7 @@ dependencies = [
 [[package]]
 name = "sp-core-hashing"
 version = "9.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "blake2b_simd",
  "byteorder",
@@ -13467,7 +13465,7 @@ dependencies = [
 [[package]]
 name = "sp-core-hashing-proc-macro"
 version = "9.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "quote",
  "sp-core-hashing",
@@ -13477,7 +13475,7 @@ dependencies = [
 [[package]]
 name = "sp-database"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "kvdb",
  "parking_lot 0.12.1",
@@ -13486,7 +13484,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -13496,7 +13494,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.19.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -13507,7 +13505,7 @@ dependencies = [
 [[package]]
 name = "sp-genesis-builder"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "serde_json",
  "sp-api",
@@ -13518,7 +13516,7 @@ dependencies = [
 [[package]]
 name = "sp-inherents"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "impl-trait-for-tuples",
@@ -13532,7 +13530,7 @@ dependencies = [
 [[package]]
 name = "sp-io"
 version = "23.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bytes",
  "ed25519-dalek",
@@ -13544,7 +13542,7 @@ dependencies = [
  "sp-core",
  "sp-externalities",
  "sp-keystore",
- "sp-runtime-interface",
+ "sp-runtime-interface 17.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "sp-state-machine",
  "sp-std",
  "sp-tracing",
@@ -13556,18 +13554,18 @@ dependencies = [
 [[package]]
 name = "sp-keyring"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "lazy_static",
  "sp-core",
  "sp-runtime",
- "strum",
+ "strum 0.24.1",
 ]
 
 [[package]]
 name = "sp-keystore"
 version = "0.27.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.1",
@@ -13579,7 +13577,7 @@ dependencies = [
 [[package]]
 name = "sp-maybe-compressed-blob"
 version = "4.1.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "thiserror",
  "zstd 0.12.4",
@@ -13588,7 +13586,7 @@ dependencies = [
 [[package]]
 name = "sp-metadata-ir"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-metadata",
  "parity-scale-codec",
@@ -13599,7 +13597,7 @@ dependencies = [
 [[package]]
 name = "sp-mmr-primitives"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "ckb-merkle-mountain-range",
  "log",
@@ -13617,7 +13615,7 @@ dependencies = [
 [[package]]
 name = "sp-npos-elections"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -13631,7 +13629,7 @@ dependencies = [
 [[package]]
 name = "sp-offchain"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "sp-api",
  "sp-core",
@@ -13641,7 +13639,7 @@ dependencies = [
 [[package]]
 name = "sp-panic-handler"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "backtrace",
  "lazy_static",
@@ -13651,7 +13649,7 @@ dependencies = [
 [[package]]
 name = "sp-rpc"
 version = "6.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "rustc-hash",
  "serde",
@@ -13661,7 +13659,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "either",
  "hash256-std-hasher",
@@ -13683,6 +13681,24 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "17.0.0"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
+dependencies = [
+ "bytes",
+ "impl-trait-for-tuples",
+ "parity-scale-codec",
+ "primitive-types",
+ "sp-externalities",
+ "sp-runtime-interface-proc-macro 11.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
+ "sp-std",
+ "sp-storage",
+ "sp-tracing",
+ "sp-wasm-interface 14.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
+ "static_assertions",
+]
+
+[[package]]
+name = "sp-runtime-interface"
+version = "17.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
 dependencies = [
  "bytes",
@@ -13690,12 +13706,24 @@ dependencies = [
  "parity-scale-codec",
  "primitive-types",
  "sp-externalities",
- "sp-runtime-interface-proc-macro",
+ "sp-runtime-interface-proc-macro 11.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-std",
  "sp-storage",
  "sp-tracing",
- "sp-wasm-interface",
+ "sp-wasm-interface 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "static_assertions",
+]
+
+[[package]]
+name = "sp-runtime-interface-proc-macro"
+version = "11.0.0"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
+dependencies = [
+ "Inflector",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.38",
 ]
 
 [[package]]
@@ -13713,7 +13741,7 @@ dependencies = [
 [[package]]
 name = "sp-session"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -13728,7 +13756,7 @@ dependencies = [
 [[package]]
 name = "sp-staking"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec",
@@ -13742,7 +13770,7 @@ dependencies = [
 [[package]]
 name = "sp-state-machine"
 version = "0.28.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "hash-db",
  "log",
@@ -13763,7 +13791,7 @@ dependencies = [
 [[package]]
 name = "sp-statement-store"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "aes-gcm 0.10.3",
  "curve25519-dalek 4.1.1",
@@ -13778,7 +13806,7 @@ dependencies = [
  "sp-core",
  "sp-externalities",
  "sp-runtime",
- "sp-runtime-interface",
+ "sp-runtime-interface 17.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0)",
  "sp-std",
  "thiserror",
  "x25519-dalek 2.0.0",
@@ -13787,12 +13815,12 @@ dependencies = [
 [[package]]
 name = "sp-std"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 
 [[package]]
 name = "sp-storage"
 version = "13.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -13805,7 +13833,7 @@ dependencies = [
 [[package]]
 name = "sp-timestamp"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -13818,7 +13846,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "10.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "sp-std",
@@ -13830,7 +13858,7 @@ dependencies = [
 [[package]]
 name = "sp-transaction-pool"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "sp-api",
  "sp-runtime",
@@ -13839,7 +13867,7 @@ dependencies = [
 [[package]]
 name = "sp-transaction-storage-proof"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -13854,9 +13882,9 @@ dependencies = [
 [[package]]
 name = "sp-trie"
 version = "22.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
- "ahash 0.8.3",
+ "ahash 0.8.6",
  "hash-db",
  "hashbrown 0.13.2",
  "lazy_static",
@@ -13877,7 +13905,7 @@ dependencies = [
 [[package]]
 name = "sp-version"
 version = "22.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -13894,12 +13922,25 @@ dependencies = [
 [[package]]
 name = "sp-version-proc-macro"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "proc-macro2",
  "quote",
  "syn 2.0.38",
+]
+
+[[package]]
+name = "sp-wasm-interface"
+version = "14.0.0"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
+dependencies = [
+ "anyhow",
+ "impl-trait-for-tuples",
+ "log",
+ "parity-scale-codec",
+ "sp-std",
+ "wasmtime",
 ]
 
 [[package]]
@@ -13918,7 +13959,7 @@ dependencies = [
 [[package]]
 name = "sp-weights"
 version = "20.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -13950,7 +13991,7 @@ checksum = "08615eea740067d9899969bc2891c68a19c315cb1f66640af9a9ecb91b13bcab"
 dependencies = [
  "lazy_static",
  "maplit",
- "strum",
+ "strum 0.24.1",
 ]
 
 [[package]]
@@ -13997,7 +14038,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 [[package]]
 name = "staging-kusama-runtime"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "binary-merkle-tree",
  "bitvec",
@@ -14103,7 +14144,7 @@ dependencies = [
 [[package]]
 name = "staging-xcm"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "bounded-collections",
  "derivative",
@@ -14120,7 +14161,7 @@ dependencies = [
 [[package]]
 name = "staging-xcm-builder"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -14142,7 +14183,7 @@ dependencies = [
 [[package]]
 name = "staging-xcm-executor"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "environmental",
  "frame-benchmarking",
@@ -14205,8 +14246,14 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
 dependencies = [
- "strum_macros",
+ "strum_macros 0.24.3",
 ]
+
+[[package]]
+name = "strum"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
 
 [[package]]
 name = "strum_macros"
@@ -14219,6 +14266,19 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.25.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.38",
 ]
 
 [[package]]
@@ -14256,12 +14316,12 @@ dependencies = [
 [[package]]
 name = "substrate-build-script-utils"
 version = "3.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 
 [[package]]
 name = "substrate-frame-rpc-system"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-system-rpc-runtime-api",
  "futures",
@@ -14280,7 +14340,7 @@ dependencies = [
 [[package]]
 name = "substrate-prometheus-endpoint"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "hyper",
  "log",
@@ -14292,7 +14352,7 @@ dependencies = [
 [[package]]
 name = "substrate-rpc-client"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
  "jsonrpsee 0.16.3",
@@ -14305,7 +14365,7 @@ dependencies = [
 [[package]]
 name = "substrate-state-trie-migration-rpc"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "jsonrpsee 0.16.3",
  "parity-scale-codec",
@@ -14322,7 +14382,7 @@ dependencies = [
 [[package]]
 name = "substrate-wasm-builder"
 version = "5.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "ansi_term",
  "build-helper",
@@ -14330,7 +14390,7 @@ dependencies = [
  "filetime",
  "parity-wasm",
  "sp-maybe-compressed-blob",
- "strum",
+ "strum 0.24.1",
  "tempfile",
  "toml 0.7.8",
  "walkdir",
@@ -14421,9 +14481,9 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "target-lexicon"
-version = "0.12.11"
+version = "0.12.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d0e916b1148c8e263850e1ebcbd046f333e0683c724876bb0da63ea4373dc8a"
+checksum = "14c39fd04924ca3a864207c66fc2cd7d22d7c016007f9ce846cbb9326331930a"
 
 [[package]]
 name = "tempfile"
@@ -14434,7 +14494,7 @@ dependencies = [
  "cfg-if",
  "fastrand 2.0.1",
  "redox_syscall 0.3.5",
- "rustix 0.38.19",
+ "rustix 0.38.20",
  "windows-sys 0.48.0",
 ]
 
@@ -14526,9 +14586,9 @@ checksum = "222a222a5bfe1bba4a77b45ec488a741b3cb8872e5e499451fd7d0129c9c7c3d"
 
 [[package]]
 name = "thiserror"
-version = "1.0.49"
+version = "1.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1177e8c6d7ede7afde3585fd2513e611227efd6481bd78d2e82ba1ce16557ed4"
+checksum = "f9a7210f5c9a7156bb50aa36aed4c95afb51df0df00713949448cf9e97d382d2"
 dependencies = [
  "thiserror-impl",
 ]
@@ -14555,9 +14615,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.49"
+version = "1.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10712f02019e9288794769fba95cd6847df9874d49d871d062172f9dd41bc4cc"
+checksum = "266b2e40bc00e5a6c09c3584011e08b06f123c00362c92b975ba9843aaaa14b8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -14719,7 +14779,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "pin-project-lite 0.2.13",
  "signal-hook-registry",
- "socket2 0.5.4",
+ "socket2 0.5.5",
  "tokio-macros",
  "windows-sys 0.48.0",
 ]
@@ -14752,7 +14812,7 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c28327cf380ac148141087fbfb9de9d7bd4e84ab5d2c28fbc911d753de8a7081"
 dependencies = [
- "rustls 0.21.7",
+ "rustls 0.21.8",
  "tokio",
 ]
 
@@ -14770,9 +14830,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.9"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d68074620f57a0b21594d9735eb2e98ab38b17f80d3fcb189fca266771ca60d"
+checksum = "5419f34732d9eb6ee4c3578b7989078579b7f039cbbb9ca2c4da015749371e15"
 dependencies = [
  "bytes",
  "futures-core",
@@ -14806,9 +14866,9 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "0.6.3"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cda73e2f1397b1262d6dfdcef8aafae14d1de7748d66822d3bfeeb6d03e5e4b"
+checksum = "3550f4e9685620ac18a50ed434eb3aec30db8ba93b0287467bca5826ea25baf1"
 dependencies = [
  "serde",
 ]
@@ -14869,9 +14929,9 @@ checksum = "b6bc1c9ce2b5135ac7f93c72918fc37feb872bdc6a5533a8b85eb4b86bfdae52"
 
 [[package]]
 name = "tracing"
-version = "0.1.39"
+version = "0.1.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee2ef2af84856a50c1d430afce2fdded0a4ec7eda868db86409b4543df0797f9"
+checksum = "c3523ab5a71916ccf420eebdf5521fcef02141234bbc0b8a49f2fdc4544364ef"
 dependencies = [
  "log",
  "pin-project-lite 0.2.13",
@@ -14913,7 +14973,7 @@ dependencies = [
 [[package]]
 name = "tracing-gum"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "coarsetime",
  "polkadot-node-jaeger",
@@ -14925,7 +14985,7 @@ dependencies = [
 [[package]]
 name = "tracing-gum-proc-macro"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "expander 2.0.0",
  "proc-macro-crate",
@@ -14936,12 +14996,12 @@ dependencies = [
 
 [[package]]
 name = "tracing-log"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78ddad33d2d10b1ed7eb9d1f518a5674713876e97e5bb9b7345a7984fbb4f922"
+checksum = "f751112709b4e791d8ce53e32c4ed2d353565a795ce84da2285393f41557bdf2"
 dependencies = [
- "lazy_static",
  "log",
+ "once_cell",
  "tracing-core",
 ]
 
@@ -15018,7 +15078,7 @@ dependencies = [
  "lazy_static",
  "rand 0.8.5",
  "smallvec",
- "socket2 0.4.9",
+ "socket2 0.4.10",
  "thiserror",
  "tinyvec",
  "tokio",
@@ -15055,10 +15115,10 @@ checksum = "3528ecfd12c466c6f163363caf2d02a71161dd5e1cc6ae7b34207ea2d42d81ed"
 [[package]]
 name = "try-runtime-cli"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "async-trait",
- "clap 4.4.6",
+ "clap 4.4.7",
  "frame-remote-externalities",
  "frame-try-runtime",
  "hex",
@@ -15423,14 +15483,14 @@ dependencies = [
 
 [[package]]
 name = "wasm-opt"
-version = "0.114.1"
+version = "0.114.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d005a95f934878a1fb446a816d51c3601a0120ff929005ba3bab3c749cfd1c7"
+checksum = "effbef3bd1dde18acb401f73e740a6f3d4a1bc651e9773bddc512fe4d8d68f67"
 dependencies = [
  "anyhow",
  "libc",
- "strum",
- "strum_macros",
+ "strum 0.24.1",
+ "strum_macros 0.24.3",
  "tempfile",
  "thiserror",
  "wasm-opt-cxx-sys",
@@ -15439,9 +15499,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-opt-cxx-sys"
-version = "0.114.1"
+version = "0.114.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d04e240598162810fad3b2e96fa0dec6dba1eb65a03f3bd99a9248ab8b56caa"
+checksum = "c09e24eb283919ace2ed5733bda4842a59ce4c8de110ef5c6d98859513d17047"
 dependencies = [
  "anyhow",
  "cxx",
@@ -15451,9 +15511,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-opt-sys"
-version = "0.114.1"
+version = "0.114.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2efd2aaca519d64098c4faefc8b7433a97ed511caf4c9e516384eb6aef1ff4f9"
+checksum = "36f2f817bed2e8d65eb779fa37317e74de15585751f903c9118342d1970703a4"
 dependencies = [
  "anyhow",
  "cc",
@@ -15570,7 +15630,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c86437fa68626fe896e5afc69234bb2b5894949083586535f200385adfd71213"
 dependencies = [
  "anyhow",
- "base64 0.21.4",
+ "base64 0.21.5",
  "bincode",
  "directories-next",
  "file-per-thread-logger",
@@ -15747,7 +15807,7 @@ version = "0.22.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed63aea5ce73d0ff405984102c42de94fc55a6b75765d621c65262469b3c9b53"
 dependencies = [
- "ring 0.17.4",
+ "ring 0.17.5",
  "untrusted 0.9.0",
 ]
 
@@ -15902,7 +15962,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f08dfd7a6e3987e255c4dbe710dde5d94d0f0574f8a21afa95d171376c143106"
 dependencies = [
  "log",
- "socket2 0.4.9",
+ "socket2 0.4.10",
  "thiserror",
  "tokio",
  "webrtc-util",
@@ -15986,7 +16046,7 @@ dependencies = [
 [[package]]
 name = "westend-runtime"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "binary-merkle-tree",
  "bitvec",
@@ -16085,7 +16145,7 @@ dependencies = [
 [[package]]
 name = "westend-runtime-constants"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "frame-support",
  "polkadot-primitives",
@@ -16105,7 +16165,7 @@ dependencies = [
  "either",
  "home",
  "once_cell",
- "rustix 0.38.19",
+ "rustix 0.38.20",
 ]
 
 [[package]]
@@ -16412,7 +16472,7 @@ dependencies = [
 [[package]]
 name = "xcm-emulator"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -16444,7 +16504,7 @@ dependencies = [
 [[package]]
 name = "xcm-procedural"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=hydradx-fork-v1.1.0#33156d3d58a9a105f81dd1e9c20ab0225ed04df6"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -16479,6 +16539,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd"
 dependencies = [
  "time",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.7.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69c48d63854f77746c68a5fbb4aa17f3997ece1cb301689a257af8cb80610d21"
+dependencies = [
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.7.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c258c1040279e4f88763a113de72ce32dde2d50e2a94573f15dd534cea36a16d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.38",
 ]
 
 [[package]]

@@ -64,18 +64,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-// use cumulus_pallet_xcmp_queue::XcmDeferFilter;
-// TODO: remove cumulus-primitives-core dependency
-// TODO:
-use cumulus_primitives_core::{relay_chain::BlockNumber as RelayBlockNumber, ParaId};
-pub trait XcmDeferFilter<TRuntimeCall> {
-	fn deferred_by(
-		para: ParaId,
-		sent_at: RelayBlockNumber,
-		xcm: &VersionedXcm<TRuntimeCall>,
-	) -> (Weight, Option<RelayBlockNumber>);
-}
-
+use cumulus_pallet_xcmp_queue::XcmDeferFilter;
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;

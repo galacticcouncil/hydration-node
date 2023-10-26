@@ -1,7 +1,7 @@
 use super::*;
 
 use codec::MaxEncodedLen;
-use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
+use hydradx_adapters::{MultiCurrencyTrader, RelayChainBlockNumberProvider, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
@@ -148,6 +148,11 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
 	type PriceForSiblingDelivery = ();
 	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
+	type ExecuteDeferredOrigin = EnsureRoot<AccountId>;
+	type MaxDeferredMessages = ConstU32<100>;
+	type MaxDeferredBuckets = ConstU32<100>; // TODO
+	type RelayChainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type XcmDeferFilter = ();
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {

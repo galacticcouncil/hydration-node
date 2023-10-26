@@ -207,6 +207,43 @@ pub mod polkadot {
 		}
 	}
 
+	use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+	use polkadot_primitives::{AssignmentId, ValidatorId};
+	use polkadot_service::chain_spec::get_authority_keys_from_seed_no_beefy;
+	use sc_consensus_grandpa::AuthorityId as GrandpaId;
+	use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+	use sp_consensus_babe::AuthorityId as BabeId;
+	pub fn initial_authorities() -> Vec<(
+		AccountId,
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		ValidatorId,
+		AssignmentId,
+		AuthorityDiscoveryId,
+	)> {
+		vec![get_authority_keys_from_seed_no_beefy("Alice")]
+	}
+
+	fn session_keys(
+		babe: BabeId,
+		grandpa: GrandpaId,
+		im_online: ImOnlineId,
+		para_validator: ValidatorId,
+		para_assignment: AssignmentId,
+		authority_discovery: AuthorityDiscoveryId,
+	) -> polkadot_runtime::SessionKeys {
+		polkadot_runtime::SessionKeys {
+			babe,
+			grandpa,
+			im_online,
+			para_validator,
+			para_assignment,
+			authority_discovery,
+		}
+	}
+
 	pub fn genesis() -> Storage {
 		let genesis_config = polkadot_runtime::RuntimeGenesisConfig {
 			balances: polkadot_runtime::BalancesConfig {
@@ -215,19 +252,81 @@ pub mod polkadot {
 					(ParaId::from(HYDRA_PARA_ID).into_account_truncating(), 10 * UNITS),
 				],
 			},
-
+			session: polkadot_runtime::SessionConfig {
+				keys: initial_authorities()
+					.iter()
+					.map(|x| {
+						(
+							x.0.clone(),
+							x.0.clone(),
+							polkadot::session_keys(
+								x.2.clone(),
+								x.3.clone(),
+								x.4.clone(),
+								x.5.clone(),
+								x.6.clone(),
+								x.7.clone(),
+							),
+						)
+					})
+					.collect::<Vec<_>>(),
+			},
 			configuration: polkadot_runtime::ConfigurationConfig {
 				config: get_host_configuration(),
 			},
-
 			xcm_pallet: polkadot_runtime::XcmPalletConfig {
 				safe_xcm_version: Some(3),
+				..Default::default()
+			},
+			babe: polkadot_runtime::BabeConfig {
+				authorities: Default::default(),
+				epoch_config: Some(polkadot_runtime::BABE_GENESIS_EPOCH_CONFIG),
 				..Default::default()
 			},
 			..Default::default()
 		};
 
 		genesis_config.build_storage().unwrap()
+	}
+}
+
+use sp_core::{sr25519, Pair, Public};
+use sp_runtime::{
+	traits::{IdentifyAccount, Verify},
+	MultiSignature,
+};
+type AccountPublic = <MultiSignature as Verify>::Signer;
+
+/// Helper function to generate a crypto pair from seed
+fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+	TPublic::Pair::from_string(&format!("//{}", seed), None)
+		.expect("static values are valid; qed")
+		.public()
+}
+
+/// Helper function to generate an account ID from seed.
+fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+where
+	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+{
+	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
+}
+
+pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+pub mod collators {
+	use super::*;
+
+	pub fn invulnerables() -> Vec<(AccountId, AuraId)> {
+		vec![
+			(
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_from_seed::<AuraId>("Alice"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_from_seed::<AuraId>("Bob"),
+			),
+		]
 	}
 }
 
@@ -257,7 +356,23 @@ pub mod hydra {
 					(staking_account, UNITS),
 				],
 			},
-
+			collator_selection: hydradx_runtime::CollatorSelectionConfig {
+				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),
+				candidacy_bond: 2 * UNITS,
+				..Default::default()
+			},
+			session: hydradx_runtime::SessionConfig {
+				keys: collators::invulnerables()
+					.into_iter()
+					.map(|(acc, aura)| {
+						(
+							acc.clone(),                                   // account id
+							acc,                                           // validator id
+							hydradx_runtime::opaque::SessionKeys { aura }, // session keys
+						)
+					})
+					.collect(),
+			},
 			asset_registry: hydradx_runtime::AssetRegistryConfig {
 				registered_assets: vec![
 					(b"LRNA".to_vec(), 1_000u128, Some(LRNA)),
@@ -273,12 +388,10 @@ pub mod hydra {
 				native_asset_name: b"HDX".to_vec(),
 				native_existential_deposit: existential_deposit,
 			},
-
 			parachain_info: hydradx_runtime::ParachainInfoConfig {
 				parachain_id: HYDRA_PARA_ID.into(),
 				..Default::default()
 			},
-
 			tokens: hydradx_runtime::TokensConfig {
 				balances: vec![
 					(AccountId::from(ALICE), LRNA, ALICE_INITIAL_LRNA_BALANCE),
@@ -298,12 +411,10 @@ pub mod hydra {
 					(omnipool_account, DOT, dot_amount),
 				],
 			},
-
 			polkadot_xcm: hydradx_runtime::PolkadotXcmConfig {
 				safe_xcm_version: Some(3),
 				..Default::default()
 			},
-
 			multi_transaction_payment: hydradx_runtime::MultiTransactionPaymentConfig {
 				currencies: vec![
 					(LRNA, Price::from(1)),
@@ -313,7 +424,6 @@ pub mod hydra {
 				],
 				account_currencies: vec![],
 			},
-
 			duster: hydradx_runtime::DusterConfig {
 				account_blacklist: vec![Treasury::account_id()],
 				reward_account: Some(Treasury::account_id()),
@@ -333,15 +443,35 @@ pub mod para {
 			balances: hydradx_runtime::BalancesConfig {
 				balances: vec![(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE)],
 			},
-
+			collator_selection: hydradx_runtime::CollatorSelectionConfig {
+				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),
+				candidacy_bond: UNITS * 16,
+				..Default::default()
+			},
+			session: hydradx_runtime::SessionConfig {
+				keys: collators::invulnerables()
+					.into_iter()
+					.map(|(acc, aura)| {
+						(
+							acc.clone(),                                   // account id
+							acc,                                           // validator id
+							hydradx_runtime::opaque::SessionKeys { aura }, // session keys
+						)
+					})
+					.collect(),
+			},
 			parachain_info: hydradx_runtime::ParachainInfoConfig {
 				parachain_id: para_id.into(),
 				..Default::default()
 			},
-
 			polkadot_xcm: hydradx_runtime::PolkadotXcmConfig {
 				safe_xcm_version: Some(3),
 				..Default::default()
+			},
+			duster: hydradx_runtime::DusterConfig {
+				account_blacklist: vec![Treasury::account_id()],
+				reward_account: Some(Treasury::account_id()),
+				dust_account: Some(Treasury::account_id()),
 			},
 			..Default::default()
 		};

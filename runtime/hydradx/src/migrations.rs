@@ -1,5 +1,4 @@
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
-use sp_runtime::DispatchError;
 #[cfg(feature = "try-runtime")]
 use sp_std::prelude::*;
 

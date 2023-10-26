@@ -61,7 +61,10 @@ pub mod v1 {
 	impl<T: Config + frame_system::Config<Hash = H256>> OnRuntimeUpgrade for Migration<T> {
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::TryRuntimeError> {
-			ensure!(StorageVersion::get::<Pallet<T>>() == 0, "can only upgrade from version 0");
+			ensure!(
+				StorageVersion::get::<Pallet<T>>() == 0,
+				"can only upgrade from version 0"
+			);
 
 			let props_count = v0::PublicProps::<T>::get().len();
 			log::info!(target: TARGET, "{} public proposals will be migrated.", props_count,);
