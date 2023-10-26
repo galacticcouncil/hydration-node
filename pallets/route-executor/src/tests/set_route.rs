@@ -122,7 +122,7 @@ fn set_route_should_work_when_new_price_is_better() {
 }
 
 #[test]
-fn set_route_should_not_override_when_only_sell_price_is_better() {
+fn set_route_should_not_override_when_only_normal_sell_price_is_better() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let asset_pair = AssetPair::new(HDX, AUSD);
@@ -164,7 +164,7 @@ fn set_route_should_not_override_when_only_sell_price_is_better() {
 }
 
 #[test]
-fn set_route_should_not_override_when_only_buy_price_is_better() {
+fn set_route_should_not_override_when_only_inverse_route_price_is_better() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let asset_pair = AssetPair::new(HDX, AUSD);
@@ -181,11 +181,18 @@ fn set_route_should_not_override_when_only_buy_price_is_better() {
 		);
 
 		//Act
-		let new_route = create_bounded_vec(vec![Trade {
-			pool: PoolType::XYK,
-			asset_in: HDX,
-			asset_out: AUSD,
-		}]);
+		let new_route = create_bounded_vec(vec![
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: AUSD,
+			},
+			Trade {
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
+			},
+		]);
 
 		assert_noop!(
 			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route.clone()),

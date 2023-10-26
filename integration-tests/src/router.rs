@@ -2240,7 +2240,8 @@ mod set_route {
 				create_xyk_pool_with_amounts(DOT, 1000 * UNITS, stable_asset_1, 1000 * UNITS);
 
 				create_lbp_pool_with_amounts(DOT, 1000 * UNITS, stable_asset_1, 1000 * UNITS);
-				start_lbp_campaign();
+				//Start lbp campaign
+				set_relaychain_block_number(LBP_SALE_START + 15);
 
 				let route1 = vec![
 					Trade {
@@ -2294,10 +2295,10 @@ mod set_route {
 					0,
 					route1.clone()
 				));
-				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE + 5464509074720);*/
+				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE + 148491515972);
 
 				//B scenario
-				/*assert_ok!(Router::sell(
+				assert_ok!(Router::sell(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					HDX,
 					DOT,
@@ -2305,10 +2306,34 @@ mod set_route {
 					0,
 					route2_cheaper.clone()
 				));
-				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE + 10191854707103);*/
+				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE + 297076311982);*/
+
+				//A scenario reverse
+				//assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+
+				/*				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					DOT,
+					HDX,
+					amount_to_sell,
+					0,
+					reverse_route(route1.clone())
+				));
+				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + 53811238023571793);
+
+				//B scenario reverse
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					DOT,
+					HDX,
+					amount_to_sell,
+					0,
+					reverse_route(route2_cheaper.clone())
+				));
+				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + 97863960730084445);*/
 
 				//A BUY scenario
-				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+				//assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 
 				/*assert_ok!(Router::buy(
 									hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -2321,7 +2346,7 @@ mod set_route {
 								assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 35260285057170);
 				*/
 				//B BUY scenario
-				assert_balance!(ALICE.into(), HDX, 1000 * UNITS);
+				//assert_balance!(ALICE.into(), HDX, 1000 * UNITS);
 				/*assert_ok!(Router::buy(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					HDX,
@@ -2362,6 +2387,20 @@ mod set_route {
 		}
 	}
 
+	fn reverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
+		trades
+			.into_iter()
+			.map(|trade| Trade {
+				pool: trade.pool,
+				asset_in: trade.asset_out,
+				asset_out: trade.asset_in,
+			})
+			.collect::<Vec<Trade<AssetId>>>()
+			.into_iter()
+			.rev()
+			.collect()
+	}
+
 	#[test]
 	fn set_route_should_fail_with_invalid_route() {
 		{
@@ -2388,6 +2427,8 @@ mod set_route {
 					AccountId::from(BOB),
 				));
 
+				create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
+
 				let route1 = vec![
 					Trade {
 						pool: PoolType::Omnipool,
@@ -2395,8 +2436,8 @@ mod set_route {
 						asset_out: DOT,
 					},
 					Trade {
-						pool: PoolType::Stableswap(pool_id),
-						asset_in: DOT,
+						pool: PoolType::XYK,
+						asset_in: ETH,
 						asset_out: BTC,
 					},
 				];

@@ -322,18 +322,31 @@ pub mod pallet {
 			);
 
 			//TODO: handle the case when we do save the same for the other way around
+			//TODO: also think about to reverse it when we get it
+			//TODO: Maybe create a route object when we can do all these reversing, comparisions, etc. Or Pair is enough so we can add method is_inversed or not
 			let maybe_route = Routes::<T>::get(asset_pair);
 
 			match maybe_route {
 				Some(existing_route) => {
-					let amount_out_for_existing_route = Self::calculate_expected_amount_out(&existing_route)?;
-					let amount_out_for_new_route = Self::calculate_expected_amount_out(&route)?;
+					//Calculate amounts for normal route
+					let reference_amount_in = Self::calculate_reference_amount_in(&existing_route)?;
 
-					let amount_in_for_existing_route = Self::calculate_expected_amount_in(&existing_route)?;
-					let amount_in_for_new_route = Self::calculate_expected_amount_in(&route)?;
+					let amount_out_for_existing_route =
+						Self::calculate_expected_amount_out(&existing_route, reference_amount_in)?;
+					let amount_out_for_new_route = Self::calculate_expected_amount_out(&route, reference_amount_in)?;
+
+					//Calculate amounts for inversed route
+					let inverse_existing_route = reverse_route(existing_route.to_vec());
+					let inverse_new_route = reverse_route(route.to_vec());
+					let reference_amount_in_for_inverse = Self::calculate_reference_amount_in(&inverse_existing_route)?;
+
+					let amount_out_for_existing_inversed_route =
+						Self::calculate_expected_amount_out(&inverse_existing_route, reference_amount_in_for_inverse)?;
+					let amount_out_for_new_inversed_route =
+						Self::calculate_expected_amount_out(&inverse_new_route, reference_amount_in_for_inverse)?;
 
 					if amount_out_for_new_route > amount_out_for_existing_route
-						&& amount_in_for_new_route < amount_in_for_existing_route
+						&& amount_out_for_new_inversed_route > amount_out_for_existing_inversed_route
 					{
 						Routes::<T>::insert(asset_pair, route.clone());
 
@@ -346,8 +359,12 @@ pub mod pallet {
 				}
 				None => {
 					//We validate if the route is correct
-					Self::calculate_expected_amount_out(&route).map_err(|_| Error::<T>::RouteCalculationFailed)?;
-					Self::calculate_expected_amount_in(&route).map_err(|_| Error::<T>::RouteCalculationFailed)?;
+					let reference_amount_in = Self::calculate_reference_amount_in(&route)?;
+
+					Self::calculate_expected_amount_out(&route, reference_amount_in)
+						.map_err(|_| Error::<T>::RouteCalculationFailed)?;
+
+					//TODO: validate with inverse too??
 
 					Routes::<T>::insert(asset_pair, route.clone());
 
@@ -410,9 +427,32 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	fn get_route_or_default(
+		route: Vec<Trade<T::AssetId>>,
+		asset_pair: AssetPair<T::AssetId>,
+	) -> Result<Vec<Trade<T::AssetId>>, DispatchError> {
+		let route = if !route.is_empty() {
+			route.clone()
+		} else {
+			<Pallet<T> as RouteProvider<T::AssetId>>::get(asset_pair)
+		};
+		Ok(route)
+	}
+
 	fn calculate_expected_amount_out(
-		route: &BoundedVec<Trade<<T as Config>::AssetId>, ConstU32<5>>,
+		route: &Vec<Trade<<T as Config>::AssetId>>,
+		amount_in: T::Balance,
 	) -> Result<T::Balance, DispatchError> {
+		let sell_trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
+		let amount_out = sell_trade_amounts
+			.last()
+			.ok_or(Error::<T>::RouteCalculationFailed)?
+			.amount_out;
+
+		Ok(amount_out)
+	}
+
+	fn calculate_reference_amount_in(route: &Vec<Trade<T::AssetId>>) -> Result<T::Balance, DispatchError> {
 		let first_route = route.first().ok_or(Error::<T>::RouteCalculationFailed)?;
 		let asset_b = match first_route.pool {
 			PoolType::Omnipool => T::NativeAssetId::get(),
@@ -431,55 +471,7 @@ impl<T: Config> Pallet<T> {
 
 		let one_percent_asset_in_liq = liq.checked_div(&100u128.into()).ok_or(ArithmeticError::Overflow)?;
 
-		let sell_trade_amounts = Self::calculate_sell_trade_amounts(&route, one_percent_asset_in_liq.into())?;
-		let amount_out = sell_trade_amounts
-			.last()
-			.ok_or(Error::<T>::RouteCalculationFailed)?
-			.amount_out;
-
-		Ok(amount_out)
-	}
-
-	fn get_route_or_default(
-		route: Vec<Trade<T::AssetId>>,
-		asset_pair: AssetPair<T::AssetId>,
-	) -> Result<Vec<Trade<T::AssetId>>, DispatchError> {
-		let route = if !route.is_empty() {
-			route.clone()
-		} else {
-			<Pallet<T> as RouteProvider<T::AssetId>>::get(asset_pair)
-		};
-		Ok(route)
-	}
-
-	fn calculate_expected_amount_in(
-		route: &BoundedVec<Trade<<T as Config>::AssetId>, ConstU32<5>>,
-	) -> Result<T::Balance, DispatchError> {
-		let last_route = route.last().ok_or(Error::<T>::RouteCalculationFailed)?;
-		let asset_b = match last_route.pool {
-			PoolType::Omnipool => T::NativeAssetId::get(),
-			PoolType::Stableswap(pool_id) => pool_id,
-			PoolType::XYK => last_route.asset_in,
-			PoolType::LBP => last_route.asset_in,
-		};
-
-		let asset_out_liquidity = T::AMM::get_liquidity_depth(last_route.pool, last_route.asset_out, asset_b);
-
-		let liq = match asset_out_liquidity {
-			Err(ExecutorError::NotSupported) => return Err(Error::<T>::PoolNotSupported.into()),
-			Err(ExecutorError::Error(dispatch_error)) => return Err(dispatch_error),
-			Ok(liq) => liq,
-		};
-
-		let one_percent_asset_in_liq = liq.checked_div(&100u128.into()).ok_or(ArithmeticError::Overflow)?;
-
-		let buy_trade_amounts = Self::calculate_buy_trade_amounts(&route, one_percent_asset_in_liq.into())?;
-		let amount_in = buy_trade_amounts
-			.last()
-			.ok_or(Error::<T>::RouteCalculationFailed)?
-			.amount_in;
-
-		Ok(amount_in)
+		Ok(one_percent_asset_in_liq)
 	}
 
 	fn calculate_sell_trade_amounts(
@@ -642,4 +634,19 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 			None => default_route,
 		}
 	}
+}
+
+//TODO: remove duplication with dca
+fn reverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
+	trades
+		.into_iter()
+		.map(|trade| Trade {
+			pool: trade.pool,
+			asset_in: trade.asset_out,
+			asset_out: trade.asset_in,
+		})
+		.collect::<Vec<Trade<AssetId>>>()
+		.into_iter()
+		.rev()
+		.collect()
 }
