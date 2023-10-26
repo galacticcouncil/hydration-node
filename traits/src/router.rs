@@ -18,22 +18,29 @@ impl<AssetId> AssetPair<AssetId> {
 
 	/// Return ordered asset tuple (A,B) where A < B
 	/// Used in storage
-	pub fn ordered_pair(&self) -> (AssetId, AssetId)
+	pub fn ordered_pair(&self) -> AssetPair<AssetId>
 	where
 		AssetId: PartialOrd + Copy,
 	{
-		match self.asset_in <= self.asset_out {
-			true => (self.asset_in, self.asset_out),
-			false => (self.asset_out, self.asset_in),
+		match self.is_ordered() {
+			true => AssetPair::new(self.asset_in, self.asset_out),
+			false => AssetPair::new(self.asset_out, self.asset_in),
 		}
+	}
+
+	pub fn is_ordered(&self) -> bool
+	where
+		AssetId: PartialOrd,
+	{
+		return self.asset_in <= self.asset_out;
 	}
 
 	pub fn to_ordered_vec(&self) -> Vec<AssetId>
 	where
 		AssetId: PartialOrd + Copy,
 	{
-		let (asset_a, asset_b) = self.ordered_pair();
-		vec![asset_a, asset_b]
+		let pair = self.ordered_pair();
+		vec![pair.asset_in, pair.asset_out]
 	}
 }
 

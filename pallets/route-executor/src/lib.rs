@@ -321,9 +321,14 @@ pub mod pallet {
 				Error::<T>::InvalidRouteForAssetPair
 			);
 
-			//TODO: handle the case when we do save the same for the other way around
+			let mut asset_pair = asset_pair;
+			let mut route = route.to_vec();
+			if !asset_pair.is_ordered() {
+				asset_pair = asset_pair.ordered_pair();
+				route = inverse_route(route)
+			}
+
 			//TODO: also think about to reverse it when we get it
-			//TODO: Maybe create a route object when we can do all these reversing, comparisions, etc. Or Pair is enough so we can add method is_inversed or not
 			let maybe_route = Routes::<T>::get(asset_pair);
 
 			match maybe_route {
@@ -336,8 +341,8 @@ pub mod pallet {
 					let amount_out_for_new_route = Self::calculate_expected_amount_out(&route, reference_amount_in)?;
 
 					//Calculate amounts for inversed route
-					let inverse_existing_route = reverse_route(existing_route.to_vec());
-					let inverse_new_route = reverse_route(route.to_vec());
+					let inverse_existing_route = inverse_route(existing_route.to_vec());
+					let inverse_new_route = inverse_route(route.to_vec());
 					let reference_amount_in_for_inverse = Self::calculate_reference_amount_in(&inverse_existing_route)?;
 
 					let amount_out_for_existing_inversed_route =
@@ -348,7 +353,8 @@ pub mod pallet {
 					if amount_out_for_new_route > amount_out_for_existing_route
 						&& amount_out_for_new_inversed_route > amount_out_for_existing_inversed_route
 					{
-						Routes::<T>::insert(asset_pair, route.clone());
+						let bounded_vec = create_bounded_vec(route.clone()).ok_or(Error::<T>::MaxTradesExceeded)?;
+						Routes::<T>::insert(asset_pair, bounded_vec);
 
 						Self::deposit_event(Event::RouteUpdated {
 							asset_ids: asset_pair.to_ordered_vec(),
@@ -366,7 +372,8 @@ pub mod pallet {
 
 					//TODO: validate with inverse too??
 
-					Routes::<T>::insert(asset_pair, route.clone());
+					let bounded_vec = create_bounded_vec(route.clone()).ok_or(Error::<T>::MaxTradesExceeded)?;
+					Routes::<T>::insert(asset_pair, bounded_vec);
 
 					Self::deposit_event(Event::RouteUpdated {
 						asset_ids: asset_pair.to_ordered_vec(),
@@ -637,7 +644,7 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 }
 
 //TODO: remove duplication with dca
-fn reverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
+fn inverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
 	trades
 		.into_iter()
 		.map(|trade| Trade {
@@ -649,4 +656,9 @@ fn reverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
 		.into_iter()
 		.rev()
 		.collect()
+}
+
+pub fn create_bounded_vec<AssetId>(trades: Vec<Trade<AssetId>>) -> Option<BoundedVec<Trade<AssetId>, ConstU32<5>>> {
+	let bounded_vec: Result<BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>>, _> = trades.try_into();
+	bounded_vec.ok()
 }

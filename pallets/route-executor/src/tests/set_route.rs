@@ -65,6 +65,48 @@ fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
 }
 
 #[test]
+fn set_route_should_store_route_in_ordered_fashion() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = AssetPair::new(AUSD, HDX);
+		let route = create_bounded_vec(vec![
+			Trade {
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: AUSD,
+				asset_out: STABLE_SHARE_ASSET,
+			},
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: STABLE_SHARE_ASSET,
+				asset_out: HDX,
+			},
+		]);
+
+		//Act
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Pays::No.into()
+		);
+
+		//Assert
+		let route_ordered = create_bounded_vec(vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: STABLE_SHARE_ASSET,
+			},
+			Trade {
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
+			},
+		]);
+		let stored_route = Router::route(asset_pair.ordered_pair()).unwrap();
+		assert_eq!(stored_route, route_ordered);
+	});
+}
+
+#[test]
 fn set_route_should_work_when_new_price_is_better() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
