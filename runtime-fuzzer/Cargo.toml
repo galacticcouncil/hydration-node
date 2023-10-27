@@ -9,7 +9,7 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-ziggy = { version = "0.7", default-features = false }
+ziggy = { version = "0.8", default-features = false }
 
 hydradx-runtime = { workspace = true }
 primitives = { workspace = true }
