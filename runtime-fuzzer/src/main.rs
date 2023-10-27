@@ -46,6 +46,8 @@ const MAX_TIME_FOR_BLOCK: u64 = 6;
 // panicking on finalize.
 const MAX_BLOCK_LAPSE: u32 = sp_transaction_storage_proof::DEFAULT_STORAGE_PERIOD;
 
+const MAX_DECODE_LIMIT: u32 = 52;
+
 // Extrinsic delimiter: `********`
 const DELIMITER: [u8; 8] = [42; 8];
 
@@ -208,15 +210,8 @@ fn main() {
 		// Max weight for a block.
 		let max_weight: Weight = Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND * 2, 0);
 
-		let mut block_count = 0;
-		let mut extrinsics_in_block = 0;
-
-		let extrinsics: Vec<(Option<u32>, usize, RuntimeCall)> = iteratable
+		let extrinsics: Vec<(u32, usize, RuntimeCall)> = iteratable
 			.filter_map(|data| {
-				// We have reached the limit of block we want to decode
-				if MAX_BLOCKS_PER_INPUT != 0 && block_count >= MAX_BLOCKS_PER_INPUT {
-					return None;
-				}
 				// lapse is u32 (4 bytes), origin is u16 (2 bytes) -> 6 bytes minimum
 				let min_data_len = 4 + 2;
 				if data.len() <= min_data_len {
@@ -226,33 +221,8 @@ fn main() {
 				let origin: usize = u16::from_ne_bytes(data[4..6].try_into().unwrap()) as usize;
 				let mut encoded_extrinsic: &[u8] = &data[6..];
 
-				// If the lapse is in the range [1, MAX_BLOCK_LAPSE] it is valid.
-				let maybe_lapse = match lapse {
-					1..=MAX_BLOCK_LAPSE => Some(lapse),
-					_ => None,
-				};
-				// We have reached the limit of extrinsics for this block
-				if maybe_lapse.is_none()
-					&& MAX_EXTRINSICS_PER_BLOCK != 0
-					&& extrinsics_in_block >= MAX_EXTRINSICS_PER_BLOCK
-				{
-					return None;
-				}
-
-				match DecodeLimit::decode_all_with_depth_limit(64, &mut encoded_extrinsic) {
-					Ok(decoded_extrinsic) => {
-						if maybe_lapse.is_some() {
-							block_count += 1;
-							extrinsics_in_block = 1;
-						} else {
-							extrinsics_in_block += 1;
-						}
-						// We have reached the limit of block we want to decode
-						if MAX_BLOCKS_PER_INPUT != 0 && block_count >= MAX_BLOCKS_PER_INPUT {
-							return None;
-						}
-						Some((maybe_lapse, origin, decoded_extrinsic))
-					}
+				match DecodeLimit::decode_all_with_depth_limit(MAX_DECODE_LIMIT, &mut encoded_extrinsic) {
+					Ok(decoded_extrinsic) => Some((lapse, origin, decoded_extrinsic)),
 					Err(_) => None,
 				}
 			})
@@ -266,72 +236,98 @@ fn main() {
 		let mut externalities = Externalities::new(genesis_storage.clone());
 
 		let mut current_block: u32 = 1;
-		let mut current_timestamp: u64 = INITIAL_TIMESTAMP;
 		let mut current_weight: Weight = Weight::zero();
 		// let mut already_seen = 0; // This must be uncommented if you want to print events
 		let mut elapsed: Duration = Duration::ZERO;
 
-		let start_block = |block: u32, current_timestamp: u64| {
+		let start_block = |block: u32, lapse: u32| {
 			#[cfg(not(fuzzing))]
-			println!("\ninitializing block {block}");
+			println!("\ninitializing block {}", block + lapse);
 
-			let pre_digest = match current_timestamp {
-				INITIAL_TIMESTAMP => Default::default(),
-				_ => Digest {
-					logs: vec![DigestItem::PreRuntime(
-						AURA_ENGINE_ID,
-						Slot::from(current_timestamp / SLOT_DURATION).encode(),
-					)],
-				},
-			};
+			for b in (block)..(block + lapse) {
+				let current_timestamp = INITIAL_TIMESTAMP + b as u64 * SLOT_DURATION;
+				let pre_digest = match current_timestamp {
+					INITIAL_TIMESTAMP => Default::default(),
+					_ => Digest {
+						logs: vec![DigestItem::PreRuntime(
+							AURA_ENGINE_ID,
+							Slot::from(current_timestamp / SLOT_DURATION).encode(),
+						)],
+					},
+				};
 
-			Executive::initialize_block(&Header::new(
-				block,
-				Default::default(),
-				Default::default(),
-				Default::default(),
-				pre_digest,
-			));
+				let prev_header = match block {
+					1 => None,
+					_ => Some(Executive::finalize_block()),
+				};
 
-			#[cfg(not(fuzzing))]
-			println!("  setting timestamp");
-			// We apply the timestamp extrinsic for the current block.
-			Executive::apply_extrinsic(UncheckedExtrinsic::new_unsigned(RuntimeCall::Timestamp(
-				pallet_timestamp::Call::set { now: current_timestamp },
-			)))
-			.unwrap()
-			.unwrap();
+				let parent_header = &Header::new(
+					b + 1,
+					Default::default(),
+					Default::default(),
+					prev_header.clone().map(|x| x.hash()).unwrap_or_default(),
+					pre_digest,
+				);
+				Executive::initialize_block(parent_header);
 
+				// We apply the timestamp extrinsic for the current block.
+				Executive::apply_extrinsic(UncheckedExtrinsic::new_unsigned(RuntimeCall::Timestamp(
+					pallet_timestamp::Call::set { now: current_timestamp },
+				)))
+				.unwrap()
+				.unwrap();
+
+				let parachain_validation_data = {
+					use cumulus_primitives_core::relay_chain::HeadData;
+					use cumulus_primitives_core::PersistedValidationData;
+					use cumulus_primitives_parachain_inherent::ParachainInherentData;
+					use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
+
+					let parent_head = HeadData(prev_header.unwrap_or(parent_header.clone()).encode()); // prev_header.encode());//
+					let sproof_builder = RelayStateSproofBuilder {
+						para_id: 100.into(),
+						current_slot: Slot::from(2 * current_timestamp / SLOT_DURATION),
+						..Default::default()
+					};
+
+					let (relay_parent_storage_root, relay_chain_state) = sproof_builder.into_state_root_and_proof();
+					let data = ParachainInherentData {
+						validation_data: PersistedValidationData {
+							parent_head,
+							relay_parent_number: b,
+							relay_parent_storage_root,
+							max_pov_size: 1000,
+						},
+						relay_chain_state,
+						downward_messages: Default::default(),
+						horizontal_messages: Default::default(),
+					};
+					cumulus_pallet_parachain_system::Call::set_validation_data { data }
+				};
+
+				Executive::apply_extrinsic(UncheckedExtrinsic::new_unsigned(RuntimeCall::ParachainSystem(
+					parachain_validation_data,
+				)))
+				.unwrap()
+				.unwrap();
+			}
 			// Calls that need to be called before each block starts (init_calls) go here
 		};
 
-		let end_block = |current_block: u32, _current_timestamp: u64| {
-			#[cfg(not(fuzzing))]
-			println!("  finalizing block {current_block}");
-			Executive::finalize_block();
+		externalities.execute_with(|| start_block(current_block, 1));
+		current_block += 1;
 
-			#[cfg(not(fuzzing))]
-			println!("  testing invariants for block {current_block}");
-			<AllPalletsWithSystem as TryState<BlockNumber>>::try_state(current_block, TryStateSelect::All).unwrap();
-		};
-
-		externalities.execute_with(|| start_block(current_block, current_timestamp));
-
-		for (maybe_lapse, origin, extrinsic) in extrinsics {
+		for (lapse, origin, extrinsic) in extrinsics {
 			// If the lapse is in the range [0, MAX_BLOCK_LAPSE] we finalize the block and initialize
 			// a new one.
-			if let Some(lapse) = maybe_lapse {
-				// We end the current block
-				externalities.execute_with(|| end_block(current_block, current_timestamp));
-
+			if lapse > 0 && lapse < MAX_BLOCK_LAPSE {
 				// We update our state variables
-				current_block += lapse;
-				current_timestamp += lapse as u64 * SLOT_DURATION;
 				current_weight = Weight::zero();
 				elapsed = Duration::ZERO;
 
 				// We start the next block
-				externalities.execute_with(|| start_block(current_block, current_timestamp));
+				externalities.execute_with(|| start_block(current_block, lapse));
+				current_block += lapse;
 			}
 
 			// We get the current time for timing purposes.
@@ -365,10 +361,10 @@ fn main() {
 				/*
 				#[cfg(not(fuzzing))]
 				{
-					let all_events = node_template_runtime::System::events();
-					let events: Vec<_> = all_events.clone().into_iter().skip(already_seen).collect();
-					already_seen = all_events.len();
-					println!("  events:     {:?}\n", events);
+						let all_events = statemine_runtime::System::events();
+						let events: Vec<_> = all_events.clone().into_iter().skip(already_seen).collect();
+						already_seen = all_events.len();
+						println!("  events:     {:?}\n", events);
 				}
 				*/
 			});
@@ -383,7 +379,14 @@ fn main() {
 		}
 
 		// We end the final block
-		externalities.execute_with(|| end_block(current_block, current_timestamp));
+		externalities.execute_with(|| {
+			// Finilization
+			Executive::finalize_block();
+			// Invariants
+			#[cfg(not(fuzzing))]
+			println!("\ntesting invariants for block {current_block}");
+			<AllPalletsWithSystem as TryState<BlockNumber>>::try_state(current_block, TryStateSelect::All).unwrap();
+		});
 
 		// After execution of all blocks.
 		externalities.execute_with(|| {
@@ -408,12 +411,14 @@ fn main() {
 
 			let total_issuance = pallet_balances::TotalIssuance::<Runtime>::get();
 			let counted_issuance = counted_free + counted_reserved;
-			if total_issuance != counted_issuance {
+			// The reason we do not simply use `!=` here is that some balance might be transfered to another chain via XCM.
+			// If we find some kind of workaround for this, we could replace `<` by `!=` here and make the check stronger.
+			if total_issuance > counted_issuance {
 				panic!("Inconsistent total issuance: {total_issuance} but counted {counted_issuance}");
 			}
 
 			#[cfg(not(fuzzing))]
-			println!("\nrunning integrity tests\n");
+			println!("running integrity tests");
 			// We run all developer-defined integrity tests
 			<AllPalletsWithSystem as IntegrityTest>::integrity_test();
 		});

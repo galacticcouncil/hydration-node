@@ -28,6 +28,11 @@ sp-transaction-storage-proof = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-balances = { workspace = true }
 
+cumulus-primitives-core = { workspace = true }
+cumulus-primitives-parachain-inherent = { workspace = true }
+cumulus-pallet-parachain-system = { workspace = true }
+cumulus-test-relay-sproof-builder = { workspace = true }
+
 [features]
 default = ["std", "try-runtime"]
 std = [
