@@ -296,6 +296,65 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 }
 
 #[test]
+fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_order() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, KSM, 1000)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let amount_to_sell = 10;
+			let limit = 1;
+			let trade1 = Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: MOVR,
+			};
+			let trade2 = Trade {
+				pool: PoolType::Stableswap(AUSD),
+				asset_in: MOVR,
+				asset_out: AUSD,
+			};
+			let trade3 = Trade {
+				pool: PoolType::Omnipool,
+				asset_in: AUSD,
+				asset_out: KSM,
+			};
+			let trades = vec![trade1, trade2, trade3];
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				AssetPair::new(HDX, KSM),
+				create_bounded_vec(trades),
+			);
+
+			//Act
+			//it fails, the amount out is not there after all three trades.
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(ALICE),
+				KSM,
+				HDX,
+				amount_to_sell,
+				limit,
+				vec![]
+			));
+
+			//Assert
+			assert_executed_sell_trades(vec![
+				(PoolType::Omnipool, amount_to_sell, KSM, AUSD),
+				(PoolType::Stableswap(AUSD), OMNIPOOL_SELL_CALCULATION_RESULT, AUSD, MOVR),
+				(PoolType::XYK, STABLESWAP_SELL_CALCULATION_RESULT, MOVR, HDX),
+			]);
+
+			expect_events(vec![Event::RouteExecuted {
+				asset_in: KSM,
+				asset_out: HDX,
+				amount_in: amount_to_sell,
+				amount_out: XYK_SELL_CALCULATION_RESULT,
+			}
+			.into()]);
+		});
+}
+
+#[test]
 fn sell_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange

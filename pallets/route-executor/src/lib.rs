@@ -628,7 +628,7 @@ macro_rules! handle_execution_error {
 
 impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 	fn get(asset_pair: AssetPair<T::AssetId>) -> Vec<Trade<T::AssetId>> {
-		let onchain_route = Routes::<T>::get(asset_pair);
+		let onchain_route = Routes::<T>::get(asset_pair.ordered_pair());
 
 		let default_route = vec![Trade {
 			pool: PoolType::Omnipool,
@@ -637,7 +637,13 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 		}];
 
 		match onchain_route {
-			Some(route) => route.to_vec(),
+			Some(route) => {
+				if asset_pair.is_ordered() {
+					route.to_vec()
+				} else {
+					inverse_route(route.to_vec())
+				}
+			}
 			None => default_route,
 		}
 	}

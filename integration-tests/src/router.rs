@@ -2387,20 +2387,6 @@ mod set_route {
 		}
 	}
 
-	fn reverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
-		trades
-			.into_iter()
-			.map(|trade| Trade {
-				pool: trade.pool,
-				asset_in: trade.asset_out,
-				asset_out: trade.asset_in,
-			})
-			.collect::<Vec<Trade<AssetId>>>()
-			.into_iter()
-			.rev()
-			.collect()
-	}
-
 	#[test]
 	fn set_route_should_fail_with_invalid_route() {
 		{
@@ -2605,6 +2591,76 @@ mod with_on_chain_and_default_route {
 			));
 
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
+		});
+	}
+
+	#[test]
+	fn sell_should_work_with_onchain_route_but_used_in_reversed_order() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			init_omnipool();
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				pool_id,
+				3000 * UNITS as i128,
+			));
+
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				pool_id,
+				FixedU128::from_rational(1, 2),
+				Permill::from_percent(1),
+				AccountId::from(BOB),
+			));
+
+			create_xyk_pool_with_amounts(DOT, 1000 * UNITS, stable_asset_1, 1000 * UNITS);
+
+			let route1 = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: pool_id,
+				},
+				Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: pool_id,
+					asset_out: stable_asset_1,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: stable_asset_1,
+					asset_out: DOT,
+				},
+			];
+
+			let asset_pair = Pair::new(HDX, DOT);
+			let amount_to_sell = 100 * UNITS;
+
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				asset_pair,
+				create_bounded_vec(route1.clone())
+			));
+			assert_eq!(Router::route(asset_pair).unwrap(), route1);
+
+			//Act
+			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				DOT,
+				HDX,
+				amount_to_sell,
+				0,
+				vec![],
+			));
+
+			assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE - amount_to_sell);
 		});
 	}
 
@@ -2860,4 +2916,18 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	Stableswap::add_liquidity(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
 
 	Ok((pool_id, asset_in, asset_out))
+}
+
+fn reverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
+	trades
+		.into_iter()
+		.map(|trade| Trade {
+			pool: trade.pool,
+			asset_in: trade.asset_out,
+			asset_out: trade.asset_in,
+		})
+		.collect::<Vec<Trade<AssetId>>>()
+		.into_iter()
+		.rev()
+		.collect()
 }

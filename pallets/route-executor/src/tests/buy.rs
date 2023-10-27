@@ -85,6 +85,65 @@ fn buy_should_work_with_omnipooL_when_no_route_or_onchain_route_exist() {
 }
 
 #[test]
+fn buy_should_work_when_onchain_route_present_in_reverse_order() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, KSM, 1000)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let amount_to_buy = 10;
+			let limit = 5;
+			let trade1 = Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: MOVR,
+			};
+			let trade2 = Trade {
+				pool: PoolType::Stableswap(AUSD),
+				asset_in: MOVR,
+				asset_out: AUSD,
+			};
+			let trade3 = Trade {
+				pool: PoolType::Omnipool,
+				asset_in: AUSD,
+				asset_out: KSM,
+			};
+			let trades = vec![trade1, trade2, trade3];
+
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				AssetPair::new(HDX, KSM),
+				create_bounded_vec(trades.clone()),
+			);
+
+			//Act
+			assert_ok!(Router::buy(
+				RuntimeOrigin::signed(ALICE),
+				KSM,
+				HDX,
+				amount_to_buy,
+				limit,
+				vec![]
+			));
+
+			//Assert
+			assert_executed_buy_trades(vec![
+				(PoolType::Omnipool, STABLESWAP_BUY_CALCULATION_RESULT, KSM, AUSD),
+				(PoolType::Stableswap(AUSD), XYK_BUY_CALCULATION_RESULT, AUSD, MOVR),
+				(PoolType::XYK, amount_to_buy, MOVR, HDX),
+			]);
+
+			expect_events(vec![Event::RouteExecuted {
+				asset_in: KSM,
+				asset_out: HDX,
+				amount_in: OMNIPOOL_BUY_CALCULATION_RESULT,
+				amount_out: amount_to_buy,
+			}
+			.into()]);
+		});
+}
+
+#[test]
 fn buy_should_work_when_route_has_single_trade_without_native_balance() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, AUSD, 1000)])
