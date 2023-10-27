@@ -1,8 +1,9 @@
-use crate::{AccountId, AssetId, AssetRegistry, Balance, EmaOracle, Omnipool, Runtime, RuntimeOrigin, System};
+use crate::{AccountId, AssetId, Balance, EmaOracle, Omnipool, Runtime, RuntimeOrigin, System};
 
 use super::*;
 
 use frame_benchmarking::account;
+use frame_benchmarking::BenchmarkError;
 use frame_support::{
 	assert_ok,
 	sp_runtime::{
@@ -12,10 +13,7 @@ use frame_support::{
 	traits::{OnFinalize, OnInitialize},
 };
 use frame_system::RawOrigin;
-use hydradx_traits::{
-	router::{PoolType, TradeExecution},
-	Registry,
-};
+use hydradx_traits::router::{PoolType, TradeExecution};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_omnipool::types::Tradability;
@@ -89,7 +87,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
+		let token_id = register_asset(b"FCK".to_vec(), Balance::one()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -126,7 +124,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		//Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
+		let token_id = register_asset(b"FCK".to_vec(), Balance::one()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -172,7 +170,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
+		let token_id = register_asset(b"FCK".to_vec(), 1_u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -230,7 +228,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
+		let token_id = register_asset(b"FCK".to_vec(), 1_u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -288,7 +286,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;
+		let token_id = register_asset(b"FCK".to_vec(), 1_u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -354,7 +352,7 @@ runtime_benchmarks! {
 	refund_refused_asset {
 		let recipient: AccountId = account("recipient", 3, 1);
 
-		let asset_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;
+		let asset_id = register_asset(b"FCK".to_vec(), 1_u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let amount = 1_000_000_000_000_000_u128;
 
 		update_balance(asset_id, &Omnipool::protocol_account(), amount);
@@ -383,7 +381,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
+		let token_id = register_asset(b"FCK".to_vec(), Balance::one()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -458,7 +456,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
+		let token_id = register_asset(b"FCK".to_vec(), 1_u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -528,7 +526,7 @@ runtime_benchmarks! {
 		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
-		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;
+		let token_id = register_asset(b"FCK".to_vec(), 1_u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -590,8 +588,8 @@ mod tests {
 
 		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
 			registered_assets: vec![
-				(Some(1), Some(b"LRNA".to_vec()), 1_000u128, None, None, None, false),
-				(Some(2), Some(b"DAI".to_vec()), 1_000u128, None, None, None, false),
+				(Some(1), Some(b"LRNA".to_vec()), 1_000u128, None, None, None, true),
+				(Some(2), Some(b"DAI".to_vec()), 1_000u128, None, None, None, true),
 			],
 			native_asset_name: b"HDX".to_vec(),
 			native_existential_deposit: NativeExistentialDeposit::get(),
