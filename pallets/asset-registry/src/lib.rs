@@ -153,6 +153,10 @@ pub mod pallet {
 
 		/// Balance too low
 		InsufficientBalance,
+
+		//NOTE: This error is triggered from `SufficiencyCheck`.
+		/// Existential deposit can't be zero.
+		ZeroExistentialDeposit,
 	}
 
 	#[pallet::type_value]

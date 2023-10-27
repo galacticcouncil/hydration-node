@@ -42,12 +42,11 @@ use primitives::constants::{
 	chain::OMNIPOOL_SOURCE,
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 };
-use sp_runtime::DispatchError;
 use sp_runtime::{traits::Zero, DispatchResult, FixedPointNumber};
 
 use core::ops::RangeInclusive;
 use frame_support::{
-	parameter_types,
+	ensure, parameter_types,
 	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
@@ -137,12 +136,20 @@ impl SufficiencyCheck {
 	///
 	/// Emits `pallet_asset_registry::Event::ExistentialDepositPaid` when ED was paid.
 	fn on_funds(asset: AssetId, paying_account: &AccountId, to: &AccountId) -> DispatchResult {
+		//NOTE: To prevent duplicate ED collection we assume account already paid ED
+		//if it has any amount of `asset`(exists in the storage).
 		if orml_tokens::Accounts::<Runtime>::try_get(to, asset).is_err() && !AssetRegistry::is_sufficient(asset) {
 			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);
 
 			let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)
 				.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
 				.saturating_mul_int(InsufficientEDinHDX::get());
+
+			//NOTE: Not tested, this should never happen.
+			ensure!(
+				!ed_in_fee_asset.is_zero(),
+				pallet_asset_registry::Error::<Runtime>::ZeroExistentialDeposit
+			);
 
 			//NOTE: Account doesn't have enough funds to pay ED if this fail.
 			<Currencies as MultiCurrency<AccountId>>::transfer(
@@ -151,7 +158,7 @@ impl SufficiencyCheck {
 				&TreasuryAccount::get(),
 				ed_in_fee_asset,
 			)
-			.map_err(|_| orml_tokens::Error::<Runtime>::KeepAlive)?;
+			.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
 			let to_lock = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
 				.iter()
@@ -169,12 +176,7 @@ impl SufficiencyCheck {
 
 			frame_system::Pallet::<Runtime>::inc_sufficients(paying_account);
 
-			let _ = pallet_asset_registry::ExistentialDepositCounter::<Runtime>::try_mutate(
-				|val| -> Result<(), DispatchError> {
-					*val = val.saturating_add(1);
-					Ok(())
-				},
-			);
+			pallet_asset_registry::ExistentialDepositCounter::<Runtime>::mutate(|v| *v = v.saturating_add(1));
 
 			pallet_asset_registry::Pallet::<Runtime>::deposit_event(
 				pallet_asset_registry::Event::<Runtime>::ExistentialDepositPaid {
@@ -221,12 +223,12 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			.unwrap_or_default();
 
 		let paid_accounts = pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get();
-		let ed_to_pay = if paid_accounts != 0 {
+		let ed_to_refund = if paid_accounts != 0 {
 			locked_ed.saturating_div(paid_accounts)
 		} else {
 			0
 		};
-		let to_lock = locked_ed.saturating_sub(ed_to_pay);
+		let to_lock = locked_ed.saturating_sub(ed_to_refund);
 
 		if to_lock.is_zero() {
 			let _ = <Currencies as MultiLockableCurrency<AccountId>>::remove_lock(
@@ -247,7 +249,7 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			NativeAssetId::get(),
 			&TreasuryAccount::get(),
 			who,
-			ed_to_pay,
+			ed_to_refund,
 		);
 
 		//NOTE: This is necessary because grandfathered accounts doesn't have incremented

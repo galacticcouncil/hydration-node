@@ -422,7 +422,7 @@ fn hdx_ed_should_be_released_when_account_is_killed_and_ed_was_paid_in_fee_asset
 }
 
 #[test]
-fn tx_should_fail_with_keepalive_err_when_dest_account_cant_pay_ed() {
+fn tx_should_fail_with_existential_deposit_err_when_dest_account_cant_pay_ed() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let sht1: AssetId = register_shitcoin(0_u128);
@@ -440,7 +440,7 @@ fn tx_should_fail_with_keepalive_err_when_dest_account_cant_pay_ed() {
 
 		assert_noop!(
 			Tokens::deposit(sht1, &ALICE.into(), 1_000_000 * UNITS),
-			orml_tokens::Error::<hydradx_runtime::Runtime>::KeepAlive
+			orml_tokens::Error::<hydradx_runtime::Runtime>::ExistentialDeposit
 		);
 	});
 }
