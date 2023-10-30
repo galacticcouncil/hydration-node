@@ -262,11 +262,11 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 			asset_out: KSM,
 		};
 		let trades = vec![trade1, trade2, trade3];
-		Router::set_route(
+		assert_ok!(Router::set_route(
 			RuntimeOrigin::signed(ALICE),
 			AssetPair::new(HDX, KSM),
 			create_bounded_vec(trades),
-		);
+		));
 
 		//Act
 		assert_ok!(Router::sell(
@@ -323,11 +323,11 @@ fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_ord
 				asset_out: KSM,
 			};
 			let trades = vec![trade1, trade2, trade3];
-			Router::set_route(
+			assert_ok!(Router::set_route(
 				RuntimeOrigin::signed(ALICE),
 				AssetPair::new(HDX, KSM),
 				create_bounded_vec(trades),
-			);
+			));
 
 			//Act
 			//it fails, the amount out is not there after all three trades.

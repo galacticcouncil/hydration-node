@@ -110,11 +110,11 @@ fn buy_should_work_when_onchain_route_present_in_reverse_order() {
 			};
 			let trades = vec![trade1, trade2, trade3];
 
-			Router::set_route(
+			assert_ok!(Router::set_route(
 				RuntimeOrigin::signed(ALICE),
 				AssetPair::new(HDX, KSM),
 				create_bounded_vec(trades.clone()),
-			);
+			));
 
 			//Act
 			assert_ok!(Router::buy(
