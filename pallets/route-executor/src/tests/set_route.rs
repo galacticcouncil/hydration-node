@@ -227,7 +227,7 @@ fn set_route_should_not_override_when_only_inverse_route_price_is_better() {
 			Trade {
 				pool: PoolType::XYK,
 				asset_in: HDX,
-				asset_out: AUSD,
+				asset_out: STABLE_SHARE_ASSET,
 			},
 			Trade {
 				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
@@ -374,5 +374,86 @@ fn set_route_should_fail_when_called_with_too_long_route() {
 			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, empty_route.clone()),
 			Error::<Test>::MaxTradesExceeded
 		);
+	});
+}
+
+#[test]
+fn set_route_should_fail_when_route_is_not_valid() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = AssetPair::new(HDX, AUSD);
+
+		let route = create_bounded_vec(vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: AUSD,
+			},
+			Trade {
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
+			},
+		]);
+
+		//Act and assert
+		assert_noop!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Error::<Test>::RouteCalculationFailed
+		);
+
+		assert!(Router::route(asset_pair).is_none());
+	});
+}
+
+#[test]
+fn set_route_should_fail_when_trying_to_override_with_invalid_route() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = AssetPair::new(HDX, AUSD);
+
+		let route = create_bounded_vec(vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: STABLE_SHARE_ASSET,
+			},
+			Trade {
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
+			},
+		]);
+
+		assert_ok!(Router::set_route(
+			RuntimeOrigin::signed(ALICE),
+			asset_pair,
+			route.clone()
+		),);
+
+		let stored_route = Router::route(asset_pair).unwrap();
+		assert_eq!(stored_route, route);
+
+		let invalid_route = create_bounded_vec(vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: AUSD,
+			},
+			Trade {
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
+			},
+		]);
+
+		//Act and assert
+		assert_noop!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, invalid_route.clone()),
+			Error::<Test>::RouteCalculationFailed
+		);
+
+		let stored_route = Router::route(asset_pair).unwrap();
+		assert_eq!(stored_route, route);
 	});
 }

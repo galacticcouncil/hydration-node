@@ -667,7 +667,7 @@ impl pallet_route_executor::Config for Runtime {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
-	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
+	type Currency = FungibleCurrencies<Runtime>;
 	type WeightInfo = RouterWeightInfo;
 	type AMM = (Omnipool, Stableswap, XYK, LBP);
 	type NativeAssetId = NativeAssetId;
@@ -740,6 +740,8 @@ where
 		buf
 	}
 }
+
+use pallet_currencies::fungibles::FungibleCurrencies;
 
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;

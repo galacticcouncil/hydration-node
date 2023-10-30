@@ -20,10 +20,12 @@ use crate::{Config, Trade};
 use frame_support::parameter_types;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_system as system;
+use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use hydradx_adapters::inspect::MultiInspectAdapter;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::parameter_type_with_key;
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::BasicCurrencyAdapter;
 use pretty_assertions::assert_eq;
 use sp_core::H256;
@@ -32,6 +34,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
+
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ops::Deref;
@@ -92,7 +95,7 @@ pub type Amount = i128;
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		One::one()
+		1/2
 	};
 }
 
@@ -111,7 +114,7 @@ impl orml_tokens::Config for Test {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 500;
+	pub const ExistentialDeposit: u128 = 1/2;
 	pub const MaxReserves: u32 = 50;
 }
 
@@ -148,7 +151,7 @@ impl Config for Test {
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type NativeAssetId = NativeCurrencyId;
-	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
+	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
 	type WeightInfo = ();
 }
@@ -219,6 +222,7 @@ impl ExtBuilder {
 		.unwrap();
 
 		let mut initial_accounts = vec![
+			(ASSET_PAIR_ACCOUNT, STABLE_SHARE_ASSET, 1000u128),
 			(ASSET_PAIR_ACCOUNT, AUSD, 1000u128),
 			(ASSET_PAIR_ACCOUNT, MOVR, 1000u128),
 			(ASSET_PAIR_ACCOUNT, KSM, 1000u128),
@@ -289,13 +293,14 @@ macro_rules! impl_fake_executor {
 			}
 
 			fn execute_sell(
-				_who: OriginForRuntime,
+				who: OriginForRuntime,
 				pool_type: PoolType<AssetId>,
 				asset_in: AssetId,
 				asset_out: AssetId,
 				amount_in: Balance,
 				_min_limit: Balance,
 			) -> Result<(), ExecutorError<Self::Error>> {
+				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
 				if !matches!(pool_type, $pool_type) {
 					return Err(ExecutorError::NotSupported);
 				}
@@ -309,13 +314,13 @@ macro_rules! impl_fake_executor {
 
 				Currencies::transfer(
 					RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
-					ALICE,
+					who,
 					asset_out,
 					amount_out,
 				)
 				.map_err(|e| ExecutorError::Error(e))?;
 				Currencies::transfer(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::signed(who),
 					ASSET_PAIR_ACCOUNT,
 					asset_in,
 					amount_in,
@@ -326,13 +331,15 @@ macro_rules! impl_fake_executor {
 			}
 
 			fn execute_buy(
-				_who: OriginForRuntime,
+				who: OriginForRuntime,
 				pool_type: PoolType<AssetId>,
 				asset_in: AssetId,
 				asset_out: AssetId,
 				amount_out: Balance,
 				_max_limit: Balance,
 			) -> Result<(), ExecutorError<Self::Error>> {
+				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
+
 				if !matches!(pool_type, $pool_type) {
 					return Err(ExecutorError::NotSupported);
 				}
@@ -345,13 +352,13 @@ macro_rules! impl_fake_executor {
 
 				Currencies::transfer(
 					RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
-					ALICE,
+					who,
 					asset_out,
 					amount_out,
 				)
 				.map_err(|e| ExecutorError::Error(e))?;
 				Currencies::transfer(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::signed(who),
 					ASSET_PAIR_ACCOUNT,
 					asset_in,
 					amount_in,
@@ -408,6 +415,17 @@ pub fn assert_executed_sell_trades(expected_trades: Vec<(PoolType<AssetId>, Bala
 	EXECUTED_SELLS.borrow().with(|v| {
 		let trades = v.borrow().deref().clone();
 		assert_eq!(trades, expected_trades);
+	});
+}
+
+pub fn assert_last_executed_sell_trades(
+	number_of_trades: usize,
+	expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>,
+) {
+	EXECUTED_SELLS.borrow().with(|v| {
+		let trades = v.borrow().deref().clone();
+		let last_trades = trades.as_slice()[trades.len() - number_of_trades..].to_vec();
+		assert_eq!(last_trades, expected_trades);
 	});
 }
 

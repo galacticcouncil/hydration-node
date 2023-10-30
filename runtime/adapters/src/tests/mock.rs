@@ -287,7 +287,7 @@ impl pallet_route_executor::Config for Test {
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type NativeAssetId = NativeCurrencyId;
-	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
+	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
 	type WeightInfo = ();
 }
@@ -497,6 +497,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::EnsurePriceWithin;
 
 pub struct DummyNFT;

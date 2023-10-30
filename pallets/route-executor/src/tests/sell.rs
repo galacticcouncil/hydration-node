@@ -279,11 +279,14 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 		));
 
 		//Assert
-		assert_executed_sell_trades(vec![
-			(PoolType::XYK, amount_to_sell, HDX, MOVR),
-			(PoolType::Stableswap(AUSD), XYK_SELL_CALCULATION_RESULT, MOVR, AUSD),
-			(PoolType::Omnipool, STABLESWAP_SELL_CALCULATION_RESULT, AUSD, KSM),
-		]);
+		assert_last_executed_sell_trades(
+			3,
+			vec![
+				(PoolType::XYK, amount_to_sell, HDX, MOVR),
+				(PoolType::Stableswap(AUSD), XYK_SELL_CALCULATION_RESULT, MOVR, AUSD),
+				(PoolType::Omnipool, STABLESWAP_SELL_CALCULATION_RESULT, AUSD, KSM),
+			],
+		);
 
 		expect_events(vec![Event::RouteExecuted {
 			asset_in: HDX,
@@ -338,11 +341,14 @@ fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_ord
 			));
 
 			//Assert
-			assert_executed_sell_trades(vec![
-				(PoolType::Omnipool, amount_to_sell, KSM, AUSD),
-				(PoolType::Stableswap(AUSD), OMNIPOOL_SELL_CALCULATION_RESULT, AUSD, MOVR),
-				(PoolType::XYK, STABLESWAP_SELL_CALCULATION_RESULT, MOVR, HDX),
-			]);
+			assert_last_executed_sell_trades(
+				3,
+				vec![
+					(PoolType::Omnipool, amount_to_sell, KSM, AUSD),
+					(PoolType::Stableswap(AUSD), OMNIPOOL_SELL_CALCULATION_RESULT, AUSD, MOVR),
+					(PoolType::XYK, STABLESWAP_SELL_CALCULATION_RESULT, MOVR, HDX),
+				],
+			);
 
 			expect_events(vec![Event::RouteExecuted {
 				asset_in: KSM,

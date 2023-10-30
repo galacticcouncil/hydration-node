@@ -2389,58 +2389,130 @@ mod set_route {
 
 	#[test]
 	fn set_route_should_fail_with_invalid_route() {
-		{
-			TestNet::reset();
+		TestNet::reset();
 
-			Hydra::execute_with(|| {
-				//Arrange
-				let pool_id = 11;
-				let stable_asset_1 = 9876;
-				init_omnipool();
+		Hydra::execute_with(|| {
+			//Arrange
+			let pool_id = 11;
+			let stable_asset_1 = 9876;
+			init_omnipool();
 
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					Omnipool::protocol_account(),
-					DOT,
-					3000 * UNITS as i128,
-				));
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				DOT,
+				3000 * UNITS as i128,
+			));
 
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					FixedU128::from_rational(1, 2),
-					Permill::from_percent(1),
-					AccountId::from(BOB),
-				));
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(1, 2),
+				Permill::from_percent(1),
+				AccountId::from(BOB),
+			));
 
-				create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
+			create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
 
-				let route1 = vec![
-					Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: ETH,
-						asset_out: BTC,
-					},
-				];
+			let route1 = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DOT,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: ETH,
+					asset_out: BTC,
+				},
+			];
 
-				let asset_pair = Pair::new(HDX, BTC);
+			let asset_pair = Pair::new(HDX, BTC);
 
-				//Act and assert
-				assert_noop!(
-					Router::set_route(
-						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-						asset_pair,
-						create_bounded_vec(route1.clone())
-					),
-					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteCalculationFailed
-				);
-			});
-		}
+			//Act and assert
+			assert_noop!(
+				Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					create_bounded_vec(route1.clone())
+				),
+				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteCalculationFailed
+			);
+		});
+	}
+
+	#[test]
+	fn set_route_should_fail_with_trying_to_override_with_invalid_route() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let pool_id = 11;
+			let stable_asset_1 = 9876;
+			init_omnipool();
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				DOT,
+				3000 * UNITS as i128,
+			));
+
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(1, 2),
+				Permill::from_percent(1),
+				AccountId::from(BOB),
+			));
+
+			create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
+
+			let route1 = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DOT,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: DOT,
+					asset_out: BTC,
+				},
+			];
+
+			let asset_pair = Pair::new(HDX, BTC);
+
+			//Act and assert
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				asset_pair,
+				create_bounded_vec(route1.clone())
+			));
+
+			create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
+
+			let invalid_route = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DOT,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: ETH,
+					asset_out: BTC,
+				},
+			];
+			assert_noop!(
+				Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					create_bounded_vec(invalid_route.clone())
+				),
+				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteCalculationFailed
+			);
+		});
 	}
 }
 

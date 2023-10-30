@@ -18,22 +18,26 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::MaxEncodedLen;
-use frame_support::{dispatch::GetDispatchInfo, traits::UnfilteredDispatchable};
+use frame_support::storage::with_transaction;
+use frame_support::traits::fungibles::Mutate;
+use frame_support::{dispatch::GetDispatchInfo, traits::UnfilteredDispatchable, PalletId};
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
+use orml_traits::MultiCurrency;
 
-use frame_system::ensure_signed;
+use frame_system::pallet_prelude::OriginFor;
+use frame_system::{ensure_signed, Origin};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
 use hydradx_traits::router::{AssetPair, RouteProvider};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
-use sp_runtime::traits::CheckedDiv;
-use sp_runtime::{ArithmeticError, DispatchError};
+use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
+use sp_runtime::{ArithmeticError, DispatchError, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -47,8 +51,10 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
+	use orml_traits::MultiCurrency;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, CheckedMul};
 	use sp_runtime::{FixedU128, Permill};
 
@@ -82,8 +88,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::AssetId>;
 
-		/// Currency for checking balances
-		type Currency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>;
+		/// Currency for checking balances and temporarily minting tokens
+		type Currency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
+			+ Mutate<Self::AccountId>;
 
 		/// Handlers for AMM pools to calculate and execute trades
 		type AMM: TradeExecution<
@@ -333,14 +340,17 @@ pub mod pallet {
 
 			match maybe_route {
 				Some(existing_route) => {
-					//Calculate amounts for normal route
 					let reference_amount_in = Self::calculate_reference_amount_in(&existing_route)?;
 
+					Self::validate_sell_execution(route.clone(), reference_amount_in)
+						.map_err(|err| Error::<T>::RouteCalculationFailed)?;
+
+					//Calculate amount outs for routes
 					let amount_out_for_existing_route =
 						Self::calculate_expected_amount_out(&existing_route, reference_amount_in)?;
 					let amount_out_for_new_route = Self::calculate_expected_amount_out(&route, reference_amount_in)?;
 
-					//Calculate amounts for inversed route
+					//Calculate amount outs for inversed routes
 					let inverse_existing_route = inverse_route(existing_route.to_vec());
 					let inverse_new_route = inverse_route(route.to_vec());
 					let reference_amount_in_for_inverse = Self::calculate_reference_amount_in(&inverse_existing_route)?;
@@ -350,6 +360,7 @@ pub mod pallet {
 					let amount_out_for_new_inversed_route =
 						Self::calculate_expected_amount_out(&inverse_new_route, reference_amount_in_for_inverse)?;
 
+					//Do comparison and set route if price is better
 					if amount_out_for_new_route > amount_out_for_existing_route
 						&& amount_out_for_new_inversed_route > amount_out_for_existing_inversed_route
 					{
@@ -364,15 +375,12 @@ pub mod pallet {
 					}
 				}
 				None => {
-					//We validate if the route is correct
 					let reference_amount_in = Self::calculate_reference_amount_in(&route)?;
 
-					Self::calculate_expected_amount_out(&route, reference_amount_in)
-						.map_err(|_| Error::<T>::RouteCalculationFailed)?;
+					Self::validate_sell_execution(route.clone(), reference_amount_in)
+						.map_err(|err| Error::<T>::RouteCalculationFailed)?;
 
-					//TODO: validate with inverse too??
-
-					let bounded_vec = create_bounded_vec(route.clone()).ok_or(Error::<T>::MaxTradesExceeded)?;
+					let bounded_vec = create_bounded_vec(route).ok_or(Error::<T>::MaxTradesExceeded)?;
 					Routes::<T>::insert(asset_pair, bounded_vec);
 
 					Self::deposit_event(Event::RouteUpdated {
@@ -389,6 +397,11 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Pallet account address for do dry-run sell execution as validation
+	pub fn router_account() -> T::AccountId {
+		PalletId(*b"routerex").into_account_truncating()
+	}
+
 	fn ensure_route_size(route_length: usize) -> Result<(), DispatchError> {
 		ensure!(
 			(route_length as u8) <= T::MaxNumberOfTrades::get(),
@@ -444,6 +457,23 @@ impl<T: Config> Pallet<T> {
 			<Pallet<T> as RouteProvider<T::AssetId>>::get(asset_pair)
 		};
 		Ok(route)
+	}
+
+	fn validate_sell_execution(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> DispatchResult {
+		let asset_in = route.first().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_in;
+		let asset_out = route.last().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_out;
+
+		let sell_result = with_transaction(|| {
+			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
+			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
+
+			//TODO: maybe it is just enough to have do_sell()> otherwise route executed event is sent
+			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());
+
+			TransactionOutcome::Rollback(sell_result)
+		});
+
+		sell_result
 	}
 
 	fn calculate_expected_amount_out(

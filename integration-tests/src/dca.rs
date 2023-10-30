@@ -2149,7 +2149,7 @@ mod with_onchain_route {
 				RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				30_000_000 * UNITS as i128,
+				300_000_000 * UNITS as i128,
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -2223,13 +2223,16 @@ mod with_onchain_route {
 			//Assert
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), stable_asset_1, amount_to_buy);
+
+			assert_balance!(Router::router_account(), HDX, 0);
+			assert_balance!(Router::router_account(), stable_asset_1, 0);
 		});
 	}
 
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades_with_onchain_routes() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 197218633037720;
+		let amount_to_receive = 187172768546667;
 
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -2256,7 +2259,7 @@ mod with_onchain_route {
 				RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				30_000_000 * UNITS as i128,
+				300_000_000 * UNITS as i128,
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -2334,6 +2337,9 @@ mod with_onchain_route {
 			assert_balance!(ALICE.into(), stable_asset_1, amount_to_receive);
 
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - fee);
+
+			assert_balance!(Router::router_account(), HDX, 0);
+			assert_balance!(Router::router_account(), stable_asset_1, 0);
 		});
 	}
 }
