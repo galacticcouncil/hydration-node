@@ -61,6 +61,8 @@ fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
 			asset_ids: vec![HDX, AUSD],
 		}
 		.into()]);
+
+		expect_no_route_executed_event()
 	});
 }
 
@@ -160,6 +162,7 @@ fn set_route_should_work_when_new_price_is_better() {
 			}
 			.into(),
 		]);
+		expect_no_route_executed_event()
 	});
 }
 

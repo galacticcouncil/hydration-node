@@ -439,3 +439,22 @@ pub fn assert_executed_buy_trades(expected_trades: Vec<(PoolType<AssetId>, Balan
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
+
+pub fn expect_no_route_executed_event() {
+	let last_events = test_utils::last_events::<RuntimeEvent, Test>(20);
+
+	let mut events = vec![];
+
+	for event in &last_events {
+		let e = event.clone();
+		if matches!(e, RuntimeEvent::Router(crate::Event::<Test>::RouteExecuted { .. })) {
+			events.push(e);
+		}
+	}
+
+	pretty_assertions::assert_eq!(
+		events.len(),
+		0,
+		"No RouteUpdated event expected, but there is such event emitted"
+	);
+}
