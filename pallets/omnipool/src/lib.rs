@@ -1538,7 +1538,7 @@ pub mod pallet {
 			price: (Balance, Balance),
 			dest: T::AccountId,
 		) -> DispatchResult {
-			ensure_root(origin.clone())?;
+			T::AuthorityOrigin::ensure_origin(origin.clone())?;
 
 			let asset_state = Self::load_asset_state(asset_id)?;
 			ensure!(amount <= asset_state.protocol_shares, Error::<T>::InsufficientShares);
@@ -1620,7 +1620,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::remove_token())]
 		#[transactional]
 		pub fn remove_token(origin: OriginFor<T>, asset_id: T::AssetId, beneficiary: T::AccountId) -> DispatchResult {
-			ensure_root(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(
 				asset_id != T::StableCoinAssetId::get(),
