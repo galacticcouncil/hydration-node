@@ -2448,7 +2448,6 @@ mod set_route {
 		Hydra::execute_with(|| {
 			//Arrange
 			let pool_id = 11;
-			let stable_asset_1 = 9876;
 			init_omnipool();
 
 			assert_ok!(Currencies::update_balance(
@@ -2602,7 +2601,7 @@ mod with_on_chain_and_default_route {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 			init_omnipool();
 
@@ -2672,7 +2671,7 @@ mod with_on_chain_and_default_route {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 			init_omnipool();
 
@@ -2988,18 +2987,4 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	Stableswap::add_liquidity(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
 
 	Ok((pool_id, asset_in, asset_out))
-}
-
-fn reverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
-	trades
-		.into_iter()
-		.map(|trade| Trade {
-			pool: trade.pool,
-			asset_in: trade.asset_out,
-			asset_out: trade.asset_in,
-		})
-		.collect::<Vec<Trade<AssetId>>>()
-		.into_iter()
-		.rev()
-		.collect()
 }

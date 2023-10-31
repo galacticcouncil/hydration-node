@@ -82,6 +82,20 @@ pub struct AmountInAndOut<Balance> {
 	pub amount_out: Balance,
 }
 
+pub fn inverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
+	trades
+		.into_iter()
+		.map(|trade| Trade {
+			pool: trade.pool,
+			asset_in: trade.asset_out,
+			asset_out: trade.asset_in,
+		})
+		.collect::<Vec<Trade<AssetId>>>()
+		.into_iter()
+		.rev()
+		.collect()
+}
+
 pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 	fn sell(
 		origin: Origin,

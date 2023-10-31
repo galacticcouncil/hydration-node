@@ -31,10 +31,10 @@ use orml_traits::MultiCurrency;
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
+use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
-use hydradx_traits::router::{AssetPair, RouteProvider};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
 use sp_runtime::{ArithmeticError, DispatchError, TransactionOutcome};
@@ -690,19 +690,4 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 			None => default_route,
 		}
 	}
-}
-
-//TODO: remove duplication with dca
-fn inverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
-	trades
-		.into_iter()
-		.map(|trade| Trade {
-			pool: trade.pool,
-			asset_in: trade.asset_out,
-			asset_out: trade.asset_in,
-		})
-		.collect::<Vec<Trade<AssetId>>>()
-		.into_iter()
-		.rev()
-		.collect()
 }
