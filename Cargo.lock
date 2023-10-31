@@ -7118,7 +7118,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "3.2.3"
+version = "3.3.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -10220,7 +10220,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.13.2"
+version = "1.14.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
