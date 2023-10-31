@@ -18,6 +18,7 @@
 
 use crate::{AccountId, AssetId, Balance, Currencies, Router, Runtime, System, LBP};
 
+use crate::InsufficientEDinHDX;
 use frame_benchmarking::account;
 use frame_support::dispatch::DispatchResult;
 use frame_support::{assert_ok, ensure};
@@ -128,7 +129,7 @@ runtime_benchmarks! {
 			assert_eq!(<Currencies as MultiCurrency<_>>::free_balance(
 			asset_in,
 			&seller,
-			), INITIAL_BALANCE - amount_to_sell);
+			), INITIAL_BALANCE - amount_to_sell - InsufficientEDinHDX::get());
 		}
 	}
 
