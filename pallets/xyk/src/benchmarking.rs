@@ -32,6 +32,9 @@ const SEED: u32 = 1;
 
 fn funded_account<T: Config>(name: &'static str, index: u32) -> T::AccountId {
 	let caller: T::AccountId = account(name, index, SEED);
+	//Necessary for ED for insufficien assets.
+	T::Currency::update_balance(0, &caller, 1_000_000_000_000_000).unwrap();
+
 	T::Currency::update_balance(1, &caller, 1_000_000_000_000_000).unwrap();
 	T::Currency::update_balance(2, &caller, 1_000_000_000_000_000).unwrap();
 	caller
