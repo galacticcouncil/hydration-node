@@ -2436,7 +2436,7 @@ mod set_route {
 					asset_pair,
 					route1.clone()
 				),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteCalculationFailed
+				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 			);
 		});
 	}
@@ -2509,7 +2509,7 @@ mod set_route {
 					asset_pair,
 					invalid_route.clone()
 				),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteCalculationFailed
+				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 			);
 		});
 	}

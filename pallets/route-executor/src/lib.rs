@@ -346,7 +346,7 @@ pub mod pallet {
 					let reference_amount_in = Self::calculate_reference_amount_in(&existing_route)?;
 
 					Self::validate_sell_execution(route.clone(), reference_amount_in)
-						.map_err(|_| Error::<T>::RouteCalculationFailed)?;
+						.map_err(|_| Error::<T>::InvalidRoute)?;
 
 					//Calculate amount outs for routes
 					let amount_out_for_existing_route =
@@ -381,7 +381,7 @@ pub mod pallet {
 					let reference_amount_in = Self::calculate_reference_amount_in(&route)?;
 
 					Self::validate_sell_execution(route.clone(), reference_amount_in)
-						.map_err(|err| Error::<T>::RouteCalculationFailed)?;
+						.map_err(|err| Error::<T>::InvalidRoute)?;
 
 					let bounded_vec = Self::create_bounded_vec(route)?;
 					Routes::<T>::insert(asset_pair, bounded_vec);

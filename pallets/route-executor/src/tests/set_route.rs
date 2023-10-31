@@ -402,7 +402,7 @@ fn set_route_should_fail_when_route_is_not_valid() {
 		//Act and assert
 		assert_noop!(
 			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
-			Error::<Test>::RouteCalculationFailed
+			Error::<Test>::InvalidRoute
 		);
 
 		assert!(Router::route(asset_pair).is_none());
@@ -453,7 +453,7 @@ fn set_route_should_fail_when_trying_to_override_with_invalid_route() {
 		//Act and assert
 		assert_noop!(
 			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, invalid_route.clone()),
-			Error::<Test>::RouteCalculationFailed
+			Error::<Test>::InvalidRoute
 		);
 
 		let stored_route = Router::route(asset_pair).unwrap();
