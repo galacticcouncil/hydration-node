@@ -151,7 +151,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		AssetPair<T::AssetId>,
 		BoundedVec<Trade<T::AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
-	>; //TODO: consider making it config
+	>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
