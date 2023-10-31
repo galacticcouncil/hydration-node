@@ -1,6 +1,6 @@
-// This file is part of Basilisk-node.
+// This file is part of HydraDX-node
 
-// Copyright (C) 2020-2022  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2023  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,17 +16,13 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(clippy::unused_unit)]
 
 pub mod weights;
-
 use weights::WeightInfo;
 
 #[cfg(test)]
-mod mock;
-
-#[cfg(test)]
 mod tests;
+
 mod traits;
 
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
@@ -50,8 +46,8 @@ use frame_support::traits::IsSubType;
 
 pub use crate::traits::*;
 
-type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
-type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+type AssetIdOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
+type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
 
 /// Spot price type
 pub type Price = FixedU128;
@@ -63,7 +59,6 @@ pub use pallet::*;
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
-	use frame_support::weights::WeightToFee;
 	use frame_system::pallet_prelude::OriginFor;
 
 	#[pallet::pallet]
@@ -101,19 +96,13 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The origin which can add/remove accepted currencies
-		type AcceptedCurrencyOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-		/// Multi Currency
-		type Currencies: MultiCurrency<Self::AccountId>;
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Spot price provider
 		type SpotPriceProvider: SpotPriceProvider<AssetIdOf<Self>, Price = Price>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
-
-		/// Convert a weight value into a deductible fee based on the currency type.
-		type WeightToFee: WeightToFee<Balance = BalanceOf<Self>>;
 
 		/// Native Asset
 		#[pallet::constant]
@@ -236,12 +225,7 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			ensure!(
-				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
-				Error::<T>::UnsupportedCurrency
-			);
-
-			<AccountCurrencyMap<T>>::insert(who.clone(), currency);
+			Self::set_account_currency(&who, currency)?;
 
 			Self::deposit_event(Event::CurrencySet {
 				account_id: who,
@@ -261,7 +245,7 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_currency())]
 		pub fn add_currency(origin: OriginFor<T>, currency: AssetIdOf<T>, price: Price) -> DispatchResult {
-			T::AcceptedCurrencyOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(currency != T::NativeAssetId::get(), Error::<T>::CoreAssetNotAllowed);
 
@@ -285,7 +269,7 @@ pub mod pallet {
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_currency())]
 		pub fn remove_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
-			T::AcceptedCurrencyOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(currency != T::NativeAssetId::get(), Error::<T>::CoreAssetNotAllowed);
 
@@ -308,6 +292,16 @@ impl<T: Config> Pallet<T>
 where
 	BalanceOf<T>: FixedPointOperand,
 {
+	pub fn set_account_currency(account: &T::AccountId, currency: AssetIdOf<T>) -> DispatchResult {
+		ensure!(
+			currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+			Error::<T>::UnsupportedCurrency
+		);
+
+		<AccountCurrencyMap<T>>::insert(account, currency);
+		Ok(())
+	}
+
 	fn account_currency(who: &T::AccountId) -> AssetIdOf<T> {
 		Pallet::<T>::get_currency(who).unwrap_or_else(T::NativeAssetId::get)
 	}
@@ -464,12 +458,13 @@ impl<T: Config> NativePriceOracle<AssetIdOf<T>, Price> for Pallet<T> {
 }
 
 /// Type to automatically add a fee currency for an account on account creation.
-pub struct AddTxAssetOnAccount<T>(PhantomData<T>);
-impl<T: Config> Happened<(T::AccountId, AssetIdOf<T>)> for AddTxAssetOnAccount<T> {
+pub struct AddTxAssetOnAccount<T, Inspector>(PhantomData<(T, Inspector)>);
+impl<T: Config, Inspector> Happened<(T::AccountId, AssetIdOf<T>)> for AddTxAssetOnAccount<T, Inspector>
+where Inspector: frame_support::traits::tokens::fungible::Inspect<T::AccountId>{
 	fn happened((who, currency): &(T::AccountId, AssetIdOf<T>)) {
 		if !AccountCurrencyMap::<T>::contains_key(who)
 			&& AcceptedCurrencies::<T>::contains_key(currency)
-			&& T::Currencies::total_balance(T::NativeAssetId::get(), who).is_zero()
+			&& Inspector::balance(who).is_zero()
 		{
 			AccountCurrencyMap::<T>::insert(who, currency);
 		}
@@ -480,13 +475,16 @@ impl<T: Config> Happened<(T::AccountId, AssetIdOf<T>)> for AddTxAssetOnAccount<T
 ///
 /// Note: The fee currency is only removed if the system account is gone or the account
 /// corresponding to the fee currency is empty.
-pub struct RemoveTxAssetOnKilled<T>(PhantomData<T>);
-impl<T: Config> Happened<(T::AccountId, AssetIdOf<T>)> for RemoveTxAssetOnKilled<T> {
+pub struct RemoveTxAssetOnKilled<T, Inspector>(PhantomData<(T, Inspector)>);
+impl<T: Config, Inspector> Happened<(T::AccountId, AssetIdOf<T>)> for RemoveTxAssetOnKilled<T, Inspector>
+where
+Inspector: frame_support::traits::fungibles::Inspect<T::AccountId, AssetId=AssetIdOf<T>>
+{
 	fn happened((who, _currency): &(T::AccountId, AssetIdOf<T>)) {
 		if !frame_system::Pallet::<T>::account_exists(who) {
 			AccountCurrencyMap::<T>::remove(who);
 		} else if let Some(currency) = AccountCurrencyMap::<T>::get(who) {
-			if T::Currencies::total_balance(currency, who).is_zero() {
+			if Inspector::balance(currency, who).is_zero() {
 				AccountCurrencyMap::<T>::remove(who);
 			}
 		}

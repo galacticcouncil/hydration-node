@@ -88,8 +88,8 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type PostDeposit = ();
 	type PreTransfer = ();
 	type PostTransfer = ();
-	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
-	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Runtime>;
+	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime, Balances>;
+	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Runtime, FungibleCurrencies<Runtime>>;
 }
 
 impl orml_tokens::Config for Runtime {
@@ -743,6 +743,7 @@ where
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchResult;
+use pallet_currencies::fungibles::FungibleCurrencies;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
