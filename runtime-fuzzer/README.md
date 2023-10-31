@@ -1,25 +1,30 @@
 # HydraDX Runtime Fuzzer
-A fuzzer for the HydraDX Runtime which is based on [ziggy](https://github.com/srlabs/ziggy/) and (substrate-runtime-fuzzer)[https://github.com/srlabs/substrate-runtime-fuzzer/tree/main] - both developed by [SRLabs](https://github.com/srlabs).
+A fuzzer for the HydraDX Runtime which is based on [ziggy](https://github.com/srlabs/ziggy/) and [substrate-runtime-fuzzer](https://github.com/srlabs/substrate-runtime-fuzzer/tree/main) - both developed by [SRLabs](https://github.com/srlabs).
 
 Runs under the hood multiple fuzzers in parallel - [honggfuzz](https://github.com/google/honggfuzz) and [AFL++](https://github.com/aflplusplus/aflplusplus).
 
-## Installation
-```
-// Specifically for MacOS
-find $HOME/.local -name afl-system-config
-sudo #{path_from_output_above}
-```
 
-## Running the Fuzzer
+## The Fuzz
 ```
-// Natively (Linux)
-cargo install ziggy --version 0.7.0
-cargo install cargo-afl honggfuzz grcov
-cargo ziggy fuzz -t 20
-
 // via Docker
+
+// Go to project root
 cd ..
+
+// Build images of fuzzers
 docker build -t runtime-fuzzer -f runtime-fuzzer/Dockerfile .
-// Spawn 22 parallel fuzz jobs
-cargo ziggy fuzz -j 22
+
+// Run image
+docker run -it --entrypoint bash runtime-fuzzer
+
+// Check out -h
+cargo ziggy fuzz -h
+
+// Spawn 22 parallel fuzz jobs, 22s timeout to "hang"
+cargo ziggy fuzz -t 22 -j 22
+
+More live information by running:
+tail -f ./output/hydradx-runtime-fuzzer/logs/afl.log
+tail -f ./output/hydradx-runtime-fuzzer/logs/afl_1.log
+tail -f ./output/hydradx-runtime-fuzzer/logs/honggfuzz.log
 ```
