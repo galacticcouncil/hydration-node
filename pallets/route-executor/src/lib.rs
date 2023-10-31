@@ -137,8 +137,8 @@ pub mod pallet {
 		InvalidRouteExecution,
 		///The calculation of route trade amounts failed in the underlying AMM
 		RouteCalculationFailed,
-		///The asset pair is invalid for the specified route
-		InvalidRouteForAssetPair,
+		///The route is invalid
+		InvalidRoute,
 		///The route update was not successful
 		RouteUpdateIsNotSuccessful,
 	}
@@ -319,23 +319,21 @@ pub mod pallet {
 		#[transactional]
 		pub fn set_route(
 			origin: OriginFor<T>,
-			asset_pair: AssetPair<T::AssetId>,
-			route: BoundedVec<Trade<T::AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
+			mut asset_pair: AssetPair<T::AssetId>,
+			mut route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
 			ensure!(
-				asset_pair.asset_in == route.first().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_in,
-				Error::<T>::InvalidRouteForAssetPair
+				asset_pair.asset_in == route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
+				Error::<T>::InvalidRoute
 			);
 			ensure!(
-				asset_pair.asset_out == route.last().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_out,
-				Error::<T>::InvalidRouteForAssetPair
+				asset_pair.asset_out == route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
+				Error::<T>::InvalidRoute
 			);
 
-			let mut asset_pair = asset_pair;
-			let mut route = route.to_vec();
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();
 				route = inverse_route(route)
@@ -348,7 +346,7 @@ pub mod pallet {
 					let reference_amount_in = Self::calculate_reference_amount_in(&existing_route)?;
 
 					Self::validate_sell_execution(route.clone(), reference_amount_in)
-						.map_err(|err| Error::<T>::RouteCalculationFailed)?;
+						.map_err(|_| Error::<T>::RouteCalculationFailed)?;
 
 					//Calculate amount outs for routes
 					let amount_out_for_existing_route =
@@ -465,8 +463,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn validate_sell_execution(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> DispatchResult {
-		let asset_in = route.first().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_in;
-		let asset_out = route.last().ok_or(Error::<T>::InvalidRouteForAssetPair)?.asset_out;
+		let asset_in = route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
+		let asset_out = route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
 
 		let sell_result = with_transaction(|| {
 			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();

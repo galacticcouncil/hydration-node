@@ -2188,7 +2188,7 @@ mod with_onchain_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				create_bounded_vec(trades.clone())
+				trades.clone()
 			));
 			assert_eq!(Router::route(asset_pair).unwrap(), trades);
 
@@ -2298,7 +2298,7 @@ mod with_onchain_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				create_bounded_vec(trades.clone())
+				trades.clone()
 			));
 			assert_eq!(Router::route(asset_pair).unwrap(), trades);
 

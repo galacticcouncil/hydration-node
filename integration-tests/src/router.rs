@@ -2361,7 +2361,7 @@ mod set_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					create_bounded_vec(route1.clone())
+					route1.clone()
 				));
 				assert_eq!(Router::route(asset_pair).unwrap(), route1);
 
@@ -2369,7 +2369,7 @@ mod set_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					create_bounded_vec(route2_cheaper.clone())
+					route2_cheaper.clone()
 				));
 				assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
 
@@ -2378,7 +2378,7 @@ mod set_route {
 					Router::set_route(
 						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 						asset_pair,
-						create_bounded_vec(route1.clone())
+						route1.clone()
 					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 				);
@@ -2434,7 +2434,7 @@ mod set_route {
 				Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					create_bounded_vec(route1.clone())
+					route1.clone()
 				),
 				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteCalculationFailed
 			);
@@ -2486,7 +2486,7 @@ mod set_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				create_bounded_vec(route1.clone())
+				route1.clone()
 			));
 
 			create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
@@ -2507,7 +2507,7 @@ mod set_route {
 				Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					create_bounded_vec(invalid_route.clone())
+					invalid_route.clone()
 				),
 				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteCalculationFailed
 			);
@@ -2569,7 +2569,7 @@ mod with_on_chain_and_default_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				create_bounded_vec(route1.clone())
+				route1.clone()
 			));
 			assert_eq!(Router::route(asset_pair).unwrap(), route1);
 
@@ -2646,7 +2646,7 @@ mod with_on_chain_and_default_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				create_bounded_vec(route1.clone())
+				route1.clone()
 			));
 			assert_eq!(Router::route(asset_pair).unwrap(), route1);
 
@@ -2716,7 +2716,7 @@ mod with_on_chain_and_default_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				create_bounded_vec(route1.clone())
+				route1.clone()
 			));
 			assert_eq!(Router::route(asset_pair).unwrap(), route1);
 

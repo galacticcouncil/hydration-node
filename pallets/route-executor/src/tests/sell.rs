@@ -15,7 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::tests::create_bounded_vec;
 use crate::tests::mock::*;
 use crate::{Error, Event, Trade};
 use frame_support::{assert_noop, assert_ok};
@@ -24,6 +23,7 @@ use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
+
 #[test]
 fn sell_should_work_when_route_has_single_trade() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -265,7 +265,7 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 		assert_ok!(Router::set_route(
 			RuntimeOrigin::signed(ALICE),
 			AssetPair::new(HDX, KSM),
-			create_bounded_vec(trades),
+			trades,
 		));
 
 		//Act
@@ -326,7 +326,7 @@ fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_ord
 			assert_ok!(Router::set_route(
 				RuntimeOrigin::signed(ALICE),
 				AssetPair::new(HDX, KSM),
-				create_bounded_vec(trades),
+				trades,
 			));
 
 			//Act
