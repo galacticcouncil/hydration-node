@@ -4138,7 +4138,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "10.0.1"
+version = "11.0.0"
 dependencies = [
  "async-trait",
  "clap 4.3.9",
@@ -4268,7 +4268,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "184.0.0"
+version = "185.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4315,7 +4315,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.0.2-dev",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -4383,7 +4383,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.7.0"
+version = "2.7.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6705,7 +6705,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.3.1"
+version = "2.3.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7144,7 +7144,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.0.1-dev"
+version = "4.0.2-dev"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7980,7 +7980,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.0.2-dev",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -8105,7 +8105,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "9.0.1"
+version = "9.0.2"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10851,7 +10851,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.14.0"
+version = "1.15.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10892,7 +10892,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.0.2-dev",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
