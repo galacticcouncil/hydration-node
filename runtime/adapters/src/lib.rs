@@ -351,19 +351,23 @@ where
 		.map_err(|(_, e)| e)?;
 
 		match asset.delta_changes.delta_reserve {
-			BalanceUpdate::Increase(amount) => pallet_circuit_breaker::Pallet::<Runtime>::ensure_add_liquidity_limit(
-				origin,
-				asset.asset_id.into(),
-				asset.before.reserve.into(),
-				amount.into(),
-			)?,
-			BalanceUpdate::Decrease(amount) => {
-				pallet_circuit_breaker::Pallet::<Runtime>::ensure_remove_liquidity_limit(
+			BalanceUpdate::Increase(amount) => {
+				pallet_circuit_breaker::Pallet::<Runtime>::ensure_add_liquidity_limit(
 					origin,
 					asset.asset_id.into(),
 					asset.before.reserve.into(),
 					amount.into(),
-				)?
+				)?;
+			}
+			BalanceUpdate::Decrease(amount) => {
+				if !asset.safe_withdrawal {
+					pallet_circuit_breaker::Pallet::<Runtime>::ensure_remove_liquidity_limit(
+						origin,
+						asset.asset_id.into(),
+						asset.before.reserve.into(),
+						amount.into(),
+					)?;
+				}
 			}
 		};
 
@@ -474,7 +478,7 @@ where
 	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<Price, Self::Error> {
 		let (price, _) =
 			pallet_ema_oracle::Pallet::<Runtime>::get_price(asset_a, asset_b, Period::get(), OMNIPOOL_SOURCE)
-				.map_err(|_| pallet_omnipool::Error::<Runtime>::PriceDifferenceTooHigh)?;
+				.map_err(|_| pallet_omnipool::Error::<Runtime>::InvalidOraclePrice)?;
 		Ok(price)
 	}
 

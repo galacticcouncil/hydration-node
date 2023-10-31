@@ -16,6 +16,7 @@ mod init_pool;
 pub(crate) mod mock;
 mod positions;
 mod refund;
+mod remove_token;
 mod tradability;
 mod tvl;
 mod types;

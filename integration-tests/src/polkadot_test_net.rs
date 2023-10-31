@@ -30,6 +30,7 @@ pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
 pub const CHARLIE: [u8; 32] = [6u8; 32];
 pub const DAVE: [u8; 32] = [7u8; 32];
+pub const UNKNOWN: [u8; 32] = [8u8; 32];
 
 pub fn evm_address() -> H160 {
 	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"].into()
