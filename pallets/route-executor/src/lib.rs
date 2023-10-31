@@ -369,7 +369,7 @@ pub mod pallet {
 					if amount_out_for_new_route > amount_out_for_existing_route
 						&& amount_out_for_new_inversed_route > amount_out_for_existing_inversed_route
 					{
-						let bounded_vec = create_bounded_vec(route.clone()).ok_or(Error::<T>::MaxTradesExceeded)?;
+						let bounded_vec = Self::create_bounded_vec(route)?;
 						Routes::<T>::insert(asset_pair, bounded_vec);
 
 						Self::deposit_event(Event::RouteUpdated {
@@ -385,7 +385,7 @@ pub mod pallet {
 					Self::validate_sell_execution(route.clone(), reference_amount_in)
 						.map_err(|err| Error::<T>::RouteCalculationFailed)?;
 
-					let bounded_vec = create_bounded_vec(route).ok_or(Error::<T>::MaxTradesExceeded)?;
+					let bounded_vec = Self::create_bounded_vec(route)?;
 					Routes::<T>::insert(asset_pair, bounded_vec);
 
 					Self::deposit_event(Event::RouteUpdated {
@@ -559,6 +559,15 @@ impl<T: Config> Pallet<T> {
 
 		Ok(amount_in_and_outs)
 	}
+
+	pub fn create_bounded_vec<AssetId>(
+		trades: Vec<Trade<AssetId>>,
+	) -> Result<BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>, DispatchError> {
+		let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<MAX_NUMBER_OF_TRADES>> =
+			trades.try_into().map_err(|_| Error::<T>::MaxTradesExceeded)?;
+
+		Ok(bounded_vec)
+	}
 }
 
 impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::AssetId>, AmountInAndOut<T::Balance>>
@@ -696,12 +705,4 @@ fn inverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
 		.into_iter()
 		.rev()
 		.collect()
-}
-
-pub fn create_bounded_vec<AssetId>(
-	trades: Vec<Trade<AssetId>>,
-) -> Option<BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>> {
-	let bounded_vec: Result<BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<MAX_NUMBER_OF_TRADES>>, _> =
-		trades.try_into();
-	bounded_vec.ok()
 }
