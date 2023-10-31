@@ -136,8 +136,8 @@ impl system::Config for Test {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
 	type AuthorityOrigin = frame_system::EnsureRoot<u64>;
-	type Currencies = Currencies;
 	type SpotPriceProvider = SpotPrice;
 	type WeightInfo = ();
 	type NativeAssetId = HdxAssetId;

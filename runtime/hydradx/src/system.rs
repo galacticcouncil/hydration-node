@@ -17,7 +17,7 @@
 
 use super::*;
 
-use pallet_transaction_multi_payment::{DepositAll, TransferFees};
+use pallet_transaction_multi_payment::{OnChargeAssetFeeAdapter};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
 	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
@@ -39,6 +39,7 @@ use frame_support::{
 };
 use hydradx_adapters::RelayChainBlockNumberProvider;
 use scale_info::TypeInfo;
+use pallet_currencies::fungibles::FungibleCurrencies;
 
 pub struct CallFilter;
 impl Contains<RuntimeCall> for CallFilter {
@@ -462,7 +463,7 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Currencies, DepositAll<Runtime>, TreasuryAccount>;
+	type OnChargeTransaction = OnChargeAssetFeeAdapter<FungibleCurrencies<Runtime>, TreasuryAccount>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
@@ -471,6 +472,8 @@ impl pallet_transaction_payment::Config for Runtime {
 
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Balance = Balance;
 	type AuthorityOrigin = SuperMajorityTechCommittee;
 	type SpotPriceProvider = Omnipool;
 	type WeightInfo = weights::payment::HydraWeight<Runtime>;

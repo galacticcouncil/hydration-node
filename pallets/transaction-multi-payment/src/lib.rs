@@ -41,13 +41,15 @@ use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::sp_runtime::FixedPointOperand;
 use hydradx_traits::{pools::SpotPriceProvider, NativePriceOracle};
 use orml_traits::{Happened, MultiCurrency};
+use sp_arithmetic::traits::BaseArithmetic;
 
 use frame_support::traits::IsSubType;
 
 pub use crate::traits::*;
 
-type AssetIdOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
-type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
+type AssetIdOf<T> = <T as Config>::AssetId;
+//type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
+type BalanceOf<T> = <T as Config>::Balance;
 
 /// Spot price type
 pub type Price = FixedU128;
@@ -94,6 +96,12 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// Asset type
+		type AssetId: frame_support::traits::tokens::AssetId
+			+ MaybeSerializeDeserialize;
+
+		type Balance: frame_support::traits::tokens::Balance;
 
 		/// The origin which can add/remove accepted currencies
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -207,8 +215,6 @@ pub mod pallet {
 	}
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
-	where
-		BalanceOf<T>: FixedPointOperand,
 	{
 		/// Set selected currency for given account.
 		///
@@ -289,8 +295,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T>
-where
-	BalanceOf<T>: FixedPointOperand,
 {
 	pub fn set_account_currency(account: &T::AccountId, currency: AssetIdOf<T>) -> DispatchResult {
 		ensure!(
@@ -307,17 +311,7 @@ where
 	}
 
 	fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price> {
-		if let Some(price) = Self::price(currency) {
-			Some(price)
-		} else {
-			// If not loaded in on_init, let's try first the spot price provider again
-			// This is unlikely scenario as the price would be retrieved in on_init for each block
-			if let Some(price) = T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get()) {
-				Some(price)
-			} else {
-				Self::currencies(currency)
-			}
-		}
+		T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get())
 	}
 }
 
@@ -329,43 +323,20 @@ where
 	price.checked_mul_int(fee).map(|f| f.max(One::one()))
 }
 
-/// Deposits all fees to some account
-pub struct DepositAll<T>(PhantomData<T>);
+pub struct OnChargeAssetFeeAdapter<MC, FR>(PhantomData<(MC,FR)>);
 
-impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, BalanceOf<T>> for DepositAll<T> {
-	fn deposit_fee(who: &T::AccountId, currency: AssetIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
-		<T as Config>::Currencies::deposit(currency, who, amount)?;
-		Ok(())
-	}
-}
-
-/// Implements the transaction payment for native as well as non-native currencies
-pub struct TransferFees<MC, DF, FR>(PhantomData<(MC, DF, FR)>);
-
-impl<T, MC, DF, FR> OnChargeTransaction<T> for TransferFees<MC, DF, FR>
+impl<T, MC, FR> OnChargeTransaction<T> for OnChargeAssetFeeAdapter<MC, FR>
 where
 	T: Config,
-	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
-	AssetIdOf<T>: Into<MC::CurrencyId>,
-	MC::Balance: FixedPointOperand,
+	MC: frame_support::traits::tokens::fungibles::Mutate<T::AccountId, Balance = BalanceOf<T>, AssetId = AssetIdOf<T>>,
 	FR: Get<T::AccountId>,
-	DF: DepositFee<T::AccountId, MC::CurrencyId, MC::Balance>,
 	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>>,
 	BalanceOf<T>: FixedPointOperand,
 {
 	type LiquidityInfo = Option<PaymentInfo<Self::Balance, AssetIdOf<T>, Price>>;
-	type Balance = <MC as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+	type Balance = BalanceOf<T>;
 
-	/// Withdraw the predicted fee from the transaction origin.
-	///
-	/// Note: The `fee` already includes the `tip`.
-	fn withdraw_fee(
-		who: &T::AccountId,
-		call: &T::RuntimeCall,
-		_info: &DispatchInfoOf<T::RuntimeCall>,
-		fee: Self::Balance,
-		_tip: Self::Balance,
-	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
+	fn withdraw_fee(who: &T::AccountId, call: &T::RuntimeCall, dispatch_info: &DispatchInfoOf<T::RuntimeCall>, fee: Self::Balance, tip: Self::Balance) -> Result<Self::LiquidityInfo, TransactionValidityError> {
 		if fee.is_zero() {
 			return Ok(None);
 		}
@@ -381,8 +352,8 @@ where
 		let converted_fee =
 			convert_fee_with_price(fee, price).ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-		match MC::withdraw(currency.into(), who, converted_fee) {
-			Ok(()) => {
+		match MC::burn_from(currency.into(), who, converted_fee) {
+			Ok(_) => {
 				if currency == T::NativeAssetId::get() {
 					Ok(Some(PaymentInfo::Native(fee)))
 				} else {
@@ -393,20 +364,7 @@ where
 		}
 	}
 
-	/// Since the predicted fee might have been too high, parts of the fee may
-	/// be refunded.
-	///
-	/// Note: The `fee` already includes the `tip`.
-	fn correct_and_deposit_fee(
-		who: &T::AccountId,
-		_dispatch_info: &DispatchInfoOf<T::RuntimeCall>,
-		_post_info: &PostDispatchInfoOf<T::RuntimeCall>,
-		corrected_fee: Self::Balance,
-		tip: Self::Balance,
-		already_withdrawn: Self::LiquidityInfo,
-	) -> Result<(), TransactionValidityError> {
-		let fee_receiver = FR::get();
-
+	fn correct_and_deposit_fee(who: &T::AccountId, dispatch_info: &DispatchInfoOf<T::RuntimeCall>, post_info: &PostDispatchInfoOf<T::RuntimeCall>, corrected_fee: Self::Balance, tip: Self::Balance, already_withdrawn: Self::LiquidityInfo) -> Result<(), TransactionValidityError> {
 		if let Some(paid) = already_withdrawn {
 			// Calculate how much refund we should return
 			let (currency, refund, fee, tip) = match paid {
@@ -434,18 +392,17 @@ where
 			};
 
 			// refund to the account that paid the fees
-			MC::deposit(currency, who, refund)
+			MC::mint_into(currency, who, refund)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			// deposit the fee
-			DF::deposit_fee(&fee_receiver, currency, fee + tip)
+			MC::mint_into(currency, &FR::get(),fee.saturating_add(tip))
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 		}
-
 		Ok(())
 	}
 }
 
+/*
 /// We provide an oracle for the price of all currencies accepted as fee payment.
 impl<T: Config> NativePriceOracle<AssetIdOf<T>, Price> for Pallet<T> {
 	fn price(currency: AssetIdOf<T>) -> Option<Price> {
@@ -456,6 +413,8 @@ impl<T: Config> NativePriceOracle<AssetIdOf<T>, Price> for Pallet<T> {
 		}
 	}
 }
+
+ */
 
 /// Type to automatically add a fee currency for an account on account creation.
 pub struct AddTxAssetOnAccount<T, Inspector>(PhantomData<(T, Inspector)>);

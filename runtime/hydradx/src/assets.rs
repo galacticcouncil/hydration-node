@@ -18,10 +18,7 @@
 use super::*;
 use crate::system::NativeAssetId;
 
-use hydradx_adapters::{
-	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
-};
+use hydradx_adapters::{inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter, OracleAssetVolumeProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo, NativePriceProvider};
 
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{
@@ -484,7 +481,7 @@ impl pallet_dca::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type AmmTradeWeights = RouterWeightInfo;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
-	type NativePriceOracle = MultiTransactionPayment;
+	type NativePriceOracle = NativePriceProvider<Omnipool>;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:

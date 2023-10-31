@@ -45,12 +45,11 @@ use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use pallet_stableswap::types::{PoolState, StableswapHooks};
-use pallet_transaction_multi_payment::DepositFee;
 use polkadot_xcm::latest::prelude::*;
 use primitive_types::{U128, U512};
-use primitives::constants::chain::STABLESWAP_SOURCE;
+use primitives::constants::chain::{CORE_ASSET_ID, STABLESWAP_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
-use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::traits::{BlockNumberProvider, One};
 use sp_std::vec::Vec;
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
 use warehouse_liquidity_mining::GlobalFarmData;
@@ -59,6 +58,7 @@ use xcm_executor::{
 	traits::{Convert as MoreConvert, MatchesFungible, TransactAsset, WeightTrader},
 	Assets,
 };
+use hydradx_traits::pools::SpotPriceProvider;
 
 pub mod inspect;
 pub mod xcm_exchange;
@@ -227,7 +227,7 @@ impl<
 		Balance: AtLeast32BitUnsigned,
 		Price,
 		C: Convert<MultiLocation, Option<AssetId>>,
-		D: DepositFee<AccountId, AssetId, Balance>,
+		D: frame_support::traits::fungibles::Mutate<AccountId, AssetId = AssetId, Balance = Balance>,
 		F: Get<AccountId>,
 	> TakeRevenue for ToFeeReceiver<AccountId, AssetId, Balance, Price, C, D, F>
 {
@@ -239,7 +239,7 @@ impl<
 			} => {
 				C::convert(loc).and_then(|id| {
 					let receiver = F::get();
-					D::deposit_fee(&receiver, id, amount.saturated_into::<Balance>())
+					D::mint_into(id, &receiver, amount.saturated_into::<Balance>())
 						.map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {:?}", e))
 						.ok()
 				});
@@ -947,5 +947,18 @@ where
 
 	fn on_trade_weight(n: usize) -> Weight {
 		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(n as u64)
+	}
+}
+
+pub struct NativePriceProvider<SP>(PhantomData<SP>);
+
+impl<SP> NativePriceOracle<AssetId, FixedU128> for NativePriceProvider<SP>
+where SP: SpotPriceProvider<AssetId, Price = FixedU128>{
+	fn price(currency: AssetId) -> Option<FixedU128> {
+		if currency == CORE_ASSET_ID {
+			Some(FixedU128::one())
+		}else{
+			SP::spot_price(currency, CORE_ASSET_ID)
+		}
 	}
 }

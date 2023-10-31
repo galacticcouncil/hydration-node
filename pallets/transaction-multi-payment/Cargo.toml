@@ -28,6 +28,7 @@ sp-core = { workspace = true }
 sp-std = { workspace = true }
 sp-runtime = { workspace = true }
 pallet-transaction-payment = { workspace = true }
+sp-arithmetic = { workspace = true }
 
 [dev-dependencies]
 pallet-currencies = { workspace = true }

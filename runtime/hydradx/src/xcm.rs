@@ -1,9 +1,8 @@
 use super::*;
 
 use codec::MaxEncodedLen;
-use hydradx_adapters::RelayChainBlockNumberProvider;
+use hydradx_adapters::{NativePriceProvider, RelayChainBlockNumberProvider};
 use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
-use pallet_transaction_multi_payment::DepositAll;
 use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
 use cumulus_primitives_core::ParaId;
@@ -27,6 +26,7 @@ use xcm_builder::{
 	TakeWeightCredit, WithComputedOrigin,
 };
 use xcm_executor::{Config, XcmExecutor};
+use pallet_currencies::fungibles::FungibleCurrencies;
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
@@ -113,9 +113,9 @@ impl Config for XcmConfig {
 		Balance,
 		Price,
 		WeightToFee,
-		MultiTransactionPayment,
+		NativePriceProvider<Omnipool>,
 		CurrencyIdConvert,
-		ToFeeReceiver<AccountId, AssetId, Balance, Price, CurrencyIdConvert, DepositAll<Runtime>, TreasuryAccount>,
+		ToFeeReceiver<AccountId, AssetId, Balance, Price, CurrencyIdConvert, FungibleCurrencies<Runtime>, TreasuryAccount>,
 	>;
 
 	type ResponseHandler = PolkadotXcm;
