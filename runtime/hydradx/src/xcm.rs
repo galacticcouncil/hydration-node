@@ -113,7 +113,7 @@ impl Config for XcmConfig {
 		Balance,
 		Price,
 		WeightToFee,
-		NativePriceProvider<Omnipool>,
+		NativePriceProvider<Omnipool, Runtime>,
 		CurrencyIdConvert,
 		ToFeeReceiver<AccountId, AssetId, Balance, Price, CurrencyIdConvert, FungibleCurrencies<Runtime>, TreasuryAccount>,
 	>;

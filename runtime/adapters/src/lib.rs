@@ -950,14 +950,18 @@ where
 	}
 }
 
-pub struct NativePriceProvider<SP>(PhantomData<SP>);
+pub struct NativePriceProvider<SP, P>(PhantomData<(SP,P)>);
 
-impl<SP> NativePriceOracle<AssetId, FixedU128> for NativePriceProvider<SP>
-where SP: SpotPriceProvider<AssetId, Price = FixedU128>{
+impl<SP, P> NativePriceOracle<AssetId, FixedU128> for NativePriceProvider<SP, P>
+where SP: SpotPriceProvider<AssetId, Price = FixedU128>,
+P: pallet_transaction_multi_payment::Config,
+<P as pallet_transaction_multi_payment::Config>::AssetId: From<u32>
+{
 	fn price(currency: AssetId) -> Option<FixedU128> {
 		if currency == CORE_ASSET_ID {
 			Some(FixedU128::one())
 		}else{
+			//pallet_transaction_multi_payment::Pallet::<P>::get_currency_price(currency.into())
 			SP::spot_price(currency, CORE_ASSET_ID)
 		}
 	}

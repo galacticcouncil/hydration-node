@@ -316,6 +316,8 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 fn claim_trapped_asset_should_work() {
 	TestNet::reset();
 
+	set_relaychain_block_number(10);
+
 	// traps asset when asset is not registered yet
 	let asset = trap_asset();
 
@@ -323,7 +325,7 @@ fn claim_trapped_asset_should_work() {
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			hydradx_runtime::RuntimeOrigin::root(),
-			6,
+			1,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
 	});
@@ -332,7 +334,7 @@ fn claim_trapped_asset_should_work() {
 
 	Hydra::execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(6, &AccountId::from(BOB)),
+			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
 			1000 * UNITS + 29_699_519_230_769
 		);
 

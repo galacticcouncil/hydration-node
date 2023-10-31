@@ -310,8 +310,20 @@ impl<T: Config> Pallet<T>
 		Pallet::<T>::get_currency(who).unwrap_or_else(T::NativeAssetId::get)
 	}
 
-	fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price> {
-		T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get())
+	pub fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price> {
+		if let Some(price) = Self::currency_price(currency) {
+			Some(price)
+		} else {
+			// If not loaded in on_init, let's try first the spot price provider again
+			// This is unlikely scenario as the price would be retrieved in on_init for each block
+			if let Some(price) = T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get()) {
+				Some(price)
+			} else {
+				Self::currencies(currency)
+			}
+		}
+		//T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get())
+
 	}
 }
 
