@@ -48,6 +48,8 @@ pub mod weights;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
+pub const MAX_NUMBER_OF_TRADES: u32 = 5; //TODO: remove the pallet config as we don't really need. Only remove once the treasury DCA is in place, as we don't want to change any API
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -144,8 +146,12 @@ pub mod pallet {
 	/// Storing routes for asset pairs
 	#[pallet::storage]
 	#[pallet::getter(fn route)]
-	pub type Routes<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetPair<T::AssetId>, BoundedVec<Trade<T::AssetId>, ConstU32<5>>>; //TODO: consider making it config
+	pub type Routes<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		AssetPair<T::AssetId>,
+		BoundedVec<Trade<T::AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
+	>; //TODO: consider making it config
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -314,7 +320,7 @@ pub mod pallet {
 		pub fn set_route(
 			origin: OriginFor<T>,
 			asset_pair: AssetPair<T::AssetId>,
-			route: BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
+			route: BoundedVec<Trade<T::AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
@@ -692,7 +698,10 @@ fn inverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
 		.collect()
 }
 
-pub fn create_bounded_vec<AssetId>(trades: Vec<Trade<AssetId>>) -> Option<BoundedVec<Trade<AssetId>, ConstU32<5>>> {
-	let bounded_vec: Result<BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>>, _> = trades.try_into();
+pub fn create_bounded_vec<AssetId>(
+	trades: Vec<Trade<AssetId>>,
+) -> Option<BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>> {
+	let bounded_vec: Result<BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<MAX_NUMBER_OF_TRADES>>, _> =
+		trades.try_into();
 	bounded_vec.ok()
 }
