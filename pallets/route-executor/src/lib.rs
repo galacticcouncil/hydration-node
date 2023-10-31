@@ -335,7 +335,6 @@ pub mod pallet {
 				route = inverse_route(route)
 			}
 
-			//TODO: also think about to reverse it when we get it
 			let maybe_route = Routes::<T>::get(asset_pair);
 
 			match maybe_route {
@@ -467,7 +466,6 @@ impl<T: Config> Pallet<T> {
 			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
 			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
 
-			//TODO: maybe it is just enough to have do_sell()> otherwise route executed event is sent
 			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());
 
 			TransactionOutcome::Rollback(sell_result)
