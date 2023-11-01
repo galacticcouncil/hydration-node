@@ -26,9 +26,6 @@ sp-std = { workspace = true }
 sp-io = { workspace = true }
 pallet-uniques = { workspace = true }
 
-# ORML dependencies
-orml-utilities = { workspace = true }
-
 # HydraDX traits
 hydradx-traits = { workspace = true }
 

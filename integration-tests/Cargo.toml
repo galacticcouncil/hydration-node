@@ -90,7 +90,6 @@ pallet-aura = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-collective = { workspace = true }
 pallet-session = { workspace = true }
-pallet-sudo = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
@@ -156,7 +155,6 @@ std = [
     "pallet-balances/std",
     "pallet-elections-phragmen/std",
     "pallet-session/std",
-    "pallet-sudo/std",
     "pallet-timestamp/std",
     "pallet-transaction-payment/std",
     "pallet-transaction-multi-payment/std",

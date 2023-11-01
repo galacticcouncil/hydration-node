@@ -152,7 +152,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
 	type ExecuteDeferredOrigin = EnsureRoot<AccountId>;
 	type MaxDeferredMessages = ConstU32<100>;
-	type MaxDeferredBuckets = ConstU32<100>; // TODO
+	type MaxDeferredBuckets = ConstU32<1_000>;
 	type RelayChainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 	type XcmDeferFilter = ();
 }

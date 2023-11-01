@@ -32,7 +32,6 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 
 # Optionals
-frame-system-benchmarking = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]

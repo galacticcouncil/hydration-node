@@ -47,7 +47,6 @@ sp-io = { workspace = true }
 sp-tracing = { workspace = true }
 frame-benchmarking = { workspace = true }
 orml-tokens = { workspace = true }
-proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 
 [features]

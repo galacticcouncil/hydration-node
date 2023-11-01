@@ -35,7 +35,6 @@ sp-std = { workspace = true }
 hydradx-traits = { workspace = true }
 
 # Optionals
-frame-system-benchmarking = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
 sp-api = { workspace = true, optional = true }
 

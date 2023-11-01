@@ -29,7 +29,6 @@ primitives = {path = '../../primitives', default-features = false}
 # ORML dependencies
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
-orml-utilities = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
@@ -38,7 +37,6 @@ hydradx-traits = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-frame-system-benchmarking = { workspace = true, optional = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }

@@ -77,13 +77,11 @@ frame-system-rpc-runtime-api = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 sp-authority-discovery = { workspace = true }
 frame-try-runtime = { workspace = true, optional = true }
-try-runtime-cli = { workspace = true, optional = true }
 
 # Cumulus dependencies
 cumulus-client-cli = { workspace = true }
 cumulus-client-collator = { workspace = true }
 cumulus-client-consensus-aura = { workspace = true }
-cumulus-client-consensus-relay-chain = { workspace = true }
 cumulus-client-consensus-common = { workspace = true }
 cumulus-client-consensus-proposer = { workspace = true }
 cumulus-client-network = { workspace = true }
@@ -110,11 +108,7 @@ runtime-benchmarks = [
   "polkadot-service/runtime-benchmarks",
   "polkadot-cli/runtime-benchmarks",
 ]
-cli = [
-    'try-runtime-cli',
-]
 try-runtime = [
     "hydradx-runtime/try-runtime",
-    "try-runtime-cli/try-runtime",
 ]
 

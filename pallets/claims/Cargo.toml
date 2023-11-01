@@ -31,11 +31,6 @@ sp-std = { workspace = true }
 # Local dependencies
 primitives = { workspace = true }
 
-# ORML dependencies
-orml-tokens = { workspace = true }
-orml-traits = { workspace = true }
-orml-utilities = { workspace = true }
-
 [dev-dependencies]
 pallet-balances = { workspace = true }
 sp-core = { workspace = true }
@@ -51,9 +46,6 @@ std = [
   'codec/std',
   'frame-support/std',
   'frame-system/std',
-  'orml-traits/std',
-  'orml-tokens/std',
-  'orml-utilities/std',
   'primitives/std',
   'rustc-hex/std',
   'serde/std',
