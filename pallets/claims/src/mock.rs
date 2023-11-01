@@ -70,12 +70,16 @@ impl frame_system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
+parameter_types! {
+	pub const ExistentialDeposit: Balance = 1;
+}
+
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
-	type ExistentialDeposit = ();
+	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type WeightInfo = ();
 	type MaxReserves = ();
