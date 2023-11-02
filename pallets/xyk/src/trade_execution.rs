@@ -1,11 +1,10 @@
+use crate::types::{AssetId, AssetPair, Balance};
 use crate::{Config, Error, Pallet};
 use frame_support::ensure;
 use frame_support::traits::Get;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use primitives::asset::AssetPair;
-use primitives::{AssetId, Balance};
 use sp_runtime::DispatchError;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
