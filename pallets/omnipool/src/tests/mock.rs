@@ -132,8 +132,12 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		0
+	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+		if *currency_id == LRNA{
+			400_000_000
+		}else{
+			0
+		}
 	};
 }
 
@@ -145,7 +149,7 @@ impl orml_tokens::Config for Test {
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
-	type DustRemovalWhitelist = Everything;
+	type DustRemovalWhitelist = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
 	type CurrencyHooks = ();
