@@ -16,6 +16,7 @@ where
 	pub before: AssetReserveState<Balance>,
 	pub after: AssetReserveState<Balance>,
 	pub delta_changes: AssetStateChange<Balance>,
+	pub safe_withdrawal: bool,
 }
 
 impl<AssetId, Balance> AssetInfo<AssetId, Balance>
@@ -27,12 +28,14 @@ where
 		before_state: &AssetReserveState<Balance>,
 		after_state: &AssetReserveState<Balance>,
 		delta_changes: &AssetStateChange<Balance>,
+		safe_withdrawal: bool,
 	) -> Self {
 		Self {
 			asset_id,
 			before: (*before_state).clone(),
 			after: (*after_state).clone(),
 			delta_changes: (*delta_changes).clone(),
+			safe_withdrawal,
 		}
 	}
 }

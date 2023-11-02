@@ -627,7 +627,8 @@ impl Config for Test {
 	type WeightToFee = IdentityFee<Balance>;
 	type WeightInfo = ();
 	type OraclePriceProvider = PriceProviderMock;
-	type Router = RouteExecutor;
+	type RouteExecutor = RouteExecutor;
+	type RouteProvider = DefaultRouteProvider;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -646,6 +647,10 @@ impl NativePriceOracle<AssetId, FixedU128> for NativePriceOracleMock {
 	}
 }
 
+pub struct DefaultRouteProvider;
+
+impl RouteProvider<AssetId> for DefaultRouteProvider {}
+
 pub struct ParentHashGetterMock {}
 
 impl RelayChainBlockHashProvider for ParentHashGetterMock {
@@ -660,7 +665,7 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::router::{ExecutorError, PoolType, Trade, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
 use rand::SeedableRng;

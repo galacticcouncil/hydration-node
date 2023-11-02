@@ -1,11 +1,10 @@
 use super::mock::*;
+use crate::types::{AssetPair, Price};
 use crate::XYKSpotPrice;
 use crate::*;
 use frame_support::assert_ok;
 use frame_support::dispatch::RawOrigin;
 use hydradx_traits::pools::SpotPriceProvider;
-use primitives::asset::AssetPair;
-use primitives::Price;
 
 #[test]
 fn spot_price_provider_should_return_correct_price_when_pool_exists() {

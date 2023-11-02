@@ -27,9 +27,9 @@ use sp_runtime::{
 	BuildStorage,
 };
 
-use frame_support::traits::{Everything, Get, Nothing};
-use hydradx_traits::{AssetPairAccountIdFor, CanCreatePool};
-use primitives::{AssetId, Balance};
+use crate::types::{AssetId, Balance};
+use frame_support::traits::{Everything, GenesisBuild, Get, Nothing};
+use hydradx_traits::{AssetPairAccountIdFor, CanCreatePool, Source};
 
 use frame_system::EnsureSigned;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
@@ -176,6 +176,7 @@ parameter_types! {
 	pub MaxOutRatio: u128 = MaximumOutRatio::get();
 	pub ExchangeFeeRate: (u32, u32) = ExchangeFee::get();
 	pub DiscountedFeeRate: (u32, u32) = DiscountedFee::get();
+	pub const OracleSourceIdentifier: Source = *b"hydraxyk";
 }
 
 pub struct Disallow10_10Pool();
@@ -202,6 +203,7 @@ impl Config for Test {
 	type AMMHandler = ();
 	type DiscountedFee = DiscountedFeeRate;
 	type NonDustableWhitelistHandler = Whitelist;
+	type OracleSource = OracleSourceIdentifier;
 }
 
 pub struct ExtBuilder {

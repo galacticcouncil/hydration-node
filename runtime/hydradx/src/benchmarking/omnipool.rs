@@ -201,14 +201,16 @@ runtime_benchmarks! {
 		update_balance(stable_id, &buyer, 500_000_000_000_000_u128);
 		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, stable_id, 100_000_000_000_u128, 100_000_000_000_000_u128)?;
 
+		let hub_id = <Runtime as pallet_omnipool::Config>::HubAssetId::get();
+		let hub_issuance = <Runtime as pallet_omnipool::Config>::Currency::total_issuance(hub_id);
 	}: {Omnipool::remove_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), current_position_id, liquidity_added)? }
 	verify {
 		// Ensure NFT instance was burned
 		assert!(Omnipool::positions(current_position_id).is_none());
 
-		// Ensure lp provider received LRNA
-		let hub_id = <Runtime as pallet_omnipool::Config>::HubAssetId::get();
-		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(hub_id, &lp_provider) > Balance::zero());
+		// Ensure LRNA was burned
+		let hub_issuance_after  = <Runtime as pallet_omnipool::Config>::Currency::total_issuance(hub_id);
+		assert!(hub_issuance_after < hub_issuance);
 	}
 
 	sell {
@@ -434,6 +436,110 @@ runtime_benchmarks! {
 	verify {
 		let asset_state = Omnipool::assets(stable_id).unwrap();
 		assert!(asset_state.cap == 100_000_000_000_000_000u128);
+	}
+
+	withdraw_protocol_liquidity {
+		// Initialize pool
+		let stable_amount: Balance = 1_000_000_000_000_000u128;
+		let native_amount: Balance = 1_000_000_000_000_000u128;
+		let stable_price: FixedU128= FixedU128::from((1,2));
+		let native_price: FixedU128= FixedU128::from(1);
+
+		let acc = Omnipool::protocol_account();
+		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
+		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
+
+		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
+
+		update_balance(stable_id, &acc, stable_amount);
+		update_balance(native_id, &acc, native_amount);
+
+		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))?;
+
+		// Register new asset in asset registry
+		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
+
+		// Create account for token provider and set balance
+		let owner: AccountId = account("owner", 0, 1);
+
+		let token_price = FixedU128::from((1,5));
+		let token_amount = 200_000_000_000_000_u128;
+
+		update_balance(token_id, &acc, token_amount);
+
+		// Add the token to the pool
+		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price,Permill::from_percent(100), owner)?;
+
+		// Create LP provider account with correct balance
+		let lp_provider: AccountId = account("provider", 1, 1);
+		update_balance(token_id, &lp_provider, 500_000_000_000_000_u128);
+
+		let liquidity_added = 1_000_000_000_000_u128;
+
+		let current_position_id = Omnipool::next_position_id();
+
+		run_to_block(10);
+		Omnipool::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), token_id, liquidity_added)?;
+
+		let position =  Omnipool::positions(current_position_id).unwrap();
+
+		Omnipool::sacrifice_position(RawOrigin::Signed(lp_provider).into(), current_position_id)?;
+
+		let beneficiary: AccountId = account("beneficiary", 1, 1);
+
+	}: { Omnipool::withdraw_protocol_liquidity(RawOrigin::Root.into(), token_id, position.shares, position.price, beneficiary.clone())? }
+	verify {
+		assert_eq!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(token_id, &beneficiary), liquidity_added);
+	}
+
+	remove_token{
+		// Initialize pool
+		let stable_amount: Balance = 1_000_000_000_000_000u128;
+		let native_amount: Balance = 1_000_000_000_000_000u128;
+		let stable_price: FixedU128= FixedU128::from((1,2));
+		let native_price: FixedU128= FixedU128::from(1);
+
+		let acc = Omnipool::protocol_account();
+		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
+		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
+
+		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
+
+		update_balance(stable_id, &acc, stable_amount);
+		update_balance(native_id, &acc, native_amount);
+
+		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))?;
+
+		// Register new asset in asset registry
+		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
+
+		// Create account for token provider and set balance
+		let owner: AccountId = account("owner", 0, 1);
+
+		let token_price = FixedU128::from((1,5));
+		let token_amount = 200_000_000_000_000_u128;
+
+		update_balance(token_id, &acc, token_amount);
+
+		let current_position_id = Omnipool::next_position_id();
+		// Add the token to the pool
+		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price,Permill::from_percent(100), owner.clone())?;
+
+		// Create LP provider account with correct balance
+		let lp_provider: AccountId = account("provider", 1, 1);
+		update_balance(token_id, &lp_provider, 500_000_000_000_000_u128);
+
+		let liquidity_added = 1_000_000_000_000_u128;
+
+		run_to_block(10);
+		Omnipool::sacrifice_position(RawOrigin::Signed(owner).into(), current_position_id)?;
+
+		Omnipool::set_asset_tradable_state(RawOrigin::Root.into(), token_id, Tradability::FROZEN)?;
+
+		let beneficiary: AccountId = account("beneficiary", 1, 1);
+	}: { Omnipool::remove_token(RawOrigin::Root.into(), token_id, beneficiary.clone())? }
+	verify {
+		assert_eq!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(token_id, &beneficiary), token_amount);
 	}
 
 	router_execution_sell {
