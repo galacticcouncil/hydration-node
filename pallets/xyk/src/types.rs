@@ -16,6 +16,7 @@
 // limitations under the License.
 
 pub type AssetId = u32;
+pub type Amount = i128;
 pub type Balance = u128;
 pub type Price = FixedU128;
 

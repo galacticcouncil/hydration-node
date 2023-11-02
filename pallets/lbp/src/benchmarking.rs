@@ -20,7 +20,6 @@ use super::*;
 use crate::Pallet as LBP;
 
 use hydradx_traits::router::{PoolType, TradeExecution};
-use primitives::AssetId;
 
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;

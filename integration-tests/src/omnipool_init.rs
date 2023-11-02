@@ -296,7 +296,6 @@ fn removing_token_should_work_when_no_shares_remaining() {
 			position.shares,
 		));
 
-		let state = pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_asset_state(DOT).unwrap();
 		let dot_balance = hydradx_runtime::Tokens::free_balance(DOT, &bob_account);
 		assert!(dot_balance <= dot_amount);
 		let lrna_balance = hydradx_runtime::Tokens::free_balance(LRNA, &bob_account);
