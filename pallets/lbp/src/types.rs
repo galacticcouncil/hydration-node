@@ -15,13 +15,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::AssetId;
+pub type AssetId = u32;
+pub type Balance = u128;
 
 use codec::{Decode, Encode};
-
-use sp_std::vec::Vec;
-
 use scale_info::TypeInfo;
+use sp_std::vec::Vec;
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -42,6 +41,7 @@ impl AssetPair {
 	pub fn new(asset_in: AssetId, asset_out: AssetId) -> Self {
 		Self { asset_in, asset_out }
 	}
+
 	/// Return ordered asset tuple (A,B) where A < B
 	/// Used in storage
 	pub fn ordered_pair(&self) -> (AssetId, AssetId) {

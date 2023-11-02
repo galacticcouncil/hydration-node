@@ -2,12 +2,15 @@
 use super::*;
 
 use crate as lbp;
-use crate::{AssetPairAccountIdFor, Config};
+use crate::{
+	types::{AssetId, AssetPair, Balance},
+	AssetPairAccountIdFor, Config,
+};
 use frame_support::parameter_types;
 use frame_support::traits::{Everything, GenesisBuild, LockIdentifier, Nothing};
 use hydradx_traits::LockedBalance;
 use orml_traits::parameter_type_with_key;
-use primitives::constants::chain::{AssetId, Balance, CORE_ASSET_ID};
+use primitives::constants::chain::CORE_ASSET_ID;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,

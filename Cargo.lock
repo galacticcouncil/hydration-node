@@ -3831,7 +3831,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "186.0.0"
+version = "187.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -6911,7 +6911,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.6.16"
+version = "4.7.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10220,7 +10220,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.15.0"
+version = "1.15.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",

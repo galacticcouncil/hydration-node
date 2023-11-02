@@ -31,7 +31,6 @@ use hydradx_traits::{AMMTransfer, LockedBalance};
 use sp_runtime::traits::BadOrigin;
 use sp_std::convert::TryInto;
 
-use primitives::asset::AssetPair;
 use primitives::constants::chain::CORE_ASSET_ID;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
