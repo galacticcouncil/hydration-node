@@ -21,7 +21,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
-pub use crate::types::{AssetId, AssetPair, Balance};
+pub use crate::types::{Amount, AssetId, AssetPair, Balance};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::sp_runtime::{
 	traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero},
@@ -37,7 +37,6 @@ use frame_system::ensure_signed;
 use hydra_dx_math::types::LBPWeight;
 use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
-use primitives::Amount;
 
 use scale_info::TypeInfo;
 

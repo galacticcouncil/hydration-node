@@ -37,10 +37,9 @@ use hydradx_traits::{
 };
 use sp_std::{vec, vec::Vec};
 
-use crate::types::{AssetId, AssetPair, Balance};
+use crate::types::{Amount, AssetId, AssetPair, Balance};
 use hydra_dx_math::ratio::Ratio;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use primitives::Amount;
 
 #[cfg(test)]
 mod tests;

@@ -10,7 +10,6 @@ use frame_support::parameter_types;
 use frame_support::traits::{Everything, GenesisBuild, LockIdentifier, Nothing};
 use hydradx_traits::LockedBalance;
 use orml_traits::parameter_type_with_key;
-use primitives::constants::chain::CORE_ASSET_ID;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -31,7 +30,7 @@ pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 pub const CHARLIE: AccountId = 3;
 
-pub const HDX: AssetId = CORE_ASSET_ID;
+pub const HDX: AssetId = 0;
 pub const KUSD: AssetId = 2_000;
 pub const BSX: AssetId = 3_000;
 pub const ETH: AssetId = 4_000;
@@ -154,7 +153,7 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 }
 
 parameter_types! {
-	pub const NativeAssetId: AssetId = CORE_ASSET_ID;
+	pub const NativeAssetId: AssetId = HDX;
 	pub const MinTradingLimit: Balance = 1_000;
 	pub const MinPoolLiquidity: Balance = 1_000;
 	pub const MaxInRatio: u128 = 3;

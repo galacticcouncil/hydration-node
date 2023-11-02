@@ -23,7 +23,6 @@ serde = { features = ["derive"], optional = true, version = "1.0.136" }
 ## Local dependencies
 hydra-dx-math = { workspace = true }
 hydradx-traits = { workspace = true }
-primitives = { workspace = true }
 
 ## ORML dependencies
 orml-traits = { workspace = true }
@@ -63,7 +62,6 @@ std = [
     "sp-runtime/std",
     "sp-core/std",
     "sp-std/std",
-    "primitives/std",
     "hydradx-traits/std",
     "scale-info/std",
     "hydra-dx-math/std",
