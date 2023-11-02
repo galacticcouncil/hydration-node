@@ -37,15 +37,14 @@ fn claiming_works() {
 		// "I hereby claim all my xHDX tokens to wallet:2a00000000000000"
 		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
 
-		assert_eq!(Balances::free_balance(ALICE), 0);
-		assert_eq!(Balances::free_balance(BOB), 0);
+		let alice_initial_balance = Balances::free_balance(ALICE);
 
 		// Signature not consistent with origin
 		assert_noop!(ClaimsPallet::claim(RuntimeOrigin::signed(BOB), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
 
 		assert_ok!(ClaimsPallet::claim(RuntimeOrigin::signed(ALICE), EcdsaSignature(signature)));
 
-		assert_eq!(Balances::free_balance(ALICE), CLAIM_AMOUNT);
+		assert_eq!(Balances::free_balance(ALICE), alice_initial_balance + CLAIM_AMOUNT);
 	})
 }
 

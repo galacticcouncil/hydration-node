@@ -16,7 +16,7 @@
 // limitations under the License.
 
 #![cfg(test)]
-use crate::{oracle::hydradx_run_to_block, polkadot_test_net::*};
+use crate::polkadot_test_net::*;
 
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::liquidity_mining::PriceAdjustment;

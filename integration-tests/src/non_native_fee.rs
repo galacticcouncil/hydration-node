@@ -51,7 +51,7 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 			)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
-		assert_eq!(bob_balance, 999_959);
+		assert_eq!(bob_balance, 999_962);
 
 		assert_ok!(hydradx_runtime::Balances::force_set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),

@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::{oracle::hydradx_run_to_block, polkadot_test_net::*};
+use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use pallet_dynamic_fees::types::FeeEntry;
 use primitives::AssetId;

@@ -524,6 +524,22 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 		}
 	));
 }
+
+pub fn hydradx_run_to_block(to: BlockNumber) {
+	use frame_support::traits::OnFinalize;
+	while hydradx_runtime::System::block_number() < to {
+		let b = hydradx_runtime::System::block_number();
+
+		hydradx_runtime::System::on_finalize(b);
+		hydradx_runtime::EmaOracle::on_finalize(b);
+
+		hydradx_runtime::System::on_initialize(b + 1);
+		hydradx_runtime::EmaOracle::on_initialize(b + 1);
+
+		hydradx_runtime::System::set_block_number(b + 1);
+	}
+}
+
 pub fn polkadot_run_to_block(to: BlockNumber) {
 	use frame_support::traits::OnFinalize;
 

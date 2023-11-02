@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::fungibles::FungibleCurrencies;
-use frame_support::{assert_noop, assert_ok, traits::tokens::fungibles::*};
+use frame_support::{assert_noop, assert_ok, traits::tokens::fungibles::*, sp_runtime::TokenError};
 use mock::*;
 
 #[test]
@@ -105,7 +105,7 @@ fn fungibles_transfer_trait_should_work() {
 		.execute_with(|| {
 			assert_noop!(
 				FungibleCurrencies::<Runtime>::transfer(NATIVE_CURRENCY_ID, &ALICE, &BOB, 100, Preservation::Preserve),
-				pallet_balances::Error::<Runtime>::Expendability
+				TokenError::NotExpendable
 			);
 			assert_ok!(FungibleCurrencies::<Runtime>::transfer(
 				NATIVE_CURRENCY_ID,
@@ -119,7 +119,7 @@ fn fungibles_transfer_trait_should_work() {
 
 			assert_noop!(
 				FungibleCurrencies::<Runtime>::transfer(X_TOKEN_ID, &BOB, &ALICE, 100, Preservation::Preserve),
-				orml_tokens::Error::<Runtime>::KeepAlive
+				TokenError::NotExpendable
 			);
 			assert_ok!(FungibleCurrencies::<Runtime>::transfer(
 				X_TOKEN_ID,
