@@ -9467,7 +9467,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.8.5"
+version = "6.0.0"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
