@@ -21,6 +21,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
+pub use crate::types::{Amount, AssetId, AssetPair, Balance};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::sp_runtime::{
 	traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero},
@@ -37,7 +38,6 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
 use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
-use primitives::{asset::AssetPair, Amount, AssetId, Balance};
 
 use scale_info::TypeInfo;
 
@@ -59,7 +59,9 @@ pub mod weights;
 
 #[cfg(test)]
 mod invariants;
+
 mod trade_execution;
+pub mod types;
 
 use weights::WeightInfo;
 // Re-export pallet items so that they can be accessed from the crate namespace.
