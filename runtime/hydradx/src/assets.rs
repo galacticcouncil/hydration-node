@@ -25,7 +25,8 @@ use hydradx_adapters::{
 
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{
-	router::{PoolType, RouteProvider, Trade}, AccountIdFor, AssetKind, AssetPairAccountIdFor, OnTradeHandler, OraclePeriod, Source,
+	router::{PoolType, RouteProvider, Trade},
+	AccountIdFor, AssetKind, AssetPairAccountIdFor, OnTradeHandler, OraclePeriod, Source,
 };
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{

@@ -535,11 +535,10 @@ mod omnipool {
 			//Arrange
 			init_omnipool_with_oracle_for_block_10();
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let dca_budget = 1000 * UNITS;

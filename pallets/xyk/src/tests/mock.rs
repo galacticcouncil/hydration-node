@@ -28,7 +28,7 @@ use sp_runtime::{
 };
 
 use crate::types::{AssetId, Balance};
-use frame_support::traits::{Everything, GenesisBuild, Get, Nothing};
+use frame_support::traits::{Everything, Get, Nothing};
 use hydradx_traits::{AssetPairAccountIdFor, CanCreatePool, Source};
 
 use frame_system::EnsureSigned;
