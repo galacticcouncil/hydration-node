@@ -4504,6 +4504,7 @@ dependencies = [
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
+ "log",
  "orml-benchmarking",
  "orml-tokens",
  "orml-traits",
