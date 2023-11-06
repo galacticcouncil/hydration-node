@@ -70,6 +70,8 @@ runtime-benchmarks = [
 ]
 std = [
     "codec/std",
+    "orml-tokens/std",
+    "pallet-balances/std",
     "frame-support/std",
     "frame-system/std",
     "hydradx-traits/std",

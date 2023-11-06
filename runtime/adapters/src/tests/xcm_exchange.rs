@@ -163,7 +163,7 @@ fn exchange_asset(
 	want: &MultiAssets,
 	is_sell: bool,
 ) -> Result<Assets, Assets> {
-	XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies, DefaultPoolType>::exchange_asset(
+	XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
 		origin, give, want, is_sell,
 	)
 }
