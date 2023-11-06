@@ -170,7 +170,7 @@ use sp_runtime::{
 	traits::{Bounded as ArithBounded, One, Saturating, StaticLookup, Zero},
 	ArithmeticError, DispatchError, DispatchResult,
 };
-use sp_std::prelude::*;
+use sp_std::{vec, prelude::*};
 
 mod conviction;
 pub mod traits;
