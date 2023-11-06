@@ -4525,7 +4525,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.1.0",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -7299,7 +7299,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.0.1-dev"
+version = "4.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8109,7 +8109,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.1.0",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -11120,7 +11120,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.1.0",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
