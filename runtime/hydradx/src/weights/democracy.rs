@@ -332,4 +332,22 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(5 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
+	fn set_external_metadata() -> Weight {
+		Weight::zero()
+	}
+	fn clear_external_metadata() -> Weight {
+		Weight::zero()
+	}
+	fn set_proposal_metadata() -> Weight {
+		Weight::zero()
+	}
+	fn clear_proposal_metadata() -> Weight {
+		Weight::zero()
+	}
+	fn set_referendum_metadata() -> Weight {
+		Weight::zero()
+	}
+	fn clear_referendum_metadata() -> Weight {
+		Weight::zero()
+	}
 }

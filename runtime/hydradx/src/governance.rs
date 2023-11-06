@@ -27,7 +27,7 @@ use frame_support::{
 	traits::{ConstU32, EitherOfDiverse, LockIdentifier, NeverEnsureOrigin, PrivilegeCmp},
 	PalletId,
 };
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, EnsureSigned};
 use sp_staking::currency_to_vote::U128CurrencyToVote;
 use sp_std::cmp::Ordering;
 
@@ -240,6 +240,7 @@ impl pallet_democracy::Config for Runtime {
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
 	type ExternalDefaultOrigin = AllCouncilMembers;
+	type SubmitOrigin = EnsureSigned<AccountId>;
 	type FastTrackOrigin = MoreThanHalfTechCommittee;
 	type InstantOrigin = AllTechnicalCommitteeMembers;
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
