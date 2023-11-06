@@ -19,18 +19,24 @@
 
 use primitives::Amount;
 
-use crate::inspect::MultiInspectAdapter;
 use frame_support::dispatch::Weight;
+use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::traits::{ConstU128, Contains, Everything, GenesisBuild};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureRoot;
+use hydra_dx_math::ema::EmaPrice;
+use hydra_dx_math::support::rational::Rounding;
+use hydra_dx_math::to_u128_wrapper;
+use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{AssetKind, AssetPairAccountIdFor, CanCreatePool, Registry, ShareTokenRegistry};
 use orml_traits::{parameter_type_with_key, GetByKey};
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool;
+use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use primitive_types::{U128, U256};
 use sp_core::H256;
@@ -43,8 +49,6 @@ use sp_runtime::{
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::marker::PhantomData;
-
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -52,7 +56,6 @@ pub type AccountId = u64;
 pub type Balance = u128;
 pub type AssetId = u32;
 
-pub const ALICE: AccountId = 1;
 pub const DAVE: AccountId = 2;
 pub const CHARLIE: AccountId = 3;
 
@@ -289,7 +292,7 @@ impl DustRemovalAccountWhitelist<AccountId> for DummyDuster {
 pub struct DummyCanCreatePool;
 
 impl CanCreatePool<AssetId> for DummyCanCreatePool {
-	fn can_create(asset_a: AssetId, asset_b: AssetId) -> bool {
+	fn can_create(_: AssetId, _: AssetId) -> bool {
 		true
 	}
 }
@@ -307,62 +310,6 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 }
 pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
 //pub const ASSET_PAIR_ACCOUNT: [u8; 32] = [4u8; 32];
-
-type OriginForRuntime = OriginFor<Test>;
-
-pub struct OmniPoolForRouter;
-
-impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPoolForRouter {
-	type Error = DispatchError;
-
-	fn calculate_sell(
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Omnipool::calculate_sell(pool_type, asset_in, asset_out, amount_in)
-	}
-
-	fn calculate_buy(
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Omnipool::calculate_buy(pool_type, asset_in, asset_out, amount_out)
-	}
-
-	fn execute_sell(
-		who: OriginForRuntime,
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		min_limit: Balance,
-	) -> Result<(), ExecutorError<Self::Error>> {
-		Omnipool::execute_sell(who, pool_type, asset_in, asset_out, amount_in, min_limit)
-	}
-
-	fn execute_buy(
-		who: OriginForRuntime,
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-		max_limit: Balance,
-	) -> Result<(), ExecutorError<Self::Error>> {
-		Omnipool::execute_buy(who, pool_type, asset_in, asset_out, amount_out, max_limit)
-	}
-
-	fn get_liquidity_depth(
-		pool_type: PoolType<AssetId>,
-		asset_a: AssetId,
-		asset_b: AssetId,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Omnipool::get_liquidity_depth(pool_type, asset_a, asset_b)
-	}
-}
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
@@ -580,17 +527,6 @@ impl ExtBuilder {
 	}
 }
 
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use frame_system::pallet_prelude::OriginFor;
-use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::support::rational::Rounding;
-use hydra_dx_math::to_u128_wrapper;
-use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
-use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_omnipool::traits::EnsurePriceWithin;
-use sp_core::crypto::UncheckedFrom;
-
 pub struct DummyNFT;
 
 impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
@@ -671,16 +607,12 @@ where
 	u32: From<<T as pallet_omnipool::Config>::AssetId>,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
-	fn retrieve_shared_asset(name: &Vec<u8>, assets: &[T::AssetId]) -> Result<T::AssetId, DispatchError> {
+	fn retrieve_shared_asset(_: &Vec<u8>, _: &[T::AssetId]) -> Result<T::AssetId, DispatchError> {
 		Ok(T::AssetId::default())
 	}
 
-	fn create_shared_asset(
-		name: &Vec<u8>,
-		assets: &[T::AssetId],
-		existential_deposit: Balance,
-	) -> Result<T::AssetId, DispatchError> {
-		todo!("not implemented method: create_shared_asset")
+	fn create_shared_asset(_: &Vec<u8>, _: &[T::AssetId], _: Balance) -> Result<T::AssetId, DispatchError> {
+		unimplemented!("not implemented method: create_shared_asset")
 	}
 }
 
