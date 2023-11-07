@@ -54,32 +54,6 @@ use pallet_omnipool::weights::WeightInfo;
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	// Storage: Omnipool Assets (r:2 w:2)
-	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:2 w:1)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Uniques Class (r:1 w:1)
-	// Proof: Uniques Class (max_values: None, max_size: Some(190), added: 2665, mode: MaxEncodedLen)
-	// Storage: Tokens TotalIssuance (r:1 w:1)
-	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: Omnipool TvlCap (r:1 w:0)
-	// Proof: Omnipool TvlCap (max_values: Some(1), max_size: Some(16), added: 511, mode: MaxEncodedLen)
-	// Storage: Uniques ClassAccount (r:0 w:1)
-	// Proof: Uniques ClassAccount (max_values: None, max_size: Some(80), added: 2555, mode: MaxEncodedLen)
-	// Storage: Omnipool HubAssetTradability (r:0 w:1)
-	// Proof: Omnipool HubAssetTradability (max_values: Some(1), max_size: Some(1), added: 496, mode: MaxEncodedLen)
-	fn initialize_pool() -> Weight {
-		// Minimum execution time: 142_482 nanoseconds.
-		Weight::from_ref_time(143_649_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(11 as u64))
-			.saturating_add(T::DbWeight::get().writes(8 as u64))
-	}
 	// Storage: Omnipool Assets (r:2 w:1)
 	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:2 w:0)
