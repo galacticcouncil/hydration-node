@@ -46,7 +46,7 @@ fn run_to_block(to: u32) {
 }
 
 const HDX: AssetId = 0;
-const DAI: AssetId = 1;
+const DAI: AssetId = 2;
 
 fn init() -> DispatchResult {
 	let stable_amount: Balance = 1_000_000_000_000_000u128;
@@ -71,7 +71,7 @@ fn init() -> DispatchResult {
 		DAI,
 		stable_price,
 		Permill::from_percent(100),
-		acc.clone(),
+		acc,
 	)?;
 
 	Ok(())
@@ -82,6 +82,8 @@ runtime_benchmarks! {
 
 	add_token{
 		init()?;
+
+		let acc = Omnipool::protocol_account();
 
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
@@ -104,6 +106,7 @@ runtime_benchmarks! {
 
 	add_liquidity {
 		init()?;
+		let acc = Omnipool::protocol_account();
 		//Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
@@ -134,6 +137,7 @@ runtime_benchmarks! {
 
 	remove_liquidity {
 		init()?;
+		let acc = Omnipool::protocol_account();
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
@@ -161,8 +165,8 @@ runtime_benchmarks! {
 
 		// to ensure worst case - Let's do a trade to make sure price changes, so LP provider receives some LRNA ( which does additional transfer)
 		let buyer: AccountId = account("buyer", 2, 1);
-		update_balance(stable_id, &buyer, 500_000_000_000_000_u128);
-		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, stable_id, 100_000_000_000_u128, 100_000_000_000_000_u128)?;
+		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
+		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 100_000_000_000_u128, 100_000_000_000_000_u128)?;
 
 		let hub_id = <Runtime as pallet_omnipool::Config>::HubAssetId::get();
 		let hub_issuance = <Runtime as pallet_omnipool::Config>::Currency::total_issuance(hub_id);
@@ -178,6 +182,7 @@ runtime_benchmarks! {
 
 	sell {
 		init()?;
+		let acc = Omnipool::protocol_account();
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
@@ -204,8 +209,8 @@ runtime_benchmarks! {
 		Omnipool::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
 
 		let buyer: AccountId = account("buyer", 2, 1);
-		update_balance(stable_id, &buyer, 500_000_000_000_000_u128);
-		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, stable_id, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
+		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
+		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
 
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(token_id, &seller, 500_000_000_000_000_u128);
@@ -213,13 +218,14 @@ runtime_benchmarks! {
 		let amount_sell = 100_000_000_000_u128;
 		let buy_min_amount = 10_000_000_000_u128;
 
-	}: { Omnipool::sell(RawOrigin::Signed(seller.clone()).into(), token_id, stable_id, amount_sell, buy_min_amount)? }
+	}: { Omnipool::sell(RawOrigin::Signed(seller.clone()).into(), token_id, DAI, amount_sell, buy_min_amount)? }
 	verify {
-		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(stable_id, &seller) >= buy_min_amount);
+		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(DAI, &seller) >= buy_min_amount);
 	}
 
 	buy {
 		init()?;
+		let acc = Omnipool::protocol_account();
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;
 
@@ -246,8 +252,8 @@ runtime_benchmarks! {
 		Omnipool::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
 
 		let buyer: AccountId = account("buyer", 2, 1);
-		update_balance(stable_id, &buyer, 500_000_000_000_000_u128);
-		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, stable_id, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
+		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
+		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
 
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(token_id, &seller, 500_000_000_000_000_u128);
@@ -255,16 +261,16 @@ runtime_benchmarks! {
 		let amount_buy = 1_000_000_000_000_u128;
 		let sell_max_limit = 2_000_000_000_000_u128;
 
-	}: { Omnipool::buy(RawOrigin::Signed(seller.clone()).into(), stable_id, token_id, amount_buy, sell_max_limit)? }
+	}: { Omnipool::buy(RawOrigin::Signed(seller.clone()).into(), DAI, token_id, amount_buy, sell_max_limit)? }
 	verify {
-		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(stable_id, &seller) >= Balance::zero());
+		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(DAI, &seller) >= Balance::zero());
 	}
 
 	set_asset_tradable_state {
 		init()?;
 	}: { Omnipool::set_asset_tradable_state(RawOrigin::Root.into(), DAI, Tradability::BUY)? }
 	verify {
-		let asset_state = Omnipool::assets(stable_id).unwrap();
+		let asset_state = Omnipool::assets(DAI).unwrap();
 		assert!(asset_state.tradable == Tradability::BUY);
 	}
 
@@ -283,6 +289,7 @@ runtime_benchmarks! {
 
 	sacrifice_position {
 		init()?;
+		let acc = Omnipool::protocol_account();
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
 		// Create account for token provider and set balance
@@ -313,15 +320,16 @@ runtime_benchmarks! {
 	}
 
 	set_asset_weight_cap {
-		init?();
+		init()?;
 	}: { Omnipool::set_asset_weight_cap(RawOrigin::Root.into(), DAI, Permill::from_percent(10))? }
 	verify {
-		let asset_state = Omnipool::assets(stable_id).unwrap();
+		let asset_state = Omnipool::assets(DAI).unwrap();
 		assert!(asset_state.cap == 100_000_000_000_000_000u128);
 	}
 
 	withdraw_protocol_liquidity {
 		init()?;
+		let acc = Omnipool::protocol_account();
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
@@ -360,6 +368,7 @@ runtime_benchmarks! {
 
 	remove_token{
 		init()?;
+		let acc = Omnipool::protocol_account();
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
@@ -397,6 +406,7 @@ runtime_benchmarks! {
 		let e in 0..1;	// if e == 1, execute_sell is executed
 		init()?;
 
+		let acc = Omnipool::protocol_account();
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
@@ -423,8 +433,8 @@ runtime_benchmarks! {
 		Omnipool::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
 
 		let buyer: AccountId = account("buyer", 2, 1);
-		update_balance(stable_id, &buyer, 500_000_000_000_000_u128);
-		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, stable_id, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
+		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
+		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
 
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(token_id, &seller, 500_000_000_000_000_u128);
@@ -434,15 +444,15 @@ runtime_benchmarks! {
 
 	}: {
 		if c != 0 {
-			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_sell(PoolType::Omnipool, token_id, stable_id, amount_sell).is_ok());
+			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_sell(PoolType::Omnipool, token_id, DAI, amount_sell).is_ok());
 		}
 		if e != 0 {
-			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, stable_id, amount_sell, buy_min_amount).is_ok());
+			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, DAI, amount_sell, buy_min_amount).is_ok());
 		}
 	}
 	verify {
 		if e != 0 {
-			assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(stable_id, &seller) >= buy_min_amount);
+			assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(DAI, &seller) >= buy_min_amount);
 		}
 	}
 
@@ -451,6 +461,7 @@ runtime_benchmarks! {
 		let e in 0..1;	// if e == 1, execute_buy is executed
 		init()?;
 
+		let acc = Omnipool::protocol_account();
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;
 
@@ -477,8 +488,8 @@ runtime_benchmarks! {
 		Omnipool::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
 
 		let buyer: AccountId = account("buyer", 2, 1);
-		update_balance(stable_id, &buyer, 500_000_000_000_000_u128);
-		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, stable_id, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
+		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
+		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
 
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(token_id, &seller, 500_000_000_000_000_u128);
@@ -488,13 +499,13 @@ runtime_benchmarks! {
 
 	}: {
 		for _ in 1..c {
-			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_buy(PoolType::Omnipool, token_id, stable_id, amount_buy).is_ok());
+			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_buy(PoolType::Omnipool, token_id, DAI, amount_buy).is_ok());
 		}
-		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, stable_id, amount_buy, sell_max_limit).is_ok());
+		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, DAI, amount_buy, sell_max_limit).is_ok());
 	}
 	verify {
 		if e != 0 {
-			assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(stable_id, &seller) >= Balance::zero());
+			assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(DAI, &seller) >= Balance::zero());
 		}
 	}
 

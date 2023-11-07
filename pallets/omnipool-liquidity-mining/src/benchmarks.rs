@@ -17,7 +17,6 @@
 
 use crate::*;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::assert_ok;
 use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::{Pallet as System, RawOrigin};
 use hydradx_traits::Registry;
@@ -26,7 +25,6 @@ use pallet_liquidity_mining::Instance1;
 use primitives::AssetId;
 use sp_runtime::{traits::One, FixedU128, Permill};
 
-const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
 const ONE: Balance = 1_000_000_000_000;
 const BTC_ONE: Balance = 100_000_000;
 const HDX: AssetId = 0;
@@ -91,43 +89,32 @@ where
 	Pallet::<T>::create_yield_farm(RawOrigin::Signed(owner).into(), id, asset, FixedU128::one(), None)
 }
 
-fn update_balance<T: Config>(currency_id: AssetId, who: &T::AccountId, balance: Balance) {
-	assert_ok!(
-		<<T as pallet_omnipool::Config>::Currency as MultiCurrencyExtended<_>>::update_balance(
-			currency_id,
-			who,
-			balance.saturated_into()
-		)
-	);
-}
-
 fn initialize_omnipool<T: Config>() -> DispatchResult
 where
 	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: pallet_ema_oracle::Config,
 	T::AssetId: From<u32>,
 {
-	init()?;
 	let stable_amount: Balance = 1_000_000_000_000_000u128;
 	let native_amount: Balance = 1_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));
 	let native_price: FixedU128 = FixedU128::from(1);
 
-	let acc = OmnipoolPallet::protocol_account();
+	let acc = OmnipoolPallet::<T>::protocol_account();
 
-	update_balance(DAI, &acc, stable_amount);
-	update_balance(HDX, &acc, native_amount);
+	<T as pallet_omnipool::Config>::Currency::update_balance(DAI.into(), &acc, stable_amount as i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &acc, native_amount as i128)?;
 
-	OmnipoolPallet::add_token(
+	OmnipoolPallet::<T>::add_token(
 		RawOrigin::Root.into(),
-		HDX,
+		HDX.into(),
 		native_price,
 		Permill::from_percent(100),
 		acc.clone(),
 	)?;
-	OmnipoolPallet::add_token(
+	OmnipoolPallet::<T>::add_token(
 		RawOrigin::Root.into(),
-		DAI,
+		DAI.into(),
 		stable_price,
 		Permill::from_percent(100),
 		acc.clone(),
