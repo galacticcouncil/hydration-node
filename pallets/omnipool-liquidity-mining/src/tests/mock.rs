@@ -277,7 +277,6 @@ impl pallet_omnipool::Config for Test {
 	type Currency = Tokens;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
-	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PositionCollectionId;

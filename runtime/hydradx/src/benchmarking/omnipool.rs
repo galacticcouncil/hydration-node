@@ -3,6 +3,7 @@ use crate::{AccountId, AssetId, AssetRegistry, Balance, EmaOracle, Omnipool, Run
 use super::*;
 
 use frame_benchmarking::account;
+use frame_support::dispatch::DispatchResult;
 use frame_support::{
 	assert_ok,
 	sp_runtime::{
@@ -30,8 +31,6 @@ pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
 	);
 }
 
-const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
-
 fn run_to_block(to: u32) {
 	while System::block_number() < to {
 		let b = System::block_number();
@@ -46,47 +45,43 @@ fn run_to_block(to: u32) {
 	}
 }
 
+const HDX: AssetId = 0;
+const DAI: AssetId = 1;
+
+fn init() -> DispatchResult {
+	let stable_amount: Balance = 1_000_000_000_000_000u128;
+	let native_amount: Balance = 1_000_000_000_000_000u128;
+	let stable_price: FixedU128 = FixedU128::from((1, 2));
+	let native_price: FixedU128 = FixedU128::from(1);
+
+	let acc = Omnipool::protocol_account();
+
+	update_balance(DAI, &acc, stable_amount);
+	update_balance(HDX, &acc, native_amount);
+
+	Omnipool::add_token(
+		RawOrigin::Root.into(),
+		HDX,
+		native_price,
+		Permill::from_percent(100),
+		acc.clone(),
+	)?;
+	Omnipool::add_token(
+		RawOrigin::Root.into(),
+		DAI,
+		stable_price,
+		Permill::from_percent(100),
+		acc.clone(),
+	)?;
+
+	Ok(())
+}
+
 runtime_benchmarks! {
 	{Runtime, pallet_omnipool}
 
-	initialize_pool {
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128 = FixedU128::from((1,2));
-		let native_price: FixedU128 = FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-	}: { Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))? }
-	verify {
-		assert!(Omnipool::assets(stable_id).is_some());
-		assert!(Omnipool::assets(native_id).is_some());
-	}
-
 	add_token{
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128= FixedU128::from((1,2));
-		let native_price: FixedU128= FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		init()?;
 
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
@@ -108,23 +103,7 @@ runtime_benchmarks! {
 	}
 
 	add_liquidity {
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128= FixedU128::from((1,2));
-		let native_price: FixedU128= FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
-
+		init()?;
 		//Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
@@ -154,23 +133,7 @@ runtime_benchmarks! {
 	}
 
 	remove_liquidity {
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128= FixedU128::from((1,2));
-		let native_price: FixedU128= FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
-
+		init()?;
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
@@ -214,23 +177,7 @@ runtime_benchmarks! {
 	}
 
 	sell {
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128 = FixedU128::from((1,2));
-		let native_price: FixedU128 = FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
-
+		init()?;
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
@@ -272,23 +219,7 @@ runtime_benchmarks! {
 	}
 
 	buy {
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128= FixedU128::from((1,2));
-		let native_price: FixedU128= FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
-
+		init()?;
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;
 
@@ -330,24 +261,8 @@ runtime_benchmarks! {
 	}
 
 	set_asset_tradable_state {
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128 = FixedU128::from((1,2));
-		let native_price: FixedU128 = FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))?;
-
-	}: { Omnipool::set_asset_tradable_state(RawOrigin::Root.into(), stable_id, Tradability::BUY)? }
+		init()?;
+	}: { Omnipool::set_asset_tradable_state(RawOrigin::Root.into(), DAI, Tradability::BUY)? }
 	verify {
 		let asset_state = Omnipool::assets(stable_id).unwrap();
 		assert!(asset_state.tradable == Tradability::BUY);
@@ -367,24 +282,7 @@ runtime_benchmarks! {
 	}
 
 	sacrifice_position {
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128= FixedU128::from((1,2));
-		let native_price: FixedU128= FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))?;
-
-		// Register new asset in asset registry
+		init()?;
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
 		// Create account for token provider and set balance
@@ -415,47 +313,15 @@ runtime_benchmarks! {
 	}
 
 	set_asset_weight_cap {
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128 = FixedU128::from((1,2));
-		let native_price: FixedU128 = FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))?;
-
-	}: { Omnipool::set_asset_weight_cap(RawOrigin::Root.into(), stable_id, Permill::from_percent(10))? }
+		init?();
+	}: { Omnipool::set_asset_weight_cap(RawOrigin::Root.into(), DAI, Permill::from_percent(10))? }
 	verify {
 		let asset_state = Omnipool::assets(stable_id).unwrap();
 		assert!(asset_state.cap == 100_000_000_000_000_000u128);
 	}
 
 	withdraw_protocol_liquidity {
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128= FixedU128::from((1,2));
-		let native_price: FixedU128= FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))?;
-
+		init()?;
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
@@ -493,23 +359,7 @@ runtime_benchmarks! {
 	}
 
 	remove_token{
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128= FixedU128::from((1,2));
-		let native_price: FixedU128= FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))?;
-
+		init()?;
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
@@ -545,23 +395,7 @@ runtime_benchmarks! {
 	router_execution_sell {
 		let c in 0..1;	// if c == 1, calculate_sell is executed
 		let e in 0..1;	// if e == 1, execute_sell is executed
-
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128 = FixedU128::from((1,2));
-		let native_price: FixedU128 = FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		init()?;
 
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
@@ -615,23 +449,7 @@ runtime_benchmarks! {
 	router_execution_buy {
 		let c in 1..2;	// number of times calculate_buy is executed
 		let e in 0..1;	// if e == 1, execute_buy is executed
-
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128= FixedU128::from((1,2));
-		let native_price: FixedU128= FixedU128::from(1);
-
-		let acc = Omnipool::protocol_account();
-		let native_id = <Runtime as pallet_omnipool::Config>::HdxAssetId::get();
-		let stable_id = <Runtime as pallet_omnipool::Config>::StableCoinAssetId::get();
-
-		Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-		update_balance(stable_id, &acc, stable_amount);
-		update_balance(native_id, &acc, native_amount);
-
-		Omnipool::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		init()?;
 
 		// Register new asset in asset registry
 		let token_id = AssetRegistry::create_asset(&b"FCK".to_vec(), 1_u128)?;

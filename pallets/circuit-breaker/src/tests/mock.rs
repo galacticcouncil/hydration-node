@@ -582,12 +582,19 @@ impl ExtBuilder {
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				assert_ok!(Omnipool::initialize_pool(
+				assert_ok!(Omnipool::add_token(
 					RuntimeOrigin::root(),
-					stable_price,
+					HDXAssetId::get(),
 					native_price,
 					Permill::from_percent(100),
-					Permill::from_percent(100)
+					Omnipool::protocol_account(),
+				));
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					DAIAssetId::get(),
+					stable_price,
+					Permill::from_percent(100),
+					Omnipool::protocol_account(),
 				));
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
