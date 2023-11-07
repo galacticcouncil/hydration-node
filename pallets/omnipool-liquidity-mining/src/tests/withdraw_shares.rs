@@ -48,7 +48,7 @@ fn withdraw_shares_should_unlock_omnipool_position_when_last_entry_in_deposit() 
 		.execute_with(|| {
 			let global_farm_id = 1;
 			let yield_farm_id = 2;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 2;
 			let deposit_id = 1;
 
 			//Arrange: deposit shares
@@ -154,7 +154,7 @@ fn withdraw_shares_should_not_unlock_omnipool_position_when_deposit_is_not_burne
 			let gc_y_farm_id = 3;
 			let charlie_g_farm_id = 2;
 			let charlie_y_farm_id = 4;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 2;
 			let deposit_id = 1;
 
 			//Arrange: deposit shares & redeposit
@@ -241,7 +241,7 @@ fn withdraw_shares_should_fail_when_origin_is_none() {
 		.execute_with(|| {
 			let global_farm_id = 1;
 			let yield_farm_id = 2;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 2;
 			let deposit_id = 1;
 
 			//Arrange: deposit shares
@@ -293,7 +293,7 @@ fn withdraw_shares_should_fail_with_not_deposit_owner_when_account_is_not_owner(
 		.execute_with(|| {
 			let global_farm_id = 1;
 			let yield_farm_id = 2;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 2;
 			let deposit_id = 1;
 
 			//Arrange: deposit shares
@@ -345,7 +345,7 @@ fn withdraw_shares_should_fail_with_not_deposit_owner_when_nft_is_missing() {
 		.execute_with(|| {
 			let global_farm_id = 1;
 			let yield_farm_id = 2;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 2;
 			let deposit_id = 1;
 
 			//Arrange: deposit shares

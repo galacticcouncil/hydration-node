@@ -6598,7 +6598,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7749,7 +7749,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm-rate-limiter"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-benchmarking",
