@@ -42,6 +42,7 @@ use primitive_types::H160;
 use primitives::{AssetId, Balance};
 use sp_runtime::{traits::Dispatchable, RuntimeDebug};
 use sp_std::{marker::PhantomData, prelude::*};
+use hydradx_traits::InspectRegistry;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -121,15 +122,15 @@ where
 		let input = handle.read_input()?;
 		input.expect_arguments(0)?;
 
-		match <pallet_asset_registry::Pallet<Runtime>>::retrieve_asset_name(asset_id.into()) {
-			Ok(name) => {
+		match <pallet_asset_registry::Pallet<Runtime>>::asset_name(asset_id.into()) {
+			Some(name) => {
 				log::debug!(target: "evm", "multicurrency: symbol: {:?}", name);
 
 				let encoded = Output::encode_bytes(name.as_slice());
 
 				Ok(succeed(encoded))
 			}
-			Err(_) => Err(PrecompileFailure::Error {
+			None => Err(PrecompileFailure::Error {
 				exit_status: pallet_evm::ExitError::Other("Non-existing asset.".into()),
 			}),
 		}
@@ -142,15 +143,15 @@ where
 		let input = handle.read_input()?;
 		input.expect_arguments(0)?;
 
-		match <pallet_asset_registry::Pallet<Runtime>>::retrieve_asset_symbol(asset_id.into()) {
-			Ok(symbol) => {
+		match <pallet_asset_registry::Pallet<Runtime>>::asset_symbol(asset_id.into()) {
+			Some(symbol) => {
 				log::debug!(target: "evm", "multicurrency: name: {:?}", symbol);
 
 				let encoded = Output::encode_bytes(symbol.as_slice());
 
 				Ok(succeed(encoded))
 			}
-			Err(_) => Err(PrecompileFailure::Error {
+			None => Err(PrecompileFailure::Error {
 				exit_status: pallet_evm::ExitError::Other("Non-existing asset.".into()),
 			}),
 		}
@@ -163,15 +164,15 @@ where
 		let input = handle.read_input()?;
 		input.expect_arguments(0)?;
 
-		match <pallet_asset_registry::Pallet<Runtime>>::retrieve_asset_decimals(asset_id.into()) {
-			Ok(decimals) => {
+		match <pallet_asset_registry::Pallet<Runtime>>::decimals(asset_id.into()) {
+			Some(decimals) => {
 				log::debug!(target: "evm", "multicurrency: decimals: {:?}", decimals);
 
 				let encoded = Output::encode_uint::<u8>(decimals);
 
 				Ok(succeed(encoded))
 			}
-			Err(_) => Err(PrecompileFailure::Error {
+			None => Err(PrecompileFailure::Error {
 				exit_status: pallet_evm::ExitError::Other("Non-existing asset.".into()),
 			}),
 		}

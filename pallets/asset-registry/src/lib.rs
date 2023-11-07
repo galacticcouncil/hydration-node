@@ -630,12 +630,20 @@ impl<T: Config> CreateRegistry<T::AssetId, T::Balance> for Pallet<T> {
 	}
 }
 
-impl<T: Config> InspectRegistry<T::AssetId> for Pallet<T> {
+impl<T: Config> InspectRegistry<T::AssetId, BoundedVec<u8, <T as Config>::StringLimit>> for Pallet<T> {
 	fn exists(asset_id: T::AssetId) -> bool {
 		Assets::<T>::contains_key(asset_id)
 	}
 
 	fn decimals(asset_id: T::AssetId) -> Option<u8> {
 		Some(AssetMetadataMap::<T>::get(asset_id)?.decimals)
+	}
+
+	fn asset_name(asset_id: T::AssetId) -> Option<BoundedVec<u8, <T as Config>::StringLimit>> {
+		Some(Assets::<T>::get(asset_id)?.name)
+	}
+
+	fn asset_symbol(asset_id: T::AssetId) -> Option<BoundedVec<u8, <T as Config>::StringLimit>> {
+		Some(AssetMetadataMap::<T>::get(asset_id)?.symbol)
 	}
 }
