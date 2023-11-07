@@ -39,11 +39,11 @@ pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<Asset
 	}
 }
 
-pub trait InspectRegistry<AssetId, BoundedString> {
+pub trait InspectRegistry<AssetId> {
 	fn exists(asset_id: AssetId) -> bool;
 	fn decimals(asset_id: AssetId) -> Option<u8>;
-	fn asset_name(asset_id: AssetId) -> Option<BoundedString>;
-	fn asset_symbol(asset_id: AssetId) -> Option<BoundedString>;
+	fn asset_name(asset_id: AssetId) -> Option<Vec<u8>>;
+	fn asset_symbol(asset_id: AssetId) -> Option<Vec<u8>>;
 }
 
 #[derive(Eq, PartialEq, Copy, Clone)]

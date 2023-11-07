@@ -35,6 +35,7 @@ use crate::{
 };
 use codec::EncodeLike;
 use frame_support::traits::OriginTrait;
+use hydradx_traits::InspectRegistry;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
@@ -42,7 +43,6 @@ use primitive_types::H160;
 use primitives::{AssetId, Balance};
 use sp_runtime::{traits::Dispatchable, RuntimeDebug};
 use sp_std::{marker::PhantomData, prelude::*};
-use hydradx_traits::InspectRegistry;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]

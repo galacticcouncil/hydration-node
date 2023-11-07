@@ -64,7 +64,6 @@ use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
 use weights::WeightInfo;
-use pallet_asset_registry::Config as PalletAssetRegistryConfig;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -127,7 +126,7 @@ pub mod pallet {
 		type ShareAccountId: AccountIdFor<Self::AssetId, AccountId = Self::AccountId>;
 
 		/// Asset registry mechanism
-		type AssetInspection: InspectRegistry<Self::AssetId, BoundedVec<u8,  <T as PalletAssetRegistryConfig>::StringLimit>>;
+		type AssetInspection: InspectRegistry<Self::AssetId>;
 
 		/// The origin which can create a new pool
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;

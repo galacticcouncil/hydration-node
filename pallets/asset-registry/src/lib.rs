@@ -630,7 +630,7 @@ impl<T: Config> CreateRegistry<T::AssetId, T::Balance> for Pallet<T> {
 	}
 }
 
-impl<T: Config> InspectRegistry<T::AssetId, BoundedVec<u8, <T as Config>::StringLimit>> for Pallet<T> {
+impl<T: Config> InspectRegistry<T::AssetId> for Pallet<T> {
 	fn exists(asset_id: T::AssetId) -> bool {
 		Assets::<T>::contains_key(asset_id)
 	}
@@ -639,11 +639,13 @@ impl<T: Config> InspectRegistry<T::AssetId, BoundedVec<u8, <T as Config>::String
 		Some(AssetMetadataMap::<T>::get(asset_id)?.decimals)
 	}
 
-	fn asset_name(asset_id: T::AssetId) -> Option<BoundedVec<u8, <T as Config>::StringLimit>> {
-		Some(Assets::<T>::get(asset_id)?.name)
+	fn asset_name(asset_id: T::AssetId) -> Option<Vec<u8>> {
+		let asset = Assets::<T>::get(asset_id)?;
+		Some(asset.name.into_inner())
 	}
 
-	fn asset_symbol(asset_id: T::AssetId) -> Option<BoundedVec<u8, <T as Config>::StringLimit>> {
-		Some(AssetMetadataMap::<T>::get(asset_id)?.symbol)
+	fn asset_symbol(asset_id: T::AssetId) -> Option<Vec<u8>> {
+		let asset_metadata = AssetMetadataMap::<T>::get(asset_id)?;
+		Some(asset_metadata.symbol.into_inner())
 	}
 }
