@@ -51,7 +51,7 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_traits::router::Trade;
+use hydradx_traits::router::{RouteProvider, Trade};
 use orml_traits::currency::MutationHooks;
 use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
@@ -470,9 +470,10 @@ impl pallet_dca::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type OraclePriceProvider = DummyOraclePriceProvider;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type Router = Router;
+	type RouteExecutor = Router;
 	#[cfg(feature = "runtime-benchmarks")]
-	type Router = pallet_route_executor::DummyRouter<Runtime>;
+	type RouteExecutor = pallet_route_executor::DummyRouter<Runtime>;
+	type RouteProvider = Runtime;
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -486,6 +487,9 @@ impl pallet_dca::Config for Runtime {
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 	type NativePriceOracle = MultiTransactionPayment;
 }
+
+//Using the default implementation, will be replaced with the real implementation once we have routes stored
+impl RouteProvider<AssetId> for Runtime {}
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
 // the router extrinsic overhead and the AMM weight.
@@ -906,6 +910,7 @@ impl pallet_lbp::Config for Runtime {
 parameter_types! {
 	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
 	pub const DiscountedFee: (u32, u32) = (7, 10_000);
+	pub const XYKOracleSourceIdentifier: Source = *b"hydraxyk";
 }
 
 impl pallet_xyk::Config for Runtime {
@@ -924,4 +929,5 @@ impl pallet_xyk::Config for Runtime {
 	type AMMHandler = pallet_ema_oracle::OnActivityHandler<Runtime>;
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;
+	type OracleSource = XYKOracleSourceIdentifier;
 }

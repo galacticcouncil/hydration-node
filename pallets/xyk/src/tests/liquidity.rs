@@ -1,11 +1,9 @@
 pub use super::mock::*;
+use crate::types::{AssetPair, Balance};
 use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
-
-use primitives::asset::AssetPair;
-use primitives::Balance;
 
 #[test]
 fn add_liquidity_should_work() {
