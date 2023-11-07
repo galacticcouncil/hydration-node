@@ -46,7 +46,7 @@ pub use pallet::*;
 
 pub use crate::types::{AssetDetails, AssetMetadata};
 use frame_support::BoundedVec;
-use hydradx_traits::{AssetKind, CreateRegistry, InspectRegistry, Registry, RegistryQueryForEvm, ShareTokenRegistry};
+use hydradx_traits::{AssetKind, CreateRegistry, InspectRegistry, Registry, ShareTokenRegistry};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -548,32 +548,6 @@ impl<T: Config> Pallet<T> {
 	/// Return asset for given loation.
 	pub fn location_to_asset(location: T::AssetNativeLocation) -> Option<T::AssetId> {
 		Self::location_assets(location)
-	}
-}
-
-impl<T: Config> RegistryQueryForEvm<T::AssetId, T::StringLimit, DispatchError> for Pallet<T> {
-	fn retrieve_asset_name(id: T::AssetId) -> Result<BoundedVec<u8, <T as Config>::StringLimit>, DispatchError> {
-		if let Some(details) = Assets::<T>::get(id) {
-			Ok(details.name)
-		} else {
-			Err(Error::<T>::AssetNotFound.into())
-		}
-	}
-
-	fn retrieve_asset_symbol(id: T::AssetId) -> Result<BoundedVec<u8, <T as Config>::StringLimit>, DispatchError> {
-		if let Some(meta) = AssetMetadataMap::<T>::get(id) {
-			Ok(meta.symbol)
-		} else {
-			Err(Error::<T>::AssetNotFound.into())
-		}
-	}
-
-	fn retrieve_asset_decimals(id: T::AssetId) -> Result<u8, DispatchError> {
-		if let Some(meta) = AssetMetadataMap::<T>::get(id) {
-			Ok(meta.decimals)
-		} else {
-			Err(Error::<T>::AssetNotFound.into())
-		}
 	}
 }
 

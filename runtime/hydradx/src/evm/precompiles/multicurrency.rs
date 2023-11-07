@@ -35,7 +35,6 @@ use crate::{
 };
 use codec::EncodeLike;
 use frame_support::traits::OriginTrait;
-use hydradx_traits::RegistryQueryForEvm;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};

@@ -18,15 +18,6 @@ pub trait Registry<AssetId, AssetName, Balance, Error> {
 		}
 	}
 }
-
-pub trait RegistryQueryForEvm<AssetId, NameStringLimit, Error> {
-	fn retrieve_asset_name(name: AssetId) -> Result<BoundedVec<u8, NameStringLimit>, Error>;
-
-	fn retrieve_asset_symbol(name: AssetId) -> Result<BoundedVec<u8, NameStringLimit>, Error>;
-
-	fn retrieve_asset_decimals(name: AssetId) -> Result<u8, Error>;
-}
-
 // Use CreateRegistry if possible
 pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<AssetId, AssetName, Balance, Error> {
 	fn retrieve_shared_asset(name: &AssetName, assets: &[AssetId]) -> Result<AssetId, Error>;
