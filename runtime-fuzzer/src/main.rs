@@ -190,8 +190,8 @@ fn main() {
 			ema_oracle: Default::default(),
 			duster: DusterConfig {
 				account_blacklist: vec![],
-				reward_account: None,
-				dust_account: None,
+				reward_account: endowed_accounts.first().cloned(),
+				dust_account: endowed_accounts.first().cloned(),
 			},
 			omnipool_warehouse_lm: Default::default(),
 			omnipool_liquidity_mining: Default::default(),
