@@ -167,6 +167,8 @@ pub mod pallet {
 		/// - `amount_in`: The amount of `asset_in` to sell
 		/// - `min_amount_out`: The minimum amount of `asset_out` to receive.
 		/// - `route`: Series of [`Trade<AssetId>`] to be executed. A [`Trade<AssetId>`] specifies the asset pair (`asset_in`, `asset_out`) and the AMM (`pool`) in which the trade is executed.
+		/// 		   If not specified, than the on-chain route is used.
+		/// 		   If no on-chain is present, then omnipool route is used as default
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(0)]
@@ -248,6 +250,8 @@ pub mod pallet {
 		/// - `amount_out`: The amount of `asset_out` to buy
 		/// - `max_amount_in`: The max amount of `asset_in` to spend on the buy.
 		/// - `route`: Series of [`Trade<AssetId>`] to be executed. A [`Trade<AssetId>`] specifies the asset pair (`asset_in`, `asset_out`) and the AMM (`pool`) in which the trade is executed.
+		/// 		   If not specified, than the on-chain route is used.
+		/// 		   If no on-chain is present, then omnipool route is used as default
 		///
 		/// Emits `RouteExecuted` when successful.
 		#[pallet::call_index(1)]
@@ -316,7 +320,24 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// TODO: Add documentation
+		/// Sets the on-chain route for a given asset pair.
+		///
+		/// The new route is validated by being executed in a dry-run mode
+		///
+		/// If there is already an existing route for given asset pair, then the specified new route is compared to it.
+		/// The comparison happens by calculating sell amount_outs for the routes, but also for the inversed routes.
+		///
+		/// The route is stored in an ordered manner, based on the oder of the ids in the asset pair.
+		///
+		/// If the route is set successfully, then the fee is payed back.
+		///
+		/// - `origin`: The origin of the route setter
+		/// - `asset_pair`: The identifier of the asset-pair for which the route is set
+		/// - `route`: Series of [`Trade<AssetId>`] to be executed. A [`Trade<AssetId>`] specifies the asset pair (`asset_in`, `asset_out`) and the AMM (`pool`) in which the trade is executed.
+		///
+		/// Emits `RouteUpdated` when successful.
+		/// Emits `RouteUpdateIsNotSuccessful` when failed to set the route
+		///
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::sell_weight(route))] //TODO: add proper weight
 		#[transactional]
