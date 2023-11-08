@@ -3832,7 +3832,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "184.0.0"
+version = "187.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -6912,7 +6912,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.6.16"
+version = "4.7.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6924,7 +6924,6 @@ dependencies = [
  "orml-traits",
  "parity-scale-codec",
  "primitive-types",
- "primitives",
  "proptest",
  "rug",
  "scale-info",
@@ -7119,7 +7118,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "3.2.3"
+version = "3.3.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7780,7 +7779,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.2.10"
+version = "6.3.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7795,7 +7794,6 @@ dependencies = [
  "pallet-asset-registry",
  "parity-scale-codec",
  "primitive-types",
- "primitives",
  "proptest",
  "scale-info",
  "serde",
@@ -9468,7 +9466,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.8.5"
+version = "6.0.0"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -10221,7 +10219,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.13.2"
+version = "1.15.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",

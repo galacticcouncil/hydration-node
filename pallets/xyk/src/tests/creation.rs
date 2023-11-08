@@ -7,7 +7,7 @@ use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
 use sp_std::convert::TryInto;
 
-use primitives::asset::AssetPair;
+use crate::types::AssetPair;
 
 #[test]
 fn create_pool_should_work() {

@@ -248,6 +248,7 @@ impl pallet_xyk::Config for Test {
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
+	type OracleSource = ();
 	type CanCreatePool = DummyCanCreatePool;
 	type AMMHandler = ();
 	type DiscountedFee = DiscountedFee;

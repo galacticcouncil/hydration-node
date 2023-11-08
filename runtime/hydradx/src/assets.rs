@@ -964,6 +964,7 @@ impl pallet_lbp::Config for Runtime {
 parameter_types! {
 	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
 	pub const DiscountedFee: (u32, u32) = (7, 10_000);
+	pub const XYKOracleSourceIdentifier: Source = *b"hydraxyk";
 }
 
 impl pallet_xyk::Config for Runtime {
@@ -982,4 +983,5 @@ impl pallet_xyk::Config for Runtime {
 	type AMMHandler = pallet_ema_oracle::OnActivityHandler<Runtime>;
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;
+	type OracleSource = XYKOracleSourceIdentifier;
 }

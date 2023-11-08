@@ -21,7 +21,7 @@ use pallet_omnipool::traits::OmnipoolHooks;
 use pallet_omnipool::weights::WeightInfo as OmnipoolWeights;
 use pallet_route_executor::AmmTradeWeights;
 
-use primitives::asset::AssetPair;
+use pallet_xyk::types::AssetPair;
 
 use hydradx_traits::router::AssetPair as Pair;
 
@@ -2893,7 +2893,7 @@ fn create_lbp_pool_with_amounts(accumulated_asset: u32, amount_a: u128, distribu
 }
 
 fn get_lbp_pair_account_id(asset_a: AssetId, asset_b: AssetId) -> AccountId {
-	let asset_pair = AssetPair {
+	let asset_pair = pallet_lbp::AssetPair {
 		asset_in: asset_a,
 		asset_out: asset_b,
 	};
