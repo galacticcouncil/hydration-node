@@ -3,7 +3,7 @@ use frame_support::dispatch::DispatchResult;
 
 pub trait DemocracyHooks<AccountId, Balance> {
 	fn on_vote(who: &AccountId, ref_index: ReferendumIndex, vote: AccountVote<Balance>) -> DispatchResult;
-	fn on_remove_vote(who: &AccountId, ref_index: ReferendumIndex) -> DispatchResult;
+	fn on_remove_vote(who: &AccountId, ref_index: ReferendumIndex, finished: Option<bool>) -> DispatchResult;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn on_vote_worst_case(_who: &AccountId);
@@ -17,7 +17,7 @@ impl<AccountId, Balance> DemocracyHooks<AccountId, Balance> for () {
 		Ok(())
 	}
 
-	fn on_remove_vote(_who: &AccountId, _ref_index: ReferendumIndex) -> DispatchResult {
+	fn on_remove_vote(_who: &AccountId, _ref_index: ReferendumIndex, _finished: Option<bool>) -> DispatchResult {
 		Ok(())
 	}
 

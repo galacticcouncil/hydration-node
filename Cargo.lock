@@ -3811,7 +3811,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 2.0.0",
+ "pallet-staking 2.1.0",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "parity-scale-codec",
@@ -3831,7 +3831,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "187.0.0"
+version = "188.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -3873,7 +3873,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.0.2",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -3893,7 +3893,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.0.0",
+ "pallet-staking 2.1.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -6657,7 +6657,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.0.1-dev"
+version = "4.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7410,7 +7410,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7420,7 +7420,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.0.2",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -10258,7 +10258,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.1-dev",
+ "pallet-democracy 4.0.2",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -10273,7 +10273,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.0.0",
+ "pallet-staking 2.1.0",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",

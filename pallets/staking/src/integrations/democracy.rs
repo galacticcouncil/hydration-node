@@ -83,12 +83,19 @@ where
 		})
 	}
 
-	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> DispatchResult {
+	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex, finished: Option<bool>) -> DispatchResult {
 		let position_id = if let Some(position_id) = Pallet::<T>::get_user_position_id(who)? {
 			position_id
 		} else {
 			return Ok(());
 		};
+
+		// Dont allow to remove vote if referendum is finished and staking position exists
+		if let Some(is_finished) = finished {
+			if is_finished {
+				return Err(Error::<T>::RemoveVoteNotAllowed.into());
+			}
+		}
 
 		PositionVotes::<T>::try_mutate_exists(position_id, |value| -> DispatchResult {
 			let voting = match value.as_mut() {
