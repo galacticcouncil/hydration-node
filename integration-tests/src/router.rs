@@ -2206,7 +2206,10 @@ mod omnipool_stableswap_router_tests {
 
 mod set_route {
 	use super::*;
+	use frame_support::storage::with_transaction;
+	use hydradx_traits::router::inverse_route;
 	use hydradx_traits::router::PoolType;
+	use sp_runtime::TransactionOutcome;
 
 	#[test]
 	fn set_route_should_work_with_all_pools_involved() {
@@ -2278,80 +2281,81 @@ mod set_route {
 
 				let asset_pair = Pair::new(HDX, DOT);
 
-				//Test which is better
-				//TODO: once this feature is finalized, we can remove these helper trades, they were just used to check which price is really better
-				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE);
+				//Verify if the cheaper route is indeed cheaper in both ways
+				let amount_to_sell = 100 * UNITS;
 
-				//A scenario
-				/*assert_ok!(Router::sell(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					HDX,
-					DOT,
-					amount_to_sell,
-					0,
-					route1.clone()
-				));
-				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE + 148491515972);
+				//Check for normal route
+				let dot_amount_out = with_transaction::<_, _, _>(|| {
+					assert_ok!(Router::sell(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						HDX,
+						DOT,
+						amount_to_sell,
+						0,
+						route1.clone()
+					));
+					let alice_received_dot =
+						Currencies::free_balance(DOT, &AccountId::from(ALICE)) - ALICE_INITIAL_DOT_BALANCE;
 
-				//B scenario
-				assert_ok!(Router::sell(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					HDX,
-					DOT,
-					amount_to_sell,
-					0,
-					route2_cheaper.clone()
-				));
-				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE + 297076311982);*/
+					TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_dot))
+				})
+				.unwrap();
 
-				//A scenario reverse
-				//assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+				//Check for normal route
+				let dot_amout_out_for_cheaper_route = with_transaction::<_, _, _>(|| {
+					assert_ok!(Router::sell(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						HDX,
+						DOT,
+						amount_to_sell,
+						0,
+						route2_cheaper.clone()
+					));
+					let alice_received_dot =
+						Currencies::free_balance(DOT, &AccountId::from(ALICE)) - ALICE_INITIAL_DOT_BALANCE;
 
-				/*				assert_ok!(Router::sell(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					DOT,
-					HDX,
-					amount_to_sell,
-					0,
-					reverse_route(route1.clone())
-				));
-				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + 53811238023571793);
+					TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_dot))
+				})
+				.unwrap();
 
-				//B scenario reverse
-				assert_ok!(Router::sell(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					DOT,
-					HDX,
-					amount_to_sell,
-					0,
-					reverse_route(route2_cheaper.clone())
-				));
-				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + 97863960730084445);*/
+				assert!(dot_amout_out_for_cheaper_route > dot_amount_out);
 
-				//A BUY scenario
-				//assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+				// Check for inverse route
+				let amount_out_for_inverse = with_transaction::<_, _, _>(|| {
+					let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+					assert_ok!(Router::sell(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						DOT,
+						HDX,
+						amount_to_sell,
+						0,
+						inverse_route(route1.clone())
+					));
+					let alice_received_hdx = Currencies::free_balance(HDX, &AccountId::from(ALICE)) - alice_hdx_balance;
 
-				/*assert_ok!(Router::buy(
-									hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-									HDX,
-									DOT,
-									2000000000000,
-									Balance::MAX,
-									route1.clone()
-								));
-								assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 35260285057170);
-				*/
-				//B BUY scenario
-				//assert_balance!(ALICE.into(), HDX, 1000 * UNITS);
-				/*assert_ok!(Router::buy(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					HDX,
-					stable_asset_1,
-					2000000000000,
-					Balance::MAX,
-					route2_cheaper.clone()
-				));
-				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 19493069730044);*/
+					TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_hdx))
+				})
+				.unwrap();
+
+				let amount_out_for_inverse_with_chaper_route = with_transaction::<_, _, _>(|| {
+					let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+					assert_ok!(Router::sell(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						DOT,
+						HDX,
+						amount_to_sell,
+						0,
+						inverse_route(route2_cheaper.clone())
+					));
+					let alice_received_hdx = Currencies::free_balance(HDX, &AccountId::from(ALICE)) - alice_hdx_balance;
+
+					TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_hdx))
+				})
+				.unwrap();
+
+				assert!(amount_out_for_inverse_with_chaper_route > amount_out_for_inverse);
+
+				//ACT AND ASSERT
 
 				//We set first the more expensive route
 				assert_ok!(Router::set_route(
