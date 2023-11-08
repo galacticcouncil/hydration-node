@@ -54,6 +54,8 @@ pub const ONE: Balance = 1_000_000_000_000;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
+type AssetLocation = u8;
+
 frame_support::construct_runtime!(
 	pub enum Test where
 	 Block = Block,
@@ -112,7 +114,7 @@ impl pallet_asset_registry::Config for Test {
 	type Currency = Currency;
 	type UpdateOrigin = EnsureSigned<u64>;
 	type AssetId = AssetId;
-	type AssetNativeLocation = u8;
+	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStringLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type StorageFeesAssetId = NativeAssetId;
@@ -216,6 +218,7 @@ impl Config for Test {
 	type DiscountedFee = DiscountedFeeRate;
 	type NonDustableWhitelistHandler = Whitelist;
 	type OracleSource = OracleSourceIdentifier;
+	type AssetLocation = AssetLocation;
 }
 
 pub struct ExtBuilder {

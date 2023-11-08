@@ -64,7 +64,10 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::ShareTokenRegistry};
+	use hydradx_traits::{
+		pools::DustRemovalAccountWhitelist,
+		registry::{AssetKind, Create},
+	};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -77,7 +80,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Registry support
-		type AssetRegistry: ShareTokenRegistry<AssetId, Vec<u8>, Balance, DispatchError>;
+		type AssetRegistry: Create<Self::AssetLocation, Balance, AssetId = AssetId, Error = DispatchError>;
 
 		/// Share token support
 		type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
@@ -129,6 +132,9 @@ pub mod pallet {
 
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
+
+		/// Asset location type
+		type AssetLocation: Parameter + Member + Default + MaxEncodedLen;
 	}
 
 	#[pallet::error]
@@ -344,10 +350,14 @@ pub mod pallet {
 
 			let token_name = asset_pair.name();
 
-			let share_token = T::AssetRegistry::get_or_create_shared_asset(
-				token_name,
-				vec![asset_a, asset_b],
-				T::MinPoolLiquidity::get(),
+			let share_token = T::AssetRegistry::get_or_register_insufficient_asset(
+				&token_name,
+				AssetKind::XYK,
+				None,
+				None,
+				None,
+				None,
+				None,
 			)?;
 
 			let _ = T::AMMHandler::on_create_pool(asset_pair.asset_in, asset_pair.asset_out);
