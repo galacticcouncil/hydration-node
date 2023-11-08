@@ -55,7 +55,7 @@ fn buy_should_work_when_route_has_single_trade() {
 }
 
 #[test]
-fn buy_should_work_with_omnipooL_when_no_route_or_onchain_route_exist() {
+fn buy_should_work_with_omnipool_when_no_route_or_onchain_route_exist() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let amount_to_buy = 10;

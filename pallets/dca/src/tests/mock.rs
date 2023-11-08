@@ -42,8 +42,6 @@ use sp_runtime::{
 	DispatchError,
 };
 
-use hydradx_adapters::inspect::MultiInspectAdapter;
-
 use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResult, FixedU128};
@@ -485,9 +483,9 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 	}
 
 	fn get_liquidity_depth(
-		pool_type: PoolType<AssetId>,
-		asset_a: AssetId,
-		asset_b: AssetId,
+		_pool_type: PoolType<AssetId>,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		todo!("Not implemented as not used directly within DCA context")
 	}
@@ -590,9 +588,9 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 	}
 
 	fn get_liquidity_depth(
-		pool_type: PoolType<AssetId>,
-		asset_a: AssetId,
-		asset_b: AssetId,
+		_pool_type: PoolType<AssetId>,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		todo!("No need to implement it as this is not used directly in DCA")
 	}

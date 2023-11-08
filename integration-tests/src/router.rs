@@ -2,7 +2,6 @@
 #![allow(clippy::identity_op)]
 use super::assert_balance;
 use crate::polkadot_test_net::*;
-use sp_runtime::BoundedVec;
 use std::convert::Into;
 
 use hydradx_adapters::OmnipoolHookAdapter;
@@ -20,8 +19,6 @@ use pallet_lbp::WeightCurveType;
 use pallet_omnipool::traits::OmnipoolHooks;
 use pallet_omnipool::weights::WeightInfo as OmnipoolWeights;
 use pallet_route_executor::AmmTradeWeights;
-
-use pallet_xyk::types::AssetPair;
 
 use hydradx_traits::router::AssetPair as Pair;
 
@@ -2218,7 +2215,7 @@ mod set_route {
 
 			Hydra::execute_with(|| {
 				//Arrange
-				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 				init_omnipool();
 
@@ -2283,7 +2280,6 @@ mod set_route {
 
 				//Test which is better
 				//TODO: once this feature is finalized, we can remove these helper trades, they were just used to check which price is really better
-				let amount_to_sell = 100 * UNITS;
 				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE);
 
 				//A scenario
@@ -2393,8 +2389,6 @@ mod set_route {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let pool_id = 11;
-			let stable_asset_1 = 9876;
 			init_omnipool();
 
 			assert_ok!(Currencies::update_balance(
@@ -2447,7 +2441,6 @@ mod set_route {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let pool_id = 11;
 			init_omnipool();
 
 			assert_ok!(Currencies::update_balance(
@@ -2524,7 +2517,7 @@ mod with_on_chain_and_default_route {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
 			init_omnipool();
 
@@ -2808,11 +2801,6 @@ mod with_on_chain_and_default_route {
 			.into()]);
 		});
 	}
-}
-
-pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
-	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
-	bounded_vec
 }
 
 fn create_lbp_pool(accumulated_asset: u32, distributed_asset: u32) {

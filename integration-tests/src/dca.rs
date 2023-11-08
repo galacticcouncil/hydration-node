@@ -17,7 +17,6 @@ use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pallet_dca::types::{Order, Schedule};
-use pallet_route_executor::TradeExecution;
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use polkadot_primitives::v2::BlockNumber;
@@ -2117,7 +2116,6 @@ mod stableswap {
 mod with_onchain_route {
 	use super::*;
 	use hydradx_traits::router::PoolType;
-	use pallet_lbp::Pool;
 
 	#[test]
 	fn buy_should_work_with_omnipool_and_stable_with_onchain_routes() {
