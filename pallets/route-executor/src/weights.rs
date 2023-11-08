@@ -50,6 +50,7 @@ use sp_std::marker::PhantomData;
 pub trait WeightInfo {
 	fn calculate_and_execute_sell_in_lbp(c: u32, s: u32) -> Weight;
 	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32) -> Weight;
+	fn set_route_for_xyk() -> Weight;
 }
 
 /// Weights for pallet_route_executor using the hydraDX node and recommended hardware.
@@ -100,6 +101,13 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads((5 as u64).saturating_mul(b as u64)))
 			.saturating_add(T::DbWeight::get().writes((6 as u64).saturating_mul(b as u64)))
 	}
+
+	fn set_route_for_xyk() -> Weight {
+		// Minimum execution time: 232_208 nanoseconds.
+		Weight::from_ref_time(236_859_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(16 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 }
 
 // For backwards compatibility and tests
@@ -147,5 +155,12 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(3 as u64))
 			.saturating_add(RocksDbWeight::get().reads((5 as u64).saturating_mul(b as u64)))
 			.saturating_add(RocksDbWeight::get().writes((6 as u64).saturating_mul(b as u64)))
+	}
+
+	fn set_route_for_xyk() -> Weight {
+		// Minimum execution time: 232_208 nanoseconds.
+		Weight::from_ref_time(236_859_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(16 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 }

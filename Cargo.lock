@@ -3814,6 +3814,7 @@ dependencies = [
  "pallet-staking 2.0.0",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
+ "pallet-xyk",
  "parity-scale-codec",
  "polkadot-parachain",
  "pretty_assertions",

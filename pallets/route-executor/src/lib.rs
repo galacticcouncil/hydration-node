@@ -50,6 +50,9 @@ pub use pallet::*;
 
 pub const MAX_NUMBER_OF_TRADES: u32 = 5; //TODO: remove the pallet config as we don't really need. Only remove once the treasury DCA is in place, as we don't want to change any API
 
+//TODO: update doc with onchain routing
+//TODO: rebenchmark on reference machine
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -362,7 +365,6 @@ pub mod pallet {
 						Self::calculate_expected_amount_out(&inverse_existing_route, reference_amount_in_for_inverse)?;
 					let amount_out_for_new_inversed_route =
 						Self::calculate_expected_amount_out(&inverse_new_route, reference_amount_in_for_inverse)?;
-
 					//Do comparison and set route if price is better
 					if amount_out_for_new_route > amount_out_for_existing_route
 						&& amount_out_for_new_inversed_route > amount_out_for_existing_inversed_route
@@ -491,7 +493,7 @@ impl<T: Config> Pallet<T> {
 		Ok(amount_out)
 	}
 
-	fn calculate_reference_amount_in(route: &Vec<Trade<T::AssetId>>) -> Result<T::Balance, DispatchError> {
+	fn calculate_reference_amount_in(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
 		let first_route = route.first().ok_or(Error::<T>::RouteCalculationFailed)?;
 		let asset_b = match first_route.pool {
 			PoolType::Omnipool => T::NativeAssetId::get(),
@@ -606,6 +608,14 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 	) -> Result<Vec<AmountInAndOut<T::Balance>>, DispatchError> {
 		Pallet::<T>::calculate_buy_trade_amounts(route, amount_out)
 	}
+
+	fn set_route(
+		origin: T::RuntimeOrigin,
+		asset_pair: AssetPair<T::AssetId>,
+		route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResultWithPostInfo {
+		Pallet::<T>::set_route(origin, asset_pair, route)
+	}
 }
 
 pub struct DummyRouter<T>(PhantomData<T>);
@@ -652,6 +662,14 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 			amount_in: amount_out,
 			amount_out,
 		}])
+	}
+
+	fn set_route(
+		_origin: T::RuntimeOrigin,
+		_asset_pair: AssetPair<T::AssetId>,
+		_route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResultWithPostInfo {
+		Ok(Pays::Yes.into())
 	}
 }
 

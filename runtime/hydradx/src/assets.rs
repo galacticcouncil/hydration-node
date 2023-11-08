@@ -51,12 +51,12 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_traits::router::{RouteProvider, Trade};
+use hydradx_traits::router::{inverse_route, RouteProvider, Trade};
 use orml_traits::currency::MutationHooks;
 use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
-use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
+use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES};
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
 use pallet_xyk::weights::WeightInfo as XykWeights;
@@ -521,7 +521,20 @@ impl RouterWeightInfo {
 			num_of_execute_buy,
 		))
 	}
+
+	pub fn set_route_overweight() -> Weight {
+		let number_of_times_calculate_sell_amounts = 5; //4 calculations + in the validation
+		let number_of_times_execute_sell_called = 1; //For validation
+
+		//TODO: refine it, as it returns zero, why, check it out, or wait for richard to check it
+		let set_route_overweight = weights::route_executor::HydraWeight::<Runtime>::set_route_for_xyk();
+		set_route_overweight.saturating_sub(weights::xyk::HydraWeight::<Runtime>::router_execution_sell(
+			number_of_times_calculate_sell_amounts,
+			number_of_times_execute_sell_called,
+		))
+	}
 }
+
 impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	// Used in Router::sell extrinsic, which calls AMM::calculate_sell and AMM::execute_sell
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
@@ -650,6 +663,47 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+			};
+			weight.saturating_accrue(amm_weight);
+		}
+
+		weight
+	}
+
+	fn set_route_overweight(route: &[Trade<AssetId>]) -> Weight {
+		let mut weight = Weight::zero();
+
+		//We ignore the calls for AMM:get_liquidty_depth, as they are irrelevant
+
+		//Overweight
+		weight.saturating_accrue(Self::set_route_overweight());
+
+		//Add a sell weight as we do a dry-run sell as validation
+		weight.saturating_accrue(Self::sell_weight(route));
+
+		//For the stored route we expect a worst case with max number of trades in the most expensive pool which is stableswap
+		//We have have two sell calculation for that
+		weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(2, 0)
+			.checked_mul(MAX_NUMBER_OF_TRADES.into());
+
+		//Calculate sell amounts for the new route
+		for trade in route {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+			};
+			weight.saturating_accrue(amm_weight);
+		}
+
+		//Calculate sell amounts for the inversed new route
+		for trade in inverse_route(route.to_vec()) {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 			};
 			weight.saturating_accrue(amm_weight);
 		}

@@ -1,6 +1,8 @@
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 use frame_support::weights::Weight;
+use frame_support::BoundedVec;
 use scale_info::TypeInfo;
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -118,6 +120,8 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 	fn calculate_sell_trade_amounts(route: &[Trade], amount_in: Balance) -> Result<Vec<AmountInAndOut>, DispatchError>;
 
 	fn calculate_buy_trade_amounts(route: &[Trade], amount_out: Balance) -> Result<Vec<AmountInAndOut>, DispatchError>;
+
+	fn set_route(origin: Origin, asset_pair: AssetPair<AssetId>, route: Vec<Trade>) -> DispatchResultWithPostInfo;
 }
 
 /// All AMMs used in the router are required to implement this trait.
@@ -272,6 +276,7 @@ pub trait AmmTradeWeights<Trade> {
 	fn calculate_buy_trade_amounts_weight(route: &[Trade]) -> Weight;
 	fn sell_and_calculate_sell_trade_amounts_weight(route: &[Trade]) -> Weight;
 	fn buy_and_calculate_buy_trade_amounts_weight(route: &[Trade]) -> Weight;
+	fn set_route_overweight(route: &[Trade]) -> Weight;
 }
 
 impl<Trade> AmmTradeWeights<Trade> for () {
@@ -288,6 +293,9 @@ impl<Trade> AmmTradeWeights<Trade> for () {
 		Weight::zero()
 	}
 	fn buy_and_calculate_buy_trade_amounts_weight(_route: &[Trade]) -> Weight {
+		Weight::zero()
+	}
+	fn set_route_overweight(_route: &[Trade]) -> Weight {
 		Weight::zero()
 	}
 }
