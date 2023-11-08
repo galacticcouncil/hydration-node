@@ -47,7 +47,7 @@ use frame_support::storage::with_transaction;
 use frame_support::BoundedVec;
 use hydradx_traits::{
 	registry::{Create, Inspect, Mutate},
-	AssetKind, CreateRegistry, Registry, ShareTokenRegistry,
+	AssetKind,
 };
 use sp_runtime::TransactionOutcome;
 
@@ -139,20 +139,24 @@ pub mod pallet {
 		/// Incorrect number of assets provided to create shared asset.
 		InvalidSharedAssetLen,
 
-		/// Cannot update asset location
+		/// Cannot update asset location.
 		CannotUpdateLocation,
 
 		/// Selected asset id is out of reserved range.
 		NotInReservedRange,
 
-		/// Location already registered with different asset
+		/// Location already registered with different asset.
 		LocationAlreadyRegistered,
 
-		/// Origin is forbidden to set/update value
+		/// Origin is forbidden to set/update value.
 		Forbidden,
 
-		/// Balance too low
+		/// Balance too low.
 		InsufficientBalance,
+
+		//NOTE: This error should be never triggered.
+		/// Provided asset name is not valid.
+		InvalidAssetname,
 
 		//NOTE: This error is triggered from `SufficiencyCheck`.
 		/// Existential deposit can't be zero.
@@ -618,53 +622,6 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for Pallet<T> {
-	fn exists(asset_id: T::AssetId) -> bool {
-		Assets::<T>::contains_key(asset_id)
-	}
-
-	fn retrieve_asset(name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		//NOTE: This unwrap is safe.
-		let bounded_name = Self::try_into_bounded(Some(name.clone()))?.unwrap();
-		if let Some(asset_id) = AssetIds::<T>::get(bounded_name) {
-			Ok(asset_id)
-		} else {
-			Err(Error::<T>::AssetNotFound.into())
-		}
-	}
-
-	fn retrieve_asset_type(asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
-		let asset_details =
-			Assets::<T>::get(asset_id).ok_or_else(|| Into::<DispatchError>::into(Error::<T>::AssetNotFound))?;
-		Ok(asset_details.asset_type.into())
-	}
-
-	fn create_asset(name: &Vec<u8>, existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
-		Self::get_or_create_asset(name.clone(), AssetType::Token, existential_deposit, None, false)
-	}
-}
-
-impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, Balance, DispatchError> for Pallet<T> {
-	fn retrieve_shared_asset(name: &Vec<u8>, _assets: &[T::AssetId]) -> Result<T::AssetId, DispatchError> {
-		Self::retrieve_asset(name)
-	}
-
-	fn create_shared_asset(
-		name: &Vec<u8>,
-		assets: &[T::AssetId],
-		existential_deposit: Balance,
-	) -> Result<T::AssetId, DispatchError> {
-		ensure!(assets.len() == 2, Error::<T>::InvalidSharedAssetLen);
-		Self::get_or_create_asset(
-			name.clone(),
-			AssetType::PoolShare(assets[0], assets[1]),
-			existential_deposit,
-			None,
-			false,
-		)
-	}
-}
-
 use orml_traits::GetByKey;
 
 // Return Existential deposit of an asset
@@ -689,22 +646,7 @@ impl<T: Config> GetByKey<T::AssetId, Option<Balance>> for XcmRateLimitsInRegistr
 	}
 }
 
-impl<T: Config> CreateRegistry<T::AssetId, Balance> for Pallet<T> {
-	type Error = DispatchError;
-
-	fn create_asset(name: &[u8], kind: AssetKind, existential_deposit: Balance) -> Result<T::AssetId, Self::Error> {
-		let bounded_name = Self::try_into_bounded(Some(name.to_vec()))?;
-
-		Pallet::<T>::do_register_asset(
-			None,
-			&AssetDetails::new(bounded_name, kind.into(), existential_deposit, None, None, None, false),
-			None,
-		)
-	}
-}
-
 impl<T: Config> Inspect for Pallet<T> {
-	type Error = DispatchError;
 	type AssetId = T::AssetId;
 
 	fn is_sufficient(id: Self::AssetId) -> bool {
@@ -713,15 +655,33 @@ impl<T: Config> Inspect for Pallet<T> {
 			None => false,
 		}
 	}
+
+	fn exists(id: Self::AssetId) -> bool {
+		Assets::<T>::try_get(id).is_ok()
+	}
+
+	fn decimals(id: Self::AssetId) -> Option<u8> {
+		Self::assets(id).map_or(None, |a| a.decimals)
+	}
+
+	fn asset_type(id: Self::AssetId) -> Option<AssetKind> {
+		Self::assets(id).map_or(None, |a| Some(a.asset_type.into()))
+	}
 }
 
-impl<T: Config> Mutate<T::AssetNativeLocation, Balance> for Pallet<T> {
+impl<T: Config> Mutate<T::AssetNativeLocation> for Pallet<T> {
+	type Error = DispatchError;
+
 	fn set_location(asset_id: Self::AssetId, location: T::AssetNativeLocation) -> Result<(), Self::Error> {
+		ensure!(Self::exists(asset_id), Error::<T>::AssetNotFound);
+
 		Self::do_set_location(asset_id, location)
 	}
 }
 
 impl<T: Config> Create<T::AssetNativeLocation, Balance> for Pallet<T> {
+	type Error = DispatchError;
+
 	fn register_asset(
 		asset_id: Option<Self::AssetId>,
 		name: Option<&[u8]>,
@@ -748,15 +708,40 @@ impl<T: Config> Create<T::AssetNativeLocation, Balance> for Pallet<T> {
 
 		Self::do_register_asset(asset_id, &details, location)
 	}
-}
 
-use hydradx_traits::InspectRegistry;
-impl<T: Config> InspectRegistry<T::AssetId> for Pallet<T> {
-	fn exists(asset_id: T::AssetId) -> bool {
-		Assets::<T>::contains_key(asset_id)
-	}
+	fn get_or_register_asset(
+		name: &[u8],
+		kind: AssetKind,
+		existential_deposit: Option<Balance>,
+		symbol: Option<&[u8]>,
+		decimals: Option<u8>,
+		location: Option<T::AssetNativeLocation>,
+		xcm_rate_limit: Option<Balance>,
+		is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		//NOTE: in this case `try_into_bounded()` should never return None.
+		let bounded_name = match Self::try_into_bounded(Some(name.to_vec()))? {
+			Some(n) => n,
+			None => return Err(Error::<T>::InvalidAssetname.into()),
+		};
 
-	fn decimals(asset_id: T::AssetId) -> Option<u8> {
-		Assets::<T>::get(asset_id)?.decimals
+		match Self::asset_ids(bounded_name.clone()) {
+			Some(id) => Ok(id),
+			None => {
+				let bounded_symbol = Self::try_into_bounded(symbol.map(|x| x.to_vec()))?;
+
+				let details = AssetDetails::new(
+					Some(bounded_name),
+					kind.into(),
+					existential_deposit.unwrap_or(DEFAULT_ED),
+					bounded_symbol,
+					decimals,
+					xcm_rate_limit,
+					is_sufficient,
+				);
+
+				Self::do_register_asset(None, &details, location)
+			}
+		}
 	}
 }

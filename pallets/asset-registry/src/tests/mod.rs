@@ -3,7 +3,10 @@ use mock::*;
 use crate::*;
 use frame_support::{assert_noop, assert_ok};
 
+mod create_trait;
+mod inspect_trait;
 pub(crate) mod mock;
+mod mutate_trait;
 mod register;
 mod update;
 

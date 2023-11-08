@@ -1,5 +1,6 @@
 use sp_std::vec::Vec;
 
+#[deprecated(since = "3.0.0", note = "Please use `registry::Create` trait instead")]
 pub trait Registry<AssetId, AssetName, Balance, Error> {
 	fn exists(name: AssetId) -> bool;
 
@@ -19,6 +20,7 @@ pub trait Registry<AssetId, AssetName, Balance, Error> {
 }
 
 // Use CreateRegistry if possible
+#[deprecated(since = "3.0.0", note = "Please use `registry::Create` trait instead")]
 pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<AssetId, AssetName, Balance, Error> {
 	fn retrieve_shared_asset(name: &AssetName, assets: &[AssetId]) -> Result<AssetId, Error>;
 
@@ -41,12 +43,13 @@ pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<Asset
 	}
 }
 
+#[deprecated(since = "3.0.0", note = "Please use `registry::Inspect` trait instead")]
 pub trait InspectRegistry<AssetId> {
 	fn exists(asset_id: AssetId) -> bool;
 	fn decimals(asset_id: AssetId) -> Option<u8>;
 }
 
-#[derive(Eq, PartialEq, Copy, Clone)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum AssetKind {
 	Token,
 	XYK,
@@ -55,6 +58,7 @@ pub enum AssetKind {
 	External,
 }
 
+#[deprecated(since = "3.0.0", note = "Please use `registry::Create` trait instead")]
 pub trait CreateRegistry<AssetId, Balance> {
 	type Error;
 	fn create_asset(name: &[u8], kind: AssetKind, existential_deposit: Balance) -> Result<AssetId, Self::Error>;
@@ -81,14 +85,21 @@ pub trait AccountIdFor<Assets> {
 use frame_support::dispatch::Parameter;
 
 pub trait Inspect {
-	type Error;
 	type AssetId: Parameter;
 
 	fn is_sufficient(id: Self::AssetId) -> bool;
+
+	fn exists(id: Self::AssetId) -> bool;
+
+	fn decimals(id: Self::AssetId) -> Option<u8>;
+
+	fn asset_type(id: Self::AssetId) -> Option<AssetKind>;
 }
 
 #[allow(clippy::too_many_arguments)]
-pub trait Create<AssetNativeLocation, Balance>: Inspect {
+pub trait Create<Location, Balance>: Inspect {
+	type Error;
+
 	fn register_asset(
 		asset_id: Option<Self::AssetId>,
 		name: Option<&[u8]>,
@@ -96,7 +107,7 @@ pub trait Create<AssetNativeLocation, Balance>: Inspect {
 		existential_deposit: Option<Balance>,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<AssetNativeLocation>,
+		location: Option<Location>,
 		xcm_rate_limit: Option<Balance>,
 		is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error>;
@@ -108,7 +119,7 @@ pub trait Create<AssetNativeLocation, Balance>: Inspect {
 		existential_deposit: Option<Balance>,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<AssetNativeLocation>,
+		location: Option<Location>,
 		xcm_rate_limit: Option<Balance>,
 	) -> Result<Self::AssetId, Self::Error> {
 		Self::register_asset(
@@ -128,17 +139,17 @@ pub trait Create<AssetNativeLocation, Balance>: Inspect {
 		asset_id: Option<Self::AssetId>,
 		name: Option<&[u8]>,
 		kind: AssetKind,
-		existential_deposit: Option<Balance>,
+		existential_deposit: Balance,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<AssetNativeLocation>,
+		location: Option<Location>,
 		xcm_rate_limit: Option<Balance>,
 	) -> Result<Self::AssetId, Self::Error> {
 		Self::register_asset(
 			asset_id,
 			name,
 			kind,
-			existential_deposit,
+			Some(existential_deposit),
 			symbol,
 			decimals,
 			location,
@@ -146,9 +157,64 @@ pub trait Create<AssetNativeLocation, Balance>: Inspect {
 			true,
 		)
 	}
+
+	fn get_or_register_asset(
+		name: &[u8],
+		kind: AssetKind,
+		existential_deposit: Option<Balance>,
+		symbol: Option<&[u8]>,
+		decimals: Option<u8>,
+		location: Option<Location>,
+		xcm_rate_limit: Option<Balance>,
+		is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error>;
+
+	fn get_or_register_sufficient_asset(
+		name: &[u8],
+		kind: AssetKind,
+		existential_deposit: Balance,
+		symbol: Option<&[u8]>,
+		decimals: Option<u8>,
+		location: Option<Location>,
+		xcm_rate_limit: Option<Balance>,
+	) -> Result<Self::AssetId, Self::Error> {
+		Self::get_or_register_asset(
+			name,
+			kind,
+			Some(existential_deposit),
+			symbol,
+			decimals,
+			location,
+			xcm_rate_limit,
+			true,
+		)
+	}
+
+	fn get_or_register_insufficient_asset(
+		name: &[u8],
+		kind: AssetKind,
+		existential_deposit: Option<Balance>,
+		symbol: Option<&[u8]>,
+		decimals: Option<u8>,
+		location: Option<Location>,
+		xcm_rate_limit: Option<Balance>,
+	) -> Result<Self::AssetId, Self::Error> {
+		Self::get_or_register_asset(
+			name,
+			kind,
+			existential_deposit,
+			symbol,
+			decimals,
+			location,
+			xcm_rate_limit,
+			false,
+		)
+	}
 }
 
-pub trait Mutate<AssetNativeLocation, Balance>: Inspect {
+pub trait Mutate<Location>: Inspect {
+	type Error;
+
 	/// Set location for existing asset id if it wasn't set yet.
-	fn set_location(asset_id: Self::AssetId, location: AssetNativeLocation) -> Result<(), Self::Error>;
+	fn set_location(asset_id: Self::AssetId, location: Location) -> Result<(), Self::Error>;
 }
