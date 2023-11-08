@@ -154,6 +154,8 @@ benchmarks! {
 		assert_eq!(T::MultiCurrency::free_balance(asset_in, &caller), 999998851241411);
 	}
 
+	// The following benchmarks should have similar LBP setup as the corresponding benchmarks
+	// for the route executor in the runtime. Otherwise the router weights are incorrect.
 	router_execution_sell {
 		let c in 1..2;	// if c == 1, calculate_sell is executed
 		let e in 0..1;	// if e == 1, execute_sell is executed
