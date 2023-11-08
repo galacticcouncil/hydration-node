@@ -525,15 +525,17 @@ impl<T: Config> Pallet<T> {
 
 		let asset_in_liquidity = T::AMM::get_liquidity_depth(first_route.pool, first_route.asset_in, asset_b);
 
-		let liq = match asset_in_liquidity {
+		let liquidity = match asset_in_liquidity {
 			Err(ExecutorError::NotSupported) => return Err(Error::<T>::PoolNotSupported.into()),
 			Err(ExecutorError::Error(dispatch_error)) => return Err(dispatch_error),
 			Ok(liq) => liq,
 		};
 
-		let one_percent_asset_in_liq = liq.checked_div(&100u128.into()).ok_or(ArithmeticError::Overflow)?;
+		let one_percent_asset_in_liquidity = liquidity
+			.checked_div(&100u128.into())
+			.ok_or(ArithmeticError::Overflow)?;
 
-		Ok(one_percent_asset_in_liq)
+		Ok(one_percent_asset_in_liquidity)
 	}
 
 	fn calculate_sell_trade_amounts(
