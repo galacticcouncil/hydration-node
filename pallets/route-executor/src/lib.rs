@@ -339,7 +339,7 @@ pub mod pallet {
 		/// Emits `RouteUpdateIsNotSuccessful` when failed to set the route
 		///
 		#[pallet::call_index(2)]
-		#[pallet::weight(T::WeightInfo::sell_weight(route))] //TODO: add proper weight
+		#[pallet::weight(T::WeightInfo::set_route_weight(route))]
 		#[transactional]
 		pub fn set_route(
 			origin: OriginFor<T>,

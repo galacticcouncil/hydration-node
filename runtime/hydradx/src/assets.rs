@@ -670,7 +670,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		weight
 	}
 
-	fn set_route_overweight(route: &[Trade<AssetId>]) -> Weight {
+	fn set_route_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 
 		//We ignore the calls for AMM:get_liquidty_depth, as they are irrelevant
