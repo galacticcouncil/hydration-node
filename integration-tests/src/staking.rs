@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use frame_support::traits::{LockIdentifier, WithdrawReasons};
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::DispatchResult,
@@ -14,9 +15,9 @@ use orml_traits::currency::MultiCurrency;
 use orml_vesting::VestingSchedule;
 use pallet_democracy::{AccountVote, Conviction, ReferendumIndex, Vote};
 use primitives::constants::time::DAYS;
+use primitives::AccountId;
 use sp_runtime::AccountId32;
 use xcm_emulator::TestExt;
-use primitives::AccountId;
 
 type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
 type BoundedCallOf<T> = Bounded<CallOf<T>>;
@@ -994,7 +995,6 @@ fn staking_should_not_allow_to_remove_vote_when_referendum_is_finished_and_staki
 			1_000_000 * UNITS
 		));
 
-
 		assert_ok!(Democracy::vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			r,
@@ -1021,29 +1021,43 @@ fn staking_should_not_allow_to_remove_vote_when_referendum_is_finished_and_staki
 		end_referendum();
 
 		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
-			&sp_runtime::AccountId32::from(ALICE),
+			&sp_runtime::AccountId32::from(BOB),
 		)
 		.unwrap()
 		.unwrap();
-
 		assert_noop!(
 			Democracy::remove_vote(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), r),
 			pallet_staking::Error::<hydradx_runtime::Runtime>::RemoveVoteNotAllowed
 		);
-
-		assert_ok!(
-			Democracy::unlock(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), BOB.into()),
-		);
+		assert_ok!(Democracy::unlock(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			BOB.into()
+		),);
 		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
 		assert!(!stake_voting.votes.is_empty());
 		let position = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
 		assert_eq!(position.get_action_points(), 0);
-
-		/*
-		let balance = Currencies::free_balance(HDX, &BOB.into());
-		let balance = frame_system::Pallet::<hydradx_runtime::Runtime>::account::<AccountId>(BOB.into());
-		dbg!(balance);
-
-		 */
+		assert_lock(&BOB.into(), 222 * UNITS, DEMOCRACY_ID);
 	});
+}
+
+const DEMOCRACY_ID: LockIdentifier = *b"democrac";
+use pallet_balances::BalanceLock;
+
+fn assert_lock(who: &AccountId, amount: Balance, lock_id: LockIdentifier) {
+	let locks = Balances::locks(who);
+	let lock = locks.iter().find(|e| e.id == lock_id);
+
+	if amount == 0 {
+		assert_eq!(lock, None);
+	} else {
+		assert_eq!(
+			lock,
+			Some(&BalanceLock {
+				id: lock_id,
+				amount: amount,
+				reasons: WithdrawReasons::TRANSFER.into()
+			})
+		);
+	}
 }
