@@ -1248,7 +1248,7 @@ impl<T: Config> Pallet<T> {
 				let i = votes
 					.binary_search_by_key(&ref_index, |i| i.0)
 					.map_err(|_| Error::<T>::NotVoter)?;
-				let is_finished = match info {
+				let should_lock = match info {
 					Some(ReferendumInfo::Ongoing(mut status)) => {
 						ensure!(matches!(scope, UnvoteScope::Any), Error::<T>::NoPermission);
 						// Shouldn't be possible to fail, but we handle it gracefully.
@@ -1257,7 +1257,7 @@ impl<T: Config> Pallet<T> {
 							status.tally.reduce(approve, *delegations);
 						}
 						ReferendumInfoOf::<T>::insert(ref_index, ReferendumInfo::Ongoing(status));
-						Some(false)
+						false
 					}
 					Some(ReferendumInfo::Finished { end, approved }) => {
 						if let Some((lock_periods, balance)) = votes[i].1.locked_if(approved) {
@@ -1268,13 +1268,25 @@ impl<T: Config> Pallet<T> {
 								ensure!(matches!(scope, UnvoteScope::Any), Error::<T>::NoPermission);
 								prior.accumulate(unlock_at, balance)
 							}
+							false
+						}else{
+							let should_lock = if let AccountVote::Standard {vote,..} = votes[i].1 {
+								let unlock_at =
+									end.saturating_add(T::VoteLockingPeriod::get().saturating_mul(vote.conviction.lock_periods().into()));
+								let now = frame_system::Pallet::<T>::block_number();
+								now < unlock_at
+							}else{
+								false
+							};
+
+							should_lock
 						}
-						Some(true)
 					}
-					None => None, // Referendum was cancelled.
+					None => false, // Referendum was cancelled.
 				};
+
 				votes.remove(i);
-				T::DemocracyHooks::on_remove_vote(who, ref_index, is_finished)?;
+				T::DemocracyHooks::on_remove_vote(who, ref_index, should_lock)?;
 			}
 			Ok(())
 		})?;
