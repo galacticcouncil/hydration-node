@@ -84,7 +84,6 @@ where
 	}
 
 	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex, should_lock: bool) -> DispatchResult {
-
 		let position_id = if let Some(position_id) = Pallet::<T>::get_user_position_id(who)? {
 			position_id
 		} else {
@@ -93,7 +92,7 @@ where
 
 		// This handles a case when user removes vote on finished referendum and the vote was in opposition to the referendum result
 		// If user has a staking position, we keep the amount locked
-		if should_lock{
+		if should_lock {
 			return Err(Error::<T>::RemoveVoteNotAllowed.into());
 		}
 
