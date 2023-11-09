@@ -44,7 +44,7 @@ extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional};
-use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
+use hydradx_traits::{registry::Inspect, AccountIdFor};
 pub use pallet::*;
 use sp_runtime::traits::{BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
@@ -126,7 +126,7 @@ pub mod pallet {
 		type ShareAccountId: AccountIdFor<Self::AssetId, AccountId = Self::AccountId>;
 
 		/// Asset registry mechanism
-		type AssetInspection: InspectRegistry<Self::AssetId>;
+		type AssetInspection: Inspect<AssetId = Self::AssetId>;
 
 		/// The origin which can create a new pool
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
