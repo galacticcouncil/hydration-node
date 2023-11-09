@@ -20,14 +20,13 @@ use frame_support::{
 	traits::{Everything, GenesisBuild, Nothing},
 };
 use frame_system as system;
-use hydradx_traits::{AssetKind, Registry};
+use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	DispatchError,
 };
 use std::{cell::RefCell, collections::HashMap};
 
@@ -138,27 +137,24 @@ impl orml_tokens::Config for Test {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T> {
-	fn exists(asset_id: AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
-		matches!(asset, Some(_))
-	}
+impl<T: Config> Inspect for DummyRegistry<T> {
+	type AssetId = AssetId;
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
-		Ok(0)
-	}
-
-	fn retrieve_asset_type(_asset_id: AssetId) -> Result<AssetKind, DispatchError> {
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
-		let assigned = REGISTERED_ASSETS.with(|v| {
-			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, l as u32);
-			l as u32
-		});
-		Ok(assigned)
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn exists(asset_id: AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
+		matches!(asset, Some(_))
 	}
 }
 
