@@ -11,11 +11,8 @@ use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin, Stableswap, Tokens,
 	Treasury, DCA,
 };
+use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::{PoolType, Trade};
-use hydradx_traits::{
-	registry::{AssetKind, Create},
-	Registry,
-};
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pallet_dca::types::{Order, Schedule};
@@ -2314,7 +2311,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 			None,
 			Some(name.as_ref()),
 			AssetKind::Token,
-			Some(1u128),
+			1u128,
 			Some(b"xDUM".as_ref()),
 			Some(18u8),
 			None,
@@ -2335,7 +2332,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 		None,
 		Some(b"pool".as_ref()),
 		AssetKind::Token,
-		Some(1u128),
+		1u128,
 		None,
 		None,
 		None,
@@ -2372,7 +2369,7 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 			None,
 			Some(name.as_ref()),
 			AssetKind::Token,
-			Some(1u128),
+			1u128,
 			Some(b"xDUM".as_ref()),
 			Some(decimals_for_each_asset[idx as usize]),
 			None,
@@ -2395,7 +2392,16 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 		initial.push(AssetAmount::new(asset_id, initial_liquidity));
 		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
 	}
-	let pool_id = AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
+	let pool_id = AssetRegistry::register_insufficient_asset(
+		None,
+		Some(&b"pool".to_vec()),
+		AssetKind::Token,
+		Some(1u128),
+		None,
+		None,
+		None,
+		None,
+	)?;
 
 	let amplification = 100u16;
 	let fee = Permill::from_percent(1);

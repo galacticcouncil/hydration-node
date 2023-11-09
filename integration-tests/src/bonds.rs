@@ -6,7 +6,7 @@ use crate::polkadot_test_net::*;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
-use hydradx_traits::CreateRegistry;
+use hydradx_traits::registry::{AssetKind, Create};
 use orml_traits::MultiCurrency;
 use sp_runtime::{DispatchResult, TransactionOutcome};
 use xcm_emulator::TestExt;
@@ -65,10 +65,15 @@ fn issue_bonds_should_work_when_issued_for_share_asset() {
 			let maturity = NOW + MONTH;
 
 			let name = b"SHARED".to_vec();
-			let share_asset_id = AssetRegistry::create_asset(
-				&name,
-				pallet_asset_registry::AssetType::PoolShare(HDX, DOT).into(),
-				1_000,
+			let share_asset_id = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(&name),
+				AssetKind::XYK,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
 			)
 			.unwrap();
 			assert_ok!(Currencies::deposit(share_asset_id, &ALICE.into(), amount,));
@@ -119,9 +124,18 @@ fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 			let maturity = NOW + MONTH;
 
 			let name = b"BOND".to_vec();
-			let underlying_asset_id =
-				AssetRegistry::create_asset(&name, pallet_asset_registry::AssetType::<AssetId>::Bond.into(), 1_000)
-					.unwrap();
+			let underlying_asset_id = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(&name),
+				AssetKind::Bond,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
 			assert_ok!(Currencies::deposit(underlying_asset_id, &ALICE.into(), amount,));
 
 			// Act & Assert

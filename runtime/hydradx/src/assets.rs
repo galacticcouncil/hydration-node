@@ -985,6 +985,7 @@ impl pallet_bonds::Config for Runtime {
 	type AssetTypeWhitelist = AssetTypeWhitelist;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
+	type AssetLocation = AssetLocation;
 	type WeightInfo = weights::bonds::HydraWeight<Runtime>;
 }
 
@@ -1100,4 +1101,5 @@ impl pallet_xyk::Config for Runtime {
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;
 	type OracleSource = XYKOracleSourceIdentifier;
+	type AssetLocation = AssetLocation;
 }
