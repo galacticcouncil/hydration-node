@@ -232,6 +232,7 @@ benchmarks! {
 		}
 	}
 
+	// We need to handle this case separately, because for some unknown reason, router_execution_buy provides incorrect weight when just one calculate_buy is executed
 	calculate_buy {
 		let caller = funded_account::<T>("caller", 0);
 		let fee_collector = funded_account::<T>("fee_collector", 0);
@@ -248,7 +249,7 @@ benchmarks! {
 		let start = T::BlockNumber::from(1u32);
 		let end = T::BlockNumber::from(11u32);
 
-		LBP::<T>::update_pool_data(RawOrigin::Signed(caller.clone()).into(), pool_id, None, Some(start), Some(end), None, None, None, None, None)?;
+		LBP::<T>::update_pool_data(RawOrigin::Signed(caller).into(), pool_id, None, Some(start), Some(end), None, None, None, None, None)?;
 
 		frame_system::Pallet::<T>::set_block_number(T::BlockNumber::from(2u32));
 

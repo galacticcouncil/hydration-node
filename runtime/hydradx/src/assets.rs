@@ -519,6 +519,7 @@ impl RouterWeightInfo {
 			num_of_calc_buy,
 			num_of_execute_buy,
 		);
+		// Handle this case separately. router_execution_buy provides incorrect weight for the case when only calculate_buy is executed.
 		let lbp_weight = if (num_of_calc_buy, num_of_execute_buy) == (1, 0) {
 			weights::lbp::HydraWeight::<Runtime>::calculate_buy()
 		} else {

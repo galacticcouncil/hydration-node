@@ -204,7 +204,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(e as u64)))
 	}
 	fn calculate_buy() -> Weight {
-		Weight::zero()
+		// Minimum execution time: 66_824 nanoseconds.
+		Weight::from_ref_time(67_440_000 as u64).saturating_add(T::DbWeight::get().reads(3 as u64))
 	}
 }
 
@@ -351,6 +352,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes((7 as u64).saturating_mul(e as u64)))
 	}
 	fn calculate_buy() -> Weight {
-		Weight::zero()
+		// Minimum execution time: 66_824 nanoseconds.
+		Weight::from_ref_time(67_440_000 as u64).saturating_add(RocksDbWeight::get().reads(3 as u64))
 	}
 }

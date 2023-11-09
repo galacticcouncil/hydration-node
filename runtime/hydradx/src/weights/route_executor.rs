@@ -40,8 +40,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -63,16 +63,16 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Tokens Locks (max_values: None, max_size: Some(1261), added: 3736, mode: MaxEncodedLen)
 	/// The range of component `c` is `[0, 1]`.
 	/// The range of component `s` is `[0, 1]`.
-    fn calculate_and_execute_sell_in_lbp(c: u32, s: u32, ) -> Weight {
-        // Minimum execution time: 74_867 nanoseconds.
-        Weight::from_ref_time(25_402_600 as u64)            // Standard Error: 93_955
-            .saturating_add(Weight::from_ref_time(50_537_097 as u64).saturating_mul(c as u64))
-            // Standard Error: 93_955
-            .saturating_add(Weight::from_ref_time(284_755_068 as u64).saturating_mul(s as u64))
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().reads((9 as u64).saturating_mul(s as u64)))
-            .saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(s as u64)))
-    }
+	fn calculate_and_execute_sell_in_lbp(c: u32, s: u32) -> Weight {
+		// Minimum execution time: 74_867 nanoseconds.
+		Weight::from_ref_time(25_402_600 as u64) // Standard Error: 93_955
+			.saturating_add(Weight::from_ref_time(50_537_097 as u64).saturating_mul(c as u64))
+			// Standard Error: 93_955
+			.saturating_add(Weight::from_ref_time(284_755_068 as u64).saturating_mul(s as u64))
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().reads((9 as u64).saturating_mul(s as u64)))
+			.saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(s as u64)))
+	}
 	// Storage: LBP PoolData (r:1 w:0)
 	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:5 w:5)
@@ -85,14 +85,14 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Tokens Locks (max_values: None, max_size: Some(1261), added: 3736, mode: MaxEncodedLen)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `b` is `[0, 1]`.
-    fn calculate_and_execute_buy_in_lbp(c: u32, b: u32, ) -> Weight {
-        // Minimum execution time: 75_404 nanoseconds.
-        Weight::from_ref_time(76_035_000 as u64)            // Standard Error: 590_075
-            .saturating_add(Weight::from_ref_time(2_400_398 as u64).saturating_mul(c as u64))
-            // Standard Error: 1_295_384
-            .saturating_add(Weight::from_ref_time(237_220_349 as u64).saturating_mul(b as u64))
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().reads((9 as u64).saturating_mul(b as u64)))
-            .saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(b as u64)))
-    }
+	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32) -> Weight {
+		// Minimum execution time: 75_404 nanoseconds.
+		Weight::from_ref_time(76_035_000 as u64) // Standard Error: 590_075
+			.saturating_add(Weight::from_ref_time(2_400_398 as u64).saturating_mul(c as u64))
+			// Standard Error: 1_295_384
+			.saturating_add(Weight::from_ref_time(237_220_349 as u64).saturating_mul(b as u64))
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().reads((9 as u64).saturating_mul(b as u64)))
+			.saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(b as u64)))
+	}
 }
