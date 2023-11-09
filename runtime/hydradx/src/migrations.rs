@@ -4,8 +4,8 @@ use frame_support::{codec::alloc::vec, traits::OnRuntimeUpgrade, weights::Weight
 
 pub struct OnRuntimeUpgradeMigration;
 
-use pallet_evm_chain_id::ChainId;
 use crate::Runtime;
+use pallet_evm_chain_id::ChainId;
 
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	#[cfg(feature = "try-runtime")]
