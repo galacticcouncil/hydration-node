@@ -6600,7 +6600,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
