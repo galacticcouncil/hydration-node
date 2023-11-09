@@ -636,39 +636,31 @@ impl Transfer<AccountId> for DummyNFT {
 	}
 }
 
-use hydradx_traits::Registry;
+use hydradx_traits::Inspect as InspectRegistry;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
-	fn exists(asset_id: T::AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
-		matches!(asset, Some(_))
-	}
+	type AssetId = T::AssetId;
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
-	}
-
-	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+	fn is_sufficient(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
-		let assigned = REGISTERED_ASSETS.with(|v| {
-			//NOTE: This is to have same ids as real AssetRegistry which is used in the benchmarks.
-			//1_000_000 - offset of the reals AssetRegistry
-			// - 3 - remove assets reagistered by default for the vec.len()
-			// +1 - first reg asset start with 1 not 0
-			// => 1-th asset id == 1_000_001
-			let l = 1_000_000 - 3 + 1 + v.borrow().len();
-			v.borrow_mut().insert(l as u32, l as u32);
-			l as u32
-		});
-		Ok(T::AssetId::from(assigned))
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn exists(asset_id: T::AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+		matches!(asset, Some(_))
 	}
 }
 
