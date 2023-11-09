@@ -115,7 +115,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::ArithmeticError;
 
 use hydra_dx_math::liquidity_mining as math;
-use hydradx_traits::{liquidity_mining::PriceAdjustment, pools::DustRemovalAccountWhitelist, registry::Registry};
+use hydradx_traits::{liquidity_mining::PriceAdjustment, pools::DustRemovalAccountWhitelist, registry::Inspect};
 use orml_traits::{GetByKey, MultiCurrency};
 use scale_info::TypeInfo;
 use sp_arithmetic::{
@@ -209,7 +209,7 @@ pub mod pallet {
 
 		/// Asset Registry - used to check if asset is correctly registered in asset registry and
 		/// provides information about existential deposit of the asset.
-		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError> + GetByKey<Self::AssetId, Balance>;
+		type AssetRegistry: Inspect<AssetId = Self::AssetId> + GetByKey<Self::AssetId, Balance>;
 
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
