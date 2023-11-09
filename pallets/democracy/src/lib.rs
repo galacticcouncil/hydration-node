@@ -1269,13 +1269,14 @@ impl<T: Config> Pallet<T> {
 								prior.accumulate(unlock_at, balance)
 							}
 							false
-						}else{
-							let should_lock = if let AccountVote::Standard {vote,..} = votes[i].1 {
-								let unlock_at =
-									end.saturating_add(T::VoteLockingPeriod::get().saturating_mul(vote.conviction.lock_periods().into()));
+						} else {
+							let should_lock = if let AccountVote::Standard { vote, .. } = votes[i].1 {
+								let unlock_at = end.saturating_add(
+									T::VoteLockingPeriod::get().saturating_mul(vote.conviction.lock_periods().into()),
+								);
 								let now = frame_system::Pallet::<T>::block_number();
 								now < unlock_at
-							}else{
+							} else {
 								false
 							};
 
