@@ -22,7 +22,6 @@ use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_system as system;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
-use hydradx_adapters::inspect::MultiInspectAdapter;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::fungibles::FungibleCurrencies;
@@ -31,7 +30,7 @@ use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup, One},
+	traits::{BlakeTwo256, IdentityLookup},
 	DispatchError,
 };
 
@@ -369,9 +368,9 @@ macro_rules! impl_fake_executor {
 			}
 
 			fn get_liquidity_depth(
-				pool_type: PoolType<AssetId>,
-				asset_a: AssetId,
-				asset_b: AssetId,
+				_pool_type: PoolType<AssetId>,
+				_asset_a: AssetId,
+				_asset_b: AssetId,
 			) -> Result<Balance, ExecutorError<Self::Error>> {
 				Ok(100)
 			}

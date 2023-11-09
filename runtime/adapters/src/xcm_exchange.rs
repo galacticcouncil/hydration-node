@@ -1,4 +1,3 @@
-use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use sp_core::Get;

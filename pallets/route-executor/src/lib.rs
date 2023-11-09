@@ -20,14 +20,13 @@
 use codec::MaxEncodedLen;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungibles::Mutate;
-use frame_support::{dispatch::GetDispatchInfo, traits::UnfilteredDispatchable, PalletId};
+use frame_support::PalletId;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
-use orml_traits::MultiCurrency;
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
@@ -59,9 +58,7 @@ pub mod pallet {
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
-	use orml_traits::MultiCurrency;
-	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, CheckedMul};
-	use sp_runtime::{FixedU128, Permill};
+	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -404,7 +401,7 @@ pub mod pallet {
 					let reference_amount_in = Self::calculate_reference_amount_in(&route)?;
 
 					Self::validate_sell_execution(route.clone(), reference_amount_in)
-						.map_err(|err| Error::<T>::InvalidRoute)?;
+						.map_err(|_| Error::<T>::InvalidRoute)?;
 
 					let bounded_vec = Self::create_bounded_vec(route)?;
 					Routes::<T>::insert(asset_pair, bounded_vec);

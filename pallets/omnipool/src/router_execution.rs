@@ -152,7 +152,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 	fn get_liquidity_depth(
 		pool_type: PoolType<T::AssetId>,
 		asset_a: T::AssetId,
-		asset_b: T::AssetId,
+		_asset_b: T::AssetId,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		if pool_type != PoolType::Omnipool {
 			return Err(ExecutorError::NotSupported);

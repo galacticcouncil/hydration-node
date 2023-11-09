@@ -15,19 +15,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::tests::create_bounded_vec;
 use crate::tests::mock::*;
-use crate::Error::RouteHasNoTrades;
 use crate::{Error, Event, Trade};
 use frame_support::pallet_prelude::*;
 use frame_support::{assert_noop, assert_ok};
-use frame_support::{dispatch::GetDispatchInfo, traits::UnfilteredDispatchable};
 use hydradx_traits::router::{AssetPair, PoolType};
-use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
-use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
-use test_utils::assert_balance;
 
 #[test]
 fn set_route_should_work_when_no_prestored_route_for_asset_pair() {

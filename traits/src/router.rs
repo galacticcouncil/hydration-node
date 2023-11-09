@@ -2,7 +2,6 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 use frame_support::weights::Weight;
-use frame_support::BoundedVec;
 use scale_info::TypeInfo;
 use sp_std::vec;
 use sp_std::vec::Vec;
