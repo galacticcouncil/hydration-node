@@ -212,9 +212,9 @@ runtime_benchmarks! {
 
 	// Calculates the weight of xyk set route. Used in the calculation to determine the weight of the overhead.
 	set_route_for_xyk {
-		let asset_1 = 0u32;
-		let asset_2 = 1u32;
-		let asset_3 = AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
+		let asset_1 = 1u32;
+		let asset_2 = AssetRegistry::create_asset(&b"FCA".to_vec(), Balance::one())?;
+		let asset_3 = AssetRegistry::create_asset(&b"FCB".to_vec(), Balance::one())?;
 
 		let caller: AccountId = funded_account("caller", 0, &[asset_1, asset_2,asset_3]);
 		let buyer: AccountId = funded_account("buyer", 1, &[asset_1, asset_2,asset_3]);
@@ -252,7 +252,7 @@ runtime_benchmarks! {
 		)?;
 	}
 	verify {
-		let stored_route =Router::route(AssetPair::new(asset_1, asset_3)).unwrap();
+		let stored_route = Router::route(AssetPair::new(asset_1, asset_3)).unwrap();
 		assert_eq!(stored_route, better_route);
 	}
 }

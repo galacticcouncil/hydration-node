@@ -523,14 +523,14 @@ impl RouterWeightInfo {
 	}
 
 	pub fn set_route_overweight() -> Weight {
-		let number_of_times_calculate_sell_amounts = 5; //4 calculations + in the validation
-		let number_of_times_execute_sell_called = 1; //For validation
+		let number_of_times_calculate_sell_amounts_executed = 5; //4 calculations + in the validation
+		let number_of_times_execute_sell_amounts_executed = 0; //We do have it once executed in the validation of the route, but it is without writing to database (as rolled back), and since we pay back successful set_route, we just keep this overhead
 
-		//TODO: refine it, as it returns zero, why, check it out, or wait for richard to check it
 		let set_route_overweight = weights::route_executor::HydraWeight::<Runtime>::set_route_for_xyk();
+
 		set_route_overweight.saturating_sub(weights::xyk::HydraWeight::<Runtime>::router_execution_sell(
-			number_of_times_calculate_sell_amounts,
-			number_of_times_execute_sell_called,
+			number_of_times_calculate_sell_amounts_executed,
+			number_of_times_execute_sell_amounts_executed,
 		))
 	}
 }
@@ -673,7 +673,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	fn set_route_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 
-		//We ignore the calls for AMM:get_liquidty_depth, as they are irrelevant
+		//We ignore the calls for AMM:get_liquidty_depth, as the same logic happens in AMM calculation/execution
 
 		//Overweight
 		weight.saturating_accrue(Self::set_route_overweight());
@@ -682,7 +682,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		weight.saturating_accrue(Self::sell_weight(route));
 
 		//For the stored route we expect a worst case with max number of trades in the most expensive pool which is stableswap
-		//We have have two sell calculation for that
+		//We have have two sell calculation for that, normal and inverse
 		weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(2, 0)
 			.checked_mul(MAX_NUMBER_OF_TRADES.into());
 
