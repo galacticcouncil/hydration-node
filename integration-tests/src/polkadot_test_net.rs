@@ -9,15 +9,21 @@ use frame_support::{
 	traits::GenesisBuild,
 	weights::Weight,
 };
-pub use hydradx_runtime::{AccountId, Currencies, NativeExistentialDeposit, Treasury, VestingPalletId};
+pub use hydradx_runtime::{
+	evm::ExtendedAddressMapping, AccountId, Currencies, NativeExistentialDeposit, Treasury, VestingPalletId,
+};
 use pallet_transaction_multi_payment::Price;
 pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};
 
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
-//use cumulus_primitives_core::relay_chain::AccountId;
+use hex_literal::hex;
+use hydradx_runtime::evm::WETH_ASSET_LOCATION;
+use hydradx_runtime::RuntimeOrigin;
+use pallet_evm::AddressMapping;
 use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
+use sp_core::H160;
 use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
 
 pub const ALICE: [u8; 32] = [4u8; 32];
@@ -25,6 +31,29 @@ pub const BOB: [u8; 32] = [5u8; 32];
 pub const CHARLIE: [u8; 32] = [6u8; 32];
 pub const DAVE: [u8; 32] = [7u8; 32];
 pub const UNKNOWN: [u8; 32] = [8u8; 32];
+
+pub fn evm_address() -> H160 {
+	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"].into()
+}
+pub fn evm_account() -> AccountId {
+	ExtendedAddressMapping::into_account_id(evm_address())
+}
+
+pub fn evm_address2() -> H160 {
+	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D81"].into()
+}
+pub fn evm_account2() -> AccountId {
+	ExtendedAddressMapping::into_account_id(evm_address2())
+}
+pub fn evm_signed_origin(address: H160) -> RuntimeOrigin {
+	// account has to be truncated to spoof it as an origin
+	let mut account_truncated: [u8; 32] = [0; 32];
+	account_truncated[..address.clone().as_bytes().len()].copy_from_slice(address.as_bytes());
+	RuntimeOrigin::signed(AccountId::from(account_truncated))
+}
+pub fn to_ether(b: Balance) -> Balance {
+	b * 10_u128.pow(18)
+}
 
 pub const UNITS: Balance = 1_000_000_000_000;
 
@@ -53,6 +82,7 @@ pub const DOT: AssetId = 3;
 pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
+pub const WETH: AssetId = 20;
 pub const PEPE: AssetId = 420;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
@@ -230,6 +260,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(b"ETH".to_vec(), 1_000u128, Some(ETH)),
 			(b"BTC".to_vec(), 1_000u128, Some(BTC)),
 			(b"ACA".to_vec(), 1_000u128, Some(ACA)),
+			(b"WETH".to_vec(), 1_000u128, Some(WETH)),
 			(b"PEPE".to_vec(), 1_000u128, Some(PEPE)),
 			// workaround for next_asset_id() to return correct values
 			(b"DUMMY".to_vec(), 1_000u128, None),
@@ -260,6 +291,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(CHARLIE), LRNA, CHARLIE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
 			(AccountId::from(DAVE), DAI, 1_000_000_000 * UNITS),
+			(evm_account(), WETH, to_ether(1_000)),
 			(omnipool_account.clone(), DAI, stable_amount),
 			(omnipool_account.clone(), ETH, eth_amount),
 			(omnipool_account.clone(), BTC, btc_amount),
@@ -283,6 +315,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(DAI, Price::from(1)),
 			(ACA, Price::from(1)),
 			(BTC, Price::from_inner(134_000_000)),
+			(WETH, Price::from_inner(3_666_754_716_981_130_000)),
 		],
 		account_currencies: vec![],
 	}
@@ -310,6 +343,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 		Timestamp::set_timestamp(NOW);
 		// Make sure the prices are up-to-date.
 		MultiTransactionPayment::on_initialize(1);
+		hydradx_runtime::AssetRegistry::set_location(RuntimeOrigin::root(), WETH, WETH_ASSET_LOCATION).unwrap();
 	});
 	ext
 }
@@ -368,7 +402,7 @@ pub fn expect_hydra_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
 	use frame_support::traits::OnInitialize;
-	use hydradx_runtime::{ParachainSystem, RuntimeOrigin};
+	use hydradx_runtime::ParachainSystem;
 
 	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
 	// how we set the block number with `cumulus-test-relay-sproof-builder` package
@@ -445,11 +479,11 @@ pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 
 	for block in blocks.iter() {
 		for tx in block.extrinsics() {
-			let call = &tx.function;
+			let call = &tx.0.function;
 			let call_p = call.get_call_metadata().pallet_name;
 
 			if pallet_whitelist.contains(&call_p) {
-				let acc = &tx.signature.as_ref().unwrap().0;
+				let acc = &tx.0.signature.as_ref().unwrap().0;
 				assert_ok!(call
 					.clone()
 					.dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
