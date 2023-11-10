@@ -36,6 +36,7 @@ use sp_runtime::{
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+//use frame_system::GenesisConfig;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -362,35 +363,32 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 }
 
 use crate::Config;
-use hydradx_traits::{AssetKind, Registry};
+use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
-	fn exists(asset_id: T::AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
-		matches!(asset, Some(_))
-	}
+	type AssetId = T::AssetId;
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
-	}
-
-	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+	fn is_sufficient(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
-		let assigned = REGISTERED_ASSETS.with(|v| {
-			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, l as u32);
-			l as u32
-		});
-		Ok(T::AssetId::from(assigned))
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn exists(asset_id: T::AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+		matches!(asset, Some(_))
 	}
 }
 

@@ -19,7 +19,7 @@ use crate::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::{Pallet as System, RawOrigin};
-use hydradx_traits::Registry;
+use hydradx_traits::registry::{AssetKind, Create};
 use orml_traits::MultiCurrencyExtended;
 use pallet_liquidity_mining::Instance1;
 use primitives::AssetId;
@@ -94,6 +94,9 @@ where
 	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: pallet_ema_oracle::Config,
 	T::AssetId: From<u32>,
+	<T as pallet_omnipool::Config>::AssetRegistry:
+		Create<T::AssetLocation, Balance, Error = DispatchError, AssetId = T::AssetId>,
+	<<T as pallet_omnipool::Config>::AssetRegistry as hydradx_traits::Inspect>::AssetId: From<u32>,
 {
 	let stable_amount: Balance = 1_000_000_000_000_000_u128;
 	let native_amount: Balance = 1_000_000_000_000_000_u128;
@@ -115,9 +118,36 @@ where
 	)?;
 
 	// Register new asset in asset registry
-	T::AssetRegistry::create_asset(&b"BSX".to_vec(), Balance::one())?;
-	T::AssetRegistry::create_asset(&b"ETH".to_vec(), Balance::one())?;
-	T::AssetRegistry::create_asset(&b"BTC".to_vec(), Balance::one())?;
+	T::AssetRegistry::register_sufficient_asset(
+		None,
+		Some(&b"BSX".to_vec()),
+		AssetKind::Token,
+		Balance::one(),
+		None,
+		None,
+		None,
+		None,
+	)?;
+	T::AssetRegistry::register_sufficient_asset(
+		None,
+		Some(&b"ETH".to_vec()),
+		AssetKind::Token,
+		Balance::one(),
+		None,
+		None,
+		None,
+		None,
+	)?;
+	T::AssetRegistry::register_sufficient_asset(
+		None,
+		Some(&b"BTC".to_vec()),
+		AssetKind::Token,
+		Balance::one(),
+		None,
+		None,
+		None,
+		None,
+	)?;
 
 	// Create account for token provider and set balance
 	let owner: T::AccountId = account("owner", 0, 1);
@@ -228,6 +258,7 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
 		<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
 		T: crate::pallet::Config + pallet_ema_oracle::Config + pallet_liquidity_mining::Config<Instance1>,
+		<T as pallet_omnipool::Config>::AssetRegistry: Create<T::AssetLocation, Balance, Error=DispatchError, AssetId = <T as pallet_omnipool::Config>::AssetId>,
 	}
 
 	create_global_farm {

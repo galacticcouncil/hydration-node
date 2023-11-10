@@ -153,6 +153,10 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		#[cfg(feature = "runtime-benchmarks")]
+		/// Asset location type
+		type AssetLocation: Parameter + Member + Default + MaxEncodedLen;
 	}
 
 	#[pallet::storage]

@@ -17,9 +17,10 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_traits::Registry;
+use hydradx_traits::{AssetKind, Create};
 use orml_traits::MultiCurrencyExtended;
 use sp_std::vec;
+use sp_std::vec::Vec;
 pub const ONE: Balance = 1_000_000_000_000;
 
 benchmarks! {
@@ -28,6 +29,7 @@ benchmarks! {
 		T::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
 		T: crate::pallet::Config,
 		u32: From<<T as pallet::Config>::AssetId>,
+		T::AssetRegistry: Create<T::AssetLocation, Balance, Error=DispatchError, AssetId = T::AssetId>
 	}
   place_order {
 		let (hdx, dai) = seed_registry::<T>()?;
@@ -82,10 +84,29 @@ benchmarks! {
 fn seed_registry<T: Config>() -> Result<(u32, u32), DispatchError>
 where
 	u32: From<<T as pallet::Config>::AssetId>,
+	T::AssetRegistry: Create<T::AssetLocation, Balance, Error = DispatchError>,
 {
 	// Register new asset in asset registry
-	let hdx = T::AssetRegistry::create_asset(&b"HDX".to_vec(), ONE)?;
-	let dai = T::AssetRegistry::create_asset(&b"DAI".to_vec(), ONE)?;
+	let hdx = <T as crate::Config>::AssetRegistry::register_sufficient_asset(
+		None,
+		Some(&b"HDX".to_vec()),
+		AssetKind::Token,
+		ONE,
+		None,
+		None,
+		None,
+		None,
+	)?;
+	let dai = <T as crate::Config>::AssetRegistry::register_sufficient_asset(
+		None,
+		Some(&b"DAI".to_vec()),
+		AssetKind::Token,
+		ONE,
+		None,
+		None,
+		None,
+		None,
+	)?;
 
 	Ok((hdx.into(), dai.into()))
 }

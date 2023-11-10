@@ -169,7 +169,7 @@ parameter_types! {
 	pub const OracleSource: Source = *b"omnipool";
 }
 
-impl Config for Test {
+impl omnipool_liquidity_mining::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Tokens;
 	type CreateOrigin = frame_system::EnsureRoot<AccountId>;
@@ -181,6 +181,9 @@ impl Config for Test {
 	type OraclePeriod = PeriodOracle;
 	type PriceOracle = DummyOracle;
 	type WeightInfo = ();
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type AssetLocation = u8;
 }
 
 parameter_types! {
@@ -661,6 +664,53 @@ where
 	fn exists(asset_id: T::AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
 		matches!(asset, Some(_))
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::Create as CreateRegistry;
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: Config> CreateRegistry<T::AssetLocation, Balance> for DummyRegistry<T>
+where
+	T::AssetId: Into<AssetId> + From<u32>,
+{
+	type Error = DispatchError;
+
+	fn register_asset(
+		_asset_id: Option<Self::AssetId>,
+		_name: Option<&[u8]>,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<&[u8]>,
+		_decimals: Option<u8>,
+		_location: Option<T::AssetLocation>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		let assigned = REGISTERED_ASSETS.with(|v| {
+			//NOTE: This is to have same ids as real AssetRegistry which is used in the benchmarks.
+			//1_000_000 - offset of the reals AssetRegistry
+			// - 3 - remove assets reagistered by default for the vec.len()
+			// +1 - first reg asset start with 1 not 0
+			// => 1-th asset id == 1_000_001
+			let l = 1_000_000 - 3 + 1 + v.borrow().len();
+			v.borrow_mut().insert(l as u32, l as u32);
+			l as u32
+		});
+		Ok(T::AssetId::from(assigned))
+	}
+
+	fn get_or_register_asset(
+		_name: &[u8],
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<&[u8]>,
+		_decimals: Option<u8>,
+		_location: Option<T::AssetLocation>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		unimplemented!()
 	}
 }
 

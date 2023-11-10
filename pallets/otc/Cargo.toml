@@ -51,6 +51,7 @@ std = [
   "scale-info/std",
   "orml-tokens/std",
   "hydradx-traits/std",
+  "frame-benchmarking/std"
 ]
 
 runtime-benchmarks = [

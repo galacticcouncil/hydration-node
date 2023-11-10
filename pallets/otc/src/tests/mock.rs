@@ -78,7 +78,7 @@ parameter_type_with_key! {
 	};
 }
 
-impl Config for Test {
+impl otc::Config for Test {
 	type AssetId = AssetId;
 	type AssetRegistry = DummyRegistry<Test>;
 	type Currency = Tokens;
@@ -86,6 +86,9 @@ impl Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type WeightInfo = ();
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type AssetLocation = u8;
 }
 
 parameter_types! {
@@ -155,6 +158,55 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
 		matches!(asset, Some(_))
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::Create as CreateRegistry;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::DispatchError;
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: Config> CreateRegistry<T::AssetLocation, Balance> for DummyRegistry<T>
+where
+	T::AssetId: Into<AssetId> + From<u32>,
+{
+	type Error = DispatchError;
+
+	fn register_asset(
+		_asset_id: Option<Self::AssetId>,
+		_name: Option<&[u8]>,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<&[u8]>,
+		_decimals: Option<u8>,
+		_location: Option<T::AssetLocation>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		let assigned = REGISTERED_ASSETS.with(|v| {
+			//NOTE: This is to have same ids as real AssetRegistry which is used in the benchmarks.
+			//1_000_000 - offset of the reals AssetRegistry
+			// - 3 - remove assets reagistered by default for the vec.len()
+			// +1 - first reg asset start with 1 not 0
+			// => 1-th asset id == 1_000_001
+			let l = 1_000_000 - 3 + 1 + v.borrow().len();
+			v.borrow_mut().insert(l as u32, l as u32);
+			l as u32
+		});
+		Ok(assigned)
+	}
+
+	fn get_or_register_asset(
+		_name: &[u8],
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<&[u8]>,
+		_decimals: Option<u8>,
+		_location: Option<T::AssetLocation>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		unimplemented!()
 	}
 }
 
