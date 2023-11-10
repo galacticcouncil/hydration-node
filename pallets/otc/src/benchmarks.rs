@@ -32,52 +32,52 @@ benchmarks! {
 		T::AssetRegistry: Create<T::AssetLocation, Balance, Error=DispatchError, AssetId = T::AssetId>
 	}
   place_order {
-		let (hdx, dai) = seed_registry::<T>()?;
+		let (dot, dai) = seed_registry::<T>()?;
 
-		let owner: T::AccountId = create_account_with_balances::<T>("owner", 1, vec!(hdx, dai))?;
-  }:  _(RawOrigin::Signed(owner.clone()), dai.into(), hdx.into(), 20 * ONE, 100 * ONE, true)
+		let owner: T::AccountId = create_account_with_balances::<T>("owner", 1, vec!(dot, dai))?;
+  }:  _(RawOrigin::Signed(owner.clone()), dai.into(), dot.into(), 20 * ONE, 100 * ONE, true)
 	verify {
-		assert_eq!(T::Currency::reserved_balance_named(&NAMED_RESERVE_ID, hdx.into(), &owner), 100 * ONE);
+		assert_eq!(T::Currency::reserved_balance_named(&NAMED_RESERVE_ID, dot.into(), &owner), 100 * ONE);
 	}
 
 	partial_fill_order {
-		let (hdx, dai) = seed_registry::<T>()?;
+		let (dot, dai) = seed_registry::<T>()?;
 
-		let owner: T::AccountId = create_account_with_balances::<T>("owner", 1, vec!(hdx, dai))?;
-		let filler: T::AccountId = create_account_with_balances::<T>("filler", 2, vec!(hdx, dai))?;
+		let owner: T::AccountId = create_account_with_balances::<T>("owner", 1, vec!(dot, dai))?;
+		let filler: T::AccountId = create_account_with_balances::<T>("filler", 2, vec!(dot, dai))?;
 
 		assert_ok!(
-			crate::Pallet::<T>::place_order(RawOrigin::Signed(owner.clone()).into(), dai.into(), hdx.into(), 20 * ONE, 100 * ONE, true)
+			crate::Pallet::<T>::place_order(RawOrigin::Signed(owner.clone()).into(), dai.into(), dot.into(), 20 * ONE, 100 * ONE, true)
 		);
   }:  _(RawOrigin::Signed(filler.clone()), 0u32, 10 * ONE)
 	verify {
-		assert_eq!(T::Currency::reserved_balance_named(&NAMED_RESERVE_ID, hdx.into(), &owner), 50 * ONE);
+		assert_eq!(T::Currency::reserved_balance_named(&NAMED_RESERVE_ID, dot.into(), &owner), 50 * ONE);
 	}
 
 	fill_order {
-		let (hdx, dai) = seed_registry::<T>()?;
+		let (dot, dai) = seed_registry::<T>()?;
 
-		let owner: T::AccountId = create_account_with_balances::<T>("owner", 1, vec!(hdx, dai))?;
-		let filler: T::AccountId = create_account_with_balances::<T>("filler", 2, vec!(hdx, dai))?;
+		let owner: T::AccountId = create_account_with_balances::<T>("owner", 1, vec!(dot, dai))?;
+		let filler: T::AccountId = create_account_with_balances::<T>("filler", 2, vec!(dot, dai))?;
 
 		assert_ok!(
-			crate::Pallet::<T>::place_order(RawOrigin::Signed(owner.clone()).into(), dai.into(), hdx.into(), 20 * ONE, 100 * ONE, true)
+			crate::Pallet::<T>::place_order(RawOrigin::Signed(owner.clone()).into(), dai.into(), dot.into(), 20 * ONE, 100 * ONE, true)
 		);
   }:  _(RawOrigin::Signed(filler.clone()), 0u32)
 	verify {
-		assert_eq!(T::Currency::reserved_balance_named(&NAMED_RESERVE_ID, hdx.into(), &owner), 0);
+		assert_eq!(T::Currency::reserved_balance_named(&NAMED_RESERVE_ID, dot.into(), &owner), 0);
 	}
 
 	cancel_order {
-		let (hdx, dai) = seed_registry::<T>()?;
+		let (dot, dai) = seed_registry::<T>()?;
 
-		let owner: T::AccountId = create_account_with_balances::<T>("owner", 1, vec!(hdx, dai))?;
+		let owner: T::AccountId = create_account_with_balances::<T>("owner", 1, vec!(dot, dai))?;
 		assert_ok!(
-			crate::Pallet::<T>::place_order(RawOrigin::Signed(owner.clone()).into(), dai.into(), hdx.into(), 20 * ONE, 100 * ONE, true)
+			crate::Pallet::<T>::place_order(RawOrigin::Signed(owner.clone()).into(), dai.into(), dot.into(), 20 * ONE, 100 * ONE, true)
 		);
   }:  _(RawOrigin::Signed(owner.clone()), 0u32)
 	verify {
-		assert_eq!(T::Currency::reserved_balance_named(&NAMED_RESERVE_ID, hdx.into(), &owner), 0);
+		assert_eq!(T::Currency::reserved_balance_named(&NAMED_RESERVE_ID, dot.into(), &owner), 0);
 	}
 }
 
@@ -86,29 +86,36 @@ where
 	u32: From<<T as pallet::Config>::AssetId>,
 	T::AssetRegistry: Create<T::AssetLocation, Balance, Error = DispatchError>,
 {
-	// Register new asset in asset registry
-	let hdx = <T as crate::Config>::AssetRegistry::register_sufficient_asset(
-		None,
-		Some(&b"HDX".to_vec()),
-		AssetKind::Token,
-		ONE,
-		None,
-		None,
-		None,
-		None,
-	)?;
-	let dai = <T as crate::Config>::AssetRegistry::register_sufficient_asset(
-		None,
-		Some(&b"DAI".to_vec()),
-		AssetKind::Token,
-		ONE,
-		None,
-		None,
-		None,
-		None,
-	)?;
+	use frame_support::storage::with_transaction;
+	use sp_runtime::TransactionOutcome;
 
-	Ok((hdx.into(), dai.into()))
+	// Register new asset in asset registry
+	let dot = with_transaction(|| {
+		TransactionOutcome::Commit(<T as crate::Config>::AssetRegistry::register_sufficient_asset(
+            None,
+            Some(&b"DOT".to_vec()),
+            AssetKind::Token,
+            ONE,
+            None,
+            None,
+            None,
+            None,
+        ))
+    })?;
+	let dai = with_transaction(|| {
+		TransactionOutcome::Commit(<T as crate::Config>::AssetRegistry::register_sufficient_asset(
+            None,
+            Some(&b"DAI".to_vec()),
+            AssetKind::Token,
+            ONE,
+            None,
+            None,
+            None,
+            None,
+        ))
+    })?;
+
+	Ok((dot.into(), dai.into()))
 }
 
 fn create_account_with_balances<T: Config>(
