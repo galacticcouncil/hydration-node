@@ -183,7 +183,10 @@ mod tests {
 			.unwrap();
 
 		pallet_asset_registry::GenesisConfig::<Runtime> {
-			registered_assets: vec![(b"LRNA".to_vec(), 1_000u128, Some(1))],
+			registered_assets: vec![
+				(b"LRNA".to_vec(), 1_000u128, Some(1)),
+				(b"DAI".to_vec(), 1_000u128, Some(2)),
+			],
 			native_asset_name: b"HDX".to_vec(),
 			native_existential_deposit: NativeExistentialDeposit::get(),
 		}
