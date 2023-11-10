@@ -382,6 +382,7 @@ macro_rules! impl_fake_executor {
 pub struct XYK;
 pub struct StableSwap;
 pub struct OmniPool;
+#[allow(clippy::upper_case_acronyms)]
 pub struct LBP;
 
 impl_fake_executor!(

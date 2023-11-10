@@ -475,7 +475,7 @@ impl<T: Config> Pallet<T> {
 		asset_pair: AssetPair<T::AssetId>,
 	) -> Result<Vec<Trade<T::AssetId>>, DispatchError> {
 		let route = if !route.is_empty() {
-			route.clone()
+			route
 		} else {
 			<Pallet<T> as RouteProvider<T::AssetId>>::get(asset_pair)
 		};
@@ -486,23 +486,21 @@ impl<T: Config> Pallet<T> {
 		let asset_in = route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
 		let asset_out = route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
 
-		let sell_result = with_transaction(|| {
+		with_transaction(|| {
 			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
 			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
 
 			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());
 
 			TransactionOutcome::Rollback(sell_result)
-		});
-
-		sell_result
+		})
 	}
 
 	fn calculate_expected_amount_out(
-		route: &Vec<Trade<<T as Config>::AssetId>>,
+		route: &[Trade<<T as Config>::AssetId>],
 		amount_in: T::Balance,
 	) -> Result<T::Balance, DispatchError> {
-		let sell_trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
+		let sell_trade_amounts = Self::calculate_sell_trade_amounts(route, amount_in)?;
 		let amount_out = sell_trade_amounts
 			.last()
 			.ok_or(Error::<T>::RouteCalculationFailed)?

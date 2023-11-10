@@ -80,7 +80,7 @@ fn set_route_should_store_route_in_ordered_fashion() {
 
 		//Act
 		assert_ok!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			Pays::No.into()
 		);
 
@@ -121,7 +121,7 @@ fn set_route_should_work_when_new_price_is_better() {
 		];
 
 		assert_ok!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			Pays::No.into()
 		);
 
@@ -192,7 +192,7 @@ fn set_route_should_not_override_when_only_normal_sell_price_is_better() {
 		}];
 
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
@@ -234,7 +234,7 @@ fn set_route_should_not_override_when_only_inverse_route_price_is_better() {
 		];
 
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
@@ -275,7 +275,7 @@ fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
 
 		//Act
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
@@ -304,10 +304,7 @@ fn set_route_should_fail_when_called_by_unsigned() {
 		];
 
 		//Act and assert
-		assert_noop!(
-			Router::set_route(RuntimeOrigin::none(), asset_pair, route.clone()),
-			BadOrigin
-		);
+		assert_noop!(Router::set_route(RuntimeOrigin::none(), asset_pair, route), BadOrigin);
 	});
 }
 
@@ -331,7 +328,7 @@ fn set_route_should_fail_when_asset_pair_is_invalid_for_route() {
 
 		//Act and assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			Error::<Test>::InvalidRoute
 		);
 	});
@@ -346,7 +343,7 @@ fn set_route_should_fail_when_called_with_empty_route() {
 
 		//Act and assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, empty_route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, empty_route),
 			Error::<Test>::InvalidRoute
 		);
 	});
@@ -368,7 +365,7 @@ fn set_route_should_fail_when_called_with_too_long_route() {
 
 		//Act and assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, empty_route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, empty_route),
 			Error::<Test>::MaxTradesExceeded
 		);
 	});
@@ -395,7 +392,7 @@ fn set_route_should_fail_when_route_is_not_valid() {
 
 		//Act and assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			Error::<Test>::InvalidRoute
 		);
 
@@ -446,7 +443,7 @@ fn set_route_should_fail_when_trying_to_override_with_invalid_route() {
 
 		//Act and assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, invalid_route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, invalid_route),
 			Error::<Test>::InvalidRoute
 		);
 

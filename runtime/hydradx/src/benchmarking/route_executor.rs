@@ -16,30 +16,19 @@
 // limitations under the License.
 #![allow(clippy::result_large_err)]
 
-use crate::{
-	AccountId, AssetId, AssetRegistry, Balance, Currencies, EmaOracle, Omnipool, Router, Runtime, RuntimeOrigin,
-	System, LBP, XYK,
-};
+use crate::{AccountId, AssetId, AssetRegistry, Balance, Currencies, Router, Runtime, RuntimeOrigin, System, LBP, XYK};
 
 use frame_benchmarking::account;
 use frame_support::dispatch::DispatchResult;
+use frame_support::sp_runtime::traits::One;
 use frame_support::{assert_ok, ensure};
-use frame_support::{
-	sp_runtime::{
-		traits::{One, Zero},
-		FixedU128, Permill,
-	},
-	traits::{OnFinalize, OnInitialize},
-};
 use frame_system::RawOrigin;
-use hydradx_traits::router::TradeExecution;
-use hydradx_traits::router::{inverse_route, AssetPair};
+use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::{PoolType, RouterT, Trade};
 use hydradx_traits::Registry;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::constants::currency::UNITS;
-use sp_runtime::SaturatedConversion;
 use sp_std::vec;
 
 pub const INITIAL_BALANCE: Balance = 10_000_000 * UNITS;
@@ -125,7 +114,7 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 	));
 
 	assert_ok!(XYK::create_pool(
-		RuntimeOrigin::signed(caller.into()),
+		RuntimeOrigin::signed(caller),
 		asset_a,
 		amount,
 		asset_b,
@@ -235,7 +224,7 @@ runtime_benchmarks! {
 		Router::set_route(
 			RawOrigin::Signed(caller.clone()).into(),
 			AssetPair::new(asset_1, asset_3),
-			route.clone(),
+			route,
 		)?;
 
 		let better_route = vec![Trade {

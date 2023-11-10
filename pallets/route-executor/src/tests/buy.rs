@@ -112,7 +112,7 @@ fn buy_should_work_when_onchain_route_present_in_reverse_order() {
 			assert_ok!(Router::set_route(
 				RuntimeOrigin::signed(ALICE),
 				AssetPair::new(HDX, KSM),
-				trades.clone(),
+				trades,
 			));
 
 			//Act

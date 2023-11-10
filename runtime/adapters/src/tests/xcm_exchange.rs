@@ -234,7 +234,7 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 	));
 
 	assert_ok!(XYK::create_pool(
-		RuntimeOrigin::signed(DAVE.into()),
+		RuntimeOrigin::signed(DAVE),
 		asset_a,
 		amount,
 		asset_b,

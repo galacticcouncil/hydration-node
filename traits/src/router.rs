@@ -33,7 +33,7 @@ impl<AssetId> AssetPair<AssetId> {
 	where
 		AssetId: PartialOrd,
 	{
-		return self.asset_in <= self.asset_out;
+		self.asset_in <= self.asset_out
 	}
 
 	pub fn to_ordered_vec(&self) -> Vec<AssetId>
