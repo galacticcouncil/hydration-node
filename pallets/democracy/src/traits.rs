@@ -1,12 +1,6 @@
 use crate::{AccountVote, ReferendumIndex};
 use frame_support::dispatch::DispatchResult;
 
-pub enum Status<B> {
-	ONGOING,
-	FINISHED(B),
-	CANCELLED,
-}
-
 pub trait DemocracyHooks<AccountId, Balance> {
 	fn on_vote(who: &AccountId, ref_index: ReferendumIndex, vote: AccountVote<Balance>) -> DispatchResult;
 	fn on_remove_vote(who: &AccountId, ref_index: ReferendumIndex, should_lock: bool) -> DispatchResult;
