@@ -35,7 +35,6 @@ members = [
   'math',
   'pallets/staking',
   'pallets/democracy',
-  'runtime/hydradx/src/evm/modules/evm-utility/macro',
 ]
 
 [workspace.dependencies]
@@ -228,7 +227,7 @@ pallet-evm-chain-id = { git = "https://github.com/PureStake/frontier", branch = 
 pallet-evm-precompile-dispatch = { git = "https://github.com/PureStake/frontier", branch = "moonbeam-polkadot-v0.9.38", default-features = false }
 
 # EVM from acala
-module-evm-utility-macro = { path = "runtime/hydradx/src/evm/modules/evm-utility/macro", default-features = false}
+module-evm-utility-macro = { git = "https://github.com/AcalaNetwork/Acala", branch = "release-acala-2.22.0", default-features = false }
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
