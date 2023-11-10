@@ -154,6 +154,8 @@ benchmarks! {
 		assert_eq!(T::MultiCurrency::free_balance(asset_in, &caller), 999998851241411);
 	}
 
+	// The following benchmarks should have similar LBP setup as the corresponding benchmarks
+	// for the route executor in the runtime. Otherwise the router weights are incorrect.
 	router_execution_sell {
 		let c in 1..2;	// if c == 1, calculate_sell is executed
 		let e in 0..1;	// if e == 1, execute_sell is executed
@@ -229,6 +231,32 @@ benchmarks! {
 			assert_eq!(T::MultiCurrency::free_balance(asset_in, &caller), 999998851241411);
 		}
 	}
+
+	// We need to handle this case separately, because for some unknown reason, router_execution_buy provides incorrect weight when just one calculate_buy is executed
+	calculate_buy {
+		let caller = funded_account::<T>("caller", 0);
+		let fee_collector = funded_account::<T>("fee_collector", 0);
+		let asset_in: AssetId = ASSET_A_ID;
+		let asset_out: AssetId = ASSET_B_ID;
+		let amount : Balance = 100_000_000;
+		let max_limit: Balance = 1_000_000_000;
+
+		let pool_id = LBP::<T>::pair_account_from_assets(ASSET_A_ID, ASSET_B_ID);
+
+		LBP::<T>::create_pool(RawOrigin::Root.into(), caller.clone(), ASSET_A_ID, ASSET_A_AMOUNT, ASSET_B_ID, ASSET_B_AMOUNT, INITIAL_WEIGHT, FINAL_WEIGHT, WeightCurveType::Linear, DEFAULT_FEE, fee_collector, 0)?;
+		ensure!(PoolData::<T>::contains_key(&pool_id), "Pool does not exist.");
+
+		let start = T::BlockNumber::from(1u32);
+		let end = T::BlockNumber::from(11u32);
+
+		LBP::<T>::update_pool_data(RawOrigin::Signed(caller).into(), pool_id, None, Some(start), Some(end), None, None, None, None, None)?;
+
+		frame_system::Pallet::<T>::set_block_number(T::BlockNumber::from(2u32));
+
+	}: {
+		assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_buy(PoolType::LBP, asset_in, asset_out, amount).is_ok());
+	}
+	verify{}
 }
 
 #[cfg(test)]
