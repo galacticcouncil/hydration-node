@@ -513,14 +513,20 @@ impl RouterWeightInfo {
 		num_of_calc_buy: u32,
 		num_of_execute_buy: u32,
 	) -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_buy_in_lbp(
+		let router_weight = weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_buy_in_lbp(
 			num_of_calc_buy,
 			num_of_execute_buy,
-		)
-		.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_buy(
-			num_of_calc_buy.saturating_add(num_of_execute_buy),
-			num_of_execute_buy,
-		))
+		);
+		// Handle this case separately. router_execution_buy provides incorrect weight for the case when only calculate_buy is executed.
+		let lbp_weight = if (num_of_calc_buy, num_of_execute_buy) == (1, 0) {
+			weights::lbp::HydraWeight::<Runtime>::calculate_buy()
+		} else {
+			weights::lbp::HydraWeight::<Runtime>::router_execution_buy(
+				num_of_calc_buy.saturating_add(num_of_execute_buy),
+				num_of_execute_buy,
+			)
+		};
+		router_weight.saturating_sub(lbp_weight)
 	}
 }
 impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
