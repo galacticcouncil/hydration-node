@@ -92,28 +92,28 @@ where
 	// Register new asset in asset registry
 	let dot = with_transaction(|| {
 		TransactionOutcome::Commit(<T as crate::Config>::AssetRegistry::register_sufficient_asset(
-            None,
-            Some(&b"DOT".to_vec()),
-            AssetKind::Token,
-            ONE,
-            None,
-            None,
-            None,
-            None,
-        ))
-    })?;
+			None,
+			Some(b"DOT".as_ref()),
+			AssetKind::Token,
+			ONE,
+			None,
+			None,
+			None,
+			None,
+		))
+	})?;
 	let dai = with_transaction(|| {
 		TransactionOutcome::Commit(<T as crate::Config>::AssetRegistry::register_sufficient_asset(
-            None,
-            Some(&b"DAI".to_vec()),
-            AssetKind::Token,
-            ONE,
-            None,
-            None,
-            None,
-            None,
-        ))
-    })?;
+			None,
+			Some(b"DAI".as_ref()),
+			AssetKind::Token,
+			ONE,
+			None,
+			None,
+			None,
+			None,
+		))
+	})?;
 
 	Ok((dot.into(), dai.into()))
 }

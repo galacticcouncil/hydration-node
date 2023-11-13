@@ -29,10 +29,10 @@ fn register_asset_should_work() {
 			//Act
 			assert_ok!(<Registry as Create<AssetLocation, Balance>>::register_asset(
 				Some(asset_id),
-				Some(&name.clone()),
+				Some(&name),
 				AssetKind::XYK,
 				Some(ed),
-				Some(&symbol.clone()),
+				Some(&symbol),
 				Some(decimals),
 				Some(asset_location.clone()),
 				Some(xcm_rate_limit),
@@ -105,10 +105,10 @@ fn register_insufficient_asset_should_work() {
 			assert_ok!(
 				<Registry as Create<AssetLocation, Balance>>::register_insufficient_asset(
 					Some(asset_id),
-					Some(&name.clone()),
+					Some(&name),
 					AssetKind::XYK,
 					Some(ed),
-					Some(&symbol.clone()),
+					Some(&symbol),
 					Some(decimals),
 					Some(asset_location.clone()),
 					Some(xcm_rate_limit),
@@ -180,10 +180,10 @@ fn register_sufficient_asset_should_work() {
 			//Act
 			assert_ok!(<Registry as Create<AssetLocation, Balance>>::register_sufficient_asset(
 				Some(asset_id),
-				Some(&name.clone()),
+				Some(&name),
 				AssetKind::XYK,
 				ed,
-				Some(&symbol.clone()),
+				Some(&symbol),
 				Some(decimals),
 				Some(asset_location.clone()),
 				Some(xcm_rate_limit),
@@ -255,10 +255,10 @@ fn get_or_register_asset_should_register_asset_when_does_not_exists() {
 			//Act
 			assert_ok!(
 				<Registry as Create<AssetLocation, Balance>>::get_or_register_asset(
-					&name.clone(),
+					&name,
 					AssetKind::XYK,
 					Some(ed),
-					Some(&symbol.clone()),
+					Some(&symbol),
 					Some(decimals),
 					Some(asset_location.clone()),
 					Some(xcm_rate_limit),
@@ -344,12 +344,12 @@ fn get_or_register_asset_should_return_asset_id_when_asset_exists() {
 				//Act
 				assert_ok!(
 					<Registry as Create<AssetLocation, Balance>>::get_or_register_asset(
-						&name.clone(),
+						&name,
 						AssetKind::XYK,
 						Some(ed),
-						Some(&symbol.clone()),
+						Some(&symbol),
 						Some(decimals),
-						Some(asset_location.clone()),
+						Some(asset_location),
 						Some(xcm_rate_limit),
 						is_sufficient
 					),
@@ -361,7 +361,7 @@ fn get_or_register_asset_should_return_asset_id_when_asset_exists() {
 				assert_eq!(
 					Registry::assets(existing_asset_id),
 					Some(AssetDetails {
-						name: bounded_name.clone(),
+						name: bounded_name,
 						asset_type: AssetType::Token,
 						existential_deposit: UNIT,
 						xcm_rate_limit: None,
@@ -393,10 +393,10 @@ fn get_or_register_sufficient_asset_should_work() {
 			//Act
 			assert_ok!(
 				<Registry as Create<AssetLocation, Balance>>::get_or_register_sufficient_asset(
-					&name.clone(),
+					&name,
 					AssetKind::XYK,
 					ed,
-					Some(&symbol.clone()),
+					Some(&symbol),
 					Some(decimals),
 					Some(asset_location.clone()),
 					Some(xcm_rate_limit),
@@ -468,10 +468,10 @@ fn get_or_register_insufficient_asset_should_work() {
 			//Act
 			assert_ok!(
 				<Registry as Create<AssetLocation, Balance>>::get_or_register_insufficient_asset(
-					&name.clone(),
+					&name,
 					AssetKind::XYK,
 					Some(ed),
-					Some(&symbol.clone()),
+					Some(&symbol),
 					Some(decimals),
 					Some(asset_location.clone()),
 					Some(xcm_rate_limit),

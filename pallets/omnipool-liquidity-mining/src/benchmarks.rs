@@ -17,12 +17,14 @@
 
 use crate::*;
 use frame_benchmarking::{account, benchmarks};
+use frame_support::storage::with_transaction;
 use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::{Pallet as System, RawOrigin};
 use hydradx_traits::registry::{AssetKind, Create};
 use orml_traits::MultiCurrencyExtended;
 use pallet_liquidity_mining::Instance1;
 use primitives::AssetId;
+use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::One, FixedU128, Permill};
 
 const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
@@ -106,6 +108,7 @@ where
 
 	OmnipoolPallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
+	fund::<T>(acc.clone(), HDX.into(), 10_000 * ONE)?;
 	<T as pallet_omnipool::Config>::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 	<T as pallet_omnipool::Config>::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
@@ -118,36 +121,42 @@ where
 	)?;
 
 	// Register new asset in asset registry
-	T::AssetRegistry::register_sufficient_asset(
-		None,
-		Some(&b"BSX".to_vec()),
-		AssetKind::Token,
-		Balance::one(),
-		None,
-		None,
-		None,
-		None,
-	)?;
-	T::AssetRegistry::register_sufficient_asset(
-		None,
-		Some(&b"ETH".to_vec()),
-		AssetKind::Token,
-		Balance::one(),
-		None,
-		None,
-		None,
-		None,
-	)?;
-	T::AssetRegistry::register_sufficient_asset(
-		None,
-		Some(&b"BTC".to_vec()),
-		AssetKind::Token,
-		Balance::one(),
-		None,
-		None,
-		None,
-		None,
-	)?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(T::AssetRegistry::register_sufficient_asset(
+			None,
+			Some(b"BSX".as_ref()),
+			AssetKind::Token,
+			Balance::one(),
+			None,
+			None,
+			None,
+			None,
+		))
+	})?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(T::AssetRegistry::register_sufficient_asset(
+			None,
+			Some(b"ETH".as_ref()),
+			AssetKind::Token,
+			Balance::one(),
+			None,
+			None,
+			None,
+			None,
+		))
+	})?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(T::AssetRegistry::register_sufficient_asset(
+			None,
+			Some(b"BTC".as_ref()),
+			AssetKind::Token,
+			Balance::one(),
+			None,
+			None,
+			None,
+			None,
+		))
+	})?;
 
 	// Create account for token provider and set balance
 	let owner: T::AccountId = account("owner", 0, 1);

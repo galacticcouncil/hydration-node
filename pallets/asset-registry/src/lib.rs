@@ -661,11 +661,11 @@ impl<T: Config> Inspect for Pallet<T> {
 	}
 
 	fn decimals(id: Self::AssetId) -> Option<u8> {
-		Self::assets(id).map_or(None, |a| a.decimals)
+		Self::assets(id).and_then(|a| a.decimals)
 	}
 
 	fn asset_type(id: Self::AssetId) -> Option<AssetKind> {
-		Self::assets(id).map_or(None, |a| Some(a.asset_type.into()))
+		Self::assets(id).map(|a| a.asset_type.into())
 	}
 }
 
