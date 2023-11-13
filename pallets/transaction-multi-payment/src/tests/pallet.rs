@@ -16,13 +16,12 @@
 // limitations under the License.
 
 pub use crate::{tests::*, Config, Error};
-use crate::{AcceptedCurrencies, AcceptedCurrencyPrice, Event, PaymentInfo, Price};
+use crate::{Event, PaymentInfo, Price};
 
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::{DispatchInfo, PostDispatchInfo},
 	sp_runtime::traits::{BadOrigin, SignedExtension},
-	traits::Hooks,
 	weights::Weight,
 };
 use orml_traits::MultiCurrency;
@@ -33,59 +32,6 @@ const CALL: &<Test as frame_system::Config>::RuntimeCall =
 	&RuntimeCall::Balances(BalancesCall::transfer { dest: 2, value: 69 });
 
 #[test]
-fn on_initialize_should_fill_storage_with_prices() {
-	// Arrange
-	ExtBuilder::default().build().execute_with(|| {
-		// Act
-		let current = System::block_number();
-		PaymentPallet::on_finalize(current);
-		// the block number is not important here and can stay the same
-		PaymentPallet::on_initialize(current);
-
-		// Assert
-		// verify that all accepted currencies have the price set
-		let iter = <AcceptedCurrencies<Test>>::iter();
-		for (asset_id, _) in iter {
-			assert!(<AcceptedCurrencyPrice<Test>>::contains_key(asset_id));
-		}
-
-		// fallback price
-		assert_eq!(
-			PaymentPallet::currency_price(SUPPORTED_CURRENCY),
-			Some(Price::from_float(1.5))
-		);
-		// price from the spot price provider
-		assert_eq!(
-			PaymentPallet::currency_price(SUPPORTED_CURRENCY_WITH_PRICE),
-			Some(Price::from_float(0.1))
-		);
-		// not supported
-		assert_eq!(PaymentPallet::currency_price(UNSUPPORTED_CURRENCY), None);
-	});
-}
-
-#[test]
-fn on_finalize_should_remove_prices_from_storage() {
-	// Arrange
-	ExtBuilder::default().build().execute_with(|| {
-		let current = System::block_number();
-
-		// verify that the storage is not empty
-		assert_eq!(
-			PaymentPallet::currency_price(SUPPORTED_CURRENCY),
-			Some(Price::from_float(1.5))
-		);
-
-		// Act
-		PaymentPallet::on_finalize(current);
-
-		// Assert
-		let mut iter = <AcceptedCurrencyPrice<Test>>::iter_values();
-		assert_eq!(iter.next(), None);
-	});
-}
-
-#[test]
 fn set_unsupported_currency() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
@@ -93,7 +39,7 @@ fn set_unsupported_currency() {
 			Error::<Test>::UnsupportedCurrency
 		);
 
-		assert_eq!(PaymentPallet::get_currency(BOB), None);
+		assert_eq!(PaymentPallet::account_currency(BOB), HDX);
 	});
 }
 
@@ -163,7 +109,7 @@ fn set_native_currency() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(PaymentPallet::set_currency(RuntimeOrigin::signed(ALICE), HDX),);
 
-		assert_eq!(PaymentPallet::get_currency(ALICE), Some(HDX));
+		assert_eq!(PaymentPallet::account_currency(ALICE), HDX);
 	});
 }
 
@@ -269,31 +215,27 @@ fn fee_payment_non_native_insufficient_balance() {
 #[test]
 fn add_new_accepted_currency() {
 	ExtBuilder::default().base_weight(5).build().execute_with(|| {
-		assert_ok!(PaymentPallet::add_currency(
-			RuntimeOrigin::root(),
-			100,
-			Price::from_float(1.1)
-		));
+		assert_ok!(PaymentPallet::add_currency(RuntimeOrigin::root(), 100,));
 		expect_events(vec![Event::CurrencyAdded { asset_id: 100 }.into()]);
 
-		assert_eq!(PaymentPallet::currencies(100), Some(Price::from_float(1.1)));
+		assert_eq!(PaymentPallet::currencies(100), Some(()));
 		assert_noop!(
-			PaymentPallet::add_currency(RuntimeOrigin::signed(ALICE), 1000, Price::from_float(1.2)),
+			PaymentPallet::add_currency(RuntimeOrigin::signed(ALICE), 1000),
 			BadOrigin
 		);
 		assert_noop!(
-			PaymentPallet::add_currency(RuntimeOrigin::root(), 100, Price::from(10)),
+			PaymentPallet::add_currency(RuntimeOrigin::root(), 100),
 			Error::<Test>::AlreadyAccepted
 		);
-		assert_eq!(PaymentPallet::currencies(100), Some(Price::from_float(1.1)));
+		assert_eq!(PaymentPallet::currencies(100), Some(()));
 	});
 }
 
 #[test]
 fn removed_accepted_currency() {
 	ExtBuilder::default().base_weight(5).build().execute_with(|| {
-		assert_ok!(PaymentPallet::add_currency(RuntimeOrigin::root(), 100, Price::from(3)));
-		assert_eq!(PaymentPallet::currencies(100), Some(Price::from(3)));
+		assert_ok!(PaymentPallet::add_currency(RuntimeOrigin::root(), 100));
+		assert_eq!(PaymentPallet::currencies(100), Some(()));
 
 		assert_noop!(
 			PaymentPallet::remove_currency(RuntimeOrigin::signed(ALICE), 100),
@@ -936,7 +878,7 @@ fn set_and_remove_currency_on_lifecycle_callbacks() {
 			assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY, &CHARLIE), 5);
 			assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY, &BOB), 5);
 			// Bob's fee currency was set on transfer (due to account creation)
-			assert_eq!(PaymentPallet::get_currency(BOB), Some(SUPPORTED_CURRENCY));
+			assert_eq!(PaymentPallet::account_currency(BOB), SUPPORTED_CURRENCY);
 
 			// currency should be removed if account is killed
 			assert_ok!(Tokens::transfer_all(
@@ -945,7 +887,7 @@ fn set_and_remove_currency_on_lifecycle_callbacks() {
 				SUPPORTED_CURRENCY,
 				false
 			));
-			assert_eq!(PaymentPallet::get_currency(BOB), None);
+			assert_eq!(PaymentPallet::account_currency(BOB), HDX);
 		});
 }
 
@@ -965,17 +907,17 @@ fn currency_stays_around_until_reaping() {
 			// setup
 			assert_ok!(<Tokens as Balanced<AccountId>>::deposit(HIGH_ED_CURRENCY, &DAVE, HIGH_ED * 2).map(|_| ()));
 			assert_eq!(Currencies::free_balance(HIGH_ED_CURRENCY, &DAVE), HIGH_ED * 2);
-			assert_eq!(PaymentPallet::get_currency(DAVE), Some(HIGH_ED_CURRENCY));
+			assert_eq!(PaymentPallet::account_currency(DAVE), HIGH_ED_CURRENCY);
 
 			// currency is not removed when account goes below existential deposit but stays around
 			// until the account is reaped
 			assert_ok!(Tokens::transfer(Some(DAVE).into(), BOB, HIGH_ED_CURRENCY, HIGH_ED + 1,));
-			assert_eq!(PaymentPallet::get_currency(DAVE), Some(HIGH_ED_CURRENCY));
-			assert_eq!(PaymentPallet::get_currency(BOB), Some(HIGH_ED_CURRENCY));
+			assert_eq!(PaymentPallet::account_currency(DAVE), HIGH_ED_CURRENCY);
+			assert_eq!(PaymentPallet::account_currency(BOB), HIGH_ED_CURRENCY);
 
 			// ... and account is reaped when all funds are transferred
 			assert_ok!(Tokens::transfer_all(Some(DAVE).into(), BOB, HIGH_ED_CURRENCY, false));
-			assert_eq!(PaymentPallet::get_currency(DAVE), None);
+			assert_eq!(PaymentPallet::account_currency(DAVE), HDX);
 		});
 }
 
@@ -995,7 +937,7 @@ fn currency_is_removed_when_balance_hits_zero() {
 			// setup
 			assert_ok!(<Tokens as Balanced<AccountId>>::deposit(SUPPORTED_CURRENCY_WITH_PRICE, &DAVE, 10).map(|_| ()));
 			assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY_WITH_PRICE, &DAVE), 10);
-			assert_eq!(PaymentPallet::get_currency(DAVE), Some(SUPPORTED_CURRENCY_WITH_PRICE));
+			assert_eq!(PaymentPallet::account_currency(DAVE), SUPPORTED_CURRENCY_WITH_PRICE);
 
 			// currency is removed when all funds of tx fee currency are transferred (even if
 			// account still has other funds)
@@ -1006,7 +948,7 @@ fn currency_is_removed_when_balance_hits_zero() {
 				SUPPORTED_CURRENCY_WITH_PRICE,
 				false
 			));
-			assert_eq!(PaymentPallet::get_currency(DAVE), None);
+			assert_eq!(PaymentPallet::account_currency(DAVE), HDX);
 		});
 }
 
@@ -1026,11 +968,11 @@ fn currency_is_not_changed_on_unrelated_account_activity() {
 			// setup
 			assert_ok!(<Tokens as Balanced<AccountId>>::deposit(SUPPORTED_CURRENCY_WITH_PRICE, &DAVE, 10).map(|_| ()));
 			assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY_WITH_PRICE, &DAVE), 10);
-			assert_eq!(PaymentPallet::get_currency(DAVE), Some(SUPPORTED_CURRENCY_WITH_PRICE));
+			assert_eq!(PaymentPallet::account_currency(DAVE), SUPPORTED_CURRENCY_WITH_PRICE);
 
 			// tx fee currency is not changed when a new currency is added to the account
 			assert_ok!(Tokens::transfer(Some(CHARLIE).into(), DAVE, SUPPORTED_CURRENCY, 2));
-			assert_eq!(PaymentPallet::get_currency(DAVE), Some(SUPPORTED_CURRENCY_WITH_PRICE));
+			assert_eq!(PaymentPallet::account_currency(DAVE), SUPPORTED_CURRENCY_WITH_PRICE);
 
 			// tx fee currency is not removed when an unrelated account is removed
 			assert_ok!(Tokens::transfer_all(
@@ -1039,7 +981,7 @@ fn currency_is_not_changed_on_unrelated_account_activity() {
 				SUPPORTED_CURRENCY,
 				false
 			));
-			assert_eq!(PaymentPallet::get_currency(DAVE), Some(SUPPORTED_CURRENCY_WITH_PRICE));
+			assert_eq!(PaymentPallet::account_currency(DAVE), SUPPORTED_CURRENCY_WITH_PRICE);
 		});
 }
 
@@ -1058,7 +1000,7 @@ fn only_set_fee_currency_for_supported_currency() {
 			assert_eq!(Currencies::free_balance(UNSUPPORTED_CURRENCY, &CHARLIE), 5);
 			assert_eq!(Currencies::free_balance(UNSUPPORTED_CURRENCY, &BOB), 5);
 			// Bob's fee currency was not set on transfer (due to the currency being unsupported)
-			assert_eq!(PaymentPallet::get_currency(BOB), None);
+			assert_eq!(PaymentPallet::account_currency(BOB), HDX);
 		});
 }
 
@@ -1070,7 +1012,7 @@ fn only_set_fee_currency_when_without_native_currency() {
 		.account_native_balance(CHARLIE, 10)
 		.build()
 		.execute_with(|| {
-			assert_eq!(PaymentPallet::get_currency(CHARLIE), None);
+			assert_eq!(PaymentPallet::account_currency(CHARLIE), HDX);
 
 			assert_ok!(Currencies::transfer(
 				Some(ALICE).into(),
@@ -1079,7 +1021,7 @@ fn only_set_fee_currency_when_without_native_currency() {
 				10,
 			));
 
-			assert_eq!(PaymentPallet::get_currency(CHARLIE), None);
+			assert_eq!(PaymentPallet::account_currency(CHARLIE), HDX);
 		});
 }
 
@@ -1092,25 +1034,19 @@ fn do_not_set_fee_currency_for_new_native_account() {
 		.account_native_balance(CHARLIE, 10)
 		.build()
 		.execute_with(|| {
-			assert_eq!(PaymentPallet::get_currency(DAVE), None);
+			assert_eq!(PaymentPallet::account_currency(DAVE), HDX);
 
 			assert_ok!(Currencies::transfer(Some(CHARLIE).into(), DAVE, 0, 10,));
 
-			assert_eq!(PaymentPallet::get_currency(DAVE), None);
+			assert_eq!(PaymentPallet::account_currency(DAVE), HDX);
 		});
 }
 
 #[test]
 fn returns_prices_for_supported_currencies() {
-	use hydradx_traits::NativePriceOracle;
-
 	ExtBuilder::default().build().execute_with(|| {
 		// returns constant price of 1 for native asset
 		assert_eq!(PaymentPallet::price(HdxAssetId::get()), Some(1.into()));
-		// returns default price configured at genesis
-		assert_eq!(PaymentPallet::price(SUPPORTED_CURRENCY_NO_BALANCE), Some(1.into()));
-		assert_eq!(PaymentPallet::price(SUPPORTED_CURRENCY), Some(Price::from_float(1.5)));
-		assert_eq!(PaymentPallet::price(HIGH_ED_CURRENCY), Some(3.into()));
 		// returns spot price
 		assert_eq!(
 			PaymentPallet::price(SUPPORTED_CURRENCY_WITH_PRICE),

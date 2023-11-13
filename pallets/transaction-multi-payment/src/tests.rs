@@ -2,7 +2,7 @@ mod pallet;
 
 use super::*;
 pub use crate as multi_payment;
-use crate::{Config, TransferFees};
+use crate::Config;
 
 use frame_support::{
 	dispatch::DispatchClass,
@@ -14,6 +14,7 @@ use frame_system as system;
 use hydradx_traits::{pools::SpotPriceProvider, AssetPairAccountIdFor};
 use orml_traits::currency::MutationHooks;
 use orml_traits::parameter_type_with_key;
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::H256;
 use sp_runtime::{
@@ -137,6 +138,7 @@ impl system::Config for Test {
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
+	type Balance = Balance;
 	type AuthorityOrigin = frame_system::EnsureRoot<u64>;
 	type SpotPriceProvider = SpotPrice;
 	type WeightInfo = ();
@@ -159,7 +161,7 @@ impl pallet_balances::Config for Test {
 
 impl pallet_transaction_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Currencies, DepositAll<Test>, FeeReceiver>;
+	type OnChargeTransaction = OnChargeAssetFeeAdapter<FungibleCurrencies<Test>, FeeReceiver>;
 	type LengthToFee = IdentityFee<Balance>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = IdentityFee<Balance>;
@@ -189,7 +191,12 @@ impl SpotPriceProvider<AssetId> for SpotPrice {
 
 	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
 		match (asset_a, asset_b) {
+			(HDX, HDX) => Some(FixedU128::one()),
 			(SUPPORTED_CURRENCY_WITH_PRICE, HDX) => Some(FixedU128::from_float(0.1)),
+			(HIGH_VALUE_CURRENCY, HDX) => Some(FixedU128::from_inner(100)),
+			(HIGH_ED_CURRENCY, HDX) => Some(FixedU128::from(3)),
+			(SUPPORTED_CURRENCY, HDX) => Some(FixedU128::from_float(1.5)),
+			(SUPPORTED_CURRENCY_NO_BALANCE, HDX) => Some(FixedU128::from(1)),
 			_ => None,
 		}
 	}
@@ -217,8 +224,8 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type PostDeposit = ();
 	type PreTransfer = ();
 	type PostTransfer = ();
-	type OnNewTokenAccount = AddTxAssetOnAccount<Test>;
-	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Test>;
+	type OnNewTokenAccount = AddTxAssetOnAccount<Test, Balances>;
+	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Test, FungibleCurrencies<Test>>;
 }
 
 impl orml_tokens::Config for Test {
@@ -313,11 +320,19 @@ impl ExtBuilder {
 
 		crate::GenesisConfig::<Test> {
 			currencies: vec![
+				SUPPORTED_CURRENCY_NO_BALANCE,
+				SUPPORTED_CURRENCY,
+				SUPPORTED_CURRENCY_WITH_PRICE,
+				HIGH_ED_CURRENCY,
+				HIGH_VALUE_CURRENCY,
+				/*
 				(SUPPORTED_CURRENCY_NO_BALANCE, Price::from(1)),
 				(SUPPORTED_CURRENCY, Price::from_float(1.5)),
 				(SUPPORTED_CURRENCY_WITH_PRICE, Price::from_float(0.5)),
 				(HIGH_ED_CURRENCY, Price::from(3)),
 				(HIGH_VALUE_CURRENCY, Price::from_inner(100)),
+
+				 */
 			],
 			account_currencies: self.account_currencies,
 		}

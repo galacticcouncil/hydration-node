@@ -23,9 +23,7 @@ use weights::WeightInfo;
 #[cfg(test)]
 mod tests;
 
-mod traits;
-
-use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
+use frame_support::{dispatch::DispatchResult, ensure, traits::Get};
 use frame_system::ensure_signed;
 use sp_runtime::{
 	traits::{DispatchInfoOf, One, PostDispatchInfoOf, Saturating, Zero},
@@ -39,19 +37,15 @@ use sp_std::marker::PhantomData;
 
 use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::sp_runtime::FixedPointOperand;
-use hydradx_traits::{pools::SpotPriceProvider, NativePriceOracle};
-use orml_traits::{Happened, MultiCurrency};
-use sp_arithmetic::traits::BaseArithmetic;
+use hydradx_traits::pools::SpotPriceProvider;
+use orml_traits::Happened;
 
 use frame_support::traits::IsSubType;
-
-pub use crate::traits::*;
 
 type AssetIdOf<T> = <T as Config>::AssetId;
 //type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
 type BalanceOf<T> = <T as Config>::Balance;
 
-/// Spot price type
 pub type Price = FixedU128;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -68,29 +62,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_initialize(_n: T::BlockNumber) -> Weight {
-			let native_asset = T::NativeAssetId::get();
-
-			let mut weight: u64 = 0;
-
-			for (asset_id, fallback_price) in <AcceptedCurrencies<T>>::iter() {
-				let maybe_price = T::SpotPriceProvider::spot_price(asset_id, native_asset);
-
-				let price = maybe_price.unwrap_or(fallback_price);
-
-				AcceptedCurrencyPrice::<T>::insert(asset_id, price);
-
-				weight += T::WeightInfo::get_spot_price().ref_time();
-			}
-
-			Weight::from_ref_time(weight)
-		}
-
-		fn on_finalize(_n: T::BlockNumber) {
-			let _ = <AcceptedCurrencyPrice<T>>::clear(u32::MAX, None);
-		}
-	}
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
@@ -98,8 +70,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset type
-		type AssetId: frame_support::traits::tokens::AssetId
-			+ MaybeSerializeDeserialize;
+		type AssetId: frame_support::traits::tokens::AssetId + MaybeSerializeDeserialize;
 
 		type Balance: frame_support::traits::tokens::Balance;
 
@@ -160,34 +131,29 @@ pub mod pallet {
 		/// It is not allowed to add Core Asset as accepted currency. Core asset is accepted by design.
 		CoreAssetNotAllowed,
 
-		/// Fallback price cannot be zero.
-		ZeroPrice,
-
-		/// Fallback price was not found.
-		FallbackPriceNotFound,
-
 		/// Math overflow
 		Overflow,
 	}
 
+	#[pallet::type_value]
+	pub fn DefaultFeeCurrency<T: Config>() -> T::AssetId {
+		T::NativeAssetId::get()
+	}
+
 	/// Account currency map
 	#[pallet::storage]
-	#[pallet::getter(fn get_currency)]
-	pub type AccountCurrencyMap<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, AssetIdOf<T>, OptionQuery>;
+	#[pallet::getter(fn account_currency)]
+	pub type AccountCurrency<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, AssetIdOf<T>, ValueQuery, DefaultFeeCurrency<T>>;
 
 	/// Curated list of currencies which fees can be paid mapped to corresponding fallback price
 	#[pallet::storage]
 	#[pallet::getter(fn currencies)]
-	pub type AcceptedCurrencies<T: Config> = StorageMap<_, Twox64Concat, AssetIdOf<T>, Price, OptionQuery>;
-
-	/// Asset prices from the spot price provider or the fallback price if the price is not available. Updated at the beginning of every block.
-	#[pallet::storage]
-	#[pallet::getter(fn currency_price)]
-	pub type AcceptedCurrencyPrice<T: Config> = StorageMap<_, Twox64Concat, AssetIdOf<T>, Price, OptionQuery>;
+	pub type AcceptedCurrencies<T: Config> = StorageMap<_, Twox64Concat, AssetIdOf<T>, (), OptionQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub currencies: Vec<(AssetIdOf<T>, Price)>,
+		pub currencies: Vec<AssetIdOf<T>>,
 		pub account_currencies: Vec<(T::AccountId, AssetIdOf<T>)>,
 	}
 
@@ -204,18 +170,17 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
-			for (asset, price) in &self.currencies {
-				AcceptedCurrencies::<T>::insert(asset, price);
+			for asset in &self.currencies {
+				AcceptedCurrencies::<T>::insert(asset, ());
 			}
 
 			for (account, asset) in &self.account_currencies {
-				<AccountCurrencyMap<T>>::insert(account, asset);
+				<AccountCurrency<T>>::insert(account, asset);
 			}
 		}
 	}
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	{
+	impl<T: Config> Pallet<T> {
 		/// Set selected currency for given account.
 		///
 		/// This allows to set a currency for an account in which all transaction fees will be paid.
@@ -250,7 +215,7 @@ pub mod pallet {
 		/// Emits `CurrencyAdded` event when successful.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_currency())]
-		pub fn add_currency(origin: OriginFor<T>, currency: AssetIdOf<T>, price: Price) -> DispatchResult {
+		pub fn add_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(currency != T::NativeAssetId::get(), Error::<T>::CoreAssetNotAllowed);
@@ -260,7 +225,7 @@ pub mod pallet {
 					return Err(Error::<T>::AlreadyAccepted.into());
 				}
 
-				*maybe_price = Some(price);
+				*maybe_price = Some(());
 				Self::deposit_event(Event::CurrencyAdded { asset_id: currency });
 				Ok(())
 			})
@@ -294,36 +259,19 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T>
-{
+impl<T: Config> Pallet<T> {
 	pub fn set_account_currency(account: &T::AccountId, currency: AssetIdOf<T>) -> DispatchResult {
 		ensure!(
 			currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
 			Error::<T>::UnsupportedCurrency
 		);
 
-		<AccountCurrencyMap<T>>::insert(account, currency);
+		<AccountCurrency<T>>::insert(account, currency);
 		Ok(())
 	}
 
-	fn account_currency(who: &T::AccountId) -> AssetIdOf<T> {
-		Pallet::<T>::get_currency(who).unwrap_or_else(T::NativeAssetId::get)
-	}
-
-	pub fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price> {
-		if let Some(price) = Self::currency_price(currency) {
-			Some(price)
-		} else {
-			// If not loaded in on_init, let's try first the spot price provider again
-			// This is unlikely scenario as the price would be retrieved in on_init for each block
-			if let Some(price) = T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get()) {
-				Some(price)
-			} else {
-				Self::currencies(currency)
-			}
-		}
-		//T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get())
-
+	pub fn price(currency: AssetIdOf<T>) -> Option<Price> {
+		T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get())
 	}
 }
 
@@ -335,7 +283,13 @@ where
 	price.checked_mul_int(fee).map(|f| f.max(One::one()))
 }
 
-pub struct OnChargeAssetFeeAdapter<MC, FR>(PhantomData<(MC,FR)>);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PaymentInfo<Balance, AssetId, Price> {
+	Native(Balance),
+	NonNative(Balance, AssetId, Price),
+}
+
+pub struct OnChargeAssetFeeAdapter<MC, FR>(PhantomData<(MC, FR)>);
 
 impl<T, MC, FR> OnChargeTransaction<T> for OnChargeAssetFeeAdapter<MC, FR>
 where
@@ -348,7 +302,13 @@ where
 	type LiquidityInfo = Option<PaymentInfo<Self::Balance, AssetIdOf<T>, Price>>;
 	type Balance = BalanceOf<T>;
 
-	fn withdraw_fee(who: &T::AccountId, call: &T::RuntimeCall, dispatch_info: &DispatchInfoOf<T::RuntimeCall>, fee: Self::Balance, tip: Self::Balance) -> Result<Self::LiquidityInfo, TransactionValidityError> {
+	fn withdraw_fee(
+		who: &T::AccountId,
+		call: &T::RuntimeCall,
+		_dispatch_info: &DispatchInfoOf<T::RuntimeCall>,
+		fee: Self::Balance,
+		_tip: Self::Balance,
+	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
 		if fee.is_zero() {
 			return Ok(None);
 		}
@@ -358,8 +318,8 @@ where
 			_ => Pallet::<T>::account_currency(who),
 		};
 
-		let price = Pallet::<T>::get_currency_price(currency)
-			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		let price =
+			Pallet::<T>::price(currency).ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 		let converted_fee =
 			convert_fee_with_price(fee, price).ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
@@ -376,7 +336,14 @@ where
 		}
 	}
 
-	fn correct_and_deposit_fee(who: &T::AccountId, dispatch_info: &DispatchInfoOf<T::RuntimeCall>, post_info: &PostDispatchInfoOf<T::RuntimeCall>, corrected_fee: Self::Balance, tip: Self::Balance, already_withdrawn: Self::LiquidityInfo) -> Result<(), TransactionValidityError> {
+	fn correct_and_deposit_fee(
+		who: &T::AccountId,
+		_dispatch_info: &DispatchInfoOf<T::RuntimeCall>,
+		_post_info: &PostDispatchInfoOf<T::RuntimeCall>,
+		corrected_fee: Self::Balance,
+		tip: Self::Balance,
+		already_withdrawn: Self::LiquidityInfo,
+	) -> Result<(), TransactionValidityError> {
 		if let Some(paid) = already_withdrawn {
 			// Calculate how much refund we should return
 			let (currency, refund, fee, tip) = match paid {
@@ -407,37 +374,25 @@ where
 			MC::mint_into(currency, who, refund)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			MC::mint_into(currency, &FR::get(),fee.saturating_add(tip))
+			MC::mint_into(currency, &FR::get(), fee.saturating_add(tip))
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 		}
 		Ok(())
 	}
 }
 
-/*
-/// We provide an oracle for the price of all currencies accepted as fee payment.
-impl<T: Config> NativePriceOracle<AssetIdOf<T>, Price> for Pallet<T> {
-	fn price(currency: AssetIdOf<T>) -> Option<Price> {
-		if currency == T::NativeAssetId::get() {
-			Some(Price::one())
-		} else {
-			Pallet::<T>::currency_price(currency)
-		}
-	}
-}
-
- */
-
 /// Type to automatically add a fee currency for an account on account creation.
 pub struct AddTxAssetOnAccount<T, Inspector>(PhantomData<(T, Inspector)>);
 impl<T: Config, Inspector> Happened<(T::AccountId, AssetIdOf<T>)> for AddTxAssetOnAccount<T, Inspector>
-where Inspector: frame_support::traits::tokens::fungible::Inspect<T::AccountId>{
+where
+	Inspector: frame_support::traits::tokens::fungible::Inspect<T::AccountId>,
+{
 	fn happened((who, currency): &(T::AccountId, AssetIdOf<T>)) {
-		if !AccountCurrencyMap::<T>::contains_key(who)
+		if !AccountCurrency::<T>::contains_key(who)
 			&& AcceptedCurrencies::<T>::contains_key(currency)
 			&& Inspector::balance(who).is_zero()
 		{
-			AccountCurrencyMap::<T>::insert(who, currency);
+			AccountCurrency::<T>::insert(who, currency);
 		}
 	}
 }
@@ -449,14 +404,15 @@ where Inspector: frame_support::traits::tokens::fungible::Inspect<T::AccountId>{
 pub struct RemoveTxAssetOnKilled<T, Inspector>(PhantomData<(T, Inspector)>);
 impl<T: Config, Inspector> Happened<(T::AccountId, AssetIdOf<T>)> for RemoveTxAssetOnKilled<T, Inspector>
 where
-Inspector: frame_support::traits::fungibles::Inspect<T::AccountId, AssetId=AssetIdOf<T>>
+	Inspector: frame_support::traits::fungibles::Inspect<T::AccountId, AssetId = AssetIdOf<T>>,
 {
 	fn happened((who, _currency): &(T::AccountId, AssetIdOf<T>)) {
 		if !frame_system::Pallet::<T>::account_exists(who) {
-			AccountCurrencyMap::<T>::remove(who);
-		} else if let Some(currency) = AccountCurrencyMap::<T>::get(who) {
+			AccountCurrency::<T>::remove(who);
+		} else {
+			let currency = AccountCurrency::<T>::get(who);
 			if Inspector::balance(currency, who).is_zero() {
-				AccountCurrencyMap::<T>::remove(who);
+				AccountCurrency::<T>::remove(who);
 			}
 		}
 	}
