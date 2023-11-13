@@ -5,7 +5,7 @@ use frame_support::weights::Weight;
 use scale_info::TypeInfo;
 use sp_std::vec;
 use sp_std::vec::Vec;
-//TODO: merge this with xyk asset pair. Over there the asset id is not generic, so we have to make it like that
+
 #[derive(Debug, Encode, Decode, Copy, Clone, PartialOrd, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
 pub struct AssetPair<AssetId> {
 	pub asset_in: AssetId,
