@@ -64,7 +64,7 @@ benchmarks! {
 		let _ = Pallet::<T>::register(RawOrigin::Root.into(), Some(asset_id), Some(name), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient);
 
 		let new_name= vec![98u8; T::StringLimit::get() as usize];
-		let new_type = AssetType::PoolShare(T::AssetId::from(10u8),T::AssetId::from(20u8));
+		let new_type = AssetType::XYK;
 		let new_ed = 1_000_000_u128;
 		let new_xcm_rate_limit = 1_000_u128;
 		let new_is_sufficient = false;

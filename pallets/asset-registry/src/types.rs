@@ -26,17 +26,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum AssetType<AssetId> {
+pub enum AssetType {
 	Token,
-	#[deprecated]
-	PoolShare(AssetId, AssetId), // Use XYX instead
 	XYK,
 	StableSwap,
 	Bond,
 	External,
 }
 
-impl<AssetId> From<AssetKind> for AssetType<AssetId> {
+impl From<AssetKind> for AssetType {
 	fn from(value: AssetKind) -> Self {
 		match value {
 			AssetKind::Token => Self::Token,
@@ -48,11 +46,10 @@ impl<AssetId> From<AssetKind> for AssetType<AssetId> {
 	}
 }
 
-impl<AssetId> From<AssetType<AssetId>> for AssetKind {
-	fn from(value: AssetType<AssetId>) -> Self {
+impl From<AssetType> for AssetKind {
+	fn from(value: AssetType) -> Self {
 		match value {
 			AssetType::Token => Self::Token,
-			AssetType::PoolShare(_, _) => Self::XYK,
 			AssetType::XYK => Self::XYK,
 			AssetType::StableSwap => Self::StableSwap,
 			AssetType::Bond => Self::Bond,
@@ -64,12 +61,12 @@ impl<AssetId> From<AssetType<AssetId>> for AssetKind {
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(StringLimit))]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AssetDetails<AssetId, StringLimit: Get<u32>> {
+pub struct AssetDetails<StringLimit: Get<u32>> {
 	/// The name of this asset. Limited in length by `StringLimit`.
 	pub name: Option<BoundedVec<u8, StringLimit>>,
 
 	/// Asset type
-	pub asset_type: AssetType<AssetId>,
+	pub asset_type: AssetType,
 
 	/// Existential deposit
 	pub existential_deposit: Balance,
@@ -87,10 +84,10 @@ pub struct AssetDetails<AssetId, StringLimit: Get<u32>> {
 	pub is_sufficient: bool,
 }
 
-impl<AssetId, StringLimit: Get<u32>> AssetDetails<AssetId, StringLimit> {
+impl<StringLimit: Get<u32>> AssetDetails<StringLimit> {
 	pub fn new(
 		name: Option<BoundedVec<u8, StringLimit>>,
-		asset_type: AssetType<AssetId>,
+		asset_type: AssetType,
 		existential_deposit: Balance,
 		symbol: Option<BoundedVec<u8, StringLimit>>,
 		decimals: Option<u8>,

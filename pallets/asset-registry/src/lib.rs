@@ -62,7 +62,7 @@ pub mod pallet {
 
 	use super::*;
 
-	pub type AssetDetailsT<T> = AssetDetails<<T as Config>::AssetId, <T as Config>::StringLimit>;
+	pub type AssetDetailsT<T> = AssetDetails<<T as Config>::StringLimit>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -308,7 +308,7 @@ pub mod pallet {
 		Registered {
 			asset_id: T::AssetId,
 			asset_name: Option<BoundedVec<u8, T::StringLimit>>,
-			asset_type: AssetType<T::AssetId>,
+			asset_type: AssetType,
 			existential_deposit: Balance,
 			xcm_rate_limit: Option<Balance>,
 			symbol: Option<BoundedVec<u8, T::StringLimit>>,
@@ -320,7 +320,7 @@ pub mod pallet {
 		Updated {
 			asset_id: T::AssetId,
 			asset_name: Option<BoundedVec<u8, T::StringLimit>>,
-			asset_type: AssetType<T::AssetId>,
+			asset_type: AssetType,
 			existential_deposit: Balance,
 			xcm_rate_limit: Option<Balance>,
 			symbol: Option<BoundedVec<u8, T::StringLimit>>,
@@ -356,7 +356,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_id: Option<T::AssetId>,
 			name: Option<Vec<u8>>,
-			asset_type: AssetType<T::AssetId>,
+			asset_type: AssetType,
 			existential_deposit: Option<Balance>,
 			symbol: Option<Vec<u8>>,
 			decimals: Option<u8>,
@@ -399,7 +399,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
 			name: Option<Vec<u8>>,
-			asset_type: Option<AssetType<T::AssetId>>,
+			asset_type: Option<AssetType>,
 			existential_deposit: Option<Balance>,
 			xcm_rate_limit: Option<Balance>,
 			is_sufficient: Option<bool>,
@@ -535,7 +535,7 @@ impl<T: Config> Pallet<T> {
 	#[require_transactional]
 	fn do_register_asset(
 		selected_asset_id: Option<T::AssetId>,
-		details: &AssetDetails<T::AssetId, T::StringLimit>,
+		details: &AssetDetails<T::StringLimit>,
 		location: Option<T::AssetNativeLocation>,
 	) -> Result<T::AssetId, DispatchError> {
 		let asset_id = if let Some(id) = selected_asset_id {
@@ -584,7 +584,7 @@ impl<T: Config> Pallet<T> {
 	/// Create asset for given name or return existing AssetId if such asset already exists.
 	pub fn get_or_create_asset(
 		name: Vec<u8>,
-		asset_type: AssetType<T::AssetId>,
+		asset_type: AssetType,
 		existential_deposit: Balance,
 		asset_id: Option<T::AssetId>,
 		is_sufficient: bool,
