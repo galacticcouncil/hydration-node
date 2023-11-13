@@ -46,10 +46,10 @@ fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> Account
 }
 
 fn setup_lbp(caller: AccountId, asset_in: AssetId, asset_out: AssetId) -> DispatchResult {
-	let asset_in_amount = 1_000_000 * UNITS;
-	let asset_out_amount = 2_000_000 * UNITS;
+	let asset_in_amount = 1_000_000_000;
+	let asset_out_amount = 2_000_000_000;
 	let initial_weight = 20_000_000;
-	let final_weight = 80_000_000;
+	let final_weight = 90_000_000;
 	let fee = (2, 1_000);
 	let fee_collector = caller.clone();
 	let repay_target = 0;
@@ -130,8 +130,8 @@ runtime_benchmarks! {
 		let c in 0..1;	// if c == 1, calculate_sell_trade_amounts is executed
 		let s in 0..1;	// if e == 1, sell is executed
 
-		let asset_in = 0u32;
-		let asset_out = 1u32;
+		let asset_in = 1u32;
+		let asset_out = 2u32;
 		let caller: AccountId = funded_account("caller", 7, &[asset_in, asset_out]);
 		let seller: AccountId = funded_account("seller", 8, &[asset_in, asset_out]);
 
@@ -143,7 +143,7 @@ runtime_benchmarks! {
 			asset_out
 		}];
 
-		let amount_to_sell: Balance = UNITS;
+		let amount_to_sell: Balance = 100_000_000;
 
 	}: {
 		if c != 0 {
@@ -167,8 +167,8 @@ runtime_benchmarks! {
 		let c in 1..2;	// number of times `calculate_buy_trade_amounts` is executed
 		let b in 0..1;	// if e == 1, buy is executed
 
-		let asset_in = 0u32;
-		let asset_out = 1u32;
+		let asset_in = 1u32;
+		let asset_out = 2u32;
 		let caller: AccountId = funded_account("caller", 0, &[asset_in, asset_out]);
 		let buyer: AccountId = funded_account("buyer", 1, &[asset_in, asset_out]);
 
@@ -180,7 +180,7 @@ runtime_benchmarks! {
 			asset_out
 		}];
 
-		let amount_to_buy = UNITS;
+		let amount_to_buy = 100_000_000;
 
 	}: {
 		for _ in 1..c {
@@ -259,7 +259,10 @@ mod tests {
 			.unwrap();
 
 		pallet_asset_registry::GenesisConfig::<Runtime> {
-			registered_assets: vec![(b"LRNA".to_vec(), 1_000u128, Some(1))],
+			registered_assets: vec![
+				(b"LRNA".to_vec(), 1_000u128, Some(1)),
+				(b"DAI".to_vec(), 1_000u128, Some(2)),
+			],
 			native_asset_name: b"HDX".to_vec(),
 			native_existential_deposit: NativeExistentialDeposit::get(),
 		}

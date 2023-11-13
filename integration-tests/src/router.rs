@@ -29,12 +29,25 @@ use xcm_emulator::TestExt;
 
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use sp_runtime::{traits::ConstU32, DispatchError, FixedU128, Permill};
+use sp_runtime::{
+	traits::{ConstU32, Zero},
+	DispatchError, FixedU128, Permill,
+};
 
 use orml_traits::MultiCurrency;
 
 pub const LBP_SALE_START: BlockNumber = 10;
 pub const LBP_SALE_END: BlockNumber = 40;
+
+#[test]
+fn router_weights_should_be_non_zero() {
+	assert!(!RouterWeightInfo::sell_and_calculate_sell_trade_amounts_overhead_weight(0, 1).is_zero());
+	assert!(!RouterWeightInfo::sell_and_calculate_sell_trade_amounts_overhead_weight(1, 1).is_zero());
+
+	assert!(!RouterWeightInfo::buy_and_calculate_buy_trade_amounts_overhead_weight(0, 1).is_zero());
+	assert!(!RouterWeightInfo::buy_and_calculate_buy_trade_amounts_overhead_weight(1, 0).is_zero());
+	assert!(!RouterWeightInfo::buy_and_calculate_buy_trade_amounts_overhead_weight(2, 1).is_zero());
+}
 
 mod router_different_pools_tests {
 	use super::*;

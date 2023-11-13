@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.15.2"
+version = "1.16.1"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -59,6 +59,9 @@ orml-xtokens = { workspace = true }
 orml-xcm-support = { workspace = true }
 orml-unknown-tokens = { workspace = true }
 
+# Evm
+pallet-evm = { workspace = true }
+fp-evm = { workspace = true }
 # Cumulus dependencies
 cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }

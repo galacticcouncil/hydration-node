@@ -995,7 +995,7 @@ mod omnipool {
 			create_schedule(ALICE, schedule1);
 
 			//Trade 2
-			let amount_to_sell2 = 200 * UNITS;
+			let amount_to_sell2 = 220 * UNITS;
 			let dca_budget2 = 1500 * UNITS;
 			let schedule2 =
 				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget2, HDX, DAI, amount_to_sell2);
