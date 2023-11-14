@@ -543,6 +543,7 @@ where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
 	type AssetId = AssetId;
+	type Location = u8;
 
 	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
 		unimplemented!()

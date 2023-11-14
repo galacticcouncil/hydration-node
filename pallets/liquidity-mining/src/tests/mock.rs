@@ -433,6 +433,7 @@ pub struct DummyRegistry;
 
 impl Inspect for DummyRegistry {
 	type AssetId = AssetId;
+	type Location = u8;
 
 	fn is_sufficient(_id: Self::AssetId) -> bool {
 		unimplemented!()

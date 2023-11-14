@@ -80,7 +80,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Registry support
-		type AssetRegistry: Create<Self::AssetLocation, Balance, AssetId = AssetId, Error = DispatchError>;
+		type AssetRegistry: Create<Balance, AssetId = AssetId, Error = DispatchError>;
 
 		/// Share token support
 		type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
@@ -132,9 +132,6 @@ pub mod pallet {
 
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
-
-		/// Asset location type
-		type AssetLocation: Parameter + Member + Default + MaxEncodedLen;
 	}
 
 	#[pallet::error]

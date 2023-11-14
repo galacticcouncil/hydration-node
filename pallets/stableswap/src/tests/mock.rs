@@ -318,6 +318,7 @@ pub struct DummyRegistry;
 
 impl Inspect for DummyRegistry {
 	type AssetId = AssetId;
+	type Location = u8;
 
 	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied());

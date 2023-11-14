@@ -105,7 +105,7 @@ impl Contains<AssetKind> for AssetTypeWhitelist {
 	}
 }
 
-impl Config for Test {
+impl pallet_bonds::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Currency = Tokens;
@@ -117,7 +117,6 @@ impl Config for Test {
 	type AssetTypeWhitelist = AssetTypeWhitelist;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
-	type AssetLocation = AssetLocation;
 	type WeightInfo = ();
 }
 
@@ -175,7 +174,7 @@ impl pallet_timestamp::Config for Test {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Create<AssetLocation, Balance> for DummyRegistry<T> {
+impl<T: Config> Create<Balance> for DummyRegistry<T> {
 	type Error = DispatchError;
 
 	fn register_asset(
@@ -185,7 +184,7 @@ impl<T: Config> Create<AssetLocation, Balance> for DummyRegistry<T> {
 		_existential_deposit: Option<Balance>,
 		_symbol: Option<&[u8]>,
 		_decimals: Option<u8>,
-		_location: Option<AssetLocation>,
+		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
 		_is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {
@@ -199,7 +198,7 @@ impl<T: Config> Create<AssetLocation, Balance> for DummyRegistry<T> {
 		existential_deposit: Option<Balance>,
 		_symbol: Option<&[u8]>,
 		_decimals: Option<u8>,
-		_location: Option<AssetLocation>,
+		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
 	) -> Result<Self::AssetId, Self::Error> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
@@ -216,7 +215,7 @@ impl<T: Config> Create<AssetLocation, Balance> for DummyRegistry<T> {
 		_existential_deposit: Option<Balance>,
 		_symbol: Option<&[u8]>,
 		_decimals: Option<u8>,
-		_location: Option<AssetLocation>,
+		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
 		_is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {
@@ -226,6 +225,7 @@ impl<T: Config> Create<AssetLocation, Balance> for DummyRegistry<T> {
 
 impl<T: Config> Inspect for DummyRegistry<T> {
 	type AssetId = AssetId;
+	type Location = AssetLocation;
 
 	fn is_sufficient(_id: Self::AssetId) -> bool {
 		unimplemented!()

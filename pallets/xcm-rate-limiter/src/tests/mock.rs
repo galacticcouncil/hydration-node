@@ -319,6 +319,7 @@ where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
 	type AssetId = T::AssetId;
+	type Location = MultiLocation;
 
 	fn is_sufficient(_id: Self::AssetId) -> bool {
 		unimplemented!()

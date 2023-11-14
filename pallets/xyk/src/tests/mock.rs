@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use crate as xyk;
-use crate::Config;
 use crate::*;
 use frame_support::parameter_types;
 use frame_system as system;
@@ -201,7 +200,7 @@ impl CanCreatePool<AssetId> for Disallow10_10Pool {
 	}
 }
 
-impl Config for Test {
+impl xyk::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetRegistry = AssetRegistry;
 	type AssetPairAccountId = AssetPairAccountIdTest;
@@ -218,7 +217,6 @@ impl Config for Test {
 	type DiscountedFee = DiscountedFeeRate;
 	type NonDustableWhitelistHandler = Whitelist;
 	type OracleSource = OracleSourceIdentifier;
-	type AssetLocation = AssetLocation;
 }
 
 pub struct ExtBuilder {

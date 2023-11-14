@@ -31,6 +31,7 @@ use frame_support::dispatch::Parameter;
 
 pub trait Inspect {
 	type AssetId: Parameter;
+	type Location: Parameter;
 
 	fn is_sufficient(id: Self::AssetId) -> bool;
 
@@ -42,7 +43,7 @@ pub trait Inspect {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub trait Create<Location, Balance>: Inspect {
+pub trait Create<Balance>: Inspect {
 	type Error;
 
 	fn register_asset(
@@ -52,7 +53,7 @@ pub trait Create<Location, Balance>: Inspect {
 		existential_deposit: Option<Balance>,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<Location>,
+		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
 		is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error>;
@@ -64,7 +65,7 @@ pub trait Create<Location, Balance>: Inspect {
 		existential_deposit: Option<Balance>,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<Location>,
+		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
 	) -> Result<Self::AssetId, Self::Error> {
 		Self::register_asset(
@@ -87,7 +88,7 @@ pub trait Create<Location, Balance>: Inspect {
 		existential_deposit: Balance,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<Location>,
+		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
 	) -> Result<Self::AssetId, Self::Error> {
 		Self::register_asset(
@@ -109,7 +110,7 @@ pub trait Create<Location, Balance>: Inspect {
 		existential_deposit: Option<Balance>,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<Location>,
+		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
 		is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error>;
@@ -120,7 +121,7 @@ pub trait Create<Location, Balance>: Inspect {
 		existential_deposit: Balance,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<Location>,
+		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
 	) -> Result<Self::AssetId, Self::Error> {
 		Self::get_or_register_asset(
@@ -141,7 +142,7 @@ pub trait Create<Location, Balance>: Inspect {
 		existential_deposit: Option<Balance>,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<Location>,
+		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
 	) -> Result<Self::AssetId, Self::Error> {
 		Self::get_or_register_asset(
@@ -157,9 +158,9 @@ pub trait Create<Location, Balance>: Inspect {
 	}
 }
 
-pub trait Mutate<Location>: Inspect {
+pub trait Mutate: Inspect {
 	type Error;
 
 	/// Set location for existing asset id if it wasn't set yet.
-	fn set_location(asset_id: Self::AssetId, location: Location) -> Result<(), Self::Error>;
+	fn set_location(asset_id: Self::AssetId, location: Self::Location) -> Result<(), Self::Error>;
 }

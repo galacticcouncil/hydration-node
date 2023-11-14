@@ -86,9 +86,6 @@ impl otc::Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type WeightInfo = ();
-
-	#[cfg(feature = "runtime-benchmarks")]
-	type AssetLocation = u8;
 }
 
 parameter_types! {
@@ -142,6 +139,7 @@ pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> Inspect for DummyRegistry<T> {
 	type AssetId = AssetId;
+	type Location = u8;
 
 	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
 		unimplemented!()
@@ -166,7 +164,7 @@ use hydradx_traits::Create as CreateRegistry;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchError;
 #[cfg(feature = "runtime-benchmarks")]
-impl<T: Config> CreateRegistry<T::AssetLocation, Balance> for DummyRegistry<T>
+impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
@@ -179,7 +177,7 @@ where
 		_existential_deposit: Option<Balance>,
 		_symbol: Option<&[u8]>,
 		_decimals: Option<u8>,
-		_location: Option<T::AssetLocation>,
+		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
 		_is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {
@@ -202,7 +200,7 @@ where
 		_existential_deposit: Option<Balance>,
 		_symbol: Option<&[u8]>,
 		_decimals: Option<u8>,
-		_location: Option<T::AssetLocation>,
+		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
 		_is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {

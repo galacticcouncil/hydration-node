@@ -29,7 +29,7 @@ benchmarks! {
 		T::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
 		T: crate::pallet::Config,
 		u32: From<<T as pallet::Config>::AssetId>,
-		T::AssetRegistry: Create<T::AssetLocation, Balance, Error=DispatchError, AssetId = T::AssetId>
+		T::AssetRegistry: Create<Balance, Error=DispatchError, AssetId = T::AssetId>
 	}
   place_order {
 		let (dot, dai) = seed_registry::<T>()?;
@@ -84,7 +84,7 @@ benchmarks! {
 fn seed_registry<T: Config>() -> Result<(u32, u32), DispatchError>
 where
 	u32: From<<T as pallet::Config>::AssetId>,
-	T::AssetRegistry: Create<T::AssetLocation, Balance, Error = DispatchError>,
+	T::AssetRegistry: Create<Balance, Error = DispatchError>,
 {
 	use frame_support::storage::with_transaction;
 	use sp_runtime::TransactionOutcome;

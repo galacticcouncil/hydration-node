@@ -648,6 +648,7 @@ impl<T: Config> GetByKey<T::AssetId, Option<Balance>> for XcmRateLimitsInRegistr
 
 impl<T: Config> Inspect for Pallet<T> {
 	type AssetId = T::AssetId;
+	type Location = T::AssetNativeLocation;
 
 	fn is_sufficient(id: Self::AssetId) -> bool {
 		match Self::assets(id) {
@@ -669,7 +670,7 @@ impl<T: Config> Inspect for Pallet<T> {
 	}
 }
 
-impl<T: Config> Mutate<T::AssetNativeLocation> for Pallet<T> {
+impl<T: Config> Mutate for Pallet<T> {
 	type Error = DispatchError;
 
 	fn set_location(asset_id: Self::AssetId, location: T::AssetNativeLocation) -> Result<(), Self::Error> {
@@ -679,7 +680,7 @@ impl<T: Config> Mutate<T::AssetNativeLocation> for Pallet<T> {
 	}
 }
 
-impl<T: Config> Create<T::AssetNativeLocation, Balance> for Pallet<T> {
+impl<T: Config> Create<Balance> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn register_asset(
@@ -689,7 +690,7 @@ impl<T: Config> Create<T::AssetNativeLocation, Balance> for Pallet<T> {
 		existential_deposit: Option<Balance>,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<T::AssetNativeLocation>,
+		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
 		is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {
@@ -715,7 +716,7 @@ impl<T: Config> Create<T::AssetNativeLocation, Balance> for Pallet<T> {
 		existential_deposit: Option<Balance>,
 		symbol: Option<&[u8]>,
 		decimals: Option<u8>,
-		location: Option<T::AssetNativeLocation>,
+		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
 		is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {

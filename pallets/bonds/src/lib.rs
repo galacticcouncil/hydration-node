@@ -104,8 +104,7 @@ pub mod pallet {
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Self::Balance>;
 
 		/// Asset Registry mechanism - used to register bonds in the asset registry.
-		type AssetRegistry: Inspect<AssetId = AssetId>
-			+ Create<Self::AssetLocation, Self::Balance, Error = DispatchError>;
+		type AssetRegistry: Inspect<AssetId = AssetId> + Create<Self::Balance, Error = DispatchError>;
 
 		/// Provider for existential deposits of assets.
 		type ExistentialDeposits: GetByKey<AssetId, Self::Balance>;
@@ -130,9 +129,6 @@ pub mod pallet {
 		/// Protocol fee receiver.
 		#[pallet::constant]
 		type FeeReceiver: Get<Self::AccountId>;
-
-		/// Asset location type
-		type AssetLocation: Parameter + Member + Default + MaxEncodedLen;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;

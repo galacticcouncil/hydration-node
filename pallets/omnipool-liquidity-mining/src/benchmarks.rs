@@ -96,8 +96,7 @@ where
 	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: pallet_ema_oracle::Config,
 	T::AssetId: From<u32>,
-	<T as pallet_omnipool::Config>::AssetRegistry:
-		Create<T::AssetLocation, Balance, Error = DispatchError, AssetId = T::AssetId>,
+	<T as pallet_omnipool::Config>::AssetRegistry: Create<Balance, Error = DispatchError, AssetId = T::AssetId>,
 	<<T as pallet_omnipool::Config>::AssetRegistry as hydradx_traits::Inspect>::AssetId: From<u32>,
 {
 	let stable_amount: Balance = 1_000_000_000_000_000_u128;
@@ -267,7 +266,7 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
 		<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
 		T: crate::pallet::Config + pallet_ema_oracle::Config + pallet_liquidity_mining::Config<Instance1>,
-		<T as pallet_omnipool::Config>::AssetRegistry: Create<T::AssetLocation, Balance, Error=DispatchError, AssetId = <T as pallet_omnipool::Config>::AssetId>,
+		<T as pallet_omnipool::Config>::AssetRegistry: Create<Balance, Error=DispatchError, AssetId = <T as pallet_omnipool::Config>::AssetId>,
 	}
 
 	create_global_farm {

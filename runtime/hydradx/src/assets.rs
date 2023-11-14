@@ -560,9 +560,6 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type OraclePeriod = OmnipoolLMOraclePeriod;
 	type PriceOracle = EmaOracle;
 	type WeightInfo = weights::omnipool_lm::HydraWeight<Runtime>;
-
-	#[cfg(feature = "runtime-benchmarks")]
-	type AssetLocation = AssetLocation;
 }
 
 // The reason why there is difference between PROD and benchmark is that it is not possible
@@ -862,9 +859,6 @@ impl pallet_otc::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type WeightInfo = weights::otc::HydraWeight<Runtime>;
-
-	#[cfg(feature = "runtime-benchmarks")]
-	type AssetLocation = AssetLocation;
 }
 
 // Dynamic fees
@@ -991,7 +985,6 @@ impl pallet_bonds::Config for Runtime {
 	type AssetTypeWhitelist = AssetTypeWhitelist;
 	type ProtocolFee = ProtocolFee;
 	type FeeReceiver = TreasuryAccount;
-	type AssetLocation = AssetLocation;
 	type WeightInfo = weights::bonds::HydraWeight<Runtime>;
 }
 
@@ -1107,5 +1100,4 @@ impl pallet_xyk::Config for Runtime {
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;
 	type OracleSource = XYKOracleSourceIdentifier;
-	type AssetLocation = AssetLocation;
 }

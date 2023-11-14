@@ -27,7 +27,7 @@ fn register_asset_should_work() {
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
 
 			//Act
-			assert_ok!(<Registry as Create<AssetLocation, Balance>>::register_asset(
+			assert_ok!(<Registry as Create<Balance>>::register_asset(
 				Some(asset_id),
 				Some(&name),
 				AssetKind::XYK,
@@ -102,18 +102,16 @@ fn register_insufficient_asset_should_work() {
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
 
 			//Act
-			assert_ok!(
-				<Registry as Create<AssetLocation, Balance>>::register_insufficient_asset(
-					Some(asset_id),
-					Some(&name),
-					AssetKind::XYK,
-					Some(ed),
-					Some(&symbol),
-					Some(decimals),
-					Some(asset_location.clone()),
-					Some(xcm_rate_limit),
-				)
-			);
+			assert_ok!(<Registry as Create<Balance>>::register_insufficient_asset(
+				Some(asset_id),
+				Some(&name),
+				AssetKind::XYK,
+				Some(ed),
+				Some(&symbol),
+				Some(decimals),
+				Some(asset_location.clone()),
+				Some(xcm_rate_limit),
+			));
 
 			//Assert
 			let bounded_name = Pallet::<Test>::try_into_bounded(Some(name)).unwrap();
@@ -178,7 +176,7 @@ fn register_sufficient_asset_should_work() {
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
 
 			//Act
-			assert_ok!(<Registry as Create<AssetLocation, Balance>>::register_sufficient_asset(
+			assert_ok!(<Registry as Create<Balance>>::register_sufficient_asset(
 				Some(asset_id),
 				Some(&name),
 				AssetKind::XYK,
@@ -254,7 +252,7 @@ fn get_or_register_asset_should_register_asset_when_does_not_exists() {
 
 			//Act
 			assert_ok!(
-				<Registry as Create<AssetLocation, Balance>>::get_or_register_asset(
+				<Registry as Create<Balance>>::get_or_register_asset(
 					&name,
 					AssetKind::XYK,
 					Some(ed),
@@ -343,7 +341,7 @@ fn get_or_register_asset_should_return_asset_id_when_asset_exists() {
 
 				//Act
 				assert_ok!(
-					<Registry as Create<AssetLocation, Balance>>::get_or_register_asset(
+					<Registry as Create<Balance>>::get_or_register_asset(
 						&name,
 						AssetKind::XYK,
 						Some(ed),
@@ -391,17 +389,15 @@ fn get_or_register_sufficient_asset_should_work() {
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
 
 			//Act
-			assert_ok!(
-				<Registry as Create<AssetLocation, Balance>>::get_or_register_sufficient_asset(
-					&name,
-					AssetKind::XYK,
-					ed,
-					Some(&symbol),
-					Some(decimals),
-					Some(asset_location.clone()),
-					Some(xcm_rate_limit),
-				),
-			);
+			assert_ok!(<Registry as Create<Balance>>::get_or_register_sufficient_asset(
+				&name,
+				AssetKind::XYK,
+				ed,
+				Some(&symbol),
+				Some(decimals),
+				Some(asset_location.clone()),
+				Some(xcm_rate_limit),
+			),);
 
 			//Assert
 			let bounded_name = Pallet::<Test>::try_into_bounded(Some(name)).unwrap();
@@ -466,17 +462,15 @@ fn get_or_register_insufficient_asset_should_work() {
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
 
 			//Act
-			assert_ok!(
-				<Registry as Create<AssetLocation, Balance>>::get_or_register_insufficient_asset(
-					&name,
-					AssetKind::XYK,
-					Some(ed),
-					Some(&symbol),
-					Some(decimals),
-					Some(asset_location.clone()),
-					Some(xcm_rate_limit),
-				),
-			);
+			assert_ok!(<Registry as Create<Balance>>::get_or_register_insufficient_asset(
+				&name,
+				AssetKind::XYK,
+				Some(ed),
+				Some(&symbol),
+				Some(decimals),
+				Some(asset_location.clone()),
+				Some(xcm_rate_limit),
+			),);
 
 			//Assert
 			let bounded_name = Pallet::<Test>::try_into_bounded(Some(name)).unwrap();

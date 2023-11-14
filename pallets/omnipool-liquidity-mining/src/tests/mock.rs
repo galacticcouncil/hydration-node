@@ -181,9 +181,6 @@ impl omnipool_liquidity_mining::Config for Test {
 	type OraclePeriod = PeriodOracle;
 	type PriceOracle = DummyOracle;
 	type WeightInfo = ();
-
-	#[cfg(feature = "runtime-benchmarks")]
-	type AssetLocation = u8;
 }
 
 parameter_types! {
@@ -648,6 +645,7 @@ where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
 	type AssetId = T::AssetId;
+	type Location = u8;
 
 	fn is_sufficient(_id: Self::AssetId) -> bool {
 		unimplemented!()
@@ -670,7 +668,7 @@ where
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Create as CreateRegistry;
 #[cfg(feature = "runtime-benchmarks")]
-impl<T: Config> CreateRegistry<T::AssetLocation, Balance> for DummyRegistry<T>
+impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
@@ -683,7 +681,7 @@ where
 		_existential_deposit: Option<Balance>,
 		_symbol: Option<&[u8]>,
 		_decimals: Option<u8>,
-		_location: Option<T::AssetLocation>,
+		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
 		_is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {
@@ -706,7 +704,7 @@ where
 		_existential_deposit: Option<Balance>,
 		_symbol: Option<&[u8]>,
 		_decimals: Option<u8>,
-		_location: Option<T::AssetLocation>,
+		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
 		_is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {
