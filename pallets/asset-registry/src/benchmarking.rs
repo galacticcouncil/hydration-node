@@ -21,15 +21,15 @@ use super::*;
 
 use crate::types::AssetDetails;
 use frame_benchmarking::{account, benchmarks};
+use frame_support::traits::tokens::fungibles::Mutate as FungiblesMutate;
 use frame_system::RawOrigin;
-use orml_traits::MultiCurrencyExtended;
 use sp_std::vec;
 
 const UNIT: u128 = 1_000_000_000_000;
 
 benchmarks! {
 	 where_clause { where
-		T::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
+		T::Currency: FungiblesMutate<T::AccountId>,
 		T: crate::pallet::Config,
 	}
 
@@ -92,7 +92,7 @@ benchmarks! {
 
 	register_external {
 		let caller: T::AccountId = account("caller", 0, 1);
-		T::Currency::update_balance(T::StorageFeesAssetId::get(), &caller, (100_000 * UNIT) as i128)?;
+		T::Currency::mint_into(T::StorageFeesAssetId::get(), &caller, 101_000 * UNIT)?;
 
 		let expected_asset_id = Pallet::<T>::next_asset_id().unwrap();
 		let location: T::AssetNativeLocation = Default::default();

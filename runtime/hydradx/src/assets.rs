@@ -346,7 +346,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureRoot<AccountId>;
 	type UpdateOrigin = SuperMajorityTechCommittee;
-	type Currency = Currencies;
+	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
 	type AssetId = AssetId;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;

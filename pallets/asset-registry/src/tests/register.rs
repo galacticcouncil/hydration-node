@@ -2,6 +2,7 @@ use super::*;
 
 use crate::types::AssetType;
 use frame_support::error::BadOrigin;
+use frame_support::traits::tokens::fungibles::Mutate as MutateFungibles;
 use mock::{AssetId, Registry};
 use polkadot_xcm::v3::{
 	Junction::{self, Parachain},
@@ -382,8 +383,8 @@ fn register_external_asset_should_work_when_location_is_provided() {
 		let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
 
 		let alice_balance = 10_000 * UNIT;
-		Tokens::set_balance(RuntimeOrigin::root(), ALICE, NativeAssetId::get(), alice_balance, 0).unwrap();
-		assert_eq!(Tokens::free_balance(NativeAssetId::get(), &TREASURY), 0);
+		Tokens::mint_into(NativeAssetId::get(), &ALICE, alice_balance).unwrap();
+		assert_eq!(Tokens::balance(NativeAssetId::get(), &TREASURY), 0);
 
 		//Act
 		assert_ok!(Registry::register_external(
@@ -431,10 +432,10 @@ fn register_external_asset_should_work_when_location_is_provided() {
 		));
 
 		assert_eq!(
-			Tokens::free_balance(NativeAssetId::get(), &ALICE),
+			Tokens::balance(NativeAssetId::get(), &ALICE),
 			alice_balance - StoreFees::get()
 		);
-		assert_eq!(Tokens::free_balance(NativeAssetId::get(), &TREASURY), StoreFees::get());
+		assert_eq!(Tokens::balance(NativeAssetId::get(), &TREASURY), StoreFees::get());
 	});
 }
 
@@ -467,8 +468,8 @@ fn register_external_asset_should_not_work_when_location_is_already_used() {
 		));
 
 		let alice_balance = 10_000 * UNIT;
-		Tokens::set_balance(RuntimeOrigin::root(), ALICE, NativeAssetId::get(), alice_balance, 0).unwrap();
-		assert_eq!(Tokens::free_balance(NativeAssetId::get(), &TREASURY), 0);
+		Tokens::mint_into(NativeAssetId::get(), &ALICE, alice_balance).unwrap();
+		assert_eq!(Tokens::balance(NativeAssetId::get(), &TREASURY), 0);
 
 		//Act
 		assert_noop!(

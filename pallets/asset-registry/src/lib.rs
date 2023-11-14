@@ -19,9 +19,9 @@
 
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::CheckedAdd;
+use frame_support::traits::tokens::fungibles::{Inspect as FungiblesInspect, Transfer};
 use frame_support::{dispatch::DispatchError, require_transactional};
 use frame_system::pallet_prelude::*;
-use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_arithmetic::traits::{BaseArithmetic, Zero};
 use sp_std::convert::TryInto;
@@ -88,7 +88,8 @@ pub mod pallet {
 		type AssetNativeLocation: Parameter + Member + Default + MaxEncodedLen;
 
 		/// Multi currency mechanism
-		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
+		type Currency: FungiblesInspect<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>
+			+ Transfer<Self::AccountId>;
 
 		#[pallet::constant]
 		type SequentialIdStartAt: Get<Self::AssetId>;
@@ -157,6 +158,23 @@ pub mod pallet {
 		//NOTE: This error is triggered from `SufficiencyCheck`.
 		/// Existential deposit can't be zero.
 		ZeroExistentialDeposit,
+
+		/// Action cannot be completed because unexpected error has occurred. This should be reported
+		/// to protocol maintainers.
+		InconsistentState(InconsistentStateError),
+	}
+
+	// NOTE: these errors should never happen.
+	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
+	pub enum InconsistentStateError {
+		/// Name or symbol conversion to bounded string failed.
+		BoundedConversionFailed,
+	}
+
+	impl<T> From<InconsistentStateError> for Error<T> {
+		fn from(e: InconsistentStateError) -> Error<T> {
+			Error::<T>::InconsistentState(e)
+		}
 	}
 
 	#[pallet::type_value]
@@ -232,7 +250,7 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
-			let _ = with_transaction(|| {
+			with_transaction(|| {
 				// Register native asset first
 				// It is to make sure that native is registered as any other asset
 				let native_asset_name = Pallet::<T>::try_into_bounded(Some(self.native_asset_name.to_vec()))
@@ -285,7 +303,8 @@ pub mod pallet {
 				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
-			});
+			})
+			.expect("Genesis build failed.")
 		}
 	}
 
@@ -475,7 +494,9 @@ pub mod pallet {
 
 			if !T::StorageFees::get().is_zero() {
 				ensure!(
-					T::Currency::ensure_can_withdraw(T::StorageFeesAssetId::get(), &who, T::StorageFees::get()).is_ok(),
+					T::Currency::can_withdraw(T::StorageFeesAssetId::get(), &who, T::StorageFees::get())
+						.into_result()
+						.is_ok(),
 					Error::<T>::InsufficientBalance
 				);
 
@@ -484,6 +505,7 @@ pub mod pallet {
 					&who,
 					&T::StorageFeesBeneficiary::get(),
 					T::StorageFees::get(),
+					false,
 				)?;
 			}
 
@@ -505,13 +527,11 @@ impl<T: Config> Pallet<T> {
 
 	/// Convert Vec<u8> to BoundedVec so it respects the max set limit, otherwise return TooLong error
 	fn try_into_bounded(name: Option<Vec<u8>>) -> Result<Option<BoundedVec<u8, T::StringLimit>>, Error<T>> {
-		if let Some(name) = name {
-			TryInto::<BoundedVec<u8, T::StringLimit>>::try_into(name)
-				.map_err(|_| Error::<T>::TooLong)
-				.map(Some)
-		} else {
-			Ok(None)
-		}
+		let Some(s) = name else {
+            return Ok(None);
+        };
+
+		s.try_into().map_err(|_| Error::<T>::TooLong).map(Some)
 	}
 
 	fn do_set_location(asset_id: T::AssetId, location: T::AssetNativeLocation) -> Result<(), DispatchError> {
@@ -587,8 +607,11 @@ impl<T: Config> Pallet<T> {
 	) -> Result<T::AssetId, DispatchError> {
 		let bounded_name = Self::try_into_bounded(Some(name))?;
 
-		//NOTE: this unwrap is safe.
-		if let Some(asset_id) = AssetIds::<T>::get(bounded_name.as_ref().unwrap()) {
+		if let Some(asset_id) = AssetIds::<T>::get(
+			bounded_name
+				.as_ref()
+				.ok_or_else(|| -> pallet::Error<T> { InconsistentStateError::BoundedConversionFailed.into() })?,
+		) {
 			Ok(asset_id)
 		} else {
 			Self::do_register_asset(
@@ -624,8 +647,8 @@ impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for Pallet
 	}
 
 	fn retrieve_asset(name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		//NOTE: This unwrap is safe.
-		let bounded_name = Self::try_into_bounded(Some(name.clone()))?.unwrap();
+		let bounded_name = Self::try_into_bounded(Some(name.clone()))?
+			.ok_or_else(|| -> pallet::Error<T> { InconsistentStateError::BoundedConversionFailed.into() })?;
 		if let Some(asset_id) = AssetIds::<T>::get(bounded_name) {
 			Ok(asset_id)
 		} else {

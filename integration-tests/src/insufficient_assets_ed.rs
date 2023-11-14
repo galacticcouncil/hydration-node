@@ -20,7 +20,7 @@ use xcm_emulator::TestExt;
 fn sender_should_pay_ed_in_hdx_when_it_is_not_whitelisted() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
@@ -79,7 +79,7 @@ fn sender_should_pay_ed_in_hdx_when_it_is_not_whitelisted() {
 fn reciever_should_pay_ed_in_hdx_when_insuficcient_asset_was_depositted() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
@@ -131,7 +131,7 @@ fn reciever_should_pay_ed_in_hdx_when_insuficcient_asset_was_depositted() {
 fn hdx_ed_should_be_released_when_account_is_killed_and_ed_was_paid_in_hdx() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
@@ -189,7 +189,7 @@ fn hdx_ed_should_be_released_when_account_is_killed_and_ed_was_paid_in_hdx() {
 fn sender_should_pay_ed_only_when_dest_didnt_pay_yet() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
 		let fee_asset = BTC;
 
 		assert_ok!(Tokens::set_balance(
@@ -273,7 +273,7 @@ fn sender_should_pay_ed_only_when_dest_didnt_pay_yet() {
 fn dest_should_pay_ed_only_once_when_insufficient_asset_was_depsitted() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
 		let fee_asset = BTC;
 
 		assert_ok!(Tokens::set_balance(
@@ -341,7 +341,7 @@ fn dest_should_pay_ed_only_once_when_insufficient_asset_was_depsitted() {
 fn hdx_ed_should_be_released_when_account_is_killed_and_ed_was_paid_in_fee_asset() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
 		let fee_asset = BTC;
 
 		//NOTE: this is important for this tests - it basically mean that Bob already paid ED.
@@ -425,7 +425,7 @@ fn hdx_ed_should_be_released_when_account_is_killed_and_ed_was_paid_in_fee_asset
 fn tx_should_fail_with_existential_deposit_err_when_dest_account_cant_pay_ed() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
 		let fee_asset = BTC;
 
 		assert_ok!(MultiTransactionPayment::set_currency(
@@ -449,7 +449,7 @@ fn tx_should_fail_with_existential_deposit_err_when_dest_account_cant_pay_ed() {
 fn sender_should_pay_ed_in_fee_asset_when_sending_insufficient_asset() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
 		let fee_asset = BTC;
 
 		assert_ok!(Tokens::set_balance(
@@ -591,7 +591,7 @@ fn grandfathered_account_should_receive_hdx_when_account_is_killed() {
 fn ed_should_not_be_collected_when_transfering_or_depositing_sufficient_assets() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1 = register_shitcoin(0_u128);
+		let sht1 = register_external_asset(0_u128);
 		let sufficient_asset = DAI;
 
 		//This pays ED.
@@ -672,7 +672,7 @@ fn ed_should_not_be_collected_when_transfering_or_depositing_sufficient_assets()
 fn ed_should_not_be_released_when_sufficient_asset_killed_account() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
 		let sufficient_asset = DAI;
 
 		//This pays ED.
@@ -735,10 +735,10 @@ fn ed_should_not_be_released_when_sufficient_asset_killed_account() {
 fn ed_should_be_collected_for_each_insufficient_asset_when_transfered_or_depositted() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
-		let sht2: AssetId = register_shitcoin(1_u128);
-		let sht3: AssetId = register_shitcoin(2_u128);
-		let sht4: AssetId = register_shitcoin(3_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
+		let sht2: AssetId = register_external_asset(1_u128);
+		let sht3: AssetId = register_external_asset(2_u128);
+		let sht4: AssetId = register_external_asset(3_u128);
 
 		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let bob_hdx_balance = Currencies::free_balance(HDX, &BOB.into());
@@ -841,10 +841,10 @@ fn ed_should_be_collected_for_each_insufficient_asset_when_transfered_or_deposit
 fn ed_should_be_released_for_each_insufficient_asset_when_account_is_killed() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
-		let sht2: AssetId = register_shitcoin(1_u128);
-		let sht3: AssetId = register_shitcoin(2_u128);
-		let sht4: AssetId = register_shitcoin(3_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
+		let sht2: AssetId = register_external_asset(1_u128);
+		let sht3: AssetId = register_external_asset(2_u128);
+		let sht4: AssetId = register_external_asset(3_u128);
 
 		//so bob doesn't pay ed
 		assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), BOB.into(), sht1, 1, 0));
@@ -968,10 +968,10 @@ fn ed_should_be_released_for_each_insufficient_asset_when_account_is_killed() {
 fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
-		let sht2: AssetId = register_shitcoin(1_u128);
-		let sht3: AssetId = register_shitcoin(2_u128);
-		let sht4: AssetId = register_shitcoin(3_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
+		let sht2: AssetId = register_external_asset(1_u128);
+		let sht3: AssetId = register_external_asset(2_u128);
+		let sht4: AssetId = register_external_asset(3_u128);
 
 		//so bob doesn't pay ed
 		assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), BOB.into(), sht1, 1, 0));
@@ -1143,8 +1143,8 @@ fn mix_of_sufficinet_and_insufficient_assets_should_lock_unlock_ed_correctly() {
 fn sender_should_pay_ed_when_tranferred_or_deposited_to_whitelisted_dest() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
-		let sht2: AssetId = register_shitcoin(1_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
+		let sht2: AssetId = register_external_asset(1_u128);
 
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
@@ -1226,7 +1226,7 @@ fn sender_should_pay_ed_when_tranferred_or_deposited_to_whitelisted_dest() {
 fn ed_should_be_released_when_whitelisted_account_was_killed() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
 		let treasury = TreasuryAccount::get();
 
 		assert_ok!(Tokens::set_balance(
@@ -1292,8 +1292,8 @@ fn ed_should_be_released_when_whitelisted_account_was_killed() {
 fn tx_should_fail_with_unsupported_currency_error_when_fee_asset_price_wasn_not_provided() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let sht1: AssetId = register_shitcoin(0_u128);
-		let sht2: AssetId = register_shitcoin(1_u128);
+		let sht1: AssetId = register_external_asset(0_u128);
+		let sht2: AssetId = register_external_asset(1_u128);
 		let fee_asset = BTC;
 
 		assert_ok!(Tokens::set_balance(
@@ -1335,7 +1335,7 @@ fn tx_should_fail_with_unsupported_currency_error_when_fee_asset_price_wasn_not_
 	});
 }
 
-fn register_shitcoin(general_index: u128) -> AssetId {
+fn register_external_asset(general_index: u128) -> AssetId {
 	let location = hydradx_runtime::AssetLocation(MultiLocation::new(
 		1,
 		X2(Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)),
