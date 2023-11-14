@@ -182,6 +182,11 @@ pub fn parachain_genesis(
 		duster,
 		omnipool_warehouse_lm: Default::default(),
 		omnipool_liquidity_mining: Default::default(),
+		evm_chain_id: hydradx_runtime::EVMChainIdConfig {
+			chain_id: 222_222u32.into(),
+		},
+		ethereum: Default::default(),
+		evm: Default::default(),
 	}
 }
 

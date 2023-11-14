@@ -474,6 +474,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "auto_impl"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fee3da8ef1276b0bee5dd1c7258010d8fffd31801447323115a25560e1327b89"
+dependencies = [
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1561,7 +1573,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-cli"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "clap 4.3.9",
  "parity-scale-codec",
@@ -1576,7 +1588,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-collator"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "cumulus-client-consensus-common",
  "cumulus-client-network",
@@ -1599,7 +1611,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-aura"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "async-trait",
  "cumulus-client-consensus-common",
@@ -1628,7 +1640,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-common"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "async-trait",
  "cumulus-client-pov-recovery",
@@ -1651,7 +1663,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-relay-chain"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "async-trait",
  "cumulus-client-consensus-common",
@@ -1674,7 +1686,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-network"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "async-trait",
  "cumulus-relay-chain-interface",
@@ -1697,7 +1709,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-pov-recovery"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "cumulus-primitives-core",
  "cumulus-relay-chain-interface",
@@ -1720,7 +1732,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-service"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "cumulus-client-cli",
  "cumulus-client-collator",
@@ -1748,7 +1760,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-aura-ext"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -1758,13 +1770,13 @@ dependencies = [
  "sp-application-crypto",
  "sp-consensus-aura",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
 name = "cumulus-pallet-dmp-queue"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -1774,14 +1786,14 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
 ]
 
 [[package]]
 name = "cumulus-pallet-parachain-system"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "bytes",
  "cumulus-pallet-parachain-system-proc-macro",
@@ -1801,7 +1813,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-state-machine",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-trie",
  "sp-version",
  "xcm",
@@ -1810,7 +1822,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-parachain-system-proc-macro"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1821,7 +1833,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-xcm"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -1830,14 +1842,14 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
 ]
 
 [[package]]
 name = "cumulus-pallet-xcmp-queue"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "cumulus-primitives-core",
  "frame-benchmarking",
@@ -1851,7 +1863,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
  "xcm-executor",
 ]
@@ -1859,7 +1871,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-core"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "parity-scale-codec",
  "polkadot-core-primitives",
@@ -1867,7 +1879,7 @@ dependencies = [
  "polkadot-primitives",
  "sp-api",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-trie",
  "xcm",
 ]
@@ -1875,12 +1887,12 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-parachain-inherent"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
  "cumulus-relay-chain-interface",
- "cumulus-test-relay-sproof-builder 0.1.0 (git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38)",
+ "cumulus-test-relay-sproof-builder",
  "parity-scale-codec",
  "sc-client-api",
  "scale-info",
@@ -1889,7 +1901,7 @@ dependencies = [
  "sp-inherents",
  "sp-runtime",
  "sp-state-machine",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-storage",
  "sp-trie",
  "tracing",
@@ -1898,20 +1910,20 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-timestamp"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "cumulus-primitives-core",
  "futures",
  "parity-scale-codec",
  "sp-inherents",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-timestamp",
 ]
 
 [[package]]
 name = "cumulus-primitives-utility"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -1920,7 +1932,7 @@ dependencies = [
  "polkadot-runtime-common",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
  "xcm-builder",
  "xcm-executor",
@@ -1929,7 +1941,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-inprocess-interface"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -1954,7 +1966,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-interface"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -1973,7 +1985,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-minimal-node"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "array-bytes 6.1.0",
  "async-trait",
@@ -2013,7 +2025,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-rpc-interface"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -2042,27 +2054,14 @@ dependencies = [
 [[package]]
 name = "cumulus-test-relay-sproof-builder"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "cumulus-primitives-core",
  "parity-scale-codec",
  "polkadot-primitives",
  "sp-runtime",
  "sp-state-machine",
- "sp-std",
-]
-
-[[package]]
-name = "cumulus-test-relay-sproof-builder"
-version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=polkadot-v0.9.38#9b4e0247137f158d1a35118197d34adfa58858b7"
-dependencies = [
- "cumulus-primitives-core",
- "parity-scale-codec",
- "polkadot-primitives",
- "sp-runtime",
- "sp-state-machine",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -2644,10 +2643,182 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethabi"
+version = "18.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7413c5f74cc903ea37386a8965a936cbeb334bd270862fdece542c1b2dcbc898"
+dependencies = [
+ "ethereum-types",
+ "hex",
+ "sha3",
+]
+
+[[package]]
+name = "ethbloom"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c22d4b5885b6aa2fe5e8b9329fb8d232bf739e434e6b87347c63bdd00c120f60"
+dependencies = [
+ "crunchy",
+ "fixed-hash",
+ "impl-codec",
+ "impl-rlp",
+ "impl-serde",
+ "scale-info",
+ "tiny-keccak",
+]
+
+[[package]]
+name = "ethereum"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a89fb87a9e103f71b903b80b670200b54cc67a07578f070681f1fffb7396fb7"
+dependencies = [
+ "bytes",
+ "ethereum-types",
+ "hash-db",
+ "hash256-std-hasher",
+ "parity-scale-codec",
+ "rlp",
+ "scale-info",
+ "serde",
+ "sha3",
+ "triehash",
+]
+
+[[package]]
+name = "ethereum-types"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02d215cbf040552efcbe99a38372fe80ab9d00268e20012b79fcd0f073edd8ee"
+dependencies = [
+ "ethbloom",
+ "fixed-hash",
+ "impl-codec",
+ "impl-rlp",
+ "impl-serde",
+ "primitive-types",
+ "scale-info",
+ "uint",
+]
+
+[[package]]
 name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
+
+[[package]]
+name = "evm"
+version = "0.36.0"
+source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
+dependencies = [
+ "auto_impl",
+ "environmental",
+ "ethereum",
+ "evm-core 0.36.0",
+ "evm-gasometer 0.36.0",
+ "evm-runtime 0.36.0",
+ "log",
+ "parity-scale-codec",
+ "primitive-types",
+ "rlp",
+ "scale-info",
+ "serde",
+ "sha3",
+]
+
+[[package]]
+name = "evm"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4448c65b71e8e2b9718232d84d09045eeaaccb2320494e6bd6dbf7e58fec8ff"
+dependencies = [
+ "auto_impl",
+ "environmental",
+ "ethereum",
+ "evm-core 0.37.0",
+ "evm-gasometer 0.37.0",
+ "evm-runtime 0.37.0",
+ "log",
+ "parity-scale-codec",
+ "primitive-types",
+ "rlp",
+ "scale-info",
+ "serde",
+ "sha3",
+]
+
+[[package]]
+name = "evm-core"
+version = "0.36.0"
+source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
+dependencies = [
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
+ "serde",
+]
+
+[[package]]
+name = "evm-core"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64c51bec0eb68a891c2575c758eaaa1d61373fc51f7caaf216b1fb5c3fea3b5d"
+dependencies = [
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
+ "serde",
+]
+
+[[package]]
+name = "evm-gasometer"
+version = "0.36.0"
+source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
+dependencies = [
+ "environmental",
+ "evm-core 0.36.0",
+ "evm-runtime 0.36.0",
+ "primitive-types",
+]
+
+[[package]]
+name = "evm-gasometer"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8b93c59c54fc26522d842f0e0d3f8e8be331c776df18ff3e540b53c2f64d509"
+dependencies = [
+ "environmental",
+ "evm-core 0.37.0",
+ "evm-runtime 0.37.0",
+ "primitive-types",
+]
+
+[[package]]
+name = "evm-runtime"
+version = "0.36.0"
+source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
+dependencies = [
+ "auto_impl",
+ "environmental",
+ "evm-core 0.36.0",
+ "primitive-types",
+ "sha3",
+]
+
+[[package]]
+name = "evm-runtime"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c79b9459ce64f1a28688397c4013764ce53cd57bb84efc16b5187fa9b05b13ad"
+dependencies = [
+ "auto_impl",
+ "environmental",
+ "evm-core 0.37.0",
+ "primitive-types",
+ "sha3",
+]
 
 [[package]]
 name = "exit-future"
@@ -2727,6 +2898,137 @@ dependencies = [
  "quote",
  "syn 1.0.109",
  "thiserror",
+]
+
+[[package]]
+name = "fc-consensus"
+version = "2.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "async-trait",
+ "fc-db",
+ "fp-consensus",
+ "fp-rpc",
+ "sc-consensus",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-runtime",
+ "thiserror",
+]
+
+[[package]]
+name = "fc-db"
+version = "2.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "fp-storage",
+ "kvdb-rocksdb",
+ "log",
+ "parity-db",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "sc-client-db",
+ "smallvec",
+ "sp-blockchain",
+ "sp-core",
+ "sp-database",
+ "sp-runtime",
+]
+
+[[package]]
+name = "fc-mapping-sync"
+version = "2.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "fc-db",
+ "fp-consensus",
+ "fp-rpc",
+ "futures",
+ "futures-timer",
+ "log",
+ "sc-client-api",
+ "sp-api",
+ "sp-blockchain",
+ "sp-runtime",
+]
+
+[[package]]
+name = "fc-rpc"
+version = "2.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "ethereum",
+ "ethereum-types",
+ "evm 0.37.0",
+ "fc-db",
+ "fc-rpc-core",
+ "fc-storage",
+ "fp-ethereum",
+ "fp-evm",
+ "fp-rpc",
+ "fp-storage",
+ "futures",
+ "hex",
+ "jsonrpsee 0.16.2",
+ "libsecp256k1",
+ "log",
+ "lru 0.8.1",
+ "pallet-evm",
+ "parity-scale-codec",
+ "prometheus",
+ "rand 0.8.5",
+ "rlp",
+ "sc-client-api",
+ "sc-network",
+ "sc-network-common",
+ "sc-rpc",
+ "sc-service",
+ "sc-transaction-pool",
+ "sc-transaction-pool-api",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-storage",
+ "substrate-prometheus-endpoint",
+ "tokio",
+]
+
+[[package]]
+name = "fc-rpc-core"
+version = "1.1.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "ethereum",
+ "ethereum-types",
+ "jsonrpsee 0.16.2",
+ "rustc-hex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "fc-storage"
+version = "1.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "ethereum",
+ "ethereum-types",
+ "fp-rpc",
+ "fp-storage",
+ "parity-scale-codec",
+ "sc-client-api",
+ "sp-api",
+ "sp-blockchain",
+ "sp-io",
+ "sp-runtime",
+ "sp-storage",
 ]
 
 [[package]]
@@ -2873,6 +3175,84 @@ dependencies = [
 ]
 
 [[package]]
+name = "fp-consensus"
+version = "2.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "ethereum",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-runtime",
+ "sp-std 5.0.0",
+]
+
+[[package]]
+name = "fp-ethereum"
+version = "1.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "ethereum",
+ "ethereum-types",
+ "fp-evm",
+ "frame-support",
+ "num_enum",
+ "parity-scale-codec",
+ "sp-std 5.0.0",
+]
+
+[[package]]
+name = "fp-evm"
+version = "3.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "evm 0.37.0",
+ "frame-support",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "sp-std 5.0.0",
+]
+
+[[package]]
+name = "fp-rpc"
+version = "3.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "ethereum",
+ "ethereum-types",
+ "fp-evm",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-core",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-std 5.0.0",
+]
+
+[[package]]
+name = "fp-self-contained"
+version = "1.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-runtime",
+]
+
+[[package]]
+name = "fp-storage"
+version = "2.0.0"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "parity-scale-codec",
+ "serde",
+]
+
+[[package]]
 name = "fragile"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2898,7 +3278,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-runtime-interface",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-storage",
  "static_assertions",
 ]
@@ -2943,7 +3323,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-state-machine",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-storage",
  "sp-trie",
  "thiserror",
@@ -2975,7 +3355,7 @@ dependencies = [
  "sp-core",
  "sp-npos-elections",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -2991,7 +3371,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-tracing",
 ]
 
@@ -3049,7 +3429,7 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-state-machine",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-tracing",
  "sp-weights",
  "tt-call",
@@ -3105,7 +3485,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-version",
  "sp-weights",
 ]
@@ -3122,7 +3502,7 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -3143,7 +3523,7 @@ dependencies = [
  "parity-scale-codec",
  "sp-api",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -3704,14 +4084,15 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-arithmetic",
- "sp-std",
+ "sp-std 5.0.0",
  "test-case 2.2.2",
 ]
 
 [[package]]
 name = "hydradx"
-version = "10.0.1"
+version = "11.0.0"
 dependencies = [
+ "async-trait",
  "clap 4.3.9",
  "cumulus-client-cli",
  "cumulus-client-collator",
@@ -3725,6 +4106,13 @@ dependencies = [
  "cumulus-relay-chain-inprocess-interface",
  "cumulus-relay-chain-interface",
  "cumulus-relay-chain-minimal-node",
+ "fc-consensus",
+ "fc-db",
+ "fc-mapping-sync",
+ "fc-rpc",
+ "fc-rpc-core",
+ "fp-rpc",
+ "fp-storage",
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "frame-system-rpc-runtime-api",
@@ -3747,6 +4135,7 @@ dependencies = [
  "sc-chain-spec",
  "sc-cli",
  "sc-client-api",
+ "sc-client-db",
  "sc-consensus",
  "sc-consensus-aura",
  "sc-executor",
@@ -3823,7 +4212,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
  "xcm-builder",
  "xcm-executor",
@@ -3842,6 +4231,9 @@ dependencies = [
  "cumulus-primitives-parachain-inherent",
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
+ "ethabi",
+ "fp-rpc",
+ "fp-self-contained",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -3853,6 +4245,8 @@ dependencies = [
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
+ "module-evm-utility-macro",
+ "num_enum",
  "orml-benchmarking",
  "orml-tokens",
  "orml-traits",
@@ -3878,6 +4272,10 @@ dependencies = [
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
+ "pallet-ethereum",
+ "pallet-evm",
+ "pallet-evm-chain-id",
+ "pallet-evm-precompile-dispatch",
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-lbp",
@@ -3924,7 +4322,7 @@ dependencies = [
  "sp-offchain",
  "sp-runtime",
  "sp-session",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-transaction-pool",
  "sp-trie",
  "sp-version",
@@ -3937,7 +4335,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.7.1"
+version = "2.8.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -3945,7 +4343,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-arithmetic",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -4073,6 +4471,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba6a270039626615617f3f36d15fc827041df3b78c439da2cadfa47455a77f2f"
 dependencies = [
  "parity-scale-codec",
+]
+
+[[package]]
+name = "impl-rlp"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f28220f89297a075ddc7245cd538076ee98b01f2a9c23a53a4f1105d5a322808"
+dependencies = [
+ "rlp",
 ]
 
 [[package]]
@@ -4593,7 +5000,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-transaction-pool",
  "sp-version",
  "static_assertions",
@@ -5566,6 +5973,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "module-evm-utility"
+version = "2.22.0"
+source = "git+https://github.com/AcalaNetwork/Acala?branch=release-acala-2.22.0#37d9e3604fb3f217869ccc49dcce8a7b632fb73a"
+dependencies = [
+ "ethereum",
+ "evm 0.36.0",
+ "evm-gasometer 0.36.0",
+ "evm-runtime 0.36.0",
+ "sha3",
+ "sp-std 8.0.0",
+]
+
+[[package]]
+name = "module-evm-utility-macro"
+version = "2.22.0"
+source = "git+https://github.com/AcalaNetwork/Acala?branch=release-acala-2.22.0#37d9e3604fb3f217869ccc49dcce8a7b632fb73a"
+dependencies = [
+ "module-evm-utility",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "multiaddr"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5906,6 +6337,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_enum"
+version = "0.5.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f646caf906c20226733ed5b1374287eb97e3c2a5c227ce668c1f2ce20ae57c9"
+dependencies = [
+ "num_enum_derive",
+]
+
+[[package]]
+name = "num_enum_derive"
+version = "0.5.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcbff9bc912032c62bf65ef1d5aea88983b420f4f839db1e9b0c281a25c9c799"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "object"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6031,7 +6483,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-runtime-interface",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-storage",
 ]
 
@@ -6048,7 +6500,7 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6063,7 +6515,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6081,7 +6533,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
 ]
 
@@ -6096,7 +6548,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
 ]
 
@@ -6111,7 +6563,7 @@ dependencies = [
  "serde",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6126,7 +6578,7 @@ dependencies = [
  "serde",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6139,7 +6591,7 @@ dependencies = [
  "pallet-xcm",
  "parity-scale-codec",
  "scale-info",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
 ]
 
@@ -6152,7 +6604,7 @@ dependencies = [
  "orml-traits",
  "parity-scale-codec",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
  "xcm-executor",
 ]
@@ -6173,7 +6625,7 @@ dependencies = [
  "serde",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
  "xcm-executor",
 ]
@@ -6218,7 +6670,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.3.1"
+version = "2.3.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6235,7 +6687,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "substrate-wasm-builder",
  "test-utils",
  "xcm",
@@ -6254,7 +6706,7 @@ dependencies = [
  "sp-application-crypto",
  "sp-consensus-aura",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6270,7 +6722,7 @@ dependencies = [
  "sp-application-crypto",
  "sp-authority-discovery",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6284,7 +6736,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6308,7 +6760,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6327,7 +6779,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-tracing",
 ]
 
@@ -6343,7 +6795,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6359,7 +6811,7 @@ dependencies = [
  "serde",
  "sp-beefy",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6382,7 +6834,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6406,7 +6858,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-tracing",
 ]
 
@@ -6425,7 +6877,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6444,7 +6896,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6467,7 +6919,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "test-case 3.1.0",
  "test-utils",
 ]
@@ -6494,7 +6946,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6520,14 +6972,14 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
  "substrate-wasm-builder",
 ]
 
 [[package]]
 name = "pallet-collator-selection"
 version = "3.0.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6540,7 +6992,7 @@ dependencies = [
  "scale-info",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6557,7 +7009,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6574,7 +7026,7 @@ dependencies = [
  "serde",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6593,7 +7045,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6631,7 +7083,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-tracing",
  "test-case 2.2.2",
  "test-utils",
@@ -6652,7 +7104,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6672,7 +7124,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6695,7 +7147,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "substrate-wasm-builder",
 ]
 
@@ -6718,7 +7170,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6740,7 +7192,7 @@ dependencies = [
  "sp-io",
  "sp-npos-elections",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "strum",
 ]
 
@@ -6772,7 +7224,7 @@ dependencies = [
  "sp-io",
  "sp-npos-elections",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6795,7 +7247,79 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-io",
- "sp-std",
+ "sp-std 5.0.0",
+]
+
+[[package]]
+name = "pallet-ethereum"
+version = "4.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "environmental",
+ "ethereum",
+ "ethereum-types",
+ "evm 0.37.0",
+ "fp-consensus",
+ "fp-ethereum",
+ "fp-evm",
+ "fp-rpc",
+ "fp-self-contained",
+ "fp-storage",
+ "frame-support",
+ "frame-system",
+ "pallet-evm",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "rlp",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 5.0.0",
+]
+
+[[package]]
+name = "pallet-evm"
+version = "6.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "environmental",
+ "evm 0.37.0",
+ "fp-evm",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "impl-trait-for-tuples",
+ "log",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "rlp",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 5.0.0",
+]
+
+[[package]]
+name = "pallet-evm-chain-id"
+version = "1.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+]
+
+[[package]]
+name = "pallet-evm-precompile-dispatch"
+version = "2.0.0-dev"
+source = "git+https://github.com/PureStake/frontier?branch=moonbeam-polkadot-v0.9.38#df4e329ef9b1ef54d83114deff98124139f1dd6d"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "pallet-evm",
 ]
 
 [[package]]
@@ -6813,7 +7337,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6830,7 +7354,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6853,7 +7377,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6869,7 +7393,7 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6889,7 +7413,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6906,7 +7430,7 @@ dependencies = [
  "sp-io",
  "sp-keyring",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6930,7 +7454,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "substrate-wasm-builder",
  "test-utils",
 ]
@@ -6957,7 +7481,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "test-utils",
 ]
 
@@ -6975,7 +7499,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -6992,7 +7516,7 @@ dependencies = [
  "sp-io",
  "sp-mmr-primitives",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7008,7 +7532,7 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7024,7 +7548,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7041,7 +7565,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7061,7 +7585,7 @@ dependencies = [
  "sp-runtime",
  "sp-runtime-interface",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7071,7 +7595,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bc
 dependencies = [
  "parity-scale-codec",
  "sp-api",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7088,7 +7612,7 @@ dependencies = [
  "serde",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7112,7 +7636,7 @@ dependencies = [
  "scale-info",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7138,7 +7662,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-tracing",
 ]
 
@@ -7167,7 +7691,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "test-utils",
 ]
 
@@ -7189,7 +7713,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "test-utils",
 ]
 
@@ -7207,7 +7731,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7222,7 +7746,7 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7240,7 +7764,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7255,7 +7779,7 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7274,7 +7798,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7288,7 +7812,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-api",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7312,7 +7836,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "test-utils",
 ]
 
@@ -7329,7 +7853,7 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-weights",
 ]
 
@@ -7350,7 +7874,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-trie",
 ]
 
@@ -7367,7 +7891,7 @@ dependencies = [
  "rand 0.8.5",
  "sp-runtime",
  "sp-session",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7381,12 +7905,12 @@ dependencies = [
  "rand_chacha 0.2.2",
  "scale-info",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.3.1"
+version = "3.4.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7404,7 +7928,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-tracing",
 ]
 
@@ -7429,7 +7953,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7452,7 +7976,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7489,7 +8013,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7503,7 +8027,7 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7520,7 +8044,7 @@ dependencies = [
  "sp-inherents",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-timestamp",
 ]
 
@@ -7540,12 +8064,12 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "9.0.1"
+version = "9.0.2"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7554,14 +8078,16 @@ dependencies = [
  "orml-traits",
  "pallet-balances",
  "pallet-currencies",
+ "pallet-evm",
  "pallet-transaction-payment",
  "parity-scale-codec",
+ "primitives",
  "scale-info",
  "sp-api",
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "test-utils",
 ]
 
@@ -7583,7 +8109,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7599,7 +8125,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7644,7 +8170,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7659,7 +8185,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7675,7 +8201,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7690,7 +8216,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7705,7 +8231,7 @@ dependencies = [
  "scale-info",
  "sp-api",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -7723,7 +8249,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
  "xcm-executor",
 ]
@@ -7741,7 +8267,7 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
  "xcm-builder",
  "xcm-executor",
@@ -7770,7 +8296,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "test-case 3.1.0",
  "test-utils",
  "xcm",
@@ -7800,14 +8326,14 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "substrate-wasm-builder",
 ]
 
 [[package]]
 name = "parachain-info"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
+source = "git+https://github.com/galacticcouncil/cumulus.git?rev=460647cc2ec988ee04370c1cdd9fd518ed4868eb#460647cc2ec988ee04370c1cdd9fd518ed4868eb"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -8321,7 +8847,7 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -8921,7 +9447,7 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -8962,7 +9488,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -9076,7 +9602,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-transaction-pool",
  "sp-version",
  "static_assertions",
@@ -9130,7 +9656,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
  "static_assertions",
  "xcm",
 ]
@@ -9157,7 +9683,7 @@ dependencies = [
  "bs58",
  "parity-scale-codec",
  "polkadot-primitives",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-tracing",
 ]
 
@@ -9198,7 +9724,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
  "static_assertions",
  "xcm",
  "xcm-executor",
@@ -9458,6 +9984,7 @@ checksum = "9f3486ccba82358b11a77516035647c34ba167dfa53312630de83b12bd4f3d66"
 dependencies = [
  "fixed-hash",
  "impl-codec",
+ "impl-rlp",
  "impl-serde",
  "scale-info",
  "uint",
@@ -9474,7 +10001,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-core",
- "sp-std",
+ "sp-std 5.0.0",
  "static_assertions",
 ]
 
@@ -10033,6 +10560,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "rlp"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb919243f34364b6bd2fc10ef797edbfa75f33c252e7998527479c6d6b47e1ec"
+dependencies = [
+ "bytes",
+ "rlp-derive",
+ "rustc-hex",
+]
+
+[[package]]
+name = "rlp-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e33d7b2abe0c340d8797fe2907d3f20d3b5ea5908683618bfe80df7f621f672a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "rocksdb"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10118,7 +10667,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-transaction-pool",
  "sp-version",
  "static_assertions",
@@ -10218,7 +10767,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.15.3"
+version = "1.16.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10229,7 +10778,8 @@ dependencies = [
  "cumulus-primitives-parachain-inherent",
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
- "cumulus-test-relay-sproof-builder 0.1.0 (git+https://github.com/paritytech/cumulus.git?branch=polkadot-v0.9.38)",
+ "cumulus-test-relay-sproof-builder",
+ "fp-evm",
  "frame-benchmarking",
  "frame-executive",
  "frame-remote-externalities",
@@ -10263,6 +10813,7 @@ dependencies = [
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
+ "pallet-evm",
  "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-omnipool",
@@ -10304,7 +10855,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-transaction-pool",
  "sp-trie",
  "sp-version",
@@ -11418,7 +11969,7 @@ dependencies = [
  "serde_json",
  "sp-core",
  "sp-io",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -11936,7 +12487,7 @@ dependencies = [
  "parity-scale-codec",
  "paste",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12026,7 +12577,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "sp-state-machine",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-trie",
  "sp-version",
  "thiserror",
@@ -12054,7 +12605,7 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-io",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12067,7 +12618,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-std",
+ "sp-std 5.0.0",
  "static_assertions",
 ]
 
@@ -12081,7 +12632,7 @@ dependencies = [
  "sp-api",
  "sp-application-crypto",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12098,7 +12649,7 @@ dependencies = [
  "sp-io",
  "sp-mmr-primitives",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12110,7 +12661,7 @@ dependencies = [
  "sp-api",
  "sp-inherents",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12144,7 +12695,7 @@ dependencies = [
  "sp-inherents",
  "sp-runtime",
  "sp-state-machine",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-version",
  "thiserror",
 ]
@@ -12163,7 +12714,7 @@ dependencies = [
  "sp-consensus-slots",
  "sp-inherents",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-timestamp",
 ]
 
@@ -12186,7 +12737,7 @@ dependencies = [
  "sp-inherents",
  "sp-keystore",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-timestamp",
 ]
 
@@ -12198,7 +12749,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-timestamp",
 ]
 
@@ -12212,7 +12763,7 @@ dependencies = [
  "schnorrkel",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12248,7 +12799,7 @@ dependencies = [
  "sp-debug-derive",
  "sp-externalities",
  "sp-runtime-interface",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-storage",
  "ss58-registry",
  "substrate-bip39",
@@ -12267,7 +12818,7 @@ dependencies = [
  "digest 0.10.7",
  "sha2 0.10.7",
  "sha3",
- "sp-std",
+ "sp-std 5.0.0",
  "twox-hash",
 ]
 
@@ -12308,7 +12859,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bc
 dependencies = [
  "environmental",
  "parity-scale-codec",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-storage",
 ]
 
@@ -12327,7 +12878,7 @@ dependencies = [
  "sp-core",
  "sp-keystore",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12340,7 +12891,7 @@ dependencies = [
  "parity-scale-codec",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "thiserror",
 ]
 
@@ -12362,7 +12913,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime-interface",
  "sp-state-machine",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-tracing",
  "sp-trie",
  "tracing",
@@ -12420,7 +12971,7 @@ dependencies = [
  "sp-core",
  "sp-debug-derive",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "thiserror",
 ]
 
@@ -12435,7 +12986,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12486,7 +13037,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-io",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-weights",
 ]
 
@@ -12501,7 +13052,7 @@ dependencies = [
  "primitive-types",
  "sp-externalities",
  "sp-runtime-interface-proc-macro",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-storage",
  "sp-tracing",
  "sp-wasm-interface",
@@ -12531,7 +13082,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12543,7 +13094,7 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12560,7 +13111,7 @@ dependencies = [
  "sp-core",
  "sp-externalities",
  "sp-panic-handler",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-trie",
  "thiserror",
  "tracing",
@@ -12572,6 +13123,11 @@ version = "5.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
 
 [[package]]
+name = "sp-std"
+version = "8.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v1.0.0#948fbd2fd1233dc26dbb9f9bbc1d2cca2c03945d"
+
+[[package]]
 name = "sp-storage"
 version = "7.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
@@ -12581,7 +13137,7 @@ dependencies = [
  "ref-cast",
  "serde",
  "sp-debug-derive",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -12595,7 +13151,7 @@ dependencies = [
  "parity-scale-codec",
  "sp-inherents",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "thiserror",
 ]
 
@@ -12605,7 +13161,7 @@ version = "6.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
 dependencies = [
  "parity-scale-codec",
- "sp-std",
+ "sp-std 5.0.0",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
@@ -12632,7 +13188,7 @@ dependencies = [
  "sp-core",
  "sp-inherents",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-trie",
 ]
 
@@ -12652,7 +13208,7 @@ dependencies = [
  "scale-info",
  "schnellru",
  "sp-core",
- "sp-std",
+ "sp-std 5.0.0",
  "thiserror",
  "tracing",
  "trie-db",
@@ -12671,7 +13227,7 @@ dependencies = [
  "serde",
  "sp-core-hashing-proc-macro",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-version-proc-macro",
  "thiserror",
 ]
@@ -12695,7 +13251,7 @@ dependencies = [
  "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
- "sp-std",
+ "sp-std 5.0.0",
  "wasmi",
  "wasmtime",
 ]
@@ -12712,7 +13268,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-debug-derive",
- "sp-std",
+ "sp-std 5.0.0",
 ]
 
 [[package]]
@@ -13291,6 +13847,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tiny-keccak"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+dependencies = [
+ "crunchy",
+]
+
+[[package]]
 name = "tinytemplate"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13605,6 +14170,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a36c5ca3911ed3c9a5416ee6c679042064b93fc637ded67e25f92e68d783891"
 dependencies = [
  "hash-db",
+]
+
+[[package]]
+name = "triehash"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1631b201eb031b563d2e85ca18ec8092508e262a3196ce9bd10a67ec87b9f5c"
+dependencies = [
+ "hash-db",
+ "rlp",
 ]
 
 [[package]]
@@ -14620,7 +15195,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
@@ -15029,7 +15604,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
  "xcm-executor",
 ]
@@ -15044,7 +15619,7 @@ dependencies = [
  "cumulus-pallet-xcmp-queue",
  "cumulus-primitives-core",
  "cumulus-primitives-parachain-inherent",
- "cumulus-test-relay-sproof-builder 0.1.0 (git+https://github.com/paritytech/cumulus.git?branch=polkadot-v0.9.38)",
+ "cumulus-test-relay-sproof-builder",
  "frame-support",
  "frame-system",
  "parachain-info",
@@ -15055,7 +15630,7 @@ dependencies = [
  "quote",
  "sp-arithmetic",
  "sp-io",
- "sp-std",
+ "sp-std 5.0.0",
  "xcm",
  "xcm-executor",
 ]
@@ -15075,7 +15650,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 5.0.0",
  "sp-weights",
  "xcm",
 ]
