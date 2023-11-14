@@ -1,4 +1,4 @@
-// This file is part of Basilisk-node.
+// This file is part of HydraDX-node.
 
 // Copyright (C) 2020-2022  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
@@ -27,10 +27,10 @@ use sp_std::vec::Vec;
 use serde::{Deserialize, Serialize};
 
 /// Asset Pair representation for AMM trades
-/// ( asset_a, asset_b ) combination where asset_a is meant to be exchanged for asset_b
+/// `( asset_a, asset_b )` combination where `asset_a` is meant to be exchanged for `asset_b`
 ///
-/// asset_in represents asset coming into the pool
-/// asset_out represents asset coming out of the pool
+/// `asset_in` represents asset coming into the pool
+/// `asset_out` represents asset coming out of the pool
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Debug, Encode, Decode, Copy, Clone, PartialEq, Eq, Default, TypeInfo)]
 pub struct AssetPair {

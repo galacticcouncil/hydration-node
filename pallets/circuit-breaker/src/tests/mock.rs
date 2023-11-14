@@ -36,7 +36,6 @@ use sp_runtime::{
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-//use frame_system::GenesisConfig;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
