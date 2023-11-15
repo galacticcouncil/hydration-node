@@ -5974,8 +5974,7 @@ dependencies = [
 
 [[package]]
 name = "module-evm-utility"
-version = "2.22.0"
-source = "git+https://github.com/AcalaNetwork/Acala?branch=release-acala-2.22.0#37d9e3604fb3f217869ccc49dcce8a7b632fb73a"
+version = "2.21.0"
 dependencies = [
  "ethereum",
  "evm 0.36.0",
@@ -5987,8 +5986,7 @@ dependencies = [
 
 [[package]]
 name = "module-evm-utility-macro"
-version = "2.22.0"
-source = "git+https://github.com/AcalaNetwork/Acala?branch=release-acala-2.22.0#37d9e3604fb3f217869ccc49dcce8a7b632fb73a"
+version = "2.21.0"
 dependencies = [
  "module-evm-utility",
  "proc-macro2",
