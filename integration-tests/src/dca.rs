@@ -2110,6 +2110,44 @@ mod stableswap {
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + amount_to_buy);
 		});
 	}
+
+	#[test]
+	fn fee_should_be_calculated_properly_when_used_default_route() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+
+			let dca_budget = 1000 * UNITS;
+			let amount_out = 100 * UNITS;
+
+			let schedule1 = Schedule {
+				owner: AccountId::from(ALICE),
+				period: 2u32,
+				total_amount: dca_budget,
+				max_retries: None,
+				stability_threshold: None,
+				slippage: Some(Permill::from_percent(5)),
+				order: Order::Buy {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_out,
+					max_amount_in: Balance::MAX,
+					route: create_bounded_vec(vec![]),
+				},
+			};
+			create_schedule(ALICE, schedule1);
+
+			//Act
+			set_relaychain_block_number(11);
+
+			//Assert
+			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
+			//The fee should be more than 3 UNITS, around 3_795_361_512_418.
+			assert!(fee > 3 * UNITS);
+			assert!(fee < 4 * UNITS);
+		});
+	}
 }
 
 fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
