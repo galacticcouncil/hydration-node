@@ -4,7 +4,7 @@ use crate::polkadot_test_net::*;
 
 use hydradx_runtime::{DustRemovalWhitelist, RuntimeOrigin, XYK};
 use hydradx_traits::AMM;
-use primitives::{asset::AssetPair, AssetId};
+use pallet_xyk::types::AssetPair;
 use xcm_emulator::TestExt;
 
 use frame_support::{assert_ok, traits::Contains};

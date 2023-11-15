@@ -839,12 +839,13 @@ fn schedule_should_fail_when_wrong_user_is_specified_in_schedule() {
 }
 
 #[test]
-fn schedule_should_fail_when_no_routes_specified() {
+fn schedule_should_be_created_when_no_routes_specified() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
+			set_block_number(500);
 
 			let total_amount = 100 * ONE;
 			let schedule = ScheduleBuilder::new()
@@ -858,12 +859,8 @@ fn schedule_should_fail_when_no_routes_specified() {
 				})
 				.build();
 
-			//Act
-			set_block_number(500);
-			assert_noop!(
-				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
-				Error::<Test>::RouteNotSpecified
-			);
+			//Act and assert
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 		});
 }
 

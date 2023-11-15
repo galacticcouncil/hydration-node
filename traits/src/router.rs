@@ -2,7 +2,17 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 use frame_support::weights::Weight;
 use scale_info::TypeInfo;
+use sp_std::vec;
 use sp_std::vec::Vec;
+pub trait RouteProvider<AssetId> {
+	fn get(asset_in: AssetId, asset_out: AssetId) -> Vec<Trade<AssetId>> {
+		vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in,
+			asset_out,
+		}]
+	}
+}
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum PoolType<AssetId> {

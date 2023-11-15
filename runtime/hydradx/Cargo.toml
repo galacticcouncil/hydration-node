@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "183.0.0"
+version = "188.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -19,6 +19,7 @@ serde = { features = ["derive"], optional = true, version = "1.0.136" }
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 smallvec = "1.9.0"
+num_enum = { version = "0.5.1", default-features = false }
 
 # local dependencies
 primitives = { workspace = true }
@@ -131,6 +132,16 @@ sp-trie = { workspace = true }
 sp-io = { workspace = true }
 primitive-types = {  workspace = true }
 
+# Frontier
+fp-rpc = { workspace = true }
+fp-self-contained = { workspace = true }
+pallet-ethereum = { workspace = true }
+pallet-evm = { workspace = true }
+pallet-evm-chain-id = { workspace = true }
+pallet-evm-precompile-dispatch = { workspace = true }
+module-evm-utility-macro = { workspace = true }
+ethabi = { version = "18.0.0", default-features = false }
+
 [features]
 default = ["std"]
 runtime-benchmarks = [
@@ -170,6 +181,8 @@ runtime-benchmarks = [
     "pallet-otc/runtime-benchmarks",
     "pallet-dca/runtime-benchmarks",
     "pallet-route-executor/runtime-benchmarks",
+    "pallet-ethereum/runtime-benchmarks",
+    "pallet-evm/runtime-benchmarks",
     "pallet-staking/runtime-benchmarks",
     "pallet-bonds/runtime-benchmarks",
     "pallet-stableswap/runtime-benchmarks",
@@ -260,6 +273,12 @@ std = [
     "pallet-bonds/std",
     "pallet-stableswap/std",
     "pallet-lbp/std",
+    "fp-rpc/std",
+    "fp-self-contained/std",
+    "pallet-ethereum/std",
+    "pallet-evm/std",
+    "pallet-evm-chain-id/std",
+    "pallet-evm-precompile-dispatch/std",
     "pallet-xyk/std",
 ]
 try-runtime= [
@@ -322,5 +341,9 @@ try-runtime= [
     "pallet-bonds/try-runtime",
     "pallet-stableswap/try-runtime",
     "pallet-lbp/try-runtime",
+    "fp-self-contained/try-runtime",
+    "pallet-ethereum/try-runtime",
+    "pallet-evm/try-runtime",
+    "pallet-evm-chain-id/try-runtime",
     "pallet-xyk/try-runtime",
 ]
