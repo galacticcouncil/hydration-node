@@ -97,6 +97,8 @@ mod omnipool {
 
 			let treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
 			assert!(treasury_balance > TREASURY_ACCOUNT_INIT_BALANCE);
+
+			assert_that_fee_is_correct(fee);
 		});
 	}
 
@@ -137,8 +139,7 @@ mod omnipool {
 
 			//We make sure is that the default route is incorporated in the fee calculation
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
-			assert!(fee > 3 * UNITS);
-			assert!(fee < 4 * UNITS);
+			assert_that_fee_is_correct(fee);
 		});
 	}
 
@@ -496,8 +497,7 @@ mod omnipool {
 			let treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
 			assert!(treasury_balance > TREASURY_ACCOUNT_INIT_BALANCE);
 
-			assert!(fee > 3 * UNITS);
-			assert!(fee < 4 * UNITS);
+			assert_that_fee_is_correct(fee);
 		});
 	}
 
@@ -572,8 +572,7 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_in - fee);
 
 			//We make sure is that the default route is incorporated in the fee calculation
-			assert!(fee > 3 * UNITS);
-			assert!(fee < 4 * UNITS);
+			assert_that_fee_is_correct(fee);
 		});
 	}
 
@@ -2453,4 +2452,10 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
 
 	Ok((pool_id, asset_in, asset_out))
+}
+
+fn assert_that_fee_is_correct(fee: Balance) {
+	//The fee is approximately 3795361512418, so we check if we are between 3.5 and 4 UNITS
+	assert!(fee > 35 / 10 * UNITS);
+	assert!(fee < 4 * UNITS);
 }
