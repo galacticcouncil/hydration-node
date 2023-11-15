@@ -496,17 +496,34 @@ pub fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
 
-	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+	let native_position_id = hydradx_runtime::Omnipool::next_position_id();
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
-		522_222_000_000_000_000_000_000,
+		HDX,
+		native_price,
+		Permill::from_percent(10),
+		AccountId::from(ALICE),
 	));
 
-	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
+	let stable_position_id = hydradx_runtime::Omnipool::next_position_id();
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
 		stable_price,
-		native_price,
 		Permill::from_percent(100),
-		Permill::from_percent(10)
+		AccountId::from(ALICE),
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::sacrifice_position(
+		hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+		native_position_id,
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::sacrifice_position(
+		hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+		stable_position_id,
 	));
 }
 
