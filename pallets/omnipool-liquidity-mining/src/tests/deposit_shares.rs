@@ -49,7 +49,7 @@ fn deposit_shares_should_work() {
 		.execute_with(|| {
 			let global_farm_id = 1;
 			let yield_farm_id = 2;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 2;
 			let deposit_id = 1;
 
 			//Act
@@ -136,7 +136,7 @@ fn deposit_shares_should_fail_with_forbidden_when_account_is_not_omnipool_positi
 		.execute_with(|| {
 			let global_farm_id = 1;
 			let yield_farm_id = 2;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 4;
 			let not_position_owner = BOB;
 
 			//Act
@@ -230,7 +230,7 @@ fn deposit_shares_should_fail_when_origin_is_none() {
 		.execute_with(|| {
 			let global_farm_id = 1;
 			let yield_farm_id = 2;
-			let omnipool_position_id = 1;
+			let omnipool_position_id = 3;
 
 			//Act & assert
 			assert_noop!(
@@ -323,7 +323,7 @@ fn deposit_shares_should_fail_with_asset_not_found_when_omnipool_deosnt_exists()
 		.execute_with(|| {
 			let global_farm_id = 1;
 			let yield_farm_id = 2;
-			let omnipool_position_id = 1;
+			let omnipool_position_id = 3;
 
 			//Arrange: remove asset from omnipool
 			assert_ok!(Omnipool::remove_asset(KSM));

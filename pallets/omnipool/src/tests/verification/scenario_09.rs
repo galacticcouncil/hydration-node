@@ -64,7 +64,7 @@ fn sell_fee_test() {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
-					protocol_shares: 1000000000000000,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -76,7 +76,7 @@ fn sell_fee_test() {
 					reserve: 10000000000000000,
 					hub_reserve: 10019499999999999,
 					shares: 10000000000000000,
-					protocol_shares: 10000000000000000,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}

@@ -221,7 +221,6 @@ impl orml_tokens::Config for Test {
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
-	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionCollectionId: u32= 1000;
 
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
@@ -240,7 +239,6 @@ impl pallet_omnipool::Config for Test {
 	type Currency = Tokens;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
-	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PosiitionCollectionId;
@@ -352,7 +350,6 @@ pub struct ExtBuilder {
 	register_stable_asset: bool,
 	max_in_ratio: Balance,
 	max_out_ratio: Balance,
-	tvl_cap: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
@@ -406,7 +403,6 @@ impl Default for ExtBuilder {
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
-			tvl_cap: u128::MAX,
 		}
 	}
 }
@@ -464,18 +460,21 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
-		r.execute_with(|| {
-			assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), self.tvl_cap,));
-		});
-
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				assert_ok!(Omnipool::initialize_pool(
+				assert_ok!(Omnipool::add_token(
 					RuntimeOrigin::root(),
-					stable_price,
+					HDXAssetId::get(),
 					native_price,
 					Permill::from_percent(100),
-					Permill::from_percent(100)
+					Omnipool::protocol_account(),
+				));
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					DAI,
+					stable_price,
+					Permill::from_percent(100),
+					Omnipool::protocol_account(),
 				));
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
