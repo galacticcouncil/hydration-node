@@ -4069,7 +4069,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.6.2"
+version = "7.6.3"
 dependencies = [
  "approx",
  "criterion",
