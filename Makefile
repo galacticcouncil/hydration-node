@@ -32,7 +32,7 @@ format:
 
 .PHONY: try-runtime
 try-runtime:
-	cargo run --release --features=try-runtime --bin hydradx try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks live --uri wss://rpc.hydradx.cloud:443
+	try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks all live --uri --uri wss://rpc.hydradx.cloud:443
 
 .PHONY: build-docs
 build-docs:
