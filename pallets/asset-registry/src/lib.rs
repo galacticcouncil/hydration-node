@@ -54,6 +54,8 @@ pub mod pallet {
 	use crate::types::Metadata;
 	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
 	pub type AssetDetailsT<T> =
 		AssetDetails<<T as Config>::AssetId, <T as Config>::Balance, BoundedVec<u8, <T as Config>::StringLimit>>;
 
