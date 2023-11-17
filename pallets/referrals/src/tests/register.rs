@@ -96,6 +96,26 @@ fn register_code_should_store_account_mapping_to_code_correctly() {
 }
 
 #[test]
+fn register_code_should_convert_to_upper_case_when_code_is_lower_case() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let code = b"balls69".to_vec();
+		// Act
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE),
+			code.clone(),
+			BOB
+		));
+		// Assert
+		let entry = Pallet::<Test>::referral_account::<ReferralCode<CodeLength>>(code.clone().try_into().unwrap());
+		assert_eq!(entry, None);
+		let normalized = Pallet::<Test>::normalize_code(code.try_into().unwrap());
+		let entry = Pallet::<Test>::referral_account::<ReferralCode<CodeLength>>(normalized);
+		assert_eq!(entry, Some(BOB));
+	});
+}
+
+#[test]
 fn register_code_should_emit_event_when_successful() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
@@ -112,5 +132,23 @@ fn register_code_should_emit_event_when_successful() {
 			account: BOB,
 		}
 		.into()]);
+	});
+}
+
+#[test]
+fn singer_should_pay_the_registration_fee() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let code = b"BALLS69".to_vec();
+		// Act
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE),
+			code.clone(),
+			BOB
+		));
+		// Assert
+		let (fee_asset, amount, beneficiary) = RegistrationFee::get();
+		assert_balance!(ALICE, fee_asset, INITIAL_ALICE_BALANCE - amount);
+		assert_balance!(beneficiary, fee_asset, amount);
 	});
 }

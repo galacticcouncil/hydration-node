@@ -26,11 +26,13 @@ mod tests;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use sp_core::bounded::BoundedVec;
+use sp_runtime::traits::AccountIdConversion;
 
 pub use pallet::*;
 
 use weights::WeightInfo;
 
+pub type Balance = u128;
 pub type ReferralCode<S> = BoundedVec<u8, S>;
 
 const MIN_CODE_LENGTH: usize = 3;
@@ -39,6 +41,8 @@ const MIN_CODE_LENGTH: usize = 3;
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
+	use frame_support::traits::fungibles::Transfer;
+	use frame_support::PalletId;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
@@ -49,7 +53,21 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Maximuem referrral code length.
+		type AssetId: frame_support::traits::tokens::AssetId + MaybeSerializeDeserialize;
+
+		type Currency: Transfer<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>;
+
+		/// Pallet id. Determines account which holds accumulated rewards in various assets.
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
+
+		/// Registration fee details.
+		/// (ID of an asset which fee is to be paid in, Amount, Beneficiary account)
+		#[pallet::constant]
+		type RegistrationFee: Get<(Self::AssetId, Balance, Self::AccountId)>;
+
+		/// Maximum referral code length.
+		#[pallet::constant]
 		type CodeLength: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
@@ -107,7 +125,7 @@ pub mod pallet {
 
 			ensure!(code.len() >= MIN_CODE_LENGTH, Error::<T>::TooShort);
 
-			//TODO: can we do without cloning ?
+			//TODO: can we do without cloning ? or perhaps merge with normalization
 			ensure!(
 				code.clone()
 					.into_inner()
@@ -116,8 +134,14 @@ pub mod pallet {
 				Error::<T>::InvalidCharacter
 			);
 
+			let code = Self::normalize_code(code);
+
 			ReferralCodes::<T>::mutate(code.clone(), |v| -> DispatchResult {
 				ensure!(v.is_none(), Error::<T>::AlreadyExists);
+
+				let (fee_asset, fee_amount, beneficiary) = T::RegistrationFee::get();
+				T::Currency::transfer(fee_asset, &who, &beneficiary, fee_amount, true)?;
+
 				*v = Some(account.clone());
 				Self::deposit_event(Event::CodeRegistered { code, account });
 				Ok(())
@@ -126,4 +150,13 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T> {}
+impl<T: Config> Pallet<T> {
+	pub fn pot_account_id() -> T::AccountId {
+		T::PalletId::get().into_account_truncating()
+	}
+
+	pub(crate) fn normalize_code(code: ReferralCode<T::CodeLength>) -> ReferralCode<T::CodeLength> {
+		let r = code.into_inner().iter().map(|v| v.to_ascii_uppercase()).collect();
+		ReferralCode::<T::CodeLength>::truncate_from(r)
+	}
+}

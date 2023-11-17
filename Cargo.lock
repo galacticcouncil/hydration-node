@@ -7806,6 +7806,8 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydradx-traits",
+ "orml-tokens",
+ "orml-traits",
  "pallet-timestamp",
  "parity-scale-codec",
  "pretty_assertions",

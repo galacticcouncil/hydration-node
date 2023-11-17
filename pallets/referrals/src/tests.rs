@@ -26,25 +26,30 @@ use frame_support::{
 		testing::Header,
 		traits::{BlakeTwo256, IdentityLookup},
 	},
-	traits::{ConstU32, ConstU64, Everything, GenesisBuild, SortedMembers},
+	traits::{ConstU32, ConstU64, Everything, GenesisBuild},
+	PalletId,
 };
 use sp_core::H256;
 
 use frame_support::{assert_noop, assert_ok};
-//pub(crate) use pretty_assertions::{assert_eq};
+use orml_traits::parameter_type_with_key;
+use orml_traits::MultiCurrency;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub(crate) type AccountId = u64;
-pub(crate) type Balance = u128;
 pub(crate) type AssetId = u32;
+
+pub(crate) const ONE: Balance = 1_000_000_000_000;
 
 pub const HDX: AssetId = 0;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 pub const TREASURY: AccountId = 400;
+
+pub(crate) const INITIAL_ALICE_BALANCE: Balance = 1_000 * ONE;
 
 construct_runtime!(
 	pub enum Test where
@@ -54,15 +59,23 @@ construct_runtime!(
 	{
 		System: frame_system,
 		Referrals: pallet_referrals,
+		Tokens: orml_tokens,
 	}
 );
 
 parameter_types! {
+	pub const RefarralPalletId: PalletId = PalletId(*b"test_ref");
 	pub const CodeLength: u32 = 7;
+	pub const RegistrationFee: (AssetId,Balance, AccountId) = (HDX, 222 * 1_000_000_000_000, TREASURY) ;
+	pub const FeeAsset: AssetId = HDX;
 }
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Currency = Tokens;
+	type PalletId = RefarralPalletId;
+	type RegistrationFee = RegistrationFee;
 	type CodeLength = CodeLength;
 	type WeightInfo = ();
 }
@@ -94,6 +107,26 @@ impl frame_system::Config for Test {
 	type MaxConsumers = ConstU32<16>;
 }
 
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_asset_id: AssetId| -> Balance {
+		0
+	};
+}
+
+impl orml_tokens::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type Amount = i128;
+	type CurrencyId = AssetId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type CurrencyHooks = ();
+	type MaxLocks = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
+	type DustRemovalWhitelist = Everything;
+}
+
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 }
@@ -101,7 +134,7 @@ pub struct ExtBuilder {
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
-			endowed_accounts: vec![(ALICE, HDX, 1_000 * 1_000_000)],
+			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
 		}
 	}
 }
@@ -117,7 +150,6 @@ impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		/*
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self
 				.endowed_accounts
@@ -127,8 +159,6 @@ impl ExtBuilder {
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
-
-		 */
 
 		let mut r: sp_io::TestExternalities = t.into();
 
@@ -142,4 +172,11 @@ impl ExtBuilder {
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
+
+#[macro_export]
+macro_rules! assert_balance {
+	( $x:expr, $y:expr, $z:expr) => {{
+		assert_eq!(Tokens::free_balance($y, &$x), $z);
+	}};
 }
