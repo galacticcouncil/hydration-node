@@ -70,7 +70,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
-	fn service_deferred(m: u32, b: u32) -> Weight {
+	fn service_deferred(b: u32) -> Weight {
 		Weight::zero()
 	}
 	fn discard_deferred_bucket(m: u32) -> Weight {
