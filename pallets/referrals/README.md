@@ -1,0 +1,3 @@
+# Referrals pallet
+
+## Overview
