@@ -14,7 +14,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 			let liq_added = 400 * ONE;
 
 			// ACT
-
+			let position_id = last_position_id();
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
 			// ASSERT - asset state, pool state, position
@@ -30,7 +30,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 				}
 			);
 
-			let position = Positions::<Test>::get(1).unwrap();
+			let position = Positions::<Test>::get(position_id).unwrap();
 
 			let expected = Position::<Balance, AssetId> {
 				asset_id: 1_000,
@@ -45,7 +45,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 
 			assert_balance!(LP1, 1_000, 4600 * ONE);
 
-			let minted_position = POSITIONS.with(|v| v.borrow().get(&1).copied());
+			let minted_position = POSITIONS.with(|v| v.borrow().get(&position_id).copied());
 
 			assert_eq!(minted_position, Some(LP1));
 		});
@@ -69,7 +69,7 @@ fn add_stable_asset_liquidity_works() {
 					reserve: 1000 * ONE + liq_added,
 					hub_reserve: 700000000000000,
 					shares: 1400000000000000,
-					protocol_shares: 1000 * ONE,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}

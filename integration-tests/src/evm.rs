@@ -702,8 +702,6 @@ pub fn init_omnipol() {
 	let stable_price = FixedU128::from_float(0.7);
 	let acc = hydradx_runtime::Omnipool::protocol_account();
 
-	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(RuntimeOrigin::root(), u128::MAX));
-
 	let stable_amount: Balance = 5_000_000_000_000_000_000_000u128;
 	let native_amount: Balance = 5_000_000_000_000_000_000_000u128;
 	assert_ok!(Tokens::set_balance(
@@ -720,12 +718,20 @@ pub fn init_omnipol() {
 		native_amount as i128,
 	));
 
-	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
-		stable_price,
+		HDX,
 		native_price,
 		Permill::from_percent(60),
-		Permill::from_percent(60)
+		AccountId::from(ALICE),
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
+		stable_price,
+		Permill::from_percent(60),
+		AccountId::from(ALICE),
 	));
 
 	assert_ok!(Balances::set_balance(
