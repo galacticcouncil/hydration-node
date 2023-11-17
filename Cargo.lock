@@ -4069,7 +4069,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.6.2"
+version = "7.6.3"
 dependencies = [
  "approx",
  "criterion",
@@ -4175,7 +4175,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4220,7 +4220,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "188.0.0"
+version = "189.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -6899,7 +6899,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.16"
+version = "1.1.17"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7048,7 +7048,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7639,7 +7639,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "3.3.0"
+version = "4.0.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7666,7 +7666,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.0.11"
+version = "2.0.12"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -8273,7 +8273,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm-rate-limiter"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-benchmarking",
@@ -10765,7 +10765,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.16.0"
+version = "1.16.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",

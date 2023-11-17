@@ -18,7 +18,7 @@
 
 use crate::{
 	AccountId, AssetId, Balance, BlockNumber, Currencies, EmaOracle, MaxSchedulesPerBlock, NamedReserveId, Runtime,
-	StableAssetId, System, DCA,
+	System, DCA,
 };
 
 use frame_benchmarking::account;
@@ -187,7 +187,7 @@ runtime_benchmarks! {
 
 		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
 
-		assert_eq!(Currencies::free_balance(StableAssetId::get(), &seller),0);
+		assert_eq!(Currencies::free_balance(DAI, &seller),0);
 		let reserved_balance = get_named_reseve_balance(HDX, seller.clone());
 
 		let init_reserved_balance = 2000 * ONE;
@@ -228,7 +228,7 @@ runtime_benchmarks! {
 
 		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
 
-		assert_eq!(Currencies::free_balance(StableAssetId::get(), &seller),0);
+		assert_eq!(Currencies::free_balance(DAI, &seller),0);
 		let reserved_balance = get_named_reseve_balance(HDX, seller.clone());
 
 		let init_reserved_balance = 2000 * ONE;

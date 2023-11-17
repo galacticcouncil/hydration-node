@@ -31,27 +31,6 @@ fn remove_token_should_fail_when_not_root() {
 }
 
 #[test]
-fn remove_token_should_fail_when_removing_configured_stable_asset() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP2, 1_000, 2000 * ONE),
-			(LP2, DAI, 2000 * ONE),
-			(LP1, 1_000, 5000 * ONE),
-		])
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_min_withdrawal_fee(Permill::from_float(0.01))
-		.build()
-		.execute_with(|| {
-			assert_noop!(
-				Omnipool::remove_token(RuntimeOrigin::root(), 2, LP1),
-				Error::<Test>::StableAssetCannotBeRemoved
-			);
-		});
-}
-
-#[test]
 fn remove_token_should_fail_when_asset_is_not_frozen() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![

@@ -1003,15 +1003,6 @@ proptest! {
 								   FixedU128::from_float(0.000000001),
 								   "L/Q ratio changed"
 				);
-
-				// check enforcement of overall tvl cap
-				let hub_reserve = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-
-				let stable_asset = <Assets<Test>>::get(DAI).unwrap();
-				let stable_reserve = Tokens::free_balance(DAI, &Omnipool::protocol_account());
-
-				let global_tvl = hydra_dx_math::omnipool::calculate_tvl(hub_reserve, (stable_reserve, stable_asset.hub_reserve)).unwrap();
-				assert!( global_tvl <= TvlCap::<Test>::get());
 			});
 	}
 }
@@ -1100,15 +1091,6 @@ proptest! {
 								   FixedU128::from_float(0.000000001),
 								   "L/Q ratio changed after remove liquidity"
 				);
-
-				// check enforcement of overall tvl cap
-				let hub_reserve = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-
-				let stable_asset = <Assets<Test>>::get(DAI).unwrap();
-				let stable_reserve = Tokens::free_balance(DAI, &Omnipool::protocol_account());
-
-				let global_tvl = hydra_dx_math::omnipool::calculate_tvl(hub_reserve, (stable_reserve, stable_asset.hub_reserve)).unwrap();
-				assert!( global_tvl <= TvlCap::<Test>::get());
 			});
 	}
 }
@@ -1201,15 +1183,6 @@ proptest! {
 								   FixedU128::from_float(0.000000001),
 								   "L/Q ratio changed after remove liquidity"
 				);
-
-				// check enforcement of overall tvl cap
-				let hub_reserve = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-
-				let stable_asset = <Assets<Test>>::get(DAI).unwrap();
-				let stable_reserve = Tokens::free_balance(DAI, &Omnipool::protocol_account());
-
-				let global_tvl = hydra_dx_math::omnipool::calculate_tvl(hub_reserve, (stable_reserve, stable_asset.hub_reserve)).unwrap();
-				assert!( global_tvl <= TvlCap::<Test>::get());
 			});
 	}
 }
