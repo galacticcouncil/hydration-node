@@ -151,7 +151,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type PriceForSiblingDelivery = ();
 	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
 	type ExecuteDeferredOrigin = EnsureRoot<AccountId>;
-	type MaxDeferredMessages = ConstU32<30>;
+	type MaxDeferredMessages = ConstU32<20>;
 	type MaxDeferredBuckets = ConstU32<1_000>;
 	type MaxBucketsProcessed = ConstU32<5>;
 	type RelayChainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
