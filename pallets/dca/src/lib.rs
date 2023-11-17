@@ -1025,11 +1025,12 @@ impl<T: Config> Pallet<T> {
 
 	// returns DCA overhead weight + router execution weight
 	fn get_trade_weight(order: &Order<T::AssetId>) -> Weight {
+		let route = order.get_route_or_default::<T::RouteProvider>();
 		match order {
-			Order::Sell { route, .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade()
-				.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route)),
-			Order::Buy { route, .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade()
-				.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route)),
+			Order::Sell { .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade()
+				.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(&route)),
+			Order::Buy { .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade()
+				.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(&route)),
 		}
 	}
 

@@ -35,6 +35,7 @@ use pallet_omnipool::{
 use pallet_otc::NamedReserveIdentifier;
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
+use primitives::constants::chain::XYK_SOURCE;
 use primitives::constants::time::DAYS;
 use primitives::constants::{
 	chain::OMNIPOOL_SOURCE,
@@ -970,7 +971,7 @@ impl pallet_lbp::Config for Runtime {
 parameter_types! {
 	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
 	pub const DiscountedFee: (u32, u32) = (7, 10_000);
-	pub const XYKOracleSourceIdentifier: Source = *b"hydraxyk";
+	pub const XYKOracleSourceIdentifier: Source = XYK_SOURCE;
 }
 
 impl pallet_xyk::Config for Runtime {

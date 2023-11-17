@@ -8074,6 +8074,7 @@ version = "9.0.2"
 dependencies = [
  "frame-support",
  "frame-system",
+ "hydra-dx-math",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
