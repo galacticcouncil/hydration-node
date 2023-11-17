@@ -7803,12 +7803,12 @@ dependencies = [
 name = "pallet-referrals"
 version = "1.0.0"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hydradx-traits",
  "pallet-timestamp",
  "parity-scale-codec",
+ "pretty_assertions",
  "scale-info",
  "sp-core",
  "sp-io",

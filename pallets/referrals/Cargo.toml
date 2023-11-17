@@ -30,14 +30,15 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 
 # Optional imports for benchmarking
-frame-benchmarking = { workspace = true, optional = true }
+#frame-benchmarking = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
 pallet-timestamp = { workspace = true, optional = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
 sp-tracing = { workspace = true }
-frame-benchmarking = { workspace = true }
+#frame-benchmarking = { workspace = true }
+pretty_assertions = "1.2.1"
 
 [features]
 default = ["std"]
@@ -51,8 +52,9 @@ std = [
 	"sp-core/std",
 	"sp-io/std",
 ]
-runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
-	"sp-io",
-]
+
+#runtime-benchmarks = [
+#	"frame-benchmarking/runtime-benchmarks",
+#	"sp-io",
+#]
 try-runtime = [ "frame-support/try-runtime" ]

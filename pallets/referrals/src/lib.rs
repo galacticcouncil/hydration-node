@@ -18,21 +18,22 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{
-	ensure,
-	pallet_prelude::{DispatchResult, Get},
-	sp_runtime::{
-		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub},
-		DispatchError, Permill, Saturating,
-	},
-	traits::{Contains, Time},
-	PalletId,
-};
-use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use sp_core::MaxEncodedLen;
+mod weights;
 
-use hydradx_traits::{AssetKind, CreateRegistry, Registry};
+#[cfg(test)]
+mod tests;
+
+use frame_support::pallet_prelude::{DispatchResult, Get};
+use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use sp_core::bounded::BoundedVec;
+
 pub use pallet::*;
+
+use weights::WeightInfo;
+
+pub type ReferralCode<S> = BoundedVec<u8, S>;
+
+const MIN_CODE_LENGTH: usize = 3;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -47,22 +48,82 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// Maximuem referrral code length.
+		type CodeLength: Get<u32>;
+
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 	}
+
+	#[pallet::storage]
+	/// Referral codes
+	/// Maps an account to a referral code.
+	#[pallet::getter(fn referral_account)]
+	pub(super) type ReferralCodes<T: Config> =
+		StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
+		CodeRegistered {
+			code: ReferralCode<T::CodeLength>,
+			account: T::AccountId,
+		},
 	}
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
+		TooLong,
+		TooShort,
+		InvalidCharacter,
+		AlreadyExists,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Register new referral code.
+		///
+		/// `origin` pays the registration fee.
+		/// `code` is assigned to the given `account`.
+		///
+		/// Length of the `code` must be at least `MIN_CODE_LENGTH`.
+		/// Maximum length is limited to `T::CodeLength`.
+		/// `code` must contain only alfa-numeric characters and all characters will be converted to upper case.
+		///
+		/// /// Parameters:
+		/// - `origin`:
+		/// - `code`:
+		/// - `account`:
+		///
+		/// Emits `CodeRegistered` event when successful.
+		///
+		#[pallet::call_index(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::register_code())]
+		pub fn register_code(origin: OriginFor<T>, code: Vec<u8>, account: T::AccountId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let code: ReferralCode<T::CodeLength> = code.try_into().map_err(|_| Error::<T>::TooLong)?;
+
+			ensure!(code.len() >= MIN_CODE_LENGTH, Error::<T>::TooShort);
+
+			//TODO: can we do without cloning ?
+			ensure!(
+				code.clone()
+					.into_inner()
+					.iter()
+					.all(|c| char::is_alphanumeric(*c as char)),
+				Error::<T>::InvalidCharacter
+			);
+
+			ReferralCodes::<T>::mutate(code.clone(), |v| -> DispatchResult {
+				ensure!(v.is_none(), Error::<T>::AlreadyExists);
+				*v = Some(account.clone());
+				Self::deposit_event(Event::CodeRegistered { code, account });
+				Ok(())
+			})
+		}
 	}
 }
 
-impl<T: Config> Pallet<T> {
-}
+impl<T: Config> Pallet<T> {}
