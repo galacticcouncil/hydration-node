@@ -563,13 +563,11 @@ where
 				PoolType::XYK => {
 					let price_result = AggregatedPriceGetter::get_price(asset_a, asset_b, period, XYK_SOURCE);
 
-					let price = match price_result {
+					match price_result {
 						Ok(price) => price.0,
 						Err(OracleError::SameAsset) => EmaPrice::from(1),
 						Err(_) => return None,
-					};
-
-					price
+					}
 				}
 				_ => return None,
 			};

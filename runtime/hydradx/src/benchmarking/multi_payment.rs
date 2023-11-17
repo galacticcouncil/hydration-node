@@ -16,20 +16,18 @@
 // limitations under the License.
 
 use super::*;
-use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, Runtime, RuntimeOrigin, System};
+use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, Runtime, System};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
 use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::RawOrigin;
-use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
-use pallet_transaction_multi_payment::pallet;
 use primitives::{BlockNumber, Price};
 use sp_runtime::traits::SaturatedConversion;
 use sp_runtime::FixedU128;
@@ -140,19 +138,20 @@ runtime_benchmarks! {
 
 		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
 
-		Router::<Runtime>::set_route(RawOrigin::Signed(maker.clone()).into(), AssetPair::new(asset_1, asset_6), route.clone())?;
+		Router::<Runtime>::set_route(RawOrigin::Signed(maker).into(), AssetPair::new(asset_1, asset_6), route)?;
 
-		let mut price = None;
+		let mut _price = None;//Named with underscore because clippy thinks that the price in the Act part is unused.
 
 	}: {
 		let on_chain_route = <Runtime as pallet_transaction_multi_payment::Config>::RouteProvider::get(AssetPair::new(asset_1, asset_6));
 
-		price = <Runtime as pallet_transaction_multi_payment::Config>::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
+		_price = <Runtime as pallet_transaction_multi_payment::Config>::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
 			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d));
+
 		}
 
 	verify{
-		assert!(price.is_some());
+		assert!(_price.is_some());
 	}
 }
 
@@ -164,13 +163,13 @@ where
 
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),
-		maker.clone().into(),
+		maker.clone(),
 		asset_a,
 		amount_a as i128,
 	));
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),
-		maker.clone().into(),
+		maker.clone(),
 		asset_b,
 		amount_b as i128,
 	));
@@ -192,7 +191,7 @@ where
 
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),
-		maker.clone().into(),
+		maker.clone(),
 		asset_a,
 		amount_a as i128,
 	));
