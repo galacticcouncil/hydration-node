@@ -7800,6 +7800,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-referrals"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-tracing",
+]
+
+[[package]]
 name = "pallet-relaychain-info"
 version = "0.3.3"
 dependencies = [
