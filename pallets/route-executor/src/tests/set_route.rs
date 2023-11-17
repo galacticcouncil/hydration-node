@@ -359,7 +359,7 @@ fn set_route_should_fail_when_called_with_too_long_route() {
 			pool: PoolType::XYK,
 			asset_in: HDX,
 			asset_out: AUSD,
-		}; 4];
+		}; 6];
 
 		let empty_route = trades.to_vec();
 

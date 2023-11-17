@@ -718,15 +718,10 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	}
 }
 
-parameter_types! {
-	pub const MaxNumberOfTrades: u8 = 5;
-}
-
 impl pallet_route_executor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = FungibleCurrencies<Runtime>;
 	type WeightInfo = RouterWeightInfo;
 	type AMM = (Omnipool, Stableswap, XYK, LBP);

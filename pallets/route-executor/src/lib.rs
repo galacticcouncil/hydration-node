@@ -47,7 +47,7 @@ pub mod weights;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-pub const MAX_NUMBER_OF_TRADES: u32 = 5; //TODO: remove the pallet config as we don't really need. Only remove once the treasury DCA is in place, as we don't want to change any API
+pub const MAX_NUMBER_OF_TRADES: u32 = 5;
 
 //TODO: update doc with onchain routing
 //TODO: rebenchmark on reference machine
@@ -81,10 +81,6 @@ pub mod pallet {
 			+ CheckedSub
 			+ CheckedAdd
 			+ CheckedDiv;
-
-		/// Max limit for the number of trades within a route
-		#[pallet::constant]
-		type MaxNumberOfTrades: Get<u8>;
 
 		/// Native Asset Id
 		#[pallet::constant]
@@ -427,7 +423,7 @@ impl<T: Config> Pallet<T> {
 
 	fn ensure_route_size(route_length: usize) -> Result<(), DispatchError> {
 		ensure!(
-			(route_length as u8) <= T::MaxNumberOfTrades::get(),
+			(route_length as u32) <= MAX_NUMBER_OF_TRADES,
 			Error::<T>::MaxTradesExceeded
 		);
 

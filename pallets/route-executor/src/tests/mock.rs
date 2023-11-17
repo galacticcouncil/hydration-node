@@ -141,14 +141,12 @@ type Pools = (XYK, StableSwap, OmniPool, LBP);
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
-	pub MaxNumberOfTrades: u8 = MAX_LIMIT_FOR_TRADES;
 }
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
@@ -186,8 +184,6 @@ pub const HDX_AUSD_TRADE_IN_XYK: Trade<AssetId> = Trade {
 	asset_in: HDX,
 	asset_out: AUSD,
 };
-
-pub const MAX_LIMIT_FOR_TRADES: u8 = 3;
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,

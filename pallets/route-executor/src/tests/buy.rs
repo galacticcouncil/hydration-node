@@ -200,7 +200,17 @@ fn buy_should_fail_when_max_limit_for_trade_reached() {
 				asset_in: KSM,
 				asset_out: RMRK,
 			};
-			let trades = vec![trade1, trade2, trade3, trade4];
+			let trade5 = Trade {
+				pool: PoolType::XYK,
+				asset_in: RMRK,
+				asset_out: SDN,
+			};
+			let trade6 = Trade {
+				pool: PoolType::XYK,
+				asset_in: SDN,
+				asset_out: STABLE_SHARE_ASSET,
+			};
+			let trades = vec![trade1, trade2, trade3, trade4, trade5, trade6];
 
 			//Act and Assert
 			assert_noop!(
