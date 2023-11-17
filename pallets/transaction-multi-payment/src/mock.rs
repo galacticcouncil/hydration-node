@@ -28,7 +28,7 @@ use frame_support::{
 };
 use frame_system as system;
 use hydradx_traits::router::{RouteProvider, Trade};
-use hydradx_traits::{pools::SpotPriceProvider, AssetPairAccountIdFor, OraclePeriod, PriceOracle};
+use hydradx_traits::{AssetPairAccountIdFor, OraclePeriod, PriceOracle};
 use orml_traits::currency::MutationHooks;
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;

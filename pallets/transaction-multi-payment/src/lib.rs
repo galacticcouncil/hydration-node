@@ -90,7 +90,7 @@ pub mod pallet {
 
 				AcceptedCurrencyPrice::<T>::insert(asset_id, price);
 
-				weight += T::WeightInfo::get_spot_price().ref_time();
+				weight += T::WeightInfo::get_oracle_price().ref_time();
 			}
 
 			Weight::from_ref_time(weight)
