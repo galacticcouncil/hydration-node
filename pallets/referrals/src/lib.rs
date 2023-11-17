@@ -53,8 +53,10 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		/// Asset type
 		type AssetId: frame_support::traits::tokens::AssetId + MaybeSerializeDeserialize;
 
+		/// Support for transfers.
 		type Currency: Transfer<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>;
 
 		/// Pallet id. Determines account which holds accumulated rewards in various assets.

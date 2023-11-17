@@ -69,6 +69,23 @@ fn register_code_should_fail_when_code_already_exists() {
 }
 
 #[test]
+fn register_code_should_fail_when_code_is_lowercase_and_already_exists() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE),
+			b"BALLS69".to_vec(),
+			BOB
+		));
+		// Act
+		assert_noop!(
+			Referrals::register_code(RuntimeOrigin::signed(ALICE), b"balls69".to_vec(), BOB),
+			Error::<Test>::AlreadyExists
+		);
+	});
+}
+
+#[test]
 fn register_code_should_fail_when_code_contains_invalid_char() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
