@@ -153,6 +153,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	//TODO: when added to runtime, make sure the account is added to the whitelist of account that cannot be dusted
 	pub fn pot_account_id() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}
