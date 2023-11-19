@@ -47,6 +47,9 @@ pub struct Cli {
 	/// Relaychain arguments
 	#[clap(raw = true)]
 	pub relaychain_args: Vec<String>,
+
+	#[clap(flatten)]
+	pub ethereum_config: crate::service::evm::EthereumConfig,
 }
 
 #[derive(Debug)]

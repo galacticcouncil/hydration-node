@@ -51,6 +51,32 @@ use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerH
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_keystore::KeystorePtr;
 use substrate_prometheus_endpoint::Registry;
+// =======
+// use cumulus_primitives_core::{CollectCollationInfo, ParaId};
+// use cumulus_relay_chain_inprocess_interface::build_inprocess_relay_chain;
+// use cumulus_relay_chain_interface::{RelayChainInterface, RelayChainResult};
+// use cumulus_relay_chain_minimal_node::build_minimal_relay_chain_node;
+use fc_db::Backend as FrontierBackend;
+use fc_rpc::{EthBlockDataCacheTask, OverrideHandle};
+use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
+use fp_rpc::{ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
+// use polkadot_service::CollatorPair;
+// use primitives::{AccountId, Balance, Block, Index};
+// use sc_executor::{NativeElseWasmExecutor, NativeExecutionDispatch, NativeVersion};
+// use sc_network::NetworkService;
+// use sc_network_common::service::NetworkBlock;
+// use sc_rpc::SubscriptionTaskExecutor;
+// use sc_rpc_api::DenyUnsafe;
+// use sp_api::ConstructRuntimeApi;
+// use sp_keystore::SyncCryptoStorePtr;
+use std::{
+	collections::BTreeMap,
+	sync::Mutex,
+};
+
+pub(crate) mod evm;
+use crate::rpc;
+// >>>>>>> master
 
 /// Native executor type.
 pub struct HydraDXNativeExecutor;
@@ -133,7 +159,14 @@ pub fn new_partial(
 		(),
 		sc_consensus::DefaultImportQueue<Block>,
 		sc_transaction_pool::FullPool<Block, ParachainClient>,
-		(ParachainBlockImport, Option<Telemetry>, Option<TelemetryWorkerHandle>),
+		(
+			ParachainBlockImport,
+			Option<Telemetry>,
+			Option<TelemetryWorkerHandle>,
+			Arc<FrontierBackend<Block>>,
+			FilterPool,
+			FeeHistoryCache,
+		),
 	>,
 	sc_service::Error,
 > {
@@ -169,6 +202,7 @@ pub fn new_partial(
 		telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 		executor,
 	)?;
+
 	let client = Arc::new(client);
 
 	let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
@@ -186,7 +220,17 @@ pub fn new_partial(
 		client.clone(),
 	);
 
-	let block_import = ParachainBlockImport::new(client.clone(), backend.clone());
+	let frontier_backend = Arc::new(FrontierBackend::open(
+		Arc::clone(&client),
+		&config.database,
+		&evm::db_config_dir(config),
+	)?);
+
+	let block_import = evm::BlockImport::new(
+		ParachainBlockImport::new(client.clone(), backend.clone()),
+		client.clone(),
+		frontier_backend,
+	);
 
 	let import_queue = build_import_queue(
 		client.clone(),
@@ -194,7 +238,11 @@ pub fn new_partial(
 		config,
 		telemetry.as_ref().map(|telemetry| telemetry.handle()),
 		&task_manager,
+		frontier_backend.clone(),
 	)?;
+
+	let filter_pool: FilterPool = Arc::new(Mutex::new(BTreeMap::new()));
+	let fee_history_cache: FeeHistoryCache = Arc::new(Mutex::new(BTreeMap::new()));
 
 	Ok(PartialComponents {
 		backend,
@@ -204,7 +252,14 @@ pub fn new_partial(
 		task_manager,
 		transaction_pool,
 		select_chain: (),
-		other: (block_import, telemetry, telemetry_worker_handle),
+		other: (
+			block_import,
+			telemetry,
+			telemetry_worker_handle,
+			frontier_backend,
+			filter_pool,
+			fee_history_cache,
+		),
 	})
 }
 
@@ -238,6 +293,7 @@ pub fn new_partial(
 async fn start_node_impl(
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
+	ethereum_config: evm::EthereumConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	hwbench: Option<sc_sysinfo::HwBench>,
@@ -245,7 +301,7 @@ async fn start_node_impl(
 	let parachain_config = prepare_node_config(parachain_config);
 
 	let params = new_partial(&parachain_config)?;
-	let (block_import, mut telemetry, telemetry_worker_handle) = params.other;
+	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) = params.other;
 	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
 
 	let client = params.client.clone();
@@ -303,9 +359,24 @@ async fn start_node_impl(
 		);
 	}
 
+	let rpc_client = client.clone();
+	let overrides = evm::overrides_handle(client.clone());
+	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
+		task_manager.spawn_handle(),
+		overrides.clone(),
+		ethereum_config.eth_log_block_cache,
+		ethereum_config.eth_statuses_cache,
+		prometheus_registry.clone(),
+	));
+
 	let rpc_builder = {
 		let client = client.clone();
 		let transaction_pool = transaction_pool.clone();
+		let network = network.clone();
+		let frontier_backend = frontier_backend.clone();
+		let fee_history_cache = fee_history_cache.clone();
+		let filter_pool = filter_pool.clone();
+		let overrides = overrides.clone();
 
 		Box::new(move |deny_unsafe, _| {
 			let deps = crate::rpc::FullDeps {
@@ -314,7 +385,25 @@ async fn start_node_impl(
 				deny_unsafe,
 			};
 
-			crate::rpc::create_full(deps).map_err(Into::into)
+			let module = rpc::create_full(deps)?;
+			let eth_deps = rpc::Deps {
+				client,
+				pool: transaction_pool.clone(),
+				graph: transaction_pool.pool().clone(),
+				converter: Some(hydradx_runtime::TransactionConverter),
+				is_authority,
+				enable_dev_signer: ethereum_config.enable_dev_signer,
+				network,
+				frontier_backend,
+				overrides,
+				block_data_cache,
+				filter_pool,
+				max_past_logs: ethereum_config.max_past_logs,
+				fee_history_cache,
+				fee_history_cache_limit: ethereum_config.fee_history_limit,
+				execute_gas_limit_multiplier: ethereum_config.execute_gas_limit_multiplier,
+			};
+			rpc::create(module, eth_deps, subscription_task_executor).map_err(Into::into)
 		})
 	};
 
@@ -332,6 +421,17 @@ async fn start_node_impl(
 		tx_handler_controller,
 		telemetry: telemetry.as_mut(),
 	})?;
+
+	evm::spawn_frontier_tasks::<RuntimeApi, Executor>(
+		&task_manager,
+		client.clone(),
+		backend.clone(),
+		frontier_backend.clone(),
+		filter_pool.clone(),
+		overrides,
+		fee_history_cache.clone(),
+		ethereum_config.fee_history_limit,
+	);
 
 	if let Some(hwbench) = hwbench {
 		sc_sysinfo::print_hwbench(&hwbench);
@@ -414,6 +514,7 @@ fn build_import_queue(
 	config: &Configuration,
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
+	frontier_backend: Arc<FrontierBackend<Block>>,
 ) -> Result<sc_consensus::DefaultImportQueue<Block>, sc_service::Error> {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 
@@ -507,6 +608,7 @@ fn start_consensus(
 pub async fn start_node(
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
+	ethereum_config: evm::EthereumConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	hwbench: Option<sc_sysinfo::HwBench>,

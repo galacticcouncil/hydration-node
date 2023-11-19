@@ -233,7 +233,6 @@ impl pallet_uniques::Config for Runtime {
 
 parameter_types! {
 	pub const LRNA: AssetId = 1;
-	pub const StableAssetId: AssetId = 2;
 	pub const MinTradingLimit : Balance = 1_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
@@ -254,7 +253,6 @@ impl pallet_omnipool::Config for Runtime {
 	type AssetRegistry = AssetRegistry;
 	type HdxAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
-	type StableCoinAssetId = StableAssetId;
 	type MinWithdrawalFee = MinimumWithdrawalFee;
 	type MinimumTradingLimit = MinTradingLimit;
 	type MinimumPoolLiquidity = MinPoolLiquidity;

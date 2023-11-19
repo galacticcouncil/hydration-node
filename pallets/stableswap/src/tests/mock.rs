@@ -320,6 +320,14 @@ impl InspectRegistry<AssetId> for DummyRegistry {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied())?;
 		Some(asset.1)
 	}
+
+	fn asset_name(_asset_id: AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_asset_id: AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
 }
 
 #[cfg(feature = "runtime-benchmarks")]

@@ -2,8 +2,10 @@ use crate::Runtime;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 #[cfg(feature = "try-runtime")]
 use sp_std::prelude::*;
+use pallet_evm_chain_id::ChainId;
 
 pub struct OnRuntimeUpgradeMigration;
+
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::DispatchError> {
@@ -29,6 +31,10 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		weight = weight
 			.saturating_add(pallet_xcm::migration::v1::VersionUncheckedMigrateToV1::<Runtime>::on_runtime_upgrade());
 		log::info!("Migrate XCM Pallet to v1 end");
+
+		let evm_id: u64 = 222_222u64;
+		ChainId::<Runtime>::put(evm_id);
+		weight = weight.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().reads_writes(0, 1));
 
 		weight
 	}

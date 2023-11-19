@@ -46,6 +46,7 @@ fn fee_test_buy_sell() {
 				10000000000000
 			));
 
+			let position_id = last_position_id();
 			assert_ok!(Omnipool::add_liquidity(
 				RuntimeOrigin::signed(LP3),
 				200,
@@ -62,7 +63,7 @@ fn fee_test_buy_sell() {
 
 			assert_ok!(Omnipool::remove_liquidity(
 				RuntimeOrigin::signed(LP3),
-				3,
+				position_id,
 				200000000000000
 			));
 
@@ -85,7 +86,7 @@ fn fee_test_buy_sell() {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
-					protocol_shares: 1000000000000000,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -97,7 +98,7 @@ fn fee_test_buy_sell() {
 					reserve: 10000000000000000,
 					hub_reserve: 10135523267202732,
 					shares: 10000000000000000,
-					protocol_shares: 10000000000000000,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}

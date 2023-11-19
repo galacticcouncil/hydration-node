@@ -137,10 +137,10 @@ pub mod pallet {
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
-		/// Origin that can add token, refund refused asset and  set tvl cap.
+		/// Origin that can add token, refund refused asset etc.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		/// Origin to be able to suspend asset trades and initialize Omnipool.
+		/// Origin to be able to suspend asset trades.
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
@@ -153,10 +153,6 @@ pub mod pallet {
 		/// Hub Asset ID
 		#[pallet::constant]
 		type HubAssetId: Get<Self::AssetId>;
-
-		/// Preferred stable Asset ID
-		#[pallet::constant]
-		type StableCoinAssetId: Get<Self::AssetId>;
 
 		/// Asset and Protocol Fee for given asset
 		type Fee: GetByKey<Self::AssetId, (Permill, Permill)>;
@@ -223,9 +219,16 @@ pub mod pallet {
 	#[pallet::getter(fn current_imbalance)]
 	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<Balance>, ValueQuery>;
 
+	// LRNA is only allowed to be sold
+	#[pallet::type_value]
+	pub fn DefaultHubAssetTradability() -> Tradability {
+		Tradability::SELL
+	}
+
 	#[pallet::storage]
 	/// Tradable state of hub asset.
-	pub(super) type HubAssetTradability<T: Config> = StorageValue<_, Tradability, ValueQuery>;
+	pub(super) type HubAssetTradability<T: Config> =
+		StorageValue<_, Tradability, ValueQuery, DefaultHubAssetTradability>;
 
 	#[pallet::storage]
 	/// LP positions. Maps NFT instance id to corresponding position
@@ -237,10 +240,6 @@ pub mod pallet {
 	#[pallet::getter(fn next_position_id)]
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
-
-	#[pallet::storage]
-	/// TVL cap
-	pub(super) type TvlCap<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -335,9 +334,6 @@ pub mod pallet {
 
 		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
-
-		/// TVL cap has been updated.
-		TVLCapUpdated { cap: Balance },
 	}
 
 	#[pallet::error]
@@ -371,8 +367,6 @@ pub mod pallet {
 		Forbidden,
 		/// Asset weight cap has been exceeded.
 		AssetWeightCapExceeded,
-		/// TVL cap has been exceeded
-		TVLCapExceeded,
 		/// Asset is not registered in asset registry
 		AssetNotRegistered,
 		/// Provided liquidity is below minimum allowed limit
@@ -413,123 +407,6 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Initialize Omnipool with stable asset and native asset.
-		///
-		/// First added assets must be:
-		/// - preferred stable coin asset set as `StableCoinAssetId` pallet parameter
-		/// - native asset
-		///
-		/// Omnipool account must already have correct balances of stable and native asset.
-		///
-		/// Parameters:
-		/// - `stable_asset_price`: Initial price of stable asset
-		/// - `native_asset_price`: Initial price of stable asset
-		///
-		/// Emits two `TokenAdded` events when successful.
-		///
-		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::initialize_pool())]
-		#[transactional]
-		pub fn initialize_pool(
-			origin: OriginFor<T>,
-			stable_asset_price: Price,
-			native_asset_price: Price,
-			stable_weight_cap: Permill,
-			native_weight_cap: Permill,
-		) -> DispatchResult {
-			T::TechnicalOrigin::ensure_origin(origin)?;
-
-			ensure!(
-				!Assets::<T>::contains_key(T::StableCoinAssetId::get()),
-				Error::<T>::AssetAlreadyAdded
-			);
-			ensure!(
-				!Assets::<T>::contains_key(T::HdxAssetId::get()),
-				Error::<T>::AssetAlreadyAdded
-			);
-
-			ensure!(
-				stable_asset_price > FixedU128::zero(),
-				Error::<T>::InvalidInitialAssetPrice
-			);
-			ensure!(
-				native_asset_price > FixedU128::zero(),
-				Error::<T>::InvalidInitialAssetPrice
-			);
-
-			ensure!(
-				T::AssetRegistry::exists(T::StableCoinAssetId::get()),
-				Error::<T>::AssetNotRegistered
-			);
-
-			let native_asset_reserve = T::Currency::free_balance(T::HdxAssetId::get(), &Self::protocol_account());
-			let stable_asset_reserve =
-				T::Currency::free_balance(T::StableCoinAssetId::get(), &Self::protocol_account());
-
-			// Ensure that stable asset has been transferred to protocol account
-			ensure!(stable_asset_reserve > Balance::zero(), Error::<T>::MissingBalance);
-
-			// Ensure that native asset has been transferred to protocol account
-			ensure!(native_asset_reserve > Balance::zero(), Error::<T>::MissingBalance);
-
-			let stable_asset_hub_reserve = stable_asset_price
-				.checked_mul_int(stable_asset_reserve)
-				.ok_or(ArithmeticError::Overflow)?;
-
-			let native_asset_hub_reserve = native_asset_price
-				.checked_mul_int(native_asset_reserve)
-				.ok_or(ArithmeticError::Overflow)?;
-
-			// Create NFT class
-			T::NFTHandler::create_collection(
-				&T::NFTCollectionId::get(),
-				&Self::protocol_account(),
-				&Self::protocol_account(),
-			)?;
-
-			// Initial stale of native and stable assets
-			let stable_asset_state = AssetState::<Balance> {
-				hub_reserve: stable_asset_hub_reserve,
-				shares: stable_asset_reserve,
-				protocol_shares: stable_asset_reserve,
-				cap: FixedU128::from(stable_weight_cap).into_inner(),
-				tradable: Tradability::default(),
-			};
-
-			let native_asset_state = AssetState::<Balance> {
-				hub_reserve: native_asset_hub_reserve,
-				shares: native_asset_reserve,
-				protocol_shares: native_asset_reserve,
-				cap: FixedU128::from(native_weight_cap).into_inner(),
-				tradable: Tradability::default(),
-			};
-
-			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(stable_asset_hub_reserve))?;
-			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(native_asset_hub_reserve))?;
-
-			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
-			<Assets<T>>::insert(T::HdxAssetId::get(), native_asset_state);
-
-			Self::ensure_tvl_cap()?;
-
-			// Hub asset is not allowed to be bought from the pool
-			<HubAssetTradability<T>>::put(Tradability::SELL);
-
-			Self::deposit_event(Event::TokenAdded {
-				asset_id: T::StableCoinAssetId::get(),
-				initial_amount: stable_asset_reserve,
-				initial_price: stable_asset_price,
-			});
-
-			Self::deposit_event(Event::TokenAdded {
-				asset_id: T::HdxAssetId::get(),
-				initial_amount: native_asset_reserve,
-				initial_price: native_asset_price,
-			});
-
-			Ok(())
-		}
-
 		/// Add new token to omnipool in quantity `amount` at price `initial_price`
 		///
 		/// Can be called only after pool is initialized, otherwise it returns `NoStableAssetInPool`
@@ -564,6 +441,13 @@ pub mod pallet {
 			ensure!(T::AssetRegistry::exists(asset), Error::<T>::AssetNotRegistered);
 
 			ensure!(initial_price > FixedU128::zero(), Error::<T>::InvalidInitialAssetPrice);
+
+			// ensure collection is created, we can simply ignore the error if it was already created.
+			let _ = T::NFTHandler::create_collection(
+				&T::NFTCollectionId::get(),
+				&Self::protocol_account(),
+				&Self::protocol_account(),
+			);
 
 			let amount = T::Currency::free_balance(asset, &Self::protocol_account());
 
@@ -637,8 +521,6 @@ pub mod pallet {
 			)?;
 
 			<Assets<T>>::insert(asset, state);
-
-			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::TokenAdded {
 				asset_id: asset,
@@ -784,8 +666,6 @@ pub mod pallet {
 			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
 
 			Self::set_asset_state(asset, new_asset_state);
-
-			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who,
@@ -1510,22 +1390,6 @@ pub mod pallet {
 				Ok(())
 			})
 		}
-		/// Update TVL cap
-		///
-		/// Parameters:
-		/// - `cap`: new tvl cap
-		///
-		/// Emits `TVLCapUpdated` event when successful.
-		///
-		#[pallet::call_index(10)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_asset_weight_cap())]
-		#[transactional]
-		pub fn set_tvl_cap(origin: OriginFor<T>, cap: Balance) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
-			TvlCap::<T>::set(cap);
-			Self::deposit_event(Event::TVLCapUpdated { cap });
-			Ok(())
-		}
 
 		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw_protocol_liquidity())]
@@ -1620,12 +1484,6 @@ pub mod pallet {
 		#[transactional]
 		pub fn remove_token(origin: OriginFor<T>, asset_id: T::AssetId, beneficiary: T::AccountId) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
-
-			ensure!(
-				asset_id != T::StableCoinAssetId::get(),
-				Error::<T>::StableAssetCannotBeRemoved
-			);
-
 			let asset_state = Self::load_asset_state(asset_id)?;
 
 			// Allow only if no shares owned by LPs and asset is frozen.
@@ -1673,11 +1531,6 @@ pub mod pallet {
 				Balance::zero(),
 				"Minimum trading limit is 0."
 			);
-			assert_ne!(
-				T::HdxAssetId::get(),
-				T::StableCoinAssetId::get(),
-				"Same Hdx asset id and stable asset id."
-			);
 			assert_ne!(T::MaxInRatio::get(), Balance::zero(), "MaxInRatio is 0.");
 			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
 		}
@@ -1688,14 +1541,6 @@ impl<T: Config> Pallet<T> {
 	/// Protocol account address
 	pub fn protocol_account() -> T::AccountId {
 		PalletId(*b"omnipool").into_account_truncating()
-	}
-
-	/// Retrieve stable asset detail from the pool.
-	/// Return NoStableCoinInPool if stable asset is not yet in the pool.
-	fn stable_asset() -> Result<(Balance, Balance), DispatchError> {
-		let stable_asset = <Assets<T>>::get(T::StableCoinAssetId::get()).ok_or(Error::<T>::NoStableAssetInPool)?;
-		let stable_reserve = T::Currency::free_balance(T::StableCoinAssetId::get(), &Self::protocol_account());
-		Ok((stable_reserve, stable_asset.hub_reserve))
 	}
 
 	/// Retrieve state of asset from the pool and its pool balance
@@ -1785,18 +1630,6 @@ impl<T: Config> Pallet<T> {
 
 			Ok(())
 		})
-	}
-
-	/// Calculate new tvl balance and ensure that it is below TVL Cap.
-	fn ensure_tvl_cap() -> DispatchResult {
-		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-		let stable_asset = Self::stable_asset()?;
-
-		let updated_tvl = hydra_dx_math::omnipool::calculate_tvl(current_hub_asset_liquidity, stable_asset)
-			.ok_or(ArithmeticError::Overflow)?;
-
-		ensure!(updated_tvl <= TvlCap::<T>::get(), Error::<T>::TVLCapExceeded);
-		Ok(())
 	}
 
 	/// Check if assets can be traded - asset_in must be allowed to be sold and asset_out allowed to be bought.
