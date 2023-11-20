@@ -41,7 +41,7 @@ use cumulus_primitives_core::{relay_chain::CollatorPair, ParaId};
 use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 
 // Substrate Imports
-use fc_db::Backend as FrontierBackend;
+use fc_db::kv::Backend as FrontierBackend;
 use fc_rpc::{EthBlockDataCacheTask, OverrideHandle};
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
 use fp_rpc::{ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
@@ -97,7 +97,7 @@ pub fn new_partial(
 		sc_consensus::DefaultImportQueue<Block>,
 		sc_transaction_pool::FullPool<Block, ParachainClient>,
 		(
-			ParachainBlockImport,
+			evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
 			Option<Telemetry>,
 			Option<TelemetryWorkerHandle>,
 			Arc<FrontierBackend<Block>>,
@@ -166,7 +166,6 @@ pub fn new_partial(
 	let block_import = evm::BlockImport::new(
 		ParachainBlockImport::new(client.clone(), backend.clone()),
 		client.clone(),
-		frontier_backend,
 	);
 
 	let import_queue = build_import_queue(
@@ -284,16 +283,30 @@ async fn start_node_impl(
 		prometheus_registry.clone(),
 	));
 
+	// Sinks for pubsub notifications.
+	// Everytime a new subscription is created, a new mpsc channel is added to the sink pool.
+	// The MappingSyncWorker sends through the channel on block import and the subscription emits a
+	// notification to the subscriber on receiving a message through this channel.
+	// This way we avoid race conditions when using native substrate block import notification
+	// stream.
+	let pubsub_notification_sinks: fc_mapping_sync::EthereumBlockNotificationSinks<
+		fc_mapping_sync::EthereumBlockNotification<Block>,
+	> = Default::default();
+	let pubsub_notification_sinks = Arc::new(pubsub_notification_sinks);
+
 	let rpc_builder = {
 		let client = client.clone();
+		let is_authority = parachain_config.role.is_authority();
 		let transaction_pool = transaction_pool.clone();
 		let network = network.clone();
+		let sync = sync_service.clone();
 		let frontier_backend = frontier_backend.clone();
 		let fee_history_cache = fee_history_cache.clone();
 		let filter_pool = filter_pool.clone();
 		let overrides = overrides.clone();
+		let pubsub_notification_sinks = pubsub_notification_sinks.clone();
 
-		Box::new(move |deny_unsafe, _| {
+		Box::new(move |deny_unsafe, subscription_task_executor| {
 			let deps = crate::rpc::FullDeps {
 				client: client.clone(),
 				pool: transaction_pool.clone(),
@@ -302,23 +315,24 @@ async fn start_node_impl(
 
 			let module = rpc::create_full(deps)?;
 			let eth_deps = rpc::Deps {
-				client,
+				client: client.clone(),
 				pool: transaction_pool.clone(),
 				graph: transaction_pool.pool().clone(),
 				converter: Some(hydradx_runtime::TransactionConverter),
 				is_authority,
 				enable_dev_signer: ethereum_config.enable_dev_signer,
-				network,
-				frontier_backend,
-				overrides,
-				block_data_cache,
-				filter_pool,
+				network: network.clone(),
+				sync: sync.clone(),
+				frontier_backend: frontier_backend.clone(),
+				overrides: overrides.clone(),
+				block_data_cache: block_data_cache.clone(),
+				filter_pool: filter_pool.clone(),
 				max_past_logs: ethereum_config.max_past_logs,
-				fee_history_cache,
+				fee_history_cache: fee_history_cache.clone(),
 				fee_history_cache_limit: ethereum_config.fee_history_limit,
 				execute_gas_limit_multiplier: ethereum_config.execute_gas_limit_multiplier,
 			};
-			rpc::create(module, eth_deps, subscription_task_executor).map_err(Into::into)
+			rpc::create(module, eth_deps, subscription_task_executor, pubsub_notification_sinks.clone()).map_err(Into::into)
 		})
 	};
 
@@ -329,7 +343,7 @@ async fn start_node_impl(
 		task_manager: &mut task_manager,
 		config: parachain_config,
 		keystore: params.keystore_container.keystore(),
-		backend,
+		backend: backend.clone(),
 		network: network.clone(),
 		sync_service: sync_service.clone(),
 		system_rpc_tx,
@@ -337,7 +351,7 @@ async fn start_node_impl(
 		telemetry: telemetry.as_mut(),
 	})?;
 
-	evm::spawn_frontier_tasks::<RuntimeApi, Executor>(
+	evm::spawn_frontier_tasks(
 		&task_manager,
 		client.clone(),
 		backend.clone(),
@@ -346,6 +360,8 @@ async fn start_node_impl(
 		overrides,
 		fee_history_cache.clone(),
 		ethereum_config.fee_history_limit,
+		sync_service.clone(),
+		pubsub_notification_sinks,
 	);
 
 	if let Some(hwbench) = hwbench {
@@ -425,7 +441,7 @@ async fn start_node_impl(
 /// Build the import queue for the parachain runtime.
 fn build_import_queue(
 	client: Arc<ParachainClient>,
-	block_import: ParachainBlockImport,
+	block_import: evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
 	config: &Configuration,
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
@@ -457,7 +473,7 @@ fn build_import_queue(
 
 fn start_consensus(
 	client: Arc<ParachainClient>,
-	block_import: ParachainBlockImport,
+	block_import: evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
 	prometheus_registry: Option<&Registry>,
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
@@ -528,5 +544,5 @@ pub async fn start_node(
 	para_id: ParaId,
 	hwbench: Option<sc_sysinfo::HwBench>,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
-	start_node_impl(parachain_config, polkadot_config, collator_options, para_id, hwbench).await
+	start_node_impl(parachain_config, polkadot_config, ethereum_config, collator_options, para_id, hwbench).await
 }

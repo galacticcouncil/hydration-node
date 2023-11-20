@@ -121,7 +121,7 @@ sc-consensus-grandpa = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true, features = ["full-node"] }
 polkadot-runtime-parachains = { workspace = true }
-polkadot-runtime = { workspace = true, features = ["try-runtime"] }
+polkadot-runtime = { workspace = true }
 
 [dev-dependencies]
 hex-literal = "0.4.1"
@@ -162,6 +162,7 @@ std = [
     "pallet-transaction-multi-payment/std",
     "pallet-transaction-payment-rpc-runtime-api/std",
     "pallet-utility/std",
+    "pallet-im-online/std",
     "pallet-currencies/std",
     "sp-api/std",
     "sp-authority-discovery/std",

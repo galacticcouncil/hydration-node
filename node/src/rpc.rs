@@ -21,19 +21,24 @@
 
 use std::sync::Arc;
 
-use fc_db::Backend as FrontierBackend;
+use fc_db::kv::Backend as FrontierBackend;
 pub use fc_rpc::{
 	EthBlockDataCacheTask, OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
 	SchemaV3Override, StorageOverride,
 };
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
+use fc_rpc::pending::ConsensusDataProvider;
+use cumulus_primitives_core::PersistedValidationData;
+use cumulus_primitives_parachain_inherent::ParachainInherentData;
+use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
 	client::BlockchainEvents,
 };
 use sc_network::NetworkService;
+use sc_network_sync::SyncingService;
 use sc_rpc::SubscriptionTaskExecutor;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool::{ChainApi, Pool};
@@ -70,6 +75,8 @@ pub struct Deps<C, P, A: ChainApi, CT, B: BlockT> {
 	pub enable_dev_signer: bool,
 	/// Network service
 	pub network: Arc<NetworkService<B, B::Hash>>,
+	/// Chain syncing service
+	pub sync: Arc<SyncingService<B>>,
 	/// Frontier Backend.
 	pub frontier_backend: Arc<FrontierBackend<B>>,
 	/// Ethereum data access overrides.
@@ -124,6 +131,11 @@ pub fn create<C, BE, P, A, CT, B>(
 	mut io: RpcExtension,
 	deps: Deps<C, P, A, CT, B>,
 	subscription_task_executor: SubscriptionTaskExecutor,
+	pubsub_notification_sinks: Arc<
+		fc_mapping_sync::EthereumBlockNotificationSinks<
+			fc_mapping_sync::EthereumBlockNotification<B>,
+		>,
+	>,
 ) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
 	B: BlockT<Hash = H256>,
@@ -151,6 +163,7 @@ where
 		is_authority,
 		enable_dev_signer,
 		network,
+		sync,
 		frontier_backend,
 		overrides,
 		block_data_cache,
@@ -166,13 +179,36 @@ where
 		signers.push(Box::new(EthDevSigner::new()) as Box<dyn EthSigner>);
 	}
 
+	let pending_create_inherent_data_providers = move |_, _| async move {
+		let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+		// Create a dummy parachain inherent data provider which is required to pass
+		// the checks by the para chain system. We use dummy values because in the 'pending context'
+		// neither do we have access to the real values nor do we need them.
+		let (relay_parent_storage_root, relay_chain_state) =
+			RelayStateSproofBuilder::default().into_state_root_and_proof();
+		let vfp = PersistedValidationData {
+			// This is a hack to make `cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases`
+			// happy. Relay parent number can't be bigger than u32::MAX.
+			relay_parent_number: u32::MAX,
+			relay_parent_storage_root,
+			..Default::default()
+		};
+		let parachain_inherent_data = ParachainInherentData {
+			validation_data: vfp,
+			relay_chain_state: relay_chain_state,
+			downward_messages: Default::default(),
+			horizontal_messages: Default::default(),
+		};
+		Ok((timestamp, parachain_inherent_data))
+	};
+
 	io.merge(
 		Eth::new(
 			client.clone(),
 			pool.clone(),
-			graph,
+			graph.clone(),
 			converter,
-			network.clone(),
+			sync.clone(),
 			vec![],
 			overrides.clone(),
 			frontier_backend.clone(),
@@ -181,6 +217,9 @@ where
 			fee_history_cache,
 			fee_history_cache_limit,
 			execute_gas_limit_multiplier,
+			None,
+			pending_create_inherent_data_providers,
+			None,
 		)
 		.into_rpc(),
 	)?;
@@ -189,6 +228,7 @@ where
 		EthFilter::new(
 			client.clone(),
 			frontier_backend,
+			graph,
 			filter_pool,
 			500_usize, // max stored filters
 			max_past_logs,
@@ -201,9 +241,10 @@ where
 		EthPubSub::new(
 			pool,
 			client.clone(),
-			network.clone(),
+			sync.clone(),
 			subscription_task_executor,
 			overrides,
+			pubsub_notification_sinks.clone(),
 		)
 		.into_rpc(),
 	)?;
@@ -233,6 +274,7 @@ impl<C, P, A: ChainApi, CT: Clone, B: BlockT> Clone for Deps<C, P, A, CT, B> {
 			is_authority: self.is_authority,
 			enable_dev_signer: self.enable_dev_signer,
 			network: self.network.clone(),
+			sync: self.sync.clone(),
 			frontier_backend: self.frontier_backend.clone(),
 			overrides: self.overrides.clone(),
 			block_data_cache: self.block_data_cache.clone(),

@@ -93,6 +93,7 @@ cumulus-primitives-parachain-inherent = { workspace = true }
 cumulus-relay-chain-interface = { workspace = true }
 cumulus-relay-chain-inprocess-interface = { workspace = true }
 cumulus-relay-chain-minimal-node = { workspace = true }
+cumulus-test-relay-sproof-builder = { workspace = true }
 
 # Polkadot dependencies
 polkadot-cli = { workspace = true }
