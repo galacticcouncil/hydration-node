@@ -76,18 +76,25 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 	}
 
-	#[pallet::storage]
 	/// Referral codes
 	/// Maps an account to a referral code.
+	#[pallet::storage]
 	#[pallet::getter(fn referral_account)]
 	pub(super) type ReferralCodes<T: Config> =
 		StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
 
-	#[pallet::storage]
 	/// Linked accounts.
 	/// Maps an account to a referral account.
+	#[pallet::storage]
 	#[pallet::getter(fn linked_referral_account)]
 	pub(super) type LinkedAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId>;
+
+	/// Accumulated rewards
+	/// List of accumulated rewards per asset.
+	#[pallet::storage]
+	#[pallet::getter(fn account_rewards)]
+	pub(super) type Rewards<T: Config> = StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, T::AssetId, Balance, ValueQuery>;
+
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -188,6 +195,19 @@ pub mod pallet {
 				});
 				Ok(())
 			})?;
+			Ok(())
+		}
+
+		/// Claim accumulated rewards
+		///
+		/// /// Parameters:
+		/// - `origin`:
+		///
+		/// Emits `CodeLinked` event when successful.
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
+		pub fn claim_rewards(origin: OriginFor<T>, code: Vec<u8>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
 			Ok(())
 		}
 	}
