@@ -20,3 +20,5 @@ mod staking;
 mod transact_call_filter;
 mod vesting;
 mod xyk;
+
+// TODO: add xcmp integration test
