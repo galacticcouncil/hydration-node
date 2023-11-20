@@ -83,12 +83,23 @@ pub mod pallet {
 	pub(super) type ReferralCodes<T: Config> =
 		StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
 
+	#[pallet::storage]
+	/// Linked accounts.
+	/// Maps an account to a referral account.
+	#[pallet::getter(fn linked_referral_account)]
+	pub(super) type LinkedAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		CodeRegistered {
 			code: ReferralCode<T::CodeLength>,
 			account: T::AccountId,
+		},
+		CodeLinked {
+			account: T::AccountId,
+			code: ReferralCode<T::CodeLength>,
+			referral_account: T::AccountId,
 		},
 	}
 
@@ -99,6 +110,8 @@ pub mod pallet {
 		TooShort,
 		InvalidCharacter,
 		AlreadyExists,
+		InvalidCode,
+		AlreadyLinked,
 	}
 
 	#[pallet::call]
@@ -118,7 +131,6 @@ pub mod pallet {
 		/// - `account`:
 		///
 		/// Emits `CodeRegistered` event when successful.
-		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_code())]
 		pub fn register_code(origin: OriginFor<T>, code: Vec<u8>, account: T::AccountId) -> DispatchResult {
@@ -148,6 +160,35 @@ pub mod pallet {
 				Self::deposit_event(Event::CodeRegistered { code, account });
 				Ok(())
 			})
+		}
+
+		/// Link a code to an account.
+		///
+		/// /// Parameters:
+		/// - `origin`:
+		/// - `code`:
+		///
+		/// Emits `CodeLinked` event when successful.
+		#[pallet::call_index(1)]
+		#[pallet::weight(<T as Config>::WeightInfo::link_code())]
+		pub fn link_code(origin: OriginFor<T>, code: Vec<u8>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let code: ReferralCode<T::CodeLength> = code.try_into().map_err(|_| Error::<T>::InvalidCode)?;
+			let code = Self::normalize_code(code);
+			let ref_account = Self::referral_account(&code).ok_or(Error::<T>::InvalidCode)?;
+
+			LinkedAccounts::<T>::mutate(who.clone(), |v| -> DispatchResult {
+				ensure!(v.is_none(), Error::<T>::AlreadyLinked);
+
+				*v = Some(ref_account.clone());
+				Self::deposit_event(Event::CodeLinked {
+					account: who,
+					code,
+					referral_account: ref_account,
+				});
+				Ok(())
+			})?;
+			Ok(())
 		}
 	}
 }

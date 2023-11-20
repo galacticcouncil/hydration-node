@@ -49,6 +49,7 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_bonds.
 pub trait WeightInfo {
 	fn register_code() -> Weight;
+	fn link_code() -> Weight;
 }
 
 /// Weights for pallet_bonds using the hydraDX node and recommended hardware.
@@ -58,11 +59,19 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn register_code() -> Weight {
 		Weight::zero()
 	}
+
+	fn link_code() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn register_code() -> Weight {
+		Weight::zero()
+	}
+
+	fn link_code() -> Weight {
 		Weight::zero()
 	}
 }
