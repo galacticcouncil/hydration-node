@@ -24,8 +24,11 @@ use core::marker::PhantomData;
 use crate::evm::precompiles::{erc20_mapping::is_asset_address, multicurrency::MultiCurrencyPrecompile};
 use codec::Decode;
 use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
+use pallet_evm::{
+	ExitError, ExitRevert, ExitSucceed, IsPrecompileResult, Precompile, PrecompileFailure, PrecompileHandle,
+	PrecompileOutput, PrecompileResult, PrecompileSet,
+};
 use sp_runtime::traits::Dispatchable;
-use pallet_evm::{ExitError, ExitRevert, ExitSucceed, IsPrecompileResult, Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput, PrecompileResult, PrecompileSet};
 
 use codec::alloc;
 use ethabi::Token;
@@ -101,7 +104,7 @@ where
 		let is_precompile = address == DISPATCH_ADDR || is_asset_address(address);
 		IsPrecompileResult::Answer {
 			is_precompile,
-			extra_cost: remaining_gas
+			extra_cost: remaining_gas,
 		}
 	}
 }

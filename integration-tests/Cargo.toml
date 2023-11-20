@@ -126,7 +126,6 @@ polkadot-runtime = { workspace = true, features = ["try-runtime"] }
 [dev-dependencies]
 hex-literal = "0.4.1"
 pretty_assertions = "1.2.1"
-pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 
 [features]

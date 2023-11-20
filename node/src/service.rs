@@ -41,6 +41,10 @@ use cumulus_primitives_core::{relay_chain::CollatorPair, ParaId};
 use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 
 // Substrate Imports
+use fc_db::Backend as FrontierBackend;
+use fc_rpc::{EthBlockDataCacheTask, OverrideHandle};
+use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
+use fp_rpc::{ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, NativeElseWasmExecutor, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
@@ -50,33 +54,11 @@ use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, Ta
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_keystore::KeystorePtr;
+use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
-// =======
-// use cumulus_primitives_core::{CollectCollationInfo, ParaId};
-// use cumulus_relay_chain_inprocess_interface::build_inprocess_relay_chain;
-// use cumulus_relay_chain_interface::{RelayChainInterface, RelayChainResult};
-// use cumulus_relay_chain_minimal_node::build_minimal_relay_chain_node;
-use fc_db::Backend as FrontierBackend;
-use fc_rpc::{EthBlockDataCacheTask, OverrideHandle};
-use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
-use fp_rpc::{ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
-// use polkadot_service::CollatorPair;
-// use primitives::{AccountId, Balance, Block, Index};
-// use sc_executor::{NativeElseWasmExecutor, NativeExecutionDispatch, NativeVersion};
-// use sc_network::NetworkService;
-// use sc_network_common::service::NetworkBlock;
-// use sc_rpc::SubscriptionTaskExecutor;
-// use sc_rpc_api::DenyUnsafe;
-// use sp_api::ConstructRuntimeApi;
-// use sp_keystore::SyncCryptoStorePtr;
-use std::{
-	collections::BTreeMap,
-	sync::Mutex,
-};
 
 pub(crate) mod evm;
 use crate::rpc;
-// >>>>>>> master
 
 /// Native executor type.
 pub struct HydraDXNativeExecutor;
@@ -100,51 +82,6 @@ type ParachainClient = TFullClient<Block, RuntimeApi, ParachainExecutor>;
 type ParachainBackend = TFullBackend<Block>;
 
 type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
-
-// /// Build the import queue for the parachain runtime.
-// pub fn parachain_build_import_queue<RuntimeApi, Executor>(
-// 	client: Arc<FullClient<RuntimeApi, Executor>>,
-// 	backend: Arc<FullBackend>,
-// 	config: &Configuration,
-// 	telemetry: Option<TelemetryHandle>,
-// 	task_manager: &TaskManager,
-// ) -> Result<sc_consensus::DefaultImportQueue<Block>, sc_service::Error>
-// where
-// 	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi, Executor>> + Send + Sync + 'static,
-// 	RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
-// 		+ sp_api::ApiExt<Block>
-// 		+ sp_block_builder::BlockBuilder<Block>
-// 		+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
-// 		+ pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
-// 		+ sp_api::Metadata<Block>
-// 		+ sp_offchain::OffchainWorkerApi<Block>
-// 		+ sp_session::SessionKeys<Block>
-// 		+ sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>,
-// 	Executor: NativeExecutionDispatch + 'static,
-// {
-// 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
-//
-// 	cumulus_client_consensus_aura::import_queue::<sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _>(
-// 		cumulus_client_consensus_aura::ImportQueueParams {
-// 			block_import: ParachainBlockImport::new(client.clone(), backend.clone()),
-// 			client: client.clone(),
-// 			create_inherent_data_providers: move |_, _| async move {
-// 				let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
-//
-// 				let slot = sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
-// 					*timestamp,
-// 					slot_duration,
-// 				);
-//
-// 				Ok((slot, timestamp))
-// 			},
-// 			registry: config.prometheus_registry().clone(),
-// 			spawner: &task_manager.spawn_essential_handle(),
-// 			telemetry,
-// 		},
-// 	)
-// 	.map_err(Into::into)
-// }
 
 /// Starts a `ServiceBuilder` for a full service.
 ///
@@ -263,29 +200,6 @@ pub fn new_partial(
 	})
 }
 
-// /// Build a relay chain interface.
-// /// Will return a minimal relay chain node with RPC
-// /// client or an inprocess node, based on the [`CollatorOptions`] passed in.
-// async fn build_relay_chain_interface(
-// 	polkadot_config: Configuration,
-// 	parachain_config: &Configuration,
-// 	telemetry_worker_handle: Option<TelemetryWorkerHandle>,
-// 	task_manager: &mut TaskManager,
-// 	collator_options: CollatorOptions,
-// ) -> RelayChainResult<(Arc<(dyn RelayChainInterface + 'static)>, Option<CollatorPair>)> {
-// 	if let cumulus_client_cli::RelayChainMode::ExternalRpc(rpc_target_urls) = collator_options.relay_chain_mode {
-// 		build_minimal_relay_chain_node_with_rpc(polkadot_config, task_manager, rpc_target_urls).await
-// 	} else {
-// 		build_inprocess_relay_chain(
-// 			polkadot_config,
-// 			parachain_config,
-// 			telemetry_worker_handle,
-// 			task_manager,
-// 			None,
-// 		)
-// 	}
-// }
-
 /// Start a node with the given parachain `Configuration` and relay chain `Configuration`.
 ///
 /// This is the actual implementation that is abstract over the executor and the runtime api.
@@ -301,7 +215,8 @@ async fn start_node_impl(
 	let parachain_config = prepare_node_config(parachain_config);
 
 	let params = new_partial(&parachain_config)?;
-	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) = params.other;
+	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) =
+		params.other;
 	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
 
 	let client = params.client.clone();

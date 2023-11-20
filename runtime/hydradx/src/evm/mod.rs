@@ -140,10 +140,10 @@ impl pallet_evm::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
 	type WeightPerGas = WeightPerGas;
 	type WithdrawOrigin = EnsureAddressTruncated;
-	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;	// TODO: clow
-	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;	// TODO: clow
-	type Timestamp = crate::Timestamp;	// TODO: clow
-	type WeightInfo = ();	// TODO: clow
+	type GasLimitPovSizeRatio = GasLimitPovSizeRatio; // TODO: clow
+	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio; // TODO: clow
+	type Timestamp = crate::Timestamp; // TODO: clow
+	type WeightInfo = (); // TODO: clow
 }
 
 impl pallet_evm_chain_id::Config for crate::Runtime {}

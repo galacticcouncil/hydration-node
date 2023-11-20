@@ -29,9 +29,9 @@ use {
 	core::marker::PhantomData,
 	frame_support::{
 		dispatch::{GetDispatchInfo, PostDispatchInfo},
+		sp_runtime::traits::Dispatchable,
 		traits::Get,
 		weights::Weight,
-		sp_runtime::traits::Dispatchable,
 	},
 	pallet_evm::GasWeightMapping,
 	pallet_evm::{ExitError, PrecompileFailure, PrecompileHandle},
@@ -96,7 +96,7 @@ where
 	pub fn db_write_gas_cost() -> u64 {
 		<Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(Weight::from_parts(
 			<Runtime as frame_system::Config>::DbWeight::get().write,
-			0
+			0,
 		))
 	}
 
@@ -104,7 +104,7 @@ where
 	pub fn db_read_gas_cost() -> u64 {
 		<Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(Weight::from_parts(
 			<Runtime as frame_system::Config>::DbWeight::get().read,
-			0
+			0,
 		))
 	}
 }
