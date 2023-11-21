@@ -2,7 +2,7 @@
 
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
-use frame_support::{assert_ok, codec::Encode, dispatch::GetDispatchInfo, traits::Contains};
+use frame_support::{assert_ok, sp_runtime::codec::Encode, dispatch::GetDispatchInfo, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{
@@ -734,11 +734,10 @@ pub fn init_omnipol() {
 		AccountId::from(ALICE),
 	));
 
-	assert_ok!(Balances::set_balance(
+	assert_ok!(Balances::force_set_balance(
 		RawOrigin::Root.into(),
 		hydradx_runtime::Treasury::account_id(),
 		TREASURY_ACCOUNT_INIT_BALANCE,
-		0,
 	));
 }
 
@@ -789,6 +788,14 @@ impl PrecompileHandle for MockHandle {
 
 	fn record_cost(&mut self, _: u64) -> Result<(), ExitError> {
 		Ok(())
+	}
+
+	fn record_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>, _storage_growth: Option<u64>) -> Result<(), ExitError> {
+		unimplemented!()
+	}
+
+	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {
+		unimplemented!()
 	}
 
 	fn remaining_gas(&self) -> u64 {

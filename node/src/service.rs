@@ -19,17 +19,13 @@
 
 #![allow(clippy::all)]
 
-// std
 use std::{sync::Arc, time::Duration};
-
-use cumulus_client_cli::CollatorOptions;
-// Local Runtime Types
 use hydradx_runtime::{
 	opaque::{Block, Hash},
 	RuntimeApi,
 };
 
-// Cumulus Imports
+use cumulus_client_cli::CollatorOptions;
 use cumulus_client_collator::service::CollatorService;
 use cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImport;
 use cumulus_client_consensus_proposer::Proposer;
@@ -40,11 +36,8 @@ use cumulus_client_service::{
 use cumulus_primitives_core::{relay_chain::CollatorPair, ParaId};
 use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 
-// Substrate Imports
 use fc_db::kv::Backend as FrontierBackend;
-use fc_rpc::{EthBlockDataCacheTask, OverrideHandle};
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
-use fp_rpc::{ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, NativeElseWasmExecutor, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
@@ -174,7 +167,6 @@ pub fn new_partial(
 		config,
 		telemetry.as_ref().map(|telemetry| telemetry.handle()),
 		&task_manager,
-		frontier_backend.clone(),
 	)?;
 
 	let filter_pool: FilterPool = Arc::new(Mutex::new(BTreeMap::new()));
@@ -273,7 +265,6 @@ async fn start_node_impl(
 		);
 	}
 
-	let rpc_client = client.clone();
 	let overrides = evm::overrides_handle(client.clone());
 	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
 		task_manager.spawn_handle(),
@@ -445,7 +436,6 @@ fn build_import_queue(
 	config: &Configuration,
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
-	frontier_backend: Arc<FrontierBackend<Block>>,
 ) -> Result<sc_consensus::DefaultImportQueue<Block>, sc_service::Error> {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 

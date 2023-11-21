@@ -28,7 +28,6 @@ pub use fc_rpc::{
 };
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
-use fc_rpc::pending::ConsensusDataProvider;
 use cumulus_primitives_core::PersistedValidationData;
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
@@ -195,7 +194,7 @@ where
 		};
 		let parachain_inherent_data = ParachainInherentData {
 			validation_data: vfp,
-			relay_chain_state: relay_chain_state,
+			relay_chain_state,
 			downward_messages: Default::default(),
 			horizontal_messages: Default::default(),
 		};
@@ -241,10 +240,10 @@ where
 		EthPubSub::new(
 			pool,
 			client.clone(),
-			sync.clone(),
+			sync,
 			subscription_task_executor,
 			overrides,
-			pubsub_notification_sinks.clone(),
+			pubsub_notification_sinks,
 		)
 		.into_rpc(),
 	)?;

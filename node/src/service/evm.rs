@@ -20,7 +20,7 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use std::{
-	collections::{BTreeMap, HashMap},
+	collections::BTreeMap,
 	path::PathBuf,
 	sync::Arc,
 	time::Duration,
@@ -39,14 +39,12 @@ use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_storage::EthereumStorageSchema;
 use futures::{future, StreamExt};
-use polkadot_cli::Cli;
 use primitives::Block;
-use sc_cli::SubstrateCli;
 use sc_client_api::{backend::AuxStore, Backend, BlockOf, BlockchainEvents, StateBackend, StorageProvider};
 use sc_consensus::{BlockCheckParams, BlockImport as BlockImportT, BlockImportParams, ImportResult};
-use sc_service::{BasePath, Configuration, TFullBackend, TaskManager};
+use sc_service::{Configuration, TFullBackend, TaskManager};
 use sc_network_sync::SyncingService;
-use sp_api::{ConstructRuntimeApi, ProvideRuntimeApi};
+use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockchainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::Error as ConsensusError;
@@ -81,8 +79,6 @@ pub struct EthereumConfig {
 	#[clap(long, default_value = "50")]
 	pub eth_statuses_cache: usize,
 }
-
-pub type Hash = sp_core::H256;
 
 pub struct BlockImport<B: BlockT, I: BlockImportT<B>, C>(FrontierBlockImport<B, I, C>);
 

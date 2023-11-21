@@ -534,7 +534,7 @@ pub fn expect_hydra_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
 }
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
-	use hydradx_runtime::{ParachainSystem, RuntimeOrigin};
+	use hydradx_runtime::ParachainSystem;
 
 	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
 	// how we set the block number with `cumulus-test-relay-sproof-builder` package

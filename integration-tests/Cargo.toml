@@ -199,3 +199,6 @@ runtime-benchmarks = [
     "hydradx-runtime/runtime-benchmarks",
     "polkadot-runtime/runtime-benchmarks",
 ]
+try-runtime = [
+    "polkadot-runtime/try-runtime",
+]

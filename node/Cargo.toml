@@ -29,7 +29,7 @@ futures = "0.3.21"
 async-trait = "0.1"
 
 # local dependencies
-hydradx-runtime = { workspace = true }
+hydradx-runtime = { workspace = true , features = ["std"] }
 primitives = { workspace = true }
 
 # Substrate dependencies
