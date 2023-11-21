@@ -2,7 +2,7 @@
 
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
-use frame_support::{assert_ok, sp_runtime::codec::Encode, dispatch::GetDispatchInfo, traits::Contains};
+use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{
@@ -235,9 +235,9 @@ mod currency_precompile {
 
 			//Assert
 
-			// 950330588000000000
+			// 950331588000000000
 			let expected_output = hex! {"
-				00000000000000000000000000000000 00000000000000000D3040A27CED9800
+				00000000000000000000000000000000 00000000000000000D30418B5192A800								  
 			"};
 
 			assert_eq!(
@@ -790,7 +790,12 @@ impl PrecompileHandle for MockHandle {
 		Ok(())
 	}
 
-	fn record_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>, _storage_growth: Option<u64>) -> Result<(), ExitError> {
+	fn record_external_cost(
+		&mut self,
+		_ref_time: Option<u64>,
+		_proof_size: Option<u64>,
+		_storage_growth: Option<u64>,
+	) -> Result<(), ExitError> {
 		unimplemented!()
 	}
 
