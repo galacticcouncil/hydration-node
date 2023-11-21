@@ -457,8 +457,8 @@ impl<T: Config> Pallet<T> {
 		Ok(route)
 	}
 
-	fn validate_route(route: &Vec<Trade<T::AssetId>>) -> Result<T::Balance, DispatchError> {
-		let reference_amount_in = Self::calculate_reference_amount_in(&route)?;
+	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
+		let reference_amount_in = Self::calculate_reference_amount_in(route)?;
 		Self::validate_sell(route.to_vec(), reference_amount_in)?;
 
 		Ok(reference_amount_in)
@@ -570,7 +570,7 @@ impl<T: Config> Pallet<T> {
 			asset_ids: asset_pair.to_ordered_vec(),
 		});
 
-		return Ok(Pays::No.into());
+		Ok(Pays::No.into())
 	}
 }
 

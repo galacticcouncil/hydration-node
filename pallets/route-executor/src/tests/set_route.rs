@@ -184,7 +184,7 @@ fn set_route_should_not_override_when_only_normal_sell_price_is_better() {
 		];
 
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
@@ -215,7 +215,7 @@ fn set_route_should_not_override_when_only_inverse_sell_price_is_better() {
 
 		//Act
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
