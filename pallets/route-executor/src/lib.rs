@@ -383,7 +383,7 @@ pub mod pallet {
 					}
 				}
 				Err(_) => {
-					Self::validate_route(&route).map_err(|_| Error::<T>::InvalidRoute)?;
+					Self::validate_route(&route)?;
 
 					return Self::insert_route(asset_pair, route);
 				}
@@ -459,7 +459,7 @@ impl<T: Config> Pallet<T> {
 
 	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
 		let reference_amount_in = Self::calculate_reference_amount_in(route)?;
-		Self::validate_sell(route.to_vec(), reference_amount_in)?;
+		Self::validate_sell(route.to_vec(), reference_amount_in).map_err(|_| Error::<T>::InvalidRoute)?;
 
 		Ok(reference_amount_in)
 	}
