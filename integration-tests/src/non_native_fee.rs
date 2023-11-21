@@ -5,27 +5,12 @@ use frame_support::{
 	assert_ok,
 	dispatch::DispatchInfo,
 	sp_runtime::traits::SignedExtension,
-	traits::{OnFinalize, OnInitialize},
 	weights::Weight,
 };
 use hydradx_runtime::{Balances, Currencies, MultiTransactionPayment, RuntimeOrigin, Tokens};
 use orml_traits::currency::MultiCurrency;
 use primitives::Price;
 use xcm_emulator::TestExt;
-
-pub fn hydra_run_to_block(to: BlockNumber) {
-	while hydradx_runtime::System::block_number() < to {
-		let b = hydradx_runtime::System::block_number();
-
-		hydradx_runtime::System::on_finalize(b);
-		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-
-		hydradx_runtime::System::on_initialize(b + 1);
-		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
-
-		hydradx_runtime::System::set_block_number(b + 1);
-	}
-}
 
 #[test]
 fn non_native_fee_payment_works_with_omnipool_spot_price() {
@@ -61,7 +46,7 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 
 		init_omnipool();
 
-		hydra_run_to_block(2);
+		hydradx_run_to_block(2);
 
 		let call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: DAI },
