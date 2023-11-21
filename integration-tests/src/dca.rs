@@ -102,6 +102,8 @@ mod omnipool {
 
 			let treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
 			assert!(treasury_balance > TREASURY_ACCOUNT_INIT_BALANCE);
+
+			assert_that_fee_is_correct(fee);
 		});
 	}
 
@@ -139,6 +141,10 @@ mod omnipool {
 
 			let treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
 			assert!(treasury_balance > TREASURY_ACCOUNT_INIT_BALANCE);
+
+			//We make sure is that the default route is incorporated in the fee calculation
+			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
+			assert_that_fee_is_correct(fee);
 		});
 	}
 
@@ -495,6 +501,8 @@ mod omnipool {
 			//Assert that fee is sent to treasury
 			let treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
 			assert!(treasury_balance > TREASURY_ACCOUNT_INIT_BALANCE);
+
+			assert_that_fee_is_correct(fee);
 		});
 	}
 
@@ -537,41 +545,39 @@ mod omnipool {
 	}
 
 	#[test]
-	fn sell_schedule_should_work_without_route() {
+	fn sell_schedule_execution_should_work_without_route() {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
 			init_omnipool_with_oracle_for_block_10();
-			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
-				RuntimeOrigin::root(),
-				ALICE.into(),
-				alice_init_hdx_balance,
-				0,
-			));
 
 			let dca_budget = 1000 * UNITS;
-			let amount_to_sell = 700 * UNITS;
+
+			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+
+			let amount_in = 100 * UNITS;
 			let no_route = vec![];
 			let schedule1 =
-				schedule_fake_with_sell_order_with_route(ALICE, dca_budget, HDX, DAI, amount_to_sell, no_route);
+				schedule_fake_with_sell_order_with_route(ALICE.into(), dca_budget, HDX, DAI, amount_in, no_route);
 			create_schedule(ALICE, schedule1);
 
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			run_to_block(11, 15);
+			set_relaychain_block_number(11);
 
 			//Assert
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
-			assert_reserved_balance!(&ALICE.into(), HDX, 0);
+			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 
-			let schedule_id = 0;
-			let schedule = DCA::schedules(schedule_id);
-			assert!(schedule.is_none());
+			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 71214372591631);
+			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_in - fee);
+
+			//We make sure is that the default route is incorporated in the fee calculation
+			assert_that_fee_is_correct(fee);
 		});
 	}
 
@@ -2850,8 +2856,6 @@ pub fn init_omnipol() {
 	let stable_price = FixedU128::from_float(0.7);
 	let acc = Omnipool::protocol_account();
 
-	assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), u128::MAX));
-
 	let stable_amount: Balance = 5_000_000_000_000_000_000_000u128;
 	let native_amount: Balance = 5_000_000_000_000_000_000_000u128;
 	assert_ok!(Tokens::set_balance(
@@ -2868,12 +2872,20 @@ pub fn init_omnipol() {
 		native_amount as i128,
 	));
 
-	assert_ok!(Omnipool::initialize_pool(
-		RuntimeOrigin::root(),
-		stable_price,
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		HDX,
 		native_price,
 		Permill::from_percent(60),
-		Permill::from_percent(60)
+		hydradx_runtime::Omnipool::protocol_account(),
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
+		stable_price,
+		Permill::from_percent(60),
+		hydradx_runtime::Omnipool::protocol_account(),
 	));
 
 	assert_ok!(Balances::set_balance(
@@ -3069,4 +3081,10 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
 
 	Ok((pool_id, asset_in, asset_out))
+}
+
+fn assert_that_fee_is_correct(fee: Balance) {
+	//The fee is approximately 3795361512418, so we check if we are between 3.5 and 4 UNITS
+	assert!(fee > 35 / 10 * UNITS);
+	assert!(fee < 4 * UNITS);
 }

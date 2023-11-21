@@ -324,17 +324,19 @@ fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
 
-	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
-		522_222_000_000_000_000_000_000,
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-		hydradx_runtime::RuntimeOrigin::root(),
-		stable_price,
+		HDX,
 		native_price,
+		Permill::from_percent(10),
+		hydradx_runtime::Omnipool::protocol_account(),
+	));
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
+		stable_price,
 		Permill::from_percent(100),
-		Permill::from_percent(10)
+		hydradx_runtime::Omnipool::protocol_account(),
 	));
 
 	let dot_price = FixedU128::from_inner(25_650_000_000_000_000_000);
