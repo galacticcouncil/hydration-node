@@ -125,8 +125,8 @@ pub mod pallet {
 			referral_account: T::AccountId,
 		},
 		Converted {
-			from: T::AccountId,
-			to: T::AccountId,
+			from: T::AssetId,
+			to: T::AssetId,
 			amount: Balance,
 			received: Balance,
 		},
@@ -272,6 +272,13 @@ pub mod pallet {
 					true,
 				)?;
 			}
+
+			Self::deposit_event(Event::Converted {
+				from: asset_id,
+				to: T::RewardAsset::get(),
+				amount: asset_balance,
+				received: total_reward_amount,
+			});
 
 			Ok(())
 		}

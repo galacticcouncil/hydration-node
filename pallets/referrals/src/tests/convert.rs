@@ -83,8 +83,8 @@ fn convert_should_emit_event_when_successful() {
 			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI,));
 			// Assert
 			expect_events(vec![Event::Converted {
-				from: DAI.into(),
-				to: RewardAsset::get().into(),
+				from: DAI,
+				to: RewardAsset::get(),
 				amount: 1_000_000_000_000_000_000,
 				received: 1_000_000_000_000,
 			}
