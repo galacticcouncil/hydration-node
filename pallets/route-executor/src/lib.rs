@@ -464,6 +464,30 @@ impl<T: Config> Pallet<T> {
 		Ok(reference_amount_in)
 	}
 
+	fn calculate_reference_amount_in(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
+		let first_route = route.first().ok_or(Error::<T>::RouteCalculationFailed)?;
+		let asset_b = match first_route.pool {
+			PoolType::Omnipool => T::NativeAssetId::get(),
+			PoolType::Stableswap(pool_id) => pool_id,
+			PoolType::XYK => first_route.asset_out,
+			PoolType::LBP => first_route.asset_out,
+		};
+
+		let asset_in_liquidity = T::AMM::get_liquidity_depth(first_route.pool, first_route.asset_in, asset_b);
+
+		let liquidity = match asset_in_liquidity {
+			Err(ExecutorError::NotSupported) => return Err(Error::<T>::PoolNotSupported.into()),
+			Err(ExecutorError::Error(dispatch_error)) => return Err(dispatch_error),
+			Ok(liq) => liq,
+		};
+
+		let one_percent_asset_in_liquidity = liquidity
+			.checked_div(&100u128.into())
+			.ok_or(ArithmeticError::Overflow)?;
+
+		Ok(one_percent_asset_in_liquidity)
+	}
+
 	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> DispatchResult {
 		let asset_in = route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
 		let asset_out = route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
@@ -489,30 +513,6 @@ impl<T: Config> Pallet<T> {
 			.amount_out;
 
 		Ok(amount_out)
-	}
-
-	fn calculate_reference_amount_in(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
-		let first_route = route.first().ok_or(Error::<T>::RouteCalculationFailed)?;
-		let asset_b = match first_route.pool {
-			PoolType::Omnipool => T::NativeAssetId::get(),
-			PoolType::Stableswap(pool_id) => pool_id,
-			PoolType::XYK => first_route.asset_out,
-			PoolType::LBP => first_route.asset_out,
-		};
-
-		let asset_in_liquidity = T::AMM::get_liquidity_depth(first_route.pool, first_route.asset_in, asset_b);
-
-		let liquidity = match asset_in_liquidity {
-			Err(ExecutorError::NotSupported) => return Err(Error::<T>::PoolNotSupported.into()),
-			Err(ExecutorError::Error(dispatch_error)) => return Err(dispatch_error),
-			Ok(liq) => liq,
-		};
-
-		let one_percent_asset_in_liquidity = liquidity
-			.checked_div(&100u128.into())
-			.ok_or(ArithmeticError::Overflow)?;
-
-		Ok(one_percent_asset_in_liquidity)
 	}
 
 	fn calculate_sell_trade_amounts(
