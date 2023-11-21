@@ -46,7 +46,7 @@ impl<AssetId> AssetPair<AssetId> {
 }
 
 pub trait RouteProvider<AssetId> {
-	fn get(asset_pair: AssetPair<AssetId>) -> Vec<Trade<AssetId>> {
+	fn get_route(asset_pair: AssetPair<AssetId>) -> Vec<Trade<AssetId>> {
 		vec![Trade {
 			pool: PoolType::Omnipool,
 			asset_in: asset_pair.asset_in,

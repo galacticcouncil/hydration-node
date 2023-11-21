@@ -356,7 +356,7 @@ pub mod pallet {
 				route = inverse_route(route)
 			}
 
-			let existing_route = Self::get(asset_pair);
+			let existing_route = Self::get_route(asset_pair);
 
 			let validate_existing_route: Result<T::Balance, DispatchError> = {
 				let reference_amount_in = Self::calculate_reference_amount_in(&existing_route)?;
@@ -458,7 +458,7 @@ impl<T: Config> Pallet<T> {
 		let route = if !route.is_empty() {
 			route
 		} else {
-			<Pallet<T> as RouteProvider<T::AssetId>>::get(asset_pair)
+			<Pallet<T> as RouteProvider<T::AssetId>>::get_route(asset_pair)
 		};
 		Ok(route)
 	}
@@ -689,8 +689,7 @@ macro_rules! handle_execution_error {
 }
 
 impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
-	//TODO: Rename to get_route
-	fn get(asset_pair: AssetPair<T::AssetId>) -> Vec<Trade<T::AssetId>> {
+	fn get_route(asset_pair: AssetPair<T::AssetId>) -> Vec<Trade<T::AssetId>> {
 		let onchain_route = Routes::<T>::get(asset_pair.ordered_pair());
 
 		let default_route = vec![Trade {

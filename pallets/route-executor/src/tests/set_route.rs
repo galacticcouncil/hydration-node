@@ -42,7 +42,7 @@ fn set_route_should_work_when_overriting_default_omnipool() {
 		);
 
 		//Assert
-		let stored_route = Router::get(asset_pair);
+		let stored_route = Router::get_route(asset_pair);
 		assert_eq!(stored_route, route);
 
 		expect_events(vec![Event::RouteUpdated {
@@ -101,7 +101,7 @@ fn set_route_should_store_route_in_ordered_fashion() {
 				asset_out: DOT,
 			},
 		];
-		let stored_route = Router::get(asset_pair.ordered_pair());
+		let stored_route = Router::get_route(asset_pair.ordered_pair());
 		assert_eq!(stored_route, route_ordered);
 	});
 }
@@ -147,7 +147,7 @@ fn set_route_should_work_when_new_price_is_better() {
 		);
 
 		//Assert
-		let stored_route = Router::get(asset_pair);
+		let stored_route = Router::get_route(asset_pair);
 		assert_eq!(stored_route, cheaper_route);
 
 		expect_events(vec![
@@ -189,7 +189,7 @@ fn set_route_should_not_override_when_only_normal_sell_price_is_better() {
 		);
 
 		//Act and Assert
-		let stored_route = Router::get(asset_pair);
+		let stored_route = Router::get_route(asset_pair);
 		assert_eq!(stored_route, default_omnipool_route());
 	});
 }
@@ -220,7 +220,7 @@ fn set_route_should_not_override_when_only_inverse_sell_price_is_better() {
 		);
 
 		//Assert
-		let stored_route = Router::get(asset_pair);
+		let stored_route = Router::get_route(asset_pair);
 		assert_eq!(stored_route, default_omnipool_route());
 	});
 }
@@ -261,7 +261,7 @@ fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
 		);
 
 		//Assert
-		let stored_route = Router::get(asset_pair);
+		let stored_route = Router::get_route(asset_pair);
 		assert_eq!(stored_route, cheaper_route);
 	});
 }
@@ -406,7 +406,7 @@ fn set_route_should_fail_when_trying_to_override_with_invalid_route() {
 			Error::<Test>::InvalidRoute
 		);
 
-		let stored_route = Router::get(asset_pair);
+		let stored_route = Router::get_route(asset_pair);
 		assert_eq!(stored_route, default_omnipool_route());
 	});
 }

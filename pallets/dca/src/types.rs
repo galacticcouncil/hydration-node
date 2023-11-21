@@ -78,7 +78,7 @@ where
 			Order::Buy { route, .. } => route,
 		};
 		if route.is_empty() {
-			Provider::get(AssetPair::new(self.get_asset_in(), self.get_asset_out()))
+			Provider::get_route(AssetPair::new(self.get_asset_in(), self.get_asset_out()))
 		} else {
 			route.to_vec()
 		}
