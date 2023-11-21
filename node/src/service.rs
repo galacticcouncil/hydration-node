@@ -19,11 +19,11 @@
 
 #![allow(clippy::all)]
 
-use std::{sync::Arc, time::Duration};
 use hydradx_runtime::{
 	opaque::{Block, Hash},
 	RuntimeApi,
 };
+use std::{sync::Arc, time::Duration};
 
 use cumulus_client_cli::CollatorOptions;
 use cumulus_client_collator::service::CollatorService;
@@ -323,7 +323,13 @@ async fn start_node_impl(
 				fee_history_cache_limit: ethereum_config.fee_history_limit,
 				execute_gas_limit_multiplier: ethereum_config.execute_gas_limit_multiplier,
 			};
-			rpc::create(module, eth_deps, subscription_task_executor, pubsub_notification_sinks.clone()).map_err(Into::into)
+			rpc::create(
+				module,
+				eth_deps,
+				subscription_task_executor,
+				pubsub_notification_sinks.clone(),
+			)
+			.map_err(Into::into)
 		})
 	};
 
@@ -534,5 +540,13 @@ pub async fn start_node(
 	para_id: ParaId,
 	hwbench: Option<sc_sysinfo::HwBench>,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
-	start_node_impl(parachain_config, polkadot_config, ethereum_config, collator_options, para_id, hwbench).await
+	start_node_impl(
+		parachain_config,
+		polkadot_config,
+		ethereum_config,
+		collator_options,
+		para_id,
+		hwbench,
+	)
+	.await
 }

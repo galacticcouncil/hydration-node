@@ -746,7 +746,7 @@ pub fn init_omnipol() {
 const DISPATCH_ADDR: H160 = addr(1025);
 
 fn gas_price() -> U256 {
-	U256::from(10_u128.pow(8))
+	U256::from(8 * 10_u128.pow(7))
 }
 
 fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
@@ -796,12 +796,10 @@ impl PrecompileHandle for MockHandle {
 		_proof_size: Option<u64>,
 		_storage_growth: Option<u64>,
 	) -> Result<(), ExitError> {
-		unimplemented!()
+		Ok(())
 	}
 
-	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {
-		unimplemented!()
-	}
+	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
 
 	fn remaining_gas(&self) -> u64 {
 		unimplemented!()

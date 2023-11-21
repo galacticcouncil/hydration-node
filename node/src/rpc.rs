@@ -21,6 +21,9 @@
 
 use std::sync::Arc;
 
+use cumulus_primitives_core::PersistedValidationData;
+use cumulus_primitives_parachain_inherent::ParachainInherentData;
+use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use fc_db::kv::Backend as FrontierBackend;
 pub use fc_rpc::{
 	EthBlockDataCacheTask, OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
@@ -28,9 +31,6 @@ pub use fc_rpc::{
 };
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
-use cumulus_primitives_core::PersistedValidationData;
-use cumulus_primitives_parachain_inherent::ParachainInherentData;
-use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
@@ -131,9 +131,7 @@ pub fn create<C, BE, P, A, CT, B>(
 	deps: Deps<C, P, A, CT, B>,
 	subscription_task_executor: SubscriptionTaskExecutor,
 	pubsub_notification_sinks: Arc<
-		fc_mapping_sync::EthereumBlockNotificationSinks<
-			fc_mapping_sync::EthereumBlockNotification<B>,
-		>,
+		fc_mapping_sync::EthereumBlockNotificationSinks<fc_mapping_sync::EthereumBlockNotification<B>>,
 	>,
 ) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
