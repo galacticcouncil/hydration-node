@@ -103,7 +103,7 @@ fn buy_should_work_when_onchain_route_present_in_reverse_order() {
 				asset_out: AUSD,
 			};
 			let trade3 = Trade {
-				pool: PoolType::Omnipool,
+				pool: PoolType::XYK,
 				asset_in: AUSD,
 				asset_out: KSM,
 			};
@@ -127,7 +127,7 @@ fn buy_should_work_when_onchain_route_present_in_reverse_order() {
 
 			//Assert
 			assert_executed_buy_trades(vec![
-				(PoolType::Omnipool, STABLESWAP_BUY_CALCULATION_RESULT, KSM, AUSD),
+				(PoolType::XYK, STABLESWAP_BUY_CALCULATION_RESULT, KSM, AUSD),
 				(PoolType::Stableswap(AUSD), XYK_BUY_CALCULATION_RESULT, AUSD, MOVR),
 				(PoolType::XYK, amount_to_buy, MOVR, HDX),
 			]);
@@ -135,7 +135,7 @@ fn buy_should_work_when_onchain_route_present_in_reverse_order() {
 			expect_events(vec![Event::RouteExecuted {
 				asset_in: KSM,
 				asset_out: HDX,
-				amount_in: OMNIPOOL_BUY_CALCULATION_RESULT,
+				amount_in: XYK_BUY_CALCULATION_RESULT,
 				amount_out: amount_to_buy,
 			}
 			.into()]);
@@ -372,7 +372,7 @@ fn buy_should_work_with_onchain_route_when_no_route_specified() {
 				asset_out: AUSD,
 			};
 			let trade3 = Trade {
-				pool: PoolType::Omnipool,
+				pool: PoolType::XYK,
 				asset_in: AUSD,
 				asset_out: KSM,
 			};
@@ -397,8 +397,8 @@ fn buy_should_work_with_onchain_route_when_no_route_specified() {
 			//Assert
 			assert_executed_buy_trades(vec![
 				(PoolType::XYK, STABLESWAP_BUY_CALCULATION_RESULT, HDX, MOVR),
-				(PoolType::Stableswap(AUSD), OMNIPOOL_BUY_CALCULATION_RESULT, MOVR, AUSD),
-				(PoolType::Omnipool, amount_to_buy, AUSD, KSM),
+				(PoolType::Stableswap(AUSD), XYK_BUY_CALCULATION_RESULT, MOVR, AUSD),
+				(PoolType::XYK, amount_to_buy, AUSD, KSM),
 			]);
 
 			expect_events(vec![Event::RouteExecuted {

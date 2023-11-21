@@ -169,15 +169,25 @@ pub const DOT: AssetId = 1007;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
 
-pub const XYK_SELL_CALCULATION_RESULT: Balance = 11;
-pub const XYK_BUY_CALCULATION_RESULT: Balance = 1;
-pub const STABLESWAP_SELL_CALCULATION_RESULT: Balance = 4;
-pub const STABLESWAP_BUY_CALCULATION_RESULT: Balance = 3;
+pub const XYK_SELL_CALCULATION_RESULT: Balance = 13;
+pub const LBP_SELL_CALCULATION_RESULT: Balance = 12;
 pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = 10;
-pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 5;
-pub const LBP_SELL_CALCULATION_RESULT: Balance = 9;
+pub const STABLESWAP_SELL_CALCULATION_RESULT: Balance = 4;
+
 pub const LBP_BUY_CALCULATION_RESULT: Balance = 8;
+pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 5;
+pub const STABLESWAP_BUY_CALCULATION_RESULT: Balance = 3;
+pub const XYK_BUY_CALCULATION_RESULT: Balance = 1;
+
 pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
+
+pub fn default_omnipool_route() -> Vec<Trade<AssetId>> {
+	vec![Trade {
+		pool: PoolType::Omnipool,
+		asset_in: HDX,
+		asset_out: AUSD,
+	}]
+}
 
 pub const HDX_AUSD_TRADE_IN_XYK: Trade<AssetId> = Trade {
 	pool: PoolType::XYK,

@@ -257,7 +257,7 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 			asset_out: AUSD,
 		};
 		let trade3 = Trade {
-			pool: PoolType::Omnipool,
+			pool: PoolType::XYK,
 			asset_in: AUSD,
 			asset_out: KSM,
 		};
@@ -284,7 +284,7 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 			vec![
 				(PoolType::XYK, amount_to_sell, HDX, MOVR),
 				(PoolType::Stableswap(AUSD), XYK_SELL_CALCULATION_RESULT, MOVR, AUSD),
-				(PoolType::Omnipool, STABLESWAP_SELL_CALCULATION_RESULT, AUSD, KSM),
+				(PoolType::XYK, STABLESWAP_SELL_CALCULATION_RESULT, AUSD, KSM),
 			],
 		);
 
@@ -292,7 +292,7 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 			asset_in: HDX,
 			asset_out: KSM,
 			amount_in: amount_to_sell,
-			amount_out: OMNIPOOL_SELL_CALCULATION_RESULT,
+			amount_out: XYK_SELL_CALCULATION_RESULT,
 		}
 		.into()]);
 	});
@@ -318,7 +318,7 @@ fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_ord
 				asset_out: AUSD,
 			};
 			let trade3 = Trade {
-				pool: PoolType::Omnipool,
+				pool: PoolType::XYK,
 				asset_in: AUSD,
 				asset_out: KSM,
 			};
@@ -344,8 +344,8 @@ fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_ord
 			assert_last_executed_sell_trades(
 				3,
 				vec![
-					(PoolType::Omnipool, amount_to_sell, KSM, AUSD),
-					(PoolType::Stableswap(AUSD), OMNIPOOL_SELL_CALCULATION_RESULT, AUSD, MOVR),
+					(PoolType::XYK, amount_to_sell, KSM, AUSD),
+					(PoolType::Stableswap(AUSD), XYK_SELL_CALCULATION_RESULT, AUSD, MOVR),
 					(PoolType::XYK, STABLESWAP_SELL_CALCULATION_RESULT, MOVR, HDX),
 				],
 			);

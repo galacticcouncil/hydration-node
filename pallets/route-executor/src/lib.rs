@@ -356,21 +356,21 @@ pub mod pallet {
 				route = inverse_route(route)
 			}
 
-			let maybe_route = Routes::<T>::get(asset_pair);
+			let existing_route = Self::get(asset_pair);
 
-			match maybe_route {
-				Some(existing_route) => {
-					let reference_amount_in = Self::calculate_reference_amount_in(&existing_route)?;
+			let validate_existing_route: Result<T::Balance, DispatchError> = {
+				let reference_amount_in = Self::calculate_reference_amount_in(&existing_route)?;
+				Self::validate_sell(existing_route.to_vec(), reference_amount_in).map(|_| reference_amount_in)
+			};
 
-					Self::validate_sell_execution(route.clone(), reference_amount_in)
-						.map_err(|_| Error::<T>::InvalidRoute)?;
+			match validate_existing_route {
+				Ok(reference_amount_in) => {
+					Self::validate_sell(route.clone(), reference_amount_in).map_err(|_| Error::<T>::InvalidRoute)?;
 
-					//Calculate amount outs for routes
 					let amount_out_for_existing_route =
 						Self::calculate_expected_amount_out(&existing_route, reference_amount_in)?;
 					let amount_out_for_new_route = Self::calculate_expected_amount_out(&route, reference_amount_in)?;
 
-					//Calculate amount outs for inversed routes
 					let inverse_existing_route = inverse_route(existing_route.to_vec());
 					let inverse_new_route = inverse_route(route.to_vec());
 					let reference_amount_in_for_inverse = Self::calculate_reference_amount_in(&inverse_existing_route)?;
@@ -379,34 +379,19 @@ pub mod pallet {
 						Self::calculate_expected_amount_out(&inverse_existing_route, reference_amount_in_for_inverse)?;
 					let amount_out_for_new_inversed_route =
 						Self::calculate_expected_amount_out(&inverse_new_route, reference_amount_in_for_inverse)?;
-					//Do comparison and set route if price is better
+
 					if amount_out_for_new_route > amount_out_for_existing_route
 						&& amount_out_for_new_inversed_route > amount_out_for_existing_inversed_route
 					{
-						let bounded_vec = Self::create_bounded_vec(route)?;
-						Routes::<T>::insert(asset_pair, bounded_vec);
-
-						Self::deposit_event(Event::RouteUpdated {
-							asset_ids: asset_pair.to_ordered_vec(),
-						});
-
-						return Ok(Pays::No.into());
+						return Self::insert_route(asset_pair, route);
 					}
 				}
-				None => {
+				Err(_) => {
 					let reference_amount_in = Self::calculate_reference_amount_in(&route)?;
 
-					Self::validate_sell_execution(route.clone(), reference_amount_in)
-						.map_err(|_| Error::<T>::InvalidRoute)?;
+					Self::validate_sell(route.clone(), reference_amount_in).map_err(|_| Error::<T>::InvalidRoute)?;
 
-					let bounded_vec = Self::create_bounded_vec(route)?;
-					Routes::<T>::insert(asset_pair, bounded_vec);
-
-					Self::deposit_event(Event::RouteUpdated {
-						asset_ids: asset_pair.to_ordered_vec(),
-					});
-
-					return Ok(Pays::No.into());
+					return Self::insert_route(asset_pair, route);
 				}
 			}
 
@@ -478,7 +463,7 @@ impl<T: Config> Pallet<T> {
 		Ok(route)
 	}
 
-	fn validate_sell_execution(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> DispatchResult {
+	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> DispatchResult {
 		let asset_in = route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
 		let asset_out = route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
 
@@ -574,13 +559,17 @@ impl<T: Config> Pallet<T> {
 		Ok(amount_in_and_outs)
 	}
 
-	pub fn create_bounded_vec<AssetId>(
-		trades: Vec<Trade<AssetId>>,
-	) -> Result<BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>, DispatchError> {
-		let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<MAX_NUMBER_OF_TRADES>> =
-			trades.try_into().map_err(|_| Error::<T>::MaxTradesExceeded)?;
+	fn insert_route(asset_pair: AssetPair<T::AssetId>, route: Vec<Trade<T::AssetId>>) -> DispatchResultWithPostInfo {
+		let route_as_bounded_vec: BoundedVec<Trade<T::AssetId>, sp_runtime::traits::ConstU32<MAX_NUMBER_OF_TRADES>> =
+			route.try_into().map_err(|_| Error::<T>::MaxTradesExceeded)?;
 
-		Ok(bounded_vec)
+		Routes::<T>::insert(asset_pair, route_as_bounded_vec);
+
+		Self::deposit_event(Event::RouteUpdated {
+			asset_ids: asset_pair.to_ordered_vec(),
+		});
+
+		return Ok(Pays::No.into());
 	}
 }
 
@@ -700,6 +689,7 @@ macro_rules! handle_execution_error {
 }
 
 impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
+	//TODO: Rename to get_route
 	fn get(asset_pair: AssetPair<T::AssetId>) -> Vec<Trade<T::AssetId>> {
 		let onchain_route = Routes::<T>::get(asset_pair.ordered_pair());
 

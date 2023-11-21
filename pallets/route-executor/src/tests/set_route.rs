@@ -19,27 +19,21 @@ use crate::tests::mock::*;
 use crate::{Error, Event, Trade};
 use frame_support::pallet_prelude::*;
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::router::RouteProvider;
 use hydradx_traits::router::{AssetPair, PoolType};
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
-fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
+fn set_route_should_work_when_overriting_default_omnipool() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let asset_pair = AssetPair::new(HDX, AUSD);
-		let route = vec![
-			Trade {
-				pool: PoolType::Omnipool,
-				asset_in: HDX,
-				asset_out: STABLE_SHARE_ASSET,
-			},
-			Trade {
-				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
-				asset_in: STABLE_SHARE_ASSET,
-				asset_out: AUSD,
-			},
-		];
+		let route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: AUSD,
+		}];
 
 		//Act
 		assert_ok!(
@@ -48,7 +42,7 @@ fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
 		);
 
 		//Assert
-		let stored_route = Router::route(asset_pair).unwrap();
+		let stored_route = Router::get(asset_pair);
 		assert_eq!(stored_route, route);
 
 		expect_events(vec![Event::RouteUpdated {
@@ -64,16 +58,21 @@ fn set_route_should_work_when_no_prestored_route_for_asset_pair() {
 fn set_route_should_store_route_in_ordered_fashion() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let asset_pair = AssetPair::new(AUSD, HDX);
+		let asset_pair = AssetPair::new(DOT, HDX);
 		let route = vec![
 			Trade {
-				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
-				asset_in: AUSD,
+				pool: PoolType::XYK,
+				asset_in: DOT,
 				asset_out: STABLE_SHARE_ASSET,
 			},
 			Trade {
-				pool: PoolType::Omnipool,
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
 				asset_in: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: AUSD,
 				asset_out: HDX,
 			},
 		];
@@ -87,17 +86,22 @@ fn set_route_should_store_route_in_ordered_fashion() {
 		//Assert
 		let route_ordered = vec![
 			Trade {
-				pool: PoolType::Omnipool,
+				pool: PoolType::XYK,
 				asset_in: HDX,
-				asset_out: STABLE_SHARE_ASSET,
+				asset_out: AUSD,
 			},
 			Trade {
 				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				asset_in: AUSD,
+				asset_out: STABLE_SHARE_ASSET,
+			},
+			Trade {
+				pool: PoolType::XYK,
 				asset_in: STABLE_SHARE_ASSET,
-				asset_out: AUSD,
+				asset_out: DOT,
 			},
 		];
-		let stored_route = Router::route(asset_pair.ordered_pair()).unwrap();
+		let stored_route = Router::get(asset_pair.ordered_pair());
 		assert_eq!(stored_route, route_ordered);
 	});
 }
@@ -109,13 +113,13 @@ fn set_route_should_work_when_new_price_is_better() {
 		let asset_pair = AssetPair::new(HDX, AUSD);
 		let route = vec![
 			Trade {
-				pool: PoolType::Omnipool,
+				pool: PoolType::LBP,
 				asset_in: HDX,
-				asset_out: STABLE_SHARE_ASSET,
+				asset_out: DOT,
 			},
 			Trade {
-				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
-				asset_in: STABLE_SHARE_ASSET,
+				pool: PoolType::LBP,
+				asset_in: DOT,
 				asset_out: AUSD,
 			},
 		];
@@ -143,7 +147,7 @@ fn set_route_should_work_when_new_price_is_better() {
 		);
 
 		//Assert
-		let stored_route = Router::route(asset_pair).unwrap();
+		let stored_route = Router::get(asset_pair);
 		assert_eq!(stored_route, cheaper_route);
 
 		expect_events(vec![
@@ -168,59 +172,35 @@ fn set_route_should_not_override_when_only_normal_sell_price_is_better() {
 
 		let route = vec![
 			Trade {
-				pool: PoolType::Omnipool,
+				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
 				asset_in: HDX,
 				asset_out: STABLE_SHARE_ASSET,
 			},
 			Trade {
-				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
+				pool: PoolType::XYK,
 				asset_in: STABLE_SHARE_ASSET,
 				asset_out: AUSD,
 			},
 		];
 
-		assert_ok!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
-			Pays::No.into()
-		);
-
-		//Act
-		let new_route = vec![Trade {
-			pool: PoolType::LBP,
-			asset_in: HDX,
-			asset_out: AUSD,
-		}];
-
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
-		//Assert
-		let stored_route = Router::route(asset_pair).unwrap();
-		assert_eq!(stored_route, route);
+		//Act and Assert
+		let stored_route = Router::get(asset_pair);
+		assert_eq!(stored_route, default_omnipool_route());
 	});
 }
 
 #[test]
-fn set_route_should_not_override_when_only_inverse_route_price_is_better() {
+fn set_route_should_not_override_when_only_inverse_sell_price_is_better() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let asset_pair = AssetPair::new(HDX, AUSD);
 
-		let route = vec![Trade {
-			pool: PoolType::LBP,
-			asset_in: HDX,
-			asset_out: AUSD,
-		}];
-
-		assert_ok!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
-			Pays::No.into()
-		);
-
-		//Act
-		let new_route = vec![
+		let route = vec![
 			Trade {
 				pool: PoolType::XYK,
 				asset_in: HDX,
@@ -233,14 +213,15 @@ fn set_route_should_not_override_when_only_inverse_route_price_is_better() {
 			},
 		];
 
+		//Act
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, new_route),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
 		//Assert
-		let stored_route = Router::route(asset_pair).unwrap();
-		assert_eq!(stored_route, route);
+		let stored_route = Router::get(asset_pair);
+		assert_eq!(stored_route, default_omnipool_route());
 	});
 }
 
@@ -280,7 +261,7 @@ fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
 		);
 
 		//Assert
-		let stored_route = Router::route(asset_pair).unwrap();
+		let stored_route = Router::get(asset_pair);
 		assert_eq!(stored_route, cheaper_route);
 	});
 }
@@ -406,28 +387,6 @@ fn set_route_should_fail_when_trying_to_override_with_invalid_route() {
 		//Arrange
 		let asset_pair = AssetPair::new(HDX, AUSD);
 
-		let route = vec![
-			Trade {
-				pool: PoolType::Omnipool,
-				asset_in: HDX,
-				asset_out: STABLE_SHARE_ASSET,
-			},
-			Trade {
-				pool: PoolType::Stableswap(STABLE_SHARE_ASSET),
-				asset_in: STABLE_SHARE_ASSET,
-				asset_out: AUSD,
-			},
-		];
-
-		assert_ok!(Router::set_route(
-			RuntimeOrigin::signed(ALICE),
-			asset_pair,
-			route.clone()
-		),);
-
-		let stored_route = Router::route(asset_pair).unwrap();
-		assert_eq!(stored_route, route);
-
 		let invalid_route = vec![
 			Trade {
 				pool: PoolType::Omnipool,
@@ -447,7 +406,7 @@ fn set_route_should_fail_when_trying_to_override_with_invalid_route() {
 			Error::<Test>::InvalidRoute
 		);
 
-		let stored_route = Router::route(asset_pair).unwrap();
-		assert_eq!(stored_route, route);
+		let stored_route = Router::get(asset_pair);
+		assert_eq!(stored_route, default_omnipool_route());
 	});
 }
