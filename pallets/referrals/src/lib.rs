@@ -89,12 +89,18 @@ pub mod pallet {
 	#[pallet::getter(fn linked_referral_account)]
 	pub(super) type LinkedAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId>;
 
+	/// Accrued amounts of an asset from trading activity.
+	/// Maps an amount to asset and account. This amount needs to be converted to native currency prior to claiming as a reward.
+	#[pallet::storage]
+	#[pallet::getter(fn accrued)]
+	pub(super) type Accrued<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+
 	/// Accumulated rewards
-	/// List of accumulated rewards per asset.
+	/// Reward amount of native asset per account.
 	#[pallet::storage]
 	#[pallet::getter(fn account_rewards)]
-	pub(super) type Rewards<T: Config> = StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, T::AssetId, Balance, ValueQuery>;
-
+	pub(super) type Rewards<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -119,6 +125,7 @@ pub mod pallet {
 		AlreadyExists,
 		InvalidCode,
 		AlreadyLinked,
+		ZeroAmount,
 	}
 
 	#[pallet::call]
@@ -198,15 +205,29 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Convert accrued asset amount to native currency.
+		///
+		/// /// Parameters:
+		/// - `origin`:
+		/// - `asset_id`:
+		///
+		/// Emits `Converted` event when successful.
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::convert())]
+		pub fn convert(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			Ok(())
+		}
+
 		/// Claim accumulated rewards
 		///
 		/// /// Parameters:
 		/// - `origin`:
 		///
-		/// Emits `CodeLinked` event when successful.
-		#[pallet::call_index(2)]
+		/// Emits `Claimed` event when successful.
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
-		pub fn claim_rewards(origin: OriginFor<T>, code: Vec<u8>) -> DispatchResult {
+		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Ok(())
 		}

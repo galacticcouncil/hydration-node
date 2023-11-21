@@ -50,6 +50,7 @@ use sp_std::marker::PhantomData;
 pub trait WeightInfo {
 	fn register_code() -> Weight;
 	fn link_code() -> Weight;
+	fn convert() -> Weight;
 	fn claim_rewards() -> Weight;
 }
 
@@ -65,6 +66,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::zero()
 	}
 
+	fn convert() -> Weight {
+		Weight::zero()
+	}
+
 	fn claim_rewards() -> Weight {
 		Weight::zero()
 	}
@@ -77,6 +82,10 @@ impl WeightInfo for () {
 	}
 
 	fn link_code() -> Weight {
+		Weight::zero()
+	}
+
+	fn convert() -> Weight {
 		Weight::zero()
 	}
 

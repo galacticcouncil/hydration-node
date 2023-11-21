@@ -15,11 +15,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod convert;
 mod link;
 mod register;
 
 use crate as pallet_referrals;
 use crate::*;
+
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -33,8 +37,9 @@ use frame_support::{
 use sp_core::H256;
 
 use frame_support::{assert_noop, assert_ok};
-use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
+use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
+use sp_runtime::FixedU128;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -45,12 +50,18 @@ pub(crate) type AssetId = u32;
 pub(crate) const ONE: Balance = 1_000_000_000_000;
 
 pub const HDX: AssetId = 0;
+pub const DAI: AssetId = 2;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
+pub const CHARLIE: AccountId = 3;
 pub const TREASURY: AccountId = 400;
 
 pub(crate) const INITIAL_ALICE_BALANCE: Balance = 1_000 * ONE;
+
+thread_local! {
+	pub static CONVERSION_RATE: RefCell<HashMap<(AssetId,AssetId), FixedU128>> = RefCell::new(HashMap::default());
+}
 
 construct_runtime!(
 	pub enum Test where
@@ -130,21 +141,32 @@ impl orml_tokens::Config for Test {
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
+	trades: Vec<(AccountId, AssetId, Balance)>,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
+		CONVERSION_RATE.with(|v| {
+			v.borrow_mut().clear();
+		});
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
+			trades: vec![],
 		}
 	}
 }
 
 impl ExtBuilder {
-	pub fn add_endowed_accounts(mut self, accounts: Vec<(u64, AssetId, Balance)>) -> Self {
-		for entry in accounts {
-			self.endowed_accounts.push(entry);
-		}
+	pub fn with_trade_activity(mut self, trades: Vec<(AccountId, AssetId, Balance)>) -> Self {
+		self.trades.extend(trades);
+		self
+	}
+
+	pub fn with_conversion_price(self, pair: (AssetId, AssetId), price: FixedU128) -> Self {
+		CONVERSION_RATE.with(|v| {
+			let mut m = v.borrow_mut();
+			m.insert(pair, price);
+		});
 		self
 	}
 
@@ -162,6 +184,13 @@ impl ExtBuilder {
 		.unwrap();
 
 		let mut r: sp_io::TestExternalities = t.into();
+
+		r.execute_with(|| {
+			for (acc, asset, amount) in self.trades.iter() {
+				Accrued::<Test>::insert(asset, acc, amount);
+				Tokens::update_balance(*asset, &Pallet::<Test>::pot_account_id(), *amount as i128).unwrap();
+			}
+		});
 
 		r.execute_with(|| {
 			System::set_block_number(1);
