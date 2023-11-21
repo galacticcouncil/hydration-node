@@ -52,6 +52,7 @@ pub(crate) const ONE: Balance = 1_000_000_000_000;
 
 pub const HDX: AssetId = 0;
 pub const DAI: AssetId = 2;
+pub const DOT: AssetId = 5;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
@@ -219,7 +220,7 @@ impl Convert<AccountId, AssetId, Balance> for AssetConvert {
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
 		let price = CONVERSION_RATE
-			.with(|v| v.borrow().get(&(asset_from, asset_to)).copied())
+			.with(|v| v.borrow().get(&(asset_to, asset_from)).copied())
 			.ok_or(Error::<Test>::InvalidCode)?;
 		let result = price.saturating_mul_int(amount);
 		Tokens::update_balance(asset_from, &who, -(amount as i128)).unwrap();

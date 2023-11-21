@@ -13,25 +13,27 @@ fn convert_should_fail_when_amount_is_zero() {
 }
 
 #[test]
-fn convert_should_convert_all_entries() {
+fn convert_should_convert_all_asset_entries() {
 	ExtBuilder::default()
 		.with_conversion_price(
 			(HDX, DAI),
 			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
 		)
-		.with_trade_activity(vec![(BOB, DAI, 1_000_000_000_000_000_000)])
+		.with_trade_activity(vec![(BOB, DAI, 1_000_000_000_000_000_000), (BOB, DOT, 10_000_000_000)])
 		.build()
 		.execute_with(|| {
 			// Arrange
 			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI,));
 			// Assert
-			let length = Accrued::<Test>::iter().count();
+			let length = Accrued::<Test>::iter_prefix(DAI).count();
 			assert_eq!(length, 0);
+			let length = Accrued::<Test>::iter_prefix(DOT).count();
+			assert_eq!(length, 1);
 		});
 }
 
 #[test]
-fn convert_should_not_have_converted_asset_when_successful() {
+fn convert_should_convert_all_asset_amount_when_successful() {
 	ExtBuilder::default()
 		.with_conversion_price(
 			(HDX, DAI),
@@ -45,6 +47,8 @@ fn convert_should_not_have_converted_asset_when_successful() {
 			// Assert
 			let balance = Tokens::free_balance(DAI, &Pallet::<Test>::pot_account_id());
 			assert_eq!(balance, 0);
+			let balance = Tokens::free_balance(HDX, &Pallet::<Test>::pot_account_id());
+			assert_eq!(balance, 1_000_000_000_000);
 		});
 }
 
@@ -129,12 +133,34 @@ fn convert_should_transfer_leftovers_to_registration_fee_beneficiary() {
 			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI,));
 			// Assert
 			let rewards = Rewards::<Test>::get(&BOB);
-			assert_eq!(rewards, 1_000_000_000_000);
+			assert_eq!(rewards, 1_333_333_333_333);
 
 			let rewards = Rewards::<Test>::get(&CHARLIE);
-			assert_eq!(rewards, 2_000_000_000_000);
+			assert_eq!(rewards, 2_333_333_333_332);
 
-			let treasury = Rewards::<Test>::get(&TREASURY);
-			assert_eq!(treasury, 2_000_000_000_000);
+			let treasury = Tokens::free_balance(HDX, &TREASURY);
+			assert_eq!(treasury, 1);
+		});
+}
+
+#[test]
+fn convert_should_have_correct_reward_balance() {
+	ExtBuilder::default()
+		.with_conversion_price(
+			(HDX, DAI),
+			FixedU128::from_rational(1_333_333_333_333, 1_333_333_333_333_333_333),
+		)
+		.with_trade_activity(vec![
+			(BOB, DAI, 1_333_333_333_333_333_333),
+			(CHARLIE, DAI, 2_333_333_333_333_333_333),
+		])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI));
+			// Assert
+			let distributed = Rewards::<Test>::iter_values().sum::<Balance>();
+			let reserve = Tokens::free_balance(HDX, &Pallet::<Test>::pot_account_id());
+			assert_eq!(reserve, distributed);
 		});
 }

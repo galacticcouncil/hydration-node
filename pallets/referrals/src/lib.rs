@@ -43,7 +43,8 @@ pub mod pallet {
 	use super::*;
 	use crate::traits::Convert;
 	use frame_support::pallet_prelude::*;
-	use frame_support::traits::fungibles::Transfer;
+	use frame_support::sp_runtime::ArithmeticError;
+	use frame_support::traits::fungibles::{Inspect, Transfer};
 	use frame_support::PalletId;
 
 	#[pallet::pallet]
@@ -143,6 +144,8 @@ pub mod pallet {
 		ZeroAmount,
 		/// Linking an account to the same referral account is not allowed.
 		LinkNotAllowed,
+		/// More rewards have been distributed than allowed after conversion. This is a bug.
+		IncorrectRewardDistribution,
 	}
 
 	#[pallet::call]
@@ -234,7 +237,42 @@ pub mod pallet {
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::convert())]
 		pub fn convert(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			ensure_signed(origin)?;
+			let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
+			ensure!(asset_balance > 0, Error::<T>::ZeroAmount);
+
+			let total_reward_amount =
+				T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance)?;
+
+			// Keep track of amount rewarded, in case of a a leftover (due to rounding)
+			let mut rewarded: Balance = 0;
+			for (account, amount) in Accrued::<T>::drain_prefix(asset_id) {
+				// We need to figure out how much of the reward should be assigned to the individual recipients.
+				// Price = reward_asset_amount / asset_balance
+				// rewarded = price * account balance
+				let reward_amount = (total_reward_amount * amount) / asset_balance; // TODO: U256 and safe math please!
+
+				Rewards::<T>::try_mutate(account, |v| -> DispatchResult {
+					*v = v.checked_add(reward_amount).ok_or(ArithmeticError::Overflow)?;
+					Ok(())
+				})?;
+				rewarded = rewarded.saturating_add(reward_amount);
+			}
+
+			// Should not really happy, but let's be safe and ensure that we have not distributed more than allowed.
+			ensure!(rewarded <= total_reward_amount, Error::<T>::IncorrectRewardDistribution);
+
+			let remainder = total_reward_amount.saturating_sub(rewarded);
+			if remainder > 0 {
+				T::Currency::transfer(
+					T::RewardAsset::get(),
+					&Self::pot_account_id(),
+					&T::RegistrationFee::get().2,
+					remainder,
+					true,
+				)?;
+			}
+
 			Ok(())
 		}
 
