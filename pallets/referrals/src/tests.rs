@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod claim;
 mod convert;
 mod link;
 mod register;
@@ -146,6 +147,7 @@ impl orml_tokens::Config for Test {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	trades: Vec<(AccountId, AssetId, Balance)>,
+	rewards: Vec<(AccountId, Balance)>,
 }
 
 impl Default for ExtBuilder {
@@ -156,6 +158,7 @@ impl Default for ExtBuilder {
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
 			trades: vec![],
+			rewards: vec![],
 		}
 	}
 }
@@ -163,6 +166,11 @@ impl Default for ExtBuilder {
 impl ExtBuilder {
 	pub fn with_trade_activity(mut self, trades: Vec<(AccountId, AssetId, Balance)>) -> Self {
 		self.trades.extend(trades);
+		self
+	}
+
+	pub fn with_rewards(mut self, rewards: Vec<(AccountId, Balance)>) -> Self {
+		self.rewards.extend(rewards);
 		self
 	}
 
@@ -193,6 +201,13 @@ impl ExtBuilder {
 			for (acc, asset, amount) in self.trades.iter() {
 				Accrued::<Test>::insert(asset, acc, amount);
 				Tokens::update_balance(*asset, &Pallet::<Test>::pot_account_id(), *amount as i128).unwrap();
+			}
+		});
+
+		r.execute_with(|| {
+			for (acc, amount) in self.rewards.iter() {
+				Rewards::<Test>::insert(acc, amount);
+				Tokens::update_balance(HDX, &Pallet::<Test>::pot_account_id(), *amount as i128).unwrap();
 			}
 		});
 

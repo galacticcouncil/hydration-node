@@ -130,6 +130,10 @@ pub mod pallet {
 			amount: Balance,
 			received: Balance,
 		},
+		Claimed {
+			who: T::AccountId,
+			amount: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -293,6 +297,9 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			let amount = Rewards::<T>::take(&who);
+			T::Currency::transfer(T::RewardAsset::get(), &Self::pot_account_id(), &who, amount, true)?;
+			Self::deposit_event(Event::Claimed { who, amount });
 			Ok(())
 		}
 	}
