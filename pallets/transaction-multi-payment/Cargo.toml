@@ -20,6 +20,7 @@ orml-traits = { workspace = true }
 # HydraDX traits
 hydradx-traits = { workspace = true }
 primitives = { workspace = true }
+hydra-dx-math = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }

@@ -32,12 +32,12 @@ mod traits;
 use frame_support::traits::Currency as PalletCurrency;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
 use frame_system::ensure_signed;
+use hydra_dx_math::ema::EmaPrice;
 use sp_runtime::{
 	traits::{DispatchInfoOf, One, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
 	FixedU128,
 };
-
 use sp_std::prelude::*;
 
 use pallet_transaction_payment::OnChargeTransaction;
@@ -45,15 +45,16 @@ use sp_std::marker::PhantomData;
 
 use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::sp_runtime::FixedPointOperand;
-use hydradx_traits::{pools::SpotPriceProvider, NativePriceOracle};
+use hydradx_traits::NativePriceOracle;
 use orml_traits::{Happened, MultiCurrency};
 
+pub use crate::traits::*;
 use frame_support::traits::{Imbalance, IsSubType, OnUnbalanced};
+use hydradx_traits::router::{AssetPair, RouteProvider};
+use hydradx_traits::{OraclePeriod, PriceOracle};
 use pallet_evm::{EVMCurrencyAdapter, OnChargeEVMTransaction};
 use sp_core::{H160, U256};
 use sp_runtime::traits::UniqueSaturatedInto;
-
-pub use crate::traits::*;
 
 type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
 type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -83,13 +84,13 @@ pub mod pallet {
 			let mut weight: u64 = 0;
 
 			for (asset_id, fallback_price) in <AcceptedCurrencies<T>>::iter() {
-				let maybe_price = T::SpotPriceProvider::spot_price(asset_id, native_asset);
+				let maybe_price = Self::get_oracle_price(asset_id, native_asset);
 
 				let price = maybe_price.unwrap_or(fallback_price);
 
 				AcceptedCurrencyPrice::<T>::insert(asset_id, price);
 
-				weight += T::WeightInfo::get_spot_price().ref_time();
+				weight += T::WeightInfo::get_oracle_price().ref_time();
 			}
 
 			Weight::from_ref_time(weight)
@@ -111,8 +112,11 @@ pub mod pallet {
 		/// Multi Currency
 		type Currencies: MultiCurrency<Self::AccountId>;
 
-		/// Spot price provider
-		type SpotPriceProvider: SpotPriceProvider<AssetIdOf<Self>, Price = Price>;
+		/// On chain route provider
+		type RouteProvider: RouteProvider<AssetIdOf<Self>>;
+
+		/// Oracle price provider for routes
+		type OraclePriceProvider: PriceOracle<AssetIdOf<Self>, Price = EmaPrice>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -309,26 +313,41 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T>
-where
-	BalanceOf<T>: FixedPointOperand,
-{
-	fn account_currency(who: &T::AccountId) -> AssetIdOf<T> {
+impl<T: Config> Pallet<T> {
+	fn account_currency(who: &T::AccountId) -> AssetIdOf<T>
+	where
+		BalanceOf<T>: FixedPointOperand,
+	{
 		Pallet::<T>::get_currency(who).unwrap_or_else(T::NativeAssetId::get)
 	}
 
-	fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price> {
+	fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price>
+	where
+		BalanceOf<T>: FixedPointOperand,
+	{
 		if let Some(price) = Self::price(currency) {
 			Some(price)
 		} else {
 			// If not loaded in on_init, let's try first the spot price provider again
 			// This is unlikely scenario as the price would be retrieved in on_init for each block
-			if let Some(price) = T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get()) {
+			let maybe_price = Self::get_oracle_price(currency, T::NativeAssetId::get());
+
+			if let Some(price) = maybe_price {
 				Some(price)
 			} else {
 				Self::currencies(currency)
 			}
 		}
+	}
+
+	fn get_oracle_price(
+		asset_id: <T::Currencies as MultiCurrency<T::AccountId>>::CurrencyId,
+		native_asset: <T::Currencies as MultiCurrency<T::AccountId>>::CurrencyId,
+	) -> Option<FixedU128> {
+		let on_chain_route = T::RouteProvider::get(AssetPair::new(asset_id, native_asset));
+
+		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
+			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d))
 	}
 }
 
