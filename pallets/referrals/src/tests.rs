@@ -80,7 +80,7 @@ parameter_types! {
 	pub const RefarralPalletId: PalletId = PalletId(*b"test_ref");
 	pub const CodeLength: u32 = 7;
 	pub const RegistrationFee: (AssetId,Balance, AccountId) = (HDX, 222 * 1_000_000_000_000, TREASURY) ;
-	pub const FeeAsset: AssetId = HDX;
+	pub const RewardAsset: AssetId = HDX;
 }
 
 impl Config for Test {
@@ -88,6 +88,7 @@ impl Config for Test {
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type Convert = AssetConvert;
+	type RewardAsset = RewardAsset;
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = CodeLength;

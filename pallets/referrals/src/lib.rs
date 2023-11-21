@@ -64,6 +64,10 @@ pub mod pallet {
 		/// Support for asset conversion.
 		type Convert: Convert<Self::AccountId, Self::AssetId, Balance, Error = DispatchError>;
 
+		/// ID of an asset that is used to distribute rewards in.
+		#[pallet::constant]
+		type RewardAsset: Get<Self::AssetId>;
+
 		/// Pallet id. Determines account which holds accumulated rewards in various assets.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
@@ -118,6 +122,12 @@ pub mod pallet {
 			account: T::AccountId,
 			code: ReferralCode<T::CodeLength>,
 			referral_account: T::AccountId,
+		},
+		Converted {
+			from: T::AccountId,
+			to: T::AccountId,
+			amount: Balance,
+			received: Balance,
 		},
 	}
 

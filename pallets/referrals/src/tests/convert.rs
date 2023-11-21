@@ -65,6 +65,28 @@ fn convert_should_update_account_rewards() {
 			assert_eq!(rewards, 1_000_000_000_000);
 		});
 }
+#[test]
+fn convert_should_emit_event_when_successful() {
+	ExtBuilder::default()
+		.with_conversion_price(
+			(HDX, DAI),
+			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
+		)
+		.with_trade_activity(vec![(BOB, DAI, 1_000_000_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI,));
+			// Assert
+			expect_events(vec![Event::Converted {
+				from: DAI.into(),
+				to: RewardAsset::get().into(),
+				amount: 1_000_000_000_000_000_000,
+				received: 1_000_000_000_000,
+			}
+			.into()]);
+		});
+}
 
 #[test]
 fn convert_should_distribute_native_amount_correct_when_there_is_multiple_entries() {
