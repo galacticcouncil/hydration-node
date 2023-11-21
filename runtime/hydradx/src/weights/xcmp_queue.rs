@@ -150,16 +150,3 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for HydraWei
 			.saturating_add(Weight::from_parts(0, 15030).saturating_mul(m.into()))
 	}
 }
-
-
-// TODO: make this an integration test
-#[test]
-fn xcmp_weights() {
-	use cumulus_pallet_xcmp_queue::WeightInfo;
-	dbg!(HydraWeight::<crate::Runtime>::try_place_in_deferred_queue(5));
-	// TODO: takes a lot of weight, decide whether to reduce max_processed to 1 or 3 (priority to
-	// executing 1 deferred queue vs several)
-	dbg!(HydraWeight::<crate::Runtime>::service_deferred(5));
-	dbg!(crate::ReservedXcmpWeight::get());
-	assert!(false);
-}

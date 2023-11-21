@@ -19,6 +19,5 @@ mod router;
 mod staking;
 mod transact_call_filter;
 mod vesting;
+mod xcm_defer;
 mod xyk;
-
-// TODO: add xcmp integration test
