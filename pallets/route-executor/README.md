@@ -7,7 +7,9 @@ This pallet is responsible for storing the best routes for asset pairs.
 
 The new route is validated by being executed it in a dry-run mode
 
-If there is already an existing route for given asset pair, then the specified new route is compared to it. 
+If there is no route explicitly set for an asset pair, then we use the omnipool route as default.
+
+When a new route is set, we compare it to the existing (or default) route.
 The comparison happens by calculating sell amount_outs for the routes, but also for the inversed routes.
 
 The route is stored in an ordered manner, based on the oder of the ids in the asset pair.
