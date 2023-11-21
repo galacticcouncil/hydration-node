@@ -360,12 +360,7 @@ pub mod pallet {
 
 			let existing_route = Self::get_route(asset_pair);
 
-			let validate_existing_route: Result<T::Balance, DispatchError> = {
-				let reference_amount_in = Self::calculate_reference_amount_in(&existing_route)?;
-				Self::validate_sell(existing_route.to_vec(), reference_amount_in).map(|_| reference_amount_in)
-			};
-
-			match validate_existing_route {
+			match Self::validate_route(&existing_route) {
 				Ok(reference_amount_in) => {
 					Self::validate_sell(route.clone(), reference_amount_in).map_err(|_| Error::<T>::InvalidRoute)?;
 
@@ -389,9 +384,7 @@ pub mod pallet {
 					}
 				}
 				Err(_) => {
-					let reference_amount_in = Self::calculate_reference_amount_in(&route)?;
-
-					Self::validate_sell(route.clone(), reference_amount_in).map_err(|_| Error::<T>::InvalidRoute)?;
+					Self::validate_route(&route).map_err(|_| Error::<T>::InvalidRoute)?;
 
 					return Self::insert_route(asset_pair, route);
 				}
@@ -463,6 +456,13 @@ impl<T: Config> Pallet<T> {
 			<Pallet<T> as RouteProvider<T::AssetId>>::get_route(asset_pair)
 		};
 		Ok(route)
+	}
+
+	fn validate_route(route: &Vec<Trade<T::AssetId>>) -> Result<T::Balance, DispatchError> {
+		let reference_amount_in = Self::calculate_reference_amount_in(&route)?;
+		Self::validate_sell(route.to_vec(), reference_amount_in)?;
+
+		Ok(reference_amount_in)
 	}
 
 	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> DispatchResult {
