@@ -552,7 +552,7 @@ mod omnipool {
 
 			let dca_budget = 1000 * UNITS;
 
-			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance);
 
 			let amount_in = 100 * UNITS;
 			let no_route = vec![];
@@ -560,7 +560,7 @@ mod omnipool {
 				schedule_fake_with_sell_order_with_route(ALICE.into(), dca_budget, HDX, DAI, amount_in, no_route);
 			create_schedule(ALICE, schedule1);
 
-			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
@@ -571,7 +571,7 @@ mod omnipool {
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 
-			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 71214372591631);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_in - fee);
 
@@ -2452,7 +2452,7 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 }
 
 fn assert_that_fee_is_correct(fee: Balance) {
-	//The fee is approximately 3795361512418, so we check if we are between 3.5 and 4 UNITS
-	assert!(fee > 35 / 10 * UNITS);
-	assert!(fee < 4 * UNITS);
+	//The fee is approximately 2969051508672, so we check if we are between 2.8 and 3.2 UNITS
+	assert!(fee > 28 * UNITS / 10);
+	assert!(fee < 32 * UNITS / 10);
 }
