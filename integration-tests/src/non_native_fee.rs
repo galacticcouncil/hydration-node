@@ -1,12 +1,7 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use frame_support::{
-	assert_ok,
-	dispatch::DispatchInfo,
-	sp_runtime::traits::SignedExtension,
-	weights::Weight,
-};
+use frame_support::{assert_ok, dispatch::DispatchInfo, sp_runtime::traits::SignedExtension, weights::Weight};
 use hydradx_runtime::{Balances, Currencies, MultiTransactionPayment, RuntimeOrigin, Tokens};
 use orml_traits::currency::MultiCurrency;
 use primitives::Price;

@@ -577,7 +577,6 @@ pub fn hydradx_run_to_next_block() {
 }
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
-
 	let b = hydradx_runtime::System::block_number();
 	assert!(b <= to, "the current block number {:?} is higher than expected.", b);
 
