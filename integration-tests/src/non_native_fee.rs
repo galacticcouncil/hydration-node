@@ -46,7 +46,7 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 
 		init_omnipool();
 
-		hydradx_run_to_block(2);
+		hydradx_run_to_block(4);
 
 		let call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: DAI },
@@ -62,7 +62,7 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 		);
 
 		let dave_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(DAVE));
-		assert_eq!(dave_balance, 999_991_799_671_574_511_701); //Omnipool spot price
+		assert_eq!(dave_balance, 999_992_364_637_822_103_501); //Omnipool spot price
 	});
 }
 
