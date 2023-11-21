@@ -36,10 +36,11 @@ use frame_support::{
 };
 use sp_core::H256;
 
+use crate::traits::Convert;
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
-use sp_runtime::FixedU128;
+use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -86,6 +87,7 @@ impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Tokens;
+	type Convert = AssetConvert;
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = CodeLength;
@@ -202,6 +204,27 @@ impl ExtBuilder {
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
+
+pub struct AssetConvert;
+
+impl Convert<AccountId, AssetId, Balance> for AssetConvert {
+	type Error = DispatchError;
+
+	fn convert(
+		who: AccountId,
+		asset_from: AssetId,
+		asset_to: AssetId,
+		amount: Balance,
+	) -> Result<Balance, Self::Error> {
+		let price = CONVERSION_RATE
+			.with(|v| v.borrow().get(&(asset_from, asset_to)).copied())
+			.ok_or(Error::<Test>::InvalidCode)?;
+		let result = price.saturating_mul_int(amount);
+		Tokens::update_balance(asset_from, &who, -(amount as i128)).unwrap();
+		Tokens::update_balance(asset_to, &who, result as i128).unwrap();
+		Ok(result)
+	}
 }
 
 #[macro_export]

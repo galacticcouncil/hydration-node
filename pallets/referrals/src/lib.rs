@@ -22,6 +22,7 @@ mod weights;
 
 #[cfg(test)]
 mod tests;
+pub mod traits;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
@@ -40,6 +41,7 @@ const MIN_CODE_LENGTH: usize = 3;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::traits::Convert;
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::fungibles::Transfer;
 	use frame_support::PalletId;
@@ -58,6 +60,9 @@ pub mod pallet {
 
 		/// Support for transfers.
 		type Currency: Transfer<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>;
+
+		/// Support for asset conversion.
+		type Convert: Convert<Self::AccountId, Self::AssetId, Balance, Error = DispatchError>;
 
 		/// Pallet id. Determines account which holds accumulated rewards in various assets.
 		#[pallet::constant]
