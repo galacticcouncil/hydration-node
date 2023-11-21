@@ -19,12 +19,7 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use std::{
-	collections::BTreeMap,
-	path::PathBuf,
-	sync::Arc,
-	time::Duration,
-};
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc, time::Duration};
 
 use crate::service::{
 	rpc::{RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override, SchemaV3Override, StorageOverride},
@@ -42,8 +37,8 @@ use futures::{future, StreamExt};
 use primitives::Block;
 use sc_client_api::{backend::AuxStore, Backend, BlockOf, BlockchainEvents, StateBackend, StorageProvider};
 use sc_consensus::{BlockCheckParams, BlockImport as BlockImportT, BlockImportParams, ImportResult};
-use sc_service::{Configuration, TFullBackend, TaskManager};
 use sc_network_sync::SyncingService;
+use sc_service::{Configuration, TFullBackend, TaskManager};
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockchainError, HeaderBackend, HeaderMetadata};
@@ -118,10 +113,7 @@ where
 		self.0.check_block(block).await
 	}
 
-	async fn import_block(
-		&mut self,
-		block: BlockImportParams<B>,
-	) -> Result<ImportResult, Self::Error> {
+	async fn import_block(&mut self, block: BlockImportParams<B>) -> Result<ImportResult, Self::Error> {
 		self.0.import_block(block).await
 	}
 }
@@ -143,9 +135,7 @@ pub fn spawn_frontier_tasks(
 	fee_history_cache_limit: FeeHistoryCacheLimit,
 	sync: Arc<SyncingService<Block>>,
 	pubsub_notification_sinks: Arc<
-		fc_mapping_sync::EthereumBlockNotificationSinks<
-			fc_mapping_sync::EthereumBlockNotification<Block>,
-		>,
+		fc_mapping_sync::EthereumBlockNotificationSinks<fc_mapping_sync::EthereumBlockNotification<Block>>,
 	>,
 ) {
 	task_manager.spawn_essential_handle().spawn(

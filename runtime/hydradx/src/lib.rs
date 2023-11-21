@@ -43,6 +43,7 @@ pub use governance::*;
 pub use system::*;
 pub use xcm::*;
 
+use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::Hooks;
 use codec::{Decode, Encode};
 use sp_api::impl_runtime_apis;
 use sp_core::{ConstU128, Get, OpaqueMetadata, H160, H256, U256};
@@ -67,7 +68,7 @@ pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
-use pallet_evm::{Account as EVMAccount, FeeCalculator, Runner};
+use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
 pub use primitives::{
 	AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index, ItemId, Price, Signature,
 };
@@ -412,20 +413,18 @@ impl_runtime_apis! {
 			gas_price
 		}
 
-		fn account_code_at(_address: H160) -> Vec<u8> {
-			// EVM::account_codes(address)
-			vec![]	// TODO: clow
+		fn account_code_at(address: H160) -> Vec<u8> {
+			pallet_evm::AccountCodes::<Runtime>::get(address)
 		}
 
 		fn author() -> H160 {
 			<pallet_evm::Pallet<Runtime>>::find_author()
 		}
 
-		fn storage_at(_address: H160, _index: U256) -> H256 {
-			// let mut tmp = [0u8; 32];
-			// index.to_big_endian(&mut tmp);
-			// EVM::account_storages(address, H256::from_slice(&tmp[..]))
-			H256::default()	// TODO: clow
+		fn storage_at(address: H160, index: U256) -> H256 {
+			let mut tmp = [0u8; 32];
+			index.to_big_endian(&mut tmp);
+			pallet_evm::AccountStorages::<Runtime>::get(address, H256::from_slice(&tmp[..]))
 		}
 
 		fn call(
@@ -445,6 +444,44 @@ impl_runtime_apis! {
 
 			let is_transactional = false;
 			let validate = true;
+
+			// Copied from Moonbeam
+			//
+			// Estimated encoded transaction size must be based on the heaviest transaction
+			// type (EIP1559Transaction) to be compatible with all transaction types.
+			let mut estimated_transaction_len = data.len() +
+				// pallet ethereum index: 1
+				// transact call index: 1
+				// Transaction enum variant: 1
+				// chain_id 8 bytes
+				// nonce: 32
+				// max_priority_fee_per_gas: 32
+				// max_fee_per_gas: 32
+				// gas_limit: 32
+				// action: 21 (enum varianrt + call address)
+				// value: 32
+				// access_list: 1 (empty vec size)
+				// 65 bytes signature
+				258;
+
+			if access_list.is_some() {
+				estimated_transaction_len += access_list.encoded_size();
+			}
+
+			let gas_limit = gas_limit.min(u64::MAX.into()).low_u64();
+			let without_base_extrinsic_weight = true;
+
+			let (weight_limit, proof_size_base_cost) =
+						match <Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
+							gas_limit,
+							without_base_extrinsic_weight
+						) {
+							weight_limit if weight_limit.proof_size() > 0 => {
+								(Some(weight_limit), Some(estimated_transaction_len as u64))
+							}
+							_ => (None, None),
+						};
+
 			<Runtime as pallet_evm::Config>::Runner::call(
 				from,
 				to,
@@ -457,8 +494,8 @@ impl_runtime_apis! {
 				access_list.unwrap_or_default(),
 				is_transactional,
 				validate,
-				None,	// TODO: clow
-				None,	// TODO: clow
+				weight_limit,
+				proof_size_base_cost,
 				&config,
 			)
 			.map_err(|err| err.error.into())
@@ -481,18 +518,15 @@ impl_runtime_apis! {
 		}
 
 		fn current_transaction_statuses() -> Option<Vec<TransactionStatus>> {
-			// Ethereum::current_transaction_statuses()
-			None	// TODO: clow
+			pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get()
 		}
 
 		fn current_block() -> Option<pallet_ethereum::Block> {
-			// Ethereum::current_block()
-			None	// TODO: clow
+			pallet_ethereum::CurrentBlock::<Runtime>::get()
 		}
 
 		fn current_receipts() -> Option<Vec<pallet_ethereum::Receipt>> {
-			// Ethereum::current_receipts()
-			None	// TODO: clow
+			pallet_ethereum::CurrentReceipts::<Runtime>::get()
 		}
 
 		fn current_all() -> (
@@ -501,12 +535,9 @@ impl_runtime_apis! {
 			Option<Vec<TransactionStatus>>,
 		) {
 			(
-				// Ethereum::current_block(),
-				// Ethereum::current_receipts(),
-				// Ethereum::current_transaction_statuses(),
-			None,	// TODO: clow
-			None,	// TODO: clow
-			None,	// TODO: clow
+				pallet_ethereum::CurrentBlock::<Runtime>::get(),
+				pallet_ethereum::CurrentReceipts::<Runtime>::get(),
+				pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get(),
 			)
 		}
 
@@ -526,10 +557,19 @@ impl_runtime_apis! {
 		fn gas_limit_multiplier_support() {}
 
 		fn pending_block(
-			_xts: Vec<<Block as BlockT>::Extrinsic>,
+			xts: Vec<<Block as BlockT>::Extrinsic>,
 		) -> (Option<pallet_ethereum::Block>, Option<Vec<TransactionStatus>>) {
-			(None, None) // TODO: clow
-		}
+			for ext in xts.into_iter() {
+				let _ = Executive::apply_extrinsic(ext);
+			}
+
+			Ethereum::on_finalize(System::block_number() + 1);
+
+			(
+				pallet_ethereum::CurrentBlock::<Runtime>::get(),
+				pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get()
+			)
+		 }
 	}
 
 	impl fp_rpc::ConvertTransactionRuntimeApi<Block> for Runtime {

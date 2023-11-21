@@ -54,9 +54,9 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
-// Fixed gas price of 0.1 gwei per gas
+// Fixed gas price of 0.08 gwei per gas
 // pallet-base-fee to be implemented after migration to polkadot-v1.1.0
-const DEFAULT_BASE_FEE_PER_GAS: u128 = 100_000_000;
+const DEFAULT_BASE_FEE_PER_GAS: u128 = 80_000_000;
 
 parameter_types! {
 	// We allow for a 75% fullness of a 0.5s block
@@ -118,8 +118,17 @@ impl FeeCalculator for FixedGasPrice {
 }
 
 parameter_types! {
-	pub GasLimitPovSizeRatio: u64 = 1;	// TODO: clow
-	pub GasLimitStorageGrowthRatio: u64 = 1;	// TODO: clow
+	/// Configuration values copied from Moonriver
+	///
+	/// The amount of gas per pov. A ratio of 4 if we convert ref_time to gas and we compare
+	/// it with the pov_size for a block. E.g.
+	/// ceil(
+	///     (max_extrinsic.ref_time() / max_extrinsic.proof_size()) / WEIGHT_PER_GAS
+	/// )
+	pub const GasLimitPovSizeRatio: u64 = 4;
+	/// The amount of gas per storage (in bytes): BLOCK_GAS_LIMIT / BLOCK_STORAGE_LIMIT
+	/// The current definition of BLOCK_STORAGE_LIMIT is 40 KB, resulting in a value of 366.
+	pub GasLimitStorageGrowthRatio: u64 = 366;
 }
 
 impl pallet_evm::Config for crate::Runtime {
@@ -140,16 +149,16 @@ impl pallet_evm::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
 	type WeightPerGas = WeightPerGas;
 	type WithdrawOrigin = EnsureAddressTruncated;
-	type GasLimitPovSizeRatio = GasLimitPovSizeRatio; // TODO: clow
-	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio; // TODO: clow
-	type Timestamp = crate::Timestamp; // TODO: clow
-	type WeightInfo = (); // TODO: clow
+	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
+	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
+	type Timestamp = crate::Timestamp;
+	type WeightInfo = pallet_evm::weights::SubstrateWeight<crate::Runtime>;
 }
 
 impl pallet_evm_chain_id::Config for crate::Runtime {}
 
 parameter_types! {
-	pub PostLogContent: pallet_ethereum::PostLogContent = pallet_ethereum::PostLogContent::BlockAndTxnHashes;	// TODO: clow
+	pub PostLogContent: pallet_ethereum::PostLogContent = pallet_ethereum::PostLogContent::BlockAndTxnHashes;
 }
 
 impl pallet_ethereum::Config for crate::Runtime {

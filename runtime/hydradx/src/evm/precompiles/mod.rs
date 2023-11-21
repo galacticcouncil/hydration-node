@@ -99,12 +99,11 @@ where
 		}
 	}
 
-	fn is_precompile(&self, address: H160, remaining_gas: u64) -> IsPrecompileResult {
-		// TODO: clow -> this method has new parameter and return value. Not sure what to do with remaining_gas
+	fn is_precompile(&self, address: H160, _remaining_gas: u64) -> IsPrecompileResult {
 		let is_precompile = address == DISPATCH_ADDR || is_asset_address(address);
 		IsPrecompileResult::Answer {
 			is_precompile,
-			extra_cost: remaining_gas,
+			extra_cost: 0,
 		}
 	}
 }
