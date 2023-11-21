@@ -344,7 +344,7 @@ impl<T: Config> Pallet<T> {
 		asset_id: <T::Currencies as MultiCurrency<T::AccountId>>::CurrencyId,
 		native_asset: <T::Currencies as MultiCurrency<T::AccountId>>::CurrencyId,
 	) -> Option<FixedU128> {
-		let on_chain_route = T::RouteProvider::get(AssetPair::new(asset_id, native_asset));
+		let on_chain_route = T::RouteProvider::get_route(AssetPair::new(asset_id, native_asset));
 
 		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
 			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d))

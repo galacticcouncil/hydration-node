@@ -291,7 +291,7 @@ fn omnipool_spotprice_and_onchain_price_should_be_very_similar() {
 		//Act
 		let spot_price = Omnipool::spot_price(DAI, DOT).unwrap();
 
-		let default_route = Router::get(AssetPair::new(DAI, DOT));
+		let default_route = Router::get_route(AssetPair::new(DAI, DOT));
 		let onchain_oracle_price = OraclePriceProvider::<AssetId, EmaOracle, hydradx_runtime::LRNA>::price(
 			&default_route,
 			OraclePeriod::Short,

@@ -2674,6 +2674,38 @@ mod set_route {
 			),);
 		});
 	}
+
+	#[test]
+	fn set_should_should_work_when_omnipool_route_does_not_exist_for_pair() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
+			create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, BTC, 1000000 * UNITS);
+
+			let route1 = vec![
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: HDX,
+					asset_out: DOT,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: DOT,
+					asset_out: BTC,
+				},
+			];
+
+			let asset_pair = Pair::new(HDX, BTC);
+
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				asset_pair,
+				route1.clone()
+			));
+		});
+	}
 }
 
 mod with_on_chain_and_default_route {

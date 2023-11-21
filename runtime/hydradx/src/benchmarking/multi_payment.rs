@@ -143,7 +143,7 @@ runtime_benchmarks! {
 		let mut _price = None;//Named with underscore because clippy thinks that the price in the Act part is unused.
 
 	}: {
-		let on_chain_route = <Runtime as pallet_transaction_multi_payment::Config>::RouteProvider::get(AssetPair::new(asset_1, asset_6));
+		let on_chain_route = <Runtime as pallet_transaction_multi_payment::Config>::RouteProvider::get_route(AssetPair::new(asset_1, asset_6));
 
 		_price = <Runtime as pallet_transaction_multi_payment::Config>::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
 			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d));
