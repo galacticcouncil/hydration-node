@@ -11,7 +11,7 @@ fn link_code_should_work_when_code_is_valid() {
 			ALICE,
 		));
 		// ACT
-		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(ALICE), b"BALLS69".to_vec()));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 	});
 }
 
@@ -51,6 +51,24 @@ fn link_code_should_link_correctly_when_code_is_valid() {
 		// ASSERT
 		let entry = Pallet::<Test>::linked_referral_account::<AccountId>(BOB);
 		assert_eq!(entry, Some(ALICE));
+	});
+}
+
+#[test]
+fn link_code_should_fail_when_linking_to_same_acccount() {
+	ExtBuilder::default().build().execute_with(|| {
+		// ARRANGE
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE),
+			b"BALLS69".to_vec(),
+			ALICE
+		));
+
+		// ACT
+		assert_noop!(
+			Referrals::link_code(RuntimeOrigin::signed(ALICE), b"BALLS69".to_vec()),
+			Error::<Test>::LinkNotAllowed
+		);
 	});
 }
 

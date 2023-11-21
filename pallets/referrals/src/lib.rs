@@ -126,6 +126,8 @@ pub mod pallet {
 		InvalidCode,
 		AlreadyLinked,
 		ZeroAmount,
+		/// Linking an account to the same referral account is not allowed.
+		LinkNotAllowed,
 	}
 
 	#[pallet::call]
@@ -193,6 +195,8 @@ pub mod pallet {
 
 			LinkedAccounts::<T>::mutate(who.clone(), |v| -> DispatchResult {
 				ensure!(v.is_none(), Error::<T>::AlreadyLinked);
+
+				ensure!(who != ref_account, Error::<T>::LinkNotAllowed);
 
 				*v = Some(ref_account.clone());
 				Self::deposit_event(Event::CodeLinked {
