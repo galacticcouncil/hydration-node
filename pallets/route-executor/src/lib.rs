@@ -330,7 +330,8 @@ pub mod pallet {
 		/// - `route`: Series of [`Trade<AssetId>`] to be executed. A [`Trade<AssetId>`] specifies the asset pair (`asset_in`, `asset_out`) and the AMM (`pool`) in which the trade is executed.
 		///
 		/// Emits `RouteUpdated` when successful.
-		/// Emits `RouteUpdateIsNotSuccessful` when failed to set the route
+		///
+		/// Fails with `RouteUpdateIsNotSuccessful` error when failed to set the route
 		///
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::set_route_weight(route))]
