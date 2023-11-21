@@ -49,7 +49,6 @@ pub use pallet::*;
 
 pub const MAX_NUMBER_OF_TRADES: u32 = 5;
 
-//TODO: update doc with onchain routing
 //TODO: rebenchmark on reference machine
 
 #[frame_support::pallet]
