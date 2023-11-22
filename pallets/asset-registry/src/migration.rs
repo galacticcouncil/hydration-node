@@ -34,9 +34,9 @@ pub mod v1 {
 	use sp_runtime::BoundedVec;
 
 	#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo)]
-	pub struct AssetDetails<AssetId, Balance, BoundedString> {
+	pub struct AssetDetails<Balance, BoundedString> {
 		pub name: BoundedString,
-		pub asset_type: AssetType<AssetId>,
+		pub asset_type: AssetType,
 		pub existential_deposit: Balance,
 		pub xcm_rate_limit: Option<Balance>,
 	}
@@ -52,7 +52,7 @@ pub mod v1 {
 		Pallet<T>,
 		Twox64Concat,
 		<T as crate::Config>::AssetId,
-		AssetDetails<<T as crate::Config>::AssetId, Balance, BoundedVec<u8, <T as crate::Config>::StringLimit>>,
+		AssetDetails<Balance, BoundedVec<u8, <T as crate::Config>::StringLimit>>,
 		OptionQuery,
 	>;
 
@@ -101,7 +101,7 @@ pub mod v2 {
 		let mut i = 0;
 		let mut v2_assets_details = Vec::<(
 			<T as crate::Config>::AssetId,
-			AssetDetails<<T as crate::Config>::AssetId, <T as crate::Config>::StringLimit>,
+			AssetDetails<<T as crate::Config>::StringLimit>,
 		)>::new();
 		for (k, v) in v1::Assets::<T>::iter() {
 			i += 1;

@@ -17,12 +17,14 @@
 
 use crate::*;
 use frame_benchmarking::{account, benchmarks};
+use frame_support::storage::with_transaction;
 use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::{Pallet as System, RawOrigin};
-use hydradx_traits::Registry;
+use hydradx_traits::registry::{AssetKind, Create};
 use orml_traits::MultiCurrencyExtended;
 use pallet_liquidity_mining::Instance1;
 use primitives::AssetId;
+use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::One, FixedU128, Permill};
 
 const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
@@ -94,6 +96,8 @@ where
 	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: pallet_ema_oracle::Config,
 	T::AssetId: From<u32>,
+	<T as pallet_omnipool::Config>::AssetRegistry: Create<Balance, Error = DispatchError, AssetId = T::AssetId>,
+	<<T as pallet_omnipool::Config>::AssetRegistry as hydradx_traits::Inspect>::AssetId: From<u32>,
 {
 	let stable_amount: Balance = 1_000_000_000_000_000_u128;
 	let native_amount: Balance = 1_000_000_000_000_000_u128;
@@ -103,6 +107,7 @@ where
 
 	OmnipoolPallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
+	fund::<T>(acc.clone(), HDX.into(), 10_000 * ONE)?;
 	<T as pallet_omnipool::Config>::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 	<T as pallet_omnipool::Config>::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
@@ -115,9 +120,42 @@ where
 	)?;
 
 	// Register new asset in asset registry
-	T::AssetRegistry::create_asset(&b"BSX".to_vec(), Balance::one())?;
-	T::AssetRegistry::create_asset(&b"ETH".to_vec(), Balance::one())?;
-	T::AssetRegistry::create_asset(&b"BTC".to_vec(), Balance::one())?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(T::AssetRegistry::register_sufficient_asset(
+			None,
+			Some(b"BSX".as_ref()),
+			AssetKind::Token,
+			Balance::one(),
+			None,
+			None,
+			None,
+			None,
+		))
+	})?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(T::AssetRegistry::register_sufficient_asset(
+			None,
+			Some(b"ETH".as_ref()),
+			AssetKind::Token,
+			Balance::one(),
+			None,
+			None,
+			None,
+			None,
+		))
+	})?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(T::AssetRegistry::register_sufficient_asset(
+			None,
+			Some(b"BTC".as_ref()),
+			AssetKind::Token,
+			Balance::one(),
+			None,
+			None,
+			None,
+			None,
+		))
+	})?;
 
 	// Create account for token provider and set balance
 	let owner: T::AccountId = account("owner", 0, 1);
@@ -228,6 +266,7 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
 		<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
 		T: crate::pallet::Config + pallet_ema_oracle::Config + pallet_liquidity_mining::Config<Instance1>,
+		<T as pallet_omnipool::Config>::AssetRegistry: Create<Balance, Error=DispatchError, AssetId = <T as pallet_omnipool::Config>::AssetId>,
 	}
 
 	create_global_farm {

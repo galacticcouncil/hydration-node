@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-otc'
-version = '1.0.2'
+version = '1.1.0'
 description = 'A pallet for trustless over-the-counter trading'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -51,6 +51,7 @@ std = [
   "scale-info/std",
   "orml-tokens/std",
   "hydradx-traits/std",
+  "frame-benchmarking/std"
 ]
 
 runtime-benchmarks = [

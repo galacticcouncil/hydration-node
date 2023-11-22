@@ -27,7 +27,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Registry, AssetKind, AMM};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Inspect, AssetKind, AMM};
 use orml_traits::GetByKey;
 use sp_core::H256;
 use sp_runtime::{
@@ -293,7 +293,7 @@ impl Config<Instance1> for Test {
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type NonDustableWhitelistHandler = Whitelist;
-	type AssetRegistry = AssetRegistry;
+	type AssetRegistry = DummyRegistry;
 	type PriceAdjustment = DefaultPriceAdjustment;
 }
 
@@ -317,7 +317,7 @@ impl Config<Instance2> for Test {
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit2;
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type NonDustableWhitelistHandler = Whitelist;
-	type AssetRegistry = AssetRegistry;
+	type AssetRegistry = DummyRegistry;
 	type PriceAdjustment = DefaultPriceAdjustment;
 }
 
@@ -337,7 +337,7 @@ impl Config<Instance3> for Test {
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type NonDustableWhitelistHandler = Whitelist;
-	type AssetRegistry = AssetRegistry;
+	type AssetRegistry = DummyRegistry;
 	type PriceAdjustment = DummyOraclePriceAdjustment;
 }
 
@@ -365,7 +365,7 @@ impl orml_tokens::Config for Test {
 	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
-	type ExistentialDeposits = AssetRegistry;
+	type ExistentialDeposits = DummyRegistry;
 	type MaxLocks = MaxLocks;
 	type DustRemovalWhitelist = Whitelist;
 	type MaxReserves = ConstU32<100_000>;
@@ -429,31 +429,30 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	}
 }
 
-pub struct AssetRegistry;
+pub struct DummyRegistry;
 
-impl Registry<AssetId, Vec<u8>, Balance, DispatchError> for AssetRegistry {
-	fn exists(name: AssetId) -> bool {
-		name != UNKNOWN_ASSET
-	}
+impl Inspect for DummyRegistry {
+	type AssetId = AssetId;
+	type Location = u8;
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn retrieve_asset_type(_asset_id: AssetId) -> Result<AssetKind, DispatchError> {
+	fn is_sufficient(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
 	}
 
-	fn get_or_create_asset(_name: Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn exists(name: AssetId) -> bool {
+		name != UNKNOWN_ASSET
 	}
 }
 
-impl GetByKey<AssetId, Balance> for AssetRegistry {
+impl GetByKey<AssetId, Balance> for DummyRegistry {
 	fn get(_key: &AssetId) -> Balance {
 		1_000_u128
 	}

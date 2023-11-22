@@ -1,6 +1,6 @@
 [package]
 name = "pallet-liquidity-mining"
-version = "4.2.4"
+version = "4.3.0"
 description = "Liquidity mining"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -55,5 +55,7 @@ std = [
     "sp-runtime/std",
     "scale-info/std",
     "hydra-dx-math/std",
+    "pallet-balances/std",
+    "orml-tokens/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

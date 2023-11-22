@@ -933,7 +933,7 @@ impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsse
 			Some(asset_id),
 			Some(&asset_name),
 			AssetKind::Token,
-			Some(1),
+			1,
 			Some(&asset_name),
 			Some(decimals),
 			None,

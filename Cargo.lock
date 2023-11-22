@@ -3937,7 +3937,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.7.0"
+version = "3.0.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6389,7 +6389,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-bonds"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6600,7 +6600,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6940,7 +6940,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.2.4"
+version = "4.3.0"
 dependencies = [
  "fixed",
  "frame-support",
@@ -7120,7 +7120,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "3.2.3"
+version = "3.3.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7147,9 +7147,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.0.11"
+version = "2.1.0"
 dependencies = [
- "bitflags",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -7176,7 +7175,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7389,7 +7388,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.3.1"
+version = "3.4.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7781,7 +7780,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.3.0"
+version = "6.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

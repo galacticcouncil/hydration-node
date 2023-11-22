@@ -36,14 +36,11 @@
 use codec::MaxEncodedLen;
 use frame_support::{pallet_prelude::*, require_transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::Registry;
+use hydradx_traits::Inspect;
 use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
 use sp_core::U256;
-use sp_runtime::{
-	traits::{One, Zero},
-	DispatchError,
-};
-use sp_std::vec::Vec;
+use sp_runtime::traits::{One, Zero};
+
 #[cfg(test)]
 mod tests;
 
@@ -88,7 +85,7 @@ pub mod pallet {
 		type AssetId: Member + Parameter + Copy + HasCompact + MaybeSerializeDeserialize + MaxEncodedLen;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
-		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
+		type AssetRegistry: Inspect<AssetId = Self::AssetId>;
 
 		/// Named reservable multi currency
 		type Currency: NamedMultiReservableCurrency<

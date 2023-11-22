@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use crate as xyk;
-use crate::Config;
 use crate::*;
 use frame_support::parameter_types;
 use frame_system as system;
@@ -53,6 +52,8 @@ pub const ONE: Balance = 1_000_000_000_000;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
+
+type AssetLocation = u8;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -112,7 +113,7 @@ impl pallet_asset_registry::Config for Test {
 	type Currency = Currency;
 	type UpdateOrigin = EnsureSigned<u64>;
 	type AssetId = AssetId;
-	type AssetNativeLocation = u8;
+	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStringLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type StorageFeesAssetId = NativeAssetId;
@@ -199,7 +200,7 @@ impl CanCreatePool<AssetId> for Disallow10_10Pool {
 	}
 }
 
-impl Config for Test {
+impl xyk::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetRegistry = AssetRegistry;
 	type AssetPairAccountId = AssetPairAccountIdTest;

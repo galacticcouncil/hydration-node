@@ -27,7 +27,7 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureRoot;
-use hydradx_traits::{AssetKind, Registry};
+use hydradx_traits::{AssetKind, Inspect as InspectRegistry};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool;
@@ -538,30 +538,28 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: pallet_omnipool::Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: pallet_omnipool::Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
-	fn exists(asset_id: T::AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
-		matches!(asset, Some(_))
-	}
+	type AssetId = AssetId;
+	type Location = u8;
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
-	}
-
-	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
-		let assigned = REGISTERED_ASSETS.with(|v| {
-			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, l as u32);
-			l as u32
-		});
-		Ok(T::AssetId::from(assigned))
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn exists(asset_id: AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
+		matches!(asset, Some(_))
 	}
 }
 

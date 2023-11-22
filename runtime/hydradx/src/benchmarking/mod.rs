@@ -28,7 +28,7 @@ pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 			None,
 			Some(&name),
 			AssetKind::Token,
-			Some(deposit),
+			deposit,
 			None,
 			None,
 			None,

@@ -30,7 +30,7 @@ use frame_system::EnsureSignedBy;
 use sp_core::H256;
 use std::{cell::RefCell, collections::HashMap};
 
-use hydradx_traits::CreateRegistry;
+use hydradx_traits::registry::{Create, Inspect};
 use orml_traits::parameter_type_with_key;
 pub use primitives::constants::{
 	currency::NATIVE_EXISTENTIAL_DEPOSIT,
@@ -42,6 +42,8 @@ pub use primitives::constants::{
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
+
+type AssetLocation = u8;
 
 pub type AccountId = u64;
 pub type Balance = u128;
@@ -103,7 +105,7 @@ impl Contains<AssetKind> for AssetTypeWhitelist {
 	}
 }
 
-impl Config for Test {
+impl pallet_bonds::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Currency = Tokens;
@@ -172,40 +174,72 @@ impl pallet_timestamp::Config for Test {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> CreateRegistry<AssetId, Balance> for DummyRegistry<T> {
+impl<T: Config> Create<Balance> for DummyRegistry<T> {
 	type Error = DispatchError;
 
-	fn create_asset(_name: &[u8], _kind: AssetKind, existential_deposit: Balance) -> Result<AssetId, DispatchError> {
+	fn register_asset(
+		_asset_id: Option<Self::AssetId>,
+		_name: Option<&[u8]>,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<&[u8]>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		unimplemented!()
+	}
+
+	fn register_insufficient_asset(
+		_asset_id: Option<Self::AssetId>,
+		_name: Option<&[u8]>,
+		_kind: AssetKind,
+		existential_deposit: Option<Balance>,
+		_symbol: Option<&[u8]>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+	) -> Result<Self::AssetId, Self::Error> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, (existential_deposit, AssetKind::Bond));
+			v.borrow_mut()
+				.insert(l as u32, (existential_deposit.unwrap(), AssetKind::Bond));
 			l as u32
 		});
 		Ok(assigned)
 	}
+	fn get_or_register_asset(
+		_name: &[u8],
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<&[u8]>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		unimplemented!()
+	}
 }
 
-impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T> {
+impl<T: Config> Inspect for DummyRegistry<T> {
+	type AssetId = AssetId;
+	type Location = AssetLocation;
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn asset_type(id: Self::AssetId) -> Option<AssetKind> {
+		REGISTERED_ASSETS.with(|v| v.borrow().get(&id).cloned()).map(|v| v.1)
+	}
+
 	fn exists(_name: AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
-		unimplemented!()
-	}
-
-	fn retrieve_asset_type(asset_id: AssetId) -> Result<AssetKind, DispatchError> {
-		REGISTERED_ASSETS
-			.with(|v| v.borrow().get(&asset_id).cloned())
-			.map(|v| v.1)
-			.ok_or(DispatchError::Other("AssetNotFound"))
-	}
-
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
-		unimplemented!()
-	}
-
-	fn get_or_create_asset(_name: Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
 		unimplemented!()
 	}
 }

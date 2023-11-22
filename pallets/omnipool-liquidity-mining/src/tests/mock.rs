@@ -169,7 +169,7 @@ parameter_types! {
 	pub const OracleSource: Source = *b"omnipool";
 }
 
-impl Config for Test {
+impl omnipool_liquidity_mining::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Tokens;
 	type CreateOrigin = frame_system::EnsureRoot<AccountId>;
@@ -636,28 +636,55 @@ impl Transfer<AccountId> for DummyNFT {
 	}
 }
 
-use hydradx_traits::Registry;
+use hydradx_traits::Inspect as InspectRegistry;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
+	type AssetId = T::AssetId;
+	type Location = u8;
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
 	fn exists(asset_id: T::AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
 		matches!(asset, Some(_))
 	}
+}
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
-	}
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::Create as CreateRegistry;
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T>
+where
+	T::AssetId: Into<AssetId> + From<u32>,
+{
+	type Error = DispatchError;
 
-	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
-		unimplemented!()
-	}
-
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
+	fn register_asset(
+		_asset_id: Option<Self::AssetId>,
+		_name: Option<&[u8]>,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<&[u8]>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			//NOTE: This is to have same ids as real AssetRegistry which is used in the benchmarks.
 			//1_000_000 - offset of the reals AssetRegistry
@@ -669,6 +696,19 @@ where
 			l as u32
 		});
 		Ok(T::AssetId::from(assigned))
+	}
+
+	fn get_or_register_asset(
+		_name: &[u8],
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<&[u8]>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		unimplemented!()
 	}
 }
 

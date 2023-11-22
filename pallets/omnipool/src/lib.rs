@@ -79,7 +79,7 @@ use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
-use hydradx_traits::Registry;
+use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -145,7 +145,7 @@ pub mod pallet {
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
-		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
+		type AssetRegistry: RegistryInspect<AssetId = Self::AssetId>;
 
 		/// Native Asset ID
 		#[pallet::constant]
