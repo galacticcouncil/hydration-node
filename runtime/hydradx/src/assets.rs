@@ -18,6 +18,7 @@
 use super::*;
 use crate::system::NativeAssetId;
 
+use frame_support::traits::Defensive;
 use hydradx_adapters::{
 	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
 	OracleAssetVolumeProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
@@ -105,7 +106,7 @@ parameter_types! {
 
 pub struct SufficiencyCheck;
 impl SufficiencyCheck {
-	/// This function is used by `orml-toknes` `MutationHooks` before a transaction is executed.
+	/// This function is used by `orml-toknes::MutationHooks` before a transaction is executed.
 	/// It is called from `PreDeposit` and `PreTransfer`.
 	/// If transferred asset is not sufficient asset, it calculates ED amount in user's fee asset
 	/// and transfers it from user to treasury account.
@@ -242,7 +243,8 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 				NativeAssetId::get(),
 				&TreasuryAccount::get(),
 				to_lock,
-			);
+			)
+			.defensive();
 		}
 
 		let _ = <Currencies as MultiCurrency<AccountId>>::transfer(
@@ -346,7 +348,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureRoot<AccountId>;
 	type UpdateOrigin = SuperMajorityTechCommittee;
-	type Currency = Currencies;
+	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
 	type AssetId = AssetId;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
