@@ -155,10 +155,6 @@ pub mod pallet {
 		/// Balance too low.
 		InsufficientBalance,
 
-		//NOTE: This error is triggered from `SufficiencyCheck`.
-		/// Existential deposit can't be zero.
-		ZeroExistentialDeposit,
-
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
 		InconsistentState(InconsistentStateError),

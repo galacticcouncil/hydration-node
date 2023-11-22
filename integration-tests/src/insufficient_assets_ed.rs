@@ -532,15 +532,20 @@ fn sender_should_pay_ed_in_fee_asset_when_sending_insufficient_asset() {
 }
 
 #[test]
-fn grandfathered_account_should_receive_hdx_when_account_is_killed() {
-	//NOTE: this case simulates old account that received insufficient asset before sufficiency
-	//check and didn't pay ED.
-	//`GRANDFATHERED_UNPAID_ED` bypassed `SufficiencyCheck` by receiving tokens during chain state
-	//initialization.
-
+fn account_with_zero_sufficients_should_not_release_ed() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let dummy: AssetId = 1_000_001;
+
+		//NOTE: set balance baypass `MutationHooks` so Bob received insufficient asset without
+		//locking ED.
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			dummy,
+			100_000_000 * UNITS,
+			0,
+		));
 
 		assert_ok!(Tokens::deposit(dummy, &ALICE.into(), 1_000_000 * UNITS));
 		assert_eq!(
@@ -548,34 +553,30 @@ fn grandfathered_account_should_receive_hdx_when_account_is_killed() {
 			1_u128
 		);
 
-		let grandfathered_balance = Currencies::free_balance(HDX, &GRANDFATHERED_UNPAID_ED.into());
+		let bob_balance = Currencies::free_balance(HDX, &BOB.into());
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &TreasuryAccount::get());
 
-		let dummy_balance = Currencies::free_balance(dummy, &GRANDFATHERED_UNPAID_ED.into());
+		let dummy_balance = Currencies::free_balance(dummy, &BOB.into());
 		//Act
 		assert_ok!(Tokens::transfer(
-			hydra_origin::signed(GRANDFATHERED_UNPAID_ED.into()),
+			hydra_origin::signed(BOB.into()),
 			ALICE.into(),
 			dummy,
 			dummy_balance
 		));
 
 		//Assert
-		assert_eq!(
-			Currencies::free_balance(HDX, &GRANDFATHERED_UNPAID_ED.into()),
-			grandfathered_balance + InsufficientEDinHDX::get()
-		);
+		assert_eq!(Currencies::free_balance(HDX, &BOB.into()), bob_balance);
 
 		assert_eq!(
 			Currencies::free_balance(HDX, &TreasuryAccount::get()),
-			treasury_hdx_balance - InsufficientEDinHDX::get()
+			treasury_hdx_balance
 		);
 
-		//NOTE: this is zero because Alice paid ED and it was paid to grandfathered
-		assert_eq!(treasury_sufficiency_lock(), 0);
+		assert_eq!(treasury_sufficiency_lock(), InsufficientEDinHDX::get());
 		assert_eq!(
 			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),
-			0_u128
+			1_u128
 		);
 
 		assert_event_times!(
@@ -1259,7 +1260,7 @@ fn ed_should_be_released_when_whitelisted_account_was_killed() {
 		assert_eq!(MultiTransactionPayment::account_currency(&treasury), HDX);
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &treasury);
 
-		//NOTE: set_balance bypass mutation hooks so none was paid.
+		//NOTE: set_balance bypass mutation hooks so only Bob paid ED for Treasury.
 		assert_eq!(treasury_sufficiency_lock(), InsufficientEDinHDX::get());
 		assert_eq!(
 			pallet_asset_registry::pallet::ExistentialDepositCounter::<hydradx_runtime::Runtime>::get(),

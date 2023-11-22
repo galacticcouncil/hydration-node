@@ -47,7 +47,7 @@ use sp_runtime::{traits::Zero, DispatchResult, FixedPointNumber};
 
 use core::ops::RangeInclusive;
 use frame_support::{
-	ensure, parameter_types,
+	parameter_types,
 	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
@@ -144,13 +144,8 @@ impl SufficiencyCheck {
 
 			let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)
 				.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
-				.saturating_mul_int(InsufficientEDinHDX::get());
-
-			//NOTE: Not tested, this should never happen.
-			ensure!(
-				!ed_in_fee_asset.is_zero(),
-				pallet_asset_registry::Error::<Runtime>::ZeroExistentialDeposit
-			);
+				.saturating_mul_int(InsufficientEDinHDX::get())
+				.max(1);
 
 			//NOTE: Account doesn't have enough funds to pay ED if this fail.
 			<Currencies as MultiCurrency<AccountId>>::transfer(
@@ -175,7 +170,7 @@ impl SufficiencyCheck {
 				to_lock,
 			)?;
 
-			frame_system::Pallet::<Runtime>::inc_sufficients(paying_account);
+			frame_system::Pallet::<Runtime>::inc_sufficients(to);
 
 			pallet_asset_registry::ExistentialDepositCounter::<Runtime>::mutate(|v| *v = v.saturating_add(1));
 
@@ -213,7 +208,7 @@ impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
 pub struct OnKilledTokenAccount;
 impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 	fn happened((who, asset): &(AccountId, AssetId)) {
-		if AssetRegistry::is_sufficient(*asset) {
+		if AssetRegistry::is_sufficient(*asset) || frame_system::Pallet::<Runtime>::account(who).sufficients.is_zero() {
 			return;
 		}
 
@@ -254,13 +249,7 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			ed_to_refund,
 		);
 
-		//NOTE: This is necessary because grandfathered accounts doesn't have incremented
-		//sufficients by `SufficiencyCheck` so without check it can overflow.
-		//`set_balance` also bypass `MutationHooks`
-		if frame_system::Pallet::<Runtime>::account(who).sufficients > 0 {
-			frame_system::Pallet::<Runtime>::dec_sufficients(who);
-		}
-
+		frame_system::Pallet::<Runtime>::dec_sufficients(who);
 		pallet_asset_registry::ExistentialDepositCounter::<Runtime>::set(paid_accounts.saturating_sub(1));
 	}
 }

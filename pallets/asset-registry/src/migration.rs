@@ -98,13 +98,17 @@ pub mod v2 {
 			"Migrating Assets storage"
 		);
 
-		let mut i = 0;
+		let mut reads = 0;
+		let mut writes = 0;
+
 		let mut v2_assets_details = Vec::<(
 			<T as crate::Config>::AssetId,
 			AssetDetails<<T as crate::Config>::StringLimit>,
 		)>::new();
+
+		let mut assets_count = 0;
 		for (k, v) in v1::Assets::<T>::iter() {
-			i += 1;
+			assets_count += 1;
 			let (symbol, decimals) = if let Some(meta) = v1::AssetMetadataMap::<T>::get(k) {
 				(Some(meta.symbol), Some(meta.decimals))
 			} else {
@@ -125,9 +129,13 @@ pub mod v2 {
 				},
 			));
 		}
+		reads += assets_count;
+
+		let _ = v1::Assets::<T>::clear(u32::MAX, None);
+		writes += assets_count;
 
 		for (k, v) in v2_assets_details {
-			i += 1;
+			writes += 1;
 			Assets::<T>::insert(k, v);
 			log::info!(
 				target: "runtime::asset-registry",
@@ -136,8 +144,8 @@ pub mod v2 {
 		}
 
 		//This assumes every asset has metadata and each metadata is touched.
-		i += i;
 		let _ = v1::AssetMetadataMap::<T>::clear(u32::MAX, None);
+		writes += assets_count;
 
 		log::info!(
 			target: "runtime::asset-registry",
@@ -145,7 +153,8 @@ pub mod v2 {
 		);
 
 		for k in v1::AssetLocations::<T>::iter_keys() {
-			i += 1;
+			reads += 1;
+			writes += 1;
 
 			AssetLocations::<T>::migrate_key::<Twox64Concat, <T as crate::Config>::AssetId>(k);
 
@@ -156,7 +165,7 @@ pub mod v2 {
 		}
 
 		StorageVersion::new(2).put::<Pallet<T>>();
-		T::DbWeight::get().reads_writes(i, i)
+		T::DbWeight::get().reads_writes(reads, writes)
 	}
 
 	pub fn post_migrate<T: Config>() {

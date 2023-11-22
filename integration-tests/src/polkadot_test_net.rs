@@ -24,8 +24,6 @@ pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
 pub const CHARLIE: [u8; 32] = [6u8; 32];
 pub const DAVE: [u8; 32] = [7u8; 32];
-//This account received insufficient asset before sufficiency check.
-pub const GRANDFATHERED_UNPAID_ED: [u8; 32] = [8u8; 32];
 
 pub const UNITS: Balance = 1_000_000_000_000;
 
@@ -267,8 +265,6 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(omnipool_account.clone(), ETH, eth_amount),
 			(omnipool_account.clone(), BTC, btc_amount),
 			(omnipool_account, DOT, dot_amount),
-			//Special account for insufficient assets ED tests
-			(AccountId::from(GRANDFATHERED_UNPAID_ED), 1_000_001, 1_000 * UNITS),
 		],
 	}
 	.assimilate_storage(&mut t)
