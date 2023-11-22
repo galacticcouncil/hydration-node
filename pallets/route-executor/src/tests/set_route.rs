@@ -185,7 +185,7 @@ fn set_route_should_not_override_when_only_normal_sell_price_is_better() {
 
 		assert_noop!(
 			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
-			Error::<Test>::RouteUpdateIsNotSuccessful
+			Error::<Test>::RouteUpdateIsNotSuccessful,
 		);
 
 		//Act and Assert
@@ -408,5 +408,30 @@ fn set_route_should_fail_when_trying_to_override_with_invalid_route() {
 
 		let stored_route = Router::get_route(asset_pair);
 		assert_eq!(stored_route, default_omnipool_route());
+	});
+}
+
+#[test]
+fn set_route_should_not_work_when_readded_the_same() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = AssetPair::new(HDX, AUSD);
+		let route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: AUSD,
+		}];
+
+		//Act
+		assert_ok!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Pays::No.into()
+		);
+
+		//Assert
+		assert_noop!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Error::<Test>::RouteUpdateIsNotSuccessful
+		);
 	});
 }
