@@ -362,7 +362,7 @@ pub mod pallet {
 
 			match Self::validate_route(&existing_route) {
 				Ok(reference_amount_in) => {
-					Self::validate_sell(route.clone(), reference_amount_in).map_err(|_| Error::<T>::InvalidRoute)?;
+					Self::validate_sell(route.clone(), reference_amount_in)?;
 
 					let amount_out_for_existing_route =
 						Self::calculate_expected_amount_out(&existing_route, reference_amount_in)?;
@@ -460,7 +460,7 @@ impl<T: Config> Pallet<T> {
 
 	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
 		let reference_amount_in = Self::calculate_reference_amount_in(route)?;
-		Self::validate_sell(route.to_vec(), reference_amount_in).map_err(|_| Error::<T>::InvalidRoute)?;
+		Self::validate_sell(route.to_vec(), reference_amount_in)?;
 
 		Ok(reference_amount_in)
 	}
@@ -501,6 +501,7 @@ impl<T: Config> Pallet<T> {
 
 			TransactionOutcome::Rollback(sell_result)
 		})
+		.map_err(|_| Error::<T>::InvalidRoute.into())
 	}
 
 	fn calculate_expected_amount_out(
