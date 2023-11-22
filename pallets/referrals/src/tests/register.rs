@@ -1,5 +1,6 @@
 use crate::tests::*;
 use pretty_assertions::assert_eq;
+use sp_runtime::traits::Zero;
 
 #[test]
 fn register_code_should_work_when_code_is_max_length() {
@@ -167,5 +168,22 @@ fn singer_should_pay_the_registration_fee() {
 		let (fee_asset, amount, beneficiary) = RegistrationFee::get();
 		assert_balance!(ALICE, fee_asset, INITIAL_ALICE_BALANCE - amount);
 		assert_balance!(beneficiary, fee_asset, amount);
+	});
+}
+
+#[test]
+fn singer_should_set_default_level_for_referrer() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let code = b"BALLS69".to_vec();
+		// Act
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE),
+			code.clone(),
+			BOB
+		));
+		// Assert
+		let entry = Pallet::<Test>::referrer_level(BOB);
+		assert_eq!(entry, Some((Level::default(), Balance::zero())));
 	});
 }

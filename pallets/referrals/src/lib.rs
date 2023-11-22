@@ -24,10 +24,13 @@ mod weights;
 mod tests;
 pub mod traits;
 
+use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{DispatchResult, Get};
+use frame_support::RuntimeDebug;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use sp_core::bounded::BoundedVec;
 use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::Permill;
 
 pub use pallet::*;
 
@@ -38,6 +41,26 @@ pub type ReferralCode<S> = BoundedVec<u8, S>;
 
 const MIN_CODE_LENGTH: usize = 3;
 
+use scale_info::TypeInfo;
+
+#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum Level {
+	#[default]
+	Novice,
+	Advanced,
+	Expert,
+}
+
+#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct Tier {
+	/// Percentage of the fee that goes to the referrer.
+	referrer: Permill,
+	/// Percentage of the fee that goes back to the trader.
+	trader: Permill,
+	/// Amount of accumulated rewards to unlock next tier. If None, this is the last tier.
+	next_tier: Option<Balance>,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -46,6 +69,7 @@ pub mod pallet {
 	use frame_support::sp_runtime::ArithmeticError;
 	use frame_support::traits::fungibles::{Inspect, Transfer};
 	use frame_support::PalletId;
+	use sp_runtime::traits::Zero;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
@@ -111,6 +135,20 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn account_rewards)]
 	pub(super) type Rewards<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+
+	/// Referer level and total accumulated rewards over time.
+	/// Maps referrer account to (Level, Balance). Level indicates current reward tier and Balance is used to unlock next tier level.
+	/// Dev note: we use OptionQuery here because this helps to easily determine that an account if referrer account.
+	#[pallet::storage]
+	#[pallet::getter(fn referrer_level)]
+	pub(super) type Referrer<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (Level, Balance), OptionQuery>;
+
+	///
+	///
+	#[pallet::storage]
+	#[pallet::getter(fn asset_tier)]
+	pub(super) type AssetTier<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, Level, Tier, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -195,6 +233,7 @@ pub mod pallet {
 				T::Currency::transfer(fee_asset, &who, &beneficiary, fee_amount, true)?;
 
 				*v = Some(account.clone());
+				Referrer::<T>::insert(&account, (Level::default(), Balance::zero()));
 				Self::deposit_event(Event::CodeRegistered { code, account });
 				Ok(())
 			})
@@ -256,8 +295,18 @@ pub mod pallet {
 				// rewarded = price * account balance
 				let reward_amount = (total_reward_amount * amount) / asset_balance; // TODO: U256 and safe math please!
 
-				Rewards::<T>::try_mutate(account, |v| -> DispatchResult {
+				Rewards::<T>::try_mutate(account.clone(), |v| -> DispatchResult {
 					*v = v.checked_add(reward_amount).ok_or(ArithmeticError::Overflow)?;
+
+					Referrer::<T>::mutate(account, |d| {
+						// You might ask why do we need to have an OptionQuery here? it would be simpler to just have value query and update the account
+						// However, in Rewards, not all accounts are necessarily Referrer accounts.
+						// We heep there trader account which earn back some percentage of the fee. And for those, no levels!
+						if let Some((level, total)) = d {
+							*total = total.saturating_add(reward_amount);
+							// TODO: update level ?
+						}
+					});
 					Ok(())
 				})?;
 				rewarded = rewarded.saturating_add(reward_amount);
@@ -266,6 +315,7 @@ pub mod pallet {
 			// Should not really happy, but let's be safe and ensure that we have not distributed more than allowed.
 			ensure!(rewarded <= total_reward_amount, Error::<T>::IncorrectRewardDistribution);
 
+			// Due to rounding, there can be something left, let's just transfer it to treasury.
 			let remainder = total_reward_amount.saturating_sub(rewarded);
 			if remainder > 0 {
 				T::Currency::transfer(

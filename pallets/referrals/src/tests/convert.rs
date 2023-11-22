@@ -164,3 +164,148 @@ fn convert_should_have_correct_reward_balance() {
 			assert_eq!(reserve, distributed);
 		});
 }
+
+#[test]
+fn convert_should_update_total_accumulated_rewards_for_referrer() {
+	ExtBuilder::default()
+		.with_conversion_price(
+			(HDX, DAI),
+			FixedU128::from_rational(1_333_333_333_333, 1_333_333_333_333_333_333),
+		)
+		.with_trade_activity(vec![
+			(BOB, DAI, 1_333_333_333_333_333_333),
+			(CHARLIE, DAI, 2_333_333_333_333_333_333),
+		])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			let code = b"BALLS69".to_vec();
+			// Act
+			assert_ok!(Referrals::register_code(
+				RuntimeOrigin::signed(ALICE),
+				code.clone(),
+				BOB
+			));
+			// Act
+			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI));
+			// Assert
+			let (_, total_rewards) = Referrer::<Test>::get(&BOB).unwrap();
+			assert_eq!(total_rewards, 1_333_333_333_333);
+		});
+}
+
+#[test]
+fn convert_should_update_referrer_level_when_next_tier_is_reached() {
+	ExtBuilder::default()
+		.with_conversion_price(
+			(HDX, DAI),
+			FixedU128::from_rational(1_333_333_333_333, 1_333_333_333_333_333_333),
+		)
+		.with_trade_activity(vec![
+			(BOB, DAI, 1_333_333_333_333_333_333),
+			(CHARLIE, DAI, 2_333_333_333_333_333_333),
+		])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			let code = b"BALLS69".to_vec();
+			// Act
+			assert_ok!(Referrals::register_code(
+				RuntimeOrigin::signed(ALICE),
+				code.clone(),
+				BOB
+			));
+			// Act
+			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI));
+			// Assert
+			let (level, total_rewards) = Referrer::<Test>::get(&BOB).unwrap();
+			assert_eq!(total_rewards, 1_333_333_333_333);
+			assert_eq!(level, Level::Advanced);
+		});
+}
+
+#[test]
+fn convert_should_update_referrer_level_to_top_one_when_next_tier_is_reached_and_when_one_level_has_to_be_skipper() {
+	ExtBuilder::default()
+		.with_conversion_price(
+			(HDX, DAI),
+			FixedU128::from_rational(1_333_333_333_333, 1_333_333_333_333_333_333),
+		)
+		.with_trade_activity(vec![
+			(BOB, DAI, 1_333_333_333_333_333_333),
+			(CHARLIE, DAI, 2_333_333_333_333_333_333),
+		])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			let code = b"BALLS69".to_vec();
+			// Act
+			assert_ok!(Referrals::register_code(
+				RuntimeOrigin::signed(ALICE),
+				code.clone(),
+				BOB
+			));
+			// Act
+			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI));
+			// Assert
+			let (level, total_rewards) = Referrer::<Test>::get(&BOB).unwrap();
+			assert_eq!(total_rewards, 1_333_333_333_333);
+			assert_eq!(level, Level::Expert);
+		});
+}
+
+#[test]
+fn convert_should_only_update_total_amount_when_top_tier_is_reached() {
+	ExtBuilder::default()
+		.with_conversion_price(
+			(HDX, DAI),
+			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
+		)
+		.with_conversion_price(
+			(HDX, DOT),
+			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
+		)
+		.with_trade_activity(vec![
+			(BOB, DAI, 1_333_333_333_333_333_333),
+			(BOB, DOT, 2_333_333_333_333_333_333),
+		])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			let code = b"BALLS69".to_vec();
+			// Act
+			assert_ok!(Referrals::register_code(
+				RuntimeOrigin::signed(ALICE),
+				code.clone(),
+				BOB
+			));
+			// Act
+			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI));
+			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DOT));
+			// Assert
+			let (level, total_rewards) = Referrer::<Test>::get(&BOB).unwrap();
+			assert_eq!(total_rewards, 3_666_666_666_666);
+			assert_eq!(level, Level::Expert);
+		});
+}
+
+#[test]
+fn convert_should_not_update_total_rewards_when_account_is_not_referral_account() {
+	ExtBuilder::default()
+		.with_conversion_price(
+			(HDX, DAI),
+			FixedU128::from_rational(1_333_333_333_333, 1_333_333_333_333_333_333),
+		)
+		.with_trade_activity(vec![
+			(BOB, DAI, 1_333_333_333_333_333_333),
+			(CHARLIE, DAI, 2_333_333_333_333_333_333),
+		])
+		.build()
+		.execute_with(|| {
+			// Act
+			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI));
+			// Assert
+			let entry = Referrer::<Test>::get(&BOB);
+			assert_eq!(entry, None);
+		});
+}
