@@ -27,11 +27,6 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		weight = weight.saturating_add(orml_unknown_tokens::Migration::<Runtime>::on_runtime_upgrade());
 		log::info!("Migrate Unknown Tokens Pallet to v2 end");
 
-		log::info!("Migrate XCM Pallet to v1 start");
-		weight = weight
-			.saturating_add(pallet_xcm::migration::v1::VersionUncheckedMigrateToV1::<Runtime>::on_runtime_upgrade());
-		log::info!("Migrate XCM Pallet to v1 end");
-
 		let evm_id: u64 = 222_222u64;
 		ChainId::<Runtime>::put(evm_id);
 		weight = weight.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().reads_writes(0, 1));

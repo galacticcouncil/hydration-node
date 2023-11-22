@@ -179,7 +179,7 @@ The `try-runtime` tool can be used to test storage migrations and runtime upgrad
 Run the following command to test against the state on HydraDX.
 Don't forget to use a runtime built with `try-runtime` feature.
 ```bash
-try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks all live --uri --uri wss://rpc.hydradx.cloud:443
+try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks all live --uri wss://rpc.hydradx.cloud:443
 ```
 or against HydraDX testnet on Rococo using `--uri wss://rococo-hydradx-rpc.hydration.dev:443`
 
