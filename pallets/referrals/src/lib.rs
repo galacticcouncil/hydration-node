@@ -28,6 +28,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::RuntimeDebug;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use orml_traits::GetByKey;
 use sp_core::bounded::BoundedVec;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Permill;
@@ -43,12 +44,22 @@ const MIN_CODE_LENGTH: usize = 3;
 
 use scale_info::TypeInfo;
 
-#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Hash, Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Level {
 	#[default]
 	Novice,
 	Advanced,
 	Expert,
+}
+
+impl Level {
+	pub fn next_level(&self) -> Self {
+		match self {
+			Self::Novice => Self::Advanced,
+			Self::Advanced => Self::Expert,
+			Self::Expert => Self::Expert,
+		}
+	}
 }
 
 #[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -57,8 +68,6 @@ pub struct Tier {
 	referrer: Permill,
 	/// Percentage of the fee that goes back to the trader.
 	trader: Permill,
-	/// Amount of accumulated rewards to unlock next tier. If None, this is the last tier.
-	next_tier: Option<Balance>,
 }
 
 #[frame_support::pallet]
@@ -105,6 +114,9 @@ pub mod pallet {
 		/// Maximum referral code length.
 		#[pallet::constant]
 		type CodeLength: Get<u32>;
+
+		/// Volume needed to next tier. If None returned, it is the last tier.
+		type TierVolume: GetByKey<Level, Option<Balance>>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -304,7 +316,20 @@ pub mod pallet {
 						// We heep there trader account which earn back some percentage of the fee. And for those, no levels!
 						if let Some((level, total)) = d {
 							*total = total.saturating_add(reward_amount);
-							// TODO: update level ?
+
+							let next_tier = T::TierVolume::get(&level);
+							if let Some(amount_needed) = next_tier {
+								if *total >= amount_needed {
+									*level = level.next_level();
+									// let's check if we can skip two levels
+									let next_tier = T::TierVolume::get(&level);
+									if let Some(amount_needed) = next_tier {
+										if *total >= amount_needed {
+											*level = level.next_level();
+										}
+									}
+								}
+							}
 						}
 					});
 					Ok(())

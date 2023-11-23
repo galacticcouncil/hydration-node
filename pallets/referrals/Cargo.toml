@@ -33,6 +33,7 @@ frame-system = { workspace = true }
 #frame-benchmarking = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
 pallet-timestamp = { workspace = true, optional = true }
+orml-traits = { workspace = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
@@ -40,7 +41,6 @@ sp-tracing = { workspace = true }
 #frame-benchmarking = { workspace = true }
 pretty_assertions = "1.2.1"
 orml-tokens = { workspace = true }
-orml-traits = { workspace = true }
 
 [features]
 default = ["std"]

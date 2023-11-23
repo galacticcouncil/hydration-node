@@ -23,8 +23,9 @@ mod register;
 use crate as pallet_referrals;
 use crate::*;
 
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
+use std::mem;
 
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -64,6 +65,7 @@ pub(crate) const INITIAL_ALICE_BALANCE: Balance = 1_000 * ONE;
 
 thread_local! {
 	pub static CONVERSION_RATE: RefCell<HashMap<(AssetId,AssetId), FixedU128>> = RefCell::new(HashMap::default());
+	pub static TIER_VOLUME: RefCell<HashMap<Level, Option<Balance>>> = RefCell::new(HashMap::default());
 }
 
 construct_runtime!(
@@ -85,6 +87,14 @@ parameter_types! {
 	pub const RewardAsset: AssetId = HDX;
 }
 
+pub struct Volume;
+
+impl GetByKey<Level, Option<Balance>> for Volume {
+	fn get(level: &Level) -> Option<Balance> {
+		TIER_VOLUME.with(|v| v.borrow().get(level).copied()).unwrap_or_default()
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -94,6 +104,7 @@ impl Config for Test {
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = CodeLength;
+	type TierVolume = Volume;
 	type WeightInfo = ();
 }
 
@@ -163,6 +174,8 @@ impl Default for ExtBuilder {
 	}
 }
 
+use std::borrow::BorrowMut;
+
 impl ExtBuilder {
 	pub fn with_trade_activity(mut self, trades: Vec<(AccountId, AssetId, Balance)>) -> Self {
 		self.trades.extend(trades);
@@ -178,6 +191,13 @@ impl ExtBuilder {
 		CONVERSION_RATE.with(|v| {
 			let mut m = v.borrow_mut();
 			m.insert(pair, price);
+		});
+		self
+	}
+
+	pub fn with_tier_volumes(self, volumes: HashMap<Level, Option<Balance>>) -> Self {
+		TIER_VOLUME.with(|v| {
+			v.swap(&RefCell::new(volumes));
 		});
 		self
 	}

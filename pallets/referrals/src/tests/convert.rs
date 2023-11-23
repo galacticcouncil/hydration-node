@@ -196,6 +196,11 @@ fn convert_should_update_total_accumulated_rewards_for_referrer() {
 
 #[test]
 fn convert_should_update_referrer_level_when_next_tier_is_reached() {
+	let mut volumes: HashMap<Level, Option<Balance>> = HashMap::new();
+	volumes.insert(Level::Novice, Some(1_000_000_000_000));
+	volumes.insert(Level::Advanced, Some(2_000_000_000_000));
+	volumes.insert(Level::Expert, None);
+
 	ExtBuilder::default()
 		.with_conversion_price(
 			(HDX, DAI),
@@ -205,6 +210,7 @@ fn convert_should_update_referrer_level_when_next_tier_is_reached() {
 			(BOB, DAI, 1_333_333_333_333_333_333),
 			(CHARLIE, DAI, 2_333_333_333_333_333_333),
 		])
+		.with_tier_volumes(volumes)
 		.build()
 		.execute_with(|| {
 			// Arrange
@@ -226,15 +232,18 @@ fn convert_should_update_referrer_level_when_next_tier_is_reached() {
 
 #[test]
 fn convert_should_update_referrer_level_to_top_one_when_next_tier_is_reached_and_when_one_level_has_to_be_skipper() {
+	let mut volumes: HashMap<Level, Option<Balance>> = HashMap::new();
+	volumes.insert(Level::Novice, Some(1_000_000_000_000));
+	volumes.insert(Level::Advanced, Some(2_000_000_000_000));
+	volumes.insert(Level::Expert, None);
+
 	ExtBuilder::default()
 		.with_conversion_price(
 			(HDX, DAI),
-			FixedU128::from_rational(1_333_333_333_333, 1_333_333_333_333_333_333),
+			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
 		)
-		.with_trade_activity(vec![
-			(BOB, DAI, 1_333_333_333_333_333_333),
-			(CHARLIE, DAI, 2_333_333_333_333_333_333),
-		])
+		.with_trade_activity(vec![(BOB, DAI, 2_333_333_333_333_333_333)])
+		.with_tier_volumes(volumes)
 		.build()
 		.execute_with(|| {
 			// Arrange
@@ -249,13 +258,18 @@ fn convert_should_update_referrer_level_to_top_one_when_next_tier_is_reached_and
 			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI));
 			// Assert
 			let (level, total_rewards) = Referrer::<Test>::get(&BOB).unwrap();
-			assert_eq!(total_rewards, 1_333_333_333_333);
+			assert_eq!(total_rewards, 2_333_333_333_333);
 			assert_eq!(level, Level::Expert);
 		});
 }
 
 #[test]
 fn convert_should_only_update_total_amount_when_top_tier_is_reached() {
+	let mut volumes: HashMap<Level, Option<Balance>> = HashMap::new();
+	volumes.insert(Level::Novice, Some(1_000_000_000_000));
+	volumes.insert(Level::Advanced, Some(2_000_000_000_000));
+	volumes.insert(Level::Expert, None);
+
 	ExtBuilder::default()
 		.with_conversion_price(
 			(HDX, DAI),
@@ -265,10 +279,16 @@ fn convert_should_only_update_total_amount_when_top_tier_is_reached() {
 			(HDX, DOT),
 			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
 		)
+		.with_conversion_price(
+			(HDX, 1234),
+			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
+		)
 		.with_trade_activity(vec![
 			(BOB, DAI, 1_333_333_333_333_333_333),
 			(BOB, DOT, 2_333_333_333_333_333_333),
+			(BOB, 1234, 1_000_000_000_000_000_000),
 		])
+		.with_tier_volumes(volumes)
 		.build()
 		.execute_with(|| {
 			// Arrange
@@ -282,9 +302,10 @@ fn convert_should_only_update_total_amount_when_top_tier_is_reached() {
 			// Act
 			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI));
 			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DOT));
+			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), 1234));
 			// Assert
 			let (level, total_rewards) = Referrer::<Test>::get(&BOB).unwrap();
-			assert_eq!(total_rewards, 3_666_666_666_666);
+			assert_eq!(total_rewards, 4_666_666_666_666);
 			assert_eq!(level, Level::Expert);
 		});
 }
