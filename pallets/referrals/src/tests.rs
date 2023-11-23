@@ -23,9 +23,8 @@ mod register;
 use crate as pallet_referrals;
 use crate::*;
 
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::mem;
 
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -173,8 +172,6 @@ impl Default for ExtBuilder {
 		}
 	}
 }
-
-use std::borrow::BorrowMut;
 
 impl ExtBuilder {
 	pub fn with_trade_activity(mut self, trades: Vec<(AccountId, AssetId, Balance)>) -> Self {
