@@ -317,12 +317,12 @@ pub mod pallet {
 						if let Some((level, total)) = d {
 							*total = total.saturating_add(reward_amount);
 
-							let next_tier = T::TierVolume::get(&level);
+							let next_tier = T::TierVolume::get(level);
 							if let Some(amount_needed) = next_tier {
 								if *total >= amount_needed {
 									*level = level.next_level();
 									// let's check if we can skip two levels
-									let next_tier = T::TierVolume::get(&level);
+									let next_tier = T::TierVolume::get(level);
 									if let Some(amount_needed) = next_tier {
 										if *total >= amount_needed {
 											*level = level.next_level();
