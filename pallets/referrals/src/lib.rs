@@ -26,12 +26,13 @@ pub mod traits;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::RuntimeDebug;
+use frame_support::traits::fungibles::Transfer;
+use frame_support::{transactional, RuntimeDebug};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use orml_traits::GetByKey;
 use sp_core::bounded::BoundedVec;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::Permill;
+use sp_runtime::{DispatchError, Permill};
 
 pub use pallet::*;
 
@@ -389,5 +390,50 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn normalize_code(code: ReferralCode<T::CodeLength>) -> ReferralCode<T::CodeLength> {
 		let r = code.into_inner().iter().map(|v| v.to_ascii_uppercase()).collect();
 		ReferralCode::<T::CodeLength>::truncate_from(r)
+	}
+
+	/// Process trader fee
+	/// `source`: account to take the fee from
+	/// `trader`: account that does the trade
+	///
+	/// Returns unused amount on success.
+	#[transactional]
+	pub fn process_trade_fee(
+		source: T::AccountId,
+		trader: T::AccountId,
+		asset_id: T::AssetId,
+		amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		// Does trader have a linked referral account ?
+		let Some(ref_account) = Self::linked_referral_account(&trader) else {
+			return Ok(amount);
+		};
+		// What is the referer level?
+		let Some((level,_)) = Self::referrer_level(&ref_account) else {
+			// Should not really happen, the ref entry should be always there.
+			return Ok(amount);
+		};
+
+		// What is asset fee for this level? if any.
+		let Some(tier) = Self::asset_tier(&asset_id, &level) else {
+			return Ok(amount);
+		};
+
+		// TODO: question: percentage from the total amount for both ? or trader takes percentage of the referrer_reward ?
+		let referrer_reward = tier.referrer.mul_floor(amount);
+		let trader_reward = tier.trader.mul_floor(amount);
+
+		let total_taken = referrer_reward.saturating_add(trader_reward);
+		T::Currency::transfer(asset_id, &source, &Self::pot_account_id(), total_taken, true)?;
+
+		// Update each accrued rewards
+		Accrued::<T>::mutate(asset_id, ref_account, |v| {
+			*v = v.saturating_add(referrer_reward);
+		});
+		Accrued::<T>::mutate(asset_id, trader, |v| {
+			*v = v.saturating_add(trader_reward);
+		});
+
+		Ok(amount.saturating_sub(total_taken))
 	}
 }
