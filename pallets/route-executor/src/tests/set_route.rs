@@ -430,7 +430,7 @@ fn set_route_should_not_work_when_readded_the_same() {
 
 		//Assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 	});
