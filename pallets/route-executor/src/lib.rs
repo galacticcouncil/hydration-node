@@ -361,7 +361,7 @@ pub mod pallet {
 			let existing_route = Self::get_route(asset_pair);
 
 			match Self::validate_route(&existing_route) {
-				Ok(reference_amount_in) => {
+				Ok((reference_amount_in, reference_amount_in_for_inverse)) => {
 					let inverse_new_route = inverse_route(new_route.to_vec());
 					let inverse_existing_route = inverse_route(existing_route.to_vec());
 
@@ -373,7 +373,6 @@ pub mod pallet {
 					let amount_out_for_new_route =
 						Self::calculate_expected_amount_out(&new_route, reference_amount_in)?;
 
-					let reference_amount_in_for_inverse = Self::calculate_reference_amount_in(&inverse_existing_route)?;
 					let amount_out_for_existing_inversed_route =
 						Self::calculate_expected_amount_out(&inverse_existing_route, reference_amount_in_for_inverse)?;
 					let amount_out_for_new_inversed_route =
@@ -460,7 +459,7 @@ impl<T: Config> Pallet<T> {
 		Ok(route)
 	}
 
-	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
+	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<(T::Balance, T::Balance), DispatchError> {
 		let reference_amount_in = Self::calculate_reference_amount_in(route)?;
 		Self::validate_sell(route.to_vec(), reference_amount_in)?;
 
@@ -468,7 +467,7 @@ impl<T: Config> Pallet<T> {
 		let reference_amount_in_for_inverse_route = Self::calculate_reference_amount_in(&inverse_route)?;
 		Self::validate_sell(inverse_route, reference_amount_in_for_inverse_route)?;
 
-		Ok(reference_amount_in)
+		Ok((reference_amount_in, reference_amount_in_for_inverse_route))
 	}
 
 	fn calculate_reference_amount_in(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
