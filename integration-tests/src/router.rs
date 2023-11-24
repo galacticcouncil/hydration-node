@@ -2839,6 +2839,48 @@ mod set_route {
 			));
 		});
 	}
+
+	#[test]
+	fn set_route_should_not_work_when_setting_default_omni_route_again() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool();
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				DOT,
+				1000 * UNITS as i128,
+			));
+
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(1, 2),
+				Permill::from_percent(1),
+				AccountId::from(BOB),
+			));
+
+			let route1 = vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: DOT,
+			}];
+
+			let asset_pair = Pair::new(HDX, DOT);
+
+			assert_noop!(
+				Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					route1.clone()
+				),
+				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
+			);
+		});
+	}
 }
 
 mod with_on_chain_and_default_route {
