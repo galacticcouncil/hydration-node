@@ -334,43 +334,44 @@ pub mod pallet {
 		/// Fails with `RouteUpdateIsNotSuccessful` error when failed to set the route
 		///
 		#[pallet::call_index(2)]
-		#[pallet::weight(T::WeightInfo::set_route_weight(route))]
+		#[pallet::weight(T::WeightInfo::set_route_weight(new_route))]
 		#[transactional]
 		pub fn set_route(
 			origin: OriginFor<T>,
 			mut asset_pair: AssetPair<T::AssetId>,
-			mut route: Vec<Trade<T::AssetId>>,
+			mut new_route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin.clone())?;
-			Self::ensure_route_size(route.len())?;
+			Self::ensure_route_size(new_route.len())?;
 
 			ensure!(
-				asset_pair.asset_in == route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
+				asset_pair.asset_in == new_route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
 				Error::<T>::InvalidRoute
 			);
 			ensure!(
-				asset_pair.asset_out == route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
+				asset_pair.asset_out == new_route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
 				Error::<T>::InvalidRoute
 			);
 
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();
-				route = inverse_route(route)
+				new_route = inverse_route(new_route)
 			}
 
 			let existing_route = Self::get_route(asset_pair);
 
 			match Self::validate_route(&existing_route) {
 				Ok(reference_amount_in) => {
-					let inverse_new_route = inverse_route(route.to_vec());
+					let inverse_new_route = inverse_route(new_route.to_vec());
 					let inverse_existing_route = inverse_route(existing_route.to_vec());
 
-					Self::validate_sell(route.clone(), reference_amount_in)?;
+					Self::validate_sell(new_route.clone(), reference_amount_in)?;
 					Self::validate_sell(inverse_new_route.clone(), reference_amount_in)?;
 
 					let amount_out_for_existing_route =
 						Self::calculate_expected_amount_out(&existing_route, reference_amount_in)?;
-					let amount_out_for_new_route = Self::calculate_expected_amount_out(&route, reference_amount_in)?;
+					let amount_out_for_new_route =
+						Self::calculate_expected_amount_out(&new_route, reference_amount_in)?;
 
 					let reference_amount_in_for_inverse = Self::calculate_reference_amount_in(&inverse_existing_route)?;
 					let amount_out_for_existing_inversed_route =
@@ -381,14 +382,13 @@ pub mod pallet {
 					if amount_out_for_new_route > amount_out_for_existing_route
 						&& amount_out_for_new_inversed_route > amount_out_for_existing_inversed_route
 					{
-						return Self::insert_route(asset_pair, route);
+						return Self::insert_route(asset_pair, new_route);
 					}
 				}
 				Err(_) => {
-					Self::validate_route(&route)?;
-					Self::validate_route(&inverse_route(route.to_vec()))?;
+					Self::validate_route(&new_route)?;
 
-					return Self::insert_route(asset_pair, route);
+					return Self::insert_route(asset_pair, new_route);
 				}
 			}
 
@@ -463,6 +463,10 @@ impl<T: Config> Pallet<T> {
 	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
 		let reference_amount_in = Self::calculate_reference_amount_in(route)?;
 		Self::validate_sell(route.to_vec(), reference_amount_in)?;
+
+		let inverse_route = inverse_route(route.to_vec());
+		let reference_amount_in_for_inverse_route = Self::calculate_reference_amount_in(&inverse_route)?;
+		Self::validate_sell(inverse_route, reference_amount_in_for_inverse_route)?;
 
 		Ok(reference_amount_in)
 	}

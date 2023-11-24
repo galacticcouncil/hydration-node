@@ -2251,9 +2251,9 @@ mod set_route {
 					AccountId::from(BOB),
 				));
 
-				create_xyk_pool_with_amounts(DOT, 100000 * UNITS, stable_asset_1, 5000 * UNITS);
+				create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, stable_asset_1, 20000 * UNITS);
 
-				create_lbp_pool_with_amounts(DOT, 100000000 * UNITS, stable_asset_1, 5000000 * UNITS);
+				create_lbp_pool_with_amounts(DOT, 1000000 * UNITS, stable_asset_1, 20000 * UNITS);
 				//Start lbp campaign
 				set_relaychain_block_number(LBP_SALE_START + 15);
 
