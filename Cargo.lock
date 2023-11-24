@@ -4200,7 +4200,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 2.0.0",
+ "pallet-staking 2.1.0",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -4221,7 +4221,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "191.0.0"
+version = "193.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4268,7 +4268,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.2-dev",
+ "pallet-democracy 4.0.3",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -4292,7 +4292,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.0.0",
+ "pallet-staking 2.1.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -7108,7 +7108,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.0.2-dev"
+version = "4.0.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7933,7 +7933,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7943,7 +7943,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-democracy 4.0.2-dev",
+ "pallet-democracy 4.0.3",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -10767,7 +10767,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.16.2"
+version = "1.16.4"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10808,7 +10808,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.2-dev",
+ "pallet-democracy 4.0.3",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -10824,7 +10824,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.0.0",
+ "pallet-staking 2.1.0",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
