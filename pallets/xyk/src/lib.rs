@@ -57,14 +57,13 @@ use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-use primitives::constants::chain::XYK_SOURCE;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::ShareTokenRegistry};
+	use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::ShareTokenRegistry, Source};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
