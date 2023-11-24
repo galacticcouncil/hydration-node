@@ -407,10 +407,11 @@ proptest! {
 		let result = calculate_shares_for_amount::<D_ITERATIONS>(&pool, 0, amount, amp, issuance, Permill::zero()).unwrap();
 
 		let received =
-		calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(&pool, result + 3_000 , 0, issuance, amp, Permill::zero())
+		calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(&pool, result, 0, issuance, amp, Permill::zero())
 			.unwrap();
-		assert!(received.0 >= amount);
-		let diff = received.0 - amount;
-		assert!(diff <= 5000)
+		// LP should not receive more than provided.
+		assert!(received.0 <= amount);
+		let diff = amount - received.0;
+		assert!(diff <= 1000)
 	}
 }

@@ -64,7 +64,7 @@ fn redeposit_shares_should_work() {
 			let gc_y_farm_id = 3;
 			let charlie_g_farm_id = 2;
 			let charlie_y_farm_id = 4;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 2;
 			let deposit_id = 1;
 			let asset_in_position = KSM;
 
@@ -146,7 +146,7 @@ fn redeposit_shares_should_fail_with_asset_not_found_when_omnipool_doesnt_exists
 			let gc_y_farm_id = 3;
 			let charlie_g_farm_id = 2;
 			let charlie_y_farm_id = 4;
-			let omnipool_position_id = 1;
+			let omnipool_position_id = 3;
 			let deposit_id = 1;
 
 			//Arrange: deposit position and remove asset from omnipool
@@ -216,7 +216,7 @@ fn redeposit_shares_should_fail_with_not_deposit_owner_when_account_is_not_owner
 		.execute_with(|| {
 			let gc_g_farm_id = 1;
 			let gc_y_farm_id = 3;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 2;
 			let deposit_id = 1;
 
 			//Arrange: deposit position and remove asset from omnipool
@@ -279,7 +279,7 @@ fn redeposit_shares_should_fail_when_origin_is_none() {
 		.execute_with(|| {
 			let gc_g_farm_id = 1;
 			let gc_y_farm_id = 3;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 2;
 			let deposit_id = 1;
 
 			//Arrange: deposit position
@@ -342,7 +342,7 @@ fn redeposit_shares_should_fail_with_cant_find_deposit_owner_when_nft_is_missing
 		.execute_with(|| {
 			let gc_g_farm_id = 1;
 			let gc_y_farm_id = 3;
-			let omnipool_position_id = 0;
+			let omnipool_position_id = 2;
 			let deposit_id = 1;
 
 			//Arrange: deposit position and burn lm deposit's nft
