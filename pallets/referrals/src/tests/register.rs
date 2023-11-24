@@ -154,7 +154,7 @@ fn register_code_should_emit_event_when_successful() {
 }
 
 #[test]
-fn singer_should_pay_the_registration_fee() {
+fn signer_should_pay_the_registration_fee() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
 		let code = b"BALLS69".to_vec();

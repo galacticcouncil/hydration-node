@@ -19,6 +19,8 @@ mod claim;
 mod convert;
 mod link;
 mod register;
+mod trade_fee;
+mod mock_amm;
 
 use crate as pallet_referrals;
 use crate::*;
@@ -42,6 +44,8 @@ use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
+use sp_runtime::traits::One;
+use crate::tests::mock_amm::{Hooks, OnFeeResult, TradeResult};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -76,6 +80,7 @@ construct_runtime!(
 		System: frame_system,
 		Referrals: pallet_referrals,
 		Tokens: orml_tokens,
+		MockAmm: mock_amm,
 	}
 );
 
@@ -154,6 +159,12 @@ impl orml_tokens::Config for Test {
 	type DustRemovalWhitelist = Everything;
 }
 
+impl mock_amm::pallet::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type TradeHooks = AmmTrader;
+}
+
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	trades: Vec<(AccountId, AssetId, Balance)>,
@@ -188,6 +199,7 @@ impl ExtBuilder {
 		CONVERSION_RATE.with(|v| {
 			let mut m = v.borrow_mut();
 			m.insert(pair, price);
+			m.insert((pair.1,pair.0), FixedU128::one().div(price));
 		});
 		self
 	}
@@ -266,4 +278,30 @@ macro_rules! assert_balance {
 	( $x:expr, $y:expr, $z:expr) => {{
 		assert_eq!(Tokens::free_balance($y, &$x), $z);
 	}};
+}
+
+
+pub struct AmmTrader;
+
+const TRADE_PERCENTAGE: Permill = Permill::one();
+
+impl Hooks<AccountId, AssetId> for AmmTrader {
+	fn simulate_trade(who: &AccountId, asset_in: AssetId, asset_out: AssetId, amount: Balance) -> TradeResult<AssetId> {
+		let price = CONVERSION_RATE
+			.with(|v| v.borrow().get(&(asset_out, asset_in)).copied())
+			.expect("to have a price");
+		let amount_out = price.saturating_mul_int(amount);
+		let fee_amount = TRADE_PERCENTAGE.mul_ceil(amount_out);
+		TradeResult{
+			amount_in: amount,
+			amount_out,
+			fee: fee_amount,
+			fee_asset: asset_out,
+		}
+	}
+
+	fn on_trade_fee(source: &AccountId, trader: &AccountId, fee_asset: AssetId, fee: Balance) -> OnFeeResult {
+		let unused= Referrals::process_trade_fee(*source, *trader, fee_asset, fee).expect("to success");
+		OnFeeResult{unused}
+	}
 }
