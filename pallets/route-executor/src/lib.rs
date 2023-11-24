@@ -362,16 +362,17 @@ pub mod pallet {
 
 			match Self::validate_route(&existing_route) {
 				Ok(reference_amount_in) => {
+					let inverse_new_route = inverse_route(route.to_vec());
+					let inverse_existing_route = inverse_route(existing_route.to_vec());
+
 					Self::validate_sell(route.clone(), reference_amount_in)?;
-					//TODO: we should validate the inverse too
+					Self::validate_sell(inverse_new_route.clone(), reference_amount_in)?;
+
 					let amount_out_for_existing_route =
 						Self::calculate_expected_amount_out(&existing_route, reference_amount_in)?;
 					let amount_out_for_new_route = Self::calculate_expected_amount_out(&route, reference_amount_in)?;
 
-					let inverse_existing_route = inverse_route(existing_route.to_vec());
-					let inverse_new_route = inverse_route(route.to_vec());
 					let reference_amount_in_for_inverse = Self::calculate_reference_amount_in(&inverse_existing_route)?;
-
 					let amount_out_for_existing_inversed_route =
 						Self::calculate_expected_amount_out(&inverse_existing_route, reference_amount_in_for_inverse)?;
 					let amount_out_for_new_inversed_route =
