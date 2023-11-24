@@ -2536,6 +2536,55 @@ mod set_route {
 				hydradx_runtime::RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				DOT,
+				1000000000000 * UNITS as i128,
+			));
+
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(1, 2),
+				Permill::from_percent(1),
+				AccountId::from(BOB),
+			));
+
+			create_xyk_pool_with_amounts(DOT, 50000 * UNITS, BTC, 4000000 * UNITS);
+
+			let asset_pair = Pair::new(HDX, BTC);
+
+			let route2 = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DOT,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: DOT,
+					asset_out: BTC,
+				},
+			];
+
+			//Act and assert
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				asset_pair,
+				route2.clone()
+			),);
+		});
+	}
+
+	#[test]
+	fn set_route_should_not_work_when_reversed_route_is_not_valid_for_trade() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool();
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				DOT,
 				3000 * UNITS as i128,
 			));
 
@@ -2592,11 +2641,14 @@ mod set_route {
 			];
 
 			//Act and assert
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				route2.clone()
-			),);
+			assert_noop!(
+				Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					route2.clone()
+				),
+				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
+			);
 		});
 	}
 
@@ -2612,7 +2664,7 @@ mod set_route {
 				hydradx_runtime::RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				DOT,
-				3000 * UNITS as i128,
+				1000000000000 * UNITS as i128,
 			));
 
 			assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -2624,7 +2676,7 @@ mod set_route {
 			));
 
 			create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
-			create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, BTC, 1000000 * UNITS);
+			create_xyk_pool_with_amounts(DOT, 50000 * UNITS, BTC, 4000000 * UNITS);
 
 			let route1 = vec![
 				Trade {
