@@ -4175,7 +4175,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8304,7 +8304,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.3.2"
+version = "6.3.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
