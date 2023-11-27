@@ -956,17 +956,15 @@ fn staking_should_not_allow_to_remove_vote_when_referendum_is_finished_and_staki
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -1039,17 +1037,15 @@ fn staking_should_allow_to_remove_vote_when_user_lost_and_conviction_expires() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -1124,17 +1120,15 @@ fn staking_should_allow_to_remove_vote_when_user_won() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -1207,17 +1201,15 @@ fn staking_should_allow_to_remove_vote_when_user_lost_with_no_conviction() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
