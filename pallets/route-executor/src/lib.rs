@@ -327,7 +327,7 @@ pub mod pallet {
 		///
 		/// - `origin`: The origin of the route setter
 		/// - `asset_pair`: The identifier of the asset-pair for which the route is set
-		/// - `route`: Series of [`Trade<AssetId>`] to be executed. A [`Trade<AssetId>`] specifies the asset pair (`asset_in`, `asset_out`) and the AMM (`pool`) in which the trade is executed.
+		/// - `new_route`: Series of [`Trade<AssetId>`] to be executed. A [`Trade<AssetId>`] specifies the asset pair (`asset_in`, `asset_out`) and the AMM (`pool`) in which the trade is executed.
 		///
 		/// Emits `RouteUpdated` when successful.
 		///
