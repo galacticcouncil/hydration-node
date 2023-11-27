@@ -561,10 +561,11 @@ where
 					EmaPrice::new(rational_as_u128.0, rational_as_u128.1)
 				}
 				PoolType::XYK => {
-					let price = AggregatedPriceGetter::get_price(asset_a, asset_b, period, XYK_SOURCE);
+					let price_result = AggregatedPriceGetter::get_price(asset_a, asset_b, period, XYK_SOURCE);
 
-					match price {
+					match price_result {
 						Ok(price) => price.0,
+						Err(OracleError::SameAsset) => EmaPrice::from(1),
 						Err(_) => return None,
 					}
 				}
