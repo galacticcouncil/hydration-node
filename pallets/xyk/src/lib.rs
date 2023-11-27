@@ -33,7 +33,7 @@ use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional
 use frame_system::ensure_signed;
 use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
-	OnTradeHandler, Source, AMM,
+	OnTradeHandler, AMM,
 };
 use sp_std::{vec, vec::Vec};
 
@@ -63,7 +63,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::ShareTokenRegistry};
+	use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::ShareTokenRegistry, Source};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
