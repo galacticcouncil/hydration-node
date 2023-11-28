@@ -160,3 +160,36 @@ fn process_trade_should_not_increase_shares_when_trader_does_not_have_linked_acc
 			assert_eq!(shares, 0);
 		});
 }
+
+#[test]
+fn process_trade_fee_should_add_asset_to_asset_list() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, DAI, 2_000_000_000_000_000_000)])
+		.with_conversion_price(
+			(HDX, DAI),
+			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
+		)
+		.with_tiers(vec![(
+			DAI,
+			Level::Novice,
+			Tier {
+				referrer: Permill::from_percent(50),
+				trader: Permill::from_percent(20),
+			},
+		)])
+		.build()
+		.execute_with(|| {
+			// ARRANGE
+			assert_ok!(Referrals::register_code(
+				RuntimeOrigin::signed(ALICE),
+				b"BALLS69".to_vec(),
+				ALICE
+			));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			// Act
+			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,));
+			// Assert
+			let asset = Assets::<Test>::get(DAI);
+			assert_eq!(asset, Some(()));
+		});
+}

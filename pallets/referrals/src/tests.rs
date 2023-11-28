@@ -17,6 +17,7 @@
 
 mod claim;
 mod convert;
+mod flow;
 mod link;
 mod mock_amm;
 mod register;
@@ -332,11 +333,14 @@ pub struct SpotPrice;
 impl SpotPriceProvider<AssetId> for SpotPrice {
 	type Price = FixedU128;
 
-	fn pair_exists(asset_a: AssetId, asset_b: AssetId) -> bool {
+	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
 		unimplemented!()
 	}
 
 	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+		if asset_a == asset_b {
+			return Some(FixedU128::one());
+		}
 		CONVERSION_RATE.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
 	}
 }

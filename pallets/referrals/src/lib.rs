@@ -169,6 +169,12 @@ pub mod pallet {
 	pub(super) type AssetTier<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, Level, Tier, OptionQuery>;
 
+	/// Information about assets that are currently in the rewards pot.
+	/// Used to easily determine list of assets that need to be converted.
+	#[pallet::storage]
+	#[pallet::getter(fn assets)]
+	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, ()>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -376,6 +382,11 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			// 1. convert all current resreves in the pot
+			// 2. calculate who portion using shares.
+			// 3. reset who shares
+			// 4. decreause total shares
+			// 5. update level if referral account
 			//let amount = Rewards::<T>::take(&who);
 			//T::Currency::transfer(T::RewardAsset::get(), &Self::pot_account_id(), &who, amount, true)?;
 			//Self::deposit_event(Event::Claimed { who, amount });
@@ -478,6 +489,7 @@ impl<T: Config> Pallet<T> {
 		Shares::<T>::mutate(trader, |v| {
 			*v = v.saturating_add(trader_shares);
 		});
+		Assets::<T>::insert(asset_id, ());
 		Ok(amount.saturating_sub(total_taken))
 	}
 }
