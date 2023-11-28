@@ -42,8 +42,6 @@ use sp_runtime::{
 	DispatchError,
 };
 
-use hydradx_adapters::inspect::MultiInspectAdapter;
-
 use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResult, FixedU128};
@@ -356,8 +354,8 @@ impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type MaxNumberOfTrades = MaxNumberOfTrades;
-	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
+	type NativeAssetId = NativeCurrencyId;
+	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
 	type WeightInfo = ();
 }
@@ -480,6 +478,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 
 		Ok(())
 	}
+
+	fn get_liquidity_depth(
+		_pool_type: PoolType<AssetId>,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		todo!("Not implemented as not used directly within DCA context")
+	}
 }
 
 pub const XYK_SELL_CALCULATION_RESULT: Balance = ONE * 5 / 4;
@@ -577,6 +583,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 
 		Ok(())
 	}
+
+	fn get_liquidity_depth(
+		_pool_type: PoolType<AssetId>,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		todo!("No need to implement it as this is not used directly in DCA")
+	}
 }
 
 pub struct PriceProviderMock {}
@@ -666,6 +680,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
 use rand::SeedableRng;

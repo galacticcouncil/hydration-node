@@ -19,8 +19,8 @@ use super::*;
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
-	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
+	EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter, OracleAssetVolumeProvider,
+	PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
 };
 
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
@@ -35,6 +35,7 @@ use pallet_omnipool::{
 use pallet_otc::NamedReserveIdentifier;
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
+use primitives::constants::chain::XYK_SOURCE;
 use primitives::constants::time::DAYS;
 use primitives::constants::{
 	chain::OMNIPOOL_SOURCE,
@@ -51,12 +52,12 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_traits::router::{RouteProvider, Trade};
+use hydradx_traits::router::{inverse_route, Trade};
 use orml_traits::currency::MutationHooks;
 use orml_traits::GetByKey;
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
-use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
+use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES};
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
 use pallet_xyk::weights::WeightInfo as XykWeights;
@@ -471,7 +472,7 @@ impl pallet_dca::Config for Runtime {
 	type RouteExecutor = Router;
 	#[cfg(feature = "runtime-benchmarks")]
 	type RouteExecutor = pallet_route_executor::DummyRouter<Runtime>;
-	type RouteProvider = Runtime;
+	type RouteProvider = Router;
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -485,9 +486,6 @@ impl pallet_dca::Config for Runtime {
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 	type NativePriceOracle = MultiTransactionPayment;
 }
-
-//Using the default implementation, will be replaced with the real implementation once we have routes stored
-impl RouteProvider<AssetId> for Runtime {}
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
 // the router extrinsic overhead and the AMM weight.
@@ -528,7 +526,20 @@ impl RouterWeightInfo {
 		};
 		router_weight.saturating_sub(lbp_weight)
 	}
+
+	pub fn set_route_overweight() -> Weight {
+		let number_of_times_calculate_sell_amounts_executed = 5; //4 calculations + in the validation
+		let number_of_times_execute_sell_amounts_executed = 0; //We do have it once executed in the validation of the route, but it is without writing to database (as rolled back), and since we pay back successful set_route, we just keep this overhead
+
+		let set_route_overweight = weights::route_executor::HydraWeight::<Runtime>::set_route_for_xyk();
+
+		set_route_overweight.saturating_sub(weights::xyk::HydraWeight::<Runtime>::router_execution_sell(
+			number_of_times_calculate_sell_amounts_executed,
+			number_of_times_execute_sell_amounts_executed,
+		))
+	}
 }
+
 impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	// Used in Router::sell extrinsic, which calls AMM::calculate_sell and AMM::execute_sell
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
@@ -663,20 +674,57 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 		weight
 	}
-}
 
-parameter_types! {
-	pub const MaxNumberOfTrades: u8 = 3;
+	fn set_route_weight(route: &[Trade<AssetId>]) -> Weight {
+		let mut weight = Weight::zero();
+
+		//We ignore the calls for AMM:get_liquidty_depth, as the same logic happens in AMM calculation/execution
+
+		//Overweight
+		weight.saturating_accrue(Self::set_route_overweight());
+
+		//Add a sell weight as we do a dry-run sell as validation
+		weight.saturating_accrue(Self::sell_weight(route));
+
+		//For the stored route we expect a worst case with max number of trades in the most expensive pool which is stableswap
+		//We have have two sell calculation for that, normal and inverse
+		weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(2, 0)
+			.checked_mul(MAX_NUMBER_OF_TRADES.into());
+
+		//Calculate sell amounts for the new route
+		for trade in route {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+			};
+			weight.saturating_accrue(amm_weight);
+		}
+
+		//Calculate sell amounts for the inversed new route
+		for trade in inverse_route(route.to_vec()) {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+			};
+			weight.saturating_accrue(amm_weight);
+		}
+
+		weight
+	}
 }
 
 impl pallet_route_executor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type MaxNumberOfTrades = MaxNumberOfTrades;
-	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
+	type Currency = FungibleCurrencies<Runtime>;
 	type WeightInfo = RouterWeightInfo;
 	type AMM = (Omnipool, Stableswap, XYK, LBP);
+	type NativeAssetId = NativeAssetId;
 }
 
 parameter_types! {
@@ -746,6 +794,8 @@ where
 		buf
 	}
 }
+
+use pallet_currencies::fungibles::FungibleCurrencies;
 
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
@@ -914,7 +964,7 @@ impl pallet_lbp::Config for Runtime {
 parameter_types! {
 	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
 	pub const DiscountedFee: (u32, u32) = (7, 10_000);
-	pub const XYKOracleSourceIdentifier: Source = *b"hydraxyk";
+	pub const XYKOracleSourceIdentifier: Source = XYK_SOURCE;
 }
 
 impl pallet_xyk::Config for Runtime {

@@ -1,5 +1,5 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use hydradx_traits::router::{RouteProvider, Trade};
+use hydradx_traits::router::{AssetPair, RouteProvider, Trade};
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
@@ -78,7 +78,7 @@ where
 			Order::Buy { route, .. } => route,
 		};
 		if route.is_empty() {
-			Provider::get(self.get_asset_in(), self.get_asset_out())
+			Provider::get_route(AssetPair::new(self.get_asset_in(), self.get_asset_out()))
 		} else {
 			route.to_vec()
 		}

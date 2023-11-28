@@ -73,7 +73,7 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::router::RouteProvider;
+use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::NativePriceOracle;
 use hydradx_traits::OraclePeriod;
@@ -643,7 +643,7 @@ impl<T: Config> Pallet<T> {
 
 				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
 
-				let route_for_slippage = reverse_route(route.to_vec());
+				let route_for_slippage = inverse_route(route.to_vec());
 				let (estimated_amount_out, slippage_amount) =
 					Self::calculate_last_block_slippage(&route_for_slippage, amount_to_sell, schedule.slippage)?;
 				let last_block_slippage_min_limit = estimated_amount_out
@@ -1096,18 +1096,4 @@ impl<T: Config> RandomnessProvider for Pallet<T> {
 
 		Ok(rand::rngs::StdRng::seed_from_u64(seed))
 	}
-}
-
-fn reverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
-	trades
-		.into_iter()
-		.map(|trade| Trade {
-			pool: trade.pool,
-			asset_in: trade.asset_out,
-			asset_out: trade.asset_in,
-		})
-		.collect::<Vec<Trade<AssetId>>>()
-		.into_iter()
-		.rev()
-		.collect()
 }

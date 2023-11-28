@@ -4175,7 +4175,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.6.5"
+version = "0.6.7"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4200,9 +4200,10 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 2.0.0",
+ "pallet-staking 2.1.0",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
+ "pallet-xyk",
  "parity-scale-codec",
  "polkadot-parachain",
  "pretty_assertions",
@@ -4220,7 +4221,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "190.0.0"
+version = "193.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4267,7 +4268,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.2-dev",
+ "pallet-democracy 4.0.3",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -4291,7 +4292,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.0.0",
+ "pallet-staking 2.1.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -4335,7 +4336,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.8.0"
+version = "2.8.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7048,7 +7049,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.2.3"
+version = "1.3.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7107,7 +7108,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.0.2-dev"
+version = "4.0.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7433,7 +7434,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.7.1"
+version = "4.7.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7639,7 +7640,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7835,7 +7836,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.2.1"
+version = "1.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7928,7 +7929,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.4.0"
+version = "3.4.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7952,7 +7953,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7962,7 +7963,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-democracy 4.0.2-dev",
+ "pallet-democracy 4.0.3",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -8087,10 +8088,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "9.0.2"
+version = "9.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "hydra-dx-math",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -8322,7 +8324,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.3.1"
+version = "6.3.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10010,7 +10012,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "6.0.0"
+version = "6.0.1"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -10785,7 +10787,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.16.1"
+version = "1.16.4"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -10826,7 +10828,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.0.2-dev",
+ "pallet-democracy 4.0.3",
  "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -10842,7 +10844,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.0.0",
+ "pallet-staking 2.1.0",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
