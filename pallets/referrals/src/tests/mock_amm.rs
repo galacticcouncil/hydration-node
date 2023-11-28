@@ -1,5 +1,3 @@
-
-
 use frame_support::pallet_prelude::*;
 pub use pallet::*;
 
@@ -25,22 +23,24 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
-	pub enum Event<T: Config> {
-	}
+	pub enum Event<T: Config> {}
 
 	#[pallet::error]
-	pub enum Error<T> {
-	}
+	pub enum Error<T> {}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::zero())]
-		pub fn trade(origin: OriginFor<T>, asset_in: T::AssetId, asset_out: T::AssetId, amount: Balance ) -> DispatchResult{
-			let who= ensure_signed(origin)?;
-			let result = T::TradeHooks::simulate_trade(&who, asset_in, asset_out, amount);
-			let fee_result = T::TradeHooks::on_trade_fee(&who, &who, result.fee_asset, result.fee);
+		pub fn trade(
+			origin: OriginFor<T>,
+			asset_in: T::AssetId,
+			asset_out: T::AssetId,
+			amount: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let result = T::TradeHooks::simulate_trade(&who, asset_in, asset_out, amount)?;
+			let fee_result = T::TradeHooks::on_trade_fee(&who, &who, result.fee_asset, result.fee)?;
 			Ok(())
 		}
 	}
@@ -57,7 +57,17 @@ pub struct OnFeeResult {
 	pub(crate) unused: Balance,
 }
 
-pub trait Hooks<AccountId, AssetId>{
-	fn simulate_trade(who: &AccountId, asset_in: AssetId, asset_out: AssetId, amount: Balance) -> TradeResult<AssetId>;
-	fn on_trade_fee(source: &AccountId, trader: &AccountId, fee_asset: AssetId, fee: Balance) -> OnFeeResult;
+pub trait Hooks<AccountId, AssetId> {
+	fn simulate_trade(
+		who: &AccountId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+	) -> Result<TradeResult<AssetId>, DispatchError>;
+	fn on_trade_fee(
+		source: &AccountId,
+		trader: &AccountId,
+		fee_asset: AssetId,
+		fee: Balance,
+	) -> Result<OnFeeResult, DispatchError>;
 }

@@ -18,9 +18,9 @@
 mod claim;
 mod convert;
 mod link;
+mod mock_amm;
 mod register;
 mod trade_fee;
-mod mock_amm;
 
 use crate as pallet_referrals;
 use crate::*;
@@ -39,13 +39,14 @@ use frame_support::{
 };
 use sp_core::H256;
 
+use crate::tests::mock_amm::{Hooks, OnFeeResult, TradeResult};
 use crate::traits::Convert;
 use frame_support::{assert_noop, assert_ok};
+use frame_system::EnsureRoot;
 use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
-use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 use sp_runtime::traits::One;
-use crate::tests::mock_amm::{Hooks, OnFeeResult, TradeResult};
+use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -101,9 +102,11 @@ impl GetByKey<Level, Option<Balance>> for Volume {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type Convert = AssetConvert;
+	type SpotPriceProvider = SpotPrice;
 	type RewardAsset = RewardAsset;
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
@@ -167,8 +170,8 @@ impl mock_amm::pallet::Config for Test {
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
-	trades: Vec<(AccountId, AssetId, Balance)>,
-	rewards: Vec<(AccountId, Balance)>,
+	shares: Vec<(AccountId, Balance)>,
+	tiers: Vec<(AssetId, Level, Tier)>,
 }
 
 impl Default for ExtBuilder {
@@ -178,20 +181,25 @@ impl Default for ExtBuilder {
 		});
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
-			trades: vec![],
-			rewards: vec![],
+			shares: vec![],
+			tiers: vec![],
 		}
 	}
 }
 
 impl ExtBuilder {
-	pub fn with_trade_activity(mut self, trades: Vec<(AccountId, AssetId, Balance)>) -> Self {
-		self.trades.extend(trades);
+	pub fn with_endowed_accounts(mut self, accounts: Vec<(AccountId, AssetId, Balance)>) -> Self {
+		self.endowed_accounts.extend(accounts);
 		self
 	}
 
-	pub fn with_rewards(mut self, rewards: Vec<(AccountId, Balance)>) -> Self {
-		self.rewards.extend(rewards);
+	pub fn with_shares(mut self, shares: Vec<(AccountId, Balance)>) -> Self {
+		self.shares.extend(shares);
+		self
+	}
+
+	pub fn with_tiers(mut self, shares: Vec<(AssetId, Level, Tier)>) -> Self {
+		self.tiers.extend(shares);
 		self
 	}
 
@@ -199,7 +207,7 @@ impl ExtBuilder {
 		CONVERSION_RATE.with(|v| {
 			let mut m = v.borrow_mut();
 			m.insert(pair, price);
-			m.insert((pair.1,pair.0), FixedU128::one().div(price));
+			m.insert((pair.1, pair.0), FixedU128::one().div(price));
 		});
 		self
 	}
@@ -227,16 +235,18 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
-			for (acc, asset, amount) in self.trades.iter() {
-				Accrued::<Test>::insert(asset, acc, amount);
-				Tokens::update_balance(*asset, &Pallet::<Test>::pot_account_id(), *amount as i128).unwrap();
+			for (acc, amount) in self.shares.iter() {
+				Shares::<Test>::insert(acc, amount);
+				TotalShares::<Test>::mutate(|v| {
+					*v = v.saturating_add(*amount);
+				});
+				Tokens::update_balance(HDX, &Pallet::<Test>::pot_account_id(), *amount as i128).unwrap();
 			}
 		});
 
 		r.execute_with(|| {
-			for (acc, amount) in self.rewards.iter() {
-				Rewards::<Test>::insert(acc, amount);
-				Tokens::update_balance(HDX, &Pallet::<Test>::pot_account_id(), *amount as i128).unwrap();
+			for (asset, level, tier) in self.tiers.iter() {
+				AssetTier::<Test>::insert(asset, level, tier);
 			}
 		});
 
@@ -280,28 +290,53 @@ macro_rules! assert_balance {
 	}};
 }
 
-
 pub struct AmmTrader;
 
-const TRADE_PERCENTAGE: Permill = Permill::one();
+const TRADE_PERCENTAGE: Permill = Permill::from_percent(1);
 
 impl Hooks<AccountId, AssetId> for AmmTrader {
-	fn simulate_trade(who: &AccountId, asset_in: AssetId, asset_out: AssetId, amount: Balance) -> TradeResult<AssetId> {
+	fn simulate_trade(
+		who: &AccountId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+	) -> Result<TradeResult<AssetId>, DispatchError> {
 		let price = CONVERSION_RATE
 			.with(|v| v.borrow().get(&(asset_out, asset_in)).copied())
 			.expect("to have a price");
 		let amount_out = price.saturating_mul_int(amount);
-		let fee_amount = TRADE_PERCENTAGE.mul_ceil(amount_out);
-		TradeResult{
+		dbg!(amount_out);
+		let fee_amount = TRADE_PERCENTAGE.mul_floor(amount_out);
+		dbg!(fee_amount);
+		Ok(TradeResult {
 			amount_in: amount,
 			amount_out,
 			fee: fee_amount,
 			fee_asset: asset_out,
-		}
+		})
 	}
 
-	fn on_trade_fee(source: &AccountId, trader: &AccountId, fee_asset: AssetId, fee: Balance) -> OnFeeResult {
-		let unused= Referrals::process_trade_fee(*source, *trader, fee_asset, fee).expect("to success");
-		OnFeeResult{unused}
+	fn on_trade_fee(
+		source: &AccountId,
+		trader: &AccountId,
+		fee_asset: AssetId,
+		fee: Balance,
+	) -> Result<OnFeeResult, DispatchError> {
+		let unused = Referrals::process_trade_fee(*source, *trader, fee_asset, fee)?;
+		Ok(OnFeeResult { unused })
+	}
+}
+
+pub struct SpotPrice;
+
+impl SpotPriceProvider<AssetId> for SpotPrice {
+	type Price = FixedU128;
+
+	fn pair_exists(asset_a: AssetId, asset_b: AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+		CONVERSION_RATE.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
 	}
 }

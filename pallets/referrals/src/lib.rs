@@ -26,9 +26,11 @@ pub mod traits;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{DispatchResult, Get};
+use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::traits::fungibles::Transfer;
-use frame_support::{transactional, RuntimeDebug};
+use frame_support::{ensure, transactional, RuntimeDebug};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use hydradx_traits::pools::SpotPriceProvider;
 use orml_traits::GetByKey;
 use sp_core::bounded::BoundedVec;
 use sp_runtime::traits::AccountIdConversion;
@@ -45,7 +47,7 @@ const MIN_CODE_LENGTH: usize = 3;
 
 use scale_info::TypeInfo;
 
-#[derive(Hash, Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Hash, Clone, Copy, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Level {
 	#[default]
 	Novice,
@@ -77,6 +79,7 @@ pub mod pallet {
 	use crate::traits::Convert;
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::ArithmeticError;
+	use frame_support::sp_runtime::FixedU128;
 	use frame_support::traits::fungibles::{Inspect, Transfer};
 	use frame_support::PalletId;
 	use sp_runtime::traits::Zero;
@@ -90,6 +93,9 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		/// Origin that can set asset tier reward percentages.
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Asset type
 		type AssetId: frame_support::traits::tokens::AssetId + MaybeSerializeDeserialize;
 
@@ -98,6 +104,9 @@ pub mod pallet {
 
 		/// Support for asset conversion.
 		type Convert: Convert<Self::AccountId, Self::AssetId, Balance, Error = DispatchError>;
+
+		/// Price provider to use for shares calculation.
+		type SpotPriceProvider: SpotPriceProvider<Self::AssetId, Price = FixedU128>;
 
 		/// ID of an asset that is used to distribute rewards in.
 		#[pallet::constant]
@@ -136,18 +145,15 @@ pub mod pallet {
 	#[pallet::getter(fn linked_referral_account)]
 	pub(super) type LinkedAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId>;
 
-	/// Accrued amounts of an asset from trading activity.
-	/// Maps an amount to asset and account. This amount needs to be converted to native currency prior to claiming as a reward.
+	/// Shares per account.
 	#[pallet::storage]
-	#[pallet::getter(fn accrued)]
-	pub(super) type Accrued<T: Config> =
-		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+	#[pallet::getter(fn account_shares)]
+	pub(super) type Shares<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
 
-	/// Accumulated rewards
-	/// Reward amount of native asset per account.
+	/// Total share issuance.
 	#[pallet::storage]
-	#[pallet::getter(fn account_rewards)]
-	pub(super) type Rewards<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+	#[pallet::getter(fn total_shares)]
+	pub(super) type TotalShares<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	/// Referer level and total accumulated rewards over time.
 	/// Maps referrer account to (Level, Balance). Level indicates current reward tier and Balance is used to unlock next tier level.
@@ -185,6 +191,12 @@ pub mod pallet {
 			who: T::AccountId,
 			amount: Balance,
 		},
+		TierRewardSet {
+			asset_id: T::AssetId,
+			level: Level,
+			referrer: Permill,
+			trader: Permill,
+		},
 	}
 
 	#[pallet::error]
@@ -199,8 +211,8 @@ pub mod pallet {
 		ZeroAmount,
 		/// Linking an account to the same referral account is not allowed.
 		LinkNotAllowed,
-		/// More rewards have been distributed than allowed after conversion. This is a bug.
-		IncorrectRewardDistribution,
+		/// Calculated rewards are more than the fee amount. This can happen if percentage are incorrectly set.
+		IncorrectRewardCalculation,
 	}
 
 	#[pallet::call]
@@ -297,10 +309,11 @@ pub mod pallet {
 			let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
 			ensure!(asset_balance > 0, Error::<T>::ZeroAmount);
 
-			let total_reward_amount =
+			let total_reward_asset =
 				T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance)?;
 
 			// Keep track of amount rewarded, in case of a a leftover (due to rounding)
+			/*
 			let mut rewarded: Balance = 0;
 			for (account, amount) in Accrued::<T>::drain_prefix(asset_id) {
 				// We need to figure out how much of the reward should be assigned to the individual recipients.
@@ -341,23 +354,13 @@ pub mod pallet {
 			// Should not really happy, but let's be safe and ensure that we have not distributed more than allowed.
 			ensure!(rewarded <= total_reward_amount, Error::<T>::IncorrectRewardDistribution);
 
-			// Due to rounding, there can be something left, let's just transfer it to treasury.
-			let remainder = total_reward_amount.saturating_sub(rewarded);
-			if remainder > 0 {
-				T::Currency::transfer(
-					T::RewardAsset::get(),
-					&Self::pot_account_id(),
-					&T::RegistrationFee::get().2,
-					remainder,
-					true,
-				)?;
-			}
+			 */
 
 			Self::deposit_event(Event::Converted {
 				from: asset_id,
 				to: T::RewardAsset::get(),
 				amount: asset_balance,
-				received: total_reward_amount,
+				received: total_reward_asset,
 			});
 
 			Ok(())
@@ -373,9 +376,43 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let amount = Rewards::<T>::take(&who);
-			T::Currency::transfer(T::RewardAsset::get(), &Self::pot_account_id(), &who, amount, true)?;
-			Self::deposit_event(Event::Claimed { who, amount });
+			//let amount = Rewards::<T>::take(&who);
+			//T::Currency::transfer(T::RewardAsset::get(), &Self::pot_account_id(), &who, amount, true)?;
+			//Self::deposit_event(Event::Claimed { who, amount });
+			Ok(())
+		}
+
+		/// Set asset tier reward percentages
+		///
+		/// /// Parameters:
+		/// - `origin`:
+		/// - `level`:
+		/// - `referrer`:
+		/// - `trader`:
+		///
+		/// Emits `Claimed` event when successful.
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_reward_percentage())]
+		pub fn set_reward_percentage(
+			origin: OriginFor<T>,
+			asset_id: T::AssetId,
+			level: Level,
+			referrer: Permill,
+			trader: Permill,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			//TODO: ensure that total percentage is not greater than 100%
+
+			AssetTier::<T>::mutate(asset_id, level, |v| {
+				*v = Some(Tier { referrer, trader });
+			});
+			Self::deposit_event(Event::TierRewardSet {
+				asset_id,
+				level,
+				referrer,
+				trader,
+			});
 			Ok(())
 		}
 	}
@@ -419,21 +456,28 @@ impl<T: Config> Pallet<T> {
 			return Ok(amount);
 		};
 
-		// TODO: question: percentage from the total amount for both ? or trader takes percentage of the referrer_reward ?
+		let Some(price) = T::SpotPriceProvider::spot_price(T::RewardAsset::get(), asset_id) else {
+			// no price, no fun.
+			return Ok(amount);
+		};
+
 		let referrer_reward = tier.referrer.mul_floor(amount);
 		let trader_reward = tier.trader.mul_floor(amount);
-
 		let total_taken = referrer_reward.saturating_add(trader_reward);
+		ensure!(total_taken <= amount, Error::<T>::IncorrectRewardCalculation);
 		T::Currency::transfer(asset_id, &source, &Self::pot_account_id(), total_taken, true)?;
 
-		// Update each accrued rewards
-		Accrued::<T>::mutate(asset_id, ref_account, |v| {
-			*v = v.saturating_add(referrer_reward);
+		let referrer_shares = price.saturating_mul_int(referrer_reward);
+		let trader_shares = price.saturating_mul_int(trader_reward);
+		TotalShares::<T>::mutate(|v| {
+			*v = v.saturating_add(referrer_shares.saturating_add(trader_shares));
 		});
-		Accrued::<T>::mutate(asset_id, trader, |v| {
-			*v = v.saturating_add(trader_reward);
+		Shares::<T>::mutate(ref_account, |v| {
+			*v = v.saturating_add(referrer_shares);
 		});
-
+		Shares::<T>::mutate(trader, |v| {
+			*v = v.saturating_add(trader_shares);
+		});
 		Ok(amount.saturating_sub(total_taken))
 	}
 }

@@ -52,6 +52,7 @@ pub trait WeightInfo {
 	fn link_code() -> Weight;
 	fn convert() -> Weight;
 	fn claim_rewards() -> Weight;
+	fn set_reward_percentage() -> Weight;
 }
 
 /// Weights for pallet_bonds using the hydraDX node and recommended hardware.
@@ -73,6 +74,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn claim_rewards() -> Weight {
 		Weight::zero()
 	}
+
+	fn set_reward_percentage() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
@@ -90,6 +95,10 @@ impl WeightInfo for () {
 	}
 
 	fn claim_rewards() -> Weight {
+		Weight::zero()
+	}
+
+	fn set_reward_percentage() -> Weight {
 		Weight::zero()
 	}
 }

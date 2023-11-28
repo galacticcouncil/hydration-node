@@ -11,7 +11,7 @@ fn claim_rewards_should_work_when_amount_is_zero() {
 #[test]
 fn claim_rewards_should_transfer_rewards() {
 	ExtBuilder::default()
-		.with_rewards(vec![(BOB, 1_000_000_000_000)])
+		.with_shares(vec![(BOB, 1_000_000_000_000)])
 		.build()
 		.execute_with(|| {
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
@@ -25,23 +25,37 @@ fn claim_rewards_should_transfer_rewards() {
 }
 
 #[test]
-fn claim_rewards_should_reset_rewards_amount() {
+fn claim_rewards_should_reset_shares_amount() {
 	ExtBuilder::default()
-		.with_rewards(vec![(BOB, 1_000_000_000_000)])
+		.with_shares(vec![(BOB, 1_000_000_000_000)])
 		.build()
 		.execute_with(|| {
 			// Act
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
 			// Assert
-			let rewards = Rewards::<Test>::get(&BOB);
+			let rewards = Shares::<Test>::get(&BOB);
 			assert_eq!(rewards, 0);
+		});
+}
+
+#[test]
+fn claim_rewards_should_decreased_share_issuance() {
+	ExtBuilder::default()
+		.with_shares(vec![(BOB, 1_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			// Act
+			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
+			// Assert
+			let total_shares = TotalShares::<Test>::get();
+			assert_eq!(total_shares, 0);
 		});
 }
 
 #[test]
 fn claim_rewards_should_emit_event_when_successful() {
 	ExtBuilder::default()
-		.with_rewards(vec![(BOB, 1_000_000_000_000)])
+		.with_shares(vec![(BOB, 1_000_000_000_000)])
 		.build()
 		.execute_with(|| {
 			// Act
