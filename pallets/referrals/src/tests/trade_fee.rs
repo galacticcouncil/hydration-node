@@ -193,3 +193,36 @@ fn process_trade_fee_should_add_asset_to_asset_list() {
 			assert_eq!(asset, Some(()));
 		});
 }
+
+#[test]
+fn process_trade_fee_should_not_add_reward_asset_to_asset_list() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, HDX, 2_000_000_000_000)])
+		.with_conversion_price(
+			(HDX, DAI),
+			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
+		)
+		.with_tiers(vec![(
+			DAI,
+			Level::Novice,
+			Tier {
+				referrer: Permill::from_percent(50),
+				trader: Permill::from_percent(20),
+			},
+		)])
+		.build()
+		.execute_with(|| {
+			// ARRANGE
+			assert_ok!(Referrals::register_code(
+				RuntimeOrigin::signed(ALICE),
+				b"BALLS69".to_vec(),
+				ALICE
+			));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			// Act
+			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), DAI, HDX, 1_000_000_000_000,));
+			// Assert
+			let asset = Assets::<Test>::get(HDX);
+			assert_eq!(asset, None);
+		});
+}

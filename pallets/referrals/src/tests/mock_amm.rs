@@ -22,7 +22,6 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
 	pub enum Event<T: Config> {}
 
 	#[pallet::error]
@@ -40,7 +39,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let result = T::TradeHooks::simulate_trade(&who, asset_in, asset_out, amount)?;
-			let fee_result = T::TradeHooks::on_trade_fee(&who, &who, result.fee_asset, result.fee)?;
+			T::TradeHooks::on_trade_fee(&who, &who, result.fee_asset, result.fee)?;
 			Ok(())
 		}
 	}
@@ -51,10 +50,6 @@ pub struct TradeResult<AssetId> {
 	pub amount_out: Balance,
 	pub fee: Balance,
 	pub fee_asset: AssetId,
-}
-
-pub struct OnFeeResult {
-	pub(crate) unused: Balance,
 }
 
 pub trait Hooks<AccountId, AssetId> {
@@ -69,5 +64,5 @@ pub trait Hooks<AccountId, AssetId> {
 		trader: &AccountId,
 		fee_asset: AssetId,
 		fee: Balance,
-	) -> Result<OnFeeResult, DispatchError>;
+	) -> Result<(), DispatchError>;
 }

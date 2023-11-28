@@ -195,7 +195,7 @@ pub mod pallet {
 		},
 		Claimed {
 			who: T::AccountId,
-			amount: Balance,
+			rewards: Balance,
 		},
 		TierRewardSet {
 			asset_id: T::AssetId,
@@ -318,50 +318,6 @@ pub mod pallet {
 			let total_reward_asset =
 				T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance)?;
 
-			// Keep track of amount rewarded, in case of a a leftover (due to rounding)
-			/*
-			let mut rewarded: Balance = 0;
-			for (account, amount) in Accrued::<T>::drain_prefix(asset_id) {
-				// We need to figure out how much of the reward should be assigned to the individual recipients.
-				// Price = reward_asset_amount / asset_balance
-				// rewarded = price * account balance
-				let reward_amount = (total_reward_amount * amount) / asset_balance; // TODO: U256 and safe math please!
-
-				Rewards::<T>::try_mutate(account.clone(), |v| -> DispatchResult {
-					*v = v.checked_add(reward_amount).ok_or(ArithmeticError::Overflow)?;
-
-					Referrer::<T>::mutate(account, |d| {
-						// You might ask why do we need to have an OptionQuery here? it would be simpler to just have value query and update the account
-						// However, in Rewards, not all accounts are necessarily Referrer accounts.
-						// We heep there trader account which earn back some percentage of the fee. And for those, no levels!
-						if let Some((level, total)) = d {
-							*total = total.saturating_add(reward_amount);
-
-							let next_tier = T::TierVolume::get(level);
-							if let Some(amount_needed) = next_tier {
-								if *total >= amount_needed {
-									*level = level.next_level();
-									// let's check if we can skip two levels
-									let next_tier = T::TierVolume::get(level);
-									if let Some(amount_needed) = next_tier {
-										if *total >= amount_needed {
-											*level = level.next_level();
-										}
-									}
-								}
-							}
-						}
-					});
-					Ok(())
-				})?;
-				rewarded = rewarded.saturating_add(reward_amount);
-			}
-
-			// Should not really happy, but let's be safe and ensure that we have not distributed more than allowed.
-			ensure!(rewarded <= total_reward_amount, Error::<T>::IncorrectRewardDistribution);
-
-			 */
-
 			Self::deposit_event(Event::Converted {
 				from: asset_id,
 				to: T::RewardAsset::get(),
@@ -382,14 +338,45 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			// 1. convert all current resreves in the pot
-			// 2. calculate who portion using shares.
-			// 3. reset who shares
-			// 4. decreause total shares
-			// 5. update level if referral account
-			//let amount = Rewards::<T>::take(&who);
-			//T::Currency::transfer(T::RewardAsset::get(), &Self::pot_account_id(), &who, amount, true)?;
-			//Self::deposit_event(Event::Claimed { who, amount });
+			for (asset_id, _) in Assets::<T>::drain() {
+				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
+				T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance)?;
+			}
+			let shares = Shares::<T>::take(&who);
+			if shares == Balance::zero() {
+				return Ok(());
+			}
+
+			let reward_reserve = T::Currency::balance(T::RewardAsset::get(), &Self::pot_account_id());
+			let share_issuance = TotalShares::<T>::get();
+			let rewards = shares * reward_reserve / share_issuance; // TODO: use u256 and safe math, moritz!
+			T::Currency::transfer(T::RewardAsset::get(), &Self::pot_account_id(), &who, rewards, true)?;
+
+			TotalShares::<T>::mutate(|v| {
+				*v = v.saturating_sub(shares);
+			});
+
+			Referrer::<T>::mutate(who.clone(), |v| {
+				if let Some((level, total)) = v {
+					*total = total.saturating_add(rewards);
+
+					let next_tier = T::TierVolume::get(level);
+					if let Some(amount_needed) = next_tier {
+						if *total >= amount_needed {
+							*level = level.next_level();
+							// let's check if we can skip two levels
+							let next_tier = T::TierVolume::get(level);
+							if let Some(amount_needed) = next_tier {
+								if *total >= amount_needed {
+									*level = level.next_level();
+								}
+							}
+						}
+					}
+				}
+			});
+
+			Self::deposit_event(Event::Claimed { who, rewards });
 			Ok(())
 		}
 
@@ -489,7 +476,9 @@ impl<T: Config> Pallet<T> {
 		Shares::<T>::mutate(trader, |v| {
 			*v = v.saturating_add(trader_shares);
 		});
-		Assets::<T>::insert(asset_id, ());
+		if asset_id != T::RewardAsset::get() {
+			Assets::<T>::insert(asset_id, ());
+		}
 		Ok(amount.saturating_sub(total_taken))
 	}
 }

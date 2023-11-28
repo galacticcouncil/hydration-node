@@ -40,7 +40,7 @@ use frame_support::{
 };
 use sp_core::H256;
 
-use crate::tests::mock_amm::{Hooks, OnFeeResult, TradeResult};
+use crate::tests::mock_amm::{Hooks, TradeResult};
 use crate::traits::Convert;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::EnsureRoot;
@@ -173,6 +173,7 @@ pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	shares: Vec<(AccountId, Balance)>,
 	tiers: Vec<(AssetId, Level, Tier)>,
+	assets: Vec<AssetId>,
 }
 
 impl Default for ExtBuilder {
@@ -184,6 +185,7 @@ impl Default for ExtBuilder {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
 			shares: vec![],
 			tiers: vec![],
+			assets: vec![],
 		}
 	}
 }
@@ -199,11 +201,14 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_assets(mut self, shares: Vec<AssetId>) -> Self {
+		self.assets.extend(shares);
+		self
+	}
 	pub fn with_tiers(mut self, shares: Vec<(AssetId, Level, Tier)>) -> Self {
 		self.tiers.extend(shares);
 		self
 	}
-
 	pub fn with_conversion_price(self, pair: (AssetId, AssetId), price: FixedU128) -> Self {
 		CONVERSION_RATE.with(|v| {
 			let mut m = v.borrow_mut();
@@ -241,7 +246,6 @@ impl ExtBuilder {
 				TotalShares::<Test>::mutate(|v| {
 					*v = v.saturating_add(*amount);
 				});
-				Tokens::update_balance(HDX, &Pallet::<Test>::pot_account_id(), *amount as i128).unwrap();
 			}
 		});
 
@@ -250,7 +254,11 @@ impl ExtBuilder {
 				AssetTier::<Test>::insert(asset, level, tier);
 			}
 		});
-
+		r.execute_with(|| {
+			for asset in self.assets.iter() {
+				Assets::<Test>::insert(asset, ());
+			}
+		});
 		r.execute_with(|| {
 			System::set_block_number(1);
 		});
@@ -297,7 +305,7 @@ const TRADE_PERCENTAGE: Permill = Permill::from_percent(1);
 
 impl Hooks<AccountId, AssetId> for AmmTrader {
 	fn simulate_trade(
-		who: &AccountId,
+		_who: &AccountId,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount: Balance,
@@ -306,9 +314,7 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 			.with(|v| v.borrow().get(&(asset_out, asset_in)).copied())
 			.expect("to have a price");
 		let amount_out = price.saturating_mul_int(amount);
-		dbg!(amount_out);
 		let fee_amount = TRADE_PERCENTAGE.mul_floor(amount_out);
-		dbg!(fee_amount);
 		Ok(TradeResult {
 			amount_in: amount,
 			amount_out,
@@ -322,9 +328,9 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 		trader: &AccountId,
 		fee_asset: AssetId,
 		fee: Balance,
-	) -> Result<OnFeeResult, DispatchError> {
-		let unused = Referrals::process_trade_fee(*source, *trader, fee_asset, fee)?;
-		Ok(OnFeeResult { unused })
+	) -> Result<(), DispatchError> {
+		Referrals::process_trade_fee(*source, *trader, fee_asset, fee)?;
+		Ok(())
 	}
 }
 
