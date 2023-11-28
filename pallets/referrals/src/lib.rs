@@ -39,6 +39,9 @@ use sp_core::U256;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::{traits::CheckedAdd, DispatchError, Permill};
 
+#[cfg(feature = "runtime-benchmarks")]
+pub use crate::traits::BenchmarkHelper;
+
 pub use pallet::*;
 
 use weights::WeightInfo;
@@ -133,6 +136,9 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		#[cfg(feature = "runtime-benchmarks")]
+		type BenchmarkHelper: BenchmarkHelper<Self::AssetId, Balance>;
 	}
 
 	/// Referral codes

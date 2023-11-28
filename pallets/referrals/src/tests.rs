@@ -115,6 +115,9 @@ impl Config for Test {
 	type CodeLength = CodeLength;
 	type TierVolume = Volume;
 	type WeightInfo = ();
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = Benchmarking;
 }
 
 impl frame_system::Config for Test {
@@ -349,5 +352,25 @@ impl SpotPriceProvider<AssetId> for SpotPrice {
 			return Some(FixedU128::one());
 		}
 		CONVERSION_RATE.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use crate::traits::BenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct Benchmarking;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<AssetId, Balance> for Benchmarking {
+	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
+		let price = FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000);
+		CONVERSION_RATE.with(|v| {
+			let mut m = v.borrow_mut();
+			m.insert((1234, HDX), price);
+			m.insert((HDX, 1234), FixedU128::one().div(price));
+		});
+
+		(1234, 1_000_000_000_000)
 	}
 }

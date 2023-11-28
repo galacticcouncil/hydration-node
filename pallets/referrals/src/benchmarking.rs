@@ -26,6 +26,7 @@ use sp_std::vec;
 benchmarks! {
 	where_clause { where
 		T::Currency: Mutate<T::AccountId>,
+		T::AssetId: From<u32>,
 	}
 
 	register_code{
@@ -41,6 +42,27 @@ benchmarks! {
 		let c = Pallet::<T>::normalize_code(ReferralCode::<T::CodeLength>::truncate_from(code));
 		let entry = Pallet::<T>::referral_account(c);
 		assert_eq!(entry, Some(caller));
+	}
+
+	link_code{
+		let caller: T::AccountId = account("caller", 0, 1);
+		let user: T::AccountId = account("user", 0, 1);
+		let code = vec![b'x'; T::CodeLength::get() as usize];
+		let (asset, fee, _) = T::RegistrationFee::get();
+		T::Currency::mint_into(asset, &caller, fee)?;
+		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code.clone(), caller.clone())?;
+	}: _(RawOrigin::Signed(user.clone()), code.clone())
+	verify {
+		let entry = Pallet::<T>::linked_referral_account(user);
+		assert_eq!(entry, Some(caller));
+	}
+
+	convert{
+		let caller: T::AccountId = account("caller", 0, 1);
+		let (asset_id, amount) = T::BenchmarkHelper::prepare_convertible_asset_and_amount();
+		T::Currency::mint_into(asset_id.into(), &Pallet::<T>::pot_account_id(), amount)?;
+	}: _(RawOrigin::Signed(caller), asset_id.into())
+	verify {
 	}
 
 }
