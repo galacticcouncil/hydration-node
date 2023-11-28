@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use frame_support::traits::{LockIdentifier, WithdrawReasons};
+use frame_support::traits::LockIdentifier;
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::DispatchResult,
@@ -1101,7 +1101,7 @@ fn staking_should_allow_to_remove_vote_when_user_lost_and_conviction_expires() {
 		assert!(stake_voting.votes.is_empty());
 		let position = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
 		assert_eq!(position.get_action_points(), 1);
-		assert_lock(&BOB.into(), 0, DEMOCRACY_ID);
+		assert_no_lock(&BOB.into(), DEMOCRACY_ID);
 	});
 }
 
@@ -1263,26 +1263,28 @@ fn staking_should_allow_to_remove_vote_when_user_lost_with_no_conviction() {
 		assert!(stake_voting.votes.is_empty());
 		let position = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
 		assert_eq!(position.get_action_points(), 1);
-		assert_lock(&BOB.into(), 0, DEMOCRACY_ID);
+		assert_no_lock(&BOB.into(), DEMOCRACY_ID);
 	});
 }
 
 const DEMOCRACY_ID: LockIdentifier = *b"democrac";
-use pallet_balances::BalanceLock;
 fn assert_lock(who: &AccountId, amount: Balance, lock_id: LockIdentifier) {
 	let locks = Balances::locks(who);
 	let lock = locks.iter().find(|e| e.id == lock_id);
 
-	if amount == 0 {
-		assert_eq!(lock, None);
-	} else {
-		assert_eq!(
-			lock,
-			Some(&BalanceLock {
-				id: lock_id,
-				amount: amount,
-				reasons: WithdrawReasons::TRANSFER.into()
-			})
-		);
-	}
+	assert_eq!(
+		lock,
+		Some(&pallet_balances::BalanceLock {
+			id: lock_id,
+			amount: amount,
+			reasons: pallet_balances::Reasons::All
+		})
+	);
+}
+
+fn assert_no_lock(who: &AccountId, lock_id: LockIdentifier) {
+	let locks = Balances::locks(who);
+	let lock = locks.iter().find(|e| e.id == lock_id);
+
+	assert_eq!(lock, None);
 }

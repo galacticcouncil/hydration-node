@@ -223,7 +223,13 @@ where
 		}
 	}
 
-	fn transfer(asset: Self::AssetId, source: &T::AccountId, dest: &T::AccountId, amount: Self::Balance, preservation: Preservation) -> Result<Self::Balance, DispatchError> {
+	fn transfer(
+		asset: Self::AssetId,
+		source: &T::AccountId,
+		dest: &T::AccountId,
+		amount: Self::Balance,
+		preservation: Preservation,
+	) -> Result<Self::Balance, DispatchError> {
 		if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::transfer(source, dest, amount.into(), preservation)
 				.into()
