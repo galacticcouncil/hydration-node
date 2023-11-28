@@ -32,7 +32,6 @@ frame-system = { workspace = true }
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
-pallet-timestamp = { workspace = true, optional = true }
 orml-traits = { workspace = true }
 
 [dev-dependencies]
