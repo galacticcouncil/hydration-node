@@ -33,6 +33,7 @@ use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::pools::SpotPriceProvider;
 use orml_traits::GetByKey;
 use sp_core::bounded::BoundedVec;
+use sp_core::U256;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::{DispatchError, Permill};
 
@@ -349,13 +350,22 @@ pub mod pallet {
 
 			let reward_reserve = T::Currency::balance(T::RewardAsset::get(), &Self::pot_account_id());
 			let share_issuance = TotalShares::<T>::get();
-			let rewards = shares * reward_reserve / share_issuance; // TODO: use u256 and safe math, moritz!
-			T::Currency::transfer(T::RewardAsset::get(), &Self::pot_account_id(), &who, rewards, true)?;
 
+			let rewards = || -> Option<Balance> {
+				let shares_hp = U256::from(shares);
+				let reward_reserve_hp = U256::from(reward_reserve);
+				let share_issuance_hp = U256::from(share_issuance);
+				let r = shares_hp
+					.checked_mul(reward_reserve_hp)?
+					.checked_div(share_issuance_hp)?;
+				Balance::try_from(r).ok()
+			}()
+			.ok_or(ArithmeticError::Overflow)?;
+
+			T::Currency::transfer(T::RewardAsset::get(), &Self::pot_account_id(), &who, rewards, true)?;
 			TotalShares::<T>::mutate(|v| {
 				*v = v.saturating_sub(shares);
 			});
-
 			Referrer::<T>::mutate(who.clone(), |v| {
 				if let Some((level, total)) = v {
 					*total = total.saturating_add(rewards);
