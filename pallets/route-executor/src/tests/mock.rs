@@ -86,7 +86,7 @@ pub type Amount = i128;
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		1/2
+		1
 	};
 }
 
@@ -105,7 +105,7 @@ impl orml_tokens::Config for Test {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 1/2;
+	pub const ExistentialDeposit: u128 = 1;
 	pub const MaxReserves: u32 = 50;
 }
 
