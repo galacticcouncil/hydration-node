@@ -1,5 +1,4 @@
 use sp_std::vec::Vec;
-
 pub trait Registry<AssetId, AssetName, Balance, Error> {
 	fn exists(name: AssetId) -> bool;
 
@@ -17,7 +16,6 @@ pub trait Registry<AssetId, AssetName, Balance, Error> {
 		}
 	}
 }
-
 // Use CreateRegistry if possible
 pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<AssetId, AssetName, Balance, Error> {
 	fn retrieve_shared_asset(name: &AssetName, assets: &[AssetId]) -> Result<AssetId, Error>;
@@ -44,6 +42,8 @@ pub trait ShareTokenRegistry<AssetId, AssetName, Balance, Error>: Registry<Asset
 pub trait InspectRegistry<AssetId> {
 	fn exists(asset_id: AssetId) -> bool;
 	fn decimals(asset_id: AssetId) -> Option<u8>;
+	fn asset_name(asset_id: AssetId) -> Option<Vec<u8>>;
+	fn asset_symbol(asset_id: AssetId) -> Option<Vec<u8>>;
 }
 
 #[derive(Eq, PartialEq, Copy, Clone)]

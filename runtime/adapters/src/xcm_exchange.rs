@@ -1,4 +1,3 @@
-use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use sp_core::Get;
@@ -15,19 +14,18 @@ use xcm_executor::traits::AssetExchange;
 /// (buying exactly `want` amount of asset).
 ///
 /// NOTE: Currenty limited to one asset each for `give` and `want`.
-pub struct XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency, Pool>(
-	PhantomData<(Runtime, TempAccount, CurrencyIdConvert, Currency, Pool)>,
+pub struct XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency>(
+	PhantomData<(Runtime, TempAccount, CurrencyIdConvert, Currency)>,
 );
 
-impl<Runtime, TempAccount, CurrencyIdConvert, Currency, Pool> AssetExchange
-	for XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency, Pool>
+impl<Runtime, TempAccount, CurrencyIdConvert, Currency> AssetExchange
+	for XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency>
 where
 	Runtime: pallet_route_executor::Config,
 	TempAccount: Get<Runtime::AccountId>,
 	CurrencyIdConvert: Convert<MultiAsset, Option<Runtime::AssetId>>,
 	Currency: MultiCurrency<Runtime::AccountId, CurrencyId = Runtime::AssetId, Balance = Runtime::Balance>,
 	Runtime::Balance: From<u128> + Zero + Into<u128>,
-	Pool: Get<PoolType<Runtime::AssetId>>,
 {
 	fn exchange_asset(
 		_origin: Option<&MultiLocation>,
@@ -57,6 +55,7 @@ where
 		let Some(asset_in) = CurrencyIdConvert::convert(given.clone()) else { return Err(give) };
 		let Some(wanted) = want.get(0) else { return Err(give) };
 		let Some(asset_out) = CurrencyIdConvert::convert(wanted.clone()) else { return Err(give) };
+		let use_onchain_route = vec![];
 
 		if maximal {
 			// sell
@@ -71,11 +70,7 @@ where
 					asset_out,
 					amount.into(),
 					min_buy_amount.into(),
-					vec![Trade::<Runtime::AssetId> {
-						pool: Pool::get(),
-						asset_in,
-						asset_out,
-					}],
+					use_onchain_route,
 				)?;
 				debug_assert!(
 					Currency::free_balance(asset_in, &account) == Runtime::Balance::zero(),
@@ -103,11 +98,7 @@ where
 					asset_out,
 					amount.into(),
 					max_sell_amount.into(),
-					vec![Trade::<Runtime::AssetId> {
-						pool: Pool::get(),
-						asset_in,
-						asset_out,
-					}],
+					use_onchain_route,
 				)?;
 				let mut assets = sp_std::vec::Vec::with_capacity(2);
 				let left_over = Currency::free_balance(asset_in, &account);

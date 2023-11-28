@@ -48,6 +48,7 @@ use pallet_stableswap::types::{PoolState, StableswapHooks};
 use polkadot_xcm::latest::prelude::*;
 use primitive_types::{U128, U512};
 use primitives::constants::chain::{CORE_ASSET_ID, STABLESWAP_SOURCE};
+use primitives::constants::chain::{XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::{BlockNumberProvider, One};
 use sp_std::vec::Vec;

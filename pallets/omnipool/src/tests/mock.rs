@@ -132,8 +132,12 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		0
+	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+		if *currency_id == LRNA{
+			400_000_000
+		}else{
+			0
+		}
 	};
 }
 
@@ -145,7 +149,7 @@ impl orml_tokens::Config for Test {
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
-	type DustRemovalWhitelist = Everything;
+	type DustRemovalWhitelist = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
 	type CurrencyHooks = ();
@@ -177,7 +181,6 @@ impl Config for Test {
 	type Currency = Tokens;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
-	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PosiitionCollectionId;
@@ -207,10 +210,8 @@ pub struct ExtBuilder {
 	asset_weight_cap: Permill,
 	min_liquidity: u128,
 	min_trade_limit: u128,
-	register_stable_asset: bool,
 	max_in_ratio: Balance,
 	max_out_ratio: Balance,
-	tvl_cap: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
@@ -272,11 +273,9 @@ impl Default for ExtBuilder {
 			registered_assets: vec![],
 			min_trade_limit: 0,
 			init_pool: None,
-			register_stable_asset: true,
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
-			tvl_cap: u128::MAX,
 		}
 	}
 }
@@ -324,20 +323,12 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn without_stable_asset_in_registry(mut self) -> Self {
-		self.register_stable_asset = false;
-		self
-	}
 	pub fn with_max_in_ratio(mut self, value: Balance) -> Self {
 		self.max_in_ratio = value;
 		self
 	}
 	pub fn with_max_out_ratio(mut self, value: Balance) -> Self {
 		self.max_out_ratio = value;
-		self
-	}
-	pub fn with_tvl_cap(mut self, value: Balance) -> Self {
-		self.tvl_cap = value;
 		self
 	}
 	pub fn with_max_allowed_price_difference(self, max_allowed: Permill) -> Self {
@@ -378,9 +369,7 @@ impl ExtBuilder {
 
 		// Add DAi and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {
-			if self.register_stable_asset {
-				v.borrow_mut().insert(DAI, DAI);
-			}
+			v.borrow_mut().insert(DAI, DAI);
 			v.borrow_mut().insert(HDX, HDX);
 			v.borrow_mut().insert(REGISTERED_ASSET, REGISTERED_ASSET);
 			self.registered_assets.iter().for_each(|asset| {
@@ -425,18 +414,21 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
-		r.execute_with(|| {
-			assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), self.tvl_cap,));
-		});
-
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				assert_ok!(Omnipool::initialize_pool(
+				assert_ok!(Omnipool::add_token(
 					RuntimeOrigin::root(),
-					stable_price,
+					HDXAssetId::get(),
 					native_price,
 					Permill::from_percent(100),
-					Permill::from_percent(100)
+					Omnipool::protocol_account(),
+				));
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					DAIAssetId::get(),
+					stable_price,
+					Permill::from_percent(100),
+					Omnipool::protocol_account(),
 				));
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
@@ -544,6 +536,10 @@ where
 
 pub(crate) fn get_mock_minted_position(position_id: u32) -> Option<u64> {
 	POSITIONS.with(|v| v.borrow().get(&position_id).copied())
+}
+
+pub(crate) fn last_position_id() -> u32 {
+	Omnipool::next_position_id()
 }
 
 pub struct MockOracle;

@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-xyk'
-version = "6.2.10"
+version = "6.3.3"
 description = 'XYK automated market maker'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -22,9 +22,6 @@ serde = { features = ['derive'], optional = true, version = '1.0.136' }
 log = { version = "0.4.17", default-features = false }
 
 hydra-dx-math = { workspace = true }
-
-# Local dependencies
-primitives = {path = '../../primitives', default-features = false}
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -65,7 +62,6 @@ std = [
     'sp-core/std',
     'sp-std/std',
     'orml-traits/std',
-    'primitives/std',
     "hydradx-traits/std",
     'orml-tokens/std',
     'frame-benchmarking/std',

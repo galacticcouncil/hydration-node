@@ -39,7 +39,8 @@
         {
           "name": "alice",
           "command": "../target/release/hydradx",
-          "ws_port": 9988
+          "ws_port": 9988,
+          "rpc_port": 9999
         },
         {
           "name": "bob",

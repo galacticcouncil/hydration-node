@@ -18,11 +18,11 @@
 use crate::tests::mock::*;
 use crate::{Error, Event, Trade};
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
-
 #[test]
 fn buy_should_work_when_route_has_single_trade() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -30,12 +30,12 @@ fn buy_should_work_when_route_has_single_trade() {
 		let amount_to_buy = 10;
 		let limit = 5;
 
-		let trades = vec![BSX_AUSD_TRADE_IN_XYK];
+		let trades = vec![HDX_AUSD_TRADE_IN_XYK];
 
 		//Act
 		assert_ok!(Router::buy(
 			RuntimeOrigin::signed(ALICE),
-			BSX,
+			HDX,
 			AUSD,
 			amount_to_buy,
 			limit,
@@ -43,15 +43,103 @@ fn buy_should_work_when_route_has_single_trade() {
 		));
 
 		//Assert
-		assert_executed_buy_trades(vec![(PoolType::XYK, amount_to_buy, BSX, AUSD)]);
+		assert_executed_buy_trades(vec![(PoolType::XYK, amount_to_buy, HDX, AUSD)]);
 		expect_events(vec![Event::RouteExecuted {
-			asset_in: BSX,
+			asset_in: HDX,
 			asset_out: AUSD,
 			amount_in: XYK_BUY_CALCULATION_RESULT,
 			amount_out: amount_to_buy,
 		}
 		.into()]);
 	});
+}
+
+#[test]
+fn buy_should_work_with_omnipool_when_no_route_or_onchain_route_exist() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let amount_to_buy = 10;
+		let limit = 5;
+
+		//Act
+		assert_ok!(Router::buy(
+			RuntimeOrigin::signed(ALICE),
+			HDX,
+			DOT,
+			amount_to_buy,
+			limit,
+			vec![]
+		));
+
+		//Assert
+		assert_executed_buy_trades(vec![(PoolType::Omnipool, amount_to_buy, HDX, DOT)]);
+		expect_events(vec![Event::RouteExecuted {
+			asset_in: HDX,
+			asset_out: DOT,
+			amount_in: OMNIPOOL_BUY_CALCULATION_RESULT,
+			amount_out: amount_to_buy,
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn buy_should_work_when_onchain_route_present_in_reverse_order() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, KSM, 1000)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let amount_to_buy = 10;
+			let limit = 5;
+			let trade1 = Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: MOVR,
+			};
+			let trade2 = Trade {
+				pool: PoolType::Stableswap(AUSD),
+				asset_in: MOVR,
+				asset_out: AUSD,
+			};
+			let trade3 = Trade {
+				pool: PoolType::XYK,
+				asset_in: AUSD,
+				asset_out: KSM,
+			};
+			let trades = vec![trade1, trade2, trade3];
+
+			assert_ok!(Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				AssetPair::new(HDX, KSM),
+				trades,
+			));
+
+			//Act
+			assert_ok!(Router::buy(
+				RuntimeOrigin::signed(ALICE),
+				KSM,
+				HDX,
+				amount_to_buy,
+				limit,
+				vec![]
+			));
+
+			//Assert
+			assert_executed_buy_trades(vec![
+				(PoolType::XYK, STABLESWAP_BUY_CALCULATION_RESULT, KSM, AUSD),
+				(PoolType::Stableswap(AUSD), XYK_BUY_CALCULATION_RESULT, AUSD, MOVR),
+				(PoolType::XYK, amount_to_buy, MOVR, HDX),
+			]);
+
+			expect_events(vec![Event::RouteExecuted {
+				asset_in: KSM,
+				asset_out: HDX,
+				amount_in: XYK_BUY_CALCULATION_RESULT,
+				amount_out: amount_to_buy,
+			}
+			.into()]);
+		});
 }
 
 #[test]
@@ -94,7 +182,7 @@ fn buy_should_fail_when_max_limit_for_trade_reached() {
 			//Arrange
 			let trade1 = Trade {
 				pool: PoolType::XYK,
-				asset_in: BSX,
+				asset_in: HDX,
 				asset_out: AUSD,
 			};
 			let trade2 = Trade {
@@ -112,11 +200,21 @@ fn buy_should_fail_when_max_limit_for_trade_reached() {
 				asset_in: KSM,
 				asset_out: RMRK,
 			};
-			let trades = vec![trade1, trade2, trade3, trade4];
+			let trade5 = Trade {
+				pool: PoolType::XYK,
+				asset_in: RMRK,
+				asset_out: SDN,
+			};
+			let trade6 = Trade {
+				pool: PoolType::XYK,
+				asset_in: SDN,
+				asset_out: STABLE_SHARE_ASSET,
+			};
+			let trades = vec![trade1, trade2, trade3, trade4, trade5, trade6];
 
 			//Act and Assert
 			assert_noop!(
-				Router::buy(RuntimeOrigin::signed(ALICE), BSX, RMRK, 10, 5, trades),
+				Router::buy(RuntimeOrigin::signed(ALICE), HDX, RMRK, 10, 5, trades),
 				Error::<Test>::MaxTradesExceeded
 			);
 		});
@@ -131,13 +229,13 @@ fn buy_should_fail_when_route_has_single_trade_producing_calculation_error() {
 			//Arrange
 			let limit = 5;
 
-			let trades = vec![BSX_AUSD_TRADE_IN_XYK];
+			let trades = vec![HDX_AUSD_TRADE_IN_XYK];
 
 			//Act and Assert
 			assert_noop!(
 				Router::buy(
 					RuntimeOrigin::signed(ALICE),
-					BSX,
+					HDX,
 					AUSD,
 					INVALID_CALCULATION_AMOUNT,
 					limit,
@@ -159,7 +257,7 @@ fn buy_should_when_route_has_multiple_trades_with_same_pool_type() {
 			let limit = 5;
 			let trade1 = Trade {
 				pool: PoolType::XYK,
-				asset_in: BSX,
+				asset_in: HDX,
 				asset_out: AUSD,
 			};
 			let trade2 = Trade {
@@ -177,7 +275,7 @@ fn buy_should_when_route_has_multiple_trades_with_same_pool_type() {
 			//Act
 			assert_ok!(Router::buy(
 				RuntimeOrigin::signed(ALICE),
-				BSX,
+				HDX,
 				KSM,
 				amount_to_buy,
 				limit,
@@ -186,13 +284,13 @@ fn buy_should_when_route_has_multiple_trades_with_same_pool_type() {
 
 			//Assert
 			assert_executed_buy_trades(vec![
-				(PoolType::XYK, XYK_BUY_CALCULATION_RESULT, BSX, AUSD),
+				(PoolType::XYK, XYK_BUY_CALCULATION_RESULT, HDX, AUSD),
 				(PoolType::XYK, XYK_BUY_CALCULATION_RESULT, AUSD, MOVR),
 				(PoolType::XYK, amount_to_buy, MOVR, KSM),
 			]);
 
 			expect_events(vec![Event::RouteExecuted {
-				asset_in: BSX,
+				asset_in: HDX,
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
 				amount_out: amount_to_buy,
@@ -212,7 +310,7 @@ fn buy_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 			let limit = 5;
 			let trade1 = Trade {
 				pool: PoolType::XYK,
-				asset_in: BSX,
+				asset_in: HDX,
 				asset_out: MOVR,
 			};
 			let trade2 = Trade {
@@ -230,7 +328,7 @@ fn buy_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 			//Act
 			assert_ok!(Router::buy(
 				RuntimeOrigin::signed(ALICE),
-				BSX,
+				HDX,
 				KSM,
 				amount_to_buy,
 				limit,
@@ -239,13 +337,72 @@ fn buy_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 
 			//Assert
 			assert_executed_buy_trades(vec![
-				(PoolType::XYK, STABLESWAP_BUY_CALCULATION_RESULT, BSX, MOVR),
+				(PoolType::XYK, STABLESWAP_BUY_CALCULATION_RESULT, HDX, MOVR),
 				(PoolType::Stableswap(AUSD), OMNIPOOL_BUY_CALCULATION_RESULT, MOVR, AUSD),
 				(PoolType::Omnipool, amount_to_buy, AUSD, KSM),
 			]);
 
 			expect_events(vec![Event::RouteExecuted {
-				asset_in: BSX,
+				asset_in: HDX,
+				asset_out: KSM,
+				amount_in: XYK_BUY_CALCULATION_RESULT,
+				amount_out: amount_to_buy,
+			}
+			.into()]);
+		});
+}
+
+#[test]
+fn buy_should_work_with_onchain_route_when_no_route_specified() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, KSM, 1000)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let amount_to_buy = 10;
+			let limit = 5;
+			let trade1 = Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: MOVR,
+			};
+			let trade2 = Trade {
+				pool: PoolType::Stableswap(AUSD),
+				asset_in: MOVR,
+				asset_out: AUSD,
+			};
+			let trade3 = Trade {
+				pool: PoolType::XYK,
+				asset_in: AUSD,
+				asset_out: KSM,
+			};
+			let trades = vec![trade1, trade2, trade3];
+
+			assert_ok!(Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				AssetPair::new(HDX, KSM),
+				trades,
+			));
+
+			//Act
+			assert_ok!(Router::buy(
+				RuntimeOrigin::signed(ALICE),
+				HDX,
+				KSM,
+				amount_to_buy,
+				limit,
+				vec![]
+			));
+
+			//Assert
+			assert_executed_buy_trades(vec![
+				(PoolType::XYK, STABLESWAP_BUY_CALCULATION_RESULT, HDX, MOVR),
+				(PoolType::Stableswap(AUSD), XYK_BUY_CALCULATION_RESULT, MOVR, AUSD),
+				(PoolType::XYK, amount_to_buy, AUSD, KSM),
+			]);
+
+			expect_events(vec![Event::RouteExecuted {
+				asset_in: HDX,
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
 				amount_out: amount_to_buy,
@@ -265,7 +422,7 @@ fn buy_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 			let limit = 5;
 			let trade1 = Trade {
 				pool: PoolType::Stableswap(AUSD),
-				asset_in: BSX,
+				asset_in: HDX,
 				asset_out: AUSD,
 			};
 			let trade2 = Trade {
@@ -278,7 +435,7 @@ fn buy_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 			//Act
 			assert_ok!(Router::buy(
 				RuntimeOrigin::signed(ALICE),
-				BSX,
+				HDX,
 				KSM,
 				amount_to_buy,
 				limit,
@@ -287,7 +444,7 @@ fn buy_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 
 			//Assert
 			assert_executed_buy_trades(vec![
-				(PoolType::Stableswap(AUSD), XYK_BUY_CALCULATION_RESULT, BSX, AUSD),
+				(PoolType::Stableswap(AUSD), XYK_BUY_CALCULATION_RESULT, HDX, AUSD),
 				(PoolType::XYK, amount_to_buy, AUSD, KSM),
 			]);
 		});
@@ -303,29 +460,12 @@ fn buy_should_fail_when_called_with_non_signed_origin() {
 			let amount_to_buy = 10;
 			let limit = 5;
 
-			let trades = vec![BSX_AUSD_TRADE_IN_XYK];
+			let trades = vec![HDX_AUSD_TRADE_IN_XYK];
 
 			//Act and Assert
 			assert_noop!(
-				Router::buy(RuntimeOrigin::none(), BSX, AUSD, amount_to_buy, limit, trades),
+				Router::buy(RuntimeOrigin::none(), HDX, AUSD, amount_to_buy, limit, trades),
 				BadOrigin
-			);
-		});
-}
-
-#[test]
-fn buy_should_fail_when_route_has_no_trades() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, AUSD, 1000)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			let trades = vec![];
-
-			//Act and Assert
-			assert_noop!(
-				Router::buy(RuntimeOrigin::signed(ALICE), BSX, AUSD, 10, 5, trades),
-				Error::<Test>::RouteHasNoTrades
 			);
 		});
 }
@@ -340,11 +480,11 @@ fn buy_should_fail_when_max_limit_to_spend_is_reached() {
 			let amount_to_buy = 10;
 			let limit = XYK_BUY_CALCULATION_RESULT - 1;
 
-			let trades = vec![BSX_AUSD_TRADE_IN_XYK];
+			let trades = vec![HDX_AUSD_TRADE_IN_XYK];
 
 			//Act and Assert
 			assert_noop!(
-				Router::buy(RuntimeOrigin::signed(ALICE), BSX, AUSD, amount_to_buy, limit, trades),
+				Router::buy(RuntimeOrigin::signed(ALICE), HDX, AUSD, amount_to_buy, limit, trades),
 				Error::<Test>::TradingLimitReached
 			);
 		});

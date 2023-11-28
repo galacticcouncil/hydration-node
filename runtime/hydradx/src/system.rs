@@ -37,7 +37,7 @@ use frame_support::{
 	},
 	PalletId, RuntimeDebug,
 };
-use hydradx_adapters::RelayChainBlockNumberProvider;
+use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use scale_info::TypeInfo;
 use pallet_currencies::fungibles::FungibleCurrencies;
 
@@ -476,6 +476,10 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Balance = Balance;
 	type AuthorityOrigin = SuperMajorityTechCommittee;
 	type SpotPriceProvider = Omnipool;
+	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
+	type Currencies = Currencies;
+	type RouteProvider = Router;
+	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type WeightInfo = weights::payment::HydraWeight<Runtime>;
 	type NativeAssetId = NativeAssetId;
 }

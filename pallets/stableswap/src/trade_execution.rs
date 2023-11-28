@@ -183,4 +183,18 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 			_ => Err(ExecutorError::NotSupported),
 		}
 	}
+
+	fn get_liquidity_depth(
+		pool_type: PoolType<T::AssetId>,
+		asset_a: T::AssetId,
+		_asset_b: T::AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		match pool_type {
+			PoolType::Stableswap(pool_id) => {
+				let pool_account = Self::pool_account(pool_id);
+				Ok(T::Currency::free_balance(asset_a, &pool_account))
+			}
+			_ => Err(ExecutorError::NotSupported),
+		}
+	}
 }

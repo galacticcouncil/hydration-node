@@ -1,7 +1,7 @@
 use super::mock::*;
+use crate::types::AssetPair;
 use crate::*;
 use frame_support::assert_ok;
-use primitives::asset::AssetPair;
 
 #[test]
 fn get_liquidity_behind_shares_should_return_both_assets_value_when_pool_exists() {

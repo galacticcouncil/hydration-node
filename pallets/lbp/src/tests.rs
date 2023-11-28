@@ -31,9 +31,6 @@ use hydradx_traits::{AMMTransfer, LockedBalance};
 use sp_runtime::traits::BadOrigin;
 use sp_std::convert::TryInto;
 
-use primitives::asset::AssetPair;
-use primitives::constants::chain::CORE_ASSET_ID;
-
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
 	ext.execute_with(|| set_block_number::<Test>(1));
@@ -2317,12 +2314,12 @@ fn buy_should_work() {
 			.into(),
 			frame_system::Event::NewAccount { account: pool_id2 }.into(),
 			mock::RuntimeEvent::Currency(orml_tokens::Event::Endowed {
-				currency_id: CORE_ASSET_ID,
+				currency_id: HDX,
 				who: HDX_BSX_POOL_ID,
 				amount: 1000000000,
 			}),
 			mock::RuntimeEvent::Currency(orml_tokens::Event::Transfer {
-				currency_id: CORE_ASSET_ID,
+				currency_id: HDX,
 				from: ALICE,
 				to: HDX_BSX_POOL_ID,
 				amount: 1000000000,
@@ -2544,12 +2541,12 @@ fn sell_should_work() {
 			.into(),
 			frame_system::Event::NewAccount { account: pool_id2 }.into(),
 			mock::RuntimeEvent::Currency(orml_tokens::Event::Endowed {
-				currency_id: CORE_ASSET_ID,
+				currency_id: HDX,
 				who: HDX_BSX_POOL_ID,
 				amount: 1000000000,
 			}),
 			mock::RuntimeEvent::Currency(orml_tokens::Event::Transfer {
-				currency_id: CORE_ASSET_ID,
+				currency_id: HDX,
 				from: ALICE,
 				to: HDX_BSX_POOL_ID,
 				amount: 1000000000,

@@ -73,8 +73,11 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_adapters::RelayChainBlockHashProvider;
+use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
+use hydradx_traits::NativePriceOracle;
+use hydradx_traits::OraclePeriod;
+use hydradx_traits::PriceOracle;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -83,6 +86,7 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill,
 };
+
 use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};
 
@@ -225,7 +229,16 @@ pub mod pallet {
 		type NativePriceOracle: NativePriceOracle<Self::AssetId, FixedU128>;
 
 		///Router implementation
-		type Router: RouterT<Self::RuntimeOrigin, Self::AssetId, Balance, Trade<Self::AssetId>, AmountInAndOut<Balance>>;
+		type RouteExecutor: RouterT<
+			Self::RuntimeOrigin,
+			Self::AssetId,
+			Balance,
+			Trade<Self::AssetId>,
+			AmountInAndOut<Balance>,
+		>;
+
+		///Spot price provider to get the current price between two asset
+		type RouteProvider: RouteProvider<Self::AssetId>;
 
 		///Max price difference allowed between blocks
 		#[pallet::constant]
@@ -338,8 +351,6 @@ pub mod pallet {
 		TradeLimitReached,
 		///Slippage limit calculated from oracle is reached, leading to retry
 		SlippageLimitReached,
-		///The route to execute the trade on is not specified
-		RouteNotSpecified,
 		///No parent hash has been found from relay chain
 		NoParentHashFound,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
@@ -406,7 +417,8 @@ pub mod pallet {
 		/// Emits `Scheduled` and `ExecutionPlanned` event when successful.
 		///
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule() + <T as Config>::AmmTradeWeights::calculate_buy_trade_amounts_weight(schedule.order.get_route()))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule()
+			+ <T as Config>::AmmTradeWeights::calculate_buy_trade_amounts_weight(&schedule.order.get_route_or_default::<T::RouteProvider>()))]
 		#[transactional]
 		pub fn schedule(
 			origin: OriginFor<T>,
@@ -415,8 +427,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(who == schedule.owner, Error::<T>::Forbidden);
-
-			ensure!(schedule.order.get_route_length() > 0, Error::<T>::RouteNotSpecified);
 
 			let min_budget = Self::convert_native_amount_to_currency(
 				schedule.order.get_asset_in(),
@@ -431,9 +441,10 @@ pub mod pallet {
 
 			let amount_in = match schedule.order {
 				Order::Sell { amount_in, .. } => amount_in,
-				Order::Buy {
-					amount_out, ref route, ..
-				} => Self::get_amount_in_for_buy(&amount_out, route)?,
+				Order::Buy { amount_out, .. } => {
+					let route = schedule.order.get_route_or_default::<T::RouteProvider>();
+					Self::get_amount_in_for_buy(&amount_out, &route)?
+				}
 			};
 			let min_trade_amount_in_from_fee = transaction_fee.saturating_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT);
 			ensure!(
@@ -623,23 +634,23 @@ impl<T: Config> Pallet<T> {
 				asset_out,
 				amount_in,
 				min_amount_out,
-				route,
+				..
 			} => {
+				let route = &schedule.order.get_route_or_default::<T::RouteProvider>();
 				let remaining_amount =
 					RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_to_sell = min(remaining_amount, *amount_in);
 
 				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
 
-				let route_for_slippage = reverse_route(route.to_vec());
+				let route_for_slippage = inverse_route(route.to_vec());
 				let (estimated_amount_out, slippage_amount) =
 					Self::calculate_last_block_slippage(&route_for_slippage, amount_to_sell, schedule.slippage)?;
 				let last_block_slippage_min_limit = estimated_amount_out
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				let route = route.to_vec();
-				let trade_amounts = T::Router::calculate_sell_trade_amounts(&route, amount_to_sell)?;
+				let trade_amounts = T::RouteExecutor::calculate_sell_trade_amounts(route, amount_to_sell)?;
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
@@ -652,7 +663,14 @@ impl<T: Config> Pallet<T> {
 					);
 				};
 
-				T::Router::sell(origin, *asset_in, *asset_out, amount_to_sell, amount_out, route)?;
+				T::RouteExecutor::sell(
+					origin,
+					*asset_in,
+					*asset_out,
+					amount_to_sell,
+					amount_out,
+					route.to_vec(),
+				)?;
 
 				Ok(AmountInAndOut {
 					amount_in: amount_to_sell,
@@ -664,14 +682,15 @@ impl<T: Config> Pallet<T> {
 				asset_out,
 				amount_out,
 				max_amount_in,
-				route,
+				..
 			} => {
-				let amount_in = Self::get_amount_in_for_buy(amount_out, route)?;
+				let route = schedule.order.get_route_or_default::<T::RouteProvider>();
+				let amount_in = Self::get_amount_in_for_buy(amount_out, &route)?;
 
 				Self::unallocate_amount(schedule_id, schedule, amount_in)?;
 
 				let (estimated_amount_in, slippage_amount) =
-					Self::calculate_last_block_slippage(route, *amount_out, schedule.slippage)?;
+					Self::calculate_last_block_slippage(&route, *amount_out, schedule.slippage)?;
 				let last_block_slippage_max_limit = estimated_amount_in
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
@@ -685,7 +704,7 @@ impl<T: Config> Pallet<T> {
 					);
 				};
 
-				T::Router::buy(origin, *asset_in, *asset_out, *amount_out, amount_in, route.to_vec())?;
+				T::RouteExecutor::buy(origin, *asset_in, *asset_out, *amount_out, amount_in, route.to_vec())?;
 
 				Ok(AmountInAndOut {
 					amount_in,
@@ -721,8 +740,9 @@ impl<T: Config> Pallet<T> {
 		}
 
 		//In buy we complete with returning leftover, in sell we sell the leftover in the next trade
-		if let Order::Buy { amount_out, route, .. } = &schedule.order {
-			let amount_to_unreserve: Balance = Self::get_amount_in_for_buy(amount_out, route)?;
+		if let Order::Buy { amount_out, .. } = &schedule.order {
+			let route = schedule.order.get_route_or_default::<T::RouteProvider>();
+			let amount_to_unreserve: Balance = Self::get_amount_in_for_buy(amount_out, &route)?;
 
 			let amount_for_next_trade: Balance = amount_to_unreserve
 				.checked_add(transaction_fee)
@@ -775,9 +795,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn is_price_unstable(schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>) -> bool {
-		let route = match &schedule.order {
-			Order::Sell { route, .. } | Order::Buy { route, .. } => route,
-		};
+		let route = &schedule.order.get_route_or_default::<T::RouteProvider>();
 
 		let Ok(last_block_price) = Self::get_price_from_last_block_oracle(route) else {
 			return true;
@@ -820,11 +838,8 @@ impl<T: Config> Pallet<T> {
 		diff > max_allowed_difference
 	}
 
-	fn get_amount_in_for_buy(
-		amount_out: &Balance,
-		route: &BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
-	) -> Result<Balance, DispatchError> {
-		let trade_amounts = T::Router::calculate_buy_trade_amounts(route.as_ref(), *amount_out)?;
+	fn get_amount_in_for_buy(amount_out: &Balance, route: &[Trade<T::AssetId>]) -> Result<Balance, DispatchError> {
+		let trade_amounts = T::RouteExecutor::calculate_buy_trade_amounts(route, *amount_out)?;
 
 		let first_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 
@@ -1010,10 +1025,11 @@ impl<T: Config> Pallet<T> {
 
 	// returns DCA overhead weight + router execution weight
 	fn get_trade_weight(order: &Order<T::AssetId>) -> Weight {
+		let route = &order.get_route_or_default::<T::RouteProvider>();
 		match order {
-			Order::Sell { route, .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade()
+			Order::Sell { .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade()
 				.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route)),
-			Order::Buy { route, .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade()
+			Order::Buy { .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade()
 				.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route)),
 		}
 	}
@@ -1043,9 +1059,7 @@ impl<T: Config> Pallet<T> {
 		Ok(price_from_rational)
 	}
 
-	fn get_price_from_short_oracle(
-		route: &BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
-	) -> Result<FixedU128, DispatchError> {
+	fn get_price_from_short_oracle(route: &[Trade<T::AssetId>]) -> Result<FixedU128, DispatchError> {
 		let price =
 			T::OraclePriceProvider::price(route, OraclePeriod::Short).ok_or(Error::<T>::CalculatingPriceError)?;
 
@@ -1082,18 +1096,4 @@ impl<T: Config> RandomnessProvider for Pallet<T> {
 
 		Ok(rand::rngs::StdRng::seed_from_u64(seed))
 	}
-}
-
-fn reverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
-	trades
-		.into_iter()
-		.map(|trade| Trade {
-			pool: trade.pool,
-			asset_in: trade.asset_out,
-			asset_out: trade.asset_in,
-		})
-		.collect::<Vec<Trade<AssetId>>>()
-		.into_iter()
-		.rev()
-		.collect()
 }
