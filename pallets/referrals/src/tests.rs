@@ -21,6 +21,7 @@ mod flow;
 mod link;
 mod mock_amm;
 mod register;
+mod tiers;
 mod trade_fee;
 
 use crate as pallet_referrals;

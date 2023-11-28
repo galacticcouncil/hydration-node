@@ -35,7 +35,7 @@ use orml_traits::GetByKey;
 use sp_core::bounded::BoundedVec;
 use sp_core::U256;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::{DispatchError, Permill};
+use sp_runtime::{traits::CheckedAdd, DispatchError, Permill};
 
 pub use pallet::*;
 
@@ -220,6 +220,8 @@ pub mod pallet {
 		LinkNotAllowed,
 		/// Calculated rewards are more than the fee amount. This can happen if percentage are incorrectly set.
 		IncorrectRewardCalculation,
+		/// Given referrer and trader percentages exceeds 100% percent.
+		IncorrectRewardPercentage,
 	}
 
 	#[pallet::call]
@@ -410,7 +412,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
-			//TODO: ensure that total percentage is not greater than 100%
+			//ensure that total percentage does not exceed 100%
+			ensure!(
+				referrer.checked_add(&trader).is_some(),
+				Error::<T>::IncorrectRewardPercentage
+			);
 
 			AssetTier::<T>::mutate(asset_id, level, |v| {
 				*v = Some(Tier { referrer, trader });
