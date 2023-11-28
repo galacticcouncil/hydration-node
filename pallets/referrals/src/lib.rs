@@ -474,7 +474,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// What is asset fee for this level? if any.
-		let Some(tier) = Self::asset_tier(&asset_id, &level) else {
+		let Some(tier) = Self::asset_tier(asset_id, level) else {
 			return Ok(amount);
 		};
 
