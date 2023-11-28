@@ -16,13 +16,16 @@
 // limitations under the License.
 #![allow(clippy::result_large_err)]
 
-use crate::{AccountId, AssetId, Balance, Currencies, Router, Runtime, System, LBP};
+use crate::{AccountId, AssetId, AssetRegistry, Balance, Currencies, Router, Runtime, RuntimeOrigin, System, LBP, XYK};
 
 use frame_benchmarking::account;
 use frame_support::dispatch::DispatchResult;
+use frame_support::sp_runtime::traits::One;
 use frame_support::{assert_ok, ensure};
 use frame_system::RawOrigin;
+use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::{PoolType, RouterT, Trade};
+use hydradx_traits::Registry;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::constants::currency::UNITS;
@@ -90,6 +93,33 @@ fn setup_lbp(caller: AccountId, asset_in: AssetId, asset_out: AssetId) -> Dispat
 
 	System::set_block_number(2u32);
 	Ok(())
+}
+
+fn create_xyk_pool(asset_a: u32, asset_b: u32) {
+	let caller: AccountId = funded_account("caller", 0, &[asset_a, asset_b]);
+
+	let amount = 100000 * UNITS;
+	assert_ok!(Currencies::update_balance(
+		RuntimeOrigin::root(),
+		caller.clone(),
+		asset_a,
+		amount as i128,
+	));
+
+	assert_ok!(Currencies::update_balance(
+		RuntimeOrigin::root(),
+		caller.clone(),
+		asset_b,
+		amount as i128,
+	));
+
+	assert_ok!(XYK::create_pool(
+		RuntimeOrigin::signed(caller),
+		asset_a,
+		amount,
+		asset_b,
+		amount,
+	));
 }
 
 runtime_benchmarks! {
@@ -167,6 +197,52 @@ runtime_benchmarks! {
 			&buyer,
 			) < INITIAL_BALANCE);
 		}
+	}
+
+	// Calculates the weight of xyk set route. Used in the calculation to determine the weight of the overhead.
+	set_route_for_xyk {
+		let asset_1 = 1u32;
+		let asset_2 = AssetRegistry::create_asset(&b"FCA".to_vec(), Balance::one())?;
+		let asset_3 = AssetRegistry::create_asset(&b"FCB".to_vec(), Balance::one())?;
+
+		let caller: AccountId = funded_account("caller", 0, &[asset_1, asset_2,asset_3]);
+		let buyer: AccountId = funded_account("buyer", 1, &[asset_1, asset_2,asset_3]);
+		create_xyk_pool(asset_1, asset_2);
+		create_xyk_pool(asset_1, asset_3);
+		create_xyk_pool(asset_2, asset_3);
+
+		let route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_1,
+			asset_out: asset_2
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_2,
+			asset_out: asset_3
+		}];
+
+		Router::set_route(
+			RawOrigin::Signed(caller.clone()).into(),
+			AssetPair::new(asset_1, asset_3),
+			route,
+		)?;
+
+		let better_route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_1,
+			asset_out: asset_3
+		}];
+
+	}: {
+		Router::set_route(
+			RawOrigin::Signed(caller.clone()).into(),
+			AssetPair::new(asset_1, asset_3),
+			better_route.clone(),
+		)?;
+	}
+	verify {
+		let stored_route = Router::route(AssetPair::new(asset_1, asset_3)).unwrap();
+		assert_eq!(stored_route, better_route);
 	}
 }
 

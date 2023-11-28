@@ -5,12 +5,15 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 
 use crate::{assert_balance, assert_reserved_balance};
+use frame_support::storage::with_transaction;
 use frame_system::RawOrigin;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin, Stableswap, Tokens,
 	Treasury, DCA,
 };
+
+use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::Trade;
 use hydradx_traits::Registry;
@@ -23,6 +26,7 @@ use primitives::{AssetId, Balance};
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
 use sp_runtime::Permill;
+use sp_runtime::TransactionOutcome;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
 
@@ -1280,7 +1284,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 194514524851196;
+		let amount_to_receive = 197218633037720;
 		//With DCA
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -1307,7 +1311,7 @@ mod stableswap {
 				RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				10000 * UNITS as i128,
+				30_000_000 * UNITS as i128,
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -1406,7 +1410,7 @@ mod stableswap {
 				RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				10000 * UNITS as i128,
+				30_000_000 * UNITS as i128,
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -1470,7 +1474,7 @@ mod stableswap {
 				RuntimeOrigin::root(),
 				Omnipool::protocol_account(),
 				pool_id,
-				10000 * UNITS as i128,
+				30_000_000 * UNITS as i128,
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -2119,11 +2123,10 @@ mod xyk {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				BOB.into(),
 				5000 * UNITS,
-				0,
 			));
 
 			assert_ok!(Tokens::set_balance(
@@ -2153,11 +2156,10 @@ mod xyk {
 			));
 
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			set_relaychain_block_number(10);
@@ -2209,11 +2211,10 @@ mod xyk {
 			));
 
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			set_relaychain_block_number(10);
@@ -2303,11 +2304,10 @@ mod all_pools {
 			set_relaychain_block_number(10);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
-			assert_ok!(Balances::set_balance(
+			assert_ok!(Balances::force_set_balance(
 				RawOrigin::Root.into(),
 				ALICE.into(),
 				alice_init_hdx_balance,
-				0,
 			));
 
 			let trades = vec![
@@ -2375,6 +2375,620 @@ fn crate_xyk_pool(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_
 
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),
+		DAVE.into(),
+		asset_b,
+		amount_b as i128,
+	));
+
+	assert_ok!(XYK::create_pool(
+		RuntimeOrigin::signed(DAVE.into()),
+		asset_a,
+		amount_a,
+		asset_b,
+		amount_b,
+	));
+}
+
+mod with_onchain_route {
+	use super::*;
+	use hydradx_traits::router::PoolType;
+
+	#[test]
+	fn buy_should_work_with_omnipool_and_stable_with_onchain_routes() {
+		let amount_to_buy = 200 * UNITS;
+		//With DCA
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			//To populate stableswap oracle
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				3000 * UNITS,
+				0,
+			));
+
+			init_omnipol();
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				pool_id,
+				300_000_000 * UNITS as i128,
+			));
+
+			assert_ok!(Omnipool::add_token(
+				RuntimeOrigin::root(),
+				pool_id,
+				FixedU128::from_rational(50, 100),
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+			do_trade_to_populate_oracle(DAI, HDX, UNITS);
+
+			set_relaychain_block_number(10);
+
+			let alice_init_hdx_balance = 5000 * UNITS;
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+			));
+
+			let trades = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: pool_id,
+				},
+				Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: pool_id,
+					asset_out: stable_asset_1,
+				},
+			];
+
+			let asset_pair = AssetPair::new(HDX, stable_asset_1);
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				asset_pair,
+				trades.clone()
+			));
+			assert_eq!(Router::route(asset_pair).unwrap(), trades);
+
+			let dca_budget = 1100 * UNITS;
+
+			let schedule = Schedule {
+				owner: AccountId::from(ALICE),
+				period: 3u32,
+				total_amount: dca_budget,
+				max_retries: None,
+				stability_threshold: None,
+				slippage: Some(Permill::from_percent(10)),
+				order: Order::Buy {
+					asset_in: HDX,
+					asset_out: stable_asset_1,
+					amount_out: amount_to_buy,
+					max_amount_in: Balance::MAX,
+					route: create_bounded_vec(vec![]),
+				},
+			};
+
+			create_schedule(ALICE, schedule);
+
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_balance!(ALICE.into(), stable_asset_1, 0);
+			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
+
+			//Act
+			set_relaychain_block_number(11);
+
+			//Assert
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_balance!(ALICE.into(), stable_asset_1, amount_to_buy);
+
+			assert_balance!(Router::router_account(), HDX, 0);
+			assert_balance!(Router::router_account(), stable_asset_1, 0);
+		});
+	}
+
+	#[test]
+	fn sell_should_work_with_omnipool_and_stable_trades_with_onchain_routes() {
+		let amount_to_sell = 200 * UNITS;
+		let amount_to_receive = 187172768546667;
+
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				10000 * UNITS,
+				0,
+			));
+
+			init_omnipol();
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				pool_id,
+				300_000_000 * UNITS as i128,
+			));
+
+			assert_ok!(Omnipool::add_token(
+				RuntimeOrigin::root(),
+				pool_id,
+				FixedU128::from_rational(50, 100),
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+			do_trade_to_populate_oracle(DAI, HDX, UNITS);
+
+			set_relaychain_block_number(10);
+
+			let alice_init_hdx_balance = 5000 * UNITS;
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+			));
+
+			let trades = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: pool_id,
+				},
+				Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: pool_id,
+					asset_out: stable_asset_1,
+				},
+			];
+
+			let asset_pair = AssetPair::new(HDX, stable_asset_1);
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				asset_pair,
+				trades.clone()
+			));
+			assert_eq!(Router::route(asset_pair).unwrap(), trades);
+
+			let dca_budget = 1100 * UNITS;
+
+			let schedule = Schedule {
+				owner: AccountId::from(ALICE),
+				period: 3u32,
+				total_amount: dca_budget,
+				max_retries: None,
+				stability_threshold: None,
+				slippage: Some(Permill::from_percent(10)),
+				order: Order::Sell {
+					asset_in: HDX,
+					asset_out: stable_asset_1,
+					amount_in: amount_to_sell,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![]),
+				},
+			};
+
+			create_schedule(ALICE, schedule);
+
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_balance!(ALICE.into(), stable_asset_1, 0);
+			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
+
+			//Act
+			set_relaychain_block_number(11);
+
+			//Assert
+			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
+			assert!(fee > 0, "The treasury did not receive the fee");
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_balance!(ALICE.into(), stable_asset_1, amount_to_receive);
+			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - fee);
+
+			assert_balance!(Router::router_account(), HDX, 0);
+			assert_balance!(Router::router_account(), stable_asset_1, 0);
+		});
+	}
+
+	#[test]
+	fn schedule_should_work_when_fee_asset_is_nonnative_omni_asset() {
+		let amount_to_sell = 2000 * UNITS;
+
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipol();
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				DOT,
+				1_000_000 * UNITS as i128,
+			));
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(50, 100),
+			));
+
+			assert_ok!(Omnipool::add_token(
+				RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(10, 100),
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+			do_trade_to_populate_oracle(DAI, HDX, UNITS);
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				ALICE.into(),
+				DOT,
+				50000 * UNITS as i128,
+			));
+			let alice_init_dot_balance = 50000 * UNITS + ALICE_INITIAL_DOT_BALANCE;
+
+			set_relaychain_block_number(10);
+
+			let dca_budget = 10000 * UNITS;
+
+			let schedule = Schedule {
+				owner: AccountId::from(ALICE),
+				period: 3u32,
+				total_amount: dca_budget,
+				max_retries: None,
+				stability_threshold: None,
+				slippage: Some(Permill::from_percent(10)),
+				order: Order::Sell {
+					asset_in: DOT,
+					asset_out: HDX,
+					amount_in: amount_to_sell,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![]),
+				},
+			};
+
+			//We verify the price diff between hdx and stable asset.
+			//If we sell 3703744780645, we receive 18462849173515,
+			// so something like 5x more, so fee should be 5x than normal HDX
+			let _dot_amount = with_transaction::<_, _, _>(|| {
+				let amount_to_sell = 3703744780645;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					DOT,
+					amount_to_sell,
+					0,
+					vec![]
+				));
+				let alice_received_dot =
+					Currencies::free_balance(DOT, &AccountId::from(ALICE)) - alice_init_dot_balance;
+
+				TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_dot))
+			})
+			.unwrap();
+
+			assert_balance!(ALICE.into(), DOT, alice_init_dot_balance);
+
+			create_schedule(ALICE, schedule);
+
+			assert_balance!(ALICE.into(), DOT, alice_init_dot_balance - dca_budget);
+			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget);
+			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+
+			//Act
+			set_relaychain_block_number(11);
+
+			//Assert
+			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
+			assert!(fee > 0, "The treasury did not receive the fee");
+			assert!(fee < 19 * UNITS);
+			assert!(fee > 18 * UNITS);
+
+			assert_balance!(ALICE.into(), DOT, alice_init_dot_balance - dca_budget);
+			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + 398004528624916);
+
+			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
+		});
+	}
+
+	#[test]
+	fn schedule_should_work_when_stable_asset_used_as_fee_asset() {
+		let amount_to_sell = 200 * UNITS;
+
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				stable_asset_1,
+				FixedU128::from_rational(50, 100),
+			));
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				10000 * UNITS as i128,
+			));
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				pool_id,
+				stable_asset_1,
+				stable_asset_2,
+				10000 * UNITS,
+				0,
+			));
+
+			init_omnipol();
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				pool_id,
+				300_000_000 * UNITS as i128,
+			));
+
+			assert_ok!(Omnipool::add_token(
+				RuntimeOrigin::root(),
+				pool_id,
+				FixedU128::from_rational(50, 100),
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+			do_trade_to_populate_oracle(pool_id, HDX, 10000000 * UNITS);
+
+			set_relaychain_block_number(10);
+
+			let alice_init_hdx_balance = 5000 * UNITS;
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+			));
+
+			let alice_init_stable_balance = 5000 * UNITS;
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				ALICE.into(),
+				stable_asset_1,
+				alice_init_stable_balance as i128,
+			));
+
+			let trades = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: pool_id,
+				},
+				Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: pool_id,
+					asset_out: stable_asset_1,
+				},
+			];
+
+			let asset_pair = AssetPair::new(HDX, stable_asset_1);
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				asset_pair,
+				trades.clone()
+			));
+			assert_eq!(Router::route(asset_pair).unwrap(), trades);
+
+			let dca_budget = 1100 * UNITS;
+
+			let schedule = Schedule {
+				owner: AccountId::from(ALICE),
+				period: 3u32,
+				total_amount: dca_budget,
+				max_retries: None,
+				stability_threshold: None,
+				slippage: Some(Permill::from_percent(10)),
+				order: Order::Sell {
+					asset_in: stable_asset_1,
+					asset_out: HDX,
+					amount_in: amount_to_sell,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![]),
+				},
+			};
+
+			//We verify the price diff between hdx and stable asset.
+			//If we sell 6503744780645, we receive 5385180382312
+			//So fee should be like 0.8x normal HDX fee
+			let _stable_amount = with_transaction::<_, _, _>(|| {
+				let amount_to_sell = 6503744780645;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					stable_asset_1,
+					amount_to_sell,
+					0,
+					vec![]
+				));
+				let alice_received_stable =
+					Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)) - alice_init_stable_balance;
+
+				TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_stable))
+			})
+			.unwrap();
+
+			create_schedule(ALICE, schedule);
+
+			//Act
+			set_relaychain_block_number(11);
+
+			//Assert
+			let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
+			assert!(fee > 0, "The treasury did not receive the fee");
+
+			//If the fee would be HDX, it would cost around 6503744780645
+			assert!(fee < 58 * UNITS / 10);
+			assert!(fee > 57 * UNITS / 10);
+
+			assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable_balance - dca_budget);
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 237185260073197);
+
+			assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
+		});
+	}
+
+	#[test]
+	fn schedule_should_work_when_xyk_asset_used_as_fee_asset() {
+		let amount_to_sell = 200 * UNITS;
+
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipol();
+
+			do_trade_to_populate_oracle(DAI, HDX, 10000000 * UNITS);
+
+			create_xyk_pool_with_amounts(DAI, 10000000000 * UNITS, DOT, 10000000000 * UNITS);
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(50, 100),
+			));
+
+			//Populate xyk
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DAVE.into(),
+				DAI,
+				10000000 * UNITS as i128,
+			));
+			assert_ok!(XYK::sell(
+				RuntimeOrigin::signed(DAVE.into()),
+				DAI,
+				DOT,
+				10000000 * UNITS,
+				u128::MIN,
+				false
+			));
+
+			set_relaychain_block_number(10);
+
+			let alice_init_hdx_balance = 5000 * UNITS;
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+			));
+
+			let trades = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DAI,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: DAI,
+					asset_out: DOT,
+				},
+			];
+
+			let asset_pair = AssetPair::new(HDX, DOT);
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				asset_pair,
+				trades.clone()
+			));
+			assert_eq!(Router::route(asset_pair).unwrap(), trades);
+
+			let dca_budget = 1100 * UNITS;
+
+			let schedule = Schedule {
+				owner: AccountId::from(ALICE),
+				period: 3u32,
+				total_amount: dca_budget,
+				max_retries: None,
+				stability_threshold: None,
+				slippage: Some(Permill::from_percent(10)),
+				order: Order::Sell {
+					asset_in: DOT,
+					asset_out: HDX,
+					amount_in: amount_to_sell,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![]),
+				},
+			};
+
+			//Just to verify the price difference between HDX and DOT
+			//Selling 3795361512418 HDX results 2694204333872 DOT
+			//So fee should be 0.7x normal HDX feee
+			let _dot_amount_out = with_transaction::<_, _, _>(|| {
+				let fee_in_hdx = 3795361512418;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					DOT,
+					fee_in_hdx,
+					0,
+					vec![]
+				));
+				let alice_received_dot =
+					Currencies::free_balance(DOT, &AccountId::from(ALICE)) - ALICE_INITIAL_DOT_BALANCE;
+
+				TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_dot))
+			})
+			.unwrap();
+
+			create_schedule(ALICE, schedule);
+
+			//Act
+			set_relaychain_block_number(11);
+
+			//Assert
+			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
+			assert!(fee > 0, "The treasury did not receive the fee");
+
+			//The fee would be 5310255478763 in HDX, so it is less in DOT, which checks out
+			assert!(fee < 38 * UNITS / 10);
+			assert!(fee > 37 * UNITS / 10);
+
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 278060378846663);
+			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
+		});
+	}
+}
+
+fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		asset_a,
+		amount_a as i128,
+	));
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
 		DAVE.into(),
 		asset_b,
 		amount_b as i128,

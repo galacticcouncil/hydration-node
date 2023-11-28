@@ -61,6 +61,7 @@ pallet-balances = { workspace = true }
 [dev-dependencies]
 lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
 pretty_assertions = "1.4.0"
+pallet-xyk = { workspace = true }
 
 [features]
 default = ["std"]
@@ -70,6 +71,8 @@ runtime-benchmarks = [
 ]
 std = [
     "codec/std",
+    "orml-tokens/std",
+    "pallet-balances/std",
     "frame-support/std",
     "frame-system/std",
     "hydradx-traits/std",
