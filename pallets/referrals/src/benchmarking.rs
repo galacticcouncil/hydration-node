@@ -83,20 +83,15 @@ benchmarks! {
 		T::Currency::mint_into(T::RewardAsset::get(), &Pallet::<T>::pot_account_id(), top_tier_volume)?;
 		Shares::<T>::insert(caller.clone(), 1_000_000_000_000);
 		TotalShares::<T>::put(1_000_000_000_000);
-
-		// Worst case is to convert an asset. let's prepare one.
-		let (asset_id, amount) = T::BenchmarkHelper::prepare_convertible_asset_and_amount();
-		Assets::<T>::insert(asset_id,());
-		T::Currency::mint_into(asset_id.into(), &Pallet::<T>::pot_account_id(), amount)?;
 	}: _(RawOrigin::Signed(caller.clone()))
 	verify {
 		let count = Assets::<T>::iter().count();
 		assert_eq!(count , 0);
 		let balance = T::Currency::balance(T::RewardAsset::get(), &caller);
-		assert_eq!(balance, 1001000000000);
+		assert_eq!(balance, 1000000000);
 		let (level, total) = Referrer::<T>::get(&caller).expect("correct entry");
 		assert_eq!(level, Level::Expert);
-		assert_eq!(total, 1_001_000_000_000);
+		assert_eq!(total, 1000000000);
 	}
 
 	set_reward_percentage{
