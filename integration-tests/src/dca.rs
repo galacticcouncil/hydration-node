@@ -2172,14 +2172,14 @@ mod xyk {
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
-			assert_balance!(&Treasury::account_id(), HDX, 0);
+			let treasury_init_balance = Balances::free_balance(Treasury::account_id());
 
 			//Act
 			set_relaychain_block_number(11);
 
 			//Assert
 			let amount_out = 151105924242426;
-			let fee = Currencies::free_balance(HDX, &Treasury::account_id());
+			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - treasury_init_balance;
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -2227,7 +2227,6 @@ mod xyk {
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
-			assert_balance!(&Treasury::account_id(), HDX, 0);
 
 			//Act
 			set_relaychain_block_number(11);
