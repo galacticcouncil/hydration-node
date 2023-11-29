@@ -349,7 +349,12 @@ pub mod pallet {
 		///
 		/// Emits `Claimed` event when successful.
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
+		#[pallet::weight( {
+			let c = (Assets::<T>::iter().count() as u64).min(1);
+			let w  = <T as Config>::WeightInfo::claim_rewards();
+			let one_read = T::DbWeight::get().reads(1 as u64);
+			w.saturating_mul(c).saturating_add(one_read)
+		})]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			for (asset_id, _) in Assets::<T>::drain() {
