@@ -20,6 +20,7 @@ fn convert_should_convert_all_asset_amount_when_successful() {
 			(HDX, DAI),
 			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
 		)
+		.with_assets(vec![DAI])
 		.build()
 		.execute_with(|| {
 			// Arrange
@@ -33,6 +34,25 @@ fn convert_should_convert_all_asset_amount_when_successful() {
 }
 
 #[test]
+fn convert_should_remove_asset_from_the_asset_list() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), DAI, 1_000_000_000_000_000_000)])
+		.with_conversion_price(
+			(HDX, DAI),
+			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
+		)
+		.with_assets(vec![DAI])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI));
+			// Assert
+			let entry = Assets::<Test>::get(DAI);
+			assert_eq!(entry, None)
+		});
+}
+
+#[test]
 fn convert_should_emit_event_when_successful() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), DAI, 1_000_000_000_000_000_000)])
@@ -40,6 +60,7 @@ fn convert_should_emit_event_when_successful() {
 			(HDX, DAI),
 			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
 		)
+		.with_assets(vec![DAI])
 		.build()
 		.execute_with(|| {
 			// Arrange

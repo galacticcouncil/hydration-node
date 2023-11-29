@@ -323,11 +323,14 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::convert())]
 		pub fn convert(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			ensure_signed(origin)?;
+
 			let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
 			ensure!(asset_balance > 0, Error::<T>::ZeroAmount);
 
 			let total_reward_asset =
 				T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance)?;
+
+			Assets::<T>::remove(asset_id);
 
 			Self::deposit_event(Event::Converted {
 				from: asset_id,

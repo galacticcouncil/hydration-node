@@ -19,7 +19,7 @@ use super::*;
 
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
-use frame_support::traits::tokens::fungibles::Mutate;
+use frame_support::traits::tokens::fungibles::{Inspect, Mutate};
 use frame_system::RawOrigin;
 use sp_std::vec;
 
@@ -61,8 +61,54 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, 1);
 		let (asset_id, amount) = T::BenchmarkHelper::prepare_convertible_asset_and_amount();
 		T::Currency::mint_into(asset_id.into(), &Pallet::<T>::pot_account_id(), amount)?;
+		Assets::<T>::insert(asset_id,());
 	}: _(RawOrigin::Signed(caller), asset_id.into())
 	verify {
+		let count = Assets::<T>::iter().count();
+		assert_eq!(count , 0);
+		let balance = T::Currency::balance(asset_id, &Pallet::<T>::pot_account_id());
+		assert_eq!(balance, 0);
+	}
+
+	claim_rewards{
+		let caller: T::AccountId = account("caller", 0, 1);
+		let code = vec![b'x'; T::CodeLength::get() as usize];
+		let (asset, fee, _) = T::RegistrationFee::get();
+		T::Currency::mint_into(asset, &caller, fee)?;
+		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code.clone(), caller.clone())?;
+
+		// The worst case is when referrer account is updated to the top tier in one call
+		// So we need to have enough RewardAsset in the pot. And give all the shares to the caller.
+		let top_tier_volume = T::TierVolume::get(&Level::Advanced).expect("to have all level configured");
+		T::Currency::mint_into(T::RewardAsset::get(), &Pallet::<T>::pot_account_id(), top_tier_volume)?;
+		Shares::<T>::insert(caller.clone(), 1_000_000_000_000);
+		TotalShares::<T>::put(1_000_000_000_000);
+
+		// Worst case is to convert an asset. let's prepare one.
+		let (asset_id, amount) = T::BenchmarkHelper::prepare_convertible_asset_and_amount();
+		Assets::<T>::insert(asset_id,());
+		T::Currency::mint_into(asset_id.into(), &Pallet::<T>::pot_account_id(), amount)?;
+	}: _(RawOrigin::Signed(caller.clone()))
+	verify {
+		let count = Assets::<T>::iter().count();
+		assert_eq!(count , 0);
+		let balance = T::Currency::balance(T::RewardAsset::get(), &caller);
+		assert_eq!(balance, 1001000000000);
+		let (level, total) = Referrer::<T>::get(&caller).expect("correct entry");
+		assert_eq!(level, Level::Expert);
+		assert_eq!(total, 1_001_000_000_000);
+	}
+
+	set_reward_percentage{
+		let referrer_percentage = Permill::from_percent(70);
+		let trader_percentage = Permill::from_percent(30);
+	}: _(RawOrigin::Root, T::RewardAsset::get(), Level::Expert, referrer_percentage, trader_percentage)
+	verify {
+		let entry = Pallet::<T>::asset_tier(T::RewardAsset::get(), Level::Expert);
+		assert_eq!(entry, Some(Tier{
+			referrer: referrer_percentage,
+			trader: trader_percentage,
+		}));
 	}
 
 }

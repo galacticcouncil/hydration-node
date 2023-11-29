@@ -98,7 +98,17 @@ pub struct Volume;
 
 impl GetByKey<Level, Option<Balance>> for Volume {
 	fn get(level: &Level) -> Option<Balance> {
-		TIER_VOLUME.with(|v| v.borrow().get(level).copied()).unwrap_or_default()
+		let c = TIER_VOLUME.with(|v| v.borrow().get(level).copied());
+
+		if let Some(l) = c {
+			return l;
+		} else {
+			match level {
+				Level::Novice => Some(1),
+				Level::Advanced => Some(1_000_000_000),
+				Level::Expert => None,
+			}
+		}
 	}
 }
 

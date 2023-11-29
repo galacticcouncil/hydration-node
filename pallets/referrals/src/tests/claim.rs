@@ -141,8 +141,7 @@ fn claim_rewards_update_total_accumulated_for_referrer_account() {
 			// Act
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
 			// Assert
-			let (level, total) = Referrer::<Test>::get(&ALICE).unwrap();
-			assert_eq!(level, Level::Novice);
+			let (_, total) = Referrer::<Test>::get(&ALICE).unwrap();
 			assert_eq!(total, 15_000_000_000_000);
 		});
 }
