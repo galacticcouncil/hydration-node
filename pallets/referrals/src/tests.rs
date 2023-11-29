@@ -101,7 +101,7 @@ impl GetByKey<Level, Option<Balance>> for Volume {
 		let c = TIER_VOLUME.with(|v| v.borrow().get(level).copied());
 
 		if let Some(l) = c {
-			return l;
+			l
 		} else {
 			match level {
 				Level::Novice => Some(1),

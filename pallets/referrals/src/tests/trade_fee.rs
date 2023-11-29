@@ -29,7 +29,7 @@ fn process_trade_fee_should_increased_referrer_shares() {
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,));
 			// Assert
-			let shares = Shares::<Test>::get(&ALICE);
+			let shares = Shares::<Test>::get(ALICE);
 			assert_eq!(shares, 5_000_000_000);
 		});
 }
@@ -62,7 +62,7 @@ fn process_trade_fee_should_increased_trader_shares() {
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,));
 			// Assert
-			let shares = Shares::<Test>::get(&BOB);
+			let shares = Shares::<Test>::get(BOB);
 			assert_eq!(shares, 2_000_000_000);
 		});
 }
@@ -156,7 +156,7 @@ fn process_trade_should_not_increase_shares_when_trader_does_not_have_linked_acc
 				DAI,
 				1_000_000_000_000,
 			));
-			let shares = Shares::<Test>::get(&ALICE);
+			let shares = Shares::<Test>::get(ALICE);
 			assert_eq!(shares, 0);
 		});
 }

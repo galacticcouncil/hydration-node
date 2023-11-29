@@ -51,7 +51,7 @@ benchmarks! {
 		let (asset, fee, _) = T::RegistrationFee::get();
 		T::Currency::mint_into(asset, &caller, fee)?;
 		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code.clone(), caller.clone())?;
-	}: _(RawOrigin::Signed(user.clone()), code.clone())
+	}: _(RawOrigin::Signed(user.clone()), code)
 	verify {
 		let entry = Pallet::<T>::linked_referral_account(user);
 		assert_eq!(entry, Some(caller));
@@ -60,9 +60,9 @@ benchmarks! {
 	convert{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let (asset_id, amount) = T::BenchmarkHelper::prepare_convertible_asset_and_amount();
-		T::Currency::mint_into(asset_id.into(), &Pallet::<T>::pot_account_id(), amount)?;
+		T::Currency::mint_into(asset_id, &Pallet::<T>::pot_account_id(), amount)?;
 		Assets::<T>::insert(asset_id,());
-	}: _(RawOrigin::Signed(caller), asset_id.into())
+	}: _(RawOrigin::Signed(caller), asset_id)
 	verify {
 		let count = Assets::<T>::iter().count();
 		assert_eq!(count , 0);
@@ -75,7 +75,7 @@ benchmarks! {
 		let code = vec![b'x'; T::CodeLength::get() as usize];
 		let (asset, fee, _) = T::RegistrationFee::get();
 		T::Currency::mint_into(asset, &caller, fee)?;
-		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code.clone(), caller.clone())?;
+		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code, caller.clone())?;
 
 		// The worst case is when referrer account is updated to the top tier in one call
 		// So we need to have enough RewardAsset in the pot. And give all the shares to the caller.

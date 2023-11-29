@@ -28,7 +28,7 @@ fn setting_asset_tier_should_correctly_update_storage() {
 			Permill::from_percent(1),
 			Permill::from_percent(2),
 		));
-		let d = AssetTier::<Test>::get(&DAI, Level::Novice);
+		let d = AssetTier::<Test>::get(DAI, Level::Novice);
 		assert_eq!(
 			d,
 			Some(Tier {

@@ -101,7 +101,7 @@ fn claim_rewards_should_reset_account_shares_to_zero() {
 		.execute_with(|| {
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
 			// Assert
-			let shares = Shares::<Test>::get(&BOB);
+			let shares = Shares::<Test>::get(BOB);
 			assert_eq!(shares, 0);
 		});
 }
@@ -141,7 +141,7 @@ fn claim_rewards_update_total_accumulated_for_referrer_account() {
 			// Act
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
 			// Assert
-			let (_, total) = Referrer::<Test>::get(&ALICE).unwrap();
+			let (_, total) = Referrer::<Test>::get(ALICE).unwrap();
 			assert_eq!(total, 15_000_000_000_000);
 		});
 }
@@ -169,7 +169,7 @@ fn claim_rewards_should_increase_referrer_level_when_limit_is_reached() {
 			// Act
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
 			// Assert
-			let (level, total) = Referrer::<Test>::get(&ALICE).unwrap();
+			let (level, total) = Referrer::<Test>::get(ALICE).unwrap();
 			assert_eq!(level, Level::Advanced);
 			assert_eq!(total, 15_000_000_000_000);
 		});
@@ -198,7 +198,7 @@ fn claim_rewards_should_increase_referrer_level_directly_to_top_tier_when_limit_
 			// Act
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
 			// Assert
-			let (level, total) = Referrer::<Test>::get(&ALICE).unwrap();
+			let (level, total) = Referrer::<Test>::get(ALICE).unwrap();
 			assert_eq!(level, Level::Expert);
 			assert_eq!(total, 15_000_000_000_000);
 		});

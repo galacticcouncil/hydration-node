@@ -353,7 +353,7 @@ pub mod pallet {
 			let c = Assets::<T>::iter().count() as u64;
 			let convert_weight = (<T as Config>::WeightInfo::convert()).saturating_mul(c);
 			let w  = <T as Config>::WeightInfo::claim_rewards();
-			let one_read = T::DbWeight::get().reads(1 as u64);
+			let one_read = T::DbWeight::get().reads(1_u64);
 			w.saturating_add(convert_weight).saturating_add(one_read)
 		})]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {

@@ -161,7 +161,7 @@ fn signer_should_pay_the_registration_fee() {
 		// Act
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE),
-			code.clone(),
+			code,
 			BOB
 		));
 		// Assert
@@ -179,7 +179,7 @@ fn singer_should_set_default_level_for_referrer() {
 		// Act
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE),
-			code.clone(),
+			code,
 			BOB
 		));
 		// Assert
