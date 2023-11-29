@@ -159,11 +159,7 @@ fn signer_should_pay_the_registration_fee() {
 		// Arrange
 		let code = b"BALLS69".to_vec();
 		// Act
-		assert_ok!(Referrals::register_code(
-			RuntimeOrigin::signed(ALICE),
-			code,
-			BOB
-		));
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code, BOB));
 		// Assert
 		let (fee_asset, amount, beneficiary) = RegistrationFee::get();
 		assert_balance!(ALICE, fee_asset, INITIAL_ALICE_BALANCE - amount);
@@ -177,11 +173,7 @@ fn singer_should_set_default_level_for_referrer() {
 		// Arrange
 		let code = b"BALLS69".to_vec();
 		// Act
-		assert_ok!(Referrals::register_code(
-			RuntimeOrigin::signed(ALICE),
-			code,
-			BOB
-		));
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code, BOB));
 		// Assert
 		let entry = Pallet::<Test>::referrer_level(BOB);
 		assert_eq!(entry, Some((Level::default(), Balance::zero())));
