@@ -127,7 +127,6 @@ decl_test_parachains! {
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
-			Assets: hydradx_runtime::Assets,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
@@ -145,7 +144,6 @@ decl_test_parachains! {
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
-			Assets: hydradx_runtime::Assets,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
@@ -163,7 +161,6 @@ decl_test_parachains! {
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
-			Assets: hydradx_runtime::Assets,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
@@ -181,7 +178,6 @@ decl_test_parachains! {
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
-			Assets: hydradx_runtime::Assets,
 			Balances: hydradx_runtime::Balances,
 		}
 	}
