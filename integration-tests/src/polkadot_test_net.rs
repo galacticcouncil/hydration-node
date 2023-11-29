@@ -127,7 +127,7 @@ decl_test_parachains! {
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
-			// Assets: hydradx_runtime::Assets,
+			Assets: hydradx_runtime::Assets,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
@@ -145,7 +145,7 @@ decl_test_parachains! {
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
-			// Assets: hydradx_runtime::Assets,
+			Assets: hydradx_runtime::Assets,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
@@ -163,7 +163,7 @@ decl_test_parachains! {
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
-			// Assets: hydradx_runtime::Assets,
+			Assets: hydradx_runtime::Assets,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
@@ -181,7 +181,7 @@ decl_test_parachains! {
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
-			// Assets: hydradx_runtime::Assets,
+			Assets: hydradx_runtime::Assets,
 			Balances: hydradx_runtime::Balances,
 		}
 	}
@@ -196,8 +196,6 @@ decl_test_networks! {
 			Interlay,
 			Hydra,
 		],
-		// TODO: uncomment when https://github.com/paritytech/cumulus/pull/2528 is merged
-		// bridge = KusamaPolkadotMockBridge
 		bridge = ()
 	},
 }
