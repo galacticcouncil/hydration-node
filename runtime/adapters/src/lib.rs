@@ -462,8 +462,18 @@ where
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 
-	fn on_trade_fee(fee_account: AccountId, trader: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
-		let unused = pallet_referrals::Pallet::<Runtime>::process_trade_fee(fee_account.clone().into(), trader.clone().into(), asset.into(), amount)?;
+	fn on_trade_fee(
+		fee_account: AccountId,
+		trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Balance, Self::Error> {
+		let unused = pallet_referrals::Pallet::<Runtime>::process_trade_fee(
+			fee_account.clone().into(),
+			trader.clone().into(),
+			asset.into(),
+			amount,
+		)?;
 		pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), unused)
 	}
 }
