@@ -1076,7 +1076,7 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
-			Self::process_trade_fee(asset_out, state_changes.fee.asset_fee)?;
+			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who,
@@ -1268,7 +1268,7 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
-			Self::process_trade_fee(asset_in, state_changes.fee.asset_fee)?;
+			Self::process_trade_fee(&who, asset_in, state_changes.fee.asset_fee)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -1727,7 +1727,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::process_trade_fee(asset_out, state_changes.fee.asset_fee)?;
+		Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1833,7 +1833,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::process_trade_fee(T::HubAssetId::get(), state_changes.fee.asset_fee)?;
+		Self::process_trade_fee(&who, T::HubAssetId::get(), state_changes.fee.asset_fee)?;
 
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
@@ -1945,10 +1945,10 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Calls `on_trade_fee` hook and ensures that no more than the fee amount is transferred.
-	fn process_trade_fee(asset: T::AssetId, amount: Balance) -> DispatchResult {
+	fn process_trade_fee(trader: &T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult {
 		let account = Self::protocol_account();
 		let original_asset_reserve = T::Currency::free_balance(asset, &account);
-		let unused = T::OmnipoolHooks::on_trade_fee(account.clone(), asset, amount)?;
+		let unused = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, amount)?;
 		let asset_reserve = T::Currency::free_balance(asset, &account);
 		let updated_asset_reserve = asset_reserve.saturating_add(amount.saturating_sub(unused));
 		ensure!(

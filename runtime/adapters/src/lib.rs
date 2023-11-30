@@ -331,9 +331,11 @@ where
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
 		+ frame_system::Config<RuntimeOrigin = Origin>
-		+ pallet_staking::Config,
+		+ pallet_staking::Config
+		+ pallet_referrals::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
+	<Runtime as pallet_referrals::Config>::AssetId: From<AssetId>,
 {
 	type Error = DispatchError;
 
@@ -460,8 +462,9 @@ where
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 
-	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
-		pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), amount)
+	fn on_trade_fee(fee_account: AccountId, trader: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
+		let unused = pallet_referrals::Pallet::<Runtime>::process_trade_fee(fee_account.clone().into(), trader.clone().into(), asset.into(), amount)?;
+		pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), unused)
 	}
 }
 

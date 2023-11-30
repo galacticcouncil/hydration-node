@@ -54,13 +54,14 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use hydradx_traits::router::{inverse_route, Trade};
 use orml_traits::currency::MutationHooks;
-use orml_traits::GetByKey;
+use orml_traits::{GetByKey, MultiCurrency};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES};
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
 use pallet_xyk::weights::WeightInfo as XykWeights;
+use sp_runtime::DispatchError;
 use sp_std::num::NonZeroU16;
 
 parameter_types! {
@@ -797,6 +798,8 @@ where
 
 use pallet_currencies::fungibles::FungibleCurrencies;
 
+use pallet_referrals::traits::Convert;
+use pallet_referrals::Level;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
@@ -984,4 +987,57 @@ impl pallet_xyk::Config for Runtime {
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;
 	type OracleSource = XYKOracleSourceIdentifier;
+}
+
+parameter_types! {
+	pub const ReferralsPalletId: PalletId = PalletId(*b"referral");
+	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 1, TreasuryAccount::get());
+	pub const MaxCodeLength: u32 = 7;
+}
+
+impl pallet_referrals::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Runtime>;
+	type Convert = ConvertViaOmnipool;
+	type SpotPriceProvider = Omnipool;
+	type RewardAsset = NativeAssetId;
+	type PalletId = ReferralsPalletId;
+	type RegistrationFee = RegistrationFee;
+	type CodeLength = MaxCodeLength;
+	type TierVolume = ReferralsLevelTiers;
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+pub struct ConvertViaOmnipool;
+impl Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool {
+	type Error = DispatchError;
+
+	fn convert(
+		who: AccountId,
+		asset_from: AssetId,
+		asset_to: AssetId,
+		amount: Balance,
+	) -> Result<Balance, Self::Error> {
+		let balance = Currencies::free_balance(asset_to, &who);
+		Omnipool::sell(RuntimeOrigin::signed(who.clone()), asset_from, asset_to, amount, 0)?;
+		let balance_after = Currencies::free_balance(asset_to, &who);
+		let received = balance_after.saturating_sub(balance);
+		Ok(received)
+	}
+}
+
+pub struct ReferralsLevelTiers;
+
+impl GetByKey<Level, Option<Balance>> for ReferralsLevelTiers {
+	fn get(k: &Level) -> Option<Balance> {
+		match k {
+			Level::Novice => Some(1_000_000_000_000),
+			Level::Advanced => Some(10_000_000_000_000),
+			Level::Expert => None,
+		}
+	}
 }

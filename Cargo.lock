@@ -4198,6 +4198,7 @@ dependencies = [
  "pallet-liquidity-mining",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
+ "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
  "pallet-staking 2.1.0",
@@ -4221,7 +4222,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "193.0.0"
+version = "194.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4287,6 +4288,7 @@ dependencies = [
  "pallet-otc",
  "pallet-preimage",
  "pallet-proxy",
+ "pallet-referrals",
  "pallet-relaychain-info",
  "pallet-route-executor",
  "pallet-scheduler",
@@ -7640,7 +7642,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "bitflags",
  "frame-benchmarking",

@@ -28,6 +28,7 @@ pallet-staking = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-currencies = { workspace = true }
 pallet-stableswap = { workspace = true }
+pallet-referrals = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
