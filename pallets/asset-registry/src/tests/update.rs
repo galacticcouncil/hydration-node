@@ -15,7 +15,7 @@ fn update_should_work_when_asset_exists() {
 	ExtBuilder::default()
 		.with_assets(vec![
 			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
-			(Some(2), Some(old_asset_name.clone()), UNIT, None, None, None, true),
+			(Some(2), Some(old_asset_name.clone()), UNIT, None, None, None, false),
 			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
 		])
 		.build()
@@ -26,7 +26,7 @@ fn update_should_work_when_asset_exists() {
 			let xcm_rate_limit = 463;
 			let symbol = b"nTkn2".to_vec();
 			let decimals = 23;
-			let is_sufficient = false;
+			let is_sufficient = true;
 
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
@@ -59,7 +59,7 @@ fn update_should_work_when_asset_exists() {
 					xcm_rate_limit: Some(xcm_rate_limit),
 					symbol: bounded_symbol.clone(),
 					decimals: Some(decimals),
-					is_sufficient: false
+					is_sufficient: true
 				})
 			);
 
@@ -104,7 +104,7 @@ fn update_should_update_provided_params_when_values_was_previously_set() {
 			Some(12),
 			Some(asset_location.clone()),
 			Some(1_000),
-			true
+			false
 		));
 
 		let name = b"New name".to_vec();
@@ -112,7 +112,7 @@ fn update_should_update_provided_params_when_values_was_previously_set() {
 		let xcm_rate_limit = 463;
 		let symbol = b"nTkn".to_vec();
 		let decimals = 23;
-		let is_sufficient = false;
+		let is_sufficient = true;
 
 		//Act
 		assert_ok!(Registry::update(
@@ -140,7 +140,7 @@ fn update_should_update_provided_params_when_values_was_previously_set() {
 				xcm_rate_limit: Some(xcm_rate_limit),
 				symbol: bounded_symbol.clone(),
 				decimals: Some(decimals),
-				is_sufficient: false
+				is_sufficient: true
 			})
 		);
 
@@ -657,7 +657,7 @@ fn update_should_fail_when_name_is_too_long() {
 }
 
 #[test]
-fn update_should_fail_when_symbolis_too_long() {
+fn update_should_fail_when_symbol_is_too_long() {
 	ExtBuilder::default()
 		.with_assets(vec![
 			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
@@ -689,6 +689,37 @@ fn update_should_fail_when_symbolis_too_long() {
 					None
 				),
 				Error::<Test>::TooLong
+			);
+		});
+}
+
+#[test]
+fn change_sufficiency_should_fail_when_asset_is_sufficient() {
+	ExtBuilder::default()
+		.with_assets(vec![
+			(Some(1), Some(b"Tkn1".to_vec()), UNIT, None, None, None, true),
+			(Some(2), Some(b"Tkn2".to_vec()), UNIT, None, None, None, true),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+		])
+		.build()
+		.execute_with(|| {
+			let asset_id = 2;
+
+			//Act
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					None,
+					None,
+					None,
+					None,
+					Some(false),
+					None,
+					None,
+					None
+				),
+				Error::<Test>::ForbiddenSufficiencyChange
 			);
 		});
 }

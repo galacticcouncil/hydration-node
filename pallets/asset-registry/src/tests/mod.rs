@@ -8,6 +8,7 @@ mod inspect_trait;
 pub(crate) mod mock;
 mod mutate_trait;
 mod register;
+mod tests;
 mod update;
 
 #[macro_export]

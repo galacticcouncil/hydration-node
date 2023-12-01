@@ -155,6 +155,15 @@ pub mod pallet {
 		/// Balance too low.
 		InsufficientBalance,
 
+		/// Sufficient assets can't be changed to insufficient.
+		ForbiddenSufficiencyChange,
+
+		/// Asset is already blacklisted.
+		AssetAlreadyBlacklisted,
+
+		/// Asset is not in assets blacklist.
+		AssetNotBlacklisted,
+
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
 		InconsistentState(InconsistentStateError),
@@ -200,6 +209,11 @@ pub mod pallet {
 	/// Native location of an asset.
 	pub type AssetLocations<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, T::AssetNativeLocation, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn blacklists)]
+	/// Assets that are blacklisted.
+	pub type BlacklistedAssets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (), OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn location_assets)]
@@ -344,6 +358,12 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			location: T::AssetNativeLocation,
 		},
+
+		/// Asset was added to assets blacklist.
+		BlacklistAdded { asset_id: T::AssetId },
+
+		/// Asset was removed from assets blacklist.
+		BlacklistRemoved { asset_id: T::AssetId },
 	}
 
 	#[pallet::call]
@@ -444,8 +464,15 @@ pub mod pallet {
 				details.asset_type = asset_type.unwrap_or(details.asset_type);
 				details.existential_deposit = existential_deposit.unwrap_or(details.existential_deposit);
 				details.xcm_rate_limit = xcm_rate_limit.or(details.xcm_rate_limit);
-				details.is_sufficient = is_sufficient.unwrap_or(details.is_sufficient);
 				details.symbol = bounded_symbol.or_else(|| details.symbol.clone());
+
+				let suff = is_sufficient.unwrap_or(details.is_sufficient);
+				if details.is_sufficient != suff {
+					//NOTE: Change sufficient -> insufficient require storage migration and is not
+					//allowed by extrinsic.
+					ensure!(!details.is_sufficient, Error::<T>::ForbiddenSufficiencyChange);
+					details.is_sufficient = suff;
+				}
 
 				if decimals.is_some() {
 					if details.decimals.is_none() {
@@ -511,6 +538,42 @@ pub mod pallet {
 				Some(location),
 			)?;
 
+			Ok(())
+		}
+
+		#[pallet::call_index(5)]
+		//#[pallet::weight(<T as Config>::WeightInfo::register_external())]
+		#[pallet::weight(1000)]
+		pub fn blacklist_add(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+			T::UpdateOrigin::ensure_origin(origin)?;
+
+			ensure!(Assets::<T>::contains_key(asset_id), Error::<T>::AssetNotFound);
+
+			ensure!(
+				!BlacklistedAssets::<T>::contains_key(asset_id),
+				Error::<T>::AssetAlreadyBlacklisted
+			);
+
+			BlacklistedAssets::<T>::insert(asset_id, ());
+
+			Self::deposit_event(Event::BlacklistAdded { asset_id });
+			Ok(())
+		}
+
+		#[pallet::call_index(6)]
+		//#[pallet::weight(<T as Config>::WeightInfo::register_external())]
+		#[pallet::weight(1000)]
+		pub fn blacklist_remove(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+			T::UpdateOrigin::ensure_origin(origin)?;
+
+			ensure!(
+				BlacklistedAssets::<T>::contains_key(asset_id),
+				Error::<T>::AssetNotBlacklisted
+			);
+
+			BlacklistedAssets::<T>::remove(asset_id);
+
+			Self::deposit_event(Event::BlacklistRemoved { asset_id });
 			Ok(())
 		}
 	}
