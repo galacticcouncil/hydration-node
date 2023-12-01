@@ -8,12 +8,18 @@ use polkadot_xcm::{latest::prelude::*, v3::WeightLimit, VersionedMultiAssets, Ve
 use cumulus_primitives_core::ParaId;
 use frame_support::weights::Weight;
 use hex_literal::hex;
+use hydradx_runtime::evm::precompiles::EvmAddress;
+use hydradx_runtime::evm::ExtendedAddressMapping;
 use orml_traits::currency::MultiCurrency;
+use pallet_evm::AddressMapping;
 use pretty_assertions::assert_eq;
+use primitives::AccountId;
+use sp_core::blake2_256;
+use sp_core::Encode;
+use sp_core::H160;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};
 use xcm_emulator::TestExt;
-
 // Determine the hash for assets expected to be have been trapped.
 fn determine_hash<M>(origin: &MultiLocation, assets: M) -> H256
 where
@@ -152,6 +158,83 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 			fee // fees should go to treasury
 		);
 	});
+}
+
+#[test]
+fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
+	// Arrange
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ACA,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+		));
+	});
+
+	//TODO: cotninue here, find a way to convert back from 32 to 20
+	assert_eq!(
+		ExtendedAddressMapping::into_account_id(H160::from(hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"])),
+		AccountId::from(BOB)
+	);
+	//let bob_evm = ExtendedAddressMapping::try_from_account(AccountId::from(BOB).borrow()).unwrap();
+	Acala::execute_with(|| {
+		// Act
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			0,
+			30 * UNITS,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountKey20 {
+							network: None,
+							key: bob_evm_addr().into(),
+						}
+					)
+				)
+				.into()
+			),
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
+		));
+
+		// Assert
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
+		);
+	});
+
+	let fee = 321507225875;
+	Hydra::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
+			30 * UNITS - fee
+		);
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
+			fee // fees should go to treasury
+		);
+	});
+}
+
+//TODO: remove duplication of these functions
+fn account_to_default_evm_address(account_id: &impl Encode) -> EvmAddress {
+	let payload = (b"evm:", account_id);
+	EvmAddress::from_slice(&payload.using_encoded(blake2_256)[0..20])
+}
+
+pub fn alice_evm_addr() -> H160 {
+	//H160::from(hex_literal::hex!("1000000000000000000000000000000000000001"))
+	account_to_default_evm_address(&ALICE)
+}
+
+pub fn bob_evm_addr() -> H160 {
+	//H160::from(hex_literal::hex!("1000000000000000000000000000000000000001"))
+	account_to_default_evm_address(&BOB)
 }
 
 #[test]

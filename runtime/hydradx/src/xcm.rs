@@ -1,4 +1,5 @@
 use super::*;
+use sp_std::marker::PhantomData;
 
 use codec::MaxEncodedLen;
 use hydradx_adapters::RelayChainBlockNumberProvider;
@@ -16,6 +17,7 @@ use frame_support::{
 use frame_system::EnsureRoot;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
+use pallet_evm::AddressMapping;
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::v3::{prelude::*, Weight as XcmWeight};
@@ -228,6 +230,7 @@ impl pallet_xcm::Config for Runtime {
 	type ReachableDest = ReachableDest;
 }
 pub struct CurrencyIdConvert;
+use crate::evm::ExtendedAddressMapping;
 use primitives::constants::chain::CORE_ASSET_ID;
 
 impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
@@ -306,7 +309,38 @@ pub type LocationToAccountId = (
 	SiblingParachainConvertsVia<Sibling, AccountId>,
 	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
 	AccountId32Aliases<RelayNetwork, AccountId>,
+	EvmAddressConversion<RelayNetwork>,
 );
+
+/// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
+//TODO: do we want bitcoin too?
+//TODO: do we care about network? We can maybe remove
+pub struct EvmAddressConversion<Network>(PhantomData<Network>);
+impl<Network: Get<Option<NetworkId>>> xcm_executor::traits::Convert<MultiLocation, AccountId>
+	for EvmAddressConversion<Network>
+{
+	fn convert(location: MultiLocation) -> Result<AccountId, MultiLocation> {
+		match location {
+			MultiLocation {
+				parents: 0,
+				interior: X1(AccountKey20 { network, key }),
+			} => {
+				let account_32 = ExtendedAddressMapping::into_account_id(H160::from(key));
+				return Ok(account_32);
+			}
+			_ => Err(location),
+		}
+	}
+
+	//TODO: fix this reverse
+	fn reverse(who: AccountId) -> Result<MultiLocation, AccountId> {
+		Ok(AccountId32 {
+			id: who.into(),
+			network: Network::get(),
+		}
+		.into())
+	}
+}
 
 parameter_types! {
 	// The account which receives multi-currency tokens from failed attempts to deposit them
