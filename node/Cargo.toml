@@ -103,7 +103,7 @@ polkadot-service = { workspace = true }
 
 # Frontier
 fc-consensus = { workspace = true }
-fc-db = { workspace = true }
+fc-db = { workspace = true, features = ["default"] }
 fc-mapping-sync = { workspace = true }
 fc-rpc = { workspace = true }
 fc-rpc-core = { workspace = true }
