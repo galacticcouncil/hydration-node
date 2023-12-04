@@ -50,6 +50,8 @@ pub trait WeightInfo {
 	fn register() -> Weight;
 	fn update() -> Weight;
 	fn register_external() -> Weight;
+	fn blacklist_add() -> Weight;
+	fn blacklist_remove() -> Weight;
 }
 /// Weights for pallet_asset_registry using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
@@ -99,6 +101,25 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
+
+	// Storage: AssetRegistry Assets (r:1 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(125), added: 2600, mode: MaxEncodedLen)
+	// Storage: AssetRegistry BlacklistedAssets (r:1 w:1)
+	// Proof: AssetRegistry BlacklistedAssets (max_values: None, max_size: Some(20), added: 2495, mode: MaxEncodedLen)
+	fn blacklist_add() -> Weight {
+		// Minimum execution time: 22_677 nanoseconds.
+		Weight::from_ref_time(22_950_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+	// Storage: AssetRegistry BlacklistedAssets (r:1 w:1)
+	// Proof: AssetRegistry BlacklistedAssets (max_values: None, max_size: Some(20), added: 2495, mode: MaxEncodedLen)
+	fn blacklist_remove() -> Weight {
+		// Minimum execution time: 17_460 nanoseconds.
+		Weight::from_ref_time(17_958_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 }
 
 impl WeightInfo for () {
@@ -145,5 +166,24 @@ impl WeightInfo for () {
 		Weight::from_ref_time(64_922_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))
 			.saturating_add(RocksDbWeight::get().writes(6 as u64))
+	}
+
+	// Storage: AssetRegistry Assets (r:1 w:0)
+	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(125), added: 2600, mode: MaxEncodedLen)
+	// Storage: AssetRegistry BlacklistedAssets (r:1 w:1)
+	// Proof: AssetRegistry BlacklistedAssets (max_values: None, max_size: Some(20), added: 2495, mode: MaxEncodedLen)
+	fn blacklist_add() -> Weight {
+		// Minimum execution time: 22_677 nanoseconds.
+		Weight::from_ref_time(22_950_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+	}
+	// Storage: AssetRegistry BlacklistedAssets (r:1 w:1)
+	// Proof: AssetRegistry BlacklistedAssets (max_values: None, max_size: Some(20), added: 2495, mode: MaxEncodedLen)
+	fn blacklist_remove() -> Weight {
+		// Minimum execution time: 17_460 nanoseconds.
+		Weight::from_ref_time(17_958_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 }

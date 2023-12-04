@@ -542,8 +542,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(5)]
-		//#[pallet::weight(<T as Config>::WeightInfo::register_external())]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::WeightInfo::blacklist_add())]
 		pub fn blacklist_add(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 
@@ -561,8 +560,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(6)]
-		//#[pallet::weight(<T as Config>::WeightInfo::register_external())]
-		#[pallet::weight(1000)]
+		#[pallet::weight(<T as Config>::WeightInfo::blacklist_remove())]
 		pub fn blacklist_remove(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 
