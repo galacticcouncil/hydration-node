@@ -137,9 +137,13 @@ impl SufficiencyCheck {
 	///
 	/// Emits `pallet_asset_registry::Event::ExistentialDepositPaid` when ED was paid.
 	fn on_funds(asset: AssetId, paying_account: &AccountId, to: &AccountId) -> DispatchResult {
+		if AssetRegistry::is_blacklisted(asset) {
+			return Err(sp_runtime::DispatchError::Other("BlacklistedAssetTransfer"));
+		}
+
 		//NOTE: To prevent duplicate ED collection we assume account already paid ED
 		//if it has any amount of `asset`(exists in the storage).
-		if orml_tokens::Accounts::<Runtime>::try_get(to, asset).is_err() && !AssetRegistry::is_sufficient(asset) {
+		if !orml_tokens::Accounts::<Runtime>::contains_key(to, asset) && !AssetRegistry::is_sufficient(asset) {
 			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);
 
 			let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)

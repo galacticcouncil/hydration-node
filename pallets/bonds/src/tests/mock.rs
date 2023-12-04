@@ -242,6 +242,10 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	fn exists(_name: AssetId) -> bool {
 		unimplemented!()
 	}
+
+	fn is_blacklisted(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
 }
 
 pub struct ExtBuilder {

@@ -450,6 +450,10 @@ impl Inspect for DummyRegistry {
 	fn exists(name: AssetId) -> bool {
 		name != UNKNOWN_ASSET
 	}
+
+	fn is_blacklisted(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
 }
 
 impl GetByKey<AssetId, Balance> for DummyRegistry {

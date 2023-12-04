@@ -337,6 +337,10 @@ impl Inspect for DummyRegistry {
 	fn asset_type(_id: Self::AssetId) -> Option<hydradx_traits::AssetKind> {
 		unimplemented!()
 	}
+
+	fn is_blacklisted(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
 }
 
 #[cfg(feature = "runtime-benchmarks")]

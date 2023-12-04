@@ -739,6 +739,10 @@ where
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
 		matches!(asset, Some(_))
 	}
+
+	fn is_blacklisted(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
 }
 
 pub type AccountId = u64;

@@ -538,6 +538,10 @@ where
 	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
 		unimplemented!()
 	}
+
+	fn is_blacklisted(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
 }
 
 pub(crate) fn get_mock_minted_position(position_id: u32) -> Option<u64> {

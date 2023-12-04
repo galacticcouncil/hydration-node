@@ -131,3 +131,23 @@ fn asset_type_should_work() {
 		});
 	});
 }
+
+#[test]
+fn is_blacklisted_should_work() {
+	ExtBuilder::default()
+		.with_assets(vec![
+			(Some(1), Some(b"Suff".to_vec()), UNIT, None, None, None, true),
+			(Some(2), Some(b"Insuff".to_vec()), UNIT, None, None, None, false),
+		])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			//NOTE: update origin is set to ensure_signed in tests
+			assert_ok!(Registry::blacklist_add(RuntimeOrigin::signed(ALICE), 1));
+
+			//Act & assert
+			assert_eq!(<Registry as Inspect>::is_blacklisted(1), true);
+
+			assert_eq!(<Registry as Inspect>::is_blacklisted(2), false);
+		});
+}

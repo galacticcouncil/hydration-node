@@ -157,6 +157,10 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
 		matches!(asset, Some(_))
 	}
+
+	fn is_blacklisted(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
 }
 
 #[cfg(feature = "runtime-benchmarks")]

@@ -8,7 +8,7 @@ use frame_system::RawOrigin;
 use hydradx_runtime::RuntimeOrigin as hydra_origin;
 use hydradx_runtime::{
 	AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX, MultiTransactionPayment,
-	RuntimeEvent, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
+	RuntimeEvent, TechnicalCollective, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
 };
 use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
@@ -1334,6 +1334,67 @@ fn tx_should_fail_with_unsupported_currency_error_when_fee_asset_price_wasn_not_
 		assert_noop!(
 			Tokens::deposit(sht2, &BOB.into(), 1_000_000 * UNITS),
 			pallet_transaction_multi_payment::Error::<hydradx_runtime::Runtime>::UnsupportedCurrency
+		);
+	});
+}
+
+#[test]
+fn blacklisted_asset_should_not_create_new_account() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let tech_comm = pallet_collective::RawOrigin::<AccountId, TechnicalCollective>::Members(1, 1);
+		//Arrange
+		let sht1: AssetId = register_external_asset(0_u128);
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			sht1,
+			100_000_000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Registry::blacklist_add(tech_comm.into(), sht1));
+
+		assert_eq!(Currencies::free_balance(sht1, &ALICE.into()), 0);
+		assert_eq!(treasury_sufficiency_lock(), 0);
+
+		//Act & assert
+		assert_noop!(
+			Tokens::transfer(hydra_origin::signed(BOB.into()), ALICE.into(), sht1, 1_000_000 * UNITS),
+			sp_runtime::DispatchError::Other("BlacklistedAssetTransfer")
+		);
+	});
+}
+
+#[test]
+fn blacklisted_asset_should_not_be_transferable_to_existing_account() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let tech_comm = pallet_collective::RawOrigin::<AccountId, TechnicalCollective>::Members(1, 1);
+		//Arrange
+		let sht1: AssetId = register_external_asset(0_u128);
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			BOB.into(),
+			sht1,
+			100_000_000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			sht1,
+			100_000_000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Registry::blacklist_add(tech_comm.into(), sht1));
+
+		//Act & assert
+		assert_noop!(
+			Tokens::transfer(hydra_origin::signed(BOB.into()), ALICE.into(), sht1, 1_000_000 * UNITS),
+			sp_runtime::DispatchError::Other("BlacklistedAssetTransfer")
 		);
 	});
 }

@@ -59,7 +59,7 @@ benchmarks! {
 		let decimals = 12_u8;
 		let location: T::AssetNativeLocation = Default::default();
 		let xcm_rate_limit = 1_000_u128;
-		let is_sufficient = true;
+		let is_sufficient = false;
 
 		let _ = Pallet::<T>::register(RawOrigin::Root.into(), Some(asset_id), Some(name), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient);
 
@@ -67,7 +67,7 @@ benchmarks! {
 		let new_type = AssetType::XYK;
 		let new_ed = 1_000_000_u128;
 		let new_xcm_rate_limit = 1_000_u128;
-		let new_is_sufficient = false;
+		let new_is_sufficient = true;
 		let new_symbol = vec![98u8; T::StringLimit::get() as usize];
 		let new_decimals = 12_u8;
 
@@ -102,8 +102,46 @@ benchmarks! {
 	verify {
 		assert_eq!(Pallet::<T>::locations(expected_asset_id), Some(location.clone()));
 		assert_eq!(Pallet::<T>::location_assets(location), Some(expected_asset_id));
-
 	}
+
+	blacklist_add {
+		let asset_id = T::AssetId::from(3);
+		let name = vec![97u8; T::StringLimit::get() as usize];
+		let ed = 1_000_000_u128;
+		let symbol = vec![97u8; T::StringLimit::get() as usize];
+		let decimals = 12_u8;
+		let location: T::AssetNativeLocation = Default::default();
+		let xcm_rate_limit = 1_000_u128;
+		let is_sufficient = true;
+
+		let _ = Pallet::<T>::register(RawOrigin::Root.into(), Some(asset_id), Some(name), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient);
+
+		let origin = T::UpdateOrigin::try_successful_origin().unwrap();
+	}: _<T::RuntimeOrigin>(origin, asset_id)
+	verify {
+		assert_eq!(Pallet::<T>::blacklists(asset_id), Some(()));
+	}
+
+	blacklist_remove {
+		let asset_id = T::AssetId::from(3);
+		let name = vec![97u8; T::StringLimit::get() as usize];
+		let ed = 1_000_000_u128;
+		let symbol = vec![97u8; T::StringLimit::get() as usize];
+		let decimals = 12_u8;
+		let location: T::AssetNativeLocation = Default::default();
+		let xcm_rate_limit = 1_000_u128;
+		let is_sufficient = true;
+
+		let origin = T::UpdateOrigin::try_successful_origin().unwrap();
+		let _ = Pallet::<T>::register(RawOrigin::Root.into(), Some(asset_id), Some(name), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient);
+		let _ = Pallet::<T>::blacklist_add(origin.clone(), asset_id);
+
+		assert_eq!(Pallet::<T>::blacklists(asset_id), Some(()));
+	}: _<T::RuntimeOrigin>(origin, asset_id)
+	verify {
+		assert_eq!(Pallet::<T>::blacklists(asset_id), None);
+	}
+
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);
 }

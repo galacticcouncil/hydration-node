@@ -40,6 +40,8 @@ pub trait Inspect {
 	fn decimals(id: Self::AssetId) -> Option<u8>;
 
 	fn asset_type(id: Self::AssetId) -> Option<AssetKind>;
+
+	fn is_blacklisted(id: Self::AssetId) -> bool;
 }
 
 #[allow(clippy::too_many_arguments)]

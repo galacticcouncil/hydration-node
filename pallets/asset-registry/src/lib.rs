@@ -746,6 +746,10 @@ impl<T: Config> Inspect for Pallet<T> {
 	fn asset_type(id: Self::AssetId) -> Option<AssetKind> {
 		Self::assets(id).map(|a| a.asset_type.into())
 	}
+
+	fn is_blacklisted(id: Self::AssetId) -> bool {
+		BlacklistedAssets::<T>::contains_key(id)
+	}
 }
 
 impl<T: Config> Mutate for Pallet<T> {
