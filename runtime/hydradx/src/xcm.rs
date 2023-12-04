@@ -313,8 +313,6 @@ pub type LocationToAccountId = (
 );
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
-//TODO: do we want bitcoin too?
-//TODO: do we care about network? We can maybe remove
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);
 impl<Network: Get<Option<NetworkId>>> xcm_executor::traits::Convert<MultiLocation, AccountId>
 	for EvmAddressConversion<Network>
