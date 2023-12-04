@@ -51,64 +51,64 @@ pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn note_preimage(s: u32) -> Weight {
 		Weight::zero() // Standard Error: 0
-			.saturating_add(Weight::from_ref_time(2_000 as u64).saturating_mul(s as u64))
+			.saturating_add(Weight::from_parts(2_000, 0).saturating_mul(s as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn note_requested_preimage(s: u32) -> Weight {
 		Weight::zero() // Standard Error: 0
-			.saturating_add(Weight::from_ref_time(2_000 as u64).saturating_mul(s as u64))
+			.saturating_add(Weight::from_parts(2_000, 0).saturating_mul(s as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn note_no_deposit_preimage(s: u32) -> Weight {
 		Weight::zero() // Standard Error: 0
-			.saturating_add(Weight::from_ref_time(2_000 as u64).saturating_mul(s as u64))
+			.saturating_add(Weight::from_parts(2_000, 0).saturating_mul(s as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn unnote_preimage() -> Weight {
-		Weight::from_ref_time(51_415_000 as u64)
+		Weight::from_parts(51_415_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn unnote_no_deposit_preimage() -> Weight {
-		Weight::from_ref_time(31_893_000 as u64)
+		Weight::from_parts(31_893_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn request_preimage() -> Weight {
-		Weight::from_ref_time(48_735_000 as u64)
+		Weight::from_parts(48_735_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn request_no_deposit_preimage() -> Weight {
-		Weight::from_ref_time(31_892_000 as u64)
+		Weight::from_parts(31_892_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn request_unnoted_preimage() -> Weight {
-		Weight::from_ref_time(18_172_000 as u64)
+		Weight::from_parts(18_172_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn request_requested_preimage() -> Weight {
-		Weight::from_ref_time(6_494_000 as u64)
+		Weight::from_parts(6_494_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn unrequest_preimage() -> Weight {
-		Weight::from_ref_time(33_975_000 as u64)
+		Weight::from_parts(33_975_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn unrequest_unnoted_preimage() -> Weight {
-		Weight::from_ref_time(19_162_000 as u64)
+		Weight::from_parts(19_162_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn unrequest_multi_referenced_preimage() -> Weight {
-		Weight::from_ref_time(6_343_000 as u64)
+		Weight::from_parts(6_343_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}

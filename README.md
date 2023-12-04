@@ -68,26 +68,7 @@ Start local testnet with 4 relay chain validators and HydraDX as a parachain wit
 
 ```
 cd ./rococo-local
-zombienet --provider native config-zombienet.json
-```
-
-### Use testing runtime
-
-In the case of starting a testnet using the `polkadot-launch` tool, 
-we don't have an option to communicate to its internal commands that we would like to use the testing runtime.
-To overcome this limitation, rename the binary so it starts with the `testing` prefix, e.g. `testing-hydradx`.
-Such a binary always uses the testing runtime, even if the `--runtime testing` option is not specified.
-
-Start local testnet with testing runtime
-```
-cd ./rococo-local
-polkadot-launch testing-config.json
-```
-
-Start local testnet with testing runtime using Zombienet
-```
-cd ./rococo-local
-zombienet --provider native testing-config-zombienet.json
+zombienet spawn config-zombienet.json
 ```
 
 ### Interaction with the node
@@ -195,14 +176,12 @@ However, if the difference < 0 - your machine might not suitable to run HydraDX 
 ### Testing of storage migrations and runtime upgrades
 
 The `try-runtime` tool can be used to test storage migrations and runtime upgrades against state from a real chain.
-Run the following command to test against the state on HydraDX
+Run the following command to test against the state on HydraDX.
+Don't forget to use a runtime built with `try-runtime` feature.
 ```bash
-cargo run --release --features=try-runtime try-runtime --no-spec-name-check on-runtime-upgrade live --uri wss://rpc.hydradx.cloud:443
+try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks all live --uri wss://rpc.hydradx.cloud:443
 ```
-or against HydraDX testnet on Rococo
-```bash
-cargo run --release --features=try-runtime try-runtime --no-spec-name-check on-runtime-upgrade live --uri wss://rococo-hydradx-rpc.hydration.dev:443
-```
+or against HydraDX testnet on Rococo using `--uri wss://rococo-hydradx-rpc.hydration.dev:443`
 
 ### Honorable contributions
 [@apopiak](https://github.com/apopiak) for great reviews [#87](https://github.com/galacticcouncil/HydraDX-node/pull/87) and support.

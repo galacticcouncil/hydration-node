@@ -58,7 +58,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: TransactionPause PausedTransactions (max_values: None, max_size: None, mode: Measured)
 	fn pause_transaction() -> Weight {
 		// Minimum execution time: 14_526 nanoseconds.
-		Weight::from_ref_time(14_862_000 as u64)
+		Weight::from_parts(14_862_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -66,7 +66,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: TransactionPause PausedTransactions (max_values: None, max_size: None, mode: Measured)
 	fn unpause_transaction() -> Weight {
 		// Minimum execution time: 15_803 nanoseconds.
-		Weight::from_ref_time(16_215_000 as u64)
+		Weight::from_parts(16_215_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}

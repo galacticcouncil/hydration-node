@@ -31,16 +31,16 @@
 use frame_support::sp_runtime::{traits::Zero, DispatchError};
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
 use frame_system::ensure_signed;
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
-	OnTradeHandler, Source, AMM,
+	OnTradeHandler, AMM,
 };
 use sp_std::{vec, vec::Vec};
 
-use crate::types::{AssetId, AssetPair, Balance};
+use crate::types::{Amount, AssetId, AssetPair, Balance};
 use hydra_dx_math::ratio::Ratio;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use primitives::Amount;
 
 #[cfg(test)]
 mod tests;
@@ -64,16 +64,13 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::{
-		pools::DustRemovalAccountWhitelist,
-		registry::{AssetKind, Create},
-	};
+	use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::ShareTokenRegistry, Source};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {

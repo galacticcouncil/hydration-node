@@ -18,18 +18,16 @@ fn balance_should_be_dusted_when_native_balance_is_below_ed() {
 		let transfer_amount = hdx_ed.checked_sub(1).unwrap();
 
 		// set Treasury balance to ED so it's not dusted
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			Treasury::account_id(),
 			hdx_ed,
-			0,
 		));
 
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			hdx_ed,
-			0,
 		));
 
 		assert_ok!(Balances::transfer(

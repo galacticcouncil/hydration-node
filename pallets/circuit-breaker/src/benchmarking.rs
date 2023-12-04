@@ -54,7 +54,7 @@ benchmarks! {
 		let n in 0 .. 400;
 		let m in 0 .. 400;
 
-		let block_num: T::BlockNumber = 5u32.into();
+		let block_num: BlockNumberFor<T> = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
 
 		Pallet::<T>::on_initialize(block_num);
@@ -75,7 +75,7 @@ benchmarks! {
 	verify {}
 
 	on_finalize_single_liquidity_limit_entry {
-		let block_num: T::BlockNumber = 5u32.into();
+		let block_num: BlockNumberFor<T> = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
 
 		Pallet::<T>::on_initialize(block_num);
@@ -89,7 +89,7 @@ benchmarks! {
 	verify {}
 
 	on_finalize_single_trade_limit_entry {
-		let block_num: T::BlockNumber = 5u32.into();
+		let block_num: BlockNumberFor<T> = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
 
 		Pallet::<T>::on_initialize(block_num);
@@ -103,7 +103,7 @@ benchmarks! {
 	verify {}
 
 	on_finalize_empty {
-		let block_num: T::BlockNumber = 5u32.into();
+		let block_num: BlockNumberFor<T> = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
 
 		Pallet::<T>::on_initialize(block_num);

@@ -181,23 +181,28 @@ fn can_buy_weight() {
 
 	{
 		let mut trader = Trader::new();
+		let ctx = XcmContext {
+			origin: None,
+			message_id: XcmHash::default(),
+			topic: None,
+		};
 
 		let core_payment: MultiAsset = (Concrete(core_id), 1_000_000).into();
-		let res = dbg!(trader.buy_weight(Weight::from_ref_time(1_000_000), core_payment.clone().into()));
+		let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), core_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == weight")
 			.is_empty());
 		ExpectRevenue::register_expected_asset(core_payment);
 
 		let test_payment: MultiAsset = (Concrete(test_id), 500_000).into();
-		let res = dbg!(trader.buy_weight(Weight::from_ref_time(1_000_000), test_payment.clone().into()));
+		let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), test_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == 0.5 * weight")
 			.is_empty());
 		ExpectRevenue::register_expected_asset(test_payment);
 
 		let cheap_payment: MultiAsset = (Concrete(cheap_id), 4_000_000).into();
-		let res = dbg!(trader.buy_weight(Weight::from_ref_time(1_000_000), cheap_payment.clone().into()));
+		let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), cheap_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == 4 * weight")
 			.is_empty());
@@ -216,14 +221,19 @@ fn can_buy_twice() {
 
 	{
 		let mut trader = Trader::new();
+		let ctx = XcmContext {
+			origin: None,
+			message_id: XcmHash::default(),
+			topic: None,
+		};
 
 		let payment1: MultiAsset = (Concrete(core_id), 1_000_000).into();
-		let res = dbg!(trader.buy_weight(Weight::from_ref_time(1_000_000), payment1.into()));
+		let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), payment1.into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == weight")
 			.is_empty());
 		let payment2: MultiAsset = (Concrete(core_id), 1_000_000).into();
-		let res = dbg!(trader.buy_weight(Weight::from_ref_time(1_000_000), payment2.into()));
+		let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), payment2.into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == weight")
 			.is_empty());
@@ -240,9 +250,14 @@ fn cannot_buy_with_too_few_tokens() {
 	let core_id = MockConvert::convert(CORE_ASSET_ID).unwrap();
 
 	let mut trader = Trader::new();
-
+	let ctx = XcmContext {
+		origin: None,
+		message_id: XcmHash::default(),
+		topic: None,
+	};
 	let payment: MultiAsset = (Concrete(core_id), 69).into();
-	let res = dbg!(trader.buy_weight(Weight::from_ref_time(1_000_000), payment.into()));
+
+	let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), payment.into(), &ctx));
 	assert_eq!(res, Err(XcmError::TooExpensive));
 }
 
@@ -253,8 +268,13 @@ fn cannot_buy_with_unknown_token() {
 	let unknown_token = Junction::from(BoundedVec::try_from(9876u32.encode()).unwrap());
 
 	let mut trader = Trader::new();
+	let ctx = XcmContext {
+		origin: None,
+		message_id: XcmHash::default(),
+		topic: None,
+	};
 	let payment: MultiAsset = (Concrete(unknown_token.into()), 1_000_000).into();
-	let res = dbg!(trader.buy_weight(Weight::from_ref_time(1_000_000), payment.into()));
+	let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), payment.into(), &ctx));
 	assert_eq!(res, Err(XcmError::AssetNotFound));
 }
 
@@ -265,8 +285,14 @@ fn cannot_buy_with_non_fungible() {
 	let unknown_token = Junction::from(BoundedVec::try_from(9876u32.encode()).unwrap());
 
 	let mut trader = Trader::new();
+	let ctx = XcmContext {
+		origin: None,
+		message_id: XcmHash::default(),
+		topic: None,
+	};
 	let payment: MultiAsset = (Concrete(unknown_token.into()), NonFungible(AssetInstance::Undefined)).into();
-	let res = dbg!(trader.buy_weight(Weight::from_ref_time(1_000_000), payment.into()));
+
+	let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), payment.into(), &ctx));
 	assert_eq!(res, Err(XcmError::AssetNotFound));
 }
 
@@ -288,11 +314,16 @@ fn overflow_errors() {
 	let overflow_id = MockConvert::convert(OVERFLOW_ASSET_ID).unwrap();
 
 	let mut trader = Trader::new();
+	let ctx = XcmContext {
+		origin: None,
+		message_id: XcmHash::default(),
+		topic: None,
+	};
 
 	let amount = 1_000;
 	let payment: MultiAsset = (Concrete(overflow_id), amount).into();
-	let weight = Weight::from_ref_time(1_000);
-	let res = dbg!(trader.buy_weight(weight, payment.into()));
+	let weight = Weight::from_parts(1_000, 0);
+	let res = dbg!(trader.buy_weight(weight, payment.into(), &ctx));
 	assert_eq!(res, Err(XcmError::Overflow));
 }
 
@@ -307,15 +338,20 @@ fn refunds_first_asset_completely() {
 
 	{
 		let mut trader = Trader::new();
+		let ctx = XcmContext {
+			origin: None,
+			message_id: XcmHash::default(),
+			topic: None,
+		};
 
-		let weight = Weight::from_ref_time(1_000_000);
+		let weight = Weight::from_parts(1_000_000, 0);
 		let tokens = 1_000_000;
 		let core_payment: MultiAsset = (Concrete(core_id), tokens).into();
-		let res = dbg!(trader.buy_weight(weight, core_payment.clone().into()));
+		let res = dbg!(trader.buy_weight(weight, core_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == weight")
 			.is_empty());
-		assert_eq!(trader.refund_weight(weight), Some(core_payment));
+		assert_eq!(trader.refund_weight(weight, &ctx), Some(core_payment));
 	}
 	ExpectRevenue::expect_no_revenue();
 }
@@ -325,7 +361,13 @@ fn does_not_refund_if_empty() {
 	type Trader = MultiCurrencyTrader<AssetId, Balance, Price, IdentityFee<Balance>, MockOracle, MockConvert, ()>;
 
 	let mut trader = Trader::new();
-	assert_eq!(trader.refund_weight(Weight::from_ref_time(100)), None);
+	let ctx = XcmContext {
+		origin: None,
+		message_id: XcmHash::default(),
+		topic: None,
+	};
+
+	assert_eq!(trader.refund_weight(Weight::from_parts(100, 0), &ctx), None);
 }
 
 #[test]
@@ -340,22 +382,27 @@ fn needs_multiple_refunds_for_multiple_currencies() {
 
 	{
 		let mut trader = Trader::new();
+		let ctx = XcmContext {
+			origin: None,
+			message_id: XcmHash::default(),
+			topic: None,
+		};
 
-		let weight = Weight::from_ref_time(1_000_000);
+		let weight = Weight::from_parts(1_000_000, 0);
 		let core_payment: MultiAsset = (Concrete(core_id), 1_000_000).into();
-		let res = dbg!(trader.buy_weight(weight, core_payment.clone().into()));
+		let res = dbg!(trader.buy_weight(weight, core_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == weight")
 			.is_empty());
 
 		let test_payment: MultiAsset = (Concrete(test_id), 500_000).into();
-		let res = dbg!(trader.buy_weight(weight, test_payment.clone().into()));
+		let res = dbg!(trader.buy_weight(weight, test_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == 0.5 * weight")
 			.is_empty());
 
-		assert_eq!(trader.refund_weight(weight), Some(core_payment));
-		assert_eq!(trader.refund_weight(weight), Some(test_payment));
+		assert_eq!(trader.refund_weight(weight, &ctx), Some(core_payment));
+		assert_eq!(trader.refund_weight(weight, &ctx), Some(test_payment));
 	}
 	ExpectRevenue::expect_no_revenue();
 }

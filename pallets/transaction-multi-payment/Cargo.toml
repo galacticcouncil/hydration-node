@@ -1,6 +1,6 @@
 [package]
 name = "pallet-transaction-multi-payment"
-version = "9.0.1"
+version = "9.1.1"
 description = "Transaction multi currency payment support module"
 authors = ["GalacticCoucil"]
 edition = "2021"
@@ -19,6 +19,8 @@ orml-traits = { workspace = true }
 
 # HydraDX traits
 hydradx-traits = { workspace = true }
+primitives = { workspace = true }
+hydra-dx-math = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
@@ -28,6 +30,8 @@ sp-core = { workspace = true }
 sp-std = { workspace = true }
 sp-runtime = { workspace = true }
 pallet-transaction-payment = { workspace = true }
+
+pallet-evm = { workspace = true }
 
 [dev-dependencies]
 pallet-currencies = { workspace = true }
@@ -44,9 +48,12 @@ std = [
     "sp-api/std",
     "frame-support/std",
     "frame-system/std",
+    "pallet-transaction-payment/std",
     "sp-runtime/std",
     "orml-traits/std",
     "hydradx-traits/std",
     "scale-info/std",
+    "pallet-evm/std",
+    "primitives/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

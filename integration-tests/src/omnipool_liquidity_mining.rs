@@ -16,7 +16,7 @@
 // limitations under the License.
 
 #![cfg(test)]
-use crate::{oracle::hydradx_run_to_block, polkadot_test_net::*};
+use crate::polkadot_test_net::*;
 
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::liquidity_mining::PriceAdjustment;
@@ -26,7 +26,6 @@ use warehouse_liquidity_mining::{
 };
 
 use orml_traits::MultiCurrency;
-use polkadot_primitives::v2::BlockNumber;
 use primitives::AssetId;
 use sp_runtime::{
 	traits::{One, Zero},
@@ -57,11 +56,10 @@ fn create_global_farm_should_work_when_origin_is_root() {
 		let yield_per_period = Perquintill::from_parts(570_776_255_707);
 		let min_deposit = 1_000;
 
-		assert_ok!(hydradx_runtime::Balances::set_balance(
+		assert_ok!(hydradx_runtime::Balances::force_set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			owner.clone(),
 			total_rewards,
-			0,
 		));
 
 		set_relaychain_block_number(100);
@@ -542,19 +540,20 @@ fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
 
-	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
-		u128::MAX,
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-		hydradx_runtime::RuntimeOrigin::root(),
-		stable_price,
+		HDX,
 		native_price,
-		Permill::from_percent(100),
-		Permill::from_percent(10)
+		Permill::from_percent(10),
+		hydradx_runtime::Omnipool::protocol_account(),
 	));
-
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
+		stable_price,
+		Permill::from_percent(100),
+		hydradx_runtime::Omnipool::protocol_account(),
+	));
 	let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
 
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -599,11 +598,10 @@ fn init_omnipool() {
 fn create_global_farm() {
 	let total_rewards = 1_000_000 * UNITS;
 
-	assert_ok!(hydradx_runtime::Balances::set_balance(
+	assert_ok!(hydradx_runtime::Balances::force_set_balance(
 		hydradx_runtime::RuntimeOrigin::root(),
 		Treasury::account_id(),
 		total_rewards,
-		0,
 	));
 
 	assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::create_global_farm(

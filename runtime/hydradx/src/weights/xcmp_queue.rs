@@ -58,7 +58,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: XcmpQueue QueueConfig (max_values: Some(1), max_size: None, mode: Measured)
 	fn set_config_with_u32() -> Weight {
 		// Minimum execution time: 7_729 nanoseconds.
-		Weight::from_ref_time(8_046_000 as u64)
+		Weight::from_parts(8_046_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -66,32 +66,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: XcmpQueue QueueConfig (max_values: Some(1), max_size: None, mode: Measured)
 	fn set_config_with_weight() -> Weight {
 		// Minimum execution time: 7_991 nanoseconds.
-		Weight::from_ref_time(8_303_000 as u64)
+		Weight::from_parts(8_303_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
-	// Storage: XcmpQueue QueueConfig (r:1 w:0)
-	// Proof Skipped: XcmpQueue QueueConfig (max_values: Some(1), max_size: None, mode: Measured)
-	// Storage: XcmpQueue DeferredXcmMessages (r:1 w:1)
-	// Proof Skipped: XcmpQueue DeferredXcmMessages (max_values: None, max_size: None, mode: Measured)
-	// Storage: XcmpQueue CounterForOverweight (r:1 w:1)
-	// Proof: XcmpQueue CounterForOverweight (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
-	// Storage: XcmpQueue OverweightCount (r:1 w:1)
-	// Proof Skipped: XcmpQueue OverweightCount (max_values: Some(1), max_size: None, mode: Measured)
-	// Storage: XcmpQueue Overweight (r:100 w:100)
-	// Proof Skipped: XcmpQueue Overweight (max_values: None, max_size: None, mode: Measured)
 	fn service_deferred() -> Weight {
-		// Minimum execution time: 90_934_683 nanoseconds.
-		Weight::from_ref_time(91_491_151_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(104 as u64))
-			.saturating_add(T::DbWeight::get().writes(103 as u64))
+		Weight::zero()
 	}
-	// Storage: XcmpQueue DeferredXcmMessages (r:1 w:1)
-	// Proof Skipped: XcmpQueue DeferredXcmMessages (max_values: None, max_size: None, mode: Measured)
-	fn discard_deferred() -> Weight {
-		// Minimum execution time: 62_131_073 nanoseconds.
-		Weight::from_ref_time(63_092_826_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	fn discard_deferred_bucket() -> Weight {
+		Weight::zero()
+	}
+	fn discard_deferred_individual() -> Weight {
+		Weight::zero()
+	}
+	fn try_place_in_deferred_queue() -> Weight {
+		Weight::zero()
 	}
 }

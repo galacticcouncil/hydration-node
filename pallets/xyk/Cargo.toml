@@ -23,9 +23,6 @@ log = { version = "0.4.17", default-features = false }
 
 hydra-dx-math = { workspace = true }
 
-# Local dependencies
-primitives = {path = '../../primitives', default-features = false}
-
 # ORML dependencies
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
@@ -65,7 +62,6 @@ std = [
     'sp-core/std',
     'sp-std/std',
     'orml-traits/std',
-    'primitives/std',
     "hydradx-traits/std",
     'orml-tokens/std',
     'frame-benchmarking/std',

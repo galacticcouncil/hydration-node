@@ -76,7 +76,6 @@ pub mod pallet {
 	use codec::HasCompact;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]

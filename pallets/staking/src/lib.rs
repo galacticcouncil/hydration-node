@@ -26,6 +26,7 @@ use frame_support::{
 	traits::nonfungibles::{Create, Inspect, InspectEnumerable, Mutate},
 	traits::{DefensiveOption, LockIdentifier},
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::staking as math;
 use orml_traits::{GetByKey, MultiCurrency, MultiLockableCurrency};
 use sp_core::Get;
@@ -70,7 +71,6 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
@@ -96,7 +96,7 @@ pub mod pallet {
 
 		/// Staking period length in blocks.
 		#[pallet::constant]
-		type PeriodLength: Get<Self::BlockNumber>;
+		type PeriodLength: Get<BlockNumberFor<Self>>;
 
 		/// Pallet id.
 		#[pallet::constant]
@@ -144,7 +144,7 @@ pub mod pallet {
 		type PayablePercentage: PayablePercentage<Point>;
 
 		/// Block number provider.
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		/// Position identifier type.
 		type PositionItemId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
@@ -188,7 +188,8 @@ pub mod pallet {
 	#[pallet::storage]
 	/// User's position state.
 	#[pallet::getter(fn positions)]
-	pub(super) type Positions<T: Config> = StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<T::BlockNumber>>;
+	pub(super) type Positions<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<BlockNumberFor<T>>>;
 
 	#[pallet::storage]
 	/// Position ids sequencer.
@@ -281,6 +282,9 @@ pub mod pallet {
 
 		/// Signer is not an owner of the staking position.
 		Forbidden,
+
+		/// Remove vote is not allowed when referendum is finished and staking position exists.
+		RemoveVoteNotAllowed,
 
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
@@ -739,7 +743,7 @@ impl<T: Config> Pallet<T> {
 	fn ensure_stakeable_balance(
 		who: &T::AccountId,
 		stake: Balance,
-		position: Option<&Position<T::BlockNumber>>,
+		position: Option<&Position<BlockNumberFor<T>>>,
 	) -> Result<(), DispatchError> {
 		let free_balance = T::Currency::free_balance(T::NativeAssetId::get(), who);
 		let staked = position
@@ -859,7 +863,7 @@ impl<T: Config> Pallet<T> {
 	/// Slash points are subtracted from returned value.
 	#[inline]
 	fn get_points(
-		position: &Position<T::BlockNumber>,
+		position: &Position<BlockNumberFor<T>>,
 		current_period: Period,
 		position_created_at: Period,
 	) -> Option<Point> {
@@ -880,7 +884,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[inline]
-	fn get_period_number(block: T::BlockNumber) -> Option<Period> {
+	fn get_period_number(block: BlockNumberFor<T>) -> Option<Period> {
 		Some(math::calculate_period_number(
 			NonZeroU128::try_from(T::PeriodLength::get().saturated_into::<u128>()).ok()?,
 			block.saturated_into(),
@@ -896,7 +900,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Return `(claimable, claimable_unpaid, unpaid, payable_percentage)`
 	fn calculate_rewards(
-		position: &Position<T::BlockNumber>,
+		position: &Position<BlockNumberFor<T>>,
 		accumulated_reward_per_stake: FixedU128,
 		current_period: Period,
 		position_created_at: Period,
@@ -943,7 +947,7 @@ impl<T: Config> Pallet<T> {
 
 	pub(crate) fn process_votes(
 		position_id: T::PositionItemId,
-		position: &mut Position<T::BlockNumber>,
+		position: &mut Position<BlockNumberFor<T>>,
 	) -> DispatchResult {
 		PositionVotes::<T>::mutate(position_id, |voting| {
 			let max_position_vote = Conviction::max_multiplier().saturating_mul_int(position.stake);
@@ -982,7 +986,7 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn get_position(position_id: T::PositionItemId) -> Option<Position<T::BlockNumber>> {
+	pub fn get_position(position_id: T::PositionItemId) -> Option<Position<BlockNumberFor<T>>> {
 		Positions::<T>::get(position_id)
 	}
 

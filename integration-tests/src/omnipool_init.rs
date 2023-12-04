@@ -6,6 +6,7 @@ use frame_support::{assert_noop, assert_ok};
 
 use orml_traits::currency::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
+use sp_runtime::FixedPointNumber;
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
 
@@ -125,8 +126,6 @@ fn omnipool_launch_init_params_should_be_correct() {
 	});
 }
 
-use polkadot_primitives::v2::BlockNumber;
-
 pub fn hydra_run_to_block(to: BlockNumber) {
 	use frame_support::traits::{OnFinalize, OnInitialize};
 	while hydradx_runtime::System::block_number() < to {
@@ -225,5 +224,97 @@ fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 			),
 			pallet_omnipool::Error::<hydradx_runtime::Runtime>::PriceDifferenceTooHigh,
 		);
+	});
+}
+
+#[test]
+fn withdraw_pool_liquidity_should_work_when_withdrawing_all() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		let bob_account = AccountId::from(UNKNOWN);
+		let stable_price = FixedU128::from_inner(45_000_000_000);
+		let state = pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_asset_state(DAI).unwrap();
+		let dai_reserve = state.reserve;
+
+		assert_ok!(hydradx_runtime::Omnipool::withdraw_protocol_liquidity(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DAI,
+			state.protocol_shares,
+			(stable_price.into_inner(), FixedU128::DIV),
+			bob_account.clone()
+		));
+
+		let state = pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_asset_state(DAI).unwrap();
+		assert_eq!(state.reserve, 0);
+		assert_eq!(state.hub_reserve, 0);
+		assert_eq!(state.shares, 0);
+		assert_eq!(state.protocol_shares, 0);
+
+		let dai_balance = hydradx_runtime::Tokens::free_balance(DAI, &bob_account);
+		assert!(dai_balance <= dai_reserve);
+		let lrna_balance = hydradx_runtime::Tokens::free_balance(LRNA, &bob_account);
+		assert_eq!(lrna_balance, 0);
+	});
+}
+
+use pallet_omnipool::types::Tradability;
+#[test]
+fn removing_token_should_work_when_no_shares_remaining() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		let bob_account = AccountId::from(UNKNOWN);
+		let dot_amount = 87_719_298_250_000_u128;
+
+		let position_id = hydradx_runtime::Omnipool::next_position_id();
+
+		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			token_price,
+			Permill::from_percent(100),
+			bob_account.clone(),
+		));
+
+		hydra_run_to_block(10);
+
+		assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
+		));
+
+		let position =
+			pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_position(position_id, bob_account.clone())
+				.unwrap();
+		assert_ok!(hydradx_runtime::Omnipool::remove_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(UNKNOWN.into()),
+			position_id,
+			position.shares,
+		));
+
+		let dot_balance = hydradx_runtime::Tokens::free_balance(DOT, &bob_account);
+		assert!(dot_balance <= dot_amount);
+		let lrna_balance = hydradx_runtime::Tokens::free_balance(LRNA, &bob_account);
+		assert_eq!(lrna_balance, 0);
+
+		assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			Tradability::FROZEN
+		));
+		assert_ok!(hydradx_runtime::Omnipool::remove_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			bob_account.clone(),
+		));
+		let dot_balance = hydradx_runtime::Tokens::free_balance(DOT, &bob_account);
+		assert!(dot_balance == dot_amount);
+		let lrna_balance = hydradx_runtime::Tokens::free_balance(LRNA, &bob_account);
+		assert_eq!(lrna_balance, 0);
 	});
 }

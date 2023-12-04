@@ -66,7 +66,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	fn transfer() -> Weight {
 		// Minimum execution time: 88_520 nanoseconds.
-		Weight::from_ref_time(89_174_000 as u64)
+		Weight::from_parts(89_174_000, 0)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
@@ -82,7 +82,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	fn transfer_all() -> Weight {
 		// Minimum execution time: 91_438 nanoseconds.
-		Weight::from_ref_time(91_965_000 as u64)
+		Weight::from_parts(91_965_000, 0)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
@@ -98,7 +98,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	fn transfer_keep_alive() -> Weight {
 		// Minimum execution time: 76_130 nanoseconds.
-		Weight::from_ref_time(77_015_000 as u64)
+		Weight::from_parts(77_015_000, 0)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -114,7 +114,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	fn force_transfer() -> Weight {
 		// Minimum execution time: 92_082 nanoseconds.
-		Weight::from_ref_time(93_140_000 as u64)
+		Weight::from_parts(93_140_000, 0)
 			.saturating_add(T::DbWeight::get().reads(7 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -132,7 +132,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	fn set_balance() -> Weight {
 		// Minimum execution time: 79_716 nanoseconds.
-		Weight::from_ref_time(80_405_000 as u64)
+		Weight::from_parts(80_405_000, 0)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}

@@ -19,37 +19,44 @@
 
 use primitives::Amount;
 
-use crate::inspect::MultiInspectAdapter;
-use frame_support::dispatch::Weight;
-use frame_support::traits::{ConstU128, Everything, GenesisBuild};
+use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use frame_support::traits::{ConstU128, Contains, Everything};
+use frame_support::weights::Weight;
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureRoot;
-use hydradx_traits::{AssetKind, Inspect as InspectRegistry};
+use hydra_dx_math::ema::EmaPrice;
+use hydra_dx_math::support::rational::Rounding;
+use hydra_dx_math::to_u128_wrapper;
+use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::{AssetKind, AssetPairAccountIdFor, CanCreatePool, Inspect as InspectRegistry, ShareTokenRegistry};
 use orml_traits::{parameter_type_with_key, GetByKey};
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool;
+use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use primitive_types::{U128, U256};
 use sp_core::H256;
 use sp_runtime::traits::Zero;
 use sp_runtime::Permill;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	DispatchError, DispatchResult, FixedU128,
+	BuildStorage, DispatchError, DispatchResult, FixedU128,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
 pub type Balance = u128;
 pub type AssetId = u32;
+
+pub const DAVE: AccountId = 2;
+pub const CHARLIE: AccountId = 3;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -62,6 +69,7 @@ pub const ONE: Balance = 1_000_000_000_000;
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 thread_local! {
+	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
 	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
@@ -78,10 +86,7 @@ thread_local! {
 }
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
 		System: frame_system,
 		Balances: pallet_balances,
@@ -104,7 +109,6 @@ impl frame_system::Config for Test {
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -129,6 +133,10 @@ impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type MaxReserves = ConstU32<50>;
 	type ReserveIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 parameter_type_with_key! {
@@ -154,10 +162,8 @@ impl orml_tokens::Config for Test {
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
-	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionCollectionId: u32= 1000;
 
-	pub const MaxNumberOfTrades: u8 = 5;
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
@@ -179,7 +185,6 @@ impl pallet_omnipool::Config for Test {
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
 	type Fee = FeeProvider;
-	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PosiitionCollectionId;
@@ -215,70 +220,104 @@ impl pallet_currencies::Config for Test {
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }
+parameter_types! {
+	pub const StableAssetId: AssetId = 2;
+	pub const MinTradingLimit : Balance = 1_000u128;
+	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 
-pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
-//pub const ASSET_PAIR_ACCOUNT: [u8; 32] = [4u8; 32];
+	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
+	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
+	pub const DiscountedFee: (u32, u32) = (7, 10_000);
+}
 
-type OriginForRuntime = OriginFor<Test>;
+impl pallet_xyk::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetRegistry = DummyRegistry<Test>;
+	type AssetPairAccountId = AssetPairAccountIdTest;
+	type Currency = Currencies;
+	type NativeAssetId = HDXAssetId;
+	type WeightInfo = ();
+	type GetExchangeFee = XYKExchangeFee;
+	type MinTradingLimit = MinTradingLimit;
+	type MinPoolLiquidity = MinPoolLiquidity;
+	type MaxInRatio = MaxInRatio;
+	type MaxOutRatio = MaxOutRatio;
+	type OracleSource = ();
+	type CanCreatePool = DummyCanCreatePool;
+	type AMMHandler = ();
+	type DiscountedFee = DiscountedFee;
+	type NonDustableWhitelistHandler = DummyDuster;
+}
 
-pub struct OmniPoolForRouter;
+pub struct Whitelist;
 
-impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPoolForRouter {
-	type Error = DispatchError;
-
-	fn calculate_sell(
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Omnipool::calculate_sell(pool_type, asset_in, asset_out, amount_in)
-	}
-
-	fn calculate_buy(
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Omnipool::calculate_buy(pool_type, asset_in, asset_out, amount_out)
-	}
-
-	fn execute_sell(
-		who: OriginForRuntime,
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		min_limit: Balance,
-	) -> Result<(), ExecutorError<Self::Error>> {
-		Omnipool::execute_sell(who, pool_type, asset_in, asset_out, amount_in, min_limit)
-	}
-
-	fn execute_buy(
-		who: OriginForRuntime,
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-		max_limit: Balance,
-	) -> Result<(), ExecutorError<Self::Error>> {
-		Omnipool::execute_buy(who, pool_type, asset_in, asset_out, amount_out, max_limit)
+impl Contains<AccountId> for Whitelist {
+	fn contains(account: &AccountId) -> bool {
+		DUSTER_WHITELIST.with(|v| v.borrow().contains(account))
 	}
 }
+
+pub struct DummyDuster;
+
+impl DustRemovalAccountWhitelist<AccountId> for DummyDuster {
+	type Error = DispatchError;
+
+	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
+		if Whitelist::contains(account) {
+			return Err(sp_runtime::DispatchError::Other("Account is already in the whitelist"));
+		}
+
+		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
+
+		Ok(())
+	}
+
+	fn remove_account(account: &AccountId) -> Result<(), Self::Error> {
+		DUSTER_WHITELIST.with(|v| {
+			let mut v = v.borrow_mut();
+
+			let idx = v.iter().position(|x| *x == *account).unwrap();
+			v.remove(idx);
+
+			Ok(())
+		})
+	}
+}
+
+pub struct DummyCanCreatePool;
+
+impl CanCreatePool<AssetId> for DummyCanCreatePool {
+	fn can_create(_: AssetId, _: AssetId) -> bool {
+		true
+	}
+}
+
+pub struct AssetPairAccountIdTest();
+impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
+	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> u64 {
+		let mut a = asset_a as u128;
+		let mut b = asset_b as u128;
+		if a > b {
+			std::mem::swap(&mut a, &mut b)
+		}
+		(a * 1000 + b) as u64
+	}
+}
+pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
+//pub const ASSET_PAIR_ACCOUNT: [u8; 32] = [4u8; 32];
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 }
 
-type Pools = OmniPoolForRouter;
+type Pools = (Omnipool, XYK);
 
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type MaxNumberOfTrades = MaxNumberOfTrades;
-	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
+	type NativeAssetId = NativeCurrencyId;
+	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
 	type WeightInfo = ();
 }
@@ -294,7 +333,6 @@ pub struct ExtBuilder {
 	register_stable_asset: bool,
 	max_in_ratio: Balance,
 	max_out_ratio: Balance,
-	tvl_cap: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
@@ -360,7 +398,6 @@ impl Default for ExtBuilder {
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
-			tvl_cap: u128::MAX,
 		}
 	}
 }
@@ -376,7 +413,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		// Add DAi and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {
@@ -446,20 +483,22 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
-		r.execute_with(|| {
-			assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), self.tvl_cap,));
-		});
-
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				assert_ok!(Omnipool::initialize_pool(
+				assert_ok!(Omnipool::add_token(
 					RuntimeOrigin::root(),
-					stable_price,
+					HDXAssetId::get(),
 					native_price,
 					Permill::from_percent(100),
-					Permill::from_percent(100)
+					Omnipool::protocol_account(),
 				));
-
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					DAI,
+					stable_price,
+					Permill::from_percent(100),
+					Omnipool::protocol_account(),
+				));
 				for (asset_id, price, owner, amount) in self.pool_tokens {
 					assert_ok!(Tokens::transfer(
 						RuntimeOrigin::signed(owner),
@@ -561,9 +600,19 @@ where
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
 		matches!(asset, Some(_))
 	}
+}
 
-	fn is_blacklisted(_id: Self::AssetId) -> bool {
-		unimplemented!()
+impl<T: pallet_omnipool::Config> ShareTokenRegistry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+where
+	u32: From<<T as pallet_omnipool::Config>::AssetId>,
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+{
+	fn retrieve_shared_asset(_: &Vec<u8>, _: &[T::AssetId]) -> Result<T::AssetId, DispatchError> {
+		Ok(T::AssetId::default())
+	}
+
+	fn create_shared_asset(_: &Vec<u8>, _: &[T::AssetId], _: Balance) -> Result<T::AssetId, DispatchError> {
+		unimplemented!("not implemented method: create_shared_asset")
 	}
 }
 

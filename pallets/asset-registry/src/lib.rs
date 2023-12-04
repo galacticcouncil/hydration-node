@@ -23,9 +23,14 @@ use frame_support::traits::tokens::fungibles::{Inspect as FungiblesInspect, Tran
 use frame_support::{dispatch::DispatchError, require_transactional};
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
+use sp_arithmetic::traits::BaseArithmetic;
+use sp_runtime::DispatchError;
 use sp_arithmetic::traits::{BaseArithmetic, Zero};
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
+
+#[cfg(test)]
+mod mock;
 
 #[cfg(test)]
 mod tests;
@@ -61,6 +66,10 @@ pub mod pallet {
 	use sp_std::fmt::Debug;
 
 	use super::*;
+	use crate::types::Metadata;
+	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	pub type AssetDetailsT<T> = AssetDetails<<T as Config>::StringLimit>;
 
@@ -115,10 +124,11 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -319,7 +329,7 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub fn deposit_event)]
+	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Existential deposit for insufficinet asset was paid.
 		/// `SufficiencyCheck` triggers this event.
@@ -564,6 +574,8 @@ pub mod pallet {
 		pub fn blacklist_remove(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 
+			ensure!(asset_id != T::NativeAssetId::get(), Error::<T>::CannotUpdateLocation);
+			ensure!(Self::assets(asset_id).is_some(), Error::<T>::AssetNotRegistered);
 			ensure!(
 				BlacklistedAssets::<T>::contains_key(asset_id),
 				Error::<T>::AssetNotBlacklisted
