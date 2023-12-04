@@ -173,12 +173,6 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 		));
 	});
 
-	//TODO: cotninue here, find a way to convert back from 32 to 20
-	assert_eq!(
-		ExtendedAddressMapping::into_account_id(H160::from(hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"])),
-		AccountId::from(BOB)
-	);
-	//let bob_evm = ExtendedAddressMapping::try_from_account(AccountId::from(BOB).borrow()).unwrap();
 	Acala::execute_with(|| {
 		// Act
 		assert_ok!(hydradx_runtime::XTokens::transfer(
@@ -192,7 +186,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountKey20 {
 							network: None,
-							key: bob_evm_addr().into(),
+							key: evm_address().into(),
 						}
 					)
 				)
@@ -208,10 +202,10 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 		);
 	});
 
-	let fee = 321507225875;
+	let fee = 400641025641;
 	Hydra::execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
+			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(evm_account())),
 			30 * UNITS - fee
 		);
 		assert_eq!(
