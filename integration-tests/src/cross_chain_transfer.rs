@@ -173,12 +173,13 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 		));
 	});
 
+	let amount = 30 * UNITS;
 	Acala::execute_with(|| {
-		// Act
+		//We send toe ethereum address with Account20
 		assert_ok!(hydradx_runtime::XTokens::transfer(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0,
-			30 * UNITS,
+			amount,
 			Box::new(
 				MultiLocation::new(
 					1,
@@ -195,10 +196,31 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 
+		//We send it again to the same address, but to normal Account32
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			0,
+			amount,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountId32 {
+							id: evm_account().into(),
+							network: None
+						}
+					)
+				)
+				.into()
+			),
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+		));
+
 		// Assert
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
+			ALICE_INITIAL_NATIVE_BALANCE - 2 * amount
 		);
 	});
 
@@ -206,11 +228,11 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(evm_account())),
-			30 * UNITS - fee
+			2 * amount - 2 * fee
 		);
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
-			fee // fees should go to treasury
+			2 * fee // fees should go to treasury
 		);
 	});
 }
