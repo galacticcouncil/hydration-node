@@ -280,7 +280,6 @@ std = [
     "pallet-evm/std",
     "pallet-evm-chain-id/std",
     "pallet-evm-precompile-dispatch/std",
-#    "ethabi/std",
 ]
 try-runtime= [
     "frame-try-runtime",
