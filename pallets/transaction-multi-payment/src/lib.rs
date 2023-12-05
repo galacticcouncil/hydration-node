@@ -29,7 +29,6 @@ mod mock;
 mod tests;
 mod traits;
 
-use frame_support::traits::Currency as PalletCurrency;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
@@ -49,12 +48,9 @@ use hydradx_traits::NativePriceOracle;
 use orml_traits::{Happened, MultiCurrency};
 
 pub use crate::traits::*;
-use frame_support::traits::{Imbalance, IsSubType, OnUnbalanced};
+use frame_support::traits::IsSubType;
 use hydradx_traits::router::{AssetPair, RouteProvider};
 use hydradx_traits::{OraclePeriod, PriceOracle};
-use pallet_evm::{EVMCurrencyAdapter, OnChargeEVMTransaction};
-use sp_core::{H160, U256};
-use sp_runtime::traits::UniqueSaturatedInto;
 
 type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
 type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -359,12 +355,24 @@ impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, BalanceOf<T>> for Deposit
 	}
 }
 
+#[cfg(feature = "evm")]
+use {
+	pallet_evm::{EVMCurrencyAdapter, OnChargeEVMTransaction},
+	sp_core::{H160, U256},
+	frame_support::traits::{Imbalance, OnUnbalanced, Currency as PalletCurrency},
+	sp_runtime::traits::UniqueSaturatedInto,
+};
+#[cfg(feature = "evm")]
 type CurrencyAccountId<T> = <T as frame_system::Config>::AccountId;
+#[cfg(feature = "evm")]
 type BalanceFor<T> = <<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::Balance;
+#[cfg(feature = "evm")]
 type PositiveImbalanceFor<T> =
 	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::PositiveImbalance;
+#[cfg(feature = "evm")]
 type NegativeImbalanceFor<T> =
 	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::NegativeImbalance;
+
 
 #[cfg(feature = "evm")]
 /// Implements the transaction payment for EVM transactions.
