@@ -235,7 +235,8 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 				SUFFICIENCY_LOCK,
 				NativeAssetId::get(),
 				&TreasuryAccount::get(),
-			);
+			)
+			.defensive();
 		} else {
 			let _ = <Currencies as MultiLockableCurrency<AccountId>>::set_lock(
 				SUFFICIENCY_LOCK,
