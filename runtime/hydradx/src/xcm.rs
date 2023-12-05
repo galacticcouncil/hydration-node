@@ -321,10 +321,10 @@ impl<Network: Get<Option<NetworkId>>> xcm_executor::traits::Convert<MultiLocatio
 		match location {
 			MultiLocation {
 				parents: 0,
-				interior: X1(AccountKey20 { network, key }),
+				interior: X1(AccountKey20 { network: _, key }),
 			} => {
 				let account_32 = ExtendedAddressMapping::into_account_id(H160::from(key));
-				return Ok(account_32);
+				Ok(account_32)
 			}
 			_ => Err(location),
 		}
