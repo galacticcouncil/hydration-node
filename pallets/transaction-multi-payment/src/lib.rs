@@ -366,9 +366,11 @@ type PositiveImbalanceFor<T> =
 type NegativeImbalanceFor<T> =
 	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::NegativeImbalance;
 
+#[cfg(feature = "evm")]
 /// Implements the transaction payment for EVM transactions.
 pub struct TransferEvmFees<OU>(PhantomData<OU>);
 
+#[cfg(feature = "evm")]
 impl<T, OU> OnChargeEVMTransaction<T> for TransferEvmFees<OU>
 where
 	T: Config + pallet_evm::Config,

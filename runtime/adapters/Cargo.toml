@@ -16,7 +16,7 @@ scale-info = { version = "2.3.1", default-features = false, features = ["derive"
 primitives = { workspace = true }
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
-pallet-transaction-multi-payment = { workspace = true }
+pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-omnipool = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 pallet-circuit-breaker = { workspace = true }

@@ -41,7 +41,7 @@ sp-io = { workspace = true }
 test-utils = { workspace = true }
 
 [features]
-default = ["std"]
+default = ["std", "evm"]
 std = [
     "codec/std",
     "sp-core/std",
@@ -57,3 +57,4 @@ std = [
     "primitives/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
+evm = []
