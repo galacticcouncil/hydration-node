@@ -51,7 +51,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		);
 	});
 
-	let fees = 400641025641;
+	let fees = 401884032343;
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
@@ -96,7 +96,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 	PolkadotRelay::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
-			2999637471000 // 3 * HDX - fee
+			2999978937205 // 3 * HDX - fee
 		);
 	});
 }
@@ -129,7 +129,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 
 		// Assert
@@ -139,7 +139,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 		);
 	});
 
-	let fee = 400641025641;
+	let fee = 321507225875;
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
@@ -179,7 +179,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 					)
 					.into()
 				),
-				WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+				WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 			),
 			orml_xtokens::Error::<hydradx_runtime::Runtime>::XcmExecutionFailed
 		);
@@ -237,7 +237,7 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 
 		// Assert
@@ -278,7 +278,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
@@ -289,14 +289,15 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
 			cumulus_pallet_xcmp_queue::Event::Fail {
-				message_hash: Some(hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"]),
+				message_hash: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
+				message_id: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
 				error: XcmError::AssetNotFound,
-				weight: Weight::from_ref_time(300_000_000),
+				weight: Weight::from_parts(300_000_000, 0),
 			}
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
-				parachain_block_number: 1,
-				relaychain_block_number: 4,
+				parachain_block_number: 3,
+				relaychain_block_number: 7,
 			}
 			.into(),
 		]);
@@ -328,7 +329,7 @@ fn claim_trapped_asset_should_work() {
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			1000 * UNITS + 29_699_519_230_769
+			1000 * UNITS + 29_758_869_580_594
 		);
 
 		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));
@@ -357,7 +358,7 @@ fn trap_asset() -> MultiAsset {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
@@ -371,14 +372,15 @@ fn trap_asset() -> MultiAsset {
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
 			cumulus_pallet_xcmp_queue::Event::Fail {
-				message_hash: Some(hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"]),
+				message_hash: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
+				message_id: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
 				error: XcmError::AssetNotFound,
-				weight: Weight::from_ref_time(300_000_000),
+				weight: Weight::from_parts(300_000_000, 0),
 			}
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
-				parachain_block_number: 1,
-				relaychain_block_number: 4,
+				parachain_block_number: 3,
+				relaychain_block_number: 7,
 			}
 			.into(),
 		]);
@@ -440,7 +442,7 @@ fn polkadot_xcm_execute_extrinsic_should_not_be_allowed() {
 			hydradx_runtime::PolkadotXcm::execute(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				Box::new(message),
-				Weight::from_ref_time(400_000_000_000)
+				Weight::from_parts(400_000_000_000, 0)
 			),
 			pallet_xcm::Error::<hydradx_runtime::Runtime>::Filtered
 		);

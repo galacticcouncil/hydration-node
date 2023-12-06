@@ -12,6 +12,7 @@ use frame_support::{
 	sp_runtime::{traits::Convert, FixedPointNumber},
 	weights::WeightToFee,
 };
+use sp_runtime::BuildStorage;
 
 #[test]
 #[ignore]
@@ -24,7 +25,7 @@ fn full_block_cost() {
 	let max_weight = BlockWeights::get()
 		.get(DispatchClass::Normal)
 		.max_total
-		.unwrap_or(Weight::from_ref_time(1));
+		.unwrap_or(Weight::from_parts(1, 0));
 	let weight_fee = crate::WeightToFee::weight_to_fee(&max_weight);
 	assert_eq!(weight_fee, 375_600_961_538_250);
 
@@ -79,8 +80,8 @@ fn run_with_system_weight<F>(w: Weight, mut assertions: F)
 where
 	F: FnMut(),
 {
-	let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default()
-		.build_storage::<Runtime>()
+	let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::<Runtime>::default()
+		.build_storage()
 		.unwrap()
 		.into();
 	t.execute_with(|| {

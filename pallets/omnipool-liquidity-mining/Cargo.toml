@@ -15,6 +15,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 # parity
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
+log = { workspace = true }
 
 # local
 primitives = { workspace = true }
@@ -51,9 +52,7 @@ sp-io = { workspace = true, optional = true }
 sp-io = { workspace = true }
 sp-core = { workspace = true }
 orml-tokens = { workspace = true }
-proptest = "1.0.0"
 pretty_assertions = "1.2.1"
-test-utils = { workspace = true }
 
 [features]
 default = ["std"]
@@ -69,10 +68,10 @@ std = [
 	"pallet-balances/std",
 	"orml-tokens/std",
   "pallet-omnipool/std",
+	"pallet-ema-oracle/std",
 	"pallet-liquidity-mining/std",
-  "pallet-ema-oracle/std",
+	"primitives/std",
   "hydra-dx-math/std",
-  "primitives/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

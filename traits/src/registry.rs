@@ -42,6 +42,10 @@ pub trait Inspect {
 	fn asset_type(id: Self::AssetId) -> Option<AssetKind>;
 
 	fn is_blacklisted(id: Self::AssetId) -> bool;
+
+	fn asset_name(id: Self::AssetId) -> Option<Vec<u8>>;
+
+	fn asset_symbol(id: Self::AssetId) -> Option<Vec<u8>>;
 }
 
 #[allow(clippy::too_many_arguments)]

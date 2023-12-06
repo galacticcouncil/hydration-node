@@ -17,7 +17,6 @@
 
 use crate::{AssetDetails, AssetType, Assets, Balance, Config, Pallet};
 use frame_support::{
-	log,
 	traits::{Get, StorageVersion},
 	weights::Weight,
 	Twox64Concat,

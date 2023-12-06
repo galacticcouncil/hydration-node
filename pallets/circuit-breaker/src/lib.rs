@@ -18,11 +18,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-use frame_support::dispatch::Weight;
 use frame_support::traits::{Contains, EnsureOrigin};
+use frame_support::weights::Weight;
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
 use frame_system::ensure_signed_or_root;
-use frame_system::pallet_prelude::OriginFor;
+use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
@@ -132,12 +132,12 @@ pub mod pallet {
 	use frame_support::traits::Contains;
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_initialize(_n: T::BlockNumber) -> Weight {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			T::WeightInfo::on_finalize(0, 0)
 		}
 
-		fn on_finalize(_n: T::BlockNumber) {
+		fn on_finalize(_n: BlockNumberFor<T>) {
 			let _ = <AllowedTradeVolumeLimitPerAsset<T>>::clear(u32::MAX, None);
 			let _ = <AllowedAddLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
 			let _ = <AllowedRemoveLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
@@ -225,7 +225,6 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	/// Default maximum net trade volume limit per block

@@ -54,7 +54,7 @@ pub trait WeightInfo {
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn claim() -> Weight {
-		Weight::from_ref_time(248_181_000 as u64)
+		Weight::from_parts(248_181_000, 0)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -63,7 +63,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn claim() -> Weight {
-		Weight::from_ref_time(248_181_000 as u64)
+		Weight::from_parts(248_181_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(2 as u64))
 			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}

@@ -89,7 +89,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: XYK PoolAssets (max_values: None, max_size: Some(56), added: 2531, mode: MaxEncodedLen)
 	fn create_pool() -> Weight {
 		// Minimum execution time: 190_185 nanoseconds.
-		Weight::from_ref_time(192_567_000 as u64)
+		Weight::from_parts(192_567_000, 0)
 			.saturating_add(T::DbWeight::get().reads(17 as u64))
 			.saturating_add(T::DbWeight::get().writes(16 as u64))
 	}
@@ -111,7 +111,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn add_liquidity() -> Weight {
 		// Minimum execution time: 164_323 nanoseconds.
-		Weight::from_ref_time(165_841_000 as u64)
+		Weight::from_parts(165_841_000, 0)
 			.saturating_add(T::DbWeight::get().reads(14 as u64))
 			.saturating_add(T::DbWeight::get().writes(9 as u64))
 	}
@@ -131,7 +131,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn remove_liquidity() -> Weight {
 		// Minimum execution time: 155_404 nanoseconds.
-		Weight::from_ref_time(156_560_000 as u64)
+		Weight::from_parts(156_560_000, 0)
 			.saturating_add(T::DbWeight::get().reads(13 as u64))
 			.saturating_add(T::DbWeight::get().writes(8 as u64))
 	}
@@ -147,7 +147,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn sell() -> Weight {
 		// Minimum execution time: 119_610 nanoseconds.
-		Weight::from_ref_time(120_418_000 as u64)
+		Weight::from_parts(120_418_000, 0)
 			.saturating_add(T::DbWeight::get().reads(10 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
@@ -163,7 +163,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn buy() -> Weight {
 		// Minimum execution time: 119_865 nanoseconds.
-		Weight::from_ref_time(120_541_000 as u64)
+		Weight::from_parts(120_541_000, 0)
 			.saturating_add(T::DbWeight::get().reads(10 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
@@ -181,10 +181,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 20_906 nanoseconds.
-		Weight::from_ref_time(8_365_948 as u64) // Standard Error: 43_229
-			.saturating_add(Weight::from_ref_time(6_554_981 as u64).saturating_mul(c as u64))
+		Weight::from_parts(8_365_948, 0) // Standard Error: 43_229
+			.saturating_add(Weight::from_parts(6_554_981, 0).saturating_mul(c as u64))
 			// Standard Error: 43_229
-			.saturating_add(Weight::from_ref_time(105_218_621 as u64).saturating_mul(e as u64))
+			.saturating_add(Weight::from_parts(105_218_621, 0).saturating_mul(e as u64))
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
 			.saturating_add(T::DbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
@@ -203,10 +203,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 27_261 nanoseconds.
-		Weight::from_ref_time(7_044_054 as u64) // Standard Error: 46_197
-			.saturating_add(Weight::from_ref_time(7_022_106 as u64).saturating_mul(c as u64))
+		Weight::from_parts(7_044_054, 0) // Standard Error: 46_197
+			.saturating_add(Weight::from_parts(7_022_106, 0).saturating_mul(c as u64))
 			// Standard Error: 78_379
-			.saturating_add(Weight::from_ref_time(105_927_586 as u64).saturating_mul(e as u64))
+			.saturating_add(Weight::from_parts(105_927_586, 0).saturating_mul(e as u64))
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
 			.saturating_add(T::DbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
@@ -243,7 +243,7 @@ impl WeightInfo for () {
 	// Proof: XYK PoolAssets (max_values: None, max_size: Some(56), added: 2531, mode: MaxEncodedLen)
 	fn create_pool() -> Weight {
 		// Minimum execution time: 190_185 nanoseconds.
-		Weight::from_ref_time(192_567_000 as u64)
+		Weight::from_parts(192_567_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(17 as u64))
 			.saturating_add(RocksDbWeight::get().writes(16 as u64))
 	}
@@ -265,7 +265,7 @@ impl WeightInfo for () {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn add_liquidity() -> Weight {
 		// Minimum execution time: 164_323 nanoseconds.
-		Weight::from_ref_time(165_841_000 as u64)
+		Weight::from_parts(165_841_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(14 as u64))
 			.saturating_add(RocksDbWeight::get().writes(9 as u64))
 	}
@@ -285,7 +285,7 @@ impl WeightInfo for () {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn remove_liquidity() -> Weight {
 		// Minimum execution time: 155_404 nanoseconds.
-		Weight::from_ref_time(156_560_000 as u64)
+		Weight::from_parts(156_560_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(13 as u64))
 			.saturating_add(RocksDbWeight::get().writes(8 as u64))
 	}
@@ -301,7 +301,7 @@ impl WeightInfo for () {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn sell() -> Weight {
 		// Minimum execution time: 119_610 nanoseconds.
-		Weight::from_ref_time(120_418_000 as u64)
+		Weight::from_parts(120_418_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(10 as u64))
 			.saturating_add(RocksDbWeight::get().writes(5 as u64))
 	}
@@ -317,7 +317,7 @@ impl WeightInfo for () {
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
 	fn buy() -> Weight {
 		// Minimum execution time: 119_865 nanoseconds.
-		Weight::from_ref_time(120_541_000 as u64)
+		Weight::from_parts(120_541_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(10 as u64))
 			.saturating_add(RocksDbWeight::get().writes(5 as u64))
 	}
@@ -335,10 +335,10 @@ impl WeightInfo for () {
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 20_906 nanoseconds.
-		Weight::from_ref_time(8_365_948 as u64) // Standard Error: 43_229
-			.saturating_add(Weight::from_ref_time(6_554_981 as u64).saturating_mul(c as u64))
+		Weight::from_parts(8_365_948, 0) // Standard Error: 43_229
+			.saturating_add(Weight::from_parts(6_554_981, 0).saturating_mul(c as u64))
 			// Standard Error: 43_229
-			.saturating_add(Weight::from_ref_time(105_218_621 as u64).saturating_mul(e as u64))
+			.saturating_add(Weight::from_parts(105_218_621, 0).saturating_mul(e as u64))
 			.saturating_add(RocksDbWeight::get().reads(3 as u64))
 			.saturating_add(RocksDbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
 			.saturating_add(RocksDbWeight::get().writes((5 as u64).saturating_mul(e as u64)))
@@ -357,10 +357,10 @@ impl WeightInfo for () {
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Minimum execution time: 27_261 nanoseconds.
-		Weight::from_ref_time(7_044_054 as u64) // Standard Error: 46_197
-			.saturating_add(Weight::from_ref_time(7_022_106 as u64).saturating_mul(c as u64))
+		Weight::from_parts(7_044_054, 0) // Standard Error: 46_197
+			.saturating_add(Weight::from_parts(7_022_106, 0).saturating_mul(c as u64))
 			// Standard Error: 78_379
-			.saturating_add(Weight::from_ref_time(105_927_586 as u64).saturating_mul(e as u64))
+			.saturating_add(Weight::from_parts(105_927_586, 0).saturating_mul(e as u64))
 			.saturating_add(RocksDbWeight::get().reads(3 as u64))
 			.saturating_add(RocksDbWeight::get().reads((7 as u64).saturating_mul(e as u64)))
 			.saturating_add(RocksDbWeight::get().writes((5 as u64).saturating_mul(e as u64)))

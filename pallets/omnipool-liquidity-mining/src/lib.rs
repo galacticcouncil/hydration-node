@@ -54,7 +54,10 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::{BlockNumberFor, OriginFor},
+};
 use hydra_dx_math::ema::EmaPrice as Price;
 use hydradx_traits::{
 	liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId},
@@ -73,25 +76,26 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
-type PeriodOf<T> = <T as frame_system::Config>::BlockNumber;
+type PeriodOf<T> = BlockNumberFor<T>;
 
 #[frame_support::pallet]
 #[allow(clippy::too_many_arguments)]
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::genesis_config]
-	#[cfg_attr(feature = "std", derive(Default))]
-	pub struct GenesisConfig {}
+	#[derive(frame_support::DefaultNoBound)]
+	pub struct GenesisConfig<T> {
+		#[serde(skip)]
+		pub _marker: PhantomData<T>,
+	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			let pallet_account = <Pallet<T>>::account_id();
 

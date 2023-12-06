@@ -15,24 +15,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{AccountId, AssetId, Balance, Currencies, Runtime};
-use primitives::Price;
-
 use super::*;
-
+use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, System};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
+use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::RawOrigin;
+use hydradx_traits::router::PoolType;
+use hydradx_traits::router::RouteProvider;
+use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
-use sp_runtime::traits::SaturatedConversion;
-
-use hydradx_traits::pools::SpotPriceProvider;
 use orml_traits::MultiCurrencyExtended;
+use pallet_route_executor::MAX_NUMBER_OF_TRADES;
+use primitives::{BlockNumber, Price};
+use sp_runtime::traits::SaturatedConversion;
+use sp_runtime::FixedU128;
 
 type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
+type XykPallet<T> = pallet_xyk::Pallet<T>;
+type Router<T> = pallet_route_executor::Pallet<T>;
+use hydradx_traits::router::AssetPair;
+use hydradx_traits::router::Trade;
+use hydradx_traits::OraclePeriod;
 
 const SEED: u32 = 1;
+
+const UNITS: Balance = 1_000_000_000_000;
 
 pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
 	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
@@ -75,22 +84,145 @@ runtime_benchmarks! {
 		assert_eq!(MultiPaymentPallet::<Runtime>::get_currency(caller), Some(asset_id));
 	}
 
-	get_spot_price {
+	get_oracle_price {
 		let maker: AccountId = account("maker", 0, SEED);
 
-		let asset_out = 0u32;
-		let asset_id = register_asset(b"TST".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		update_balance(asset_out, &maker, 2_000_000_000_000_000);
-		update_balance(asset_id, &maker, 2_000_000_000_000_000);
+		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
-		// TODO: uncomment once AMM pool is available
-		// create_pool(maker, asset_out, asset_id, 1_000_000_000_000_000, Price::from_inner(500_000_000_000_000_000));
+		create_xyk_pool::<Runtime>(asset_1, 1000 * UNITS, asset_2, 1000 * UNITS);
+		create_xyk_pool::<Runtime>(asset_2, 1000 * UNITS, asset_3, 1000 * UNITS);
+		create_xyk_pool::<Runtime>(asset_3, 1000 * UNITS, asset_4, 1000 * UNITS);
+		create_xyk_pool::<Runtime>(asset_4, 1000 * UNITS, asset_5, 1000 * UNITS);
+		create_xyk_pool::<Runtime>(asset_5, 1000 * UNITS, asset_6, 1000 * UNITS);
 
-	}: { <Runtime as pallet_transaction_multi_payment::Config>::SpotPriceProvider::spot_price(asset_id, asset_out) }
+		xyk_sell::<Runtime>(asset_1,asset_2, 10 * UNITS);
+		xyk_sell::<Runtime>(asset_2,asset_3, 10 * UNITS);
+		xyk_sell::<Runtime>(asset_3,asset_4, 10 * UNITS);
+		xyk_sell::<Runtime>(asset_4,asset_5, 10 * UNITS);
+		xyk_sell::<Runtime>(asset_5,asset_6, 10 * UNITS);
+
+		set_period(10);
+
+		let route = vec![
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_1,
+				asset_out: asset_2,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_2,
+				asset_out: asset_3,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_3,
+				asset_out: asset_4,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_4,
+				asset_out: asset_5,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_5,
+				asset_out: asset_6,
+			}
+		];
+
+		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
+
+		Router::<Runtime>::set_route(RawOrigin::Signed(maker).into(), AssetPair::new(asset_1, asset_6), route)?;
+
+		let mut _price = None;//Named with underscore because clippy thinks that the price in the Act part is unused.
+
+	}: {
+		let on_chain_route = <Runtime as pallet_transaction_multi_payment::Config>::RouteProvider::get_route(AssetPair::new(asset_1, asset_6));
+
+		_price = <Runtime as pallet_transaction_multi_payment::Config>::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
+			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d));
+
+		}
+
 	verify{
-		assert_eq!(<Runtime as pallet_transaction_multi_payment::Config>::SpotPriceProvider::spot_price(asset_id, asset_out),
-			None);
+		assert!(_price.is_some());
+	}
+}
 
+fn create_xyk_pool<T: pallet_xyk::Config>(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_b: Balance)
+where
+	<T as frame_system::Config>::RuntimeOrigin: core::convert::From<frame_system::RawOrigin<sp_runtime::AccountId32>>,
+{
+	let maker: AccountId = account("xyk-maker", 0, SEED);
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
+		0_u32,
+		InsufficientEDinHDX::get() as i128,
+	));
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
+		asset_a,
+		amount_a as i128,
+	));
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
+		asset_b,
+		amount_b as i128,
+	));
+
+	assert_ok!(XykPallet::<T>::create_pool(
+		RawOrigin::Signed(maker).into(),
+		asset_a,
+		amount_a,
+		asset_b,
+		amount_b,
+	));
+}
+
+fn xyk_sell<T: pallet_xyk::Config>(asset_a: AssetId, asset_b: AssetId, amount_a: Balance)
+where
+	<T as frame_system::Config>::RuntimeOrigin: core::convert::From<frame_system::RawOrigin<sp_runtime::AccountId32>>,
+{
+	let maker: AccountId = account("xyk-seller", 0, SEED);
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
+		asset_a,
+		amount_a as i128,
+	));
+	assert_ok!(XykPallet::<T>::sell(
+		RawOrigin::Signed(maker).into(),
+		asset_a,
+		asset_b,
+		amount_a,
+		u128::MIN,
+		false
+	));
+}
+
+fn set_period(to: u32) {
+	while System::block_number() < Into::<BlockNumber>::into(to) {
+		let b = System::block_number();
+
+		System::on_finalize(b);
+		EmaOracle::on_finalize(b);
+
+		System::on_initialize(b + 1_u32);
+		EmaOracle::on_initialize(b + 1_u32);
+
+		System::set_block_number(b + 1_u32);
 	}
 }
 
@@ -98,10 +230,11 @@ runtime_benchmarks! {
 mod tests {
 	use super::*;
 	use orml_benchmarking::impl_benchmark_test_suite;
+	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::default()
-			.build_storage::<crate::Runtime>()
+		frame_system::GenesisConfig::<crate::Runtime>::default()
+			.build_storage()
 			.unwrap()
 			.into()
 	}

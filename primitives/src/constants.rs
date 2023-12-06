@@ -88,12 +88,13 @@ pub mod chain {
 	/// We allow for 0.5 seconds of compute
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
 		WEIGHT_REF_TIME_PER_SECOND.saturating_div(2),
-		polkadot_primitives::v2::MAX_POV_SIZE as u64,
+		polkadot_primitives::v5::MAX_POV_SIZE as u64,
 	);
 
 	/// The source of the data for the oracle.
 	pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 	pub const STABLESWAP_SOURCE: [u8; 8] = *b"stablesw";
+	pub const XYK_SOURCE: [u8; 8] = *b"hydraxyk";
 }
 
 #[cfg(test)]

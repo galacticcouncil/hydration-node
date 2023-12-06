@@ -18,7 +18,7 @@
 use crate as dca;
 use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
-use frame_support::traits::{Everything, GenesisBuild, Nothing};
+use frame_support::traits::{Everything, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
@@ -37,12 +37,9 @@ use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
-	DispatchError,
+	BuildStorage, DispatchError,
 };
-
-use hydradx_adapters::inspect::MultiInspectAdapter;
 
 use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use sp_runtime::traits::Zero;
@@ -50,7 +47,6 @@ use sp_runtime::{DispatchResult, FixedU128};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type Balance = u128;
@@ -77,10 +73,7 @@ pub const GENERATED_SEARCH_RADIUSES: [u64; 10] = [1, 3, 6, 10, 28, 34, 114, 207,
 pub const ONE: Balance = 1_000_000_000_000;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	 Block = Block,
-	 NodeBlock = Block,
-	 UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	 {
 		 System: frame_system,
 		 DCA: dca,
@@ -178,13 +171,12 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -224,7 +216,6 @@ impl orml_tokens::Config for Test {
 parameter_types! {
 		pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
-	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionCollectionId: u32= 1000;
 
 	pub const ExistentialDeposit: u128 = 500;
@@ -250,7 +241,6 @@ impl pallet_omnipool::Config for Test {
 	type PositionItemId = u32;
 	type Currency = Currencies;
 	type HubAssetId = LRNAAssetId;
-	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PosiitionCollectionId;
@@ -336,6 +326,10 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = NamedReserveIdentifier;
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 impl pallet_currencies::Config for Test {
@@ -358,8 +352,8 @@ impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type MaxNumberOfTrades = MaxNumberOfTrades;
-	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
+	type NativeAssetId = NativeCurrencyId;
+	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
 	type WeightInfo = ();
 }
@@ -482,6 +476,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 
 		Ok(())
 	}
+
+	fn get_liquidity_depth(
+		_pool_type: PoolType<AssetId>,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		todo!("Not implemented as not used directly within DCA context")
+	}
 }
 
 pub const XYK_SELL_CALCULATION_RESULT: Balance = ONE * 5 / 4;
@@ -579,6 +581,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 
 		Ok(())
 	}
+
+	fn get_liquidity_depth(
+		_pool_type: PoolType<AssetId>,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		todo!("No need to implement it as this is not used directly in DCA")
+	}
 }
 
 pub struct PriceProviderMock {}
@@ -629,7 +639,8 @@ impl Config for Test {
 	type WeightToFee = IdentityFee<Balance>;
 	type WeightInfo = ();
 	type OraclePriceProvider = PriceProviderMock;
-	type Router = RouteExecutor;
+	type RouteExecutor = RouteExecutor;
+	type RouteProvider = DefaultRouteProvider;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -648,6 +659,10 @@ impl NativePriceOracle<AssetId, FixedU128> for NativePriceOracleMock {
 	}
 }
 
+pub struct DefaultRouteProvider;
+
+impl RouteProvider<AssetId> for DefaultRouteProvider {}
+
 pub struct ParentHashGetterMock {}
 
 impl RelayChainBlockHashProvider for ParentHashGetterMock {
@@ -662,7 +677,8 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::router::{ExecutorError, PoolType, Trade, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
 use rand::SeedableRng;
@@ -743,6 +759,14 @@ where
 	fn is_blacklisted(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
 }
 
 pub type AccountId = u64;
@@ -803,7 +827,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 		// Add DAi and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {
 			if self.register_stable_asset {
@@ -858,14 +882,19 @@ impl ExtBuilder {
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), u128::MAX));
-
-				assert_ok!(Omnipool::initialize_pool(
+				assert_ok!(Omnipool::add_token(
 					RuntimeOrigin::root(),
-					stable_price,
+					HDXAssetId::get(),
 					native_price,
 					Permill::from_percent(100),
-					Permill::from_percent(100)
+					Omnipool::protocol_account(),
+				));
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					DAI,
+					stable_price,
+					Permill::from_percent(100),
+					Omnipool::protocol_account(),
 				));
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {

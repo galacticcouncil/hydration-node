@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::{oracle::hydradx_run_to_block, polkadot_test_net::*};
+use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use pallet_dynamic_fees::types::FeeEntry;
 use primitives::AssetId;
@@ -48,7 +48,7 @@ fn fees_should_initialize_lazily_to_min_value_when_first_trade_happens() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(10);
+		hydradx_run_to_block(12);
 
 		assert!(hydradx_runtime::DynamicFees::current_fees(HDX).is_none());
 
@@ -69,7 +69,7 @@ fn fees_should_initialize_lazily_to_min_value_when_first_trade_happens() {
 			FeeEntry {
 				asset_fee: asset_fee_params.min_fee,
 				protocol_fee: Permill::from_float(0.000788_f64),
-				timestamp: 10_u32
+				timestamp: 12_u32
 			}
 		);
 	});
@@ -83,7 +83,7 @@ fn fees_should_initialize_lazily_to_min_value_when_first_buy_happens() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(10);
+		hydradx_run_to_block(12);
 
 		assert!(hydradx_runtime::DynamicFees::current_fees(HDX).is_none());
 
@@ -105,7 +105,7 @@ fn fees_should_initialize_lazily_to_min_value_when_first_buy_happens() {
 			FeeEntry {
 				asset_fee: asset_fee_params.min_fee,
 				protocol_fee: Permill::from_float(0.000788_f64),
-				timestamp: 10_u32
+				timestamp: 12_u32
 			}
 		);
 	});
@@ -165,7 +165,7 @@ fn fees_should_change_when_sells_happen_in_different_blocks() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(10);
+		hydradx_run_to_block(12);
 
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -178,7 +178,7 @@ fn fees_should_change_when_sells_happen_in_different_blocks() {
 		let old_fees = hydradx_runtime::DynamicFees::current_fees(HDX).unwrap();
 
 		//Act
-		hydradx_run_to_block(11);
+		hydradx_run_to_block(13);
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 			DOT,
@@ -195,7 +195,7 @@ fn fees_should_change_when_sells_happen_in_different_blocks() {
 			FeeEntry {
 				asset_fee: Permill::from_float(0.0025_f64),
 				protocol_fee: Permill::from_float(0.000926_f64),
-				timestamp: 11_u32
+				timestamp: 13_u32
 			}
 		);
 	});
@@ -209,7 +209,7 @@ fn fees_should_change_when_trades_happen_in_different_blocks() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(10);
+		hydradx_run_to_block(12);
 
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -222,7 +222,7 @@ fn fees_should_change_when_trades_happen_in_different_blocks() {
 		let old_fees = hydradx_runtime::DynamicFees::current_fees(HDX).unwrap();
 
 		//Act
-		hydradx_run_to_block(11);
+		hydradx_run_to_block(13);
 		assert_ok!(hydradx_runtime::Omnipool::buy(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 			DOT,
@@ -239,7 +239,7 @@ fn fees_should_change_when_trades_happen_in_different_blocks() {
 			FeeEntry {
 				asset_fee: Permill::from_float(0.0025_f64),
 				protocol_fee: Permill::from_float(0.000926_f64),
-				timestamp: 11_u32
+				timestamp: 13_u32
 			}
 		);
 	});
@@ -253,7 +253,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(10);
+		hydradx_run_to_block(12);
 
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -267,7 +267,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 		set_balance(DAVE.into(), HDX, 1_000 * UNITS as i128);
 
 		//Act & assert
-		hydradx_run_to_block(11);
+		hydradx_run_to_block(13);
 		assert_ok!(hydradx_runtime::Omnipool::buy(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 			DOT,
@@ -283,7 +283,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 			FeeEntry {
 				asset_fee: Permill::from_float(0.0025_f64),
 				protocol_fee: Permill::from_float(0.000926_f64),
-				timestamp: 11_u32
+				timestamp: 13_u32
 			}
 		);
 
@@ -324,17 +324,19 @@ fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
 
-	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
-		522_222_000_000_000_000_000_000,
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-		hydradx_runtime::RuntimeOrigin::root(),
-		stable_price,
+		HDX,
 		native_price,
+		Permill::from_percent(10),
+		hydradx_runtime::Omnipool::protocol_account(),
+	));
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
+		stable_price,
 		Permill::from_percent(100),
-		Permill::from_percent(10)
+		hydradx_runtime::Omnipool::protocol_account(),
 	));
 
 	let dot_price = FixedU128::from_inner(25_650_000_000_000_000_000);

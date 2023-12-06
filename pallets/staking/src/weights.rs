@@ -69,7 +69,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Uniques ClassAccount (max_values: None, max_size: Some(80), added: 2555, mode: MaxEncodedLen)
 	fn initialize_staking() -> Weight {
 		// Minimum execution time: 45_493 nanoseconds.
-		Weight::from_ref_time(46_285_000 as u64)
+		Weight::from_parts(46_285_000, 0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -93,7 +93,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Staking Positions (max_values: None, max_size: Some(132), added: 2607, mode: MaxEncodedLen)
 	fn stake() -> Weight {
 		// Minimum execution time: 93_365 nanoseconds.
-		Weight::from_ref_time(94_660_000 as u64)
+		Weight::from_parts(94_660_000, 0)
 			.saturating_add(T::DbWeight::get().reads(9 as u64))
 			.saturating_add(T::DbWeight::get().writes(8 as u64))
 	}
@@ -113,7 +113,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Democracy ReferendumInfoOf (max_values: None, max_size: Some(201), added: 2676, mode: MaxEncodedLen)
 	fn increase_stake() -> Weight {
 		// Minimum execution time: 206_722 nanoseconds.
-		Weight::from_ref_time(209_665_000 as u64)
+		Weight::from_parts(209_665_000, 0)
 			.saturating_add(T::DbWeight::get().reads(107 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
@@ -133,7 +133,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
 	fn claim() -> Weight {
 		// Minimum execution time: 225_912 nanoseconds.
-		Weight::from_ref_time(227_912_000 as u64)
+		Weight::from_parts(227_912_000, 0)
 			.saturating_add(T::DbWeight::get().reads(107 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
@@ -159,7 +159,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Uniques ItemPriceOf (max_values: None, max_size: Some(113), added: 2588, mode: MaxEncodedLen)
 	fn unstake() -> Weight {
 		// Minimum execution time: 246_989 nanoseconds.
-		Weight::from_ref_time(249_570_000 as u64)
+		Weight::from_parts(249_570_000, 0)
 			.saturating_add(T::DbWeight::get().reads(108 as u64))
 			.saturating_add(T::DbWeight::get().writes(9 as u64))
 	}
@@ -177,7 +177,7 @@ impl WeightInfo for () {
 	// Proof: Uniques ClassAccount (max_values: None, max_size: Some(80), added: 2555, mode: MaxEncodedLen)
 	fn initialize_staking() -> Weight {
 		// Minimum execution time: 45_493 nanoseconds.
-		Weight::from_ref_time(46_285_000 as u64)
+		Weight::from_parts(46_285_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(3 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
@@ -201,7 +201,7 @@ impl WeightInfo for () {
 	// Proof: Staking Positions (max_values: None, max_size: Some(132), added: 2607, mode: MaxEncodedLen)
 	fn stake() -> Weight {
 		// Minimum execution time: 93_365 nanoseconds.
-		Weight::from_ref_time(94_660_000 as u64)
+		Weight::from_parts(94_660_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(9 as u64))
 			.saturating_add(RocksDbWeight::get().writes(8 as u64))
 	}
@@ -221,7 +221,7 @@ impl WeightInfo for () {
 	// Proof: Democracy ReferendumInfoOf (max_values: None, max_size: Some(201), added: 2676, mode: MaxEncodedLen)
 	fn increase_stake() -> Weight {
 		// Minimum execution time: 206_722 nanoseconds.
-		Weight::from_ref_time(209_665_000 as u64)
+		Weight::from_parts(209_665_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(107 as u64))
 			.saturating_add(RocksDbWeight::get().writes(4 as u64))
 	}
@@ -241,7 +241,7 @@ impl WeightInfo for () {
 	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
 	fn claim() -> Weight {
 		// Minimum execution time: 225_912 nanoseconds.
-		Weight::from_ref_time(227_912_000 as u64)
+		Weight::from_parts(227_912_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(107 as u64))
 			.saturating_add(RocksDbWeight::get().writes(5 as u64))
 	}
@@ -267,7 +267,7 @@ impl WeightInfo for () {
 	// Proof: Uniques ItemPriceOf (max_values: None, max_size: Some(113), added: 2588, mode: MaxEncodedLen)
 	fn unstake() -> Weight {
 		// Minimum execution time: 246_989 nanoseconds.
-		Weight::from_ref_time(249_570_000 as u64)
+		Weight::from_parts(249_570_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(108 as u64))
 			.saturating_add(RocksDbWeight::get().writes(9 as u64))
 	}

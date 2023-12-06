@@ -10,7 +10,7 @@ repository = "https://github.com/galacticcouncil/warehouse/tree/master/traits"
 [dependencies]
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
-serde = { features = ["derive"], optional = true, version = "1.0.137" }
+serde = { features = ["derive"], default-features = false, version = "1.0.137" }
 impl-trait-for-tuples = "0.2.2"
 sp-arithmetic = { workspace = true }
 
@@ -21,7 +21,7 @@ sp-std = { workspace = true }
 [features]
 default = ["std"]
 std = [
-    "serde",
+    "serde/std",
     "codec/std",
     "frame-support/std",
     "sp-std/std",

@@ -18,12 +18,16 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::pallet_prelude::*;
+use frame_support::require_transactional;
 use frame_support::sp_runtime::traits::CheckedAdd;
-use frame_support::traits::tokens::fungibles::{Inspect as FungiblesInspect, Transfer};
-use frame_support::{dispatch::DispatchError, require_transactional};
+use frame_support::traits::tokens::{
+	fungibles::{Inspect as FungiblesInspect, Mutate as FungiblesMutate},
+	Preservation,
+};
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_arithmetic::traits::{BaseArithmetic, Zero};
+use sp_runtime::DispatchError;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
@@ -62,6 +66,8 @@ pub mod pallet {
 
 	use super::*;
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
 	pub type AssetDetailsT<T> = AssetDetails<<T as Config>::StringLimit>;
 
 	#[pallet::config]
@@ -89,7 +95,7 @@ pub mod pallet {
 
 		/// Multi currency mechanism
 		type Currency: FungiblesInspect<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>
-			+ Transfer<Self::AccountId>;
+			+ FungiblesMutate<Self::AccountId>;
 
 		#[pallet::constant]
 		type SequentialIdStartAt: Get<Self::AssetId>;
@@ -115,10 +121,11 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -245,11 +252,10 @@ pub mod pallet {
 		pub native_decimals: u8,
 	}
 
-	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
 			GenesisConfig::<T> {
-				registered_assets: vec![],
+				registered_assets: sp_std::vec![],
 				native_asset_name: b"HDX".to_vec(),
 				native_existential_deposit: DEFAULT_ED,
 				native_symbol: b"HDX".to_vec(),
@@ -258,7 +264,7 @@ pub mod pallet {
 		}
 	}
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			with_transaction(|| {
 				// Register native asset first
@@ -444,43 +450,43 @@ pub mod pallet {
 			}
 
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
-				let mut details = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+				let detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
 				let new_bounded_name = Self::try_into_bounded(name)?;
 				if let Some(new_name) = new_bounded_name.as_ref() {
 					ensure!(Self::asset_ids(new_name).is_none(), Error::<T>::AssetAlreadyRegistered);
 
-					if let Some(old_name) = &details.name {
+					if let Some(old_name) = &detail.name {
 						AssetIds::<T>::remove(old_name);
 					}
 
-					if Some(new_name.clone()) != details.name {
+					if Some(new_name.clone()) != detail.name {
 						AssetIds::<T>::insert(new_name, asset_id);
 					}
 				};
 				let bounded_symbol = Self::try_into_bounded(symbol)?;
 
-				details.name = new_bounded_name.or_else(|| details.name.clone());
-				details.asset_type = asset_type.unwrap_or(details.asset_type);
-				details.existential_deposit = existential_deposit.unwrap_or(details.existential_deposit);
-				details.xcm_rate_limit = xcm_rate_limit.or(details.xcm_rate_limit);
-				details.symbol = bounded_symbol.or_else(|| details.symbol.clone());
+				detail.name = new_bounded_name.or_else(|| detail.name.clone());
+				detail.asset_type = asset_type.unwrap_or(detail.asset_type);
+				detail.existential_deposit = existential_deposit.unwrap_or(detail.existential_deposit);
+				detail.xcm_rate_limit = xcm_rate_limit.or(detail.xcm_rate_limit);
+				detail.symbol = bounded_symbol.or_else(|| detail.symbol.clone());
 
-				let suff = is_sufficient.unwrap_or(details.is_sufficient);
-				if details.is_sufficient != suff {
+				let suff = is_sufficient.unwrap_or(detail.is_sufficient);
+				if detail.is_sufficient != suff {
 					//NOTE: Change sufficient -> insufficient require storage migration and is not
 					//allowed by extrinsic.
-					ensure!(!details.is_sufficient, Error::<T>::ForbiddenSufficiencyChange);
-					details.is_sufficient = suff;
+					ensure!(!detail.is_sufficient, Error::<T>::ForbiddenSufficiencyChange);
+					detail.is_sufficient = suff;
 				}
 
 				if decimals.is_some() {
-					if details.decimals.is_none() {
-						details.decimals = decimals;
+					if detail.decimals.is_none() {
+						detail.decimals = decimals;
 					} else {
 						//Only highest origin can change decimal if it was set previously.
 						ensure!(is_registry_origin, Error::<T>::Forbidden);
-						details.decimals = decimals;
+						detail.decimals = decimals;
 					};
 				}
 
@@ -496,13 +502,13 @@ pub mod pallet {
 
 				Self::deposit_event(Event::Updated {
 					asset_id,
-					asset_name: details.name.clone(),
-					asset_type: details.asset_type,
-					existential_deposit: details.existential_deposit,
-					xcm_rate_limit: details.xcm_rate_limit,
-					symbol: details.symbol.clone(),
-					decimals: details.decimals,
-					is_sufficient: details.is_sufficient,
+					asset_name: detail.name.clone(),
+					asset_type: detail.asset_type,
+					existential_deposit: detail.existential_deposit,
+					xcm_rate_limit: detail.xcm_rate_limit,
+					symbol: detail.symbol.clone(),
+					decimals: detail.decimals,
+					is_sufficient: detail.is_sufficient,
 				});
 
 				Ok(())
@@ -518,7 +524,7 @@ pub mod pallet {
 			if !T::StorageFees::get().is_zero() {
 				ensure!(
 					T::Currency::can_withdraw(T::StorageFeesAssetId::get(), &who, T::StorageFees::get())
-						.into_result()
+						.into_result(false)
 						.is_ok(),
 					Error::<T>::InsufficientBalance
 				);
@@ -528,7 +534,7 @@ pub mod pallet {
 					&who,
 					&T::StorageFeesBeneficiary::get(),
 					T::StorageFees::get(),
-					false,
+					Preservation::Expendable,
 				)?;
 			}
 
@@ -747,6 +753,14 @@ impl<T: Config> Inspect for Pallet<T> {
 
 	fn is_blacklisted(id: Self::AssetId) -> bool {
 		BlacklistedAssets::<T>::contains_key(id)
+	}
+
+	fn asset_name(id: Self::AssetId) -> Option<Vec<u8>> {
+		Self::assets(id).and_then(|a| a.name.map(|v| v.into()))
+	}
+
+	fn asset_symbol(id: Self::AssetId) -> Option<Vec<u8>> {
+		Self::assets(id).and_then(|a| a.symbol.map(|v| v.into()))
 	}
 }
 

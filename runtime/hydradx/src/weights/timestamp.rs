@@ -58,12 +58,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Timestamp Now (max_values: Some(1), max_size: Some(8), added: 503, mode: MaxEncodedLen)
 	fn set() -> Weight {
 		// Minimum execution time: 9_093 nanoseconds.
-		Weight::from_ref_time(9_342_000 as u64)
+		Weight::from_parts(9_342_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn on_finalize() -> Weight {
 		// Minimum execution time: 4_982 nanoseconds.
-		Weight::from_ref_time(5_155_000 as u64)
+		Weight::from_parts(5_155_000, 0)
 	}
 }

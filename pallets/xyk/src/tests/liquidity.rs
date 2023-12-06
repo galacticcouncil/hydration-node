@@ -26,7 +26,7 @@ fn add_liquidity_should_work() {
 		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 65_400_000);
-		assert_eq!(XYK::total_liquidity(&pair_account), 65400000);
+		assert_eq!(XYK::total_liquidity(pair_account), 65400000);
 
 		assert_ok!(XYK::add_liquidity(
 			RuntimeOrigin::signed(user),
@@ -41,7 +41,7 @@ fn add_liquidity_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 65_661_601);
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100400000);
 		assert_eq!(Currency::free_balance(asset_a, &user), 999999899600000);
-		assert_eq!(XYK::total_liquidity(&pair_account), 65661600);
+		assert_eq!(XYK::total_liquidity(pair_account), 65661600);
 
 		expect_events(vec![
 			Event::PoolCreated {
@@ -129,7 +129,7 @@ fn add_liquidity_as_another_user_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 100400000);
 		assert_eq!(Currency::free_balance(asset_b, &user), 999999899600000);
 		assert_eq!(Currency::free_balance(share_token, &user), 1004000000000);
-		assert_eq!(XYK::total_liquidity(&pair_account), 1004000000000);
+		assert_eq!(XYK::total_liquidity(pair_account), 1004000000000);
 
 		assert_ok!(XYK::add_liquidity(
 			RuntimeOrigin::signed(BOB),
@@ -145,7 +145,7 @@ fn add_liquidity_as_another_user_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &BOB), 999999999000000);
 		assert_eq!(Currency::free_balance(share_token, &user), 1004000000000);
 		assert_eq!(Currency::free_balance(share_token, &BOB), 10000000000);
-		assert_eq!(XYK::total_liquidity(&pair_account), 1014000000000);
+		assert_eq!(XYK::total_liquidity(pair_account), 1014000000000);
 
 		expect_events(vec![
 			Event::PoolCreated {
@@ -248,7 +248,7 @@ fn remove_liquidity_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &user), 999999900355000);
 
 		assert_eq!(Currency::free_balance(share_token, &user), 99645000);
-		assert_eq!(XYK::total_liquidity(&pair_account), 99645000);
+		assert_eq!(XYK::total_liquidity(pair_account), 99645000);
 
 		expect_events(vec![
 			Event::PoolCreated {

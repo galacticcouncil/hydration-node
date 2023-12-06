@@ -1,6 +1,6 @@
 [package]
 name = "pallet-genesis-history"
-version = "2.1.0"
+version = "2.1.1"
 description = "Keeping track of the past chain generations."
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"
@@ -12,10 +12,11 @@ repository = "https://github.com/paritytech/substrate/"
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
-serde = { features = ["derive"], optional = true, version = "1.0.136" }
+serde = { features = ["derive"], default-features = false, version = "1.0.136" }
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 derive_more = "0.99.17"
+log = { workspace = true }
 
 frame-support = { workspace = true }
 frame-system = { workspace = true }

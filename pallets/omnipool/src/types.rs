@@ -34,6 +34,12 @@ impl Default for Tradability {
 	}
 }
 
+impl Tradability {
+	pub(crate) fn is_safe_withdrawal(&self) -> bool {
+		*self == Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY || *self == Tradability::REMOVE_LIQUIDITY
+	}
+}
+
 #[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AssetState<Balance> {
 	/// Quantity of Hub Asset matching this asset

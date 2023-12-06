@@ -25,7 +25,7 @@ use hex_literal::hex;
 use sp_std::marker::PhantomData;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut ext = ExtBuilder::default().build();
+	let mut ext = ExtBuilder.build();
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }
@@ -37,15 +37,14 @@ fn claiming_works() {
 		// "I hereby claim all my xHDX tokens to wallet:2a00000000000000"
 		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
 
-		assert_eq!(Balances::free_balance(&ALICE), 0);
-		assert_eq!(Balances::free_balance(&BOB), 0);
+		let alice_initial_balance = Balances::free_balance(ALICE);
 
 		// Signature not consistent with origin
 		assert_noop!(ClaimsPallet::claim(RuntimeOrigin::signed(BOB), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
 
 		assert_ok!(ClaimsPallet::claim(RuntimeOrigin::signed(ALICE), EcdsaSignature(signature)));
 
-		assert_eq!(Balances::free_balance(&ALICE), CLAIM_AMOUNT);
+		assert_eq!(Balances::free_balance(ALICE), alice_initial_balance + CLAIM_AMOUNT);
 	})
 }
 
@@ -66,12 +65,12 @@ fn claim_cant_overflow() {
 		let charlie_eth_addr = EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]);
 
 		assert_eq!(Claims::<Test>::get(charlie_eth_addr), CLAIM_AMOUNT);
-		assert_eq!(Balances::free_balance(&CHARLIE), primitives::Balance::MAX - 1);
+		assert_eq!(Balances::free_balance(CHARLIE), primitives::Balance::MAX - 1);
 
 		assert_noop!(ClaimsPallet::claim(RuntimeOrigin::signed(CHARLIE), EcdsaSignature(signature)), Error::<Test>::BalanceOverflow);
 
 		assert_eq!(Claims::<Test>::get(charlie_eth_addr), CLAIM_AMOUNT);
-		assert_eq!(Balances::free_balance(&CHARLIE), primitives::Balance::MAX - 1);
+		assert_eq!(Balances::free_balance(CHARLIE), primitives::Balance::MAX - 1);
 	})
 }
 

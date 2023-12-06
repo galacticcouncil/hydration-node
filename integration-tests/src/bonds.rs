@@ -23,6 +23,8 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 		let amount = 100 * UNITS;
 		let fee = <Runtime as pallet_bonds::Config>::ProtocolFee::get().mul_ceil(amount);
 		let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
+		let initial_fee_receiver_balance =
+			Currencies::free_balance(HDX, &<Runtime as pallet_bonds::Config>::FeeReceiver::get());
 
 		let maturity = NOW + MONTH;
 
@@ -45,7 +47,11 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 		assert_balance!(&ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount);
 		assert_balance!(&ALICE.into(), bond_id, amount_without_fee);
 
-		assert_balance!(&<Runtime as pallet_bonds::Config>::FeeReceiver::get(), HDX, fee);
+		assert_balance!(
+			&<Runtime as pallet_bonds::Config>::FeeReceiver::get(),
+			HDX,
+			initial_fee_receiver_balance + fee
+		);
 
 		assert_balance!(&Bonds::pallet_account_id(), HDX, amount_without_fee);
 	});

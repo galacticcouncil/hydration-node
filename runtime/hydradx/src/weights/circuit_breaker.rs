@@ -58,40 +58,40 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `m` is `[0, 400]`.
 	fn on_finalize(n: u32, m: u32) -> Weight {
 		// Minimum execution time: 310_147 nanoseconds.
-		Weight::from_ref_time(314_819_000 as u64) // Standard Error: 32_862
-			.saturating_add(Weight::from_ref_time(290_334 as u64).saturating_mul(n as u64))
+		Weight::from_parts(314_819_000, 0) // Standard Error: 32_862
+			.saturating_add(Weight::from_parts(290_334, 0).saturating_mul(n as u64))
 			// Standard Error: 32_862
-			.saturating_add(Weight::from_ref_time(1_084_558 as u64).saturating_mul(m as u64))
+			.saturating_add(Weight::from_parts(1_084_558, 0).saturating_mul(m as u64))
 	}
 	fn on_finalize_single_liquidity_limit_entry() -> Weight {
 		// Minimum execution time: 8_356 nanoseconds.
-		Weight::from_ref_time(8_620_000 as u64)
+		Weight::from_parts(8_620_000, 0)
 	}
 	fn on_finalize_single_trade_limit_entry() -> Weight {
 		// Minimum execution time: 8_409 nanoseconds.
-		Weight::from_ref_time(8_627_000 as u64)
+		Weight::from_parts(8_627_000, 0)
 	}
 	fn on_finalize_empty() -> Weight {
 		// Minimum execution time: 8_492 nanoseconds.
-		Weight::from_ref_time(8_759_000 as u64)
+		Weight::from_parts(8_759_000, 0)
 	}
 	// Storage: CircuitBreaker TradeVolumeLimitPerAsset (r:0 w:1)
 	// Proof: CircuitBreaker TradeVolumeLimitPerAsset (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	fn set_trade_volume_limit() -> Weight {
 		// Minimum execution time: 12_557 nanoseconds.
-		Weight::from_ref_time(12_852_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(12_852_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: CircuitBreaker LiquidityAddLimitPerAsset (r:0 w:1)
 	// Proof: CircuitBreaker LiquidityAddLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
 	fn set_add_liquidity_limit() -> Weight {
 		// Minimum execution time: 12_968 nanoseconds.
-		Weight::from_ref_time(13_333_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(13_333_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: CircuitBreaker LiquidityRemoveLimitPerAsset (r:0 w:1)
 	// Proof: CircuitBreaker LiquidityRemoveLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
 	fn set_remove_liquidity_limit() -> Weight {
 		// Minimum execution time: 12_822 nanoseconds.
-		Weight::from_ref_time(13_140_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(13_140_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: CircuitBreaker LiquidityAddLimitPerAsset (r:1 w:0)
 	// Proof: CircuitBreaker LiquidityAddLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
@@ -103,7 +103,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	fn ensure_add_liquidity_limit() -> Weight {
 		// Minimum execution time: 19_815 nanoseconds.
-		Weight::from_ref_time(20_251_000 as u64)
+		Weight::from_parts(20_251_000, 0)
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -117,7 +117,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	fn ensure_remove_liquidity_limit() -> Weight {
 		// Minimum execution time: 18_011 nanoseconds.
-		Weight::from_ref_time(18_202_000 as u64)
+		Weight::from_parts(18_202_000, 0)
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -127,7 +127,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: CircuitBreaker TradeVolumeLimitPerAsset (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	fn ensure_pool_state_change_limit() -> Weight {
 		// Minimum execution time: 18_080 nanoseconds.
-		Weight::from_ref_time(18_365_000 as u64)
+		Weight::from_parts(18_365_000, 0)
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}

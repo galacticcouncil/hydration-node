@@ -16,8 +16,8 @@
 // limitations under the License.
 
 pub type AssetId = u32;
-pub type Balance = u128;
 pub type Amount = i128;
+pub type Balance = u128;
 
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
@@ -27,7 +27,7 @@ use sp_std::vec::Vec;
 use serde::{Deserialize, Serialize};
 
 /// Asset Pair representation for AMM trades
-/// `( asset_a, asset_b )` combination where `asset_a` is meant to be exchanged for `asset_b`
+/// `( asset_a, asset_b )` combination where `asset_a` is meant to be exchanged for asset_b
 ///
 /// `asset_in` represents asset coming into the pool
 /// `asset_out` represents asset coming out of the pool

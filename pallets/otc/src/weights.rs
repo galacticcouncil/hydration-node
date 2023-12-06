@@ -58,22 +58,22 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn place_order() -> Weight {
-		Weight::from_ref_time(69_013_000 as u64)
+		Weight::from_parts(69_013_000, 0)
 			.saturating_add(T::DbWeight::get().reads(5 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 	fn partial_fill_order() -> Weight {
-		Weight::from_ref_time(125_008_000 as u64)
+		Weight::from_parts(125_008_000, 0)
 			.saturating_add(T::DbWeight::get().reads(8 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
 	fn fill_order() -> Weight {
-		Weight::from_ref_time(120_345_000 as u64)
+		Weight::from_parts(120_345_000, 0)
 			.saturating_add(T::DbWeight::get().reads(7 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
 	fn cancel_order() -> Weight {
-		Weight::from_ref_time(55_731_000 as u64)
+		Weight::from_parts(55_731_000, 0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -82,22 +82,22 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn place_order() -> Weight {
-		Weight::from_ref_time(69_013_000 as u64)
+		Weight::from_parts(69_013_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(5 as u64))
 			.saturating_add(RocksDbWeight::get().writes(4 as u64))
 	}
 	fn partial_fill_order() -> Weight {
-		Weight::from_ref_time(125_008_000 as u64)
+		Weight::from_parts(125_008_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(8 as u64))
 			.saturating_add(RocksDbWeight::get().writes(6 as u64))
 	}
 	fn fill_order() -> Weight {
-		Weight::from_ref_time(120_345_000 as u64)
+		Weight::from_parts(120_345_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(7 as u64))
 			.saturating_add(RocksDbWeight::get().writes(6 as u64))
 	}
 	fn cancel_order() -> Weight {
-		Weight::from_ref_time(55_731_000 as u64)
+		Weight::from_parts(55_731_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(3 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}

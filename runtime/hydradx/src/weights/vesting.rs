@@ -62,7 +62,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
 	fn vested_transfer() -> Weight {
 		// Minimum execution time: 84_347 nanoseconds.
-		Weight::from_ref_time(85_089_000 as u64)
+		Weight::from_parts(85_089_000, 0)
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
@@ -73,8 +73,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `i` is `[1, 100]`.
 	fn claim(i: u32) -> Weight {
 		// Minimum execution time: 52_945 nanoseconds.
-		Weight::from_ref_time(56_504_723 as u64) // Standard Error: 10_837
-			.saturating_add(Weight::from_ref_time(63_081 as u64).saturating_mul(i as u64))
+		Weight::from_parts(56_504_723, 0) // Standard Error: 10_837
+			.saturating_add(Weight::from_parts(63_081, 0).saturating_mul(i as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -87,8 +87,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `i` is `[1, 100]`.
 	fn update_vesting_schedules(i: u32) -> Weight {
 		// Minimum execution time: 44_932 nanoseconds.
-		Weight::from_ref_time(46_379_059 as u64) // Standard Error: 3_056
-			.saturating_add(Weight::from_ref_time(91_387 as u64).saturating_mul(i as u64))
+		Weight::from_parts(46_379_059, 0) // Standard Error: 3_056
+			.saturating_add(Weight::from_parts(91_387, 0).saturating_mul(i as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}

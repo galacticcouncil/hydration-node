@@ -17,7 +17,7 @@ use crate as otc;
 use crate::Config;
 use frame_support::{
 	parameter_types,
-	traits::{Everything, GenesisBuild, Nothing},
+	traits::{Everything, Nothing},
 };
 use frame_system as system;
 use hydradx_traits::{registry::Inspect, AssetKind};
@@ -25,12 +25,11 @@ use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	BuildStorage,
 };
 use std::{cell::RefCell, collections::HashMap};
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
@@ -50,10 +49,7 @@ pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	 Block = Block,
-	 NodeBlock = Block,
-	 UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	 {
 		 System: frame_system,
 		 OTC: otc,
@@ -100,13 +96,12 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -159,6 +154,14 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	}
 
 	fn is_blacklisted(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
 	}
 }
@@ -253,7 +256,7 @@ impl ExtBuilder {
 		self
 	}
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		// Add DAI and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {

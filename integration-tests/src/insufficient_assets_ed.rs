@@ -1292,7 +1292,7 @@ fn ed_should_be_released_when_whitelisted_account_was_killed() {
 }
 
 #[test]
-fn tx_should_fail_with_unsupported_currency_error_when_fee_asset_price_wasn_not_provided() {
+fn tx_should_fail_with_unsupported_currency_error_when_fee_asset_price_was_not_provided() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let sht1: AssetId = register_external_asset(0_u128);
@@ -1322,7 +1322,7 @@ fn tx_should_fail_with_unsupported_currency_error_when_fee_asset_price_wasn_not_
 
 		assert_ok!(MultiTransactionPayment::remove_currency(RawOrigin::Root.into(), BTC));
 
-		polkadot_run_to_block(2);
+		hydradx_run_to_block(4);
 
 		//Act 1 - transfer
 		assert_noop!(

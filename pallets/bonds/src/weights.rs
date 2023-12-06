@@ -80,7 +80,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry AssetIds (max_values: None, max_size: Some(53), added: 2528, mode: MaxEncodedLen)
 	fn issue() -> Weight {
 		// Minimum execution time: 154_679 nanoseconds.
-		Weight::from_ref_time(159_169_000 as u64)
+		Weight::from_parts(159_169_000, 0)
 			.saturating_add(T::DbWeight::get().reads(11 as u64))
 			.saturating_add(T::DbWeight::get().writes(10 as u64))
 	}
@@ -100,7 +100,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	fn redeem() -> Weight {
 		// Minimum execution time: 114_799 nanoseconds.
-		Weight::from_ref_time(116_103_000 as u64)
+		Weight::from_parts(116_103_000, 0)
 			.saturating_add(T::DbWeight::get().reads(7 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
@@ -132,7 +132,7 @@ impl WeightInfo for () {
 	// Proof: AssetRegistry AssetIds (max_values: None, max_size: Some(53), added: 2528, mode: MaxEncodedLen)
 	fn issue() -> Weight {
 		// Minimum execution time: 154_679 nanoseconds.
-		Weight::from_ref_time(159_169_000)
+		Weight::from_parts(159_169_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(11))
 			.saturating_add(RocksDbWeight::get().writes(10))
 	}
@@ -152,7 +152,7 @@ impl WeightInfo for () {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	fn redeem() -> Weight {
 		// Minimum execution time: 114_799 nanoseconds.
-		Weight::from_ref_time(116_103_000)
+		Weight::from_parts(116_103_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(7))
 			.saturating_add(RocksDbWeight::get().writes(5))
 	}

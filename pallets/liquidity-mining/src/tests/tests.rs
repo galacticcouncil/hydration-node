@@ -1197,7 +1197,7 @@ fn sync_yield_farm_should_work() {
 			entries_count: 0,
 			left_to_distribute: 0,
 			total_stopped: 0,
-			_phantom: PhantomData::default(),
+			_phantom: PhantomData,
 		};
 
 		let mut global_farm = global_farm_0.clone();
@@ -1322,7 +1322,7 @@ fn sync_yield_farm_should_not_update_when_yield_farm_is_not_active() {
 		entries_count: 0,
 		left_to_distribute: 0,
 		total_stopped: 0,
-		_phantom: PhantomData::default(),
+		_phantom: PhantomData,
 	};
 
 	let mut global_farm = global_farm_0.clone();
@@ -1405,7 +1405,7 @@ fn sync_yield_farm_should_only_update_updated_at_field_when_farm_has_no_valued_s
 		entries_count: 0,
 		left_to_distribute: 0,
 		total_stopped: 0,
-		_phantom: PhantomData::default(),
+		_phantom: PhantomData,
 	};
 
 	let mut global_farm = global_farm_0.clone();
@@ -1460,7 +1460,7 @@ fn sync_yield_farm_should_not_update_when_yield_farm_was_already_updated_in_this
 		entries_count: 0,
 		left_to_distribute: 0,
 		total_stopped: 0,
-		_phantom: PhantomData::default(),
+		_phantom: PhantomData,
 	};
 
 	let mut global_farm = global_farm_0.clone();

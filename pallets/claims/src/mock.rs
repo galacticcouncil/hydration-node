@@ -23,20 +23,16 @@ use hex_literal::hex;
 use primitives::Balance;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	BuildStorage,
 };
 
-use frame_support::traits::{Everything, GenesisBuild};
+use frame_support::traits::Everything;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	 Block = Block,
-	 NodeBlock = Block,
-	 UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	 {
 		 System: frame_system,
 		 ClaimsPallet: claims,
@@ -54,13 +50,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -75,16 +70,24 @@ impl frame_system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
+parameter_types! {
+	pub const ExistentialDeposit: Balance = 1;
+}
+
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
-	type ExistentialDeposit = ();
+	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type WeightInfo = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 parameter_types! {
@@ -112,10 +115,10 @@ pub struct ExtBuilder;
 impl ExtBuilder {
 	// builds genesis config
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		pallet_balances::GenesisConfig::<Test> {
-			balances: vec![(42, 0), (43, 0), (44, Balance::MAX - 1)],
+			balances: vec![(ALICE, 1), (BOB, 1), (CHARLIE, Balance::MAX - 1)],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

@@ -62,7 +62,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry AssetLocations (max_values: None, max_size: Some(622), added: 3097, mode: MaxEncodedLen)
 	fn register() -> Weight {
 		// Minimum execution time: 40_681 nanoseconds.
-		Weight::from_ref_time(41_321_000 as u64)
+		Weight::from_parts(41_321_000, 0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
@@ -76,7 +76,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry LocationAssets (max_values: None, max_size: Some(622), added: 3097, mode: MaxEncodedLen)
 	fn update() -> Weight {
 		// Minimum execution time: 49_934 nanoseconds.
-		Weight::from_ref_time(50_392_000 as u64)
+		Weight::from_parts(50_392_000, 0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
@@ -92,7 +92,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(125), added: 2600, mode: MaxEncodedLen)
 	fn register_external() -> Weight {
 		// Minimum execution time: 62_510 nanoseconds.
-		Weight::from_ref_time(63_275_000 as u64)
+		Weight::from_parts(63_275_000, 0)
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
@@ -102,7 +102,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry BlacklistedAssets (max_values: None, max_size: Some(20), added: 2495, mode: MaxEncodedLen)
 	fn blacklist_add() -> Weight {
 		// Minimum execution time: 22_677 nanoseconds.
-		Weight::from_ref_time(22_950_000 as u64)
+		Weight::from_parts(22_950_000, 0)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -110,7 +110,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: AssetRegistry BlacklistedAssets (max_values: None, max_size: Some(20), added: 2495, mode: MaxEncodedLen)
 	fn blacklist_remove() -> Weight {
 		// Minimum execution time: 17_460 nanoseconds.
-		Weight::from_ref_time(17_958_000 as u64)
+		Weight::from_parts(17_958_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}

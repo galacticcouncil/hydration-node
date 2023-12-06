@@ -151,3 +151,55 @@ fn is_blacklisted_should_work() {
 			assert_eq!(<Registry as Inspect>::is_blacklisted(2), false);
 		});
 }
+
+#[test]
+fn asset_name_should_work() {
+	let non_existing_id = 543_u32;
+	let asset_one_name = b"Tkn1".to_vec();
+
+	ExtBuilder::default()
+		.with_assets(vec![
+			(Some(1), Some(asset_one_name.clone()), UNIT, None, None, None, true),
+			(Some(2), None, UNIT, None, None, None, false),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+		])
+		.build()
+		.execute_with(|| {
+			//Act & assert
+			assert_eq!(<Registry as Inspect>::asset_name(1), Some(asset_one_name));
+
+			assert_eq!(<Registry as Inspect>::asset_name(2), None);
+
+			assert_eq!(<Registry as Inspect>::asset_name(non_existing_id), None);
+		});
+}
+
+#[test]
+fn asset_symbol_should_work() {
+	let non_existing_id = 543_u32;
+	let asset_one_symbol = b"TKN".to_vec();
+
+	ExtBuilder::default()
+		.with_assets(vec![
+			(
+				Some(1),
+				Some(b"Tkn1".to_vec()),
+				UNIT,
+				Some(asset_one_symbol.clone()),
+				None,
+				None,
+				true,
+			),
+			(Some(2), None, UNIT, None, None, None, false),
+			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+		])
+		.build()
+		.execute_with(|| {
+			//Act & assert
+			assert_eq!(<Registry as Inspect>::asset_symbol(1), Some(asset_one_symbol));
+
+			assert_eq!(<Registry as Inspect>::asset_name(2), None);
+
+			assert_eq!(<Registry as Inspect>::asset_name(non_existing_id), None);
+		});
+}
