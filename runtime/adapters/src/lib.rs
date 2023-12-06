@@ -35,6 +35,7 @@ use hydra_dx_math::{
 	omnipool::types::BalanceUpdate,
 	support::rational::{round_to_rational, Rounding},
 };
+use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::{
 	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
@@ -47,8 +48,8 @@ use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use pallet_stableswap::types::{PoolState, StableswapHooks};
 use polkadot_xcm::latest::prelude::*;
 use primitive_types::{U128, U512};
+use primitives::constants::chain::XYK_SOURCE;
 use primitives::constants::chain::{CORE_ASSET_ID, STABLESWAP_SOURCE};
-use primitives::constants::chain::{XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::{BlockNumberProvider, One};
 use sp_std::vec::Vec;
@@ -59,12 +60,12 @@ use xcm_executor::{
 	traits::{Convert as MoreConvert, MatchesFungible, TransactAsset, WeightTrader},
 	Assets,
 };
-use hydradx_traits::pools::SpotPriceProvider;
 
 pub mod inspect;
 pub mod xcm_exchange;
 pub mod xcm_execute_filter;
 
+mod price;
 #[cfg(test)]
 mod tests;
 
@@ -951,17 +952,18 @@ where
 	}
 }
 
-pub struct NativePriceProvider<SP, P>(PhantomData<(SP,P)>);
+pub struct NativePriceProvider<SP, P>(PhantomData<(SP, P)>);
 
 impl<SP, P> NativePriceOracle<AssetId, FixedU128> for NativePriceProvider<SP, P>
-where SP: SpotPriceProvider<AssetId, Price = FixedU128>,
-P: pallet_transaction_multi_payment::Config,
-<P as pallet_transaction_multi_payment::Config>::AssetId: From<u32>
+where
+	SP: SpotPriceProvider<AssetId, Price = FixedU128>,
+	P: pallet_transaction_multi_payment::Config,
+	<P as pallet_transaction_multi_payment::Config>::AssetId: From<u32>,
 {
 	fn price(currency: AssetId) -> Option<FixedU128> {
 		if currency == CORE_ASSET_ID {
 			Some(FixedU128::one())
-		}else{
+		} else {
 			//pallet_transaction_multi_payment::Pallet::<P>::get_currency_price(currency.into())
 			SP::spot_price(currency, CORE_ASSET_ID)
 		}
