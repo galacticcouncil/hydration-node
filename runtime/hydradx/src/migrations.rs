@@ -1,11 +1,7 @@
 #![allow(unused_imports)]
-use crate::Vec;
-use frame_support::{codec::alloc::vec, traits::OnRuntimeUpgrade, weights::Weight};
+use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 
 pub struct OnRuntimeUpgradeMigration;
-
-use crate::Runtime;
-use pallet_evm_chain_id::ChainId;
 
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	#[cfg(feature = "try-runtime")]
@@ -14,9 +10,7 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	}
 
 	fn on_runtime_upgrade() -> Weight {
-		let evm_id: u64 = 222_222u64;
-		ChainId::<Runtime>::put(evm_id);
-		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(0, 1)
+		Weight::zero()
 	}
 
 	#[cfg(feature = "try-runtime")]
