@@ -734,6 +734,10 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	}
 }
 
+parameter_types! {
+	pub const DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+}
+
 impl pallet_route_executor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -741,6 +745,7 @@ impl pallet_route_executor::Config for Runtime {
 	type Currency = FungibleCurrencies<Runtime>;
 	type WeightInfo = RouterWeightInfo;
 	type AMM = (Omnipool, Stableswap, XYK, LBP);
+	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 }
 

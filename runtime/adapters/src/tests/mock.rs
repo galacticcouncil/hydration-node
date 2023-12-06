@@ -31,7 +31,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::{AssetKind, AssetPairAccountIdFor, CanCreatePool, Registry, ShareTokenRegistry};
+use hydradx_traits::{router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Registry, ShareTokenRegistry};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::BasicCurrencyAdapter;
@@ -310,6 +310,7 @@ pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
+	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 }
 
 type Pools = (Omnipool, XYK);
@@ -321,6 +322,7 @@ impl pallet_route_executor::Config for Test {
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
+	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 }
 

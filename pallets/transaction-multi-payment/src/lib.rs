@@ -357,9 +357,9 @@ impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, BalanceOf<T>> for Deposit
 
 #[cfg(feature = "evm")]
 use {
+	frame_support::traits::{Currency as PalletCurrency, Imbalance, OnUnbalanced},
 	pallet_evm::{EVMCurrencyAdapter, OnChargeEVMTransaction},
 	sp_core::{H160, U256},
-	frame_support::traits::{Imbalance, OnUnbalanced, Currency as PalletCurrency},
 	sp_runtime::traits::UniqueSaturatedInto,
 };
 #[cfg(feature = "evm")]
@@ -372,7 +372,6 @@ type PositiveImbalanceFor<T> =
 #[cfg(feature = "evm")]
 type NegativeImbalanceFor<T> =
 	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::NegativeImbalance;
-
 
 #[cfg(feature = "evm")]
 /// Implements the transaction payment for EVM transactions.

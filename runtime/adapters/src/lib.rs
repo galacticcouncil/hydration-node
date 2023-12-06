@@ -28,12 +28,11 @@ use frame_support::{
 	traits::{Contains, LockIdentifier, OriginTrait},
 	weights::{Weight, WeightToFee},
 };
-use hydra_dx_math::support::rational::round_u512_to_rational;
 use hydra_dx_math::{
 	ema::EmaPrice,
 	ensure,
 	omnipool::types::BalanceUpdate,
-	support::rational::{round_to_rational, Rounding},
+	support::rational::{round_to_rational, round_u512_to_rational, Rounding},
 };
 use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::{

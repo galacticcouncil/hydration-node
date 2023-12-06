@@ -137,6 +137,7 @@ type Pools = (XYK, StableSwap, OmniPool, LBP);
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
+	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 }
 
 impl Config for Test {
@@ -146,6 +147,7 @@ impl Config for Test {
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
+	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 }
 
