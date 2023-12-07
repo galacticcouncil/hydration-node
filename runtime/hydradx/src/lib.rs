@@ -445,8 +445,6 @@ impl_runtime_apis! {
 			let is_transactional = false;
 			let validate = true;
 
-			// Copied from Moonbeam
-			//
 			// Estimated encoded transaction size must be based on the heaviest transaction
 			// type (EIP1559Transaction) to be compatible with all transaction types.
 			let mut estimated_transaction_len = data.len() +
