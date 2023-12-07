@@ -171,6 +171,7 @@ runtime-benchmarks = [
     "pallet-democracy/runtime-benchmarks",
     "pallet-asset-registry/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
+    "cumulus-pallet-parachain-system/runtime-benchmarks",
     "cumulus-pallet-xcmp-queue/runtime-benchmarks",
     "pallet-uniques/runtime-benchmarks",
     "pallet-omnipool/runtime-benchmarks",
@@ -188,6 +189,7 @@ runtime-benchmarks = [
     "pallet-stableswap/runtime-benchmarks",
     "pallet-lbp/runtime-benchmarks",
     "pallet-xyk/runtime-benchmarks",
+    "pallet-elections-phragmen/runtime-benchmarks",
 ]
 std = [
     "codec/std",

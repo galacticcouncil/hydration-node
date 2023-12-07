@@ -68,7 +68,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[0, 1]`.
-	fn calculate_and_execute_sell_in_lbp(c: u32, ) -> Weight {
+	fn calculate_and_execute_sell_in_lbp(c: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3016`
 		//  Estimated: `13905`
@@ -91,7 +91,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `b` is `[0, 1]`.
-	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32, ) -> Weight {
+	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1567 + b * (1418 ±0)`
 		//  Estimated: `6156 + b * (7749 ±34_606_984_459_695_172)`
@@ -148,7 +148,7 @@ impl WeightInfo for () {
 	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[0, 1]`.
-	fn calculate_and_execute_sell_in_lbp(c: u32, ) -> Weight {
+	fn calculate_and_execute_sell_in_lbp(c: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3016`
 		//  Estimated: `13905`
@@ -171,7 +171,7 @@ impl WeightInfo for () {
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `b` is `[0, 1]`.
-	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32, ) -> Weight {
+	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1567 + b * (1418 ±0)`
 		//  Estimated: `6156 + b * (7749 ±34_606_984_459_695_172)`

@@ -514,13 +514,11 @@ impl RouterWeightInfo {
 		num_of_calc_sell: u32,
 		num_of_execute_sell: u32,
 	) -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(
-			num_of_calc_sell,
-		)
-		.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(
-			num_of_calc_sell.saturating_add(num_of_execute_sell),
-			num_of_execute_sell,
-		))
+		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(num_of_calc_sell)
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(
+				num_of_calc_sell.saturating_add(num_of_execute_sell),
+				num_of_execute_sell,
+			))
 	}
 
 	pub fn buy_and_calculate_buy_trade_amounts_overhead_weight(
