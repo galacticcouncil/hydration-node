@@ -139,7 +139,6 @@ sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sp-state-machine = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-transaction-storage-proof = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 
 # Substrate Pallets
 pallet-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }

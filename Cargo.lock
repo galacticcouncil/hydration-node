@@ -3937,24 +3937,28 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime-fuzzer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
  "cumulus-primitives-parachain-inherent",
  "cumulus-test-relay-sproof-builder 0.1.0 (git+https://github.com/paritytech/cumulus.git?branch=polkadot-v0.9.38)",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hydradx-runtime",
+ "pallet-aura",
  "pallet-balances",
  "pallet-timestamp",
+ "pallet-transaction-payment",
  "parity-scale-codec",
  "primitives",
  "sp-consensus-aura",
  "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-state-machine",
- "sp-transaction-storage-proof",
+ "stats_alloc",
  "ziggy",
 ]
 
@@ -12850,6 +12854,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "stats_alloc"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c0e04424e733e69714ca1bbb9204c1a57f09f5493439520f9f68c132ad25eec"
+
+[[package]]
 name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15167,9 +15177,9 @@ dependencies = [
 
 [[package]]
 name = "ziggy"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "651906442742c8d765df020446459aced7b1bf2ad5e03a0ad13c7a00ae522e93"
+checksum = "911070c80b3cdaeb671e6fd76bf0052c07e874b6ed30f86223773e626dfe8b5c"
 
 [[package]]
 name = "zstd"
