@@ -117,7 +117,7 @@ impl<'a> Iterator for Data<'a> {
 fn main() {
 	// We ensure that on each run, the mapping is a fresh one
 	#[cfg(not(any(fuzzing, coverage)))]
-	if let Err(_) = std::fs::remove_file(FILENAME_MEMORY_MAP) {
+	if std::fs::remove_file(FILENAME_MEMORY_MAP).is_err() {
 		println!("Can't remove the map file, but it's not a problem.");
 	}
 
@@ -582,7 +582,7 @@ pub struct MapHelper<'a> {
 #[cfg(not(any(fuzzing, coverage)))]
 impl Display for MappingData {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		write!(
+		writeln!(
 			f,
 			";{};{};{};{};{};{}\n",
 			self.fee, self.balance_delta, self.reserve_delta, self.lock_delta, self.memory_delta, self.elapsed
@@ -644,8 +644,8 @@ impl MemoryMapper<'_> {
 
 		let refreshed_alloc = self.allocator.expect("Allocator should be set at that point").stats();
 
-		let memory_delta: DeltaSize = (refreshed_alloc.bytes_allocated as DeltaSize - &self.snapshot.allocated_before)
-			- (refreshed_alloc.bytes_deallocated as DeltaSize - &self.snapshot.deallocated_before);
+		let memory_delta: DeltaSize = (refreshed_alloc.bytes_allocated as DeltaSize - self.snapshot.allocated_before)
+			- (refreshed_alloc.bytes_deallocated as DeltaSize - self.snapshot.deallocated_before);
 
 		let elapsed = self
 			.snapshot
@@ -676,18 +676,16 @@ impl MemoryMapper<'_> {
 			&extrinsic.get_dispatch_info(),
 			&res.unwrap(),
 			0,
-		)
-		.try_into()
-		.unwrap();
+		);
 
 		// We allow using basic math operators instead of saturated_sub() for example
 		// We assume that an overflow would be an invariant, and a panic would be needed
-		let balance_delta = &self.snapshot.balance_before - balance_after;
-		let reserve_delta = &self.snapshot.reserved_before - reserved_after;
-		let lock_delta = &self.snapshot.locked_before - locked_after;
+		let balance_delta = self.snapshot.balance_before - balance_after;
+		let reserve_delta = self.snapshot.reserved_before - reserved_after;
+		let lock_delta = self.snapshot.locked_before - locked_after;
 
 		// Analyzing the extrinsic only if it passes.
-		if let Err(_) = res {
+		if res.is_err() {
 			// If the extrinsic is an `Err()` but still has a not null `balance_delta`, `reserve_delta`, or `lock_delta` values, we panic!
 			if balance_delta != 0 || reserve_delta != 0 || lock_delta != 0 {
 				panic!(
@@ -717,10 +715,7 @@ impl MemoryMapper<'_> {
 impl MapHelper<'_> {
 	fn save(&self) {
 		let inner_save = || -> std::io::Result<()> {
-			let mut map_file = OpenOptions::new()
-				.create(true)
-				.append(true)
-				.open(&FILENAME_MEMORY_MAP)?;
+			let mut map_file = OpenOptions::new().create(true).append(true).open(FILENAME_MEMORY_MAP)?;
 			// Skip writing if extrinsic_name contains any blocklisted calls
 			for (extrinsic_name, extrinsic_infos) in self.mapper.map.iter() {
 				if BLOCKLISTED_CALL.iter().any(|&call| extrinsic_name.contains(call)) {
