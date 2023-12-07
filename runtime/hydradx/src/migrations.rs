@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
+use crate::Vec;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
-
 pub struct OnRuntimeUpgradeMigration;
 
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
