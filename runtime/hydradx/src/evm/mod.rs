@@ -19,11 +19,13 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::evm::charge_fee::TransferEvmFees;
 use crate::TreasuryAccount;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
+use frame_support::traits::Currency as PalletCurrency;
 use frame_support::{
 	parameter_types,
 	traits::{Defensive, FindAuthor, Imbalance, OnUnbalanced},
@@ -33,15 +35,15 @@ use frame_support::{
 use hex_literal::hex;
 use orml_tokens::CurrencyAdapter;
 use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
-use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
+use pallet_transaction_multi_payment::{DepositAll, DepositFee};
 use polkadot_xcm::{
 	latest::MultiLocation,
 	prelude::{AccountKey20, PalletInstance, Parachain, X3},
 };
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId};
 use sp_core::{Get, U256};
-
 mod accounts_conversion;
+pub mod charge_fee;
 pub mod precompiles;
 
 // Centrifuge / Moonbeam:
@@ -93,7 +95,6 @@ impl Get<AssetId> for WethAssetId {
 }
 
 type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
-use frame_support::traits::Currency as PalletCurrency;
 
 type NegativeImbalance = <WethCurrency as PalletCurrency<AccountId>>::NegativeImbalance;
 
