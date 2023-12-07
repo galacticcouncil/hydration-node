@@ -69,10 +69,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `3016`
 		//  Estimated: `13905`
-		// Minimum execution time: 235_000_000 picoseconds.
-		Weight::from_parts(237_720_588, 13905)
-			// Standard Error: 215_130
-			.saturating_add(Weight::from_parts(31_279_411, 0).saturating_mul(c.into()))
+		// Minimum execution time: 319_428_000 picoseconds.
+		Weight::from_parts(322_791_455, 13905)
+			// Standard Error: 166_077
+			.saturating_add(Weight::from_parts(49_583_606, 0).saturating_mul(c.into()))
 			.saturating_add(T::DbWeight::get().reads(12_u64))
 			.saturating_add(T::DbWeight::get().writes(7_u64))
 	}
@@ -92,12 +92,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1567 + b * (1418 ±0)`
 		//  Estimated: `6156 + b * (7749 ±34_606_984_459_695_172)`
-		// Minimum execution time: 74_174_000 picoseconds.
-		Weight::from_parts(74_960_000, 6156)
-			// Standard Error: 621_035
-			.saturating_add(Weight::from_parts(2_411_577, 0).saturating_mul(c.into()))
-			// Standard Error: 1_363_349
-			.saturating_add(Weight::from_parts(243_881_415, 0).saturating_mul(b.into()))
+		// Minimum execution time: 74_844_000 picoseconds.
+		Weight::from_parts(75_590_000, 6156)
+			// Standard Error: 629_589
+			.saturating_add(Weight::from_parts(2_457_356, 0).saturating_mul(c.into()))
+			// Standard Error: 1_382_129
+			.saturating_add(Weight::from_parts(249_588_283, 0).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().reads((9_u64).saturating_mul(b.into())))
 			.saturating_add(T::DbWeight::get().writes((7_u64).saturating_mul(b.into())))
@@ -125,8 +125,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `4201`
 		//  Estimated: `24237`
-		// Minimum execution time: 1_114_706_000 picoseconds.
-		Weight::from_parts(1_119_899_000, 24237)
+		// Minimum execution time: 1_151_470_000 picoseconds.
+		Weight::from_parts(1_157_296_000, 24237)
 			.saturating_add(T::DbWeight::get().reads(27_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}

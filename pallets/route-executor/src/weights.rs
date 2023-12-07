@@ -72,58 +72,66 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `3016`
 		//  Estimated: `13905`
-		// Minimum execution time: 235_000_000 picoseconds.
-		Weight::from_parts(237_720_588, 13905)
-			// Standard Error: 215_130
-			.saturating_add(Weight::from_parts(31_279_411, 0).saturating_mul(c.into()))
+		// Minimum execution time: 319_428_000 picoseconds.
+		Weight::from_parts(322_791_455, 13905)
+			// Standard Error: 166_077
+			.saturating_add(Weight::from_parts(49_583_606, 0).saturating_mul(c.into()))
 			.saturating_add(T::DbWeight::get().reads(12_u64))
 			.saturating_add(T::DbWeight::get().writes(7_u64))
 	}
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:5 w:5)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: System Account (r:3 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: Tokens Locks (r:1 w:1)
-	// Proof: Tokens Locks (max_values: None, max_size: Some(1261), added: 3736, mode: MaxEncodedLen)
+	/// Storage: `LBP::PoolData` (r:1 w:0)
+	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:5 w:5)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:3 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Locks` (r:1 w:1)
+	/// Proof: `Tokens::Locks` (`max_values`: None, `max_size`: Some(1261), added: 3736, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `b` is `[0, 1]`.
-	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32) -> Weight {
-		// Minimum execution time: 76_740 nanoseconds.
-		Weight::from_parts(77_204_000, 0) // Standard Error: 1_377_095
-			.saturating_add(Weight::from_parts(4_062_223, 0).saturating_mul(c as u64))
-			// Standard Error: 2_974_866
-			.saturating_add(Weight::from_parts(253_276_319, 0).saturating_mul(b as u64))
-			.saturating_add(T::DbWeight::get().reads(3 as u64))
-			.saturating_add(T::DbWeight::get().reads((9 as u64).saturating_mul(b as u64)))
-			.saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(b as u64)))
+	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1567 + b * (1418 ±0)`
+		//  Estimated: `6156 + b * (7749 ±34_606_984_459_695_172)`
+		// Minimum execution time: 74_844_000 picoseconds.
+		Weight::from_parts(75_590_000, 6156)
+			// Standard Error: 629_589
+			.saturating_add(Weight::from_parts(2_457_356, 0).saturating_mul(c.into()))
+			// Standard Error: 1_382_129
+			.saturating_add(Weight::from_parts(249_588_283, 0).saturating_mul(b.into()))
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().reads((9_u64).saturating_mul(b.into())))
+			.saturating_add(T::DbWeight::get().writes((7_u64).saturating_mul(b.into())))
+			.saturating_add(Weight::from_parts(0, 7749).saturating_mul(b.into()))
 	}
-	// Storage: Router Routes (r:1 w:1)
-	// Proof: Router Routes (max_values: None, max_size: Some(90), added: 2565, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:9 w:0)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:3 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: Tokens TotalIssuance (r:1 w:0)
-	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: System Account (r:4 w:0)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AcceptedCurrencies (r:3 w:0)
-	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: XYK ShareToken (r:3 w:0)
-	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: EmaOracle Accumulator (r:1 w:0)
-	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
+	/// Storage: `Router::Routes` (r:1 w:1)
+	/// Proof: `Router::Routes` (`max_values`: None, `max_size`: Some(90), added: 2565, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:9 w:0)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::TotalIssuance` (r:2 w:0)
+	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:3 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:4 w:0)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:0)
+	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:3 w:0)
+	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `XYK::ShareToken` (r:3 w:0)
+	/// Proof: `XYK::ShareToken` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Accumulator` (r:1 w:0)
+	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
 	fn set_route_for_xyk() -> Weight {
-		// Minimum execution time: 637_916 nanoseconds.
-		Weight::from_parts(640_758_000, 0)
-			.saturating_add(T::DbWeight::get().reads(26 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+		// Proof Size summary in bytes:
+		//  Measured:  `4201`
+		//  Estimated: `24237`
+		// Minimum execution time: 1_151_470_000 picoseconds.
+		Weight::from_parts(1_157_296_000, 24237)
+			.saturating_add(T::DbWeight::get().reads(27_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 }
 
@@ -144,58 +152,65 @@ impl WeightInfo for () {
 		// Proof Size summary in bytes:
 		//  Measured:  `3016`
 		//  Estimated: `13905`
-		// Minimum execution time: 235_000_000 picoseconds.
-		Weight::from_parts(237_720_588, 13905)
-			// Standard Error: 215_130
-			.saturating_add(Weight::from_parts(31_279_411, 0).saturating_mul(c.into()))
+		// Minimum execution time: 319_428_000 picoseconds.
+		Weight::from_parts(322_791_455, 13905)
+			// Standard Error: 166_077
+			.saturating_add(Weight::from_parts(49_583_606, 0).saturating_mul(c.into()))
 			.saturating_add(RocksDbWeight::get().reads(12_u64))
 			.saturating_add(RocksDbWeight::get().writes(7_u64))
 	}
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:5 w:5)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: System Account (r:3 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: Tokens Locks (r:1 w:1)
-	// Proof: Tokens Locks (max_values: None, max_size: Some(1261), added: 3736, mode: MaxEncodedLen)
+	/// Storage: `LBP::PoolData` (r:1 w:0)
+	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:5 w:5)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:3 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Locks` (r:1 w:1)
+	/// Proof: `Tokens::Locks` (`max_values`: None, `max_size`: Some(1261), added: 3736, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `b` is `[0, 1]`.
-	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32) -> Weight {
-		// Minimum execution time: 76_740 nanoseconds.
-		Weight::from_parts(77_204_000, 0)
-			// Standard Error: 1_377_095
-			.saturating_add(Weight::from_parts(4_062_223, 0).saturating_mul(c.into()))
-			// Standard Error: 2_974_866
-			.saturating_add(Weight::from_parts(253_276_319, 0).saturating_mul(b.into()))
-			.saturating_add(RocksDbWeight::get().reads(3))
+	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1567 + b * (1418 ±0)`
+		//  Estimated: `6156 + b * (7749 ±34_606_984_459_695_172)`
+		// Minimum execution time: 74_844_000 picoseconds.
+		Weight::from_parts(75_590_000, 6156)
+			// Standard Error: 629_589
+			.saturating_add(Weight::from_parts(2_457_356, 0).saturating_mul(c.into()))
+			// Standard Error: 1_382_129
+			.saturating_add(Weight::from_parts(249_588_283, 0).saturating_mul(b.into()))
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().reads((9_u64).saturating_mul(b.into())))
 			.saturating_add(RocksDbWeight::get().writes((7_u64).saturating_mul(b.into())))
+			.saturating_add(Weight::from_parts(0, 7749).saturating_mul(b.into()))
 	}
-	// Storage: Router Routes (r:1 w:1)
-	// Proof: Router Routes (max_values: None, max_size: Some(90), added: 2565, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:9 w:0)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:3 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: Tokens TotalIssuance (r:1 w:0)
-	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: System Account (r:4 w:0)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AcceptedCurrencies (r:3 w:0)
-	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: XYK ShareToken (r:3 w:0)
-	// Proof: XYK ShareToken (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: EmaOracle Accumulator (r:1 w:0)
-	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(5921), added: 6416, mode: MaxEncodedLen)
+	/// Storage: `Router::Routes` (r:1 w:1)
+	/// Proof: `Router::Routes` (`max_values`: None, `max_size`: Some(90), added: 2565, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:9 w:0)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::TotalIssuance` (r:2 w:0)
+	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:3 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:4 w:0)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:0)
+	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:3 w:0)
+	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `XYK::ShareToken` (r:3 w:0)
+	/// Proof: `XYK::ShareToken` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Accumulator` (r:1 w:0)
+	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
 	fn set_route_for_xyk() -> Weight {
-		// Minimum execution time: 637_916 nanoseconds.
-		Weight::from_parts(640_758_000, 0)
-			.saturating_add(RocksDbWeight::get().reads(26))
-			.saturating_add(RocksDbWeight::get().writes(1))
+		// Proof Size summary in bytes:
+		//  Measured:  `4201`
+		//  Estimated: `24237`
+		// Minimum execution time: 1_151_470_000 picoseconds.
+		Weight::from_parts(1_157_296_000, 24237)
+			.saturating_add(RocksDbWeight::get().reads(27_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
