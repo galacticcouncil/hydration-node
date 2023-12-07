@@ -65,21 +65,16 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[0, 1]`.
-	/// The range of component `s` is `[0, 1]`.
-	fn calculate_and_execute_sell_in_lbp(c: u32, s: u32, ) -> Weight {
+	fn calculate_and_execute_sell_in_lbp(c: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `1600 + s * (1416 ±0)`
-		//  Estimated: `256132379456316 + s * (7749 ±0)`
-		// Minimum execution time: 73_947_000 picoseconds.
-		Weight::from_parts(22_711_786, 256132379456316)
-			// Standard Error: 88_020
-			.saturating_add(Weight::from_parts(52_144_169, 0).saturating_mul(c.into()))
-			// Standard Error: 88_020
-			.saturating_add(Weight::from_parts(292_779_044, 0).saturating_mul(s.into()))
-			.saturating_add(T::DbWeight::get().reads(3_u64))
-			.saturating_add(T::DbWeight::get().reads((9_u64).saturating_mul(s.into())))
-			.saturating_add(T::DbWeight::get().writes((7_u64).saturating_mul(s.into())))
-			.saturating_add(Weight::from_parts(0, 7749).saturating_mul(s.into()))
+		//  Measured:  `3016`
+		//  Estimated: `13905`
+		// Minimum execution time: 235_000_000 picoseconds.
+		Weight::from_parts(237_720_588, 13905)
+			// Standard Error: 215_130
+			.saturating_add(Weight::from_parts(31_279_411, 0).saturating_mul(c.into()))
+			.saturating_add(T::DbWeight::get().reads(12_u64))
+			.saturating_add(T::DbWeight::get().writes(7_u64))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)

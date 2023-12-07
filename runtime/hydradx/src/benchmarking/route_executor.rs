@@ -128,7 +128,6 @@ runtime_benchmarks! {
 	// Calculates the weight of LBP trade. Used in the calculation to determine the weight of the overhead.
 	calculate_and_execute_sell_in_lbp {
 		let c in 0..1;	// if c == 1, calculate_sell_trade_amounts is executed
-		let s in 0..1;	// if e == 1, sell is executed
 
 		let asset_in = 1u32;
 		let asset_out = 2u32;
@@ -149,17 +148,13 @@ runtime_benchmarks! {
 		if c != 0 {
 			Router::calculate_sell_trade_amounts(trades.as_slice(), amount_to_sell)?;
 		}
-		if s != 0 {
-			Router::sell(RawOrigin::Signed(seller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades.clone())?;
-		}
+		Router::sell(RawOrigin::Signed(seller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades.clone())?;
 	}
 	verify {
-		if s != 0 {
-			assert_eq!(<Currencies as MultiCurrency<_>>::free_balance(
-			asset_in,
-			&seller,
-			), INITIAL_BALANCE - amount_to_sell);
-		}
+		assert_eq!(<Currencies as MultiCurrency<_>>::free_balance(
+		asset_in,
+		&seller,
+		), INITIAL_BALANCE - amount_to_sell);
 	}
 
 	// Calculates the weight of LBP trade. Used in the calculation to determine the weight of the overhead.

@@ -48,7 +48,7 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_route_executor.
 pub trait WeightInfo {
-	fn calculate_and_execute_sell_in_lbp(c: u32, s: u32) -> Weight;
+	fn calculate_and_execute_sell_in_lbp(c: u32) -> Weight;
 	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32) -> Weight;
 	fn set_route_for_xyk() -> Weight;
 }
@@ -57,27 +57,27 @@ pub trait WeightInfo {
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:5 w:5)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: System Account (r:3 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: Tokens Locks (r:1 w:1)
-	// Proof: Tokens Locks (max_values: None, max_size: Some(1261), added: 3736, mode: MaxEncodedLen)
+	/// Storage: `LBP::PoolData` (r:1 w:0)
+	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:5 w:5)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:3 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Locks` (r:1 w:1)
+	/// Proof: `Tokens::Locks` (`max_values`: None, `max_size`: Some(1261), added: 3736, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[0, 1]`.
-	/// The range of component `s` is `[0, 1]`.
-	fn calculate_and_execute_sell_in_lbp(c: u32, s: u32) -> Weight {
-		// Minimum execution time: 76_730 nanoseconds.
-		Weight::from_parts(19_321_625, 0) // Standard Error: 254_069
-			.saturating_add(Weight::from_parts(58_065_650, 0).saturating_mul(c as u64))
-			// Standard Error: 254_069
-			.saturating_add(Weight::from_parts(304_323_425, 0).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(3 as u64))
-			.saturating_add(T::DbWeight::get().reads((9 as u64).saturating_mul(s as u64)))
-			.saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(s as u64)))
+	fn calculate_and_execute_sell_in_lbp(c: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `3016`
+		//  Estimated: `13905`
+		// Minimum execution time: 235_000_000 picoseconds.
+		Weight::from_parts(237_720_588, 13905)
+			// Standard Error: 215_130
+			.saturating_add(Weight::from_parts(31_279_411, 0).saturating_mul(c.into()))
+			.saturating_add(T::DbWeight::get().reads(12_u64))
+			.saturating_add(T::DbWeight::get().writes(7_u64))
 	}
 	// Storage: LBP PoolData (r:1 w:0)
 	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
@@ -129,28 +129,27 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	// Storage: LBP PoolData (r:1 w:0)
-	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:5 w:5)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: System Account (r:3 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: Tokens Locks (r:1 w:1)
-	// Proof: Tokens Locks (max_values: None, max_size: Some(1261), added: 3736, mode: MaxEncodedLen)
+	/// Storage: `LBP::PoolData` (r:1 w:0)
+	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:5 w:5)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:3 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Locks` (r:1 w:1)
+	/// Proof: `Tokens::Locks` (`max_values`: None, `max_size`: Some(1261), added: 3736, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(87), added: 2562, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[0, 1]`.
-	/// The range of component `s` is `[0, 1]`.
-	fn calculate_and_execute_sell_in_lbp(c: u32, s: u32) -> Weight {
-		// Minimum execution time: 76_730 nanoseconds.
-		Weight::from_parts(19_321_625, 0)
-			// Standard Error: 254_069
-			.saturating_add(Weight::from_parts(58_065_650, 0).saturating_mul(c.into()))
-			// Standard Error: 254_069
-			.saturating_add(Weight::from_parts(304_323_425, 0).saturating_mul(s.into()))
-			.saturating_add(RocksDbWeight::get().reads(3))
-			.saturating_add(RocksDbWeight::get().reads((9_u64).saturating_mul(s.into())))
-			.saturating_add(RocksDbWeight::get().writes((7_u64).saturating_mul(s.into())))
+	fn calculate_and_execute_sell_in_lbp(c: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `3016`
+		//  Estimated: `13905`
+		// Minimum execution time: 235_000_000 picoseconds.
+		Weight::from_parts(237_720_588, 13905)
+			// Standard Error: 215_130
+			.saturating_add(Weight::from_parts(31_279_411, 0).saturating_mul(c.into()))
+			.saturating_add(RocksDbWeight::get().reads(12_u64))
+			.saturating_add(RocksDbWeight::get().writes(7_u64))
 	}
 	// Storage: LBP PoolData (r:1 w:0)
 	// Proof: LBP PoolData (max_values: None, max_size: Some(163), added: 2638, mode: MaxEncodedLen)
