@@ -51,8 +51,6 @@ mod trade_execution;
 pub mod types;
 pub mod weights;
 
-pub use impls::XYKSpotPrice;
-
 use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -694,6 +692,10 @@ impl<T: Config> Pallet<T> {
 
 	pub fn pair_account_from_assets(asset_a: AssetId, asset_b: AssetId) -> T::AccountId {
 		T::AssetPairAccountId::from_assets(asset_a, asset_b, "xyk")
+	}
+
+	pub fn exists(assets: AssetPair) -> bool {
+		<ShareToken<T>>::contains_key(&Self::get_pair_id(assets))
 	}
 }
 

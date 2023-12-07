@@ -677,6 +677,8 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 
+
+
 			Ok(())
 		}
 

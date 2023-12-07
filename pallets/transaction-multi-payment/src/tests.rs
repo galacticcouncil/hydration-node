@@ -11,7 +11,7 @@ use frame_support::{
 	weights::{IdentityFee, Weight},
 };
 use frame_system as system;
-use hydradx_traits::{pools::SpotPriceProvider, AssetPairAccountIdFor};
+use hydradx_traits::{price::PriceProvider, AssetPairAccountIdFor};
 use orml_traits::currency::MutationHooks;
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::fungibles::FungibleCurrencies;
@@ -140,7 +140,7 @@ impl Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AuthorityOrigin = frame_system::EnsureRoot<u64>;
-	type SpotPriceProvider = SpotPrice;
+	type PriceProvider = SpotPrice;
 	type WeightInfo = ();
 	type NativeAssetId = HdxAssetId;
 }
@@ -182,14 +182,10 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 
 pub struct SpotPrice;
 
-impl SpotPriceProvider<AssetId> for SpotPrice {
+impl PriceProvider<AssetId> for SpotPrice {
 	type Price = crate::Price;
 
-	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
-		true
-	}
-
-	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
 		match (asset_a, asset_b) {
 			(HDX, HDX) => Some(FixedU128::one()),
 			(SUPPORTED_CURRENCY_WITH_PRICE, HDX) => Some(FixedU128::from_float(0.1)),

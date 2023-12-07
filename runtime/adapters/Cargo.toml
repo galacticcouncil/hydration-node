@@ -28,6 +28,7 @@ pallet-staking = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-currencies = { workspace = true }
 pallet-stableswap = { workspace = true }
+pallet-xyk = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
@@ -37,6 +38,7 @@ sp-std = { workspace = true }
 primitive-types = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
+sp-arithmetic = { workspace = true }
 
 # Polkadot dependencies
 polkadot-parachain = { workspace = true }
@@ -61,7 +63,6 @@ pallet-balances = { workspace = true }
 [dev-dependencies]
 lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
 pretty_assertions = "1.4.0"
-pallet-xyk = { workspace = true }
 
 [features]
 default = ["std"]

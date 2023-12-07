@@ -19,7 +19,8 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::TreasuryAccount;
+use sp_std::marker::PhantomData;
+use crate::{Currencies, Runtime, TreasuryAccount};
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
@@ -33,7 +34,6 @@ use frame_support::{
 use hex_literal::hex;
 use orml_tokens::CurrencyAdapter;
 use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
-use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
 use polkadot_xcm::{
 	latest::MultiLocation,
 	prelude::{AccountKey20, PalletInstance, Parachain, X3},
@@ -43,6 +43,7 @@ use sp_core::{Get, U256};
 
 mod accounts_conversion;
 pub mod precompiles;
+mod fee;
 
 // Centrifuge / Moonbeam:
 // Current approximation of the gas per second consumption considering
@@ -94,18 +95,23 @@ impl Get<AssetId> for WethAssetId {
 
 type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
 use frame_support::traits::Currency as PalletCurrency;
+use pallet_currencies::fungibles::FungibleCurrencies;
+use crate::evm::fee::OnChargeEVMFees;
 
 type NegativeImbalance = <WethCurrency as PalletCurrency<AccountId>>::NegativeImbalance;
 
-pub struct DealWithFees;
-impl OnUnbalanced<NegativeImbalance> for DealWithFees {
+pub struct DealWithFees<C>(PhantomData<C>);
+impl<C> OnUnbalanced<NegativeImbalance> for DealWithFees<C>
+where C: frame_support::traits::fungibles::Mutate<AccountId, AssetId = AssetId, Balance = u128>,
+{
 	// this is called for substrate-based transactions
 	fn on_unbalanceds<B>(_: impl Iterator<Item = NegativeImbalance>) {}
 
 	// this is called from pallet_evm for Ethereum-based transactions
 	// (technically, it calls on_unbalanced, which calls this when non-zero)
 	fn on_nonzero_unbalanced(amount: NegativeImbalance) {
-		let _ = DepositAll::<crate::Runtime>::deposit_fee(&TreasuryAccount::get(), WethAssetId::get(), amount.peek());
+		let _ = C::mint_into(WethAssetId::get(), &TreasuryAccount::get(), amount.peek());
+		//let _ = DepositAll::<crate::Runtime>::deposit_fee(&TreasuryAccount::get(), WethAssetId::get(), amount.peek());
 	}
 }
 
@@ -127,7 +133,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type FeeCalculator = FixedGasPrice;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
-	type OnChargeTransaction = TransferEvmFees<DealWithFees>;
+	type OnChargeTransaction = OnChargeEVMFees<DealWithFees<FungibleCurrencies<Runtime>>>;
 	type OnCreate = ();
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;

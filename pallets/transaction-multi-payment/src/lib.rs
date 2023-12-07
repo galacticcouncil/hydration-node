@@ -25,7 +25,6 @@ mod tests;
 
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get};
 use frame_system::ensure_signed;
-use hydra_dx_math::ema::EmaPrice;
 use sp_runtime::{
 	traits::{DispatchInfoOf, One, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
@@ -38,10 +37,10 @@ use sp_std::marker::PhantomData;
 
 use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::sp_runtime::FixedPointOperand;
-use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::price::PriceProvider;
 use orml_traits::Happened;
 
-use frame_support::traits::IsSubType;
+use frame_support::traits::{Contains, IsSubType};
 
 type AssetIdOf<T> = <T as Config>::AssetId;
 //type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
@@ -79,7 +78,7 @@ pub mod pallet {
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Spot price provider
-		type SpotPriceProvider: SpotPriceProvider<AssetIdOf<Self>, Price = Price>;
+		type PriceProvider: PriceProvider<AssetIdOf<Self>, Price = Price>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -272,17 +271,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn price(currency: AssetIdOf<T>) -> Option<Price> {
-		T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get())
-	}
-
-	fn get_oracle_price(
-		asset_id: <T::Currencies as MultiCurrency<T::AccountId>>::CurrencyId,
-		native_asset: <T::Currencies as MultiCurrency<T::AccountId>>::CurrencyId,
-	) -> Option<FixedU128> {
-		let on_chain_route = T::RouteProvider::get_route(AssetPair::new(asset_id, native_asset));
-
-		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
-			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d))
+		T::PriceProvider::get_price(currency, T::NativeAssetId::get())
 	}
 }
 
@@ -301,51 +290,8 @@ pub enum PaymentInfo<Balance, AssetId, Price> {
 }
 
 pub struct OnChargeAssetFeeAdapter<MC, FR>(PhantomData<(MC, FR)>);
-type CurrencyAccountId<T> = <T as frame_system::Config>::AccountId;
-type BalanceFor<T> = <<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::Balance;
-type PositiveImbalanceFor<T> =
-	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::PositiveImbalance;
-type NegativeImbalanceFor<T> =
-	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::NegativeImbalance;
-
-/// Implements the transaction payment for EVM transactions.
-pub struct TransferEvmFees<OU>(PhantomData<OU>);
-
-impl<T, OU> OnChargeEVMTransaction<T> for TransferEvmFees<OU>
-where
-	T: pallet_evm::Config,
-	PositiveImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = NegativeImbalanceFor<T>>,
-	NegativeImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = PositiveImbalanceFor<T>>,
-	OU: OnUnbalanced<NegativeImbalanceFor<T>>,
-	U256: UniqueSaturatedInto<BalanceFor<T>>,
-{
-	type LiquidityInfo = Option<NegativeImbalanceFor<T>>;
-
-	fn withdraw_fee(who: &H160, fee: U256) -> Result<Self::LiquidityInfo, pallet_evm::Error<T>> {
-		EVMCurrencyAdapter::<<T as pallet_evm::Config>::Currency, ()>::withdraw_fee(who, fee)
-	}
-
-	fn correct_and_deposit_fee(
-		who: &H160,
-		corrected_fee: U256,
-		base_fee: U256,
-		already_withdrawn: Self::LiquidityInfo,
-	) -> Self::LiquidityInfo {
-		<EVMCurrencyAdapter<<T as pallet_evm::Config>::Currency, OU> as OnChargeEVMTransaction<
-			T,
-		>>::correct_and_deposit_fee(who, corrected_fee, base_fee, already_withdrawn)
-	}
-
-	fn pay_priority_fee(tip: Self::LiquidityInfo) {
-		if let Some(tip) = tip {
-			OU::on_unbalanced(tip);
-		}
-	}
-}
 
 /// Implements the transaction payment for native as well as non-native currencies
-pub struct TransferFees<MC, DF, FR>(PhantomData<(MC, DF, FR)>);
-
 impl<T, MC, FR> OnChargeTransaction<T> for OnChargeAssetFeeAdapter<MC, FR>
 where
 	T: Config,
@@ -354,8 +300,8 @@ where
 	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>>,
 	BalanceOf<T>: FixedPointOperand,
 {
-	type LiquidityInfo = Option<PaymentInfo<Self::Balance, AssetIdOf<T>, Price>>;
 	type Balance = BalanceOf<T>;
+	type LiquidityInfo = Option<PaymentInfo<Self::Balance, AssetIdOf<T>, Price>>;
 
 	fn withdraw_fee(
 		who: &T::AccountId,
@@ -470,5 +416,11 @@ where
 				AccountCurrency::<T>::remove(who);
 			}
 		}
+	}
+}
+
+impl<T: Config> Contains<T::AssetId> for Pallet<T> {
+	fn contains(currency: &T::AssetId) -> bool {
+		AcceptedCurrencies::<T>::contains_key(currency)
 	}
 }

@@ -1,7 +1,7 @@
 use super::*;
 
 use codec::MaxEncodedLen;
-use hydradx_adapters::{NativePriceProvider, RelayChainBlockNumberProvider};
+use hydradx_adapters::{NativePriceProvider, OraclePriceProvider, RelayChainBlockNumberProvider};
 use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
@@ -26,7 +26,10 @@ use xcm_builder::{
 	TakeWeightCredit, WithComputedOrigin,
 };
 use xcm_executor::{Config, XcmExecutor};
+use hydra_dx_math::ema::EmaPrice;
+use hydradx_adapters::price::AssetFeeOraclePriceProvider;
 use pallet_currencies::fungibles::FungibleCurrencies;
+use hydradx_traits::OraclePeriod;
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
@@ -89,6 +92,8 @@ parameter_types! {
 	pub const MaxAssetsForTransfer: usize = 2;
 
 	pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+
+	pub XcmFeePriceOraclePeriod: OraclePeriod = OraclePeriod::Short;
 }
 
 pub struct XcmConfig;
@@ -111,9 +116,9 @@ impl Config for XcmConfig {
 	type Trader = MultiCurrencyTrader<
 		AssetId,
 		Balance,
-		Price,
+		EmaPrice,
 		WeightToFee,
-		NativePriceProvider<Omnipool, Runtime>,
+		AssetFeeOraclePriceProvider<NativeAssetId,MultiTransactionPayment, Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, XcmFeePriceOraclePeriod>,
 		CurrencyIdConvert,
 		ToFeeReceiver<AccountId, AssetId, Balance, Price, CurrencyIdConvert, FungibleCurrencies<Runtime>, TreasuryAccount>,
 	>;

@@ -1,4 +1,4 @@
-pub trait SpotPriceProvider<AssetId> {
+/*pub trait SpotPriceProvider<AssetId> {
 	type Price;
 
 	fn pair_exists(asset_a: AssetId, asset_b: AssetId) -> bool;
@@ -11,6 +11,8 @@ pub trait SpotPriceProvider<AssetId> {
 	/// Returns `None` if such pair does not exist.
 	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price>;
 }
+
+ */
 
 /// Manage list of non-dustable accounts
 pub trait DustRemovalAccountWhitelist<AccountId> {

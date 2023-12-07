@@ -39,6 +39,7 @@ use frame_support::{
 };
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use scale_info::TypeInfo;
+use hydradx_adapters::price::OmnipoolSpotPriceProvider;
 use pallet_currencies::fungibles::FungibleCurrencies;
 
 pub struct CallFilter;
@@ -475,11 +476,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AuthorityOrigin = SuperMajorityTechCommittee;
-	type SpotPriceProvider = Omnipool;
-	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
-	type Currencies = Currencies;
-	type RouteProvider = Router;
-	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
+	type PriceProvider = OmnipoolSpotPriceProvider<Runtime>;
 	type WeightInfo = weights::payment::HydraWeight<Runtime>;
 	type NativeAssetId = NativeAssetId;
 }

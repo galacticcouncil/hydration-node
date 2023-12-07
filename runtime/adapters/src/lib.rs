@@ -35,7 +35,7 @@ use hydra_dx_math::{
 	omnipool::types::BalanceUpdate,
 	support::rational::{round_to_rational, Rounding},
 };
-use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::{
 	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
@@ -48,6 +48,7 @@ use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use pallet_stableswap::types::{PoolState, StableswapHooks};
 use polkadot_xcm::latest::prelude::*;
 use primitive_types::{U128, U512};
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use primitives::constants::chain::XYK_SOURCE;
 use primitives::constants::chain::{CORE_ASSET_ID, STABLESWAP_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
@@ -65,7 +66,7 @@ pub mod inspect;
 pub mod xcm_exchange;
 pub mod xcm_execute_filter;
 
-mod price;
+pub mod price;
 #[cfg(test)]
 mod tests;
 
@@ -78,7 +79,7 @@ mod tests;
 pub struct MultiCurrencyTrader<
 	AssetId,
 	Balance: FixedPointOperand + TryInto<u128>,
-	Price: FixedPointNumber,
+	Price:  Into<(u128,u128)> + Copy + Ord + Debug,
 	ConvertWeightToFee: WeightToFee<Balance = Balance>,
 	AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
 	ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
@@ -100,7 +101,7 @@ pub struct MultiCurrencyTrader<
 impl<
 		AssetId,
 		Balance: FixedPointOperand + TryInto<u128>,
-		Price: FixedPointNumber,
+		Price:  Into<(u128,u128)> + Copy + Ord + Debug,
 		ConvertWeightToFee: WeightToFee<Balance = Balance>,
 		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
 		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
@@ -126,7 +127,7 @@ impl<
 impl<
 		AssetId,
 		Balance: FixedPointOperand + TryInto<u128>,
-		Price: FixedPointNumber,
+		Price:  Into<(u128,u128)> + Copy + Ord + Debug,
 		ConvertWeightToFee: WeightToFee<Balance = Balance>,
 		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
 		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
@@ -155,7 +156,11 @@ impl<
 		);
 		let (asset_loc, price) = self.get_asset_and_price(&payment).ok_or(XcmError::AssetNotFound)?;
 		let fee = ConvertWeightToFee::weight_to_fee(&weight);
-		let converted_fee = price.checked_mul_int(fee).ok_or(XcmError::Overflow)?;
+		//let converted_fee = price.checked_mul_int(fee).ok_or(XcmError::Overflow)?;
+
+		let (n, d) = price.into();
+		let converted_fee = multiply_by_rational_with_rounding(fee.try_into().map_err(|_| XcmError::Overflow)?, n, d, sp_arithmetic::per_things::Rounding::Up).ok_or(XcmError::Overflow)?;
+
 		let amount: u128 = converted_fee.try_into().map_err(|_| XcmError::Overflow)?;
 		let required = (Concrete(asset_loc), amount).into();
 		let unused = payment.checked_sub(required).map_err(|_| XcmError::TooExpensive)?;
@@ -180,7 +185,10 @@ impl<
 		self.weight -= weight; // Will not underflow because of `min()` above.
 		let fee = ConvertWeightToFee::weight_to_fee(&weight);
 		if let Some(((asset_loc, price), amount)) = self.paid_assets.iter_mut().next() {
-			let converted_fee: u128 = price.saturating_mul_int(fee).saturated_into();
+			let (n, d) = (*price).into();
+			let converted_fee = multiply_by_rational_with_rounding(fee.saturated_into(), n, d, sp_arithmetic::per_things::Rounding::Up)?;
+			//let converted_fee = price.saturating_mul_int(fee).saturated_into();
+
 			let refund = converted_fee.min(*amount);
 			*amount -= refund; // Will not underflow because of `min()` above.
 
@@ -201,7 +209,7 @@ impl<
 impl<
 		AssetId,
 		Balance: FixedPointOperand + TryInto<u128>,
-		Price: FixedPointNumber,
+		Price:  Into<(u128,u128)> + Copy + Ord + Debug,
 		ConvertWeightToFee: WeightToFee<Balance = Balance>,
 		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
 		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
@@ -557,6 +565,15 @@ where
 					let rational_as_u128 = round_to_rational((nominator, denominator), Rounding::Nearest);
 
 					EmaPrice::new(rational_as_u128.0, rational_as_u128.1)
+				}
+				PoolType::XYK => {
+					let price_result = AggregatedPriceGetter::get_price(asset_a, asset_b, period, XYK_SOURCE);
+
+					match price_result {
+						Ok(price) => price.0,
+						Err(OracleError::SameAsset) => EmaPrice::from(1),
+						Err(_) => return None,
+					}
 				}
 				_ => return None,
 			};
@@ -956,7 +973,7 @@ pub struct NativePriceProvider<SP, P>(PhantomData<(SP, P)>);
 
 impl<SP, P> NativePriceOracle<AssetId, FixedU128> for NativePriceProvider<SP, P>
 where
-	SP: SpotPriceProvider<AssetId, Price = FixedU128>,
+	SP: PriceProvider<AssetId, Price = FixedU128>,
 	P: pallet_transaction_multi_payment::Config,
 	<P as pallet_transaction_multi_payment::Config>::AssetId: From<u32>,
 {
@@ -965,7 +982,7 @@ where
 			Some(FixedU128::one())
 		} else {
 			//pallet_transaction_multi_payment::Pallet::<P>::get_currency_price(currency.into())
-			SP::spot_price(currency, CORE_ASSET_ID)
+			SP::get_price(currency, CORE_ASSET_ID)
 		}
 	}
 }

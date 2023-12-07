@@ -455,6 +455,7 @@ parameter_types! {
 	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
+	pub DCAOraclePeriod: OraclePeriod = OraclePeriod::Short;
 }
 
 impl pallet_dca::Config for Runtime {
@@ -484,7 +485,7 @@ impl pallet_dca::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type AmmTradeWeights = RouterWeightInfo;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
-	type NativePriceOracle = NativePriceProvider<Omnipool, Runtime>;
+	type NativePriceOracle = OraclePriceProviderUsingRoute<Router, hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>, DCAOraclePeriod>;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -799,6 +800,7 @@ where
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchResult;
+use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use pallet_currencies::fungibles::FungibleCurrencies;
 
 #[cfg(feature = "runtime-benchmarks")]
