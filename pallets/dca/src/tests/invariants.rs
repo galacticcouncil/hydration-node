@@ -38,17 +38,12 @@ fn trade_amount() -> impl Strategy<Value = Balance> {
 	1 * ONE..5000 * ONE
 }
 
-fn period() -> impl Strategy<Value = u32> {
-	1..100u32
-}
-
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#![proptest_config(ProptestConfig::with_cases(200))]
 	#[test]
 	fn dca_invariant_for_remaining_budget_calculation(
 		budget in budget(),
 		trade_amount in trade_amount(),
-		period in period(),
 	) {
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![(ALICE, HDX, budget)])
@@ -61,7 +56,7 @@ proptest! {
 
 				let schedule = ScheduleBuilder::new()
 					.with_total_amount(total_amount)
-					.with_period(period.into())
+					.with_period(1)
 					.with_slippage(Some(Permill::from_percent(100)))
 					.with_order(Order::Sell {
 						asset_in: HDX,
@@ -78,16 +73,15 @@ proptest! {
 
 				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
-				//Act
-				set_to_blocknumber(11);
-
-				//Assert
+				//Act and assert
 				let schedule_id = 0;
-				let spent =  amount_to_sell + SELL_DCA_FEE_IN_NATIVE;
-				let ramaining_budget = DCA::remaining_amounts(schedule_id).unwrap();
 
-				assert_eq!(total_amount, ramaining_budget + spent);
-
+				for i in 1..=10u64 {
+					set_to_blocknumber(10 + i);
+					let spent =  (amount_to_sell + SELL_DCA_FEE_IN_NATIVE) * i as u128;
+					let ramaining_budget = DCA::remaining_amounts(schedule_id).unwrap();
+					assert_eq!(total_amount, ramaining_budget + spent);
+				}
 			});
 	}
 }
