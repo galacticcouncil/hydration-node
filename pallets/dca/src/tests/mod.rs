@@ -5,6 +5,7 @@ use hydradx_traits::router::Trade;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
 
+pub mod invariants;
 pub mod mock;
 pub mod on_initialize;
 pub mod schedule;
