@@ -47,7 +47,6 @@ use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 
 /// The ethereum-compatibility configuration used to run a node.
-/// evmTODO: revise settings, these are by Centrifuge
 #[derive(Clone, Copy, Debug, clap::Parser)]
 pub struct EthereumConfig {
 	/// Maximum number of logs in a query.
