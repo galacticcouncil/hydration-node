@@ -31,7 +31,7 @@ sp-std = { workspace = true }
 sp-runtime = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 
-pallet-evm = { workspace = true }
+pallet-evm = { workspace = true, optional = true }
 
 [dev-dependencies]
 pallet-currencies = { workspace = true }
@@ -57,3 +57,4 @@ std = [
     "primitives/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
+evm = ["pallet-evm"]

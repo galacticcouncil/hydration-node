@@ -61,7 +61,7 @@ pallet-xcm-rate-limiter = { workspace = true }
 hydradx-adapters = { workspace = true }
 hydradx-traits = { workspace = true }
 pallet-relaychain-info = { workspace = true }
-pallet-transaction-multi-payment = { workspace = true }
+pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-asset-registry = { workspace = true }
 pallet-collator-rewards = { workspace = true }
 pallet-currencies = { workspace = true }
@@ -280,7 +280,6 @@ std = [
     "pallet-evm/std",
     "pallet-evm-chain-id/std",
     "pallet-evm-precompile-dispatch/std",
-#    "ethabi/std",
 ]
 try-runtime= [
     "frame-try-runtime",

@@ -118,7 +118,8 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		pallet_balances::GenesisConfig::<Test> {
-			balances: vec![(ALICE, 1), (BOB, 1), (CHARLIE, Balance::MAX - 1)],
+			//NOTE: total issuance must be less than Balance::MAX
+			balances: vec![(ALICE, 1), (BOB, 1), (CHARLIE, Balance::MAX - 2)],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

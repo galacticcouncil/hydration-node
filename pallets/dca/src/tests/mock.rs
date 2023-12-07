@@ -344,6 +344,7 @@ pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
 
 parameter_types! {
 	pub MaxNumberOfTrades: u8 = 3;
+	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 }
 
 type Pools = (OmniPool, Xyk);
@@ -355,6 +356,7 @@ impl pallet_route_executor::Config for Test {
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
+	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 }
 

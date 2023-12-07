@@ -99,6 +99,9 @@ pub mod pallet {
 			Error = DispatchError,
 		>;
 
+		/// Pool type used in the default route
+		type DefaultRoutePoolType: Get<PoolType<Self::AssetId>>;
+
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
 	}
@@ -709,7 +712,7 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 		let onchain_route = Routes::<T>::get(asset_pair.ordered_pair());
 
 		let default_route = vec![Trade {
-			pool: PoolType::Omnipool,
+			pool: T::DefaultRoutePoolType::get(),
 			asset_in: asset_pair.asset_in,
 			asset_out: asset_pair.asset_out,
 		}];
