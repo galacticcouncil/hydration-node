@@ -29,6 +29,7 @@ coverage:
 .PHONY: clippy
 clippy:
 	cargo clippy --release --all-targets --all-features -- -D warnings -A deprecated
+	cargo clippy --release --locked --all-targets -- -D warnings -A deprecated
 
 .PHONY: format
 format:
