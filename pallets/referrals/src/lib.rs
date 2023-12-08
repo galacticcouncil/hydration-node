@@ -29,7 +29,7 @@
 //!
 //! Rewards are accumulated in the pallet's account and if it is not RewardAsset, it is converted to RewardAsset prior to claim.
 //!
-//! //! ### Terminology
+//! ### Terminology
 //!
 //! * **Referral code:**  a string of certain size that identifies the referrer. Must be alphanumeric and upper case.
 //! * **Referrer:**  user that registered a code
@@ -276,7 +276,7 @@ pub mod pallet {
 		/// Maximum length is limited to `T::CodeLength`.
 		/// `code` must contain only alfa-numeric characters and all characters will be converted to upper case.
 		///
-		/// /// Parameters:
+		/// Parameters:
 		/// - `code`: Code to register. Must follow the restrictions.
 		/// - `account`: Account which the code is bound to.
 		///
