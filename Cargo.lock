@@ -10841,6 +10841,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
+ "pallet-referrals",
  "pallet-relaychain-info",
  "pallet-route-executor",
  "pallet-scheduler",

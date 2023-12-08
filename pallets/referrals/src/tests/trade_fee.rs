@@ -23,7 +23,6 @@ fn process_trade_fee_should_increased_referrer_shares() {
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 			// Act
@@ -56,7 +55,6 @@ fn process_trade_fee_should_increased_trader_shares() {
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 			// Act
@@ -89,7 +87,6 @@ fn process_trade_fee_should_increased_total_share_issuance() {
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 			// Act
@@ -122,7 +119,6 @@ fn process_trade_fee_should_fail_when_taken_amount_is_greated_than_fee_amount() 
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 			// Act
@@ -147,7 +143,6 @@ fn process_trade_should_not_increase_shares_when_trader_does_not_have_linked_acc
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			// Assert
 			assert_ok!(MockAmm::trade(
@@ -183,7 +178,6 @@ fn process_trade_fee_should_add_asset_to_asset_list() {
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 			// Act
@@ -216,7 +210,6 @@ fn process_trade_fee_should_not_add_reward_asset_to_asset_list() {
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 			// Act

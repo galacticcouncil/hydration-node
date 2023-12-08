@@ -991,7 +991,7 @@ impl pallet_xyk::Config for Runtime {
 
 parameter_types! {
 	pub const ReferralsPalletId: PalletId = PalletId(*b"referral");
-	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 1, TreasuryAccount::get());
+	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 1_000_000_000_000, TreasuryAccount::get());
 	pub const MaxCodeLength: u32 = 7;
 }
 

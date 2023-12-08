@@ -78,7 +78,6 @@ fn complete_referral_flow_should_work_as_expected() {
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 			assert_ok!(Referrals::link_code(

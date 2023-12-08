@@ -135,7 +135,6 @@ fn claim_rewards_update_total_accumulated_for_referrer_account() {
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 			// Act
@@ -163,7 +162,6 @@ fn claim_rewards_should_increase_referrer_level_when_limit_is_reached() {
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 			// Act
@@ -192,7 +190,6 @@ fn claim_rewards_should_increase_referrer_level_directly_to_top_tier_when_limit_
 			assert_ok!(Referrals::register_code(
 				RuntimeOrigin::signed(ALICE),
 				b"BALLS69".to_vec(),
-				ALICE
 			));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 			// Act

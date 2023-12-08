@@ -278,12 +278,11 @@ pub mod pallet {
 		///
 		/// Parameters:
 		/// - `code`: Code to register. Must follow the restrictions.
-		/// - `account`: Account which the code is bound to.
 		///
 		/// Emits `CodeRegistered` event when successful.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_code())]
-		pub fn register_code(origin: OriginFor<T>, code: Vec<u8>, account: T::AccountId) -> DispatchResult {
+		pub fn register_code(origin: OriginFor<T>, code: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let code: ReferralCode<T::CodeLength> = code.try_into().map_err(|_| Error::<T>::TooLong)?;
 
@@ -306,9 +305,9 @@ pub mod pallet {
 				let (fee_asset, fee_amount, beneficiary) = T::RegistrationFee::get();
 				T::Currency::transfer(fee_asset, &who, &beneficiary, fee_amount, true)?;
 
-				*v = Some(account.clone());
-				Referrer::<T>::insert(&account, (Level::default(), Balance::zero()));
-				Self::deposit_event(Event::CodeRegistered { code, account });
+				*v = Some(who.clone());
+				Referrer::<T>::insert(&who, (Level::default(), Balance::zero()));
+				Self::deposit_event(Event::CodeRegistered { code, account: who });
 				Ok(())
 			})
 		}

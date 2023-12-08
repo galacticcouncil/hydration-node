@@ -8,7 +8,6 @@ fn link_code_should_work_when_code_is_valid() {
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE),
 			b"BALLS69".to_vec(),
-			ALICE,
 		));
 		// ACT
 		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
@@ -42,7 +41,6 @@ fn link_code_should_link_correctly_when_code_is_valid() {
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE),
 			b"BALLS69".to_vec(),
-			ALICE
 		));
 
 		// ACT
@@ -61,7 +59,6 @@ fn link_code_should_fail_when_linking_to_same_acccount() {
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE),
 			b"BALLS69".to_vec(),
-			ALICE
 		));
 
 		// ACT
@@ -79,7 +76,6 @@ fn link_code_should_link_correctly_when_code_is_lowercase() {
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE),
 			b"BALLS69".to_vec(),
-			ALICE
 		));
 
 		// ACT
@@ -98,7 +94,6 @@ fn link_code_should_fail_when_account_is_already_linked() {
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE),
 			b"BALLS69".to_vec(),
-			ALICE
 		));
 		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
 
@@ -115,11 +110,7 @@ fn link_code_should_emit_event_when_successful() {
 	ExtBuilder::default().build().execute_with(|| {
 		//ARRANGE
 		let code = b"BALLS69".to_vec();
-		assert_ok!(Referrals::register_code(
-			RuntimeOrigin::signed(ALICE),
-			code.clone(),
-			ALICE
-		));
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
 		// ACT
 		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code.clone()));
 		// ASSERT
