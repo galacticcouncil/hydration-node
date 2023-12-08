@@ -1,8 +1,8 @@
 use super::*;
 
 use codec::MaxEncodedLen;
-use hydradx_adapters::{NativePriceProvider, OraclePriceProvider, RelayChainBlockNumberProvider};
 use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
+use hydradx_adapters::{NativePriceProvider, OraclePriceProvider, RelayChainBlockNumberProvider};
 use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
 use cumulus_primitives_core::ParaId;
@@ -13,8 +13,12 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::EnsureRoot;
+use hydra_dx_math::ema::EmaPrice;
+use hydradx_adapters::price::AssetFeeOraclePriceProvider;
+use hydradx_traits::OraclePeriod;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::v3::{prelude::*, Weight as XcmWeight};
@@ -26,10 +30,6 @@ use xcm_builder::{
 	TakeWeightCredit, WithComputedOrigin,
 };
 use xcm_executor::{Config, XcmExecutor};
-use hydra_dx_math::ema::EmaPrice;
-use hydradx_adapters::price::AssetFeeOraclePriceProvider;
-use pallet_currencies::fungibles::FungibleCurrencies;
-use hydradx_traits::OraclePeriod;
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
@@ -118,9 +118,23 @@ impl Config for XcmConfig {
 		Balance,
 		EmaPrice,
 		WeightToFee,
-		AssetFeeOraclePriceProvider<NativeAssetId,MultiTransactionPayment, Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, XcmFeePriceOraclePeriod>,
+		AssetFeeOraclePriceProvider<
+			NativeAssetId,
+			MultiTransactionPayment,
+			Router,
+			OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+			XcmFeePriceOraclePeriod,
+		>,
 		CurrencyIdConvert,
-		ToFeeReceiver<AccountId, AssetId, Balance, Price, CurrencyIdConvert, FungibleCurrencies<Runtime>, TreasuryAccount>,
+		ToFeeReceiver<
+			AccountId,
+			AssetId,
+			Balance,
+			Price,
+			CurrencyIdConvert,
+			FungibleCurrencies<Runtime>,
+			TreasuryAccount,
+		>,
 	>;
 
 	type ResponseHandler = PolkadotXcm;

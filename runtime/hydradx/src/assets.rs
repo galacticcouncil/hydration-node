@@ -19,10 +19,11 @@ use super::*;
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
-	inspect::MultiInspectAdapter,EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter, OracleAssetVolumeProvider,
-	PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
+	inspect::MultiInspectAdapter, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
+	OracleAssetVolumeProvider, OraclePriceProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
 };
 
+use hydradx_adapters::price::AssetFeeOraclePriceProvider;
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{
 	router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OnTradeHandler, OraclePeriod, Source,
@@ -431,9 +432,6 @@ impl PriceOracle<AssetId> for DummyOraclePriceProvider {
 	}
 }
 
-#[cfg(not(feature = "runtime-benchmarks"))]
-use hydradx_adapters::OraclePriceProvider;
-
 #[cfg(feature = "runtime-benchmarks")]
 pub struct DummySpotPriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -485,6 +483,13 @@ impl pallet_dca::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type AmmTradeWeights = RouterWeightInfo;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
+	type AssetFeePriceProvider = AssetFeeOraclePriceProvider<
+		NativeAssetId,
+		MultiTransactionPayment,
+		Router,
+		OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+		DCAOraclePeriod,
+	>;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -795,12 +800,11 @@ where
 	}
 }
 
+use pallet_currencies::fungibles::FungibleCurrencies;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchResult;
-use hydradx_adapters::price::OraclePriceProviderUsingRoute;
-use pallet_currencies::fungibles::FungibleCurrencies;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);

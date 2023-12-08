@@ -17,7 +17,7 @@
 
 use super::*;
 
-use pallet_transaction_multi_payment::{OnChargeAssetFeeAdapter};
+use pallet_transaction_multi_payment::OnChargeAssetFeeAdapter;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
 	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
@@ -37,10 +37,10 @@ use frame_support::{
 	},
 	PalletId, RuntimeDebug,
 };
-use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
-use scale_info::TypeInfo;
 use hydradx_adapters::price::OmnipoolSpotPriceProvider;
+use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use pallet_currencies::fungibles::FungibleCurrencies;
+use scale_info::TypeInfo;
 
 pub struct CallFilter;
 impl Contains<RuntimeCall> for CallFilter {

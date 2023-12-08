@@ -19,12 +19,11 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use sp_std::marker::PhantomData;
-use crate::{Currencies, Runtime, TreasuryAccount};
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
+use crate::{Currencies, Runtime, TreasuryAccount};
 use frame_support::{
 	parameter_types,
 	traits::{Defensive, FindAuthor, Imbalance, OnUnbalanced},
@@ -40,10 +39,11 @@ use polkadot_xcm::{
 };
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId};
 use sp_core::{Get, U256};
+use sp_std::marker::PhantomData;
 
 mod accounts_conversion;
-pub mod precompiles;
 mod fee;
+pub mod precompiles;
 
 // Centrifuge / Moonbeam:
 // Current approximation of the gas per second consumption considering
@@ -94,15 +94,16 @@ impl Get<AssetId> for WethAssetId {
 }
 
 type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
+use crate::evm::fee::OnChargeEVMFees;
 use frame_support::traits::Currency as PalletCurrency;
 use pallet_currencies::fungibles::FungibleCurrencies;
-use crate::evm::fee::OnChargeEVMFees;
 
 type NegativeImbalance = <WethCurrency as PalletCurrency<AccountId>>::NegativeImbalance;
 
 pub struct DealWithFees<C>(PhantomData<C>);
 impl<C> OnUnbalanced<NegativeImbalance> for DealWithFees<C>
-where C: frame_support::traits::fungibles::Mutate<AccountId, AssetId = AssetId, Balance = u128>,
+where
+	C: frame_support::traits::fungibles::Mutate<AccountId, AssetId = AssetId, Balance = u128>,
 {
 	// this is called for substrate-based transactions
 	fn on_unbalanceds<B>(_: impl Iterator<Item = NegativeImbalance>) {}

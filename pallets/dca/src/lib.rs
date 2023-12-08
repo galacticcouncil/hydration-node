@@ -73,18 +73,20 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::router::{AssetPair, inverse_route, RouteProvider};
+use hydradx_traits::price::PriceProvider;
+use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::NativePriceOracle;
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
-use hydradx_traits::price::PriceProvider;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use sp_runtime::traits::{CheckedMul, One};
-use sp_runtime::{traits::{BlockNumberProvider, Saturating}, ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill, Rounding};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
+use sp_runtime::traits::{CheckedMul, One};
+use sp_runtime::{
+	traits::{BlockNumberProvider, Saturating},
+	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill, Rounding,
+};
 
 use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};
@@ -116,7 +118,7 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{NativePriceOracle, PriceOracle};
+	use hydradx_traits::PriceOracle;
 	use orml_traits::NamedMultiReservableCurrency;
 
 	#[pallet::pallet]
@@ -223,6 +225,9 @@ pub mod pallet {
 
 		///Oracle price provider to get the price between two assets
 		type OraclePriceProvider: PriceOracle<Self::AssetId, Price = EmaPrice>;
+
+		/// Provider of price of an asset that can be used to pay the fees
+		type AssetFeePriceProvider: PriceProvider<Self::AssetId, Price = EmaPrice>;
 
 		///Router implementation
 		type RouteExecutor: RouterT<
@@ -351,6 +356,8 @@ pub mod pallet {
 		NoParentHashFound,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
+		/// Failed to retrieve price of fee asset.
+		NoFeeAssetPrice,
 	}
 
 	/// Id sequencer for schedules
@@ -1037,14 +1044,10 @@ impl<T: Config> Pallet<T> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
-			let route = T::RouteProvider::get_route(AssetPair::new(asset_id, T::NativeAssetId::get()));
-			let price =
-				T::OraclePriceProvider::price(&route, OraclePeriod::Short).ok_or(Error::<T>::CalculatingPriceError)?;
-
-			let price_from_rational =
-				FixedU128::checked_from_rational(price.n, price.d).ok_or(ArithmeticError::Overflow)?;
-			price_from_rational.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
-			//multiply_by_rational_with_rounding(asset_amount,price.n,price.d, Rounding::Up ).ok_or(ArithmeticError::Overflow)?
+			let price = T::AssetFeePriceProvider::get_price(asset_id, T::NativeAssetId::get())
+				.ok_or(Error::<T>::NoFeeAssetPrice)?;
+			multiply_by_rational_with_rounding(asset_amount, price.n, price.d, Rounding::Up)
+				.ok_or(ArithmeticError::Overflow)?
 		};
 
 		Ok(amount)

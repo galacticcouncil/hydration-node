@@ -1,4 +1,5 @@
 use frame_support::traits::Contains;
+use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AssetPair, RouteProvider};
 use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
@@ -7,7 +8,6 @@ use sp_core::Get;
 use sp_runtime::traits::{CheckedMul, One};
 use sp_runtime::{FixedPointNumber, FixedU128};
 use sp_std::marker::PhantomData;
-use hydra_dx_math::ema::EmaPrice;
 
 pub struct OraclePriceProviderUsingRoute<RP, OP, P>(PhantomData<(RP, OP, P)>);
 
@@ -97,6 +97,32 @@ where
 
 		if AC::contains(&currency) {
 			let route = RP::get_route(AssetPair::new(currency, A::get()));
+			Oracle::price(&route, Period::get())
+		} else {
+			None
+		}
+	}
+}
+
+impl<AssetId, A, RP, AC, Oracle, Period> PriceProvider<AssetId>
+	for AssetFeeOraclePriceProvider<A, AC, RP, Oracle, Period>
+where
+	RP: RouteProvider<AssetId>,
+	Oracle: PriceOracle<AssetId, Price = EmaPrice>,
+	Period: Get<OraclePeriod>,
+	A: Get<AssetId>,
+	AssetId: Copy + PartialEq,
+	AC: Contains<AssetId>,
+{
+	type Price = EmaPrice;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+		if asset_a == asset_b {
+			return Some(EmaPrice::one());
+		}
+
+		if AC::contains(&asset_a) {
+			let route = RP::get_route(AssetPair::new(asset_a, asset_b));
 			Oracle::price(&route, Period::get())
 		} else {
 			None

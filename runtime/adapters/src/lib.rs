@@ -48,10 +48,10 @@ use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use pallet_stableswap::types::{PoolState, StableswapHooks};
 use polkadot_xcm::latest::prelude::*;
 use primitive_types::{U128, U512};
-use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use primitives::constants::chain::XYK_SOURCE;
 use primitives::constants::chain::{CORE_ASSET_ID, STABLESWAP_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::{BlockNumberProvider, One};
 use sp_std::vec::Vec;
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
@@ -79,7 +79,7 @@ mod tests;
 pub struct MultiCurrencyTrader<
 	AssetId,
 	Balance: FixedPointOperand + TryInto<u128>,
-	Price:  Into<(u128,u128)> + Copy + Ord + Debug,
+	Price: Into<(u128, u128)> + Copy + Ord + Debug,
 	ConvertWeightToFee: WeightToFee<Balance = Balance>,
 	AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
 	ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
@@ -101,7 +101,7 @@ pub struct MultiCurrencyTrader<
 impl<
 		AssetId,
 		Balance: FixedPointOperand + TryInto<u128>,
-		Price:  Into<(u128,u128)> + Copy + Ord + Debug,
+		Price: Into<(u128, u128)> + Copy + Ord + Debug,
 		ConvertWeightToFee: WeightToFee<Balance = Balance>,
 		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
 		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
@@ -127,7 +127,7 @@ impl<
 impl<
 		AssetId,
 		Balance: FixedPointOperand + TryInto<u128>,
-		Price:  Into<(u128,u128)> + Copy + Ord + Debug,
+		Price: Into<(u128, u128)> + Copy + Ord + Debug,
 		ConvertWeightToFee: WeightToFee<Balance = Balance>,
 		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
 		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
@@ -159,7 +159,13 @@ impl<
 		//let converted_fee = price.checked_mul_int(fee).ok_or(XcmError::Overflow)?;
 
 		let (n, d) = price.into();
-		let converted_fee = multiply_by_rational_with_rounding(fee.try_into().map_err(|_| XcmError::Overflow)?, n, d, sp_arithmetic::per_things::Rounding::Up).ok_or(XcmError::Overflow)?;
+		let converted_fee = multiply_by_rational_with_rounding(
+			fee.try_into().map_err(|_| XcmError::Overflow)?,
+			n,
+			d,
+			sp_arithmetic::per_things::Rounding::Up,
+		)
+		.ok_or(XcmError::Overflow)?;
 
 		let amount: u128 = converted_fee.try_into().map_err(|_| XcmError::Overflow)?;
 		let required = (Concrete(asset_loc), amount).into();
@@ -186,7 +192,12 @@ impl<
 		let fee = ConvertWeightToFee::weight_to_fee(&weight);
 		if let Some(((asset_loc, price), amount)) = self.paid_assets.iter_mut().next() {
 			let (n, d) = (*price).into();
-			let converted_fee = multiply_by_rational_with_rounding(fee.saturated_into(), n, d, sp_arithmetic::per_things::Rounding::Up)?;
+			let converted_fee = multiply_by_rational_with_rounding(
+				fee.saturated_into(),
+				n,
+				d,
+				sp_arithmetic::per_things::Rounding::Up,
+			)?;
 			//let converted_fee = price.saturating_mul_int(fee).saturated_into();
 
 			let refund = converted_fee.min(*amount);
@@ -209,7 +220,7 @@ impl<
 impl<
 		AssetId,
 		Balance: FixedPointOperand + TryInto<u128>,
-		Price:  Into<(u128,u128)> + Copy + Ord + Debug,
+		Price: Into<(u128, u128)> + Copy + Ord + Debug,
 		ConvertWeightToFee: WeightToFee<Balance = Balance>,
 		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
 		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,

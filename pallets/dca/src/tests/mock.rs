@@ -650,6 +650,17 @@ impl Config for Test {
 	type RelayChainBlockHashProvider = ParentHashGetterMock;
 	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
+	type AssetFeePriceProvider = FeeAssetProvider;
+}
+
+pub struct FeeAssetProvider;
+
+impl PriceProvider<AssetId> for FeeAssetProvider {
+	type Price = EmaPrice;
+
+	fn get_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
+		Some(EmaPrice::new(88, 100))
+	}
 }
 
 pub struct DefaultRouteProvider;
@@ -670,6 +681,7 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
+use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
