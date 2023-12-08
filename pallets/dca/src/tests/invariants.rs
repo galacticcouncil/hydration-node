@@ -41,7 +41,7 @@ fn trade_amount() -> impl Strategy<Value = Balance> {
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(200))]
 	#[test]
-	fn dca_invariant_for_remaining_budget_calculation(
+	fn sell_dca_invariant_for_remaining_budget_calculation(
 		budget in budget(),
 		trade_amount in trade_amount(),
 	) {
@@ -85,6 +85,56 @@ proptest! {
 			});
 	}
 }
+
+/*
+continue from here
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(200))]
+	#[test]
+	fn buy_dca_invariant_for_remaining_budget_calculation(
+		budget in budget(),
+		trade_amount in trade_amount(),
+	) {
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![(ALICE, HDX, budget)])
+			.build()
+			.execute_with(|| {
+				proceed_to_blocknumber(1, 10);
+
+				let total_amount = budget;
+				let amount_to_buy = trade_amount;
+
+				let schedule = ScheduleBuilder::new()
+					.with_total_amount(total_amount)
+					.with_period(1)
+					.with_slippage(Some(Permill::from_percent(100)))
+					.with_order(Order::Buy {
+						asset_in: HDX,
+						asset_out: BTC,
+						amount_out: amount_to_sell,
+						max_amount_in: Balance::MAX,
+						route: create_bounded_vec(vec![Trade {
+							pool: PoolType::Omnipool,
+							asset_in: HDX,
+							asset_out: BTC,
+						}]),
+					})
+					.build();
+
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+				//Act and assert
+				let schedule_id = 0;
+
+				for i in 1..=10u64 {
+					set_to_blocknumber(10 + i);
+					let spent =  (amount_to_sell + SELL_DCA_FEE_IN_NATIVE) * i as u128;
+					let ramaining_budget = DCA::remaining_amounts(schedule_id).unwrap();
+					assert_eq!(total_amount, ramaining_budget + spent);
+				}
+			});
+	}
+}*/
 
 //TODO: remove duplication
 pub fn proceed_to_blocknumber(from: u64, to: u64) {
