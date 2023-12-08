@@ -85,7 +85,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 					(b"KUSD".to_vec(), 1_000u128, Some(2)),
 				],
 				// accepted assets
-				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
+				vec![1, 2],
 				// token balances
 				vec![
 					(
