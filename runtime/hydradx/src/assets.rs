@@ -485,7 +485,6 @@ impl pallet_dca::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type AmmTradeWeights = RouterWeightInfo;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
-	type NativePriceOracle = OraclePriceProviderUsingRoute<Router, hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>, DCAOraclePeriod>;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:

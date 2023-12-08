@@ -28,7 +28,7 @@ use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{AssetKind, NativePriceOracle, OraclePeriod, PriceOracle, Registry};
+use hydradx_traits::{AssetKind, OraclePeriod, PriceOracle, Registry};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
@@ -650,15 +650,6 @@ impl Config for Test {
 	type RelayChainBlockHashProvider = ParentHashGetterMock;
 	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
-	type NativePriceOracle = NativePriceOracleMock;
-}
-
-pub struct NativePriceOracleMock;
-
-impl NativePriceOracle<AssetId, FixedU128> for NativePriceOracleMock {
-	fn price(_: AssetId) -> Option<FixedU128> {
-		Some(FixedU128::from_rational(88, 100))
-	}
 }
 
 pub struct DefaultRouteProvider;

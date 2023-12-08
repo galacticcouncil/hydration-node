@@ -73,7 +73,7 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::router::{inverse_route, RouteProvider};
+use hydradx_traits::router::{AssetPair, inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::NativePriceOracle;
 use hydradx_traits::OraclePeriod;
@@ -223,10 +223,6 @@ pub mod pallet {
 
 		///Oracle price provider to get the price between two assets
 		type OraclePriceProvider: PriceOracle<Self::AssetId, Price = EmaPrice>;
-
-		///Native price provider to get the price of assets that are accepted as fees
-		/// TODO: why cannot we use the previous one ?
-		type NativePriceOracle: hydradx_traits::price::PriceProvider<Self::AssetId, Price = EmaPrice>;
 
 		///Router implementation
 		type RouteExecutor: RouterT<
@@ -1041,10 +1037,14 @@ impl<T: Config> Pallet<T> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
-			let (n,d)= T::NativePriceOracle::get_price(asset_id, T::NativeAssetId::get()).ok_or(Error::<T>::CalculatingPriceError)?.into();
+			let route = T::RouteProvider::get_route(AssetPair::new(asset_id, T::NativeAssetId::get()));
+			let price =
+				T::OraclePriceProvider::price(&route, OraclePeriod::Short).ok_or(Error::<T>::CalculatingPriceError)?;
 
-			multiply_by_rational_with_rounding(asset_amount,n,d, Rounding::Up ).ok_or(ArithmeticError::Overflow)?
-			//price.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
+			let price_from_rational =
+				FixedU128::checked_from_rational(price.n, price.d).ok_or(ArithmeticError::Overflow)?;
+			price_from_rational.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
+			//multiply_by_rational_with_rounding(asset_amount,price.n,price.d, Rounding::Up ).ok_or(ArithmeticError::Overflow)?
 		};
 
 		Ok(amount)

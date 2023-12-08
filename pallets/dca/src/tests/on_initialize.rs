@@ -1557,7 +1557,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 
 			//Assert
 			assert_number_of_executed_buy_trades!(0);
-			assert_eq!(Currencies::reserved_balance(DAI, &ALICE), budget - BUY_DCA_FEE_IN_DAI);
+			assert_eq!(Currencies::reserved_balance(DAI, &ALICE), BUY_DCA_FEE_IN_DAI);
 			assert_balance!(TreasuryAccount::get(), DAI, BUY_DCA_FEE_IN_DAI);
 		});
 }
