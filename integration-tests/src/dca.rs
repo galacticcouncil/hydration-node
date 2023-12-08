@@ -1157,7 +1157,7 @@ mod stableswap {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, asset_a, asset_b) = ini_stableswap_with_omnipool_and_onchain_route().unwrap();
+			let (pool_id, asset_a, asset_b) = init_stableswap_with_omnipool_and_onchain_route().unwrap();
 
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
@@ -1170,21 +1170,6 @@ mod stableswap {
 				ALICE.into(),
 				asset_a,
 				alice_init_asset_a_balance as i128,
-			));
-
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				CHARLIE.into(),
-				asset_a,
-				5000 * UNITS as i128,
-			));
-			assert_ok!(Stableswap::sell(
-				RuntimeOrigin::signed(CHARLIE.into()),
-				pool_id,
-				asset_a,
-				asset_b,
-				100 * UNITS,
-				0u128,
 			));
 
 			let dca_budget = 1100 * UNITS;
@@ -1213,7 +1198,7 @@ mod stableswap {
 			let fee = Currencies::free_balance(asset_a, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 			assert_balance!(ALICE.into(), asset_a, alice_init_asset_a_balance - dca_budget);
-			assert_balance!(ALICE.into(), asset_b, 98999999706917);
+			assert_balance!(ALICE.into(), asset_b, 98999994050195);
 			assert_reserved_balance!(&ALICE.into(), asset_a, dca_budget - amount_to_sell - fee);
 		});
 	}
@@ -1225,38 +1210,6 @@ mod stableswap {
 			//Arrange
 			let (pool_id, asset_a, asset_b) = init_stableswap_with_three_assets_having_different_decimals().unwrap();
 			create_xyk_pool_with_amounts(asset_b, 10000000000 * UNITS, HDX, 10000000000 * UNITS);
-
-			//Populate oracle
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				CHARLIE.into(),
-				asset_b,
-				5000 * UNITS as i128,
-			));
-			assert_ok!(Stableswap::sell(
-				RuntimeOrigin::signed(CHARLIE.into()),
-				pool_id,
-				asset_a,
-				asset_b,
-				10_000_000,
-				0u128,
-			));
-
-			//Populate xyk
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DAVE.into(),
-				asset_b,
-				10000000 * UNITS as i128,
-			));
-			assert_ok!(XYK::sell(
-				RuntimeOrigin::signed(DAVE.into()),
-				asset_b,
-				HDX,
-				10000000 * UNITS,
-				u128::MIN,
-				false
-			));
 
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
@@ -1318,7 +1271,7 @@ mod stableswap {
 			let fee = Currencies::free_balance(asset_a, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 			assert_balance!(ALICE.into(), asset_a, alice_init_asset_a_balance - dca_budget);
-			assert_balance!(ALICE.into(), asset_b, 98999993820989);
+			assert_balance!(ALICE.into(), asset_b, 98999993820990);
 			assert_reserved_balance!(&ALICE.into(), asset_a, dca_budget - amount_to_sell - fee);
 		});
 	}
@@ -1326,27 +1279,12 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 197218633037720;
+		let amount_to_receive = 197218614921789;
 		//With DCA
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
 			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
-
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				CHARLIE.into(),
-				stable_asset_1,
-				10000 * UNITS as i128,
-			));
-			assert_ok!(Stableswap::sell(
-				RuntimeOrigin::signed(CHARLIE.into()),
-				pool_id,
-				stable_asset_1,
-				stable_asset_2,
-				10000 * UNITS,
-				0,
-			));
 
 			init_omnipol();
 			assert_ok!(Currencies::update_balance(
@@ -1432,20 +1370,6 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			//Arrange
 			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				CHARLIE.into(),
-				stable_asset_1,
-				10000 * UNITS as i128,
-			));
-			assert_ok!(Stableswap::sell(
-				RuntimeOrigin::signed(CHARLIE.into()),
-				pool_id,
-				stable_asset_1,
-				stable_asset_2,
-				10000 * UNITS,
-				0,
-			));
 
 			init_omnipol();
 
@@ -1497,20 +1421,6 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			//Arrange
 			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				CHARLIE.into(),
-				stable_asset_1,
-				10000 * UNITS as i128,
-			));
-			assert_ok!(Stableswap::sell(
-				RuntimeOrigin::signed(CHARLIE.into()),
-				pool_id,
-				stable_asset_1,
-				stable_asset_2,
-				10000 * UNITS,
-				0,
-			));
 
 			init_omnipol();
 			assert_ok!(Currencies::update_balance(
@@ -1570,7 +1480,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_stable_trades_and_omnipool() {
 		let amount_to_sell = 100000 * UNITS;
-		let amount_to_receive = 105114640151896329;
+		let amount_to_receive = 105114637916096945;
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
@@ -1580,22 +1490,6 @@ mod stableswap {
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
 				stable_asset_1,
-			));
-
-			//For populating oracle
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				CHARLIE.into(),
-				stable_asset_1,
-				5000 * UNITS as i128,
-			));
-			assert_ok!(Stableswap::sell(
-				RuntimeOrigin::signed(CHARLIE.into()),
-				pool_id,
-				stable_asset_1,
-				stable_asset_2,
-				1000 * UNITS,
-				0u128,
 			));
 
 			//Init omnipool and add pool id as token
@@ -1694,22 +1588,6 @@ mod stableswap {
 			//Arrange
 			let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
-			//To populate stableswap oracle
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				CHARLIE.into(),
-				stable_asset_1,
-				10000 * UNITS as i128,
-			));
-			assert_ok!(Stableswap::sell(
-				RuntimeOrigin::signed(CHARLIE.into()),
-				pool_id,
-				stable_asset_1,
-				stable_asset_2,
-				3000 * UNITS,
-				0,
-			));
-
 			init_omnipol();
 			assert_ok!(Currencies::update_balance(
 				RuntimeOrigin::root(),
@@ -1790,7 +1668,7 @@ mod stableswap {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			let (pool_id, asset_a, asset_b) = ini_stableswap_with_omnipool_and_onchain_route().unwrap();
+			let (pool_id, asset_a, asset_b) = init_stableswap_with_omnipool_and_onchain_route().unwrap();
 
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
@@ -1803,21 +1681,6 @@ mod stableswap {
 				ALICE.into(),
 				asset_a,
 				alice_init_asset_a_balance as i128,
-			));
-
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				CHARLIE.into(),
-				asset_a,
-				5000 * UNITS as i128,
-			));
-			assert_ok!(Stableswap::sell(
-				RuntimeOrigin::signed(CHARLIE.into()),
-				pool_id,
-				asset_a,
-				asset_b,
-				100 * UNITS,
-				0u128,
 			));
 
 			let dca_budget = 1100 * UNITS;
@@ -1861,22 +1724,6 @@ mod stableswap {
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
 				stable_asset_1,
-			));
-
-			//For populating oracle
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				CHARLIE.into(),
-				stable_asset_1,
-				5000 * UNITS as i128,
-			));
-			assert_ok!(Stableswap::sell(
-				RuntimeOrigin::signed(CHARLIE.into()),
-				pool_id,
-				stable_asset_1,
-				stable_asset_2,
-				1000 * UNITS,
-				0u128,
 			));
 
 			//Init omnipool and add pool id as token
@@ -1973,38 +1820,7 @@ mod xyk {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			assert_ok!(Balances::set_balance(
-				RuntimeOrigin::root(),
-				BOB.into(),
-				5000 * UNITS,
-				0,
-			));
-
-			assert_ok!(Tokens::set_balance(
-				RawOrigin::Root.into(),
-				BOB.into(),
-				DAI,
-				5000 * UNITS,
-				0,
-			));
-
-			assert_ok!(XYK::create_pool(
-				RuntimeOrigin::signed(BOB.into()),
-				HDX,
-				1000 * UNITS,
-				DAI,
-				2000 * UNITS,
-			));
-
-			//For populating oracle
-			assert_ok!(XYK::sell(
-				RuntimeOrigin::signed(BOB.into()),
-				HDX,
-				DAI,
-				100 * UNITS,
-				0,
-				false
-			));
+			create_xyk_pool_with_amounts(HDX, 1000000000 * UNITS, DAI, 20000000000 * UNITS);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::set_balance(
@@ -2030,7 +1846,7 @@ mod xyk {
 			set_relaychain_block_number(11);
 
 			//Assert
-			let amount_out = 151105924242426;
+			let amount_out = 1954768770285616;
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id());
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
@@ -2210,37 +2026,12 @@ mod all_pools {
 			set_relaychain_block_number(11);
 
 			//Assert
-			let amount_to_receive = 380211607465242;
+			let amount_to_receive = 380211622144976;
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_to_receive);
 		});
 	}
-}
-
-fn crate_xyk_pool(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_b: Balance) {
-	//Arrange
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		DAVE.into(),
-		asset_a,
-		amount_a as i128,
-	));
-
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		DAVE.into(),
-		asset_b,
-		amount_b as i128,
-	));
-
-	assert_ok!(XYK::create_pool(
-		RuntimeOrigin::signed(DAVE.into()),
-		asset_a,
-		amount_a,
-		asset_b,
-		amount_b,
-	));
 }
 
 mod with_onchain_route {
@@ -2360,7 +2151,7 @@ mod with_onchain_route {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades_with_onchain_routes() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 187172768546667;
+		let amount_to_receive = 187172775915114;
 
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -2708,7 +2499,7 @@ mod with_onchain_route {
 			assert!(fee > 57 * UNITS / 10);
 
 			assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable_balance - dca_budget);
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 237185260073197);
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 237185252502498);
 
 			assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 		});
@@ -2829,10 +2620,35 @@ mod with_onchain_route {
 			assert!(fee < 38 * UNITS / 10);
 			assert!(fee > 37 * UNITS / 10);
 
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 278060378846663);
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 278615386474123);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
+}
+
+fn crate_xyk_pool(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_b: Balance) {
+	//Arrange
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		DAVE.into(),
+		asset_a,
+		amount_a as i128,
+	));
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		DAVE.into(),
+		asset_b,
+		amount_b as i128,
+	));
+
+	assert_ok!(XYK::create_pool(
+		RuntimeOrigin::signed(DAVE.into()),
+		asset_a,
+		amount_a,
+		asset_b,
+		amount_b,
+	));
 }
 
 fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
@@ -2855,6 +2671,22 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 		amount_a,
 		asset_b,
 		amount_b,
+	));
+
+	//Populate oracle
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		asset_a,
+		10000000 * UNITS as i128,
+	));
+	assert_ok!(XYK::sell(
+		RuntimeOrigin::signed(DAVE.into()),
+		asset_a,
+		asset_b,
+		10000000 * UNITS,
+		u128::MIN,
+		false
 	));
 }
 
@@ -3013,51 +2845,6 @@ pub fn init_omnipol() {
 	));
 }
 
-pub fn init_omnipool2() {
-	let native_price = FixedU128::from_float(0.5);
-	let stable_price = FixedU128::from_float(0.7);
-	let acc = Omnipool::protocol_account();
-
-	let stable_amount: Balance = 5_000_000_000_000_000_000_000_000_000_00u128;
-	let native_amount: Balance = 5_000_000_000_000_000_000_000_000_000_00u128;
-	assert_ok!(Tokens::set_balance(
-		RawOrigin::Root.into(),
-		acc.clone(),
-		DAI,
-		stable_amount,
-		0
-	));
-	assert_ok!(Currencies::update_balance(
-		RuntimeOrigin::root(),
-		acc,
-		HDX,
-		native_amount as i128,
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
-		HDX,
-		native_price,
-		Permill::from_percent(60),
-		hydradx_runtime::Omnipool::protocol_account(),
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
-		DAI,
-		stable_price,
-		Permill::from_percent(60),
-		hydradx_runtime::Omnipool::protocol_account(),
-	));
-
-	assert_ok!(Balances::set_balance(
-		RawOrigin::Root.into(),
-		Treasury::account_id(),
-		TREASURY_ACCOUNT_INIT_BALANCE,
-		0,
-	));
-}
-
 fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
@@ -3161,7 +2948,7 @@ macro_rules! count_dca_event {
 	}};
 }
 
-fn ini_stableswap_with_omnipool_and_onchain_route() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
+fn init_stableswap_with_omnipool_and_onchain_route() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let (pool_id, asset_a, asset_b) = init_stableswap().unwrap();
 
 	init_omnipol();
@@ -3236,6 +3023,22 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 
 	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
 
+	//populate oracle
+	assert_ok!(Currencies::update_balance(
+		RuntimeOrigin::root(),
+		CHARLIE.into(),
+		asset_in,
+		10000 * UNITS as i128,
+	));
+	assert_ok!(Stableswap::sell(
+		RuntimeOrigin::signed(CHARLIE.into()),
+		pool_id,
+		asset_in,
+		asset_out,
+		3000 * UNITS,
+		0,
+	));
+
 	Ok((pool_id, asset_in, asset_out))
 }
 
@@ -3285,59 +3088,6 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 	Stableswap::create_pool(RuntimeOrigin::root(), pool_id, asset_ids, amplification, fee)?;
 
 	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
-
-	Ok((pool_id, asset_in, asset_out))
-}
-
-//TODO: remove duplication
-pub fn init_stableswap_with_liquidity(
-	initial_liquidity: Balance,
-	liquidity_added: Balance,
-) -> Result<(AssetId, AssetId, AssetId), DispatchError> {
-	let mut initial: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
-	let mut added_liquidity: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> =
-		vec![];
-
-	let mut asset_ids: Vec<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
-	for idx in 0u32..MAX_ASSETS_IN_POOL {
-		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-		let asset_id = AssetRegistry::create_asset(&name, 1u128)?;
-		AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), asset_id, b"xDUM".to_vec(), 18u8)?;
-		asset_ids.push(asset_id);
-
-		Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			AccountId::from(BOB),
-			asset_id,
-			initial_liquidity as i128,
-		)?;
-		Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			AccountId::from(CHARLIE),
-			asset_id,
-			initial_liquidity as i128,
-		)?;
-
-		initial.push(AssetAmount::new(asset_id, initial_liquidity));
-		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-	}
-	let pool_id = AssetRegistry::create_asset(&b"pool".to_vec(), 1u128)?;
-
-	let amplification = 100u16;
-	let fee = Permill::from_percent(1);
-
-	let asset_in: AssetId = *asset_ids.last().unwrap();
-	let asset_out: AssetId = *asset_ids.first().unwrap();
-
-	Stableswap::create_pool(
-		hydradx_runtime::RuntimeOrigin::root(),
-		pool_id,
-		asset_ids,
-		amplification,
-		fee,
-	)?;
-
-	Stableswap::add_liquidity(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
 
 	Ok((pool_id, asset_in, asset_out))
 }
