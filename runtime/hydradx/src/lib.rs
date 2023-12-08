@@ -119,6 +119,7 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 	vec![
 		TreasuryPalletId::get().into_account_truncating(),
 		VestingPalletId::get().into_account_truncating(),
+		ReferralsPalletId::get().into_account_truncating(),
 	]
 }
 
