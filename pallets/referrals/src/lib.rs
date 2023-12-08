@@ -319,7 +319,7 @@ pub mod pallet {
 		///
 		/// Signer account is linked to the referral account of the code.
 		///
-		/// /// Parameters:
+		/// Parameters:
 		/// - `code`: Code to use to link the signer account to.
 		///
 		/// Emits `CodeLinked` event when successful.
@@ -349,7 +349,7 @@ pub mod pallet {
 
 		/// Convert accrued asset amount to reward currency.
 		///
-		/// /// Parameters:
+		/// Parameters:
 		/// - `asset_id`: Id of an asset to convert to RewardAsset.
 		///
 		/// Emits `Converted` event when successful.
@@ -418,7 +418,16 @@ pub mod pallet {
 			}()
 			.ok_or(ArithmeticError::Overflow)?;
 
-			T::Currency::transfer(T::RewardAsset::get(), &Self::pot_account_id(), &who, rewards, true)?;
+			// Make sure that we can transfer all the rewards if all shares withdrawn.
+			let keep_pot_alive = shares != share_issuance;
+
+			T::Currency::transfer(
+				T::RewardAsset::get(),
+				&Self::pot_account_id(),
+				&who,
+				rewards,
+				keep_pot_alive,
+			)?;
 			TotalShares::<T>::mutate(|v| {
 				*v = v.saturating_sub(shares);
 			});
@@ -448,7 +457,7 @@ pub mod pallet {
 
 		/// Set asset tier reward percentages
 		///
-		/// /// Parameters:
+		/// Parameters:
 		/// - `asset_id`: asset id
 		/// - `level`: level
 		/// - `referrer`: referrer percentage that goes to the referrer.
