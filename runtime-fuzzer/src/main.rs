@@ -11,16 +11,13 @@ use frame_support::{
 };
 use hydradx_runtime::*;
 use primitives::constants::{
-	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::SLOT_DURATION,
 };
 use sp_consensus_aura::{Slot, AURA_ENGINE_ID};
-use sp_core::Blake2Hasher;
 use sp_runtime::{
 	traits::{Dispatchable, Header},
-	Digest, DigestItem, Storage,
+	Digest, DigestItem,
 };
-use sp_state_machine::TestExternalities;
 #[cfg(feature = "deprecated-substrate")]
 use {frame_support::weights::constants::WEIGHT_PER_SECOND as WEIGHT_REF_TIME_PER_SECOND, sp_runtime::traits::Zero};
 
@@ -33,8 +30,6 @@ type RuntimeOrigin = <FuzzedRuntime as frame_system::Config>::Origin;
 #[cfg(not(feature = "deprecated-substrate"))]
 type RuntimeOrigin = <FuzzedRuntime as frame_system::Config>::RuntimeOrigin;
 type AccountId = <FuzzedRuntime as frame_system::Config>::AccountId;
-// The externalities used by our fuzzer
-type Externalities = TestExternalities<Blake2Hasher>;
 
 /// The maximum number of blocks per fuzzer input.
 /// If set to 0, then there is no limit at all.
@@ -59,10 +54,7 @@ const MAX_BLOCK_LAPSE: u32 = 864_000;
 
 // Extrinsic delimiter: `********`
 const DELIMITER: [u8; 8] = [42; 8];
-
-const TOKEN_SYMBOL: &str = "HDX";
-const INITIAL_TOKEN_BALANCE: u128 = 100_000 * UNITS;
-const PARA_ID: u32 = 2034;
+const PATH_TO_SNAPSHOT: &str = "../../integration_tests/omnipool-snapshot/SNAPSHOT";
 
 /// Constants for the fee-memory mapping
 #[cfg(not(fuzzing))]
@@ -120,117 +112,6 @@ fn main() {
 	if std::fs::remove_file(FILENAME_MEMORY_MAP).is_err() {
 		println!("Can't remove the map file, but it's not a problem.");
 	}
-
-	let endowed_accounts: Vec<AccountId> = (0..5).map(|i| [i; 32].into()).collect();
-
-	// We generate a genesis storage item, which will be cloned to create a runtime.
-	let genesis_storage: Storage = {
-		use sp_runtime::app_crypto::ByteArray;
-		use sp_runtime::BuildStorage;
-
-		let initial_authorities: Vec<(AccountId, AuraId)> = vec![
-			([0; 32].into(), AuraId::from_slice(&[0; 32]).unwrap()),
-			([1; 32].into(), AuraId::from_slice(&[1; 32]).unwrap()),
-		];
-
-		let registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)> = vec![
-			(b"KSM".to_vec(), 1_000u128, Some(1)),
-			(b"KUSD".to_vec(), 1_000u128, Some(2)),
-		];
-
-		let accepted_assets: Vec<(AssetId, Price)> =
-			vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))];
-
-		let token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)> = vec![
-			(
-				[0; 32].into(),
-				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
-			),
-			(
-				[1; 32].into(),
-				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
-			),
-		];
-
-		GenesisConfig {
-			system: Default::default(),
-			session: SessionConfig {
-				keys: initial_authorities
-					.iter()
-					.map(|x| {
-						(
-							x.0.clone(),
-							x.0.clone(),
-							hydradx_runtime::opaque::SessionKeys { aura: x.1.clone() },
-						)
-					})
-					.collect::<Vec<_>>(),
-			},
-			aura: Default::default(),
-			collator_selection: CollatorSelectionConfig {
-				invulnerables: initial_authorities.iter().cloned().map(|(acc, _)| acc).collect(),
-				candidacy_bond: 10_000 * UNITS,
-				..Default::default()
-			},
-			balances: BalancesConfig {
-				// Configure endowed accounts with initial balance of 1 << 60.
-				balances: endowed_accounts
-					.iter()
-					.cloned()
-					.map(|k| (k, INITIAL_TOKEN_BALANCE))
-					.collect(),
-			},
-			council: CouncilConfig {
-				members: endowed_accounts.clone(),
-				phantom: Default::default(),
-			},
-			technical_committee: TechnicalCommitteeConfig {
-				members: endowed_accounts.clone(),
-				phantom: Default::default(),
-			},
-			vesting: VestingConfig { vesting: vec![] },
-			asset_registry: AssetRegistryConfig {
-				registered_assets: registered_assets.clone(),
-				native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
-				native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
-			},
-			multi_transaction_payment: MultiTransactionPaymentConfig {
-				currencies: accepted_assets,
-				account_currencies: vec![],
-			},
-			tokens: TokensConfig {
-				balances: token_balances
-					.iter()
-					.flat_map(|x| {
-						x.1.clone()
-							.into_iter()
-							.map(|(asset_id, amount)| (x.0.clone(), asset_id, amount))
-					})
-					.collect(),
-			},
-			treasury: Default::default(),
-			elections: Default::default(),
-			genesis_history: GenesisHistoryConfig::default(),
-			claims: ClaimsConfig {
-				claims: Default::default(),
-			},
-			parachain_info: ParachainInfoConfig {
-				parachain_id: PARA_ID.into(),
-			},
-			aura_ext: Default::default(),
-			polkadot_xcm: Default::default(),
-			ema_oracle: Default::default(),
-			duster: DusterConfig {
-				account_blacklist: vec![],
-				reward_account: endowed_accounts.first().cloned(),
-				dust_account: endowed_accounts.first().cloned(),
-			},
-			omnipool_warehouse_lm: Default::default(),
-			omnipool_liquidity_mining: Default::default(),
-		}
-		.build_storage()
-		.unwrap()
-	};
 
 	ziggy::fuzz!(|data: &[u8]| {
 		let iteratable = Data {
@@ -302,7 +183,28 @@ fn main() {
 		}
 
 		// `externalities` represents the state of our mock chain.
-		let mut externalities = Externalities::new(genesis_storage.clone());
+		// We use `frame-remote-externalities` instead of `sp_io::TestExternalities`
+		// in order to support loading chain state from a snapshot
+		let mut externalities = tokio::runtime::Builder::new_current_thread()
+		.enable_all()
+		.build()
+		.unwrap()
+		.block_on(async {
+			use frame_remote_externalities::*;
+
+			let snapshot_config = SnapshotConfig::from(String::from(PATH_TO_SNAPSHOT));
+			let offline_config = OfflineConfig {
+				state_snapshot: snapshot_config,
+			};
+			let mode = Mode::Offline(offline_config);
+
+			let builder = Builder::<hydradx_runtime::Block>::new().mode(mode);
+
+			builder.build().await.unwrap()
+		});
+		
+		// hydra_live_ext(PATH_TO_SNAPSHOT);
+		// let mut externalities = Externalities::new(genesis_storage.clone());
 
 		let mut current_block: u32 = 1;
 		let mut current_timestamp: u64 = SLOT_DURATION;
