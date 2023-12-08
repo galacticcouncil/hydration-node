@@ -144,10 +144,7 @@ fn pepe_is_not_registered() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		assert_ok!(MultiTransactionPayment::add_currency(
-			RuntimeOrigin::root(),
-			PEPE,
-		));
+		assert_ok!(MultiTransactionPayment::add_currency(RuntimeOrigin::root(), PEPE,));
 	});
 }
 
@@ -288,7 +285,9 @@ fn omnipool_spotprice_and_onchain_price_should_be_very_similar() {
 		set_relaychain_block_number(10);
 
 		//Act
-		let spot_price = hydradx_adapters::price::OmnipoolSpotPriceProvider::<hydradx_runtime::Runtime>::get_price(DAI, DOT).unwrap();
+		let spot_price =
+			pallet_omnipool::provider::OmnipoolSpotPriceProvider::<hydradx_runtime::Runtime>::get_price(DAI, DOT)
+				.unwrap();
 
 		let default_route = Router::get_route(AssetPair::new(DAI, DOT));
 		let onchain_oracle_price = OraclePriceProvider::<AssetId, EmaOracle, hydradx_runtime::LRNA>::price(

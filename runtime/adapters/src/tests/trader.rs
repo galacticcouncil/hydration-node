@@ -17,6 +17,7 @@
 
 use crate::*;
 use codec::{Decode, Encode};
+use frame_support::traits::tokens::{DepositConsequence, WithdrawConsequence};
 use frame_support::{weights::IdentityFee, BoundedVec};
 use sp_runtime::{traits::One, DispatchResult, FixedU128};
 use sp_std::cell::RefCell;
@@ -25,7 +26,7 @@ use sp_std::collections::btree_set::BTreeSet;
 type AccountId = u32;
 type AssetId = u32;
 type Balance = u128;
-type Price = FixedU128;
+type Price = EmaPrice;
 
 const CORE_ASSET_ID: AssetId = 0;
 const TEST_ASSET_ID: AssetId = 123;
@@ -38,9 +39,9 @@ impl NativePriceOracle<AssetId, Price> for MockOracle {
 	fn price(currency: AssetId) -> Option<Price> {
 		match currency {
 			CORE_ASSET_ID => Some(Price::one()),
-			TEST_ASSET_ID => Some(Price::from_float(0.5)),
-			CHEAP_ASSET_ID => Some(Price::saturating_from_integer(4)),
-			OVERFLOW_ASSET_ID => Some(Price::saturating_from_integer(2_147_483_647)),
+			TEST_ASSET_ID => Some(Price::new(1, 2)),
+			CHEAP_ASSET_ID => Some(Price::new(4, 1)),
+			OVERFLOW_ASSET_ID => Some(Price::new(2_147_483_647, 1)),
 			_ => None,
 		}
 	}
@@ -157,6 +158,64 @@ impl ExpectDeposit {
 	}
 }
 
+impl frame_support::traits::fungibles::Mutate<AccountId> for ExpectDeposit {
+	fn mint_into(
+		asset: Self::AssetId,
+		who: &AccountId,
+		amount: Self::Balance,
+	) -> frame_support::dispatch::DispatchResult {
+		log::trace!("Depositing {} of {} to {}", amount, asset, who);
+		assert!(
+			EXPECTED_DEPOSITS.with(|e| e.borrow_mut().remove(&(*who, asset, amount))),
+			"Unexpected combination of receiver and fee {:?} deposited that was not expected.",
+			(*who, asset, amount)
+		);
+		Ok(())
+	}
+
+	fn burn_from(asset: Self::AssetId, who: &AccountId, amount: Self::Balance) -> Result<Self::Balance, DispatchError> {
+		unimplemented!()
+	}
+}
+
+impl frame_support::traits::fungibles::Inspect<AccountId> for ExpectDeposit {
+	type AssetId = AssetId;
+	type Balance = Balance;
+
+	fn total_issuance(asset: Self::AssetId) -> Self::Balance {
+		unimplemented!()
+	}
+
+	fn minimum_balance(asset: Self::AssetId) -> Self::Balance {
+		unimplemented!()
+	}
+
+	fn balance(asset: Self::AssetId, who: &AccountId) -> Self::Balance {
+		unimplemented!()
+	}
+
+	fn reducible_balance(asset: Self::AssetId, who: &AccountId, keep_alive: bool) -> Self::Balance {
+		unimplemented!()
+	}
+
+	fn can_deposit(asset: Self::AssetId, who: &AccountId, amount: Self::Balance, mint: bool) -> DepositConsequence {
+		unimplemented!()
+	}
+
+	fn can_withdraw(
+		asset: Self::AssetId,
+		who: &AccountId,
+		amount: Self::Balance,
+	) -> WithdrawConsequence<Self::Balance> {
+		unimplemented!()
+	}
+
+	fn asset_exists(asset: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+}
+
+/*
 impl DepositFee<AccountId, AssetId, Balance> for ExpectDeposit {
 	fn deposit_fee(who: &AccountId, asset: AssetId, amount: Balance) -> DispatchResult {
 		log::trace!("Depositing {} of {} to {}", amount, asset, who);
@@ -168,6 +227,8 @@ impl DepositFee<AccountId, AssetId, Balance> for ExpectDeposit {
 		Ok(())
 	}
 }
+
+ */
 
 #[test]
 fn can_buy_weight() {

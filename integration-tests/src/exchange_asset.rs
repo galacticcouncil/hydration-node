@@ -48,7 +48,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			AccountId::from(BOB),
 		));
 		use hydradx_traits::price::PriceProvider;
-		price = hydradx_adapters::price::OmnipoolSpotPriceProvider::<hydradx_runtime::Runtime>::get_price(CORE_ASSET_ID, ACA);
+		price = pallet_omnipool::provider::OmnipoolSpotPriceProvider::<hydradx_runtime::Runtime>::get_price(
+			CORE_ASSET_ID,
+			ACA,
+		);
 	});
 
 	Acala::execute_with(|| {

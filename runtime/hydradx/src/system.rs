@@ -37,9 +37,9 @@ use frame_support::{
 	},
 	PalletId, RuntimeDebug,
 };
-use hydradx_adapters::price::OmnipoolSpotPriceProvider;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use pallet_currencies::fungibles::FungibleCurrencies;
+use pallet_omnipool::provider::OmnipoolSpotPriceProvider;
 use scale_info::TypeInfo;
 
 pub struct CallFilter;

@@ -1,10 +1,10 @@
 use super::mock::*;
+use crate::impls::XYKSpotPrice;
 use crate::types::{AssetPair, Price};
-use crate::XYKSpotPrice;
 use crate::*;
 use frame_support::assert_ok;
 use frame_support::dispatch::RawOrigin;
-use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::price::PriceProvider;
 
 #[test]
 fn spot_price_provider_should_return_correct_price_when_pool_exists() {
@@ -25,7 +25,7 @@ fn spot_price_provider_should_return_correct_price_when_pool_exists() {
 				39_600_000_000_000
 			));
 
-			let price = XYKSpotPrice::<Test>::spot_price(asset_a, asset_b);
+			let price = XYKSpotPrice::<Test>::get_price(asset_a, asset_b);
 
 			assert_eq!(price, Some(Price::from_float(2.5))); // 99_000 / 39_600 = 2.5
 		});
@@ -37,7 +37,7 @@ fn spot_price_provider_should_return_none_when_pool_does_not_exist() {
 	let asset_b = DOT;
 
 	ExtBuilder::default().build().execute_with(|| {
-		let price = XYKSpotPrice::<Test>::spot_price(asset_a, asset_b);
+		let price = XYKSpotPrice::<Test>::get_price(asset_a, asset_b);
 
 		assert_eq!(price, None);
 	});
@@ -76,7 +76,7 @@ fn spot_price_provider_should_return_none_when_asset_reserve_is_zero() {
 				0u128
 			));
 
-			let price = XYKSpotPrice::<Test>::spot_price(asset_a, asset_b);
+			let price = XYKSpotPrice::<Test>::get_price(asset_a, asset_b);
 
 			assert_eq!(price, None);
 		});

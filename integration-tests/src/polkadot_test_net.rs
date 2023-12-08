@@ -23,9 +23,9 @@ use hydradx_runtime::RuntimeOrigin;
 use pallet_evm::AddressMapping;
 use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
+use primitives::constants::chain::OMNIPOOL_SOURCE;
 use sp_core::H160;
 use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
-use primitives::constants::chain::OMNIPOOL_SOURCE;
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
@@ -326,18 +326,11 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 
 	 */
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
-		currencies: vec![
-			LRNA,
-			DAI,
-			ACA,
-			BTC,
-			WETH,
-		],
+		currencies: vec![LRNA, DAI, ACA, BTC, WETH],
 		account_currencies: vec![],
 	}
-		.assimilate_storage(&mut t)
-		.unwrap();
-
+	.assimilate_storage(&mut t)
+	.unwrap();
 
 	//add duster
 	pallet_duster::GenesisConfig::<Runtime> {
@@ -352,7 +345,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 		&pallet_omnipool_liquidity_mining::GenesisConfig::default(),
 		&mut t,
 	)
-		.unwrap();
+	.unwrap();
 
 	/*
 	<pallet_ema_oracle::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(&pallet_ema_oracle::GenesisConfig {
