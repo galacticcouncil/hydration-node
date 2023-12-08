@@ -13,7 +13,7 @@ use hydradx_runtime::EmaOracle;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::Router;
 use hydradx_runtime::{Balances, Currencies, MultiTransactionPayment, RuntimeOrigin, Tokens};
-use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::OraclePeriod;
@@ -103,8 +103,8 @@ fn fee_currency_on_account_lifecycle() {
 
 	Hydra::execute_with(|| {
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
+			MultiTransactionPayment::account_currency(&AccountId::from(HITCHHIKER)),
+			0,
 		);
 
 		// ------------ set on create ------------
@@ -120,8 +120,8 @@ fn fee_currency_on_account_lifecycle() {
 			50_000_000_000_000
 		);
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			Some(1)
+			MultiTransactionPayment::account_currency(&AccountId::from(HITCHHIKER)),
+			1
 		);
 
 		// ------------ remove on delete ------------
@@ -133,8 +133,8 @@ fn fee_currency_on_account_lifecycle() {
 		));
 
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
+			MultiTransactionPayment::account_currency(&AccountId::from(HITCHHIKER)),
+			0,
 		);
 	});
 }
@@ -147,7 +147,6 @@ fn pepe_is_not_registered() {
 		assert_ok!(MultiTransactionPayment::add_currency(
 			RuntimeOrigin::root(),
 			PEPE,
-			Price::from(10)
 		));
 	});
 }
@@ -160,8 +159,8 @@ fn fee_currency_cannot_be_set_to_not_accepted_asset() {
 		// assemble
 		let amount = 50_000_000 * UNITS;
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
+			MultiTransactionPayment::account_currency(&AccountId::from(HITCHHIKER)),
+			0,
 		);
 
 		// act
@@ -175,8 +174,8 @@ fn fee_currency_cannot_be_set_to_not_accepted_asset() {
 		// assert
 		assert_eq!(Tokens::free_balance(PEPE, &AccountId::from(HITCHHIKER)), amount);
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
+			MultiTransactionPayment::account_currency(&AccountId::from(HITCHHIKER)),
+			0,
 		);
 	});
 }
@@ -201,8 +200,8 @@ fn fee_currency_should_not_change_when_account_holds_native_currency_already() {
 
 		assert_eq!(Balances::free_balance(&AccountId::from(HITCHHIKER)), UNITS);
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
+			MultiTransactionPayment::account_currency(&AccountId::from(HITCHHIKER)),
+			0,
 		);
 	});
 }
@@ -226,8 +225,8 @@ fn fee_currency_should_not_change_when_account_holds_other_token_already() {
 		));
 
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			Some(1)
+			MultiTransactionPayment::account_currency(&AccountId::from(HITCHHIKER)),
+			1
 		);
 	});
 }
@@ -257,8 +256,8 @@ fn fee_currency_should_reset_to_default_when_account_spends_tokens() {
 		));
 
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
+			MultiTransactionPayment::account_currency(&AccountId::from(HITCHHIKER)),
+			0,
 		);
 	});
 }
@@ -289,7 +288,7 @@ fn omnipool_spotprice_and_onchain_price_should_be_very_similar() {
 		set_relaychain_block_number(10);
 
 		//Act
-		let spot_price = Omnipool::spot_price(DAI, DOT).unwrap();
+		let spot_price = hydradx_adapters::price::OmnipoolSpotPriceProvider::<hydradx_runtime::Runtime>::get_price(DAI, DOT).unwrap();
 
 		let default_route = Router::get_route(AssetPair::new(DAI, DOT));
 		let onchain_oracle_price = OraclePriceProvider::<AssetId, EmaOracle, hydradx_runtime::LRNA>::price(

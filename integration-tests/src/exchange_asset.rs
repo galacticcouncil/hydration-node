@@ -47,8 +47,8 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			Permill::from_percent(100),
 			AccountId::from(BOB),
 		));
-		use hydradx_traits::pools::SpotPriceProvider;
-		price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, ACA);
+		use hydradx_traits::price::PriceProvider;
+		price = hydradx_adapters::price::OmnipoolSpotPriceProvider::<hydradx_runtime::Runtime>::get_price(CORE_ASSET_ID, ACA);
 	});
 
 	Acala::execute_with(|| {
@@ -322,7 +322,6 @@ fn add_currency_price(asset_id: u32, price: FixedU128) {
 	assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 		hydradx_runtime::RuntimeOrigin::root(),
 		asset_id,
-		price,
 	));
 
 	// make sure the price is propagated

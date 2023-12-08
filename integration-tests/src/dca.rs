@@ -1161,7 +1161,6 @@ mod stableswap {
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
 				asset_a,
-				FixedU128::from_rational(88, 100),
 			));
 
 			let alice_init_asset_a_balance = 5000 * UNITS;
@@ -1244,7 +1243,6 @@ mod stableswap {
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
 				asset_a,
-				FixedU128::from_rational(88, 100),
 			));
 
 			let alice_init_asset_a_balance = 5000 * UNITS;
@@ -1559,7 +1557,6 @@ mod stableswap {
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
 				stable_asset_1,
-				FixedU128::from_rational(50, 100),
 			));
 
 			//Init omnipool and add pool id as token
@@ -1959,7 +1956,6 @@ mod stableswap {
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
 				asset_a,
-				FixedU128::from_rational(88, 100),
 			));
 
 			let alice_init_asset_a_balance = 5000 * UNITS;
@@ -2026,7 +2022,6 @@ mod stableswap {
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
 				stable_asset_1,
-				FixedU128::from_rational(50, 100),
 			));
 
 			//For populating oracle
@@ -2646,7 +2641,6 @@ mod with_onchain_route {
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				hydradx_runtime::RuntimeOrigin::root(),
 				DOT,
-				FixedU128::from_rational(50, 100),
 			));
 
 			assert_ok!(Omnipool::add_token(
@@ -2742,7 +2736,6 @@ mod with_onchain_route {
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				hydradx_runtime::RuntimeOrigin::root(),
 				stable_asset_1,
-				FixedU128::from_rational(50, 100),
 			));
 
 			assert_ok!(Currencies::update_balance(
@@ -2889,7 +2882,6 @@ mod with_onchain_route {
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				hydradx_runtime::RuntimeOrigin::root(),
 				DOT,
-				FixedU128::from_rational(50, 100),
 			));
 
 			//Populate xyk

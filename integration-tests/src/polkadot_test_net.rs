@@ -310,6 +310,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	)
 	.unwrap();
 
+	/*
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
 		currencies: vec![
 			(LRNA, Price::from(1)),
@@ -322,6 +323,21 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
+
+	 */
+	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
+		currencies: vec![
+			LRNA,
+			DAI,
+			ACA,
+			BTC,
+			WETH,
+		],
+		account_currencies: vec![],
+	}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
 
 	//add duster
 	pallet_duster::GenesisConfig::<Runtime> {
