@@ -19,6 +19,7 @@
   },
   "relay_chain": "westend",
   "para_id": 2034,
+  "evm_since": 536551,
   "codeSubstitutes": {},
   "genesis": {
     "raw": {
