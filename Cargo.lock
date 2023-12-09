@@ -4111,6 +4111,7 @@ dependencies = [
  "fc-mapping-sync",
  "fc-rpc",
  "fc-rpc-core",
+ "fp-consensus",
  "fp-rpc",
  "fp-storage",
  "frame-benchmarking",

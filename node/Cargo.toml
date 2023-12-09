@@ -106,6 +106,7 @@ fc-rpc = { workspace = true }
 fc-rpc-core = { workspace = true }
 fp-rpc = { workspace = true }
 fp-storage = { workspace = true }
+fp-consensus = { workspace = true }
 
 [features]
 default = [
