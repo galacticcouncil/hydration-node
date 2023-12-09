@@ -66,7 +66,7 @@ use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_omnipool::{types::Position as OmniPosition, NFTCollectionIdOf};
 use primitive_types::U256;
 use primitives::{Balance, ItemId as DepositId};
-use sp_runtime::{ArithmeticError, Perquintill};
+use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
 use sp_std::vec;
 
 pub use pallet::*;
@@ -107,13 +107,13 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_omnipool::Config<PositionItemId = DepositId> {
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Currency for transfers.
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
 		/// The origin account that can create new liquidity mining program.
-		type CreateOrigin: EnsureOrigin<Self::Origin>;
+		type CreateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Pallet id.
 		type PalletId: Get<PalletId>;
@@ -174,6 +174,7 @@ pub mod pallet {
 			blocks_per_period: BlockNumberFor<T>,
 			max_reward_per_period: Balance,
 			min_deposit: Balance,
+			lrna_price_adjustment: FixedU128,
 		},
 
 		/// Global farm was terminated.
@@ -337,9 +338,11 @@ pub mod pallet {
 		/// liquidity mining program.
 		/// - `yield_per_period`: percentage return on `reward_currency` of all farms.
 		/// - `min_deposit`: minimum amount of LP shares to be deposited into the liquidity mining by each user.
+		/// - `lrna_price_adjustment`: price adjustment between `[LRNA]` and `reward_currency`.
 		///
 		/// Emits `GlobalFarmCreated` when successful.
 		///
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::create_global_farm())]
 		pub fn create_global_farm(
 			origin: OriginFor<T>,
@@ -350,11 +353,12 @@ pub mod pallet {
 			owner: T::AccountId,
 			yield_per_period: Perquintill,
 			min_deposit: Balance,
+			lrna_price_adjustment: FixedU128,
 		) -> DispatchResult {
 			<T as pallet::Config>::CreateOrigin::ensure_origin(origin)?;
 
 			//NOTE: Oracle is used as `price_adjustment` provider.
-			let (id, max_reward_per_period) = T::LiquidityMiningHandler::create_global_farm_without_price_adjustment(
+			let (id, max_reward_per_period) = T::LiquidityMiningHandler::create_global_farm(
 				total_rewards,
 				planned_yielding_periods,
 				blocks_per_period,
@@ -364,6 +368,7 @@ pub mod pallet {
 				owner.clone(),
 				yield_per_period,
 				min_deposit,
+				lrna_price_adjustment,
 			)?;
 
 			Self::deposit_event(Event::GlobalFarmCreated {
@@ -376,6 +381,7 @@ pub mod pallet {
 				blocks_per_period,
 				max_reward_per_period,
 				min_deposit,
+				lrna_price_adjustment,
 			});
 
 			Ok(())
@@ -394,6 +400,7 @@ pub mod pallet {
 		///
 		/// Emits `GlobalFarmTerminated` event when successful.
 		///
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::terminate_global_farm())]
 		pub fn terminate_global_farm(origin: OriginFor<T>, global_farm_id: GlobalFarmId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -429,6 +436,7 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmCreated` event when successful.
 		///
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::create_yield_farm())]
 		pub fn create_yield_farm(
 			origin: OriginFor<T>,
@@ -473,6 +481,7 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmUpdated` event when successful.
 		///
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_yield_farm())]
 		pub fn update_yield_farm(
 			origin: OriginFor<T>,
@@ -518,6 +527,7 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmStopped` event when successful.
 		///
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::stop_yield_farm())]
 		pub fn stop_yield_farm(
 			origin: OriginFor<T>,
@@ -558,6 +568,7 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmResumed` event when successful.
 		///
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::resume_yield_farm())]
 		pub fn resume_yield_farm(
 			origin: OriginFor<T>,
@@ -609,6 +620,7 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmTerminated` event when successful.
 		///
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::terminate_yield_farm())]
 		pub fn terminate_yield_farm(
 			origin: OriginFor<T>,
@@ -645,6 +657,7 @@ pub mod pallet {
 		///
 		/// Emits `SharesDeposited` event when successful.
 		///
+		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares().saturating_add(T::PriceOracle::get_price_weight()))]
 		pub fn deposit_shares(
 			origin: OriginFor<T>,
@@ -705,6 +718,7 @@ pub mod pallet {
 		///
 		/// Emits `SharesRedeposited` event when successful.
 		///
+		#[pallet::call_index(9)]
 		#[pallet::weight(<T as Config>::WeightInfo::redeposit_shares().saturating_add(T::PriceOracle::get_price_weight()))]
 		pub fn redeposit_shares(
 			origin: OriginFor<T>,
@@ -754,6 +768,7 @@ pub mod pallet {
 		///
 		/// Emits `RewardClaimed` event when successful.
 		///
+		#[pallet::call_index(10)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
 		pub fn claim_rewards(
 			origin: OriginFor<T>,
@@ -799,6 +814,7 @@ pub mod pallet {
 		/// * `DepositDestroyed` event when this was last withdraw from the deposit and deposit was
 		/// destroyed.
 		///
+		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares())]
 		pub fn withdraw_shares(
 			origin: OriginFor<T>,

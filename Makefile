@@ -1,7 +1,6 @@
 .PHONY: build
 build:
-	cargo build --release
-	ln -f $(CURDIR)/target/release/hydradx $(CURDIR)/target/release/testing-hydradx
+	cargo build --release --locked
 
 .PHONY: check
 check:
@@ -13,7 +12,11 @@ build-benchmarks:
 
 .PHONY: test
 test:
-	cargo test --release
+	cargo test --locked
+
+.PHONY: test-release
+test-release:
+	cargo test --release --locked
 
 .PHONY: test-benchmarks
 test-benchmarks:
@@ -27,10 +30,13 @@ coverage:
 clippy:
 	cargo clippy --release --all-targets --all-features -- -D warnings -A deprecated
 
-
 .PHONY: format
 format:
 	cargo fmt
+
+.PHONY: try-runtime
+try-runtime:
+	cargo run --release --features=try-runtime --bin hydradx try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks live --uri wss://rpc.hydradx.cloud:443
 
 .PHONY: build-docs
 build-docs:
@@ -49,3 +55,9 @@ checksum:
 	cp target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
 	sha256sum target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
 
+release: build checksum
+
+all: clippy build-benchmarks test-benchmarks test build checksum
+
+chopstics: release
+	npx @acala-network/chopsticks xcm --parachain=launch-configs/chopsticks/hydradx.yml --parachain=launch-configs/chopsticks/assethub.yml

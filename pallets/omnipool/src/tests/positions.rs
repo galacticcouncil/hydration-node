@@ -15,12 +15,12 @@ fn sacrifice_position_should_work_when_position_exists_with_correct_owner() {
 		.execute_with(|| {
 			// Arrange - create a position
 			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_id, 400 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), asset_id, 400 * ONE));
 
 			let lp1_asset_balance = Tokens::free_balance(asset_id, &LP1);
 
 			// Act
-			assert_ok!(Omnipool::sacrifice_position(Origin::signed(LP1), position_id));
+			assert_ok!(Omnipool::sacrifice_position(RuntimeOrigin::signed(LP1), position_id));
 
 			// Assert
 			// - shares becomes protocol owned shares
@@ -60,11 +60,11 @@ fn sacrifice_position_should_fail_when_caller_is_not_position_owner() {
 		.execute_with(|| {
 			// Arrange - create a position
 			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_id, 400 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), asset_id, 400 * ONE));
 
 			// Act
 			assert_noop!(
-				Omnipool::sacrifice_position(Origin::signed(LP2), position_id),
+				Omnipool::sacrifice_position(RuntimeOrigin::signed(LP2), position_id),
 				Error::<Test>::Forbidden
 			);
 		});
@@ -83,11 +83,11 @@ fn sacrifice_position_should_fail_when_position_does_not_exist() {
 		.execute_with(|| {
 			// Arrange - create a position
 			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_id, 400 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), asset_id, 400 * ONE));
 
 			// Act
 			assert_noop!(
-				Omnipool::sacrifice_position(Origin::signed(LP1), position_id + 1),
+				Omnipool::sacrifice_position(RuntimeOrigin::signed(LP1), position_id + 1),
 				Error::<Test>::PositionNotFound
 			);
 		});
@@ -107,10 +107,10 @@ fn sacrifice_position_should_emit_event_when_succesful() {
 			System::set_block_number(1);
 			// Arrange - create a position
 			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_id, 400 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), asset_id, 400 * ONE));
 
 			// Act
-			assert_ok!(Omnipool::sacrifice_position(Origin::signed(LP1), position_id));
+			assert_ok!(Omnipool::sacrifice_position(RuntimeOrigin::signed(LP1), position_id));
 
 			// Assert
 			frame_system::Pallet::<Test>::assert_last_event(

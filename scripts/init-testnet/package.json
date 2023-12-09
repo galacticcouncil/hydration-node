@@ -1,0 +1,15 @@
+{
+  "name": "init-testnet",
+  "version": "1.0.0",
+  "description": "Script to init empty hydradx parachain for testing purposes.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@polkadot/api": "^9.3.3",
+    "@polkadot/keyring": "^12.3.2"
+  }
+}

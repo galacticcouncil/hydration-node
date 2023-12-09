@@ -14,8 +14,8 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 			let liq_added = 400 * ONE;
 
 			// ACT
-
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			let position_id = last_position_id();
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
 			// ASSERT - asset state, pool state, position
 			assert_asset_state!(
@@ -30,7 +30,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 				}
 			);
 
-			let position = Positions::<Test>::get(1).unwrap();
+			let position = Positions::<Test>::get(position_id).unwrap();
 
 			let expected = Position::<Balance, AssetId> {
 				asset_id: 1_000,
@@ -45,7 +45,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 
 			assert_balance!(LP1, 1_000, 4600 * ONE);
 
-			let minted_position = POSITIONS.with(|v| v.borrow().get(&1).copied());
+			let minted_position = POSITIONS.with(|v| v.borrow().get(&position_id).copied());
 
 			assert_eq!(minted_position, Some(LP1));
 		});
@@ -61,7 +61,7 @@ fn add_stable_asset_liquidity_works() {
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
 			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), DAI, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), DAI, liq_added));
 
 			assert_asset_state!(
 				DAI,
@@ -69,7 +69,7 @@ fn add_stable_asset_liquidity_works() {
 					reserve: 1000 * ONE + liq_added,
 					hub_reserve: 700000000000000,
 					shares: 1400000000000000,
-					protocol_shares: 1000 * ONE,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -104,7 +104,7 @@ fn add_liquidity_for_non_pool_token_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 2000 * ONE,),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 2000 * ONE,),
 				Error::<Test>::AssetNotFound
 			);
 		});
@@ -119,7 +119,7 @@ fn add_liquidity_with_insufficient_balance_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP3), 1_000, 2000 * ONE,),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP3), 1_000, 2000 * ONE,),
 				Error::<Test>::InsufficientBalance
 			);
 		});
@@ -135,7 +135,7 @@ fn add_liquidity_exceeding_weight_cap_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 2000 * ONE,),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 2000 * ONE,),
 				Error::<Test>::AssetWeightCapExceeded
 			);
 		});
@@ -152,7 +152,7 @@ fn add_insufficient_liquidity_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP3), 1_000, ONE,),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP3), 1_000, ONE,),
 				Error::<Test>::InsufficientLiquidity
 			);
 		});
@@ -169,13 +169,13 @@ fn add_liquidity_should_fail_when_asset_state_does_not_include_add_liquidity() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				1000,
 				Tradability::SELL | Tradability::BUY | Tradability::REMOVE_LIQUIDITY
 			));
 
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 2 * ONE),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 2 * ONE),
 				Error::<Test>::NotAllowed
 			);
 		});
@@ -193,7 +193,7 @@ fn add_liquidity_should_fail_when_prices_differ_and_is_higher() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE),
 				Error::<Test>::PriceDifferenceTooHigh
 			);
 		});
@@ -211,7 +211,7 @@ fn add_liquidity_should_fail_when_prices_differ_and_is_lower() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE),
 				Error::<Test>::PriceDifferenceTooHigh
 			);
 		});

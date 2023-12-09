@@ -50,7 +50,8 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_omnipool.
 pub trait WeightInfo {
 	fn on_finalize(m: u32, n: u32) -> Weight;
-	fn on_finalize_single() -> Weight;
+	fn on_finalize_single_liquidity_limit_entry() -> Weight;
+	fn on_finalize_single_trade_limit_entry() -> Weight;
 	fn on_finalize_empty() -> Weight;
 	fn set_trade_volume_limit() -> Weight;
 	fn set_add_liquidity_limit() -> Weight;
@@ -65,7 +66,10 @@ impl WeightInfo for () {
 	fn on_finalize(_m: u32, _n: u32) -> Weight {
 		Weight::zero()
 	}
-	fn on_finalize_single() -> Weight {
+	fn on_finalize_single_liquidity_limit_entry() -> Weight {
+		Weight::zero()
+	}
+	fn on_finalize_single_trade_limit_entry() -> Weight {
 		Weight::zero()
 	}
 	fn on_finalize_empty() -> Weight {

@@ -14,15 +14,16 @@ impl<T: Config> SpotPriceProvider<T::AssetId> for Pallet<T> {
 	fn spot_price(asset_a: T::AssetId, asset_b: T::AssetId) -> Option<Self::Price> {
 		if asset_a == T::HubAssetId::get() {
 			let asset_b = Self::load_asset_state(asset_b).ok()?;
-			asset_b.price()
+			FixedU128::checked_from_rational(asset_b.hub_reserve, asset_b.reserve)
 		} else if asset_b == T::HubAssetId::get() {
 			let asset_a = Self::load_asset_state(asset_a).ok()?;
-			asset_a.price()
+			FixedU128::checked_from_rational(asset_a.reserve, asset_a.hub_reserve)
 		} else {
 			let asset_a = Self::load_asset_state(asset_a).ok()?;
 			let asset_b = Self::load_asset_state(asset_b).ok()?;
-			let price_a = FixedU128::checked_from_rational(asset_a.hub_reserve, asset_a.reserve)?;
-			let price_b = FixedU128::checked_from_rational(asset_b.reserve, asset_b.hub_reserve)?;
+			// (A / LRNA) * (LRNA / B) = A / B
+			let price_a = FixedU128::checked_from_rational(asset_a.reserve, asset_a.hub_reserve)?;
+			let price_b = FixedU128::checked_from_rational(asset_b.hub_reserve, asset_b.reserve)?;
 			price_a.checked_mul(&price_b)
 		}
 	}

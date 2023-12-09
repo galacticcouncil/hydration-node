@@ -2,19 +2,19 @@
 
 use crate::polkadot_test_net::*;
 
-use frame_support::traits::tokens::fungibles::Mutate;
 use frame_support::{
 	assert_ok,
-	traits::{OnFinalize, OnInitialize},
+	sp_runtime::{FixedU128, Permill},
+	traits::{tokens::fungibles::Mutate, OnFinalize, OnInitialize},
 };
-use hydradx_runtime::{EmaOracle, Origin};
+use hydradx_runtime::{EmaOracle, RuntimeOrigin};
 use hydradx_traits::{
 	AggregatedPriceOracle,
 	OraclePeriod::{self, *},
 };
 use pallet_ema_oracle::OracleError;
 use polkadot_primitives::v2::BlockNumber;
-use sp_runtime::{FixedU128, Permill};
+use primitives::constants::chain::OMNIPOOL_SOURCE;
 use xcm_emulator::TestExt;
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
@@ -30,8 +30,6 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 		hydradx_runtime::System::set_block_number(b + 1);
 	}
 }
-
-use common_runtime::{adapters::OMNIPOOL_SOURCE, AssetId, CORE_ASSET_ID};
 
 const HDX: AssetId = CORE_ASSET_ID;
 
@@ -49,26 +47,12 @@ fn omnipool_trades_are_ingested_into_oracle() {
 		// arrange
 		hydradx_run_to_block(2);
 
-		let native_price = FixedU128::from_inner(1201500000000000);
-		let stable_price = FixedU128::from_inner(45_000_000_000);
-
-		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
-			hydradx_runtime::Origin::root(),
-			522_222_000_000_000_000_000_000,
-		));
-
-		assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-			hydradx_runtime::Origin::root(),
-			stable_price,
-			native_price,
-			Permill::from_percent(100),
-			Permill::from_percent(10)
-		));
+		init_omnipool();
 
 		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			DOT,
 			token_price,
 			Permill::from_percent(100),
@@ -76,7 +60,7 @@ fn omnipool_trades_are_ingested_into_oracle() {
 		));
 
 		assert_ok!(hydradx_runtime::Omnipool::sell(
-			Origin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			asset_a,
 			asset_b,
 			5 * UNITS,
@@ -121,26 +105,12 @@ fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
 		// arrange
 		hydradx_run_to_block(2);
 
-		let native_price = FixedU128::from_inner(1201500000000000);
-		let stable_price = FixedU128::from_inner(45_000_000_000);
-
-		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
-			hydradx_runtime::Origin::root(),
-			522_222_000_000_000_000_000_000,
-		));
-
-		assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-			hydradx_runtime::Origin::root(),
-			stable_price,
-			native_price,
-			Permill::from_percent(100),
-			Permill::from_percent(10)
-		));
+		init_omnipool();
 
 		assert_ok!(hydradx_runtime::Tokens::mint_into(LRNA, &ALICE.into(), 5 * UNITS,));
 
 		assert_ok!(hydradx_runtime::Omnipool::buy(
-			Origin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			HDX,
 			LRNA,
 			5 * UNITS,

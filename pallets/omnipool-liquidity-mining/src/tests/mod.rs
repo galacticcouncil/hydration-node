@@ -25,7 +25,7 @@ macro_rules! assert_last_event {
 	}};
 }
 
-pub fn has_event(event: mock::Event) -> bool {
+pub fn has_event(event: mock::RuntimeEvent) -> bool {
 	System::events().iter().any(|record| record.event == event)
 }
 

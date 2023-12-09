@@ -1,4 +1,5 @@
-use crate::{AccountId, Amount, AssetId, Balance, Currencies, NativeAssetId, Runtime, NATIVE_EXISTENTIAL_DEPOSIT};
+use crate::{AccountId, Amount, AssetId, Balance, Currencies, NativeAssetId, Runtime};
+use primitives::constants::currency::NATIVE_EXISTENTIAL_DEPOSIT;
 
 use sp_std::prelude::*;
 

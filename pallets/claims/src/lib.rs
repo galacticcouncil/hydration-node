@@ -20,14 +20,13 @@
 
 use codec::{Decode, Encode};
 use frame_support::{
-	dispatch::{DispatchError, DispatchResult},
+	dispatch::{DispatchClass, DispatchError, DispatchResult, Pays},
 	ensure,
 	sp_runtime::{
 		traits::{DispatchInfoOf, SignedExtension},
 		transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction},
 	},
 	traits::{Currency, Get, Imbalance, IsSubType},
-	weights::{DispatchClass, Pays},
 };
 use frame_system::ensure_signed;
 use primitives::Balance;
@@ -59,7 +58,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 
 	#[pallet::pallet]
-	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
@@ -67,7 +65,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		type Prefix: Get<&'static [u8]>;
 
@@ -125,6 +123,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Claim xHDX by providing signed message with Ethereum address.
+		#[pallet::call_index(0)]
 		#[pallet::weight((<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No))]
 		pub fn claim(origin: OriginFor<T>, ethereum_signature: EcdsaSignature) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
@@ -218,11 +217,11 @@ pub fn error_to_invalid<T: Config>(error: Error<T>) -> InvalidTransaction {
 
 impl<T: Config + Send + Sync> SignedExtension for ValidateClaim<T>
 where
-	<T as frame_system::Config>::Call: IsSubType<Call<T>>,
+	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>>,
 {
 	const IDENTIFIER: &'static str = "ValidateClaim";
 	type AccountId = T::AccountId;
-	type Call = <T as frame_system::Config>::Call;
+	type Call = <T as frame_system::Config>::RuntimeCall;
 	type AdditionalSigned = ();
 	type Pre = ();
 

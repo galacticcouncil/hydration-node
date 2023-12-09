@@ -1,7 +1,7 @@
 use crate::types::{Position, SimpleImbalance};
 use crate::*;
 use frame_support::assert_ok;
-use sp_runtime::{FixedPointNumber, FixedU128};
+use sp_runtime::FixedU128;
 
 mod add_liquidity;
 mod add_token;
@@ -10,13 +10,13 @@ mod invariants;
 mod remove_liquidity;
 mod sell;
 
+mod barrier;
 mod imbalance;
-mod init_pool;
 pub(crate) mod mock;
 mod positions;
 mod refund;
+mod remove_token;
 mod tradability;
-mod tvl;
 mod types;
 mod verification;
 

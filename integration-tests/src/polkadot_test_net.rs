@@ -2,34 +2,78 @@
 use frame_support::{
 	assert_ok,
 	dispatch::{Dispatchable, GetCallMetadata},
-	sp_runtime::traits::{AccountIdConversion, Block as BlockT},
+	sp_runtime::{
+		traits::{AccountIdConversion, Block as BlockT},
+		FixedU128, Permill,
+	},
 	traits::GenesisBuild,
 	weights::Weight,
 };
-pub use hydradx_runtime::{AccountId, NativeExistentialDeposit, Treasury, VestingPalletId};
+pub use hydradx_runtime::{
+	evm::ExtendedAddressMapping, AccountId, Currencies, NativeExistentialDeposit, Treasury, VestingPalletId,
+};
 use pallet_transaction_multi_payment::Price;
-use primitives::{AssetId, Balance};
+pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};
 
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
-//use cumulus_primitives_core::relay_chain::AccountId;
+use hex_literal::hex;
+use hydradx_runtime::evm::WETH_ASSET_LOCATION;
+use hydradx_runtime::RuntimeOrigin;
+use pallet_evm::AddressMapping;
 use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
+use sp_core::H160;
 use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
 pub const CHARLIE: [u8; 32] = [6u8; 32];
 pub const DAVE: [u8; 32] = [7u8; 32];
+pub const UNKNOWN: [u8; 32] = [8u8; 32];
+
+pub fn evm_address() -> H160 {
+	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"].into()
+}
+pub fn evm_account() -> AccountId {
+	ExtendedAddressMapping::into_account_id(evm_address())
+}
+
+pub fn evm_address2() -> H160 {
+	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D81"].into()
+}
+pub fn evm_account2() -> AccountId {
+	ExtendedAddressMapping::into_account_id(evm_address2())
+}
+pub fn evm_signed_origin(address: H160) -> RuntimeOrigin {
+	// account has to be truncated to spoof it as an origin
+	let mut account_truncated: [u8; 32] = [0; 32];
+	account_truncated[..address.clone().as_bytes().len()].copy_from_slice(address.as_bytes());
+	RuntimeOrigin::signed(AccountId::from(account_truncated))
+}
+pub fn to_ether(b: Balance) -> Balance {
+	b * 10_u128.pow(18)
+}
 
 pub const UNITS: Balance = 1_000_000_000_000;
 
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
+pub const MOONBEAM_PARA_ID: u32 = 2_004;
+pub const INTERLAY_PARA_ID: u32 = 2_032;
 
-pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS;
-pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
+pub const ALICE_INITIAL_DAI_BALANCE: Balance = 2_000 * UNITS;
+pub const ALICE_INITIAL_LRNA_BALANCE: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_DOT_BALANCE: Balance = 2_000 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
+pub const BOB_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
+pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
+pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
+
+pub fn parachain_reserve_account() -> AccountId {
+	polkadot_parachain::primitives::Sibling::from(ACALA_PARA_ID).into_account_truncating()
+}
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -37,6 +81,11 @@ pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 3;
 pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
+pub const ACA: AssetId = 6;
+pub const WETH: AssetId = 20;
+pub const PEPE: AssetId = 420;
+
+pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
 decl_test_relay_chain! {
 	pub struct PolkadotRelay {
@@ -49,7 +98,7 @@ decl_test_relay_chain! {
 decl_test_parachain! {
 	pub struct Hydra{
 		Runtime = hydradx_runtime::Runtime,
-		Origin = hydradx_runtime::Origin,
+		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
 		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
 		DmpMessageHandler = hydradx_runtime::DmpQueue,
 		new_ext = hydra_ext(),
@@ -59,10 +108,30 @@ decl_test_parachain! {
 decl_test_parachain! {
 	pub struct Acala{
 		Runtime = hydradx_runtime::Runtime,
-		Origin = hydradx_runtime::Origin,
+		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
 		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
 		DmpMessageHandler = hydradx_runtime::DmpQueue,
-		new_ext = acala_ext(),
+		new_ext = para_ext(ACALA_PARA_ID),
+	}
+}
+
+decl_test_parachain! {
+	pub struct Moonbeam{
+		Runtime = hydradx_runtime::Runtime,
+		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
+		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
+		DmpMessageHandler = hydradx_runtime::DmpQueue,
+		new_ext = para_ext(MOONBEAM_PARA_ID),
+	}
+}
+
+decl_test_parachain! {
+	pub struct Interlay {
+		Runtime = hydradx_runtime::Runtime,
+		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
+		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
+		DmpMessageHandler = hydradx_runtime::DmpQueue,
+		new_ext = para_ext(INTERLAY_PARA_ID),
 	}
 }
 
@@ -71,6 +140,8 @@ decl_test_network! {
 		relay_chain = PolkadotRelay,
 		parachains = vec![
 			(2000, Acala),
+			(2004, Moonbeam),
+			(2032, Interlay),
 			(2034, Hydra),
 		],
 	}
@@ -138,7 +209,7 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 
 	<pallet_xcm::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&pallet_xcm::GenesisConfig {
-			safe_xcm_version: Some(2),
+			safe_xcm_version: Some(3),
 		},
 		&mut t,
 	)
@@ -151,7 +222,7 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 
 pub fn hydra_ext() -> sp_io::TestExternalities {
 	use frame_support::traits::OnInitialize;
-	use hydradx_runtime::{MultiTransactionPayment, Runtime, System};
+	use hydradx_runtime::{MultiTransactionPayment, Runtime, System, Timestamp};
 
 	let stable_amount = 50_000 * UNITS * 1_000_000;
 	let native_amount = 936_329_588_000_000_000;
@@ -159,6 +230,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	let eth_amount = 63_750_000_000_000_000_000u128;
 	let btc_amount = 1_000_000_000u128;
 	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+	let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 
 	let existential_deposit = NativeExistentialDeposit::get();
 
@@ -174,6 +246,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(DAVE), 1_000 * UNITS),
 			(omnipool_account.clone(), native_amount),
 			(vesting_account(), 10_000 * UNITS),
+			(staking_account, UNITS),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -186,6 +259,11 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(b"DOT".to_vec(), 1_000u128, Some(DOT)),
 			(b"ETH".to_vec(), 1_000u128, Some(ETH)),
 			(b"BTC".to_vec(), 1_000u128, Some(BTC)),
+			(b"ACA".to_vec(), 1_000u128, Some(ACA)),
+			(b"WETH".to_vec(), 1_000u128, Some(WETH)),
+			(b"PEPE".to_vec(), 1_000u128, Some(PEPE)),
+			// workaround for next_asset_id() to return correct values
+			(b"DUMMY".to_vec(), 1_000u128, None),
 		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,
@@ -202,14 +280,18 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 	orml_tokens::GenesisConfig::<Runtime> {
 		balances: vec![
-			(AccountId::from(ALICE), LRNA, 200 * UNITS),
-			(AccountId::from(ALICE), DAI, 200 * UNITS),
-			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
-			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
-			(AccountId::from(CHARLIE), LRNA, 1_000 * UNITS),
-			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
+			(AccountId::from(ALICE), LRNA, ALICE_INITIAL_LRNA_BALANCE),
+			(AccountId::from(ALICE), DAI, ALICE_INITIAL_DAI_BALANCE),
+			(AccountId::from(ALICE), DOT, ALICE_INITIAL_DOT_BALANCE),
+			(AccountId::from(BOB), LRNA, BOB_INITIAL_LRNA_BALANCE),
+			(AccountId::from(BOB), DAI, BOB_INITIAL_DAI_BALANCE),
+			(AccountId::from(BOB), BTC, 1_000_000),
+			(AccountId::from(CHARLIE), DAI, 80_000_000_000 * UNITS),
+			(AccountId::from(BOB), PEPE, 1_000 * UNITS * 1_000_000),
+			(AccountId::from(CHARLIE), LRNA, CHARLIE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
-			(AccountId::from(DAVE), DAI, 1_000 * UNITS * 1_000_000),
+			(AccountId::from(DAVE), DAI, 1_000_000_000 * UNITS),
+			(evm_account(), WETH, to_ether(1_000)),
 			(omnipool_account.clone(), DAI, stable_amount),
 			(omnipool_account.clone(), ETH, eth_amount),
 			(omnipool_account.clone(), BTC, btc_amount),
@@ -221,14 +303,20 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 
 	<pallet_xcm::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&pallet_xcm::GenesisConfig {
-			safe_xcm_version: Some(2),
+			safe_xcm_version: Some(3),
 		},
 		&mut t,
 	)
 	.unwrap();
 
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
-		currencies: vec![(1, Price::from(1)), (DAI, Price::from(1))],
+		currencies: vec![
+			(LRNA, Price::from(1)),
+			(DAI, Price::from(1)),
+			(ACA, Price::from(1)),
+			(BTC, Price::from_inner(134_000_000)),
+			(WETH, Price::from_inner(3_666_754_716_981_130_000)),
+		],
 		account_currencies: vec![],
 	}
 	.assimilate_storage(&mut t)
@@ -252,32 +340,15 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| {
 		System::set_block_number(1);
+		Timestamp::set_timestamp(NOW);
 		// Make sure the prices are up-to-date.
 		MultiTransactionPayment::on_initialize(1);
+		hydradx_runtime::AssetRegistry::set_location(RuntimeOrigin::root(), WETH, WETH_ASSET_LOCATION).unwrap();
 	});
 	ext
 }
 
-#[allow(dead_code)]
-pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
-	let blocks =
-		scraper::load_blocks_snapshot::<hydradx_runtime::Block>(&std::path::PathBuf::from("../scraper/SNAPSHOT"))
-			.unwrap();
-
-	for block in blocks.iter() {
-		for tx in block.extrinsics() {
-			let call = &tx.function;
-			let call_p = call.get_call_metadata().pallet_name;
-
-			if pallet_whitelist.contains(&call_p) {
-				let acc = &tx.signature.as_ref().unwrap().0;
-				assert_ok!(call.clone().dispatch(hydradx_runtime::Origin::signed(acc.clone())));
-			}
-		}
-	}
-}
-
-pub fn acala_ext() -> sp_io::TestExternalities {
+pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 	use hydradx_runtime::{Runtime, System};
 
 	let mut t = frame_system::GenesisConfig::default()
@@ -285,14 +356,14 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 		.unwrap();
 
 	pallet_balances::GenesisConfig::<Runtime> {
-		balances: vec![(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN)],
+		balances: vec![(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE)],
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
 
 	<parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&parachain_info::GenesisConfig {
-			parachain_id: ACALA_PARA_ID.into(),
+			parachain_id: para_id.into(),
 		},
 		&mut t,
 	)
@@ -300,7 +371,7 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 
 	<pallet_xcm::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&pallet_xcm::GenesisConfig {
-			safe_xcm_version: Some(2),
+			safe_xcm_version: Some(3),
 		},
 		&mut t,
 	)
@@ -315,7 +386,7 @@ pub fn vesting_account() -> AccountId {
 	VestingPalletId::get().into_account_truncating()
 }
 
-fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::Event> {
+pub fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::RuntimeEvent> {
 	frame_system::Pallet::<hydradx_runtime::Runtime>::events()
 		.into_iter()
 		.rev()
@@ -325,13 +396,13 @@ fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::Event> {
 		.collect()
 }
 
-pub fn expect_hydra_events(e: Vec<hydradx_runtime::Event>) {
-	assert_eq!(last_hydra_events(e.len()), e);
+pub fn expect_hydra_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
+	pretty_assertions::assert_eq!(last_hydra_events(e.len()), e);
 }
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
 	use frame_support::traits::OnInitialize;
-	use hydradx_runtime::{Origin, ParachainSystem};
+	use hydradx_runtime::ParachainSystem;
 
 	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
 	// how we set the block number with `cumulus-test-relay-sproof-builder` package
@@ -342,7 +413,7 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 	let (relay_storage_root, proof) = RelayStateSproofBuilder::default().into_state_root_and_proof();
 
 	assert_ok!(ParachainSystem::set_validation_data(
-		Origin::none(),
+		RuntimeOrigin::none(),
 		cumulus_primitives_parachain_inherent::ParachainInherentData {
 			validation_data: cumulus_primitives_core::PersistedValidationData {
 				parent_head: Default::default(),
@@ -356,7 +427,6 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 		}
 	));
 }
-
 pub fn polkadot_run_to_block(to: BlockNumber) {
 	use frame_support::traits::{OnFinalize, OnInitialize};
 	while hydradx_runtime::System::block_number() < to {
@@ -365,28 +435,30 @@ pub fn polkadot_run_to_block(to: BlockNumber) {
 		hydradx_runtime::System::on_finalize(b);
 		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
 		hydradx_runtime::EmaOracle::on_finalize(b);
+		hydradx_runtime::DCA::on_finalize(b);
 		hydradx_runtime::CircuitBreaker::on_finalize(b);
 
 		hydradx_runtime::System::on_initialize(b + 1);
 		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
 		hydradx_runtime::EmaOracle::on_initialize(b + 1);
+		hydradx_runtime::DCA::on_initialize(b + 1);
 		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
 
 		hydradx_runtime::System::set_block_number(b + 1);
 	}
 }
 
-pub fn hydra_live_ext() -> sp_io::TestExternalities {
+pub fn hydra_live_ext(
+	path_to_snapshot: &str,
+) -> frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block> {
 	let ext = tokio::runtime::Builder::new_current_thread()
 		.enable_all()
 		.build()
 		.unwrap()
 		.block_on(async {
-			use remote_externalities::*;
+			use frame_remote_externalities::*;
 
-			let path_str = String::from("omnipool-snapshot/SNAPSHOT");
-
-			let snapshot_config = SnapshotConfig::from(path_str);
+			let snapshot_config = SnapshotConfig::from(String::from(path_to_snapshot));
 			let offline_config = OfflineConfig {
 				state_snapshot: snapshot_config,
 			};
@@ -397,4 +469,74 @@ pub fn hydra_live_ext() -> sp_io::TestExternalities {
 			builder.build().await.unwrap()
 		});
 	ext
+}
+
+#[allow(dead_code)]
+pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
+	let blocks =
+		scraper::load_blocks_snapshot::<hydradx_runtime::Block>(&std::path::PathBuf::from("../scraper/SNAPSHOT"))
+			.unwrap();
+
+	for block in blocks.iter() {
+		for tx in block.extrinsics() {
+			let call = &tx.0.function;
+			let call_p = call.get_call_metadata().pallet_name;
+
+			if pallet_whitelist.contains(&call_p) {
+				let acc = &tx.0.signature.as_ref().unwrap().0;
+				assert_ok!(call
+					.clone()
+					.dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
+			}
+		}
+	}
+}
+
+pub fn init_omnipool() {
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+
+	let native_position_id = hydradx_runtime::Omnipool::next_position_id();
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		HDX,
+		native_price,
+		Permill::from_percent(10),
+		AccountId::from(ALICE),
+	));
+
+	let stable_position_id = hydradx_runtime::Omnipool::next_position_id();
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
+		stable_price,
+		Permill::from_percent(100),
+		AccountId::from(ALICE),
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::sacrifice_position(
+		hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+		native_position_id,
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::sacrifice_position(
+		hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+		stable_position_id,
+	));
+}
+
+#[macro_export]
+macro_rules! assert_balance {
+	( $who:expr, $asset:expr, $amount:expr) => {{
+		assert_eq!(Currencies::free_balance($asset, &$who), $amount);
+	}};
+}
+
+#[macro_export]
+macro_rules! assert_reserved_balance {
+	( $who:expr, $asset:expr, $amount:expr) => {{
+		assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
+	}};
 }

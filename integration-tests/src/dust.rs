@@ -19,21 +19,21 @@ fn balance_should_be_dusted_when_native_balance_is_below_ed() {
 
 		// set Treasury balance to ED so it's not dusted
 		assert_ok!(Balances::set_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			Treasury::account_id(),
 			hdx_ed,
 			0,
 		));
 
 		assert_ok!(Balances::set_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			hdx_ed,
 			0,
 		));
 
 		assert_ok!(Balances::transfer(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			BOB.into(),
 			transfer_amount,
 		));
@@ -80,7 +80,7 @@ fn balance_should_be_dusted_when_token_balance_is_below_ed() {
 		let transfer_amount = dai_ed.checked_sub(1).unwrap();
 
 		assert_ok!(Tokens::set_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			DAI,
 			dai_ed,
@@ -88,7 +88,7 @@ fn balance_should_be_dusted_when_token_balance_is_below_ed() {
 		));
 
 		assert_ok!(Tokens::transfer(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			BOB.into(),
 			DAI,
 			transfer_amount,

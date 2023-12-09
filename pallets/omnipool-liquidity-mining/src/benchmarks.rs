@@ -25,11 +25,11 @@ use pallet_liquidity_mining::Instance1;
 use primitives::AssetId;
 use sp_runtime::{traits::One, FixedU128, Permill};
 
-const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
 const ONE: Balance = 1_000_000_000_000;
 const BTC_ONE: Balance = 100_000_000;
 const HDX: AssetId = 0;
 const LRNA: AssetId = 1;
+const DAI: AssetId = 2;
 const BSX: AssetId = 1_000_001;
 const ETH: AssetId = 1_000_002;
 const BTC: AssetId = 1_000_003;
@@ -76,6 +76,7 @@ where
 		owner,
 		Perquintill::from_percent(20),
 		1_000,
+		FixedU128::one(),
 	)?;
 
 	seed_lm_pot::<T>()
@@ -94,23 +95,29 @@ where
 	T: pallet_ema_oracle::Config,
 	T::AssetId: From<u32>,
 {
-	let stable_amount: Balance = 1_000_000_000_000_000_u128;
-	let native_amount: Balance = 1_000_000_000_000_000_u128;
+	let stable_amount: Balance = 1_000_000_000_000_000u128;
+	let native_amount: Balance = 1_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));
 	let native_price: FixedU128 = FixedU128::from(1);
+
 	let acc = OmnipoolPallet::<T>::protocol_account();
 
-	OmnipoolPallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(DAI.into(), &acc, stable_amount as i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &acc, native_amount as i128)?;
 
-	<T as pallet_omnipool::Config>::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
-	<T as pallet_omnipool::Config>::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
-
-	OmnipoolPallet::<T>::initialize_pool(
+	OmnipoolPallet::<T>::add_token(
 		RawOrigin::Root.into(),
-		stable_price,
+		HDX.into(),
 		native_price,
 		Permill::from_percent(100),
+		acc.clone(),
+	)?;
+	OmnipoolPallet::<T>::add_token(
+		RawOrigin::Root.into(),
+		DAI.into(),
+		stable_price,
 		Permill::from_percent(100),
+		acc.clone(),
 	)?;
 
 	// Register new asset in asset registry
@@ -237,7 +244,7 @@ benchmarks! {
 		let min_deposit = 1_000;
 		let price_adjustment = FixedU128::from(10_u128);
 
-	}: _(RawOrigin::Root,  G_FARM_TOTAL_REWARDS, planned_yielding_periods, blocks_per_period, REWARD_CURRENCY.into(), owner, yield_per_period, min_deposit)
+	}: _(RawOrigin::Root,  G_FARM_TOTAL_REWARDS, planned_yielding_periods, blocks_per_period, REWARD_CURRENCY.into(), owner, yield_per_period, min_deposit, FixedU128::one())
 
 	terminate_global_farm {
 		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());

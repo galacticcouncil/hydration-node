@@ -21,10 +21,14 @@ fn scenario_06() {
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP3),
+				RuntimeOrigin::signed(LP3),
 				100,
 				200,
 				50000000000000,
@@ -32,7 +36,7 @@ fn scenario_06() {
 			));
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP2),
+				RuntimeOrigin::signed(LP2),
 				100,
 				200,
 				50000000000000,
@@ -40,7 +44,7 @@ fn scenario_06() {
 			));
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP2),
+				RuntimeOrigin::signed(LP2),
 				100,
 				200,
 				50000000000000,
@@ -67,7 +71,7 @@ fn scenario_06() {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
-					protocol_shares: 1000000000000000,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -79,7 +83,7 @@ fn scenario_06() {
 					reserve: 10000000000000000,
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
-					protocol_shares: 10000000000000000,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}

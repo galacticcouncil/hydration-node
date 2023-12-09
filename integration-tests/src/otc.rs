@@ -31,7 +31,7 @@ fn place_order_should_work() {
 	Hydra::execute_with(|| {
 		// Act
 		assert_ok!(hydradx_runtime::OTC::place_order(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			DAI,
 			HDX,
 			20 * UNITS,
@@ -55,7 +55,7 @@ fn partial_fill_order_should_work() {
 	Hydra::execute_with(|| {
 		// Arrange
 		assert_ok!(hydradx_runtime::OTC::place_order(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			DAI,
 			HDX,
 			20 * UNITS,
@@ -65,7 +65,7 @@ fn partial_fill_order_should_work() {
 
 		// Act
 		assert_ok!(hydradx_runtime::OTC::partial_fill_order(
-			hydradx_runtime::Origin::signed(BOB.into()),
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 			0,
 			15 * UNITS,
 		));
@@ -86,7 +86,7 @@ fn fill_order_should_work() {
 	Hydra::execute_with(|| {
 		// Arrange
 		assert_ok!(hydradx_runtime::OTC::place_order(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			DAI,
 			HDX,
 			20 * UNITS,
@@ -96,7 +96,7 @@ fn fill_order_should_work() {
 
 		// Act
 		assert_ok!(hydradx_runtime::OTC::fill_order(
-			hydradx_runtime::Origin::signed(BOB.into()),
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 			0,
 		));
 
@@ -116,7 +116,7 @@ fn cancel_order_should_work() {
 	Hydra::execute_with(|| {
 		// Arrange
 		assert_ok!(hydradx_runtime::OTC::place_order(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			DAI,
 			HDX,
 			20 * UNITS,
@@ -126,7 +126,7 @@ fn cancel_order_should_work() {
 
 		// Act
 		assert_ok!(hydradx_runtime::OTC::cancel_order(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0
 		));
 

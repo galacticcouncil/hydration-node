@@ -31,9 +31,12 @@ use hydradx_runtime::{
 	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
 	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
 	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SystemConfig,
-	TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
+	TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
 };
-use primitives::{constants::currency::NATIVE_EXISTENTIAL_DEPOSIT, AssetId, BlockNumber, Price};
+use primitives::{
+	constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
+	AssetId, BlockNumber, Price,
+};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -55,6 +58,7 @@ pub struct Extensions {
 	pub relay_chain: String,
 	/// The id of the Parachain.
 	pub para_id: u32,
+	pub evm_since: BlockNumber,
 }
 
 impl Extensions {
@@ -180,6 +184,11 @@ pub fn parachain_genesis(
 		duster,
 		omnipool_warehouse_lm: Default::default(),
 		omnipool_liquidity_mining: Default::default(),
+		evm_chain_id: hydradx_runtime::EVMChainIdConfig {
+			chain_id: 2_222_222u32.into(),
+		},
+		ethereum: Default::default(),
+		evm: Default::default(),
 	}
 }
 

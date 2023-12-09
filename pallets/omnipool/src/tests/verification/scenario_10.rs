@@ -24,10 +24,14 @@ fn fee_test_buy_sell() {
 		.with_token(200, FixedU128::from_float(1.1), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP3),
+				RuntimeOrigin::signed(LP3),
 				100,
 				200,
 				110000000000000,
@@ -35,24 +39,33 @@ fn fee_test_buy_sell() {
 			));
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP2),
+				RuntimeOrigin::signed(LP2),
 				100,
 				200,
 				50000000000000,
 				10000000000000
 			));
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP3), 200, 200000000000000));
+			let position_id = last_position_id();
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP3),
+				200,
+				200000000000000
+			));
 
 			assert_ok!(Omnipool::buy(
-				Origin::signed(LP3),
+				RuntimeOrigin::signed(LP3),
 				200,
 				100,
 				300000000000000,
 				100000000000000000
 			));
 
-			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP3), 3, 200000000000000));
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP3),
+				position_id,
+				200000000000000
+			));
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);
@@ -73,7 +86,7 @@ fn fee_test_buy_sell() {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
-					protocol_shares: 1000000000000000,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -85,7 +98,7 @@ fn fee_test_buy_sell() {
 					reserve: 10000000000000000,
 					hub_reserve: 10135523267202732,
 					shares: 10000000000000000,
-					protocol_shares: 10000000000000000,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}

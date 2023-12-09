@@ -38,9 +38,9 @@ frame_support::construct_runtime!(
 	 NodeBlock = Block,
 	 UncheckedExtrinsic = UncheckedExtrinsic,
 	 {
-		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		 ClaimsPallet: claims::{Pallet, Call, Storage, Event<T>},
-		 Balances: pallet_balances::{Pallet, Event<T>},
+		 System: frame_system,
+		 ClaimsPallet: claims,
+		 Balances: pallet_balances,
 	 }
 );
 
@@ -52,8 +52,8 @@ impl frame_system::Config for Test {
 	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -61,7 +61,7 @@ impl frame_system::Config for Test {
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
 	type Version = ();
@@ -78,7 +78,7 @@ impl frame_system::Config for Test {
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type Balance = Balance;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
 	type ExistentialDeposit = ();
 	type AccountStore = frame_system::Pallet<Test>;
@@ -92,7 +92,7 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type Prefix = Prefix;
 	type WeightInfo = ();
@@ -115,7 +115,7 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 		pallet_balances::GenesisConfig::<Test> {
-			balances: vec![(42, 0), (43, 0), (44, primitives::Balance::MAX - 1)],
+			balances: vec![(42, 0), (43, 0), (44, Balance::MAX - 1)],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

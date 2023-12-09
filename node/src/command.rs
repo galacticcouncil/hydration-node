@@ -16,8 +16,8 @@
 // limitations under the License.
 
 use crate::cli::{Cli, RelayChainCli, Subcommand};
-use crate::service::{new_partial, IdentifyVariant};
-use crate::{chain_spec, service, testing_chain_spec};
+use crate::service::new_partial;
+use crate::{chain_spec, service};
 
 use codec::Encode;
 use cumulus_client_cli::generate_genesis_block;
@@ -35,32 +35,15 @@ use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Block as BlockT;
 use std::{io::Write, net::SocketAddr};
 
-fn load_spec(id: &str, is_testing: bool) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-	if is_testing {
-		Ok(match id {
-			"local" => Box::new(testing_chain_spec::local_parachain_config()?),
-			"devnet" => Box::new(testing_chain_spec::devnet_parachain_config()?),
-			path => Box::new(testing_chain_spec::ChainSpec::from_json_file(
-				std::path::PathBuf::from(path),
-			)?),
-		})
-	} else {
-		Ok(match id {
-			"" => Box::new(chain_spec::hydradx::parachain_config()?),
-			"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
-			"staging" => Box::new(chain_spec::staging::parachain_config()?),
-			"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
-			"moonbase" => Box::new(chain_spec::moonbase::parachain_config()?),
-			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
-		})
-	}
-}
-
-fn get_exec_name() -> Option<String> {
-	std::env::current_exe()
-		.ok()
-		.and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
-		.and_then(|s| s.into_string().ok())
+fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+	Ok(match id {
+		"" => Box::new(chain_spec::hydradx::parachain_config()?),
+		"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
+		"staging" => Box::new(chain_spec::staging::parachain_config()?),
+		"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
+		"moonbase" => Box::new(chain_spec::moonbase::parachain_config()?),
+		path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+	})
 }
 
 impl SubstrateCli for Cli {
@@ -91,38 +74,18 @@ impl SubstrateCli for Cli {
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let id = if id.is_empty() { "hydradx" } else { id };
 
-		let is_testing_runtime = if get_exec_name().unwrap_or_default().starts_with("testing") {
-			true
-		} else {
-			self.run.runtime.is_testing_runtime()
-		};
-
-		if is_testing_runtime {
-			Ok(match id {
-				"local" => Box::new(testing_chain_spec::local_parachain_config()?),
-				"devnet" => Box::new(testing_chain_spec::devnet_parachain_config()?),
-				path => Box::new(testing_chain_spec::ChainSpec::from_json_file(
-					std::path::PathBuf::from(path),
-				)?),
-			})
-		} else {
-			Ok(match id {
-				"hydradx" => Box::new(chain_spec::hydradx::parachain_config()?),
-				"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
-				"staging" => Box::new(chain_spec::staging::parachain_config()?),
-				"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
-				"moonbase" => Box::new(chain_spec::moonbase::parachain_config()?),
-				path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
-			})
-		}
+		Ok(match id {
+			"hydradx" => Box::new(chain_spec::hydradx::parachain_config()?),
+			"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
+			"staging" => Box::new(chain_spec::staging::parachain_config()?),
+			"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
+			"moonbase" => Box::new(chain_spec::moonbase::parachain_config()?),
+			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+		})
 	}
 
-	fn native_runtime_version(spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		if spec.is_testing_runtime() {
-			&testing_hydradx_runtime::VERSION
-		} else {
-			&hydradx_runtime::VERSION
-		}
+	fn native_runtime_version(_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+		&hydradx_runtime::VERSION
 	}
 }
 
@@ -182,29 +145,29 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _backend, import_queue, task_manager) = new_partial(&config)?;
-				Ok((cmd.run(client, import_queue), task_manager))
+				let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
+				Ok((cmd.run(partials.client, partials.import_queue), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _backend, _import_queue, task_manager) = new_partial(&config)?;
-				Ok((cmd.run(client, config.database), task_manager))
+				let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
+				Ok((cmd.run(partials.client, config.database), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _backend, _import_queue, task_manager) = new_partial(&config)?;
-				Ok((cmd.run(client, config.chain_spec), task_manager))
+				let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
+				Ok((cmd.run(partials.client, config.chain_spec), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _backend, import_queue, task_manager) = new_partial(&config)?;
-				Ok((cmd.run(client, import_queue), task_manager))
+				let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
+				Ok((cmd.run(partials.client, partials.import_queue), partials.task_manager))
 			})
 		}
 		Some(Subcommand::PurgeChain(cmd)) => {
@@ -227,8 +190,8 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, backend, _import_queue, task_manager) = new_partial(&config)?;
-				Ok((cmd.run(client, backend, None), task_manager))
+				let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
+				Ok((cmd.run(partials.client, partials.backend, None), partials.task_manager))
 			})
 		}
 		Some(Subcommand::Benchmark(cmd)) => {
@@ -245,18 +208,18 @@ pub fn run() -> sc_cli::Result<()> {
 					}
 				}
 				BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
-					let partials = crate::service::new_partial_impl::<
-						hydradx_runtime::RuntimeApi,
-						service::HydraDXExecutorDispatch,
-					>(&config)?;
+					let partials = crate::service::new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
 					cmd.run(partials.client)
 				}),
+				#[cfg(not(feature = "runtime-benchmarks"))]
+				BenchmarkCmd::Storage(_) => Err("Storage benchmarking can be enabled with `--features runtime-benchmarks`.".into()),
+				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
-					let (client, backend, _, _) = new_partial(&config)?;
-					let db = backend.expose_db();
-					let storage = backend.expose_storage();
+					let partials = new_partial::<hydradx_runtime::RuntimeApi>(&config)?;
+					let db = partials.backend.expose_db();
+					let storage = partials.backend.expose_storage();
 
-					cmd.run(config, client, db, storage)
+					cmd.run(config, partials.client, db, storage)
 				}),
 				BenchmarkCmd::Overhead(_) | BenchmarkCmd::Extrinsic(_) => {
 					Err("Unsupported benchmarking command".into())
@@ -271,13 +234,7 @@ pub fn run() -> sc_cli::Result<()> {
 			builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
 			let _ = builder.init();
 
-			let is_testing_runtime = if get_exec_name().unwrap_or_default().starts_with("testing") {
-				true
-			} else {
-				params.runtime.is_testing_runtime()
-			};
-
-			let spec = load_spec(&params.chain.clone().unwrap_or_default(), is_testing_runtime)?;
+			let spec = load_spec(&params.shared_params.chain.clone().unwrap_or_default())?;
 			let state_version = Cli::native_runtime_version(&spec).state_version();
 
 			let block: Block = generate_genesis_block(&*spec, state_version)?;
@@ -301,16 +258,8 @@ pub fn run() -> sc_cli::Result<()> {
 			builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
 			let _ = builder.init();
 
-			let is_testing_runtime = if get_exec_name().unwrap_or_default().starts_with("testing") {
-				true
-			} else {
-				params.runtime.is_testing_runtime()
-			};
-
-			let raw_wasm_blob = extract_genesis_wasm(&load_spec(
-				&params.chain.clone().unwrap_or_default(),
-				is_testing_runtime,
-			)?)?;
+			let raw_wasm_blob =
+				extract_genesis_wasm(&load_spec(&params.shared_params.chain.clone().unwrap_or_default())?)?;
 			let output_buf = if params.raw {
 				raw_wasm_blob
 			} else {
@@ -327,7 +276,9 @@ pub fn run() -> sc_cli::Result<()> {
 		}
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
+			use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
 			let runner = cli.create_runner(cmd)?;
+
 			runner.async_run(|config| {
 				// we don't need any of the components of new_partial, just a runtime, or a task
 				// manager to do `async_run`.
@@ -335,7 +286,13 @@ pub fn run() -> sc_cli::Result<()> {
 				let task_manager = sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
 					.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 
-				Ok((cmd.run::<Block, service::HydraDXExecutorDispatch>(config), task_manager))
+				Ok((
+					cmd.run::<Block, ExtendedHostFunctions<
+						sp_io::SubstrateHostFunctions,
+						<service::HydraDXExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
+					>>(),
+					task_manager,
+				))
 			})
 		}
 		#[cfg(not(feature = "try-runtime"))]
@@ -386,9 +343,9 @@ pub fn run() -> sc_cli::Result<()> {
 					if config.role.is_authority() { "yes" } else { "no" }
 				);
 
-				crate::service::start_node(config, polkadot_config, collator_options, id)
+				crate::service::start_node(config, polkadot_config, cli.ethereum_config, collator_options, id)
 					.await
-					.map(|r| r.task_manager)
+					.map(|r| r.1)
 					.map_err(Into::into)
 			})
 		}

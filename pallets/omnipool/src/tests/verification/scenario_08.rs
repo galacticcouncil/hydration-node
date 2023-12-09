@@ -24,12 +24,16 @@ fn complex_scenario_works() {
 		.execute_with(|| {
 			assert_hub_asset!();
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 
 			assert_hub_asset!();
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP3),
+				RuntimeOrigin::signed(LP3),
 				100,
 				200,
 				110000000000000,
@@ -37,17 +41,22 @@ fn complex_scenario_works() {
 			));
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP2),
+				RuntimeOrigin::signed(LP2),
 				100,
 				200,
 				50000000000000,
 				10000000000000
 			));
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP3), 200, 200000000000000));
+			let position_id = last_position_id();
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP3),
+				200,
+				200000000000000
+			));
 
 			assert_ok!(Omnipool::buy(
-				Origin::signed(LP3),
+				RuntimeOrigin::signed(LP3),
 				200,
 				100,
 				300000000000000,
@@ -56,12 +65,16 @@ fn complex_scenario_works() {
 
 			assert_hub_asset!();
 
-			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP3), 3, 200000000000000));
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP3),
+				position_id,
+				200000000000000
+			));
 
 			assert_hub_asset!();
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP3),
+				RuntimeOrigin::signed(LP3),
 				1,
 				200,
 				20000000000000,
@@ -87,7 +100,7 @@ fn complex_scenario_works() {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
-					protocol_shares: 1000000000000000,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -99,7 +112,7 @@ fn complex_scenario_works() {
 					reserve: 10000000000000000,
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
-					protocol_shares: 10000000000000000,
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -138,6 +151,6 @@ fn complex_scenario_works() {
 				}
 			);
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP3), 100, 200, 20000000000000, 1,));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), 100, 200, 20000000000000, 1,));
 		});
 }

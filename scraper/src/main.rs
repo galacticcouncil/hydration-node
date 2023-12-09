@@ -1,8 +1,10 @@
 use clap::Parser;
-use hydradx_runtime::Block;
-use remote_externalities::*;
-use sp_runtime::traits::Block as BlockT;
+use frame_remote_externalities::*;
+use hydradx_runtime::{Block, Hash, Header};
+use sp_rpc::{list::ListOrValue, number::NumberOrHex};
+use sp_runtime::{generic::SignedBlock, traits::Block as BlockT};
 use std::path::PathBuf;
+use substrate_rpc_client::{ws_client, ChainApi};
 
 #[derive(Parser, Debug)]
 struct StorageCmd {
@@ -104,11 +106,11 @@ fn main() {
 		Command::SaveBlocks(cmd) => {
 			let path = cmd.shared.get_path();
 
-			let rpc_service = tokio::runtime::Builder::new_current_thread()
+			let rpc = tokio::runtime::Builder::new_current_thread()
 				.enable_all()
 				.build()
 				.unwrap()
-				.block_on(async { scraper::RpcService::new(cmd.shared.uri).await.unwrap() });
+				.block_on(async { ws_client(&cmd.shared.uri).await.unwrap() });
 
 			let mut block_arr = Vec::new();
 
@@ -118,27 +120,33 @@ fn main() {
 					.build()
 					.unwrap()
 					.block_on(async {
-						rpc_service
-							.get_block_hash::<hydradx_runtime::Block>(block_num)
-							.await
-							.unwrap()
+						ChainApi::<(), Hash, Header, ()>::block_hash(
+							&rpc,
+							Some(ListOrValue::Value(NumberOrHex::Number(block_num.try_into().unwrap()))),
+						)
+						.await
+						.unwrap()
 					});
+
+				let block_hash = match block_hash {
+					ListOrValue::Value(t) => t.expect("value passed in; value comes out; qed"),
+					_ => unreachable!(),
+				};
 
 				let block = tokio::runtime::Builder::new_current_thread()
 					.enable_all()
 					.build()
 					.unwrap()
 					.block_on(async {
-						rpc_service
-							.get_block::<hydradx_runtime::Block>(block_hash)
+						ChainApi::<(), Hash, Header, SignedBlock<Block>>::block(&rpc, Some(block_hash))
 							.await
 							.unwrap()
 					});
 
-				block_arr.push(block);
+				block_arr.push(block.unwrap().block);
 			}
 
-			scraper::save_blocks_snapshot::<hydradx_runtime::Block>(&block_arr, &path).unwrap();
+			scraper::save_blocks_snapshot::<Block>(&block_arr, &path).unwrap();
 
 			path
 		}
