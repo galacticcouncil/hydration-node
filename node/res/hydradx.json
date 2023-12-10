@@ -24,7 +24,7 @@
   },
   "relay_chain": "polkadot",
   "para_id": 2034,
-  "evm_since": 4010000,
+  "evm_since": 4006384,
   "consensusEngine": null,
   "codeSubstitutes": {},
   "genesis": {
