@@ -1209,7 +1209,7 @@ mod stableswap {
 		Hydra::execute_with(|| {
 			//Arrange
 			let (pool_id, asset_a, asset_b) = init_stableswap_with_three_assets_having_different_decimals().unwrap();
-			create_xyk_pool_with_amounts(asset_b, 10000000000 * UNITS, HDX, 10000000000 * UNITS);
+			create_xyk(asset_b, 10000000000 * UNITS, HDX, 10000000000 * UNITS);
 
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				RuntimeOrigin::root(),
@@ -1820,7 +1820,7 @@ mod xyk {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			create_xyk_pool_with_amounts(HDX, 1000000000 * UNITS, DAI, 20000000000 * UNITS);
+			create_xyk(HDX, 1000000000 * UNITS, DAI, 20000000000 * UNITS);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::set_balance(
@@ -1860,7 +1860,7 @@ mod xyk {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
-			crate_xyk_pool(HDX, 1000 * UNITS, DAI, 2000 * UNITS);
+			create_xyk(HDX, 10000000000 * UNITS, DAI, 10000000000 * UNITS);
 
 			//For populating oracle
 			assert_ok!(Currencies::update_balance(
@@ -1954,7 +1954,7 @@ mod all_pools {
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
 			//Create xyk and populate oracle
-			crate_xyk_pool(stable_asset_1, 10000 * UNITS, DAI, 20000 * UNITS);
+			create_xyk(stable_asset_1, 10000000000 * UNITS, DAI, 20000000000 * UNITS);
 			assert_ok!(Currencies::update_balance(
 				RawOrigin::Root.into(),
 				BOB.into(),
@@ -2026,7 +2026,7 @@ mod all_pools {
 			set_relaychain_block_number(11);
 
 			//Assert
-			let amount_to_receive = 380211622144976;
+			let amount_to_receive = 394669360784264;
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_to_receive);
@@ -2516,7 +2516,7 @@ mod with_onchain_route {
 
 			do_trade_to_populate_oracle(DAI, HDX, 10000000 * UNITS);
 
-			create_xyk_pool_with_amounts(DAI, 10000000000 * UNITS, DOT, 10000000000 * UNITS);
+			create_xyk(DAI, 10000000000 * UNITS, DOT, 10000000000 * UNITS);
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				hydradx_runtime::RuntimeOrigin::root(),
 				DOT,
@@ -2626,32 +2626,7 @@ mod with_onchain_route {
 	}
 }
 
-fn crate_xyk_pool(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_b: Balance) {
-	//Arrange
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		DAVE.into(),
-		asset_a,
-		amount_a as i128,
-	));
-
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		DAVE.into(),
-		asset_b,
-		amount_b as i128,
-	));
-
-	assert_ok!(XYK::create_pool(
-		RuntimeOrigin::signed(DAVE.into()),
-		asset_a,
-		amount_a,
-		asset_b,
-		amount_b,
-	));
-}
-
-fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
+fn create_xyk(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
 	assert_ok!(Currencies::update_balance(
 		hydradx_runtime::RuntimeOrigin::root(),
 		DAVE.into(),
