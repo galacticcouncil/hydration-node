@@ -113,6 +113,33 @@ fn trading_in_omnipool_should_increase_total_shares_correctly() {
 }
 
 #[test]
+fn claiming_rewards_should_convert_all_assets_to_reward_asset() {
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		init_referrals_program();
+		let code = b"BALLS69".to_vec();
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE.into()),
+			code.clone()
+		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			1_000_000_000_000,
+			0
+		));
+		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
+		assert!(pot_balance > 0);
+
+		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
+		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
+		assert_eq!(pot_balance, 0);
+	});
+}
+
+#[test]
 fn trading_hdx_in_omnipool_should_work_when_fee_is_below_existential_deposit() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -131,7 +158,7 @@ fn trading_hdx_in_omnipool_should_work_when_fee_is_below_existential_deposit() {
 			0
 		));
 		let referrer_shares = Referrals::account_shares::<AccountId>(BOB.into());
-		assert_eq!(referrer_shares, 25_677_196);
+		assert_eq!(referrer_shares, 9_870_477_594);
 	});
 }
 
@@ -165,6 +192,15 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 		asset_2,
 		amount,
 		Balance::MIN
+	));
+}
+
+fn seed_pot_account() {
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		Referrals::pot_account_id(),
+		HDX,
+		(100 * UNITS) as i128,
 	));
 }
 
@@ -211,4 +247,6 @@ fn init_referrals_program() {
 		Permill::from_percent(10),
 		Permill::from_percent(5),
 	));
+
+	seed_pot_account();
 }

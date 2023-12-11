@@ -158,6 +158,10 @@ pub mod pallet {
 		/// Volume needed to next tier. If None returned, it is the last tier.
 		type TierVolume: GetByKey<Level, Option<Balance>>;
 
+		/// Seed amount that was sent to the reward pot.
+		#[pallet::constant]
+		type SeedNativeAmount: Get<u128>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 
@@ -404,6 +408,7 @@ pub mod pallet {
 			}
 
 			let reward_reserve = T::Currency::balance(T::RewardAsset::get(), &Self::pot_account_id());
+			let reward_reserve = reward_reserve.saturating_sub(T::SeedNativeAmount::get());
 			let share_issuance = TotalShares::<T>::get();
 
 			let rewards = || -> Option<Balance> {

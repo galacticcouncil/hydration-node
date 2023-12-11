@@ -995,6 +995,7 @@ parameter_types! {
 	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 1_000_000_000_000, TreasuryAccount::get());
 	pub const MaxCodeLength: u32 = 7;
 	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::Short;
+	pub const ReferralsSeedAmount: Balance = 100_000_000_000_000;
 }
 
 impl pallet_referrals::Config for Runtime {
@@ -1010,6 +1011,7 @@ impl pallet_referrals::Config for Runtime {
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = MaxCodeLength;
 	type TierVolume = ReferralsLevelTiers;
+	type SeedNativeAmount = ReferralsSeedAmount;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
