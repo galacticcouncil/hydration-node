@@ -134,6 +134,28 @@ fn claim_rewards_update_total_accumulated_for_referrer_account() {
 }
 
 #[test]
+fn claim_rewards_should_exclude_seed_amount() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
+		.with_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_seed_amount(100_000_000_000_000)
+		.build()
+		.execute_with(|| {
+			// ARRANGE
+			assert_ok!(Referrals::register_code(
+				RuntimeOrigin::signed(ALICE),
+				b"BALLS69".to_vec(),
+			));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			// Act
+			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
+			// Assert
+			let (_, total) = Referrer::<Test>::get(ALICE).unwrap();
+			assert_eq!(total, 15_000_000_000_000);
+		});
+}
+
+#[test]
 fn claim_rewards_should_increase_referrer_level_when_limit_is_reached() {
 	let mut volumes = HashMap::new();
 	volumes.insert(Level::Novice, Some(10_000_000_000_000));

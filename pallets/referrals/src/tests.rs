@@ -32,6 +32,7 @@ use std::collections::HashMap;
 
 use frame_support::{
 	construct_runtime, parameter_types,
+	sp_runtime::traits::Zero,
 	sp_runtime::{
 		testing::Header,
 		traits::{BlakeTwo256, IdentityLookup},
@@ -74,6 +75,7 @@ pub(crate) const INITIAL_ALICE_BALANCE: Balance = 1_000 * ONE;
 thread_local! {
 	pub static CONVERSION_RATE: RefCell<HashMap<(AssetId,AssetId), EmaPrice>> = RefCell::new(HashMap::default());
 	pub static TIER_VOLUME: RefCell<HashMap<Level, Option<Balance>>> = RefCell::new(HashMap::default());
+	pub static SEED_AMOUNT: RefCell<Balance> = RefCell::new(Balance::zero());
 }
 
 construct_runtime!(
@@ -114,6 +116,14 @@ impl GetByKey<Level, Option<Balance>> for Volume {
 	}
 }
 
+pub struct SeedAmount;
+
+impl Get<Balance> for SeedAmount {
+	fn get() -> Balance {
+		SEED_AMOUNT.with(|v| v.borrow().clone())
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
@@ -126,6 +136,7 @@ impl Config for Test {
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = CodeLength;
 	type TierVolume = Volume;
+	type SeedNativeAmount = SeedAmount;
 	type WeightInfo = ();
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -197,6 +208,11 @@ impl Default for ExtBuilder {
 		CONVERSION_RATE.with(|v| {
 			v.borrow_mut().clear();
 		});
+
+		SEED_AMOUNT.with(|v| {
+			let mut c = v.borrow_mut();
+			*c = 0u128;
+		});
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
 			shares: vec![],
@@ -230,6 +246,13 @@ impl ExtBuilder {
 			let mut m = v.borrow_mut();
 			m.insert(pair, price);
 			m.insert((pair.1, pair.0), price.inverted());
+		});
+		self
+	}
+	pub fn with_seed_amount(self, amount: Balance) -> Self {
+		SEED_AMOUNT.with(|v| {
+			let mut m = v.borrow_mut();
+			*m = amount;
 		});
 		self
 	}
@@ -275,6 +298,11 @@ impl ExtBuilder {
 				Assets::<Test>::insert(asset, ());
 			}
 		});
+		r.execute_with(|| {
+			let seed_amount = SEED_AMOUNT.with(|v| v.borrow().clone());
+			Tokens::update_balance(HDX, &Referrals::pot_account_id(), seed_amount as i128);
+		});
+
 		r.execute_with(|| {
 			System::set_block_number(1);
 		});
