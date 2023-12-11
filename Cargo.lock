@@ -4090,7 +4090,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "11.0.0"
+version = "11.1.0"
 dependencies = [
  "async-trait",
  "clap 4.3.9",
@@ -4111,6 +4111,7 @@ dependencies = [
  "fc-mapping-sync",
  "fc-rpc",
  "fc-rpc-core",
+ "fp-consensus",
  "fp-rpc",
  "fp-storage",
  "frame-benchmarking",

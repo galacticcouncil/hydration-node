@@ -54,7 +54,7 @@ use std::{
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::rpc;
+use crate::{chain_spec, rpc};
 
 // native executor instance.
 pub struct HydraDXExecutorDispatch;
@@ -99,12 +99,15 @@ where
 		+ EthereumRuntimeRPCApi<Block>,
 {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
+	let evm_since = chain_spec::Extensions::try_get(&config.chain_spec)
+		.map(|e| e.evm_since)
+		.unwrap_or(1);
 	let block_import = evm::BlockImport::new(
 		ParachainBlockImport::new(client.clone(), backend.clone()),
 		client.clone(),
 		frontier_backend,
+		evm_since,
 	);
-
 	cumulus_client_consensus_aura::import_queue::<sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _>(
 		cumulus_client_consensus_aura::ImportQueueParams {
 			block_import,
