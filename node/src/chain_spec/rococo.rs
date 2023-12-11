@@ -136,6 +136,7 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 		Extensions {
 			relay_chain: "rococo".into(),
 			para_id: PARA_ID,
+			evm_since: 1,
 		},
 	))
 }
