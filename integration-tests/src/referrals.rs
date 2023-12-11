@@ -63,7 +63,7 @@ fn trading_in_omnipool_should_increase_referrer_shares() {
 			0
 		));
 		let referrer_shares = Referrals::account_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 51_354_392);
+		assert_eq!(referrer_shares, 51_399_742);
 	});
 }
 #[test]
@@ -85,7 +85,7 @@ fn trading_in_omnipool_should_increase_trader_shares() {
 			0
 		));
 		let referrer_shares = Referrals::account_shares::<AccountId>(BOB.into());
-		assert_eq!(referrer_shares, 25_677_196);
+		assert_eq!(referrer_shares, 25_699_871);
 	});
 }
 
@@ -108,12 +108,12 @@ fn trading_in_omnipool_should_increase_total_shares_correctly() {
 			0
 		));
 		let referrer_shares = Referrals::total_shares();
-		assert_eq!(referrer_shares, 25_677_196 + 51_354_392);
+		assert_eq!(referrer_shares, 25_699_871 + 51_399_742);
 	});
 }
 
 #[test]
-fn trading_hdx_in_omnipool_should_increase_trader_shares() {
+fn trading_hdx_in_omnipool_should_work_when_fee_is_below_existential_deposit() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 		init_referrals_program();
