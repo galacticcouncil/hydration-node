@@ -237,22 +237,6 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 	});
 }
 
-//TODO: remove duplication of these functions
-fn account_to_default_evm_address(account_id: &impl Encode) -> EvmAddress {
-	let payload = (b"evm:", account_id);
-	EvmAddress::from_slice(&payload.using_encoded(blake2_256)[0..20])
-}
-
-pub fn alice_evm_addr() -> H160 {
-	//H160::from(hex_literal::hex!("1000000000000000000000000000000000000001"))
-	account_to_default_evm_address(&ALICE)
-}
-
-pub fn bob_evm_addr() -> H160 {
-	//H160::from(hex_literal::hex!("1000000000000000000000000000000000000001"))
-	account_to_default_evm_address(&BOB)
-}
-
 #[test]
 fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 	TestNet::reset();
