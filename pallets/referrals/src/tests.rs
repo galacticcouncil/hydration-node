@@ -45,10 +45,12 @@ use crate::tests::mock_amm::{Hooks, TradeResult};
 use crate::traits::Convert;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::EnsureRoot;
+use hydra_dx_math::ema::EmaPrice;
 use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
-use sp_runtime::traits::One;
-use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
+use sp_runtime::DispatchError;
+use sp_runtime::Rounding;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -70,7 +72,7 @@ pub const TREASURY: AccountId = 400;
 pub(crate) const INITIAL_ALICE_BALANCE: Balance = 1_000 * ONE;
 
 thread_local! {
-	pub static CONVERSION_RATE: RefCell<HashMap<(AssetId,AssetId), FixedU128>> = RefCell::new(HashMap::default());
+	pub static CONVERSION_RATE: RefCell<HashMap<(AssetId,AssetId), EmaPrice>> = RefCell::new(HashMap::default());
 	pub static TIER_VOLUME: RefCell<HashMap<Level, Option<Balance>>> = RefCell::new(HashMap::default());
 }
 
@@ -118,7 +120,7 @@ impl Config for Test {
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type Convert = AssetConvert;
-	type SpotPriceProvider = SpotPrice;
+	type PriceProvider = ConversionPrice;
 	type RewardAsset = RewardAsset;
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
@@ -223,11 +225,11 @@ impl ExtBuilder {
 		self.tiers.extend(shares);
 		self
 	}
-	pub fn with_conversion_price(self, pair: (AssetId, AssetId), price: FixedU128) -> Self {
+	pub fn with_conversion_price(self, pair: (AssetId, AssetId), price: EmaPrice) -> Self {
 		CONVERSION_RATE.with(|v| {
 			let mut m = v.borrow_mut();
 			m.insert(pair, price);
-			m.insert((pair.1, pair.0), FixedU128::one().div(price));
+			m.insert((pair.1, pair.0), price.inverted());
 		});
 		self
 	}
@@ -299,7 +301,7 @@ impl Convert<AccountId, AssetId, Balance> for AssetConvert {
 		let price = CONVERSION_RATE
 			.with(|v| v.borrow().get(&(asset_to, asset_from)).copied())
 			.ok_or(Error::<Test>::InvalidCode)?;
-		let result = price.saturating_mul_int(amount);
+		let result = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down).unwrap();
 		Tokens::update_balance(asset_from, &who, -(amount as i128)).unwrap();
 		Tokens::update_balance(asset_to, &who, result as i128).unwrap();
 		Ok(result)
@@ -327,7 +329,7 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 		let price = CONVERSION_RATE
 			.with(|v| v.borrow().get(&(asset_out, asset_in)).copied())
 			.expect("to have a price");
-		let amount_out = price.saturating_mul_int(amount);
+		let amount_out = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down).unwrap();
 		let fee_amount = TRADE_PERCENTAGE.mul_floor(amount_out);
 		Ok(TradeResult {
 			amount_in: amount,
@@ -348,18 +350,14 @@ impl Hooks<AccountId, AssetId> for AmmTrader {
 	}
 }
 
-pub struct SpotPrice;
+pub struct ConversionPrice;
 
-impl SpotPriceProvider<AssetId> for SpotPrice {
-	type Price = FixedU128;
+impl PriceProvider<AssetId> for ConversionPrice {
+	type Price = EmaPrice;
 
-	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
 		if asset_a == asset_b {
-			return Some(FixedU128::one());
+			return Some(EmaPrice::one());
 		}
 		CONVERSION_RATE.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
 	}
@@ -374,11 +372,11 @@ pub struct Benchmarking;
 #[cfg(feature = "runtime-benchmarks")]
 impl BenchmarkHelper<AssetId, Balance> for Benchmarking {
 	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
-		let price = FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000);
+		let price = EmaPrice::new(1_000_000_000_000, 1_000_000_000_000);
 		CONVERSION_RATE.with(|v| {
 			let mut m = v.borrow_mut();
 			m.insert((1234, HDX), price);
-			m.insert((HDX, 1234), FixedU128::one().div(price));
+			m.insert((HDX, 1234), price.inverted());
 		});
 
 		(1234, 1_000_000_000_000)

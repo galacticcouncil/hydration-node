@@ -16,10 +16,7 @@ fn convert_should_fail_when_amount_is_zero() {
 fn convert_should_convert_all_asset_amount_when_successful() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), DAI, 1_000_000_000_000_000_000)])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_assets(vec![DAI])
 		.build()
 		.execute_with(|| {
@@ -37,10 +34,7 @@ fn convert_should_convert_all_asset_amount_when_successful() {
 fn convert_should_remove_asset_from_the_asset_list() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), DAI, 1_000_000_000_000_000_000)])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_assets(vec![DAI])
 		.build()
 		.execute_with(|| {
@@ -56,10 +50,7 @@ fn convert_should_remove_asset_from_the_asset_list() {
 fn convert_should_emit_event_when_successful() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), DAI, 1_000_000_000_000_000_000)])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_assets(vec![DAI])
 		.build()
 		.execute_with(|| {

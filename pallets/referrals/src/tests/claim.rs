@@ -16,14 +16,8 @@ fn claim_rewards_should_convert_all_assets() {
 			(Pallet::<Test>::pot_account_id(), DOT, 4_000_000_000_000),
 		])
 		.with_assets(vec![DAI, DOT])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
-		.with_conversion_price(
-			(HDX, DOT),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
+		.with_conversion_price((HDX, DOT), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
@@ -45,14 +39,8 @@ fn claim_rewards_should_remove_assets_from_the_list() {
 			(Pallet::<Test>::pot_account_id(), DAI, 3_000_000_000_000_000_000),
 			(Pallet::<Test>::pot_account_id(), DOT, 4_000_000_000_000),
 		])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
-		.with_conversion_price(
-			(HDX, DOT),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
+		.with_conversion_price((HDX, DOT), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));

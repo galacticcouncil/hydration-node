@@ -16,11 +16,8 @@ fn complete_referral_flow_should_work_as_expected() {
 			(BOB, HDX, bob_initial_hdx),
 			(CHARLIE, DOT, 2_000_000_000_000),
 		])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
-		.with_conversion_price((HDX, DOT), FixedU128::from_rational(1_000_000_000_000, 500_000_000_000))
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
+		.with_conversion_price((HDX, DOT), EmaPrice::new(1_000_000_000_000, 500_000_000_000))
 		.with_tiers(vec![
 			(
 				DAI,

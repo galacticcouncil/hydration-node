@@ -49,16 +49,18 @@ pub mod traits;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::traits::fungibles::Transfer;
 use frame_support::{ensure, transactional, RuntimeDebug};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::price::PriceProvider;
 use orml_traits::GetByKey;
+use scale_info::TypeInfo;
 use sp_core::bounded::BoundedVec;
 use sp_core::U256;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::{traits::CheckedAdd, DispatchError, Permill};
+use sp_runtime::Rounding;
+use sp_runtime::{traits::CheckedAdd, ArithmeticError, DispatchError, Permill};
 use sp_std::vec::Vec;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -72,8 +74,6 @@ pub type Balance = u128;
 pub type ReferralCode<S> = BoundedVec<u8, S>;
 
 const MIN_CODE_LENGTH: usize = 3;
-
-use scale_info::TypeInfo;
 
 /// Referrer level.
 /// Indicates current level of the referrer to determine which reward percentages are used.
@@ -109,9 +109,9 @@ pub mod pallet {
 	use crate::traits::Convert;
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::ArithmeticError;
-	use frame_support::sp_runtime::FixedU128;
 	use frame_support::traits::fungibles::{Inspect, Transfer};
 	use frame_support::PalletId;
+	use hydra_dx_math::ema::EmaPrice;
 	use sp_runtime::traits::Zero;
 
 	#[pallet::pallet]
@@ -136,7 +136,7 @@ pub mod pallet {
 		type Convert: Convert<Self::AccountId, Self::AssetId, Balance, Error = DispatchError>;
 
 		/// Price provider to use for shares calculation.
-		type SpotPriceProvider: SpotPriceProvider<Self::AssetId, Price = FixedU128>;
+		type PriceProvider: PriceProvider<Self::AssetId, Price = EmaPrice>;
 
 		/// ID of an asset that is used to distribute rewards in.
 		#[pallet::constant]
@@ -532,7 +532,7 @@ impl<T: Config> Pallet<T> {
 			return Ok(amount);
 		};
 
-		let Some(price) = T::SpotPriceProvider::spot_price(T::RewardAsset::get(), asset_id) else {
+		let Some(price) = T::PriceProvider::get_price(T::RewardAsset::get(), asset_id) else {
 			// no price, no fun.
 			return Ok(amount);
 		};
@@ -543,8 +543,13 @@ impl<T: Config> Pallet<T> {
 		ensure!(total_taken <= amount, Error::<T>::IncorrectRewardCalculation);
 		T::Currency::transfer(asset_id, &source, &Self::pot_account_id(), total_taken, true)?;
 
-		let referrer_shares = price.saturating_mul_int(referrer_reward);
-		let trader_shares = price.saturating_mul_int(trader_reward);
+		let referrer_shares = multiply_by_rational_with_rounding(referrer_reward, price.n, price.d, Rounding::Down)
+			.ok_or(ArithmeticError::Overflow)?;
+		let trader_shares = multiply_by_rational_with_rounding(trader_reward, price.n, price.d, Rounding::Down)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		//let referrer_shares = price.saturating_mul_int(referrer_reward);
+		//let trader_shares = price.saturating_mul_int(trader_reward);
 		TotalShares::<T>::mutate(|v| {
 			*v = v.saturating_add(referrer_shares.saturating_add(trader_shares));
 		});

@@ -5,10 +5,7 @@ use pretty_assertions::assert_eq;
 fn process_trade_fee_should_increased_referrer_shares() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, DAI, 2_000_000_000_000_000_000)])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
 			Level::Novice,
@@ -37,10 +34,7 @@ fn process_trade_fee_should_increased_referrer_shares() {
 fn process_trade_fee_should_increased_trader_shares() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, DAI, 2_000_000_000_000_000_000)])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
 			Level::Novice,
@@ -69,10 +63,7 @@ fn process_trade_fee_should_increased_trader_shares() {
 fn process_trade_fee_should_increased_total_share_issuance() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, DAI, 2_000_000_000_000_000_000)])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
 			Level::Novice,
@@ -101,10 +92,7 @@ fn process_trade_fee_should_increased_total_share_issuance() {
 fn process_trade_fee_should_fail_when_taken_amount_is_greated_than_fee_amount() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, DAI, 2_000_000_000_000_000_000)])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
 			Level::Novice,
@@ -132,10 +120,7 @@ fn process_trade_fee_should_fail_when_taken_amount_is_greated_than_fee_amount() 
 #[test]
 fn process_trade_should_not_increase_shares_when_trader_does_not_have_linked_account() {
 	ExtBuilder::default()
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_shares(vec![(BOB, 1_000_000_000_000)])
 		.build()
 		.execute_with(|| {
@@ -160,10 +145,7 @@ fn process_trade_should_not_increase_shares_when_trader_does_not_have_linked_acc
 fn process_trade_fee_should_add_asset_to_asset_list() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, DAI, 2_000_000_000_000_000_000)])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
 			Level::Novice,
@@ -192,10 +174,7 @@ fn process_trade_fee_should_add_asset_to_asset_list() {
 fn process_trade_fee_should_not_add_reward_asset_to_asset_list() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, HDX, 2_000_000_000_000)])
-		.with_conversion_price(
-			(HDX, DAI),
-			FixedU128::from_rational(1_000_000_000_000, 1_000_000_000_000_000_000),
-		)
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
 			Level::Novice,

@@ -798,6 +798,7 @@ where
 
 use pallet_currencies::fungibles::FungibleCurrencies;
 
+use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::Level;
 #[cfg(feature = "runtime-benchmarks")]
@@ -993,6 +994,7 @@ parameter_types! {
 	pub const ReferralsPalletId: PalletId = PalletId(*b"referral");
 	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 1_000_000_000_000, TreasuryAccount::get());
 	pub const MaxCodeLength: u32 = 7;
+	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::Short;
 }
 
 impl pallet_referrals::Config for Runtime {
@@ -1001,7 +1003,8 @@ impl pallet_referrals::Config for Runtime {
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
 	type Convert = ConvertViaOmnipool;
-	type SpotPriceProvider = Omnipool;
+	type PriceProvider =
+		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
 	type RewardAsset = NativeAssetId;
 	type PalletId = ReferralsPalletId;
 	type RegistrationFee = RegistrationFee;
