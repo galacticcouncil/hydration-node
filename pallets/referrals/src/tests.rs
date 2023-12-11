@@ -300,7 +300,7 @@ impl ExtBuilder {
 		});
 		r.execute_with(|| {
 			let seed_amount = SEED_AMOUNT.with(|v| v.borrow().clone());
-			Tokens::update_balance(HDX, &Referrals::pot_account_id(), seed_amount as i128);
+			Tokens::update_balance(HDX, &Referrals::pot_account_id(), seed_amount as i128).unwrap();
 		});
 
 		r.execute_with(|| {

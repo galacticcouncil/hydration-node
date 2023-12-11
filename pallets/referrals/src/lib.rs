@@ -292,7 +292,6 @@ pub mod pallet {
 
 			ensure!(code.len() >= MIN_CODE_LENGTH, Error::<T>::TooShort);
 
-			//TODO: can we do without cloning ? or perhaps merge with normalization
 			ensure!(
 				code.clone()
 					.into_inner()
@@ -500,7 +499,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	//TODO: when added to runtime, make sure the account is added to the whitelist of account that cannot be dusted
 	pub fn pot_account_id() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}

@@ -32,6 +32,7 @@ pallets=("frame-system:system"
 "pallet-route-executor:route_executor"
 "pallet-stableswap:stableswap"
 "pallet-staking:staking"
+"pallet-referrals:referrals"
 )
 
 command="cargo run --bin hydradx --release --features=runtime-benchmarks -- benchmark pallet --pallet=[pallet] --execution=wasm --wasm-execution=compiled --heap-pages=4096 --chain=dev --extrinsic='*' --steps=5 --repeat=20 --output [output].rs --template .maintain/pallet-weight-template-no-back.hbs"

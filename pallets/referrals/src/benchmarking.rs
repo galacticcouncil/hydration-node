@@ -33,9 +33,9 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, 1);
 		let code = vec![b'x'; T::CodeLength::get() as usize];
 		let (asset, fee, _) = T::RegistrationFee::get();
-		T::Currency::mint_into(asset, &caller, fee)?;
+		T::Currency::mint_into(asset, &caller, 2 * fee)?;
 
-	}: _(RawOrigin::Signed(caller.clone()), code.clone(), caller.clone())
+	}: _(RawOrigin::Signed(caller.clone()), code.clone())
 	verify {
 		let entry = Pallet::<T>::referrer_level(caller.clone());
 		assert_eq!(entry, Some((Level::Novice, 0)));
@@ -49,8 +49,8 @@ benchmarks! {
 		let user: T::AccountId = account("user", 0, 1);
 		let code = vec![b'x'; T::CodeLength::get() as usize];
 		let (asset, fee, _) = T::RegistrationFee::get();
-		T::Currency::mint_into(asset, &caller, fee)?;
-		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code.clone(), caller.clone())?;
+		T::Currency::mint_into(asset, &caller, 2 * fee)?;
+		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code.clone())?;
 	}: _(RawOrigin::Signed(user.clone()), code)
 	verify {
 		let entry = Pallet::<T>::linked_referral_account(user);
@@ -74,8 +74,8 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, 1);
 		let code = vec![b'x'; T::CodeLength::get() as usize];
 		let (asset, fee, _) = T::RegistrationFee::get();
-		T::Currency::mint_into(asset, &caller, fee)?;
-		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code, caller.clone())?;
+		T::Currency::mint_into(asset, &caller, 2 * fee)?;
+		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code)?;
 
 		// The worst case is when referrer account is updated to the top tier in one call
 		// So we need to have enough RewardAsset in the pot. And give all the shares to the caller.

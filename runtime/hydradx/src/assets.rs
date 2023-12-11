@@ -798,7 +798,10 @@ where
 
 use pallet_currencies::fungibles::FungibleCurrencies;
 
+#[cfg(not(feature = "runtime-benchmarks"))]
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
+
+use hydradx_traits::price::PriceProvider;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::Level;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1004,8 +1007,12 @@ impl pallet_referrals::Config for Runtime {
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
 	type Convert = ConvertViaOmnipool;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type PriceProvider =
 		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type PriceProvider = ReferralsDummyPriceProvider;
 	type RewardAsset = NativeAssetId;
 	type PalletId = ReferralsPalletId;
 	type RegistrationFee = RegistrationFee;
@@ -1014,7 +1021,7 @@ impl pallet_referrals::Config for Runtime {
 	type SeedNativeAmount = ReferralsSeedAmount;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
 pub struct ConvertViaOmnipool;
@@ -1044,5 +1051,47 @@ impl GetByKey<Level, Option<Balance>> for ReferralsLevelTiers {
 			Level::Advanced => Some(10_000_000_000_000),
 			Level::Expert => None,
 		}
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct ReferralsBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
+	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
+		let asset_id: u32 = 1234u32;
+		let asset_name = asset_id.to_le_bytes().to_vec();
+		let name: BoundedVec<u8, RegistryStrLimit> = asset_name.clone().try_into().unwrap();
+
+		AssetRegistry::register_asset(
+			name,
+			pallet_asset_registry::AssetType::<AssetId>::Token,
+			1_000_000,
+			Some(asset_id),
+			None,
+		)
+		.unwrap();
+		(1234, 1_000_000_000_000_000_000)
+		//AssetRegistry::set_metadata(RuntimeOrigin::root(), asset_id, asset_name, 18).unwrap();
+		//(asset_id, 1_000_000_000_000_000_000)
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct ReferralsDummyPriceProvider;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl PriceProvider<AssetId> for ReferralsDummyPriceProvider {
+	type Price = EmaPrice;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+		if asset_a == asset_b {
+			return Some(EmaPrice::one());
+		}
+		Some(EmaPrice::new(1_000_000_000_000, 2_000_000_000_000_000_0000))
 	}
 }
