@@ -2626,31 +2626,6 @@ mod with_onchain_route {
 	}
 }
 
-fn crate_xyk_pool(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_b: Balance) {
-	//Arrange
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		DAVE.into(),
-		asset_a,
-		amount_a as i128,
-	));
-
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		DAVE.into(),
-		asset_b,
-		amount_b as i128,
-	));
-
-	assert_ok!(XYK::create_pool(
-		RuntimeOrigin::signed(DAVE.into()),
-		asset_a,
-		amount_a,
-		asset_b,
-		amount_b,
-	));
-}
-
 fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
 	assert_ok!(Currencies::update_balance(
 		hydradx_runtime::RuntimeOrigin::root(),
