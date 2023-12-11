@@ -80,7 +80,7 @@ fn allowed_transact_call_should_pass_filter() {
 			hydradx_runtime::RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
 		)));
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
 			BOB_INITIAL_NATIVE_BALANCE + UNITS
 		);
 	});

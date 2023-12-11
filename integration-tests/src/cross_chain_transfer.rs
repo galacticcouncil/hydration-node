@@ -46,7 +46,9 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 
 		//Assert
 		assert_eq!(
-			polkadot_runtime::Balances::free_balance(&ParaId::from(HYDRA_PARA_ID).into_account_truncating()),
+			polkadot_runtime::Balances::free_balance(AccountIdConversion::<AccountId>::into_account_truncating(
+				&ParaId::from(HYDRA_PARA_ID)
+			)),
 			310 * UNITS
 		);
 	});
@@ -68,7 +70,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 fn polkadot_should_receive_asset_when_sent_from_hydra() {
 	//Arrange
 	PolkadotRelay::execute_with(|| {
-		assert_eq!(hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)), 0);
+		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), 0);
 	});
 
 	Hydra::execute_with(|| {
@@ -96,7 +98,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 
 	PolkadotRelay::execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
 			2999978937205 // 3 * HDX - fee
 		);
 	});
@@ -136,7 +138,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 
 		// Assert
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
 		);
 	});
@@ -187,7 +189,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 			orml_xtokens::Error::<hydradx_runtime::Runtime>::XcmExecutionFailed
 		);
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE
 		);
 	});
@@ -246,7 +248,7 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 
 		// Assert
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
 		);
 	});
@@ -285,7 +287,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
 		);
 	});
@@ -346,7 +348,7 @@ fn claim_trapped_asset_should_work() {
 fn trap_asset() -> MultiAsset {
 	Acala::execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE
 		);
 		assert_ok!(hydradx_runtime::XTokens::transfer(
@@ -366,7 +368,7 @@ fn trap_asset() -> MultiAsset {
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
 		);
 	});

@@ -21,6 +21,7 @@
 
 pub mod hydradx;
 pub mod local;
+pub mod moonbase;
 pub mod rococo;
 pub mod staging;
 
@@ -57,6 +58,7 @@ pub struct Extensions {
 	pub relay_chain: String,
 	/// The id of the Parachain.
 	pub para_id: u32,
+	pub evm_since: BlockNumber,
 }
 
 impl Extensions {

@@ -36,7 +36,7 @@ fn balance_should_be_dusted_when_native_balance_is_below_ed() {
 			transfer_amount,
 		));
 
-		assert_eq!(hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)), 0);
+		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)), 0);
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(Treasury::account_id()),
 			hdx_ed.checked_add(1).unwrap()

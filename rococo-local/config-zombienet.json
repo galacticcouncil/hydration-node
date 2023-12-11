@@ -8,6 +8,8 @@
     "nodes": [
       {
         "name": "alice",
+        "command": "../../polkadot/target/release/polkadot",
+        "args": ["--pruning=archive"],
         "ws_port": 9944,
         "invulnerable": true
       },
@@ -39,6 +41,7 @@
         {
           "name": "alice",
           "command": "../target/release/hydradx",
+          "args": ["--pruning=archive"],
           "ws_port": 9988,
           "rpc_port": 9999
         },

@@ -239,6 +239,8 @@ pub mod polkadot {
 	use sc_consensus_grandpa::AuthorityId as GrandpaId;
 	use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 	use sp_consensus_babe::AuthorityId as BabeId;
+
+	#[allow(clippy::type_complexity)]
 	pub fn initial_authorities() -> Vec<(
 		AccountId,
 		AccountId,

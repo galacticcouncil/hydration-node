@@ -1276,7 +1276,7 @@ fn assert_lock(who: &AccountId, amount: Balance, lock_id: LockIdentifier) {
 		lock,
 		Some(&pallet_balances::BalanceLock {
 			id: lock_id,
-			amount: amount,
+			amount,
 			reasons: pallet_balances::Reasons::All
 		})
 	);

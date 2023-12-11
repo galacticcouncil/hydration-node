@@ -561,8 +561,7 @@ mod omnipool {
 
 			let amount_in = 100 * UNITS;
 			let no_route = vec![];
-			let schedule1 =
-				schedule_fake_with_sell_order_with_route(ALICE.into(), dca_budget, HDX, DAI, amount_in, no_route);
+			let schedule1 = schedule_fake_with_sell_order_with_route(ALICE, dca_budget, HDX, DAI, amount_in, no_route);
 			create_schedule(ALICE, schedule1);
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);

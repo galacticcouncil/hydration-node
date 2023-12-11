@@ -26,11 +26,12 @@ use crate::service::{
 	ParachainClient,
 };
 use cumulus_client_consensus_common::ParachainBlockImportMarker;
-use fc_consensus::FrontierBlockImport;
+use fc_consensus::Error;
 use fc_db::kv::Backend as FrontierBackend;
 use fc_mapping_sync::{kv::MappingSyncWorker, SyncStrategy};
 use fc_rpc::{EthTask, OverrideHandle};
 use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
+use fp_consensus::ensure_log;
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_storage::EthereumStorageSchema;
 use futures::{future, StreamExt};
@@ -44,7 +45,7 @@ use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockchainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::Error as ConsensusError;
 use sp_core::H256;
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Header as HeaderT, PhantomData};
 
 /// The ethereum-compatibility configuration used to run a node.
 #[derive(Clone, Copy, Debug, clap::Parser)]
@@ -74,7 +75,27 @@ pub struct EthereumConfig {
 	pub eth_statuses_cache: usize,
 }
 
-pub struct BlockImport<B: BlockT, I: BlockImportT<B>, C>(FrontierBlockImport<B, I, C>);
+type BlockNumberOf<B> = <<B as BlockT>::Header as HeaderT>::Number;
+
+pub struct BlockImport<B: BlockT, I: BlockImportT<B>, C> {
+	inner: I,
+	client: Arc<C>,
+	backend: Arc<fc_db::kv::Backend<B>>,
+	evm_since: BlockNumberOf<B>,
+	_marker: PhantomData<B>,
+}
+
+impl<Block: BlockT, I: Clone + BlockImportT<Block>, C> Clone for BlockImport<Block, I, C> {
+	fn clone(&self) -> Self {
+		BlockImport {
+			inner: self.inner.clone(),
+			client: self.client.clone(),
+			backend: self.backend.clone(),
+			evm_since: self.evm_since.clone(),
+			_marker: PhantomData,
+		}
+	}
+}
 
 impl<B, I, C> BlockImport<B, I, C>
 where
@@ -85,14 +106,14 @@ where
 	C::Api: EthereumRuntimeRPCApi<B>,
 	C::Api: BlockBuilderApi<B>,
 {
-	pub fn new(inner: I, client: Arc<C>) -> Self {
-		Self(FrontierBlockImport::new(inner, client))
-	}
-}
-
-impl<B: BlockT, I: BlockImportT<B> + Clone, C> Clone for BlockImport<B, I, C> {
-	fn clone(&self) -> Self {
-		BlockImport(self.0.clone())
+	pub fn new(inner: I, client: Arc<C>, backend: Arc<fc_db::kv::Backend<B>>, evm_since: BlockNumberOf<B>) -> Self {
+		Self {
+			inner,
+			client,
+			backend,
+			evm_since,
+			_marker: PhantomData,
+		}
 	}
 }
 
@@ -100,6 +121,7 @@ impl<B: BlockT, I: BlockImportT<B> + Clone, C> Clone for BlockImport<B, I, C> {
 impl<B, I, C> BlockImportT<B> for BlockImport<B, I, C>
 where
 	B: BlockT,
+	<B::Header as HeaderT>::Number: PartialOrd,
 	I: BlockImportT<B> + Send + Sync,
 	I::Error: Into<ConsensusError>,
 	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + BlockOf,
@@ -109,11 +131,14 @@ where
 	type Error = ConsensusError;
 
 	async fn check_block(&mut self, block: BlockCheckParams<B>) -> Result<ImportResult, Self::Error> {
-		self.0.check_block(block).await
+		self.inner.check_block(block).await.map_err(Into::into)
 	}
 
 	async fn import_block(&mut self, block: BlockImportParams<B>) -> Result<ImportResult, Self::Error> {
-		self.0.import_block(block).await
+		if *block.header.number() >= self.evm_since {
+			ensure_log(block.header.digest()).map_err(Error::from)?;
+		}
+		self.inner.import_block(block).await.map_err(Into::into)
 	}
 }
 
