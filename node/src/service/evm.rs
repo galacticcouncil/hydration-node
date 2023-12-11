@@ -19,6 +19,7 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
+use std::marker::PhantomData;
 use std::{
 	collections::{BTreeMap, HashMap},
 	path::PathBuf,
@@ -31,11 +32,12 @@ use crate::service::{
 	FullClient,
 };
 use cumulus_client_consensus_common::ParachainBlockImportMarker;
-use fc_consensus::FrontierBlockImport;
+use fc_consensus::Error;
 use fc_db::Backend as FrontierBackend;
 use fc_mapping_sync::{MappingSyncWorker, SyncStrategy};
 use fc_rpc::{EthTask, OverrideHandle};
 use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
+use fp_consensus::ensure_log;
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_storage::EthereumStorageSchema;
 use futures::{future, StreamExt};
@@ -50,7 +52,7 @@ use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{well_known_cache_keys::Id as CacheKeyId, Error as BlockchainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::Error as ConsensusError;
 use sp_core::H256;
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Header as HeaderT};
 
 /// The ethereum-compatibility configuration used to run a node.
 /// evmTODO: revise settings, these are by Centrifuge
@@ -82,9 +84,17 @@ pub struct EthereumConfig {
 }
 
 pub type Hash = sp_core::H256;
+type BlockNumberOf<B> = <<B as BlockT>::Header as HeaderT>::Number;
 
+#[allow(dead_code)]
 #[derive(Clone)]
-pub struct BlockImport<B: BlockT, I: BlockImportT<B>, C>(FrontierBlockImport<B, I, C>);
+pub struct BlockImport<B: BlockT, I: BlockImportT<B>, C> {
+	inner: I,
+	client: Arc<C>,
+	backend: Arc<fc_db::Backend<B>>,
+	evm_since: BlockNumberOf<B>,
+	_marker: PhantomData<B>,
+}
 
 impl<B, I, C> BlockImport<B, I, C>
 where
@@ -95,8 +105,14 @@ where
 	C::Api: EthereumRuntimeRPCApi<B>,
 	C::Api: BlockBuilderApi<B>,
 {
-	pub fn new(inner: I, client: Arc<C>, backend: Arc<fc_db::Backend<B>>) -> Self {
-		Self(FrontierBlockImport::new(inner, client, backend))
+	pub fn new(inner: I, client: Arc<C>, backend: Arc<fc_db::Backend<B>>, evm_since: BlockNumberOf<B>) -> Self {
+		Self {
+			inner,
+			client,
+			backend,
+			evm_since,
+			_marker: PhantomData,
+		}
 	}
 }
 
@@ -104,6 +120,7 @@ where
 impl<B, I, C> BlockImportT<B> for BlockImport<B, I, C>
 where
 	B: BlockT,
+	<B::Header as HeaderT>::Number: PartialOrd,
 	I: BlockImportT<B, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync,
 	I::Error: Into<ConsensusError>,
 	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + BlockOf,
@@ -114,7 +131,7 @@ where
 	type Transaction = sp_api::TransactionFor<C, B>;
 
 	async fn check_block(&mut self, block: BlockCheckParams<B>) -> Result<ImportResult, Self::Error> {
-		self.0.check_block(block).await
+		self.inner.check_block(block).await.map_err(Into::into)
 	}
 
 	async fn import_block(
@@ -122,7 +139,10 @@ where
 		block: BlockImportParams<B, Self::Transaction>,
 		new_cache: HashMap<CacheKeyId, Vec<u8>>,
 	) -> Result<ImportResult, Self::Error> {
-		self.0.import_block(block, new_cache).await
+		if *block.header.number() >= self.evm_since {
+			ensure_log(block.header.digest()).map_err(Error::from)?;
+		}
+		self.inner.import_block(block, new_cache).await.map_err(Into::into)
 	}
 }
 

@@ -131,6 +131,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		Extensions {
 			relay_chain: "polkadot".into(),
 			para_id: PARA_ID,
+			evm_since: 1,
 		},
 	))
 }
