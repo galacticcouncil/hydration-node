@@ -4176,7 +4176,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.6.7"
+version = "0.6.8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4223,7 +4223,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "194.0.0"
+version = "195.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4339,7 +4339,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.8.1"
+version = "2.8.2"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -10791,7 +10791,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.16.4"
+version = "1.16.5"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
