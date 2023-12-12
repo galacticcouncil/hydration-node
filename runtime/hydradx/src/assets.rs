@@ -1128,6 +1128,6 @@ impl PriceProvider<AssetId> for ReferralsDummyPriceProvider {
 		if asset_a == asset_b {
 			return Some(EmaPrice::one());
 		}
-		Some(EmaPrice::new(1_000_000_000_000, 2_000_000_000_000_000_0000))
+		Some(EmaPrice::new(1_000_000_000_000, 2_000_000_000_000_000_000))
 	}
 }

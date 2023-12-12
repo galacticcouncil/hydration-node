@@ -471,7 +471,7 @@ where
 	) -> Result<Balance, Self::Error> {
 		let unused = pallet_referrals::Pallet::<Runtime>::process_trade_fee(
 			fee_account.clone().into(),
-			trader.clone().into(),
+			trader.into(),
 			asset.into(),
 			amount,
 		)?;
