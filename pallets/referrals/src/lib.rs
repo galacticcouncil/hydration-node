@@ -50,7 +50,7 @@ pub mod traits;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::traits::fungibles::Transfer;
-use frame_support::{ensure, transactional, RuntimeDebug};
+use frame_support::{defensive, ensure, transactional, RuntimeDebug};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::price::PriceProvider;
 use orml_traits::GetByKey;
@@ -438,15 +438,17 @@ pub mod pallet {
 				if let Some((level, total)) = v {
 					*total = total.saturating_add(rewards);
 
-					let next_tier = T::TierVolume::get(level);
-					if let Some(amount_needed) = next_tier {
-						if *total >= amount_needed {
-							*level = level.next_level();
-							// let's check if we can skip two levels
-							let next_tier = T::TierVolume::get(level);
-							if let Some(amount_needed) = next_tier {
-								if *total >= amount_needed {
-									*level = level.next_level();
+					if *level != Level::Expert {
+						let next_tier = T::TierVolume::get(level);
+						if let Some(amount_needed) = next_tier {
+							if *total >= amount_needed {
+								*level = level.next_level();
+								// let's check if we can skip two levels
+								let next_tier = T::TierVolume::get(level);
+								if let Some(amount_needed) = next_tier {
+									if *total >= amount_needed {
+										*level = level.next_level();
+									}
 								}
 							}
 						}
@@ -527,6 +529,7 @@ impl<T: Config> Pallet<T> {
 		// What is the referer level?
 		let Some((level,_)) = Self::referrer_level(&ref_account) else {
 			// Should not really happen, the ref entry should be always there.
+			defensive!("Referrer details not found");
 			return Ok(amount);
 		};
 

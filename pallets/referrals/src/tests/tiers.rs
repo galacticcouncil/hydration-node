@@ -54,3 +54,23 @@ fn setting_asset_tier_should_fail_when_total_percentage_exceeds_hundred_percent(
 		);
 	});
 }
+
+#[test]
+fn setting_asset_tier_should_emit_event() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(Referrals::set_reward_percentage(
+			RuntimeOrigin::root(),
+			DAI,
+			Level::Novice,
+			Permill::from_percent(1),
+			Permill::from_percent(2),
+		));
+		expect_events(vec![Event::TierRewardSet {
+			asset_id: DAI,
+			level: Level::Novice,
+			referrer: Permill::from_percent(1),
+			trader: Permill::from_percent(2),
+		}
+		.into()]);
+	});
+}
