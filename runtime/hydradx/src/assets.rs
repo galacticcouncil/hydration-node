@@ -995,7 +995,7 @@ impl pallet_xyk::Config for Runtime {
 
 parameter_types! {
 	pub const ReferralsPalletId: PalletId = PalletId(*b"referral");
-	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 1_000_000_000_000, TreasuryAccount::get());
+	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 222_000_000_000_000, TreasuryAccount::get());
 	pub const MaxCodeLength: u32 = 7;
 	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::Short;
 	pub const ReferralsSeedAmount: Balance = 100_000_000_000_000;
@@ -1010,7 +1010,6 @@ impl pallet_referrals::Config for Runtime {
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type PriceProvider =
 		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
-
 	#[cfg(feature = "runtime-benchmarks")]
 	type PriceProvider = ReferralsDummyPriceProvider;
 	type RewardAsset = NativeAssetId;
