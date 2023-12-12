@@ -4222,7 +4222,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "194.0.0"
+version = "195.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -6670,7 +6670,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.3.2"
+version = "2.3.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6951,7 +6951,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-collator-rewards"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7342,7 +7342,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-genesis-history"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "derive_more",
  "frame-support",
@@ -8094,7 +8094,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-pause"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

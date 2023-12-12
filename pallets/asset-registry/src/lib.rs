@@ -54,6 +54,14 @@ pub mod pallet {
 	use crate::types::Metadata;
 	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 
+	/// The current storage version.
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
+	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::storage_version(STORAGE_VERSION)]
+	pub struct Pallet<T>(_);
+
 	pub type AssetDetailsT<T> =
 		AssetDetails<<T as Config>::AssetId, <T as Config>::Balance, BoundedVec<u8, <T as Config>::StringLimit>>;
 
@@ -99,9 +107,6 @@ pub mod pallet {
 		/// Weight information for the extrinsics
 		type WeightInfo: WeightInfo;
 	}
-
-	#[pallet::pallet]
-	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}

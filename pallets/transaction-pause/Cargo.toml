@@ -1,6 +1,6 @@
 [package]
 name = "pallet-transaction-pause"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Acala Developers", "GalacticCouncil"]
 edition = "2021"
 

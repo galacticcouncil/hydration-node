@@ -42,6 +42,14 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use super::*;
 
+	/// The current storage version.
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
+	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::storage_version(STORAGE_VERSION)]
+	pub struct Pallet<T>(_);
+
 	// max length of a pallet name or function name
 	pub const MAX_STR_LENGTH: u32 = 40;
 	pub type BoundedName = BoundedVec<u8, ConstU32<MAX_STR_LENGTH>>;
@@ -88,9 +96,6 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn paused_transactions)]
 	pub type PausedTransactions<T: Config> = StorageMap<_, Twox64Concat, (BoundedName, BoundedName), (), OptionQuery>;
-
-	#[pallet::pallet]
-	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
