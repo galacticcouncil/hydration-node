@@ -38,7 +38,7 @@ pallets=(
 "pallet-xyk:xyk"
 )
 
-command="cargo run --bin hydradx --release --features=runtime-benchmarks -- benchmark pallet --pallet=[pallet] --wasm-execution=compiled --heap-pages=4096 --chain=dev --extrinsic='*' --steps=5 --repeat=20 --output ./new_weights/[output].rs --template .maintain/pallet-weight-runtime-template.hbs"
+command="cargo run --bin hydradx --release --features=runtime-benchmarks -- benchmark pallet --pallet=[pallet] --wasm-execution=compiled --heap-pages=4096 --chain=dev --extrinsic='*' --steps=5 --repeat=20 --output [output].rs --template .maintain/pallet-weight-template-no-back.hbs"
 
 for string in "${pallets[@]}"; do
 
