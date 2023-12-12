@@ -1075,9 +1075,45 @@ impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
 			None,
 		)
 		.unwrap();
+		AssetRegistry::set_metadata(RuntimeOrigin::root(), asset_id, asset_name, 18).unwrap();
+
+		let native_price = FixedU128::from_inner(1201500000000000);
+		let asset_price = FixedU128::from_inner(45_000_000_000);
+
+		Currencies::update_balance(
+			RuntimeOrigin::root(),
+			Omnipool::protocol_account(),
+			NativeAssetId::get(),
+			1_000_000_000_000_000_000,
+		)
+		.unwrap();
+
+		Currencies::update_balance(
+			RuntimeOrigin::root(),
+			Omnipool::protocol_account(),
+			asset_id,
+			1_000_000_000_000_000_000_000_000,
+		)
+		.unwrap();
+
+		Omnipool::add_token(
+			RuntimeOrigin::root(),
+			NativeAssetId::get(),
+			native_price,
+			Permill::from_percent(10),
+			TreasuryAccount::get(),
+		)
+		.unwrap();
+
+		Omnipool::add_token(
+			RuntimeOrigin::root(),
+			asset_id,
+			asset_price,
+			Permill::from_percent(10),
+			TreasuryAccount::get(),
+		)
+		.unwrap();
 		(1234, 1_000_000_000_000_000_000)
-		//AssetRegistry::set_metadata(RuntimeOrigin::root(), asset_id, asset_name, 18).unwrap();
-		//(asset_id, 1_000_000_000_000_000_000)
 	}
 }
 

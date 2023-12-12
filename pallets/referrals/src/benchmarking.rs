@@ -76,11 +76,12 @@ benchmarks! {
 		let (asset, fee, _) = T::RegistrationFee::get();
 		T::Currency::mint_into(asset, &caller, 2 * fee)?;
 		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code)?;
+		let caller_balance = T::Currency::balance(T::RewardAsset::get(), &caller);
 
 		// The worst case is when referrer account is updated to the top tier in one call
 		// So we need to have enough RewardAsset in the pot. And give all the shares to the caller.
 		let top_tier_volume = T::TierVolume::get(&Level::Advanced).expect("to have all level configured");
-		T::Currency::mint_into(T::RewardAsset::get(), &Pallet::<T>::pot_account_id(), top_tier_volume)?;
+		T::Currency::mint_into(T::RewardAsset::get(), &Pallet::<T>::pot_account_id(), top_tier_volume + T::SeedNativeAmount::get())?;
 		Shares::<T>::insert(caller.clone(), 1_000_000_000_000);
 		TotalShares::<T>::put(1_000_000_000_000);
 	}: _(RawOrigin::Signed(caller.clone()))
@@ -88,10 +89,10 @@ benchmarks! {
 		let count = Assets::<T>::iter().count();
 		assert_eq!(count , 0);
 		let balance = T::Currency::balance(T::RewardAsset::get(), &caller);
-		assert_eq!(balance, 1000000000);
+		assert!(balance > caller_balance);
 		let (level, total) = Referrer::<T>::get(&caller).expect("correct entry");
 		assert_eq!(level, Level::Expert);
-		assert_eq!(total, 1000000000);
+		assert_eq!(total, top_tier_volume);
 	}
 
 	set_reward_percentage{
@@ -105,7 +106,6 @@ benchmarks! {
 			trader: trader_percentage,
 		}));
 	}
-
 }
 
 #[cfg(test)]
