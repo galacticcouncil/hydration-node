@@ -349,4 +349,5 @@ try-runtime= [
     "pallet-evm/try-runtime",
     "pallet-evm-chain-id/try-runtime",
     "pallet-xyk/try-runtime",
+    "pallet-referrals/try-runtime",
 ]
