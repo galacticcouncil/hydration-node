@@ -10002,6 +10002,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-core",
+ "sp-io",
  "sp-std",
  "static_assertions",
 ]
