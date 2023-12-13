@@ -801,6 +801,7 @@ use pallet_currencies::fungibles::FungibleCurrencies;
 #[cfg(not(feature = "runtime-benchmarks"))]
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
+#[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::Level;
@@ -1018,7 +1019,7 @@ impl pallet_referrals::Config for Runtime {
 	type CodeLength = MaxCodeLength;
 	type TierVolume = ReferralsLevelTiers;
 	type SeedNativeAmount = ReferralsSeedAmount;
-	type WeightInfo = ();
+	type WeightInfo = weights::referrals::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }

@@ -39,7 +39,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod weights;
+pub mod weights;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarking;
