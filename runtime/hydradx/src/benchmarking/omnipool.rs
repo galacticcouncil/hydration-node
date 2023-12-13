@@ -195,7 +195,7 @@ runtime_benchmarks! {
 		let token_amount = 200_000_000_000_000_u128;
 
 		update_balance(token_id, &acc, token_amount);
-		update_balance(0, &owner, 1000_000_000_000_000_u128);
+		update_balance(0, &owner, 1_000_000_000_000_000_u128);
 
 		// Add the token to the pool
 		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner.clone())?;
@@ -244,7 +244,7 @@ runtime_benchmarks! {
 		let token_amount = 200_000_000_000_000_u128;
 
 		update_balance(token_id, &acc, token_amount);
-		update_balance(0, &owner, 1000_000_000_000_000_u128);
+		update_balance(0, &owner, 1_000_000_000_000_000_u128);
 
 		// Add the token to the pool
 		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner.clone())?;
