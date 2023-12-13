@@ -57,7 +57,7 @@ fn register_code_should_fail_when_code_already_exists() {
 		));
 		// Act
 		assert_noop!(
-			Referrals::register_code(RuntimeOrigin::signed(ALICE), b"BALLS69".to_vec()),
+			Referrals::register_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()),
 			Error::<Test>::AlreadyExists
 		);
 	});
@@ -73,7 +73,7 @@ fn register_code_should_fail_when_code_is_lowercase_and_already_exists() {
 		));
 		// Act
 		assert_noop!(
-			Referrals::register_code(RuntimeOrigin::signed(ALICE), b"balls69".to_vec()),
+			Referrals::register_code(RuntimeOrigin::signed(BOB), b"balls69".to_vec()),
 			Error::<Test>::AlreadyExists
 		);
 	});
@@ -158,5 +158,19 @@ fn singer_should_set_default_level_for_referrer() {
 		// Assert
 		let entry = Pallet::<Test>::referrer_level(ALICE);
 		assert_eq!(entry, Some((Level::default(), Balance::zero())));
+	});
+}
+
+#[test]
+fn register_code_should_fail_when_account_has_already_code_registered() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let code = b"BALLS69".to_vec();
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+		let code = b"SECOND".to_vec();
+		assert_noop!(
+			Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone()),
+			Error::<Test>::AlreadyRegistered
+		);
 	});
 }

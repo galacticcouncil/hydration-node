@@ -176,6 +176,12 @@ pub mod pallet {
 	pub(super) type ReferralCodes<T: Config> =
 		StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
 
+	/// Referral accounts
+	#[pallet::storage]
+	#[pallet::getter(fn referral_code)]
+	pub(super) type ReferralAccounts<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, ReferralCode<T::CodeLength>>;
+
 	/// Linked accounts.
 	/// Maps an account to a referral account.
 	#[pallet::storage]
@@ -267,6 +273,8 @@ pub mod pallet {
 		IncorrectRewardCalculation,
 		/// Given referrer and trader percentages exceeds 100% percent.
 		IncorrectRewardPercentage,
+		/// The account has already a code registered.
+		AlreadyRegistered,
 	}
 
 	#[pallet::call]
@@ -288,6 +296,12 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::register_code())]
 		pub fn register_code(origin: OriginFor<T>, code: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			ensure!(
+				ReferralAccounts::<T>::get(&who).is_none(),
+				Error::<T>::AlreadyRegistered
+			);
+
 			let code: ReferralCode<T::CodeLength> = code.try_into().map_err(|_| Error::<T>::TooLong)?;
 
 			ensure!(code.len() >= MIN_CODE_LENGTH, Error::<T>::TooShort);
@@ -310,6 +324,7 @@ pub mod pallet {
 
 				*v = Some(who.clone());
 				Referrer::<T>::insert(&who, (Level::default(), Balance::zero()));
+				ReferralAccounts::<T>::insert(&who, code.clone());
 				Self::deposit_event(Event::CodeRegistered { code, account: who });
 				Ok(())
 			})
