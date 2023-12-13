@@ -307,7 +307,6 @@ fn asd() {
 
 	let amount = 30 * UNITS;
 	Acala::execute_with(|| {
-		//We send toe ethereum address with Account20
 		assert_ok!(hydradx_runtime::XTokens::transfer(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0,
@@ -315,7 +314,8 @@ fn asd() {
 			Box::new(
 				MultiLocation::new(
 					1,
-					X2(
+					X3(
+						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::Parachain(ACALA_PARA_ID),
 						Junction::AccountKey20 {
 							network: None,

@@ -309,9 +309,10 @@ pub type LocationToAccountId = (
 	SiblingParachainConvertsVia<Sibling, AccountId>,
 	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
 	AccountId32Aliases<RelayNetwork, AccountId>,
-	xcm_account_derivation::HashedDescriptionDescribeFamilyAllTerminal<AccountId>,
-	//EvmAddressConversion<RelayNetwork>,
 	// Generate remote accounts according to polkadot standards
+	xcm_account_derivation::HashedDescriptionDescribeFamilyAllTerminal<AccountId>,
+	// Convert ETH to local substrate account
+	EvmAddressConversion<RelayNetwork>,
 );
 
 //	,
