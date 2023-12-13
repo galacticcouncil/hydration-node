@@ -309,9 +309,9 @@ pub type LocationToAccountId = (
 	SiblingParachainConvertsVia<Sibling, AccountId>,
 	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
 	AccountId32Aliases<RelayNetwork, AccountId>,
-	EvmAddressConversion<RelayNetwork>,
 );
 
+//	EvmAddressConversion<RelayNetwork>,
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);
 impl<Network: Get<Option<NetworkId>>> xcm_executor::traits::Convert<MultiLocation, AccountId>
