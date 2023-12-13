@@ -15,7 +15,10 @@ fn register_code_should_work_when_code_is_max_length() {
 #[test]
 fn register_code_should_work_when_code_is_min_length() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), b"ABC".to_vec(),));
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE),
+			b"ABCDE".to_vec(),
+		));
 	});
 }
 
@@ -42,6 +45,14 @@ fn register_code_should_fail_when_code_is_too_short() {
 		);
 		assert_noop!(
 			Referrals::register_code(RuntimeOrigin::signed(ALICE), b"AB".to_vec()),
+			Error::<Test>::TooShort
+		);
+		assert_noop!(
+			Referrals::register_code(RuntimeOrigin::signed(ALICE), b"ABC".to_vec()),
+			Error::<Test>::TooShort
+		);
+		assert_noop!(
+			Referrals::register_code(RuntimeOrigin::signed(ALICE), b"ABCD".to_vec()),
 			Error::<Test>::TooShort
 		);
 	});
@@ -83,7 +94,7 @@ fn register_code_should_fail_when_code_is_lowercase_and_already_exists() {
 fn register_code_should_fail_when_code_contains_invalid_char() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			Referrals::register_code(RuntimeOrigin::signed(ALICE), b"ABC?".to_vec()),
+			Referrals::register_code(RuntimeOrigin::signed(ALICE), b"ABCD?".to_vec()),
 			Error::<Test>::InvalidCharacter
 		);
 	});

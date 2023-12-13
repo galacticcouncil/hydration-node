@@ -73,7 +73,7 @@ use weights::WeightInfo;
 pub type Balance = u128;
 pub type ReferralCode<S> = BoundedVec<u8, S>;
 
-const MIN_CODE_LENGTH: usize = 3;
+const MIN_CODE_LENGTH: usize = 5;
 
 /// Referrer level.
 /// Indicates current level of the referrer to determine which reward percentages are used.
