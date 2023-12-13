@@ -2704,8 +2704,8 @@ mod with_onchain_route {
 			//Assert
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
-			assert!(fee < 19 * UNITS);
-			assert!(fee > 18 * UNITS);
+			assert!(fee < 17 * UNITS);
+			assert!(fee > 13 * UNITS);
 
 			assert_balance!(ALICE.into(), DOT, alice_init_dot_balance - dca_budget);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + 398004528624916);
@@ -2846,12 +2846,11 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			//If the fee would be HDX, it would cost around 6503744780645
-			assert!(fee < 58 * UNITS / 10);
-			assert!(fee > 57 * UNITS / 10);
+			assert!(fee < 47 * UNITS / 10);
+			assert!(fee > 44 * UNITS / 10);
 
 			assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable_balance - dca_budget);
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 237185260073197);
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 237095795349022);
 
 			assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 		});
@@ -2968,11 +2967,10 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			//The fee would be 5310255478763 in HDX, so it is less in DOT, which checks out
-			assert!(fee < 38 * UNITS / 10);
-			assert!(fee > 37 * UNITS / 10);
+			assert!(fee < 32 * UNITS / 10);
+			assert!(fee > 28 * UNITS / 10);
 
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 278060378846663);
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 277955496295825);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
