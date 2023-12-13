@@ -177,10 +177,10 @@ fn register_code_should_fail_when_account_has_already_code_registered() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
 		let code = b"BALLS69".to_vec();
-		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code));
 		let code = b"SECOND".to_vec();
 		assert_noop!(
-			Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone()),
+			Referrals::register_code(RuntimeOrigin::signed(ALICE), code),
 			Error::<Test>::AlreadyRegistered
 		);
 	});
