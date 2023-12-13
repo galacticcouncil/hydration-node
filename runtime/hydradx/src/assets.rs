@@ -998,7 +998,7 @@ parameter_types! {
 	pub const ReferralsPalletId: PalletId = PalletId(*b"referral");
 	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 222_000_000_000_000, TreasuryAccount::get());
 	pub const MaxCodeLength: u32 = 7;
-	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::Short;
+	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 	pub const ReferralsSeedAmount: Balance = 100_000_000_000_000;
 }
 
