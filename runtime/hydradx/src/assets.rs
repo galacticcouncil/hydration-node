@@ -1046,8 +1046,8 @@ pub struct ReferralsLevelTiers;
 impl GetByKey<Level, Option<Balance>> for ReferralsLevelTiers {
 	fn get(k: &Level) -> Option<Balance> {
 		match k {
-			Level::Novice => Some(1_000_000_000_000),
-			Level::Advanced => Some(10_000_000_000_000),
+			Level::Novice => Some(10_000_000_000_000),
+			Level::Advanced => Some(100_000_000_000_000),
 			Level::Expert => None,
 		}
 	}
