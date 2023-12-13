@@ -569,8 +569,6 @@ impl<T: Config> Pallet<T> {
 		let trader_shares = multiply_by_rational_with_rounding(trader_reward, price.n, price.d, Rounding::Down)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		//let referrer_shares = price.saturating_mul_int(referrer_reward);
-		//let trader_shares = price.saturating_mul_int(trader_reward);
 		TotalShares::<T>::mutate(|v| {
 			*v = v.saturating_add(referrer_shares.saturating_add(trader_shares));
 		});

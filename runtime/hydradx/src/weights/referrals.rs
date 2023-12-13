@@ -43,8 +43,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -60,20 +60,22 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Referrals Referrer (r:0 w:1)
 	// Proof: Referrals Referrer (max_values: None, max_size: Some(65), added: 2540, mode: MaxEncodedLen)
-    fn register_code() -> Weight {
-        // Minimum execution time: 42_186 nanoseconds.
-        Weight::from_ref_time(42_832_000 as u64)            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().writes(4 as u64))
-    }
+	fn register_code() -> Weight {
+		// Minimum execution time: 42_186 nanoseconds.
+		Weight::from_ref_time(42_832_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
+	}
 	// Storage: Referrals ReferralCodes (r:1 w:0)
 	// Proof: Referrals ReferralCodes (max_values: None, max_size: Some(56), added: 2531, mode: MaxEncodedLen)
 	// Storage: Referrals LinkedAccounts (r:1 w:1)
 	// Proof: Referrals LinkedAccounts (max_values: None, max_size: Some(80), added: 2555, mode: MaxEncodedLen)
-    fn link_code() -> Weight {
-        // Minimum execution time: 21_324 nanoseconds.
-        Weight::from_ref_time(21_932_000 as u64)            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
+	fn link_code() -> Weight {
+		// Minimum execution time: 21_324 nanoseconds.
+		Weight::from_ref_time(21_932_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 	// Storage: Tokens Accounts (r:2 w:2)
 	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: System Account (r:2 w:2)
@@ -110,11 +112,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: Referrals Assets (r:0 w:1)
 	// Proof: Referrals Assets (max_values: None, max_size: Some(20), added: 2495, mode: MaxEncodedLen)
-    fn convert() -> Weight {
-        // Minimum execution time: 249_840 nanoseconds.
-        Weight::from_ref_time(251_054_000 as u64)            .saturating_add(T::DbWeight::get().reads(21 as u64))
-            .saturating_add(T::DbWeight::get().writes(14 as u64))
-    }
+	fn convert() -> Weight {
+		// Minimum execution time: 249_840 nanoseconds.
+		Weight::from_ref_time(251_054_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(21 as u64))
+			.saturating_add(T::DbWeight::get().writes(14 as u64))
+	}
 	// Storage: Referrals Assets (r:1 w:0)
 	// Proof: Referrals Assets (max_values: None, max_size: Some(20), added: 2495, mode: MaxEncodedLen)
 	// Storage: Referrals Shares (r:1 w:1)
@@ -125,16 +128,18 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Referrals TotalShares (max_values: Some(1), max_size: Some(16), added: 511, mode: MaxEncodedLen)
 	// Storage: Referrals Referrer (r:1 w:1)
 	// Proof: Referrals Referrer (max_values: None, max_size: Some(65), added: 2540, mode: MaxEncodedLen)
-    fn claim_rewards() -> Weight {
-        // Minimum execution time: 62_058 nanoseconds.
-        Weight::from_ref_time(62_527_000 as u64)            .saturating_add(T::DbWeight::get().reads(6 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
+	fn claim_rewards() -> Weight {
+		// Minimum execution time: 62_058 nanoseconds.
+		Weight::from_ref_time(62_527_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(6 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
 	// Storage: Referrals AssetTier (r:1 w:1)
 	// Proof: Referrals AssetTier (max_values: None, max_size: Some(45), added: 2520, mode: MaxEncodedLen)
-    fn set_reward_percentage() -> Weight {
-        // Minimum execution time: 15_537 nanoseconds.
-        Weight::from_ref_time(16_059_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
+	fn set_reward_percentage() -> Weight {
+		// Minimum execution time: 15_537 nanoseconds.
+		Weight::from_ref_time(16_059_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 }
