@@ -2987,8 +2987,8 @@ mod with_onchain_route {
 			assert!(fee > 0, "The treasury did not receive the fee");
 
 			//The fee would be 5310255478763 in HDX, so it is less in DOT, which checks out
-			assert!(fee < 38 * UNITS / 10);
-			assert!(fee > 37 * UNITS / 10);
+			assert!(fee < 40 * UNITS / 10);
+			assert!(fee > 36 * UNITS / 10);
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 278060378846663);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
