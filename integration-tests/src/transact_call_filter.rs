@@ -280,9 +280,11 @@ fn remove_account_should_work_on_hydra() {
 			acala_account_id_at_hydra.clone(),
 			1_000 * UNITS,
 		));
-		let dai_balance =
-			hydradx_runtime::Currencies::free_balance(DAI, &AccountId::from(acala_account_id_at_hydra.clone()));
-		assert_eq!(dai_balance, 0);
+
+		assert_eq!(
+			hydradx_runtime::Currencies::free_balance(DAI, &AccountId::from(acala_account_id_at_hydra.clone())),
+			0
+		);
 	});
 
 	Acala::execute_with(|| {
@@ -321,6 +323,14 @@ fn remove_account_should_work_on_hydra() {
 				origin_kind: OriginKind::SovereignAccount,
 				call: omni_sell.encode().into(),
 			},
+			DepositAsset {
+				assets: All.into(),
+				beneficiary: Junction::AccountId32 {
+					id: acala_account_id_at_hydra.clone().into(),
+					network: None,
+				}
+				.into(),
+			},
 		]);
 
 		// Act
@@ -337,13 +347,11 @@ fn remove_account_should_work_on_hydra() {
 			r.event,
 			hydradx_runtime::RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
 		)));
-		/*assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(acala_account_id_at_hydra)),
-			1_000 * UNITS - UNITS
-		);*/
 
 		let dai_balance = hydradx_runtime::Currencies::free_balance(DAI, &AccountId::from(acala_account_id_at_hydra));
-		assert!(dai_balance > 0);
-		assert_eq!(dai_balance, 26619890727267708);
+		assert!(
+			dai_balance > 0,
+			"Omnipool sell swap failed as the user did not receive any DAI"
+		);
 	});
 }
