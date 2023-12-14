@@ -8,18 +8,13 @@ use polkadot_xcm::{latest::prelude::*, v3::WeightLimit, VersionedMultiAssets, Ve
 use cumulus_primitives_core::ParaId;
 use frame_support::weights::Weight;
 use hex_literal::hex;
-use hydradx_runtime::evm::precompiles::EvmAddress;
-use hydradx_runtime::evm::ExtendedAddressMapping;
 use orml_traits::currency::MultiCurrency;
-use pallet_evm::AddressMapping;
 use pretty_assertions::assert_eq;
 use primitives::AccountId;
-use sp_core::blake2_256;
-use sp_core::Encode;
-use sp_core::H160;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};
 use xcm_emulator::TestExt;
+
 // Determine the hash for assets expected to be have been trapped.
 fn determine_hash<M>(origin: &MultiLocation, assets: M) -> H256
 where
