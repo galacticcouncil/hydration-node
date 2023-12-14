@@ -5,30 +5,19 @@ use pretty_assertions::assert_eq;
 fn link_code_should_work_when_code_is_valid() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
-		assert_ok!(Referrals::register_code(
-			RuntimeOrigin::signed(ALICE),
-			b"BALLS69".to_vec(),
-		));
+		let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone()));
 		// ACT
-		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
-	});
-}
-
-#[test]
-fn link_code_should_fail_when_code_is_too_long() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_noop!(
-			Referrals::link_code(RuntimeOrigin::signed(ALICE), b"TOOMANYBALLS69".to_vec(),),
-			Error::<Test>::InvalidCode
-		);
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 	});
 }
 
 #[test]
 fn link_code_should_fail_when_code_does_not_exist() {
 	ExtBuilder::default().build().execute_with(|| {
+		let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
 		assert_noop!(
-			Referrals::link_code(RuntimeOrigin::signed(ALICE), b"BALLS69".to_vec(),),
+			Referrals::link_code(RuntimeOrigin::signed(ALICE), code),
 			Error::<Test>::InvalidCode
 		);
 	});
@@ -38,13 +27,11 @@ fn link_code_should_fail_when_code_does_not_exist() {
 fn link_code_should_link_correctly_when_code_is_valid() {
 	ExtBuilder::default().build().execute_with(|| {
 		// ARRANGE
-		assert_ok!(Referrals::register_code(
-			RuntimeOrigin::signed(ALICE),
-			b"BALLS69".to_vec(),
-		));
+		let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
 
 		// ACT
-		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 
 		// ASSERT
 		let entry = Pallet::<Test>::linked_referral_account::<AccountId>(BOB);
@@ -56,14 +43,12 @@ fn link_code_should_link_correctly_when_code_is_valid() {
 fn link_code_should_fail_when_linking_to_same_acccount() {
 	ExtBuilder::default().build().execute_with(|| {
 		// ARRANGE
-		assert_ok!(Referrals::register_code(
-			RuntimeOrigin::signed(ALICE),
-			b"BALLS69".to_vec(),
-		));
+		let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
 
 		// ACT
 		assert_noop!(
-			Referrals::link_code(RuntimeOrigin::signed(ALICE), b"BALLS69".to_vec()),
+			Referrals::link_code(RuntimeOrigin::signed(ALICE), code),
 			Error::<Test>::LinkNotAllowed
 		);
 	});
@@ -73,13 +58,12 @@ fn link_code_should_fail_when_linking_to_same_acccount() {
 fn link_code_should_link_correctly_when_code_is_lowercase() {
 	ExtBuilder::default().build().execute_with(|| {
 		// ARRANGE
-		assert_ok!(Referrals::register_code(
-			RuntimeOrigin::signed(ALICE),
-			b"BALLS69".to_vec(),
-		));
+		let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code,));
 
 		// ACT
-		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"balls69".to_vec()));
+		let code: ReferralCode<<Test as Config>::CodeLength> = b"balls69".to_vec().try_into().unwrap();
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 
 		// ASSERT
 		let entry = Pallet::<Test>::linked_referral_account::<AccountId>(BOB);
@@ -91,15 +75,13 @@ fn link_code_should_link_correctly_when_code_is_lowercase() {
 fn link_code_should_fail_when_account_is_already_linked() {
 	ExtBuilder::default().build().execute_with(|| {
 		// ARRANGE
-		assert_ok!(Referrals::register_code(
-			RuntimeOrigin::signed(ALICE),
-			b"BALLS69".to_vec(),
-		));
-		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+		let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code.clone()));
 
 		// ACT
 		assert_noop!(
-			Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()),
+			Referrals::link_code(RuntimeOrigin::signed(BOB), code),
 			Error::<Test>::AlreadyLinked
 		);
 	});
@@ -109,8 +91,8 @@ fn link_code_should_fail_when_account_is_already_linked() {
 fn link_code_should_emit_event_when_successful() {
 	ExtBuilder::default().build().execute_with(|| {
 		//ARRANGE
-		let code = b"BALLS69".to_vec();
-		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+		let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone()));
 		// ACT
 		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code.clone()));
 		// ASSERT

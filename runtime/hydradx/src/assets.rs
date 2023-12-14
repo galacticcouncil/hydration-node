@@ -61,7 +61,7 @@ use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeight
 use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
 use pallet_xyk::weights::WeightInfo as XykWeights;
-use sp_runtime::DispatchError;
+use sp_runtime::{DispatchError, FixedPointNumber};
 use sp_std::num::NonZeroU16;
 
 parameter_types! {
@@ -415,8 +415,9 @@ where
 	}
 }
 
+use hydradx_traits::pools::SpotPriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
-use hydradx_traits::{pools::SpotPriceProvider, PriceOracle};
+use hydradx_traits::PriceOracle;
 
 #[cfg(feature = "runtime-benchmarks")]
 use hydra_dx_math::ema::EmaPrice;
@@ -1007,7 +1008,7 @@ impl pallet_referrals::Config for Runtime {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
-	type Convert = ConvertViaOmnipool;
+	type Convert = ConvertViaOmnipool<Omnipool>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type PriceProvider =
 		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
@@ -1024,8 +1025,11 @@ impl pallet_referrals::Config for Runtime {
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
-pub struct ConvertViaOmnipool;
-impl Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool {
+pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
+impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
+where
+	SP: SpotPriceProvider<AssetId, Price = FixedU128>,
+{
 	type Error = DispatchError;
 
 	fn convert(
@@ -1034,8 +1038,17 @@ impl Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool {
 		asset_to: AssetId,
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
+		let price = SP::spot_price(asset_to, asset_from).ok_or(pallet_referrals::Error::<Runtime>::PriceNotFound)?;
+		let amount_to_receive = price.saturating_mul_int(amount);
+		let min_expected = amount_to_receive.saturating_sub(Permill::from_percent(1).mul_floor(amount_to_receive));
 		let balance = Currencies::free_balance(asset_to, &who);
-		Omnipool::sell(RuntimeOrigin::signed(who.clone()), asset_from, asset_to, amount, 0)?;
+		Omnipool::sell(
+			RuntimeOrigin::signed(who.clone()),
+			asset_from,
+			asset_to,
+			amount,
+			min_expected,
+		)?;
 		let balance_after = Currencies::free_balance(asset_to, &who);
 		let received = balance_after.saturating_sub(balance);
 		Ok(received)

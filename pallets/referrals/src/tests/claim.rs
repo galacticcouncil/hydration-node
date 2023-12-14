@@ -120,11 +120,9 @@ fn claim_rewards_update_total_accumulated_for_referrer_account() {
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
 			// Assert
@@ -142,11 +140,9 @@ fn claim_rewards_should_exclude_seed_amount() {
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
 			// Assert
@@ -169,11 +165,9 @@ fn claim_rewards_should_increase_referrer_level_when_limit_is_reached() {
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
 			// Assert
@@ -197,11 +191,9 @@ fn claim_rewards_should_increase_referrer_level_directly_to_top_tier_when_limit_
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
 			// Assert

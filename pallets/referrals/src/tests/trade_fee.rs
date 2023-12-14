@@ -17,11 +17,9 @@ fn process_trade_fee_should_increased_referrer_shares() {
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,));
 			// Assert
@@ -46,11 +44,9 @@ fn process_trade_fee_should_increased_trader_shares() {
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,));
 			// Assert
@@ -75,11 +71,9 @@ fn process_trade_fee_should_increased_total_share_issuance() {
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,));
 			// Assert
@@ -104,11 +98,9 @@ fn process_trade_fee_should_fail_when_taken_amount_is_greated_than_fee_amount() 
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
 			assert_noop!(
 				MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,),
@@ -125,10 +117,8 @@ fn process_trade_should_not_increase_shares_when_trader_does_not_have_linked_acc
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code,));
 			// Assert
 			assert_ok!(MockAmm::trade(
 				RuntimeOrigin::signed(ALICE),
@@ -157,11 +147,9 @@ fn process_trade_fee_should_add_asset_to_asset_list() {
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,));
 			// Assert
@@ -186,11 +174,9 @@ fn process_trade_fee_should_not_add_reward_asset_to_asset_list() {
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), DAI, HDX, 1_000_000_000_000,));
 			// Assert

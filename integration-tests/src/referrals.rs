@@ -4,6 +4,7 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Tokens};
 use orml_traits::MultiCurrency;
+use pallet_referrals::ReferralCode;
 use primitives::AccountId;
 use sp_runtime::Permill;
 use xcm_emulator::TestExt;
@@ -11,7 +12,8 @@ use xcm_emulator::TestExt;
 #[test]
 fn registering_a_code_should_charge_registration_fee() {
 	Hydra::execute_with(|| {
-		let code = b"BALLS69".to_vec();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		let (reg_asset, reg_fee, reg_account) = <Runtime as pallet_referrals::Config>::RegistrationFee::get();
 		let balance = Currencies::free_balance(reg_asset, &reg_account);
 		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE.into()), code));
@@ -26,7 +28,8 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 		init_referrals_program();
-		let code = b"BALLS69".to_vec();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE.into()),
 			code.clone()
@@ -49,7 +52,8 @@ fn trading_in_omnipool_should_increase_referrer_shares() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 		init_referrals_program();
-		let code = b"BALLS69".to_vec();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE.into()),
 			code.clone()
@@ -71,7 +75,8 @@ fn trading_in_omnipool_should_increase_trader_shares() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 		init_referrals_program();
-		let code = b"BALLS69".to_vec();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE.into()),
 			code.clone()
@@ -94,7 +99,8 @@ fn trading_in_omnipool_should_increase_total_shares_correctly() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 		init_referrals_program();
-		let code = b"BALLS69".to_vec();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE.into()),
 			code.clone()
@@ -117,7 +123,8 @@ fn claiming_rewards_should_convert_all_assets_to_reward_asset() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 		init_referrals_program();
-		let code = b"BALLS69".to_vec();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE.into()),
 			code.clone()
@@ -144,7 +151,8 @@ fn trading_hdx_in_omnipool_should_work_when_fee_is_below_existential_deposit() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 		init_referrals_program();
-		let code = b"BALLS69".to_vec();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
 			RuntimeOrigin::signed(ALICE.into()),
 			code.clone()

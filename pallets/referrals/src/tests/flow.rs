@@ -72,15 +72,10 @@ fn complete_referral_flow_should_work_as_expected() {
 		.build()
 		.execute_with(|| {
 			// ARRANGE
-			assert_ok!(Referrals::register_code(
-				RuntimeOrigin::signed(ALICE),
-				b"BALLS69".to_vec(),
-			));
-			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), b"BALLS69".to_vec()));
-			assert_ok!(Referrals::link_code(
-				RuntimeOrigin::signed(CHARLIE),
-				b"BALLS69".to_vec()
-			));
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone()));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code.clone()));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(CHARLIE), code,));
 			// TRADES
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000));
 			assert_ok!(MockAmm::trade(

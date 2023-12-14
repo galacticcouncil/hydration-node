@@ -31,7 +31,7 @@ benchmarks! {
 
 	register_code{
 		let caller: T::AccountId = account("caller", 0, 1);
-		let code = vec![b'x'; T::CodeLength::get() as usize];
+		let code: ReferralCode<T::CodeLength> = vec![b'x'; T::CodeLength::get() as usize].try_into().unwrap();
 		let (asset, fee, _) = T::RegistrationFee::get();
 		T::Currency::mint_into(asset, &caller, 2 * fee)?;
 
@@ -39,7 +39,7 @@ benchmarks! {
 	verify {
 		let entry = Pallet::<T>::referrer_level(caller.clone());
 		assert_eq!(entry, Some((Level::Novice, 0)));
-		let c = Pallet::<T>::normalize_code(ReferralCode::<T::CodeLength>::truncate_from(code));
+		let c = Pallet::<T>::normalize_code(code);
 		let entry = Pallet::<T>::referral_account(c);
 		assert_eq!(entry, Some(caller));
 	}
@@ -47,7 +47,7 @@ benchmarks! {
 	link_code{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let user: T::AccountId = account("user", 0, 1);
-		let code = vec![b'x'; T::CodeLength::get() as usize];
+		let code: ReferralCode<T::CodeLength> = vec![b'x'; T::CodeLength::get() as usize].try_into().unwrap();
 		let (asset, fee, _) = T::RegistrationFee::get();
 		T::Currency::mint_into(asset, &caller, 2 * fee)?;
 		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code.clone())?;
@@ -72,7 +72,7 @@ benchmarks! {
 
 	claim_rewards{
 		let caller: T::AccountId = account("caller", 0, 1);
-		let code = vec![b'x'; T::CodeLength::get() as usize];
+		let code: ReferralCode<T::CodeLength> = vec![b'x'; T::CodeLength::get() as usize].try_into().unwrap();
 		let (asset, fee, _) = T::RegistrationFee::get();
 		T::Currency::mint_into(asset, &caller, 2 * fee)?;
 		Pallet::<T>::register_code(RawOrigin::Signed(caller.clone()).into(), code)?;

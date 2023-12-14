@@ -61,7 +61,6 @@ use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Rounding;
 use sp_runtime::{traits::CheckedAdd, ArithmeticError, DispatchError, Permill};
-use sp_std::vec::Vec;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub use crate::traits::BenchmarkHelper;
@@ -101,6 +100,18 @@ pub struct Tier {
 	referrer: Permill,
 	/// Percentage of the fee that goes back to the trader.
 	trader: Permill,
+}
+
+#[derive(Clone, Debug, PartialEq, Encode, Decode, TypeInfo)]
+pub struct AssetAmount<AssetId> {
+	asset_id: AssetId,
+	amount: Balance,
+}
+
+impl<AssetId> AssetAmount<AssetId> {
+	pub fn new(asset_id: AssetId, amount: Balance) -> Self {
+		Self { asset_id, amount }
+	}
 }
 
 #[frame_support::pallet]
@@ -234,10 +245,8 @@ pub mod pallet {
 		},
 		/// Asset has been converted to RewardAsset.
 		Converted {
-			from: T::AssetId,
-			to: T::AssetId,
-			amount: Balance,
-			received: Balance,
+			from: AssetAmount<T::AssetId>,
+			to: AssetAmount<T::AssetId>,
 		},
 		/// Rewards claimed.
 		Claimed { who: T::AccountId, rewards: Balance },
@@ -275,6 +284,8 @@ pub mod pallet {
 		IncorrectRewardPercentage,
 		/// The account has already a code registered.
 		AlreadyRegistered,
+		/// Price for given asset pair not found.
+		PriceNotFound,
 	}
 
 	#[pallet::call]
@@ -294,15 +305,12 @@ pub mod pallet {
 		/// Emits `CodeRegistered` event when successful.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::register_code())]
-		pub fn register_code(origin: OriginFor<T>, code: Vec<u8>) -> DispatchResult {
+		pub fn register_code(origin: OriginFor<T>, code: ReferralCode<T::CodeLength>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-
 			ensure!(
 				ReferralAccounts::<T>::get(&who).is_none(),
 				Error::<T>::AlreadyRegistered
 			);
-
-			let code: ReferralCode<T::CodeLength> = code.try_into().map_err(|_| Error::<T>::TooLong)?;
 
 			ensure!(code.len() >= MIN_CODE_LENGTH, Error::<T>::TooShort);
 
@@ -342,9 +350,8 @@ pub mod pallet {
 		/// Emits `CodeLinked` event when successful.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::link_code())]
-		pub fn link_code(origin: OriginFor<T>, code: Vec<u8>) -> DispatchResult {
+		pub fn link_code(origin: OriginFor<T>, code: ReferralCode<T::CodeLength>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let code: ReferralCode<T::CodeLength> = code.try_into().map_err(|_| Error::<T>::InvalidCode)?;
 			let code = Self::normalize_code(code);
 			let ref_account = Self::referral_account(&code).ok_or(Error::<T>::InvalidCode)?;
 
@@ -384,10 +391,8 @@ pub mod pallet {
 			Assets::<T>::remove(asset_id);
 
 			Self::deposit_event(Event::Converted {
-				from: asset_id,
-				to: T::RewardAsset::get(),
-				amount: asset_balance,
-				received: total_reward_asset,
+				from: AssetAmount::new(asset_id, asset_balance),
+				to: AssetAmount::new(T::RewardAsset::get(), total_reward_asset),
 			});
 
 			Ok(())
