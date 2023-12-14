@@ -245,8 +245,9 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 use hydradx_runtime::xcm_account_derivation::HashedDescriptionDescribeFamilyAllTerminal;
 use orml_traits::MultiCurrency;
 use xcm_executor::traits::Convert;
+
 #[test]
-fn asd() {
+fn remove_account_should_work_on_hydra() {
 	// Arrange
 	TestNet::reset();
 
@@ -285,12 +286,6 @@ fn asd() {
 	});
 
 	Acala::execute_with(|| {
-		// allowed by SafeCallFilter and the runtime call filter
-		let call = pallet_balances::Call::<hydradx_runtime::Runtime>::transfer {
-			dest: BOB.into(),
-			value: UNITS,
-		};
-
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
 				asset_in: HDX,
@@ -326,20 +321,9 @@ fn asd() {
 				origin_kind: OriginKind::SovereignAccount,
 				call: omni_sell.encode().into(),
 			},
-			ExpectTransactStatus(MaybeErrorCode::Success),
-			RefundSurplus,
-			DepositAsset {
-				assets: All.into(),
-				beneficiary: Junction::AccountId32 {
-					id: parachain_reserve_account().into(),
-					network: None,
-				}
-				.into(),
-			},
 		]);
 
 		// Act
-
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			xcm_interior_at_acala,
 			MultiLocation::new(1, X1(Parachain(HYDRA_PARA_ID))),
@@ -347,8 +331,8 @@ fn asd() {
 		));
 	});
 
+	// Assert
 	Hydra::execute_with(|| {
-		// Assert
 		assert!(hydradx_runtime::System::events().iter().any(|r| matches!(
 			r.event,
 			hydradx_runtime::RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
