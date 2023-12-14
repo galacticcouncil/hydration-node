@@ -4,7 +4,7 @@ use crate::polkadot_test_net::*;
 use frame_support::{assert_ok, weights::Weight};
 use sp_runtime::codec::Encode;
 
-use hydradx_runtime::xcm_account_derivation::HashedDescriptionDescribeFamilyAllTerminal;
+use hydradx_adapters::xcm_account_derivation::HashedDescriptionDescribeFamilyAllTerminal;
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use xcm_emulator::TestExt;
@@ -20,17 +20,15 @@ fn other_chain_remote_account_should_work_on_hydra() {
 		id: evm_account().into(),
 	});
 
-	let xcm_interior_at_hydra = X2(
-		Junction::Parachain(ACALA_PARA_ID),
-		Junction::AccountId32 {
-			network: None,
-			id: evm_account().into(),
-		},
-	);
-
 	let xcm_origin_at_hydra = MultiLocation {
 		parents: 1,
-		interior: xcm_interior_at_hydra,
+		interior: X2(
+			Junction::Parachain(ACALA_PARA_ID),
+			Junction::AccountId32 {
+				network: None,
+				id: evm_account().into(),
+			},
+		),
 	};
 
 	let acala_account_id_at_hydra: AccountId =
