@@ -22,6 +22,7 @@ use hydradx_traits::{
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_omnipool::types::Tradability;
+use pallet_referrals::ReferralCode;
 
 pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
 	assert_ok!(
@@ -222,7 +223,7 @@ runtime_benchmarks! {
 		let buy_min_amount = 10_000_000_000_u128;
 
 		// Register and link referral code to account for the weight too
-		let code = b"MYCODE".to_vec();
+		let code = ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MYCODE".to_vec());
 		Referrals::register_code(RawOrigin::Signed(owner).into(), code.clone())?;
 		Referrals::link_code(RawOrigin::Signed(seller.clone()).into(), code)?;
 		Referrals::set_reward_percentage(RawOrigin::Root.into(), DAI, pallet_referrals::Level::Novice, Permill::from_percent(1), Permill::from_percent(1))?;
@@ -270,7 +271,7 @@ runtime_benchmarks! {
 		let amount_buy = 1_000_000_000_000_u128;
 		let sell_max_limit = 2_000_000_000_000_u128;
 		// Register and link referral code to account for the weight too
-		let code = b"MYCODE".to_vec();
+		let code = ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MYCODE".to_vec());
 		Referrals::register_code(RawOrigin::Signed(owner).into(), code.clone())?;
 		Referrals::link_code(RawOrigin::Signed(seller.clone()).into(), code)?;
 		Referrals::set_reward_percentage(RawOrigin::Root.into(), token_id, pallet_referrals::Level::Novice, Permill::from_percent(1), Permill::from_percent(1))?;
