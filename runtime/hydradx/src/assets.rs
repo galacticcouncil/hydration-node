@@ -1038,17 +1038,31 @@ where
 		asset_to: AssetId,
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
+		if amount < <Runtime as pallet_omnipool::Config>::MinimumTradingLimit::get() {
+			return Err(pallet_referrals::Error::<Runtime>::ConversionMinTradingAmountNotReached.into());
+		}
 		let price = SP::spot_price(asset_to, asset_from).ok_or(pallet_referrals::Error::<Runtime>::PriceNotFound)?;
 		let amount_to_receive = price.saturating_mul_int(amount);
-		let min_expected = amount_to_receive.saturating_sub(Permill::from_percent(1).mul_floor(amount_to_receive));
+		let min_expected = amount_to_receive
+			.saturating_sub(Permill::from_percent(1).mul_floor(amount_to_receive))
+			.max(1);
 		let balance = Currencies::free_balance(asset_to, &who);
-		Omnipool::sell(
+		let r = Omnipool::sell(
 			RuntimeOrigin::signed(who.clone()),
 			asset_from,
 			asset_to,
 			amount,
 			min_expected,
-		)?;
+		);
+		match r {
+			Err(error) => {
+				if error == pallet_omnipool::Error::<Runtime>::ZeroAmountOut.into() {
+					return Err(pallet_referrals::Error::<Runtime>::ConversionZeroAmountReceived.into());
+				}
+				return Err(error);
+			}
+			Ok(()) => {}
+		}
 		let balance_after = Currencies::free_balance(asset_to, &who);
 		let received = balance_after.saturating_sub(balance);
 		Ok(received)

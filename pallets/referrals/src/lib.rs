@@ -286,6 +286,10 @@ pub mod pallet {
 		AlreadyRegistered,
 		/// Price for given asset pair not found.
 		PriceNotFound,
+		/// Minimum trading amount for conversion has not been reached.
+		ConversionMinTradingAmountNotReached,
+		/// Zero amount received from conversion.
+		ConversionZeroAmountReceived,
 	}
 
 	#[pallet::call]
@@ -419,7 +423,20 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			for (asset_id, _) in Assets::<T>::drain() {
 				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
-				T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance)?;
+				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
+				match r {
+					Err(error) => {
+						if error == Error::<T>::ConversionMinTradingAmountNotReached.into()
+							|| error == Error::<T>::ConversionZeroAmountReceived.into()
+						{
+							// We allow these errors to continue claiming as the current amount of asset that needed to be converted
+							// has very low impact on the rewards.
+						} else {
+							return Err(error);
+						}
+					}
+					Ok(_) => {}
+				}
 			}
 			let shares = Shares::<T>::take(&who);
 			if shares == Balance::zero() {
@@ -516,6 +533,27 @@ pub mod pallet {
 				trader,
 			});
 			Ok(())
+		}
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		fn on_idle(_n: T::BlockNumber, remaining_weight: Weight) -> Weight {
+			let convert_weight = T::WeightInfo::convert();
+			if convert_weight.is_zero() {
+				return Weight::zero();
+			}
+			let one_read = T::DbWeight::get().reads(1u64);
+			let max_converts = remaining_weight.saturating_sub(one_read).ref_time() / convert_weight.ref_time();
+
+			for asset_id in Assets::<T>::iter_keys().take(max_converts as usize) {
+				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
+				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
+				if r.is_ok() {
+					Assets::<T>::remove(asset_id);
+				}
+			}
+			convert_weight.saturating_mul(max_converts).saturating_add(one_read)
 		}
 	}
 }

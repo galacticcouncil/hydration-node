@@ -404,6 +404,8 @@ pub mod pallet {
 		AssetNotFrozen,
 		/// Configured stable asset cannot be removed from Omnipool.
 		StableAssetCannotBeRemoved,
+		/// Calculated amount out from sell trade is zero.
+		ZeroAmountOut,
 	}
 
 	#[pallet::call]
@@ -982,6 +984,11 @@ pub mod pallet {
 				current_imbalance.value,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(
+				*state_changes.asset_out.delta_reserve > Balance::zero(),
+				Error::<T>::ZeroAmountOut
+            );
 
 			ensure!(
 				*state_changes.asset_out.delta_reserve >= min_buy_amount,
