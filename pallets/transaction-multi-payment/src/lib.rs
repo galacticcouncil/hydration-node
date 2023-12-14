@@ -31,6 +31,7 @@ mod traits;
 
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
+use hydra_dx_math::ema::EmaPrice;
 use sp_runtime::{
 	traits::{DispatchInfoOf, One, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
@@ -43,12 +44,13 @@ use sp_std::marker::PhantomData;
 
 use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::sp_runtime::FixedPointOperand;
-use hydradx_traits::{pools::SpotPriceProvider, NativePriceOracle};
+use hydradx_traits::NativePriceOracle;
 use orml_traits::{Happened, MultiCurrency};
 
-use frame_support::traits::IsSubType;
-
 pub use crate::traits::*;
+use frame_support::traits::IsSubType;
+use hydradx_traits::router::{AssetPair, RouteProvider};
+use hydradx_traits::{OraclePeriod, PriceOracle};
 
 type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
 type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -77,13 +79,13 @@ pub mod pallet {
 			let mut weight: u64 = 0;
 
 			for (asset_id, fallback_price) in <AcceptedCurrencies<T>>::iter() {
-				let maybe_price = T::SpotPriceProvider::spot_price(asset_id, native_asset);
+				let maybe_price = Self::get_oracle_price(asset_id, native_asset);
 
 				let price = maybe_price.unwrap_or(fallback_price);
 
 				AcceptedCurrencyPrice::<T>::insert(asset_id, price);
 
-				weight += T::WeightInfo::get_spot_price().ref_time();
+				weight += T::WeightInfo::get_oracle_price().ref_time();
 			}
 
 			Weight::from_parts(weight, 0)
@@ -105,8 +107,11 @@ pub mod pallet {
 		/// Multi Currency
 		type Currencies: MultiCurrency<Self::AccountId>;
 
-		/// Spot price provider
-		type SpotPriceProvider: SpotPriceProvider<AssetIdOf<Self>, Price = Price>;
+		/// On chain route provider
+		type RouteProvider: RouteProvider<AssetIdOf<Self>>;
+
+		/// Oracle price provider for routes
+		type OraclePriceProvider: PriceOracle<AssetIdOf<Self>, Price = EmaPrice>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -294,26 +299,41 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T>
-where
-	BalanceOf<T>: FixedPointOperand,
-{
-	fn account_currency(who: &T::AccountId) -> AssetIdOf<T> {
+impl<T: Config> Pallet<T> {
+	fn account_currency(who: &T::AccountId) -> AssetIdOf<T>
+	where
+		BalanceOf<T>: FixedPointOperand,
+	{
 		Pallet::<T>::get_currency(who).unwrap_or_else(T::NativeAssetId::get)
 	}
 
-	fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price> {
+	fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price>
+	where
+		BalanceOf<T>: FixedPointOperand,
+	{
 		if let Some(price) = Self::price(currency) {
 			Some(price)
 		} else {
 			// If not loaded in on_init, let's try first the spot price provider again
 			// This is unlikely scenario as the price would be retrieved in on_init for each block
-			if let Some(price) = T::SpotPriceProvider::spot_price(currency, T::NativeAssetId::get()) {
+			let maybe_price = Self::get_oracle_price(currency, T::NativeAssetId::get());
+
+			if let Some(price) = maybe_price {
 				Some(price)
 			} else {
 				Self::currencies(currency)
 			}
 		}
+	}
+
+	fn get_oracle_price(
+		asset_id: <T::Currencies as MultiCurrency<T::AccountId>>::CurrencyId,
+		native_asset: <T::Currencies as MultiCurrency<T::AccountId>>::CurrencyId,
+	) -> Option<FixedU128> {
+		let on_chain_route = T::RouteProvider::get_route(AssetPair::new(asset_id, native_asset));
+
+		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
+			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d))
 	}
 }
 
@@ -332,6 +352,64 @@ impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, BalanceOf<T>> for Deposit
 	fn deposit_fee(who: &T::AccountId, currency: AssetIdOf<T>, amount: BalanceOf<T>) -> DispatchResult {
 		<T as Config>::Currencies::deposit(currency, who, amount)?;
 		Ok(())
+	}
+}
+
+#[cfg(feature = "evm")]
+use {
+	frame_support::traits::{Currency as PalletCurrency, Imbalance, OnUnbalanced},
+	pallet_evm::{EVMCurrencyAdapter, OnChargeEVMTransaction},
+	sp_core::{H160, U256},
+	sp_runtime::traits::UniqueSaturatedInto,
+};
+#[cfg(feature = "evm")]
+type CurrencyAccountId<T> = <T as frame_system::Config>::AccountId;
+#[cfg(feature = "evm")]
+type BalanceFor<T> = <<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::Balance;
+#[cfg(feature = "evm")]
+type PositiveImbalanceFor<T> =
+	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::PositiveImbalance;
+#[cfg(feature = "evm")]
+type NegativeImbalanceFor<T> =
+	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::NegativeImbalance;
+
+#[cfg(feature = "evm")]
+/// Implements the transaction payment for EVM transactions.
+pub struct TransferEvmFees<OU>(PhantomData<OU>);
+
+#[cfg(feature = "evm")]
+impl<T, OU> OnChargeEVMTransaction<T> for TransferEvmFees<OU>
+where
+	T: Config + pallet_evm::Config,
+	PositiveImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = NegativeImbalanceFor<T>>,
+	NegativeImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = PositiveImbalanceFor<T>>,
+	OU: OnUnbalanced<NegativeImbalanceFor<T>>,
+	U256: UniqueSaturatedInto<BalanceFor<T>>,
+{
+	type LiquidityInfo = Option<NegativeImbalanceFor<T>>;
+
+	fn withdraw_fee(who: &H160, fee: U256) -> Result<Self::LiquidityInfo, pallet_evm::Error<T>> {
+		EVMCurrencyAdapter::<<T as pallet_evm::Config>::Currency, ()>::withdraw_fee(who, fee)
+	}
+
+	fn can_withdraw(who: &H160, amount: U256) -> Result<(), pallet_evm::Error<T>> {
+		EVMCurrencyAdapter::<<T as pallet_evm::Config>::Currency, ()>::can_withdraw(who, amount)
+	}
+	fn correct_and_deposit_fee(
+		who: &H160,
+		corrected_fee: U256,
+		base_fee: U256,
+		already_withdrawn: Self::LiquidityInfo,
+	) -> Self::LiquidityInfo {
+		<EVMCurrencyAdapter<<T as pallet_evm::Config>::Currency, OU> as OnChargeEVMTransaction<
+			T,
+		>>::correct_and_deposit_fee(who, corrected_fee, base_fee, already_withdrawn)
+	}
+
+	fn pay_priority_fee(tip: Self::LiquidityInfo) {
+		if let Some(tip) = tip {
+			OU::on_unbalanced(tip);
+		}
 	}
 }
 

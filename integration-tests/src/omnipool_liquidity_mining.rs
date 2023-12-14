@@ -96,7 +96,7 @@ fn create_global_farm_should_work_when_origin_is_root() {
 		);
 
 		let g_farm_account = hydradx_runtime::OmnipoolWarehouseLM::farm_account_id(farm_id).unwrap();
-		assert_eq!(hydradx_runtime::Balances::free_balance(&g_farm_account), total_rewards);
+		assert_eq!(hydradx_runtime::Balances::free_balance(g_farm_account), total_rewards);
 	});
 }
 
@@ -540,19 +540,20 @@ fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
 
-	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
-		u128::MAX,
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-		hydradx_runtime::RuntimeOrigin::root(),
-		stable_price,
+		HDX,
 		native_price,
-		Permill::from_percent(100),
-		Permill::from_percent(10)
+		Permill::from_percent(10),
+		hydradx_runtime::Omnipool::protocol_account(),
 	));
-
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
+		stable_price,
+		Permill::from_percent(100),
+		hydradx_runtime::Omnipool::protocol_account(),
+	));
 	let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
 
 	assert_ok!(hydradx_runtime::Omnipool::add_token(

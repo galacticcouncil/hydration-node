@@ -4,31 +4,26 @@ use crate::polkadot_test_net::*;
 use frame_support::{
 	assert_ok,
 	dispatch::DispatchInfo,
-	sp_runtime::traits::SignedExtension,
-	traits::{OnFinalize, OnInitialize},
+	sp_runtime::{traits::SignedExtension, FixedU128, Permill},
 	weights::Weight,
 };
-use hydradx_runtime::{Balances, Currencies, MultiTransactionPayment, RuntimeOrigin, Tokens};
+use frame_system::RawOrigin;
+use hydradx_runtime::{
+	Balances, Currencies, EmaOracle, MultiTransactionPayment, Omnipool, Router, RuntimeOrigin, Tokens,
+};
 use orml_traits::currency::MultiCurrency;
 use primitives::Price;
+
+use hydradx_adapters::OraclePriceProvider;
+use hydradx_traits::{
+	pools::SpotPriceProvider,
+	router::{AssetPair, RouteProvider},
+	OraclePeriod, PriceOracle,
+};
 use xcm_emulator::TestExt;
 
-pub fn hydra_run_to_block(to: BlockNumber) {
-	while hydradx_runtime::System::block_number() < to {
-		let b = hydradx_runtime::System::block_number();
-
-		hydradx_runtime::System::on_finalize(b);
-		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-
-		hydradx_runtime::System::on_initialize(b + 1);
-		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
-
-		hydradx_runtime::System::set_block_number(b + 1);
-	}
-}
-
 #[test]
-fn non_native_fee_payment_works_with_omnipool_spot_price() {
+fn non_native_fee_payment_works_with_oracle_price_based_on_onchain_route() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -61,7 +56,10 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 
 		init_omnipool();
 
-		hydra_run_to_block(2);
+		hydradx_run_to_block(4);
+
+		let dave_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(DAVE));
+		assert_eq!(dave_balance, 1_000_000_000_000_000_000_000);
 
 		let call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: DAI },
@@ -77,7 +75,7 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 		);
 
 		let dave_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(DAVE));
-		assert_eq!(dave_balance, 999_991_799_671_574_511_701); //Omnipool spot price
+		assert_eq!(dave_balance, 999_992_364_637_822_103_500); //Price based on oracle with onchain route
 	});
 }
 
@@ -88,10 +86,7 @@ fn fee_currency_on_account_lifecycle() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 
 		// ------------ set on create ------------
 		assert_ok!(Currencies::transfer(
@@ -106,7 +101,7 @@ fn fee_currency_on_account_lifecycle() {
 			50_000_000_000_000
 		);
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
+			MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)),
 			Some(1)
 		);
 
@@ -118,10 +113,7 @@ fn fee_currency_on_account_lifecycle() {
 			false,
 		));
 
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 	});
 }
 
@@ -145,10 +137,7 @@ fn fee_currency_cannot_be_set_to_not_accepted_asset() {
 	Hydra::execute_with(|| {
 		// assemble
 		let amount = 50_000_000 * UNITS;
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 
 		// act
 		assert_ok!(Currencies::transfer(
@@ -160,10 +149,7 @@ fn fee_currency_cannot_be_set_to_not_accepted_asset() {
 
 		// assert
 		assert_eq!(Tokens::free_balance(PEPE, &AccountId::from(HITCHHIKER)), amount);
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 	});
 }
 
@@ -184,11 +170,8 @@ fn fee_currency_should_not_change_when_account_holds_native_currency_already() {
 			50_000_000_000_000,
 		));
 
-		assert_eq!(Balances::free_balance(&AccountId::from(HITCHHIKER)), UNITS);
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(Balances::free_balance(AccountId::from(HITCHHIKER)), UNITS);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 	});
 }
 
@@ -211,7 +194,7 @@ fn fee_currency_should_not_change_when_account_holds_other_token_already() {
 		));
 
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
+			MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)),
 			Some(1)
 		);
 	});
@@ -241,9 +224,74 @@ fn fee_currency_should_reset_to_default_when_account_spends_tokens() {
 			false,
 		));
 
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 	});
+}
+
+#[test]
+fn omnipool_spotprice_and_onchain_price_should_be_very_similar() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			Omnipool::protocol_account(),
+			DOT,
+			3000 * UNITS as i128,
+		));
+
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			FixedU128::from_inner(25_650_000_000_000_000),
+			Permill::from_percent(1),
+			AccountId::from(BOB),
+		));
+		do_trade_to_populate_oracle(DAI, DOT, 10 * UNITS);
+
+		set_relaychain_block_number(10);
+
+		//Act
+		let spot_price = Omnipool::spot_price(DAI, DOT).unwrap();
+
+		let default_route = Router::get_route(AssetPair::new(DAI, DOT));
+		let onchain_oracle_price = OraclePriceProvider::<AssetId, EmaOracle, hydradx_runtime::LRNA>::price(
+			&default_route,
+			OraclePeriod::Short,
+		)
+		.unwrap();
+
+		let onchain_oracle_price = FixedU128::from_rational(onchain_oracle_price.n, onchain_oracle_price.d);
+
+		//Assert
+		assert_eq!(spot_price.to_float(), onchain_oracle_price.to_float());
+	});
+}
+
+fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
+		CHARLIE.into(),
+		LRNA,
+		1000000000000 * UNITS,
+		0,
+	));
+
+	assert_ok!(Omnipool::sell(
+		RuntimeOrigin::signed(CHARLIE.into()),
+		LRNA,
+		asset_1,
+		amount,
+		Balance::MIN
+	));
+
+	assert_ok!(Omnipool::sell(
+		RuntimeOrigin::signed(CHARLIE.into()),
+		LRNA,
+		asset_2,
+		amount,
+		Balance::MIN
+	));
 }

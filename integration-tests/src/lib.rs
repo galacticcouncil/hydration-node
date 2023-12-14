@@ -8,6 +8,7 @@ mod dca;
 mod dust;
 mod dust_removal_whitelist;
 mod dynamic_fees;
+mod evm;
 mod exchange_asset;
 mod non_native_fee;
 mod omnipool_init;

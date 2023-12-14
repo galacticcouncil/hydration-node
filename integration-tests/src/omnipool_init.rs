@@ -269,6 +269,8 @@ fn removing_token_should_work_when_no_shares_remaining() {
 		let bob_account = AccountId::from(UNKNOWN);
 		let dot_amount = 87_719_298_250_000_u128;
 
+		let position_id = hydradx_runtime::Omnipool::next_position_id();
+
 		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -287,10 +289,11 @@ fn removing_token_should_work_when_no_shares_remaining() {
 		));
 
 		let position =
-			pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_position(0, bob_account.clone()).unwrap();
+			pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_position(position_id, bob_account.clone())
+				.unwrap();
 		assert_ok!(hydradx_runtime::Omnipool::remove_liquidity(
 			hydradx_runtime::RuntimeOrigin::signed(UNKNOWN.into()),
-			0,
+			position_id,
 			position.shares,
 		));
 

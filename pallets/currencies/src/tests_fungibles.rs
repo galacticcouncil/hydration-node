@@ -119,7 +119,7 @@ fn fungibles_transfer_trait_should_work() {
 
 			assert_noop!(
 				FungibleCurrencies::<Runtime>::transfer(X_TOKEN_ID, &BOB, &ALICE, 100, Preservation::Preserve),
-				TokenError::NotExpendable
+				orml_tokens::Error::<Runtime>::KeepAlive
 			);
 			assert_ok!(FungibleCurrencies::<Runtime>::transfer(
 				X_TOKEN_ID,

@@ -54,6 +54,8 @@ pub mod pallet {
 	use crate::types::Metadata;
 	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
 	pub type AssetDetailsT<T> =
 		AssetDetails<<T as Config>::AssetId, <T as Config>::Balance, BoundedVec<u8, <T as Config>::StringLimit>>;
 
@@ -101,6 +103,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
@@ -636,5 +639,15 @@ impl<T: Config> InspectRegistry<T::AssetId> for Pallet<T> {
 
 	fn decimals(asset_id: T::AssetId) -> Option<u8> {
 		Some(AssetMetadataMap::<T>::get(asset_id)?.decimals)
+	}
+
+	fn asset_name(asset_id: T::AssetId) -> Option<Vec<u8>> {
+		let asset = Assets::<T>::get(asset_id)?;
+		Some(asset.name.into_inner())
+	}
+
+	fn asset_symbol(asset_id: T::AssetId) -> Option<Vec<u8>> {
+		let asset_metadata = AssetMetadataMap::<T>::get(asset_id)?;
+		Some(asset_metadata.symbol.into_inner())
 	}
 }

@@ -47,6 +47,9 @@ pub struct Cli {
 	/// Relaychain arguments
 	#[clap(raw = true)]
 	pub relaychain_args: Vec<String>,
+
+	#[clap(flatten)]
+	pub ethereum_config: crate::service::evm::EthereumConfig,
 }
 
 #[derive(Debug)]
@@ -115,6 +118,6 @@ pub enum Subcommand {
 
 	/// Try-runtime has migrated to a standalone
 	/// [CLI](<https://github.com/paritytech/try-runtime-cli>). The subcommand exists as a stub and
-	/// deprecation notice. It will be removed entirely some time after Janurary 2024.
+	/// deprecation notice. It will be removed entirely some time after January 2024.
 	TryRuntime,
 }

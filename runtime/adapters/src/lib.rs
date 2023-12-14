@@ -28,12 +28,11 @@ use frame_support::{
 	traits::{Contains, LockIdentifier, OriginTrait},
 	weights::{Weight, WeightToFee},
 };
-use hydra_dx_math::support::rational::round_u512_to_rational;
 use hydra_dx_math::{
 	ema::EmaPrice,
 	ensure,
 	omnipool::types::BalanceUpdate,
-	support::rational::{round_to_rational, Rounding},
+	support::rational::{round_to_rational, round_u512_to_rational, Rounding},
 };
 use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::{
@@ -48,7 +47,7 @@ use pallet_stableswap::types::{PoolState, StableswapHooks};
 use pallet_transaction_multi_payment::DepositFee;
 use polkadot_xcm::latest::prelude::*;
 use primitive_types::{U128, U512};
-use primitives::constants::chain::STABLESWAP_SOURCE;
+use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::BlockNumberProvider;
 use sp_std::vec::Vec;
@@ -559,6 +558,15 @@ where
 					let rational_as_u128 = round_to_rational((nominator, denominator), Rounding::Nearest);
 
 					EmaPrice::new(rational_as_u128.0, rational_as_u128.1)
+				}
+				PoolType::XYK => {
+					let price_result = AggregatedPriceGetter::get_price(asset_a, asset_b, period, XYK_SOURCE);
+
+					match price_result {
+						Ok(price) => price.0,
+						Err(OracleError::SameAsset) => EmaPrice::from(1),
+						Err(_) => return None,
+					}
 				}
 				_ => return None,
 			};

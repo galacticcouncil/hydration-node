@@ -1,7 +1,5 @@
 // This file is part of HydraDX.
-
-// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB). SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,12 +63,12 @@ fn claim_cant_overflow() {
 		let charlie_eth_addr = EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]);
 
 		assert_eq!(Claims::<Test>::get(charlie_eth_addr), CLAIM_AMOUNT);
-		assert_eq!(Balances::free_balance(CHARLIE), primitives::Balance::MAX - 1);
+		assert_eq!(Balances::free_balance(CHARLIE), primitives::Balance::MAX - 2);
 
 		assert_noop!(ClaimsPallet::claim(RuntimeOrigin::signed(CHARLIE), EcdsaSignature(signature)), Error::<Test>::BalanceOverflow);
 
 		assert_eq!(Claims::<Test>::get(charlie_eth_addr), CLAIM_AMOUNT);
-		assert_eq!(Balances::free_balance(CHARLIE), primitives::Balance::MAX - 1);
+		assert_eq!(Balances::free_balance(CHARLIE), primitives::Balance::MAX - 2);
 	})
 }
 

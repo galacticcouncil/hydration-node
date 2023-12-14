@@ -222,4 +222,26 @@ where
 			.into()
 		}
 	}
+
+	fn transfer(
+		asset: Self::AssetId,
+		source: &T::AccountId,
+		dest: &T::AccountId,
+		amount: Self::Balance,
+		preservation: Preservation,
+	) -> Result<Self::Balance, DispatchError> {
+		if asset == T::GetNativeCurrencyId::get() {
+			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::transfer(source, dest, amount.into(), preservation)
+				.into()
+		} else {
+			<T::MultiCurrency as fungibles::Mutate<T::AccountId>>::transfer(
+				asset.into(),
+				source,
+				dest,
+				amount.into(),
+				preservation,
+			)
+			.into()
+		}
+	}
 }

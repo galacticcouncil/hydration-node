@@ -41,8 +41,6 @@ use sp_runtime::{
 	BuildStorage, DispatchError,
 };
 
-use hydradx_adapters::inspect::MultiInspectAdapter;
-
 use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResult, FixedU128};
@@ -56,10 +54,10 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1330108000;
-pub const BUY_DCA_FEE_IN_DAI: Balance = 1170495040;
-pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1329215000;
-pub const SELL_DCA_FEE_IN_DAI: Balance = 1169709200;
+pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1367451000;
+pub const BUY_DCA_FEE_IN_DAI: Balance = 1203356880;
+pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1369132000;
+pub const SELL_DCA_FEE_IN_DAI: Balance = 1204836160;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -218,7 +216,6 @@ impl orml_tokens::Config for Test {
 parameter_types! {
 		pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
-	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionCollectionId: u32= 1000;
 
 	pub const ExistentialDeposit: u128 = 500;
@@ -244,7 +241,6 @@ impl pallet_omnipool::Config for Test {
 	type PositionItemId = u32;
 	type Currency = Currencies;
 	type HubAssetId = LRNAAssetId;
-	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PosiitionCollectionId;
@@ -348,6 +344,7 @@ pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
 
 parameter_types! {
 	pub MaxNumberOfTrades: u8 = 3;
+	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 }
 
 type Pools = (OmniPool, Xyk);
@@ -356,9 +353,10 @@ impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type MaxNumberOfTrades = MaxNumberOfTrades;
-	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
+	type NativeAssetId = NativeCurrencyId;
+	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
+	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 }
 
@@ -480,6 +478,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 
 		Ok(())
 	}
+
+	fn get_liquidity_depth(
+		_pool_type: PoolType<AssetId>,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		todo!("Not implemented as not used directly within DCA context")
+	}
 }
 
 pub const XYK_SELL_CALCULATION_RESULT: Balance = ONE * 5 / 4;
@@ -577,6 +583,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 
 		Ok(())
 	}
+
+	fn get_liquidity_depth(
+		_pool_type: PoolType<AssetId>,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		todo!("No need to implement it as this is not used directly in DCA")
+	}
 }
 
 pub struct PriceProviderMock {}
@@ -666,6 +680,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
 use rand::SeedableRng;
@@ -859,14 +874,19 @@ impl ExtBuilder {
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), u128::MAX));
-
-				assert_ok!(Omnipool::initialize_pool(
+				assert_ok!(Omnipool::add_token(
 					RuntimeOrigin::root(),
-					stable_price,
+					HDXAssetId::get(),
 					native_price,
 					Permill::from_percent(100),
-					Permill::from_percent(100)
+					Omnipool::protocol_account(),
+				));
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					DAI,
+					stable_price,
+					Permill::from_percent(100),
+					Omnipool::protocol_account(),
 				));
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {

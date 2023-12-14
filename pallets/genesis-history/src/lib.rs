@@ -62,6 +62,7 @@ pub mod pallet {
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		pub previous_chain: Chain,
+		#[serde(skip)]
 		pub _phantom: PhantomData<T>,
 	}
 

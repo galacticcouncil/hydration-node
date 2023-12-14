@@ -42,6 +42,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
 		"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
 		"staging" => Box::new(chain_spec::staging::parachain_config()?),
 		"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
+		"moonbase" => Box::new(chain_spec::moonbase::parachain_config()?),
 		path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 	})
 }
@@ -79,6 +80,7 @@ impl SubstrateCli for Cli {
 			"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
 			"staging" => Box::new(chain_spec::staging::parachain_config()?),
 			"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
+			"moonbase" => Box::new(chain_spec::moonbase::parachain_config()?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		})
 	}
@@ -322,7 +324,7 @@ pub fn run() -> sc_cli::Result<()> {
 					if config.role.is_authority() { "yes" } else { "no" }
 				);
 
-				crate::service::start_node(config, polkadot_config, collator_options, id, hwbench)
+				crate::service::start_node(config, polkadot_config, cli.ethereum_config, collator_options, id, hwbench)
 					.await
 					.map(|r| r.0)
 					.map_err(Into::into)

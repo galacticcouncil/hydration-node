@@ -17,20 +17,21 @@
 
 use crate as router;
 use crate::{Config, Trade};
-use frame_support::parameter_types;
-use frame_support::traits::{Everything, Nothing};
-use frame_system as system;
-use frame_system::pallet_prelude::OriginFor;
-use hydradx_adapters::inspect::MultiInspectAdapter;
+use frame_support::{
+	parameter_types,
+	traits::{Everything, Nothing},
+};
+use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup, One},
+	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError,
 };
+
 use std::cell::RefCell;
 use std::ops::Deref;
 
@@ -55,7 +56,7 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 63;
 }
 
-impl system::Config for Test {
+impl frame_system::Config for Test {
 	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
@@ -85,7 +86,7 @@ pub type Amount = i128;
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		One::one()
+		1
 	};
 }
 
@@ -104,7 +105,7 @@ impl orml_tokens::Config for Test {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 500;
+	pub const ExistentialDeposit: u128 = 1;
 	pub const MaxReserves: u32 = 50;
 }
 
@@ -132,20 +133,21 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-type Pools = (XYK, StableSwap, OmniPool);
+type Pools = (XYK, StableSwap, OmniPool, LBP);
 
 parameter_types! {
-	pub NativeCurrencyId: AssetId = 1000;
-	pub MaxNumberOfTrades: u8 = MAX_LIMIT_FOR_TRADES;
+	pub NativeCurrencyId: AssetId = HDX;
+	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 }
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type MaxNumberOfTrades = MaxNumberOfTrades;
-	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
+	type NativeAssetId = NativeCurrencyId;
+	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
+	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 }
 
@@ -154,30 +156,42 @@ pub type AccountId = u64;
 pub const ALICE: AccountId = 1;
 pub const ASSET_PAIR_ACCOUNT: AccountId = 2;
 
-pub const BSX: AssetId = 1000;
+pub const HDX: AssetId = 0;
 pub const AUSD: AssetId = 1001;
 pub const MOVR: AssetId = 1002;
 pub const KSM: AssetId = 1003;
 pub const RMRK: AssetId = 1004;
 pub const SDN: AssetId = 1005;
+pub const STABLE_SHARE_ASSET: AssetId = 1006;
+pub const DOT: AssetId = 1007;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
 
-pub const XYK_SELL_CALCULATION_RESULT: Balance = 6;
-pub const XYK_BUY_CALCULATION_RESULT: Balance = 5;
+pub const XYK_SELL_CALCULATION_RESULT: Balance = 13;
+pub const LBP_SELL_CALCULATION_RESULT: Balance = 12;
+pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = 10;
 pub const STABLESWAP_SELL_CALCULATION_RESULT: Balance = 4;
+
+pub const LBP_BUY_CALCULATION_RESULT: Balance = 8;
+pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 5;
 pub const STABLESWAP_BUY_CALCULATION_RESULT: Balance = 3;
-pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = 2;
-pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 1;
+pub const XYK_BUY_CALCULATION_RESULT: Balance = 1;
+
 pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
 
-pub const BSX_AUSD_TRADE_IN_XYK: Trade<AssetId> = Trade {
+pub fn default_omnipool_route() -> Vec<Trade<AssetId>> {
+	vec![Trade {
+		pool: PoolType::Omnipool,
+		asset_in: HDX,
+		asset_out: AUSD,
+	}]
+}
+
+pub const HDX_AUSD_TRADE_IN_XYK: Trade<AssetId> = Trade {
 	pool: PoolType::XYK,
-	asset_in: BSX,
+	asset_in: HDX,
 	asset_out: AUSD,
 };
-
-pub const MAX_LIMIT_FOR_TRADES: u8 = 3;
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
@@ -187,7 +201,7 @@ pub struct ExtBuilder {
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
-			endowed_accounts: vec![(ALICE, BSX, 1000u128)],
+			endowed_accounts: vec![(ALICE, HDX, 1000u128)],
 		}
 	}
 }
@@ -211,11 +225,13 @@ impl ExtBuilder {
 		.unwrap();
 
 		let mut initial_accounts = vec![
+			(ASSET_PAIR_ACCOUNT, STABLE_SHARE_ASSET, 1000u128),
 			(ASSET_PAIR_ACCOUNT, AUSD, 1000u128),
 			(ASSET_PAIR_ACCOUNT, MOVR, 1000u128),
 			(ASSET_PAIR_ACCOUNT, KSM, 1000u128),
 			(ASSET_PAIR_ACCOUNT, RMRK, 1000u128),
 			(ASSET_PAIR_ACCOUNT, SDN, 1000u128),
+			(ASSET_PAIR_ACCOUNT, DOT, 1000u128),
 		];
 
 		initial_accounts.extend(self.endowed_accounts);
@@ -280,13 +296,14 @@ macro_rules! impl_fake_executor {
 			}
 
 			fn execute_sell(
-				_who: OriginForRuntime,
+				who: OriginForRuntime,
 				pool_type: PoolType<AssetId>,
 				asset_in: AssetId,
 				asset_out: AssetId,
 				amount_in: Balance,
 				_min_limit: Balance,
 			) -> Result<(), ExecutorError<Self::Error>> {
+				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
 				if !matches!(pool_type, $pool_type) {
 					return Err(ExecutorError::NotSupported);
 				}
@@ -300,13 +317,13 @@ macro_rules! impl_fake_executor {
 
 				Currencies::transfer(
 					RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
-					ALICE,
+					who,
 					asset_out,
 					amount_out,
 				)
 				.map_err(|e| ExecutorError::Error(e))?;
 				Currencies::transfer(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::signed(who),
 					ASSET_PAIR_ACCOUNT,
 					asset_in,
 					amount_in,
@@ -317,13 +334,15 @@ macro_rules! impl_fake_executor {
 			}
 
 			fn execute_buy(
-				_who: OriginForRuntime,
+				who: OriginForRuntime,
 				pool_type: PoolType<AssetId>,
 				asset_in: AssetId,
 				asset_out: AssetId,
 				amount_out: Balance,
 				_max_limit: Balance,
 			) -> Result<(), ExecutorError<Self::Error>> {
+				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
+
 				if !matches!(pool_type, $pool_type) {
 					return Err(ExecutorError::NotSupported);
 				}
@@ -336,13 +355,13 @@ macro_rules! impl_fake_executor {
 
 				Currencies::transfer(
 					RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
-					ALICE,
+					who,
 					asset_out,
 					amount_out,
 				)
 				.map_err(|e| ExecutorError::Error(e))?;
 				Currencies::transfer(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::signed(who),
 					ASSET_PAIR_ACCOUNT,
 					asset_in,
 					amount_in,
@@ -350,6 +369,14 @@ macro_rules! impl_fake_executor {
 				.map_err(|e| ExecutorError::Error(e))?;
 
 				Ok(())
+			}
+
+			fn get_liquidity_depth(
+				_pool_type: PoolType<AssetId>,
+				_asset_a: AssetId,
+				_asset_b: AssetId,
+			) -> Result<Balance, ExecutorError<Self::Error>> {
+				Ok(100)
 			}
 		}
 	};
@@ -359,6 +386,8 @@ macro_rules! impl_fake_executor {
 pub struct XYK;
 pub struct StableSwap;
 pub struct OmniPool;
+#[allow(clippy::upper_case_acronyms)]
+pub struct LBP;
 
 impl_fake_executor!(
 	XYK,
@@ -379,10 +408,28 @@ impl_fake_executor!(
 	OMNIPOOL_BUY_CALCULATION_RESULT
 );
 
+impl_fake_executor!(
+	LBP,
+	PoolType::LBP,
+	LBP_SELL_CALCULATION_RESULT,
+	LBP_BUY_CALCULATION_RESULT
+);
+
 pub fn assert_executed_sell_trades(expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>) {
 	EXECUTED_SELLS.with(|v| {
 		let trades = v.borrow().deref().clone();
 		assert_eq!(trades, expected_trades);
+	});
+}
+
+pub fn assert_last_executed_sell_trades(
+	number_of_trades: usize,
+	expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>,
+) {
+	EXECUTED_SELLS.with(|v| {
+		let trades = v.borrow().deref().clone();
+		let last_trades = trades.as_slice()[trades.len() - number_of_trades..].to_vec();
+		assert_eq!(last_trades, expected_trades);
 	});
 }
 
@@ -395,4 +442,23 @@ pub fn assert_executed_buy_trades(expected_trades: Vec<(PoolType<AssetId>, Balan
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
+}
+
+pub fn expect_no_route_executed_event() {
+	let last_events = test_utils::last_events::<RuntimeEvent, Test>(20);
+
+	let mut events = vec![];
+
+	for event in &last_events {
+		let e = event.clone();
+		if matches!(e, RuntimeEvent::Router(crate::Event::<Test>::RouteExecuted { .. })) {
+			events.push(e);
+		}
+	}
+
+	pretty_assertions::assert_eq!(
+		events.len(),
+		0,
+		"No RouteUpdated event expected, but there is such event emitted"
+	);
 }

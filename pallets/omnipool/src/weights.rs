@@ -48,7 +48,6 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_omnipool.
 pub trait WeightInfo {
-	fn initialize_pool() -> Weight;
 	fn add_token() -> Weight;
 	fn add_liquidity() -> Weight;
 	fn remove_liquidity() -> Weight;
@@ -68,32 +67,6 @@ pub trait WeightInfo {
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	// Storage: Omnipool Assets (r:2 w:2)
-	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:2 w:1)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Uniques Class (r:1 w:1)
-	// Proof: Uniques Class (max_values: None, max_size: Some(190), added: 2665, mode: MaxEncodedLen)
-	// Storage: Tokens TotalIssuance (r:1 w:1)
-	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: Omnipool TvlCap (r:1 w:0)
-	// Proof: Omnipool TvlCap (max_values: Some(1), max_size: Some(16), added: 511, mode: MaxEncodedLen)
-	// Storage: Uniques ClassAccount (r:0 w:1)
-	// Proof: Uniques ClassAccount (max_values: None, max_size: Some(80), added: 2555, mode: MaxEncodedLen)
-	// Storage: Omnipool HubAssetTradability (r:0 w:1)
-	// Proof: Omnipool HubAssetTradability (max_values: Some(1), max_size: Some(1), added: 496, mode: MaxEncodedLen)
-	fn initialize_pool() -> Weight {
-		// Minimum execution time: 149_531 nanoseconds.
-		Weight::from_parts(150_484_000, 0)
-			.saturating_add(T::DbWeight::get().reads(11 as u64))
-			.saturating_add(T::DbWeight::get().writes(8 as u64))
-	}
 	// Storage: Omnipool Assets (r:2 w:1)
 	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:2 w:0)
@@ -431,32 +404,6 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	// Storage: Omnipool Assets (r:2 w:2)
-	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
-	// Storage: AssetRegistry Assets (r:2 w:0)
-	// Proof: AssetRegistry Assets (max_values: None, max_size: Some(87), added: 2562, mode: MaxEncodedLen)
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: Tokens Accounts (r:2 w:1)
-	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
-	// Storage: Uniques Class (r:1 w:1)
-	// Proof: Uniques Class (max_values: None, max_size: Some(190), added: 2665, mode: MaxEncodedLen)
-	// Storage: Tokens TotalIssuance (r:1 w:1)
-	// Proof: Tokens TotalIssuance (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
-	// Storage: MultiTransactionPayment AccountCurrencyMap (r:1 w:0)
-	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	// Storage: Omnipool TvlCap (r:1 w:0)
-	// Proof: Omnipool TvlCap (max_values: Some(1), max_size: Some(16), added: 511, mode: MaxEncodedLen)
-	// Storage: Uniques ClassAccount (r:0 w:1)
-	// Proof: Uniques ClassAccount (max_values: None, max_size: Some(80), added: 2555, mode: MaxEncodedLen)
-	// Storage: Omnipool HubAssetTradability (r:0 w:1)
-	// Proof: Omnipool HubAssetTradability (max_values: Some(1), max_size: Some(1), added: 496, mode: MaxEncodedLen)
-	fn initialize_pool() -> Weight {
-		// Minimum execution time: 149_531 nanoseconds.
-		Weight::from_parts(150_484_000, 0)
-			.saturating_add(RocksDbWeight::get().reads(11 as u64))
-			.saturating_add(RocksDbWeight::get().writes(8 as u64))
-	}
 	// Storage: Omnipool Assets (r:2 w:1)
 	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:2 w:0)

@@ -88,7 +88,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		);
 		// We receive about 39_101 HDX (HDX is super cheap in our test)
 		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396;
-		assert_eq!(hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)), received);
+		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), received);
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
 			fees
@@ -158,7 +158,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 			100 * UNITS - swapped - fees
 		);
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
 			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS
 		);
 		assert_eq!(

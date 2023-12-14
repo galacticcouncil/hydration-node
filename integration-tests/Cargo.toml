@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.15.1"
+version = "1.17.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -24,7 +24,7 @@ pallet-stableswap = { workspace = true }
 # Warehouse dependencies
 pallet-asset-registry = { workspace = true }
 hydradx-traits = { workspace = true }
-pallet-transaction-multi-payment = { workspace = true }
+pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-currencies = { workspace = true }
 pallet-duster = { workspace = true }
 pallet-ema-oracle = { workspace = true }
@@ -59,6 +59,9 @@ orml-xtokens = { workspace = true }
 orml-xcm-support = { workspace = true }
 orml-unknown-tokens = { workspace = true }
 
+# Evm
+pallet-evm = { workspace = true }
+fp-evm = { workspace = true }
 # Cumulus dependencies
 cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
@@ -118,12 +121,11 @@ sc-consensus-grandpa = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true, features = ["full-node"] }
 polkadot-runtime-parachains = { workspace = true }
-polkadot-runtime = { workspace = true, features = ["try-runtime"] }
+polkadot-runtime = { workspace = true }
 
 [dev-dependencies]
 hex-literal = "0.4.1"
 pretty_assertions = "1.2.1"
-pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 
 [features]
@@ -160,10 +162,13 @@ std = [
     "pallet-transaction-multi-payment/std",
     "pallet-transaction-payment-rpc-runtime-api/std",
     "pallet-utility/std",
+    "pallet-im-online/std",
     "pallet-currencies/std",
     "sp-api/std",
+    "sp-authority-discovery/std",
     "sp-block-builder/std",
     "sp-consensus-aura/std",
+    "sp-consensus-babe/std",
     "sp-core/std",
     "sp-io/std",
     "sp-inherents/std",
@@ -193,4 +198,7 @@ std = [
 runtime-benchmarks = [
     "hydradx-runtime/runtime-benchmarks",
     "polkadot-runtime/runtime-benchmarks",
+]
+try-runtime = [
+    "polkadot-runtime/try-runtime",
 ]

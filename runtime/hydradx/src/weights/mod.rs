@@ -23,7 +23,7 @@ pub mod scheduler;
 pub mod stableswap;
 pub mod staking;
 pub mod system;
-pub mod technical_comittee;
+pub mod technical_committee;
 pub mod timestamp;
 pub mod tokens;
 pub mod transaction_pause;

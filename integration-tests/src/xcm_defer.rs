@@ -1,8 +1,5 @@
 #![cfg(test)]
-use crate::polkadot_test_net::*;
-
 use cumulus_pallet_xcmp_queue::WeightInfo;
-use frame_support::{assert_noop, assert_ok};
 
 use hydradx_runtime::weights::xcmp_queue::HydraWeight;
 use hydradx_runtime::BlockWeights;
