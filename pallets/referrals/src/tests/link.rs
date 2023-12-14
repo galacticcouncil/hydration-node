@@ -98,7 +98,7 @@ fn link_code_should_emit_event_when_successful() {
 		// ASSERT
 		expect_events(vec![Event::CodeLinked {
 			account: BOB,
-			code: code.try_into().unwrap(),
+			code,
 			referral_account: ALICE,
 		}
 		.into()]);

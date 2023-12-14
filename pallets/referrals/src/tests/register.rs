@@ -112,11 +112,7 @@ fn register_code_should_emit_event_when_successful() {
 		// Act
 		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone()));
 		// Assert
-		expect_events(vec![Event::CodeRegistered {
-			code: code,
-			account: ALICE,
-		}
-		.into()]);
+		expect_events(vec![Event::CodeRegistered { code, account: ALICE }.into()]);
 	});
 }
 
