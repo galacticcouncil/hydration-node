@@ -1054,14 +1054,11 @@ where
 			amount,
 			min_expected,
 		);
-		match r {
-			Err(error) => {
-				if error == pallet_omnipool::Error::<Runtime>::ZeroAmountOut.into() {
-					return Err(pallet_referrals::Error::<Runtime>::ConversionZeroAmountReceived.into());
-				}
-				return Err(error);
+		if let Err(error) = r {
+			if error == pallet_omnipool::Error::<Runtime>::ZeroAmountOut.into() {
+				return Err(pallet_referrals::Error::<Runtime>::ConversionZeroAmountReceived.into());
 			}
-			Ok(()) => {}
+			return Err(error);
 		}
 		let balance_after = Currencies::free_balance(asset_to, &who);
 		let received = balance_after.saturating_sub(balance);
