@@ -154,9 +154,9 @@ fn claim_rewards_should_exclude_seed_amount() {
 #[test]
 fn claim_rewards_should_increase_referrer_level_when_limit_is_reached() {
 	let mut volumes = HashMap::new();
-	volumes.insert(Level::Novice, Some(10_000_000_000_000));
-	volumes.insert(Level::Advanced, Some(20_000_000_000_000));
-	volumes.insert(Level::Expert, None);
+	volumes.insert(Level::Tier0, Some(0));
+	volumes.insert(Level::Tier1, Some(10_000_000_000_000));
+	volumes.insert(Level::Tier2, Some(20_000_000_000_000));
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
@@ -172,7 +172,7 @@ fn claim_rewards_should_increase_referrer_level_when_limit_is_reached() {
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
 			// Assert
 			let (level, total) = Referrer::<Test>::get(ALICE).unwrap();
-			assert_eq!(level, Level::Advanced);
+			assert_eq!(level, Level::Tier1);
 			assert_eq!(total, 15_000_000_000_000);
 		});
 }
@@ -180,9 +180,11 @@ fn claim_rewards_should_increase_referrer_level_when_limit_is_reached() {
 #[test]
 fn claim_rewards_should_increase_referrer_level_directly_to_top_tier_when_limit_is_reached() {
 	let mut volumes = HashMap::new();
-	volumes.insert(Level::Novice, Some(10_000_000_000_000));
-	volumes.insert(Level::Advanced, Some(13_000_000_000_000));
-	volumes.insert(Level::Expert, None);
+	volumes.insert(Level::Tier0, Some(0));
+	volumes.insert(Level::Tier1, Some(10_000_000_000_000));
+	volumes.insert(Level::Tier2, Some(11_000_000_000_000));
+	volumes.insert(Level::Tier3, Some(12_000_000_000_000));
+	volumes.insert(Level::Tier4, Some(13_000_000_000_000));
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
@@ -198,7 +200,7 @@ fn claim_rewards_should_increase_referrer_level_directly_to_top_tier_when_limit_
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
 			// Assert
 			let (level, total) = Referrer::<Test>::get(ALICE).unwrap();
-			assert_eq!(level, Level::Expert);
+			assert_eq!(level, Level::Tier4);
 			assert_eq!(total, 15_000_000_000_000);
 		});
 }

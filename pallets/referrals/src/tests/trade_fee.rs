@@ -8,7 +8,7 @@ fn process_trade_fee_should_increased_referrer_shares() {
 		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
-			Level::Novice,
+			Level::Tier0,
 			Tier {
 				referrer: Permill::from_percent(50),
 				trader: Permill::zero(),
@@ -35,7 +35,7 @@ fn process_trade_fee_should_increased_trader_shares() {
 		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
-			Level::Novice,
+			Level::Tier0,
 			Tier {
 				referrer: Permill::from_percent(50),
 				trader: Permill::from_percent(20),
@@ -62,7 +62,7 @@ fn process_trade_fee_should_increased_total_share_issuance() {
 		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
-			Level::Novice,
+			Level::Tier0,
 			Tier {
 				referrer: Permill::from_percent(50),
 				trader: Permill::from_percent(20),
@@ -89,7 +89,7 @@ fn process_trade_fee_should_fail_when_taken_amount_is_greated_than_fee_amount() 
 		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
-			Level::Novice,
+			Level::Tier0,
 			Tier {
 				referrer: Permill::from_percent(50),
 				trader: Permill::from_percent(70),
@@ -138,7 +138,7 @@ fn process_trade_fee_should_add_asset_to_asset_list() {
 		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
-			Level::Novice,
+			Level::Tier0,
 			Tier {
 				referrer: Permill::from_percent(50),
 				trader: Permill::from_percent(20),
@@ -165,7 +165,7 @@ fn process_trade_fee_should_not_add_reward_asset_to_asset_list() {
 		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_tiers(vec![(
 			DAI,
-			Level::Novice,
+			Level::Tier0,
 			Tier {
 				referrer: Permill::from_percent(50),
 				trader: Permill::from_percent(20),

@@ -4,9 +4,11 @@ use pretty_assertions::assert_eq;
 #[test]
 fn complete_referral_flow_should_work_as_expected() {
 	let mut volumes = HashMap::new();
-	volumes.insert(Level::Novice, Some(100_000_000));
-	volumes.insert(Level::Advanced, Some(200_000_000));
-	volumes.insert(Level::Expert, None);
+	volumes.insert(Level::Tier0, Some(0));
+	volumes.insert(Level::Tier1, Some(100_000_000));
+	volumes.insert(Level::Tier2, Some(200_000_000));
+	volumes.insert(Level::Tier3, Some(300_000_000));
+	volumes.insert(Level::Tier4, Some(400_000_000));
 
 	let bob_initial_hdx = 10_000_000_000_000;
 
@@ -21,7 +23,7 @@ fn complete_referral_flow_should_work_as_expected() {
 		.with_tiers(vec![
 			(
 				DAI,
-				Level::Novice,
+				Level::Tier0,
 				Tier {
 					referrer: Permill::from_float(0.005),
 					trader: Permill::from_float(0.002),
@@ -29,7 +31,7 @@ fn complete_referral_flow_should_work_as_expected() {
 			),
 			(
 				DOT,
-				Level::Novice,
+				Level::Tier0,
 				Tier {
 					referrer: Permill::from_float(0.005),
 					trader: Permill::from_float(0.002),
@@ -37,7 +39,7 @@ fn complete_referral_flow_should_work_as_expected() {
 			),
 			(
 				DAI,
-				Level::Advanced,
+				Level::Tier1,
 				Tier {
 					referrer: Permill::from_float(0.03),
 					trader: Permill::from_float(0.01),
@@ -45,7 +47,7 @@ fn complete_referral_flow_should_work_as_expected() {
 			),
 			(
 				DOT,
-				Level::Advanced,
+				Level::Tier1,
 				Tier {
 					referrer: Permill::from_float(0.03),
 					trader: Permill::from_float(0.01),
@@ -53,7 +55,7 @@ fn complete_referral_flow_should_work_as_expected() {
 			),
 			(
 				HDX,
-				Level::Novice,
+				Level::Tier0,
 				Tier {
 					referrer: Permill::from_float(0.002),
 					trader: Permill::from_float(0.001),
@@ -61,7 +63,7 @@ fn complete_referral_flow_should_work_as_expected() {
 			),
 			(
 				HDX,
-				Level::Advanced,
+				Level::Tier1,
 				Tier {
 					referrer: Permill::from_float(0.03),
 					trader: Permill::from_float(0.01),
@@ -129,7 +131,7 @@ fn complete_referral_flow_should_work_as_expected() {
 			let alice_balance = Tokens::free_balance(HDX, &ALICE);
 			assert_eq!(alice_balance, 778_000_120_000_000);
 			let (level, total) = Referrer::<Test>::get(ALICE).unwrap();
-			assert_eq!(level, Level::Advanced);
+			assert_eq!(level, Level::Tier1);
 			assert_eq!(total, 120_000_000);
 		});
 }

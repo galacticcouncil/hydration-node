@@ -226,7 +226,7 @@ runtime_benchmarks! {
 		let code = ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MYCODE".to_vec());
 		Referrals::register_code(RawOrigin::Signed(owner).into(), code.clone())?;
 		Referrals::link_code(RawOrigin::Signed(seller.clone()).into(), code)?;
-		Referrals::set_reward_percentage(RawOrigin::Root.into(), DAI, pallet_referrals::Level::Novice, Permill::from_percent(1), Permill::from_percent(1))?;
+		Referrals::set_reward_percentage(RawOrigin::Root.into(), DAI, pallet_referrals::Level::Tier0, Permill::from_percent(1), Permill::from_percent(1))?;
 	}: { Omnipool::sell(RawOrigin::Signed(seller.clone()).into(), token_id, DAI, amount_sell, buy_min_amount)? }
 	verify {
 		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(DAI, &seller) >= buy_min_amount);
@@ -274,7 +274,7 @@ runtime_benchmarks! {
 		let code = ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MYCODE".to_vec());
 		Referrals::register_code(RawOrigin::Signed(owner).into(), code.clone())?;
 		Referrals::link_code(RawOrigin::Signed(seller.clone()).into(), code)?;
-		Referrals::set_reward_percentage(RawOrigin::Root.into(), token_id, pallet_referrals::Level::Novice, Permill::from_percent(1), Permill::from_percent(1))?;
+		Referrals::set_reward_percentage(RawOrigin::Root.into(), token_id, pallet_referrals::Level::Tier0, Permill::from_percent(1), Permill::from_percent(1))?;
 	}: { Omnipool::buy(RawOrigin::Signed(seller.clone()).into(), DAI, token_id, amount_buy, sell_max_limit)? }
 	verify {
 		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(DAI, &seller) >= Balance::zero());

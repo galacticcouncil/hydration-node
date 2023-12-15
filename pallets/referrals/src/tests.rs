@@ -107,11 +107,17 @@ impl GetByKey<Level, Option<Balance>> for Volume {
 		if let Some(l) = c {
 			l
 		} else {
+			None
+			/*
 			match level {
-				Level::Novice => Some(1),
-				Level::Advanced => Some(1_000_000_000),
-				Level::Expert => None,
+				Level::Tier0 => Some(1),
+				Level::Tier1 => Some(1_000),
+				Level::Tier2 => Some(1_000_000),
+				Level::Tier3 => Some(1_000_000_000),
+				Level::Tier4 => None,
 			}
+
+			 */
 		}
 	}
 }

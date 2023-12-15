@@ -38,7 +38,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()), code.clone())
 	verify {
 		let entry = Pallet::<T>::referrer_level(caller.clone());
-		assert_eq!(entry, Some((Level::Novice, 0)));
+		assert_eq!(entry, Some((Level::Tier0, 0)));
 		let c = Pallet::<T>::normalize_code(code);
 		let entry = Pallet::<T>::referral_account(c);
 		assert_eq!(entry, Some(caller));
@@ -80,7 +80,7 @@ benchmarks! {
 
 		// The worst case is when referrer account is updated to the top tier in one call
 		// So we need to have enough RewardAsset in the pot. And give all the shares to the caller.
-		let top_tier_volume = T::TierVolume::get(&Level::Advanced).expect("to have all level configured");
+		let top_tier_volume = T::TierVolume::get(&Level::Tier3).expect("to have all level configured");
 		T::Currency::mint_into(T::RewardAsset::get(), &Pallet::<T>::pot_account_id(), top_tier_volume + T::SeedNativeAmount::get())?;
 		Shares::<T>::insert(caller.clone(), 1_000_000_000_000);
 		TotalShares::<T>::put(1_000_000_000_000);
@@ -91,16 +91,16 @@ benchmarks! {
 		let balance = T::Currency::balance(T::RewardAsset::get(), &caller);
 		assert!(balance > caller_balance);
 		let (level, total) = Referrer::<T>::get(&caller).expect("correct entry");
-		assert_eq!(level, Level::Expert);
+		assert_eq!(level, Level::Tier2);
 		assert_eq!(total, top_tier_volume);
 	}
 
 	set_reward_percentage{
 		let referrer_percentage = Permill::from_percent(70);
 		let trader_percentage = Permill::from_percent(30);
-	}: _(RawOrigin::Root, T::RewardAsset::get(), Level::Expert, referrer_percentage, trader_percentage)
+	}: _(RawOrigin::Root, T::RewardAsset::get(), Level::Tier2, referrer_percentage, trader_percentage)
 	verify {
-		let entry = Pallet::<T>::asset_tier(T::RewardAsset::get(), Level::Expert);
+		let entry = Pallet::<T>::asset_tier(T::RewardAsset::get(), Level::Tier2);
 		assert_eq!(entry, Some(Tier{
 			referrer: referrer_percentage,
 			trader: trader_percentage,

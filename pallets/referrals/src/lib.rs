@@ -79,17 +79,40 @@ const MIN_CODE_LENGTH: usize = 5;
 #[derive(Hash, Clone, Copy, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Level {
 	#[default]
-	Novice,
-	Advanced,
-	Expert,
+	Tier0 = 0,
+	Tier1,
+	Tier2,
+	Tier3,
+	Tier4,
 }
 
 impl Level {
 	pub fn next_level(&self) -> Self {
 		match self {
-			Self::Novice => Self::Advanced,
-			Self::Advanced => Self::Expert,
-			Self::Expert => Self::Expert,
+			Self::Tier0 => Self::Tier1,
+			Self::Tier1 => Self::Tier2,
+			Self::Tier2 => Self::Tier3,
+			Self::Tier3 => Self::Tier4,
+			Self::Tier4 => Self::Tier4,
+		}
+	}
+
+	pub fn is_max_level(&self) -> bool {
+		*self == Self::Tier4
+	}
+
+	pub fn increase<T: Config>(self, amount: Balance) -> Self {
+		if self.is_max_level() {
+			self
+		} else {
+			let next_level = self.next_level();
+			let maybe_required = T::TierVolume::get(&next_level);
+			if let Some(required) = maybe_required {
+				if amount >= required {
+					return next_level.increase::<T>(amount);
+				}
+			}
+			self
 		}
 	}
 }
@@ -474,22 +497,7 @@ pub mod pallet {
 			Referrer::<T>::mutate(who.clone(), |v| {
 				if let Some((level, total)) = v {
 					*total = total.saturating_add(rewards);
-
-					if *level != Level::Expert {
-						let next_tier = T::TierVolume::get(level);
-						if let Some(amount_needed) = next_tier {
-							if *total >= amount_needed {
-								*level = level.next_level();
-								// let's check if we can skip two levels
-								let next_tier = T::TierVolume::get(level);
-								if let Some(amount_needed) = next_tier {
-									if *total >= amount_needed {
-										*level = level.next_level();
-									}
-								}
-							}
-						}
-					}
+					*level = level.increase::<T>(*total);
 				}
 			});
 

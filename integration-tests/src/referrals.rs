@@ -216,42 +216,42 @@ fn init_referrals_program() {
 	assert_ok!(Referrals::set_reward_percentage(
 		RuntimeOrigin::root(),
 		HDX,
-		pallet_referrals::Level::Novice,
+		pallet_referrals::Level::Tier0,
 		Permill::from_percent(2),
 		Permill::from_percent(1),
 	));
 	assert_ok!(Referrals::set_reward_percentage(
 		RuntimeOrigin::root(),
 		HDX,
-		pallet_referrals::Level::Advanced,
+		pallet_referrals::Level::Tier1,
 		Permill::from_percent(5),
 		Permill::from_percent(2),
 	));
 	assert_ok!(Referrals::set_reward_percentage(
 		RuntimeOrigin::root(),
 		HDX,
-		pallet_referrals::Level::Expert,
+		pallet_referrals::Level::Tier2,
 		Permill::from_percent(10),
 		Permill::from_percent(5),
 	));
 	assert_ok!(Referrals::set_reward_percentage(
 		RuntimeOrigin::root(),
 		DAI,
-		pallet_referrals::Level::Novice,
+		pallet_referrals::Level::Tier0,
 		Permill::from_percent(2),
 		Permill::from_percent(1),
 	));
 	assert_ok!(Referrals::set_reward_percentage(
 		RuntimeOrigin::root(),
 		DAI,
-		pallet_referrals::Level::Advanced,
+		pallet_referrals::Level::Tier1,
 		Permill::from_percent(5),
 		Permill::from_percent(2),
 	));
 	assert_ok!(Referrals::set_reward_percentage(
 		RuntimeOrigin::root(),
 		DAI,
-		pallet_referrals::Level::Expert,
+		pallet_referrals::Level::Tier2,
 		Permill::from_percent(10),
 		Permill::from_percent(5),
 	));
