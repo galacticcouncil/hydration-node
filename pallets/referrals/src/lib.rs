@@ -445,18 +445,15 @@ pub mod pallet {
 			for (asset_id, _) in Assets::<T>::drain() {
 				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
 				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
-				match r {
-					Err(error) => {
-						if error == Error::<T>::ConversionMinTradingAmountNotReached.into()
-							|| error == Error::<T>::ConversionZeroAmountReceived.into()
-						{
-							// We allow these errors to continue claiming as the current amount of asset that needed to be converted
-							// has very low impact on the rewards.
-						} else {
-							return Err(error);
-						}
+				if let Err(error) = r {
+					if error == Error::<T>::ConversionMinTradingAmountNotReached.into()
+						|| error == Error::<T>::ConversionZeroAmountReceived.into()
+					{
+						// We allow these errors to continue claiming as the current amount of asset that needed to be converted
+						// has very low impact on the rewards.
+					} else {
+						return Err(error);
 					}
-					Ok(_) => {}
 				}
 			}
 			let shares = Shares::<T>::take(&who);

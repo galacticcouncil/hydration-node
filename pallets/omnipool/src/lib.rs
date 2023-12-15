@@ -988,7 +988,7 @@ pub mod pallet {
 			ensure!(
 				*state_changes.asset_out.delta_reserve > Balance::zero(),
 				Error::<T>::ZeroAmountOut
-            );
+			);
 
 			ensure!(
 				*state_changes.asset_out.delta_reserve >= min_buy_amount,
@@ -1955,13 +1955,10 @@ impl<T: Config> Pallet<T> {
 	fn process_trade_fee(trader: &T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult {
 		let account = Self::protocol_account();
 		let original_asset_reserve = T::Currency::free_balance(asset, &account);
-		let unused = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, amount)?;
+		let _ = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, amount)?;
 		let asset_reserve = T::Currency::free_balance(asset, &account);
-		let updated_asset_reserve = asset_reserve.saturating_add(amount.saturating_sub(unused));
-		ensure!(
-			updated_asset_reserve == original_asset_reserve,
-			Error::<T>::FeeOverdraft
-		);
+		let diff = original_asset_reserve.saturating_sub(asset_reserve);
+		ensure!(diff <= amount, Error::<T>::FeeOverdraft);
 		Ok(())
 	}
 
