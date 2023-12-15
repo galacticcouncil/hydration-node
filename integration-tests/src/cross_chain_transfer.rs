@@ -170,7 +170,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 
 	let amount = 30 * UNITS;
 	Acala::execute_with(|| {
-		//We send toe ethereum address with Account20
+		//We send to ethereum address with Account20
 		assert_ok!(hydradx_runtime::XTokens::transfer(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0,
@@ -225,7 +225,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 
 	let amount = 30 * UNITS;
 	Acala::execute_with(|| {
-		//We send toe ethereum address with Account20
+		//We send to ethereum address with Account20
 		assert_ok!(hydradx_runtime::XTokens::transfer(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0,
