@@ -100,24 +100,15 @@ parameter_types! {
 
 pub struct Volume;
 
-impl GetByKey<Level, Option<Balance>> for Volume {
-	fn get(level: &Level) -> Option<Balance> {
+impl GetByKey<Level, Balance> for Volume {
+	fn get(level: &Level) -> Balance {
 		let c = TIER_VOLUME.with(|v| v.borrow().get(level).copied());
 
 		if let Some(l) = c {
-			l
+			l.unwrap()
 		} else {
-			None
-			/*
-			match level {
-				Level::Tier0 => Some(1),
-				Level::Tier1 => Some(1_000),
-				Level::Tier2 => Some(1_000_000),
-				Level::Tier3 => Some(1_000_000_000),
-				Level::Tier4 => None,
-			}
-
-			 */
+			// if not explicitly set, we dont care about this in the test
+			0
 		}
 	}
 }
@@ -264,6 +255,19 @@ impl ExtBuilder {
 	}
 
 	pub fn with_tier_volumes(self, volumes: HashMap<Level, Option<Balance>>) -> Self {
+		TIER_VOLUME.with(|v| {
+			v.swap(&RefCell::new(volumes));
+		});
+		self
+	}
+
+	pub fn with_default_volumes(self) -> Self {
+		let mut volumes = HashMap::new();
+		volumes.insert(Level::Tier0, Some(0));
+		volumes.insert(Level::Tier1, Some(10_000_000_000_000));
+		volumes.insert(Level::Tier2, Some(11_000_000_000_000));
+		volumes.insert(Level::Tier3, Some(12_000_000_000_000));
+		volumes.insert(Level::Tier4, Some(13_000_000_000_000));
 		TIER_VOLUME.with(|v| {
 			v.swap(&RefCell::new(volumes));
 		});

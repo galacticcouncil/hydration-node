@@ -1071,14 +1071,14 @@ where
 
 pub struct ReferralsLevelTiers;
 
-impl GetByKey<Level, Option<Balance>> for ReferralsLevelTiers {
-	fn get(k: &Level) -> Option<Balance> {
+impl GetByKey<Level, Balance> for ReferralsLevelTiers {
+	fn get(k: &Level) -> Balance {
 		match k {
-			Level::Tier0 => Some(2_000_000_000_000_000),
-			Level::Tier1 => Some(22_000_000_000_000_000),
-			Level::Tier2 => Some(222_000_000_000_000_000),
-			Level::Tier3 => Some(2_222_000_000_000_000_000),
-			Level::Tier4 => None,
+			Level::Tier0 => 0,
+			Level::Tier1 => 2_000_000_000_000_000,
+			Level::Tier2 => 22_000_000_000_000_000,
+			Level::Tier3 => 222_000_000_000_000_000,
+			Level::Tier4 => 2_222_000_000_000_000_000,
 		}
 	}
 }

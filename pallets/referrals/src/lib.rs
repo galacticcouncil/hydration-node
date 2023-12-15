@@ -106,11 +106,9 @@ impl Level {
 			self
 		} else {
 			let next_level = self.next_level();
-			let maybe_required = T::TierVolume::get(&next_level);
-			if let Some(required) = maybe_required {
-				if amount >= required {
-					return next_level.increase::<T>(amount);
-				}
+			let required = T::TierVolume::get(&next_level);
+			if amount >= required {
+				return next_level.increase::<T>(amount);
 			}
 			self
 		}
@@ -189,8 +187,8 @@ pub mod pallet {
 		#[pallet::constant]
 		type CodeLength: Get<u32>;
 
-		/// Volume needed to next tier. If None returned, it is the last tier.
-		type TierVolume: GetByKey<Level, Option<Balance>>;
+		/// Volume needed to reach given level.
+		type TierVolume: GetByKey<Level, Balance>;
 
 		/// Seed amount that was sent to the reward pot.
 		#[pallet::constant]

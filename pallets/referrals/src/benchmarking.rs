@@ -80,7 +80,7 @@ benchmarks! {
 
 		// The worst case is when referrer account is updated to the top tier in one call
 		// So we need to have enough RewardAsset in the pot. And give all the shares to the caller.
-		let top_tier_volume = T::TierVolume::get(&Level::Tier3).expect("to have all level configured");
+		let top_tier_volume = T::TierVolume::get(&Level::Tier4);
 		T::Currency::mint_into(T::RewardAsset::get(), &Pallet::<T>::pot_account_id(), top_tier_volume + T::SeedNativeAmount::get())?;
 		Shares::<T>::insert(caller.clone(), 1_000_000_000_000);
 		TotalShares::<T>::put(1_000_000_000_000);
@@ -91,7 +91,7 @@ benchmarks! {
 		let balance = T::Currency::balance(T::RewardAsset::get(), &caller);
 		assert!(balance > caller_balance);
 		let (level, total) = Referrer::<T>::get(&caller).expect("correct entry");
-		assert_eq!(level, Level::Tier2);
+		assert_eq!(level, Level::Tier4);
 		assert_eq!(total, top_tier_volume);
 	}
 
@@ -113,6 +113,9 @@ mod tests {
 	use super::Pallet;
 	use crate::tests::*;
 	use frame_benchmarking::impl_benchmark_test_suite;
-
-	impl_benchmark_test_suite!(Pallet, super::ExtBuilder::default().build(), super::Test);
+	impl_benchmark_test_suite!(
+		Pallet,
+		super::ExtBuilder::default().with_default_volumes().build(),
+		super::Test
+	);
 }
