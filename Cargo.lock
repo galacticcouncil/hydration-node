@@ -4176,7 +4176,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.6.7"
+version = "0.6.8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -10002,7 +10002,6 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-core",
- "sp-io",
  "sp-std",
  "static_assertions",
 ]
