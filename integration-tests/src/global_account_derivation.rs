@@ -49,6 +49,7 @@ fn other_chain_remote_account_should_work_on_hydra() {
 		);
 	});
 
+	// Act
 	Acala::execute_with(|| {
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
@@ -95,7 +96,6 @@ fn other_chain_remote_account_should_work_on_hydra() {
 			},
 		]);
 
-		// Act
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			xcm_interior_at_acala,
 			MultiLocation::new(1, X1(Parachain(HYDRA_PARA_ID))),
