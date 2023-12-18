@@ -4202,7 +4202,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 2.1.0",
+ "pallet-staking 2.1.1",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -4295,7 +4295,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.1.0",
+ "pallet-staking 2.1.1",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -7957,7 +7957,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10849,7 +10849,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.1.0",
+ "pallet-staking 2.1.1",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
