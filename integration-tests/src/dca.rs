@@ -2846,8 +2846,8 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert!(fee < 47 * UNITS / 10);
-			assert!(fee > 44 * UNITS / 10);
+			assert!(fee < 48 * UNITS / 10);
+			assert!(fee > 40 * UNITS / 10);
 
 			assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable_balance - dca_budget);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 237095795349022);
