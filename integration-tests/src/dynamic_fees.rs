@@ -365,6 +365,10 @@ fn init_omnipool() {
 		Permill::from_percent(100),
 		AccountId::from(BOB),
 	));
+	set_zero_reward_for_referrals(HDX);
+	set_zero_reward_for_referrals(DAI);
+	set_zero_reward_for_referrals(DOT);
+	set_zero_reward_for_referrals(ETH);
 }
 
 /// This function executes one sell and buy with HDX for all assets in the omnipool. This is necessary to

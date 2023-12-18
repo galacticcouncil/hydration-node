@@ -17,10 +17,13 @@ pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};
 
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
+use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::evm::WETH_ASSET_LOCATION;
+use hydradx_runtime::Referrals;
 use hydradx_runtime::RuntimeOrigin;
 use pallet_evm::AddressMapping;
+use pallet_referrals::{Level, Tier};
 use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_core::H160;
@@ -525,6 +528,9 @@ pub fn init_omnipool() {
 		hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 		stable_position_id,
 	));
+
+	set_zero_reward_for_referrals(DAI);
+	set_zero_reward_for_referrals(HDX);
 }
 
 #[macro_export]
@@ -539,4 +545,13 @@ macro_rules! assert_reserved_balance {
 	( $who:expr, $asset:expr, $amount:expr) => {{
 		assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
 	}};
+}
+
+pub fn set_zero_reward_for_referrals(asset_id: AssetId) {
+	assert_ok!(Referrals::set_reward_percentage(
+		RawOrigin::Root.into(),
+		asset_id,
+		Level::None,
+		Tier::default(),
+	));
 }

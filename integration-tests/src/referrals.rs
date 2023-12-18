@@ -6,6 +6,7 @@ use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, S
 use orml_traits::MultiCurrency;
 use pallet_referrals::{ReferralCode, Tier};
 use primitives::AccountId;
+use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use xcm_emulator::TestExt;
 
@@ -292,6 +293,41 @@ fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
 	});
 }
 
+fn init_omnipool() {
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+
+	let native_position_id = hydradx_runtime::Omnipool::next_position_id();
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		HDX,
+		native_price,
+		Permill::from_percent(10),
+		AccountId::from(ALICE),
+	));
+
+	let stable_position_id = hydradx_runtime::Omnipool::next_position_id();
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
+		stable_price,
+		Permill::from_percent(100),
+		AccountId::from(ALICE),
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::sacrifice_position(
+		hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+		native_position_id,
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::sacrifice_position(
+		hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+		stable_position_id,
+	));
+}
+
 fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipool();
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
@@ -334,52 +370,3 @@ fn seed_pot_account() {
 		(10 * UNITS) as i128,
 	));
 }
-
-/*
-fn init_referrals_program() {
-	assert_ok!(Referrals::set_reward_percentage(
-		RuntimeOrigin::root(),
-		HDX,
-		pallet_referrals::Level::Tier0,
-		Permill::from_percent(2),
-		Permill::from_percent(1),
-	));
-	assert_ok!(Referrals::set_reward_percentage(
-		RuntimeOrigin::root(),
-		HDX,
-		pallet_referrals::Level::Tier1,
-		Permill::from_percent(5),
-		Permill::from_percent(2),
-	));
-	assert_ok!(Referrals::set_reward_percentage(
-		RuntimeOrigin::root(),
-		HDX,
-		pallet_referrals::Level::Tier2,
-		Permill::from_percent(10),
-		Permill::from_percent(5),
-	));
-	assert_ok!(Referrals::set_reward_percentage(
-		RuntimeOrigin::root(),
-		DAI,
-		pallet_referrals::Level::Tier0,
-		Permill::from_percent(2),
-		Permill::from_percent(1),
-	));
-	assert_ok!(Referrals::set_reward_percentage(
-		RuntimeOrigin::root(),
-		DAI,
-		pallet_referrals::Level::Tier1,
-		Permill::from_percent(5),
-		Permill::from_percent(2),
-	));
-	assert_ok!(Referrals::set_reward_percentage(
-		RuntimeOrigin::root(),
-		DAI,
-		pallet_referrals::Level::Tier2,
-		Permill::from_percent(10),
-		Permill::from_percent(5),
-	));
-
-	seed_pot_account();
-}
- */
