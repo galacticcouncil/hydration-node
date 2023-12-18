@@ -402,7 +402,7 @@ runtime_benchmarks! {
 	}
 
 	router_execution_sell {
-		let c in 0..1;	// if c == 1, calculate_sell is executed
+		let c in 1..2;
 		let e in 0..1;	// if e == 1, execute_sell is executed
 		init()?;
 
@@ -443,9 +443,7 @@ runtime_benchmarks! {
 		let buy_min_amount = 10_000_000_000_u128;
 
 	}: {
-		if c != 0 {
-			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_sell(PoolType::Omnipool, token_id, DAI, amount_sell).is_ok());
-		}
+		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_sell(PoolType::Omnipool, token_id, DAI, amount_sell).is_ok());
 		if e != 0 {
 			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, DAI, amount_sell, buy_min_amount).is_ok());
 		}
