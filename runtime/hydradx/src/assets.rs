@@ -1087,32 +1087,32 @@ pub struct ReferralsTierRewards;
 impl GetByKey<Level, Tier> for ReferralsTierRewards {
 	fn get(k: &Level) -> Tier {
 		match k {
-			Level::None => Tier{
+			Level::None => Tier {
 				referrer: Permill::zero(),
 				trader: Permill::zero(),
 				external: Permill::from_percent(50),
 			},
-			Level::Tier0 => Tier{
+			Level::Tier0 => Tier {
 				referrer: Permill::from_percent(5),
 				trader: Permill::from_percent(10),
 				external: Permill::from_percent(35),
 			},
-			Level::Tier1 => Tier{
+			Level::Tier1 => Tier {
 				referrer: Permill::from_percent(10),
 				trader: Permill::from_percent(11),
 				external: Permill::from_percent(29),
 			},
-			Level::Tier2 => Tier{
+			Level::Tier2 => Tier {
 				referrer: Permill::from_percent(15),
 				trader: Permill::from_percent(12),
 				external: Permill::from_percent(23),
 			},
-			Level::Tier3 => Tier{
+			Level::Tier3 => Tier {
 				referrer: Permill::from_percent(20),
 				trader: Permill::from_percent(13),
 				external: Permill::from_percent(17),
 			},
-			Level::Tier4 => Tier{
+			Level::Tier4 => Tier {
 				referrer: Permill::from_percent(25),
 				trader: Permill::from_percent(15),
 				external: Permill::from_percent(10),

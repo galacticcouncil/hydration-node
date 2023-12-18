@@ -475,7 +475,11 @@ where
 			asset.into(),
 			amount,
 		)?;
-		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), amount.saturating_sub(referrals_used))?;
+		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(
+			fee_account.into(),
+			asset.into(),
+			amount.saturating_sub(referrals_used),
+		)?;
 		Ok(staking_used.saturating_add(referrals_used))
 	}
 }

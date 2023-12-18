@@ -278,7 +278,12 @@ fn process_trade_fee_should_reward_all_parties_based_on_global_config_when_asset
 			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
 			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
 			// Act
-			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), DAI, HDX, 1_000_000_000_000_000_000));
+			assert_ok!(MockAmm::trade(
+				RuntimeOrigin::signed(BOB),
+				DAI,
+				HDX,
+				1_000_000_000_000_000_000
+			));
 			// Assert
 			let referrer_shares = Shares::<Test>::get(ALICE);
 			assert_eq!(referrer_shares, 500_000_000);

@@ -60,7 +60,10 @@ use sp_core::U256;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Rounding;
-use sp_runtime::{traits::{CheckedAdd,Zero}, ArithmeticError, DispatchError, Permill};
+use sp_runtime::{
+	traits::{CheckedAdd, Zero},
+	ArithmeticError, DispatchError, Permill,
+};
 
 #[cfg(feature = "runtime-benchmarks")]
 pub use crate::traits::BenchmarkHelper;
@@ -595,15 +598,15 @@ impl<T: Config> Pallet<T> {
 			return Ok(Balance::zero());
 		};
 
-		let (level,ref_account) = if let Some(acc) = Self::linked_referral_account(&trader) {
-			if let Some((level,_)) = Self::referrer_level(&acc) {
+		let (level, ref_account) = if let Some(acc) = Self::linked_referral_account(&trader) {
+			if let Some((level, _)) = Self::referrer_level(&acc) {
 				// Should not really happen, the ref entry should be always there.
 				(level, Some(acc))
-			}else{
+			} else {
 				defensive!("Referrer details not found");
 				return Ok(Balance::zero());
 			}
-		}else{
+		} else {
 			(Level::None, None)
 		};
 
@@ -614,7 +617,7 @@ impl<T: Config> Pallet<T> {
 		let external_account = T::ExternalAccount::get();
 		let referrer_reward = if ref_account.is_some() {
 			tier.referrer.mul_floor(amount)
-		}else{
+		} else {
 			0
 		};
 		let trader_reward = tier.trader.mul_floor(amount);
@@ -632,7 +635,7 @@ impl<T: Config> Pallet<T> {
 		let referrer_shares = if ref_account.is_some() {
 			multiply_by_rational_with_rounding(referrer_reward, price.n, price.d, Rounding::Down)
 				.ok_or(ArithmeticError::Overflow)?
-		}else{
+		} else {
 			0
 		};
 		let trader_shares = multiply_by_rational_with_rounding(trader_reward, price.n, price.d, Rounding::Down)
