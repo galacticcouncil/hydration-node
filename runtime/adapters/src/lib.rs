@@ -469,13 +469,14 @@ where
 		asset: AssetId,
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
-		let unused = pallet_referrals::Pallet::<Runtime>::process_trade_fee(
+		let referrals_used = pallet_referrals::Pallet::<Runtime>::process_trade_fee(
 			fee_account.clone().into(),
 			trader.into(),
 			asset.into(),
 			amount,
 		)?;
-		pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), unused)
+		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), amount.saturating_sub(referrals_used))?;
+		Ok(staking_used.saturating_add(referrals_used))
 	}
 }
 

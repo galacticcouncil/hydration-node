@@ -75,7 +75,9 @@ pub(crate) const INITIAL_ALICE_BALANCE: Balance = 1_000 * ONE;
 thread_local! {
 	pub static CONVERSION_RATE: RefCell<HashMap<(AssetId,AssetId), EmaPrice>> = RefCell::new(HashMap::default());
 	pub static TIER_VOLUME: RefCell<HashMap<Level, Option<Balance>>> = RefCell::new(HashMap::default());
+	pub static TIER_REWARDS: RefCell<HashMap<Level, Tier>> = RefCell::new(HashMap::default());
 	pub static SEED_AMOUNT: RefCell<Balance> = RefCell::new(Balance::zero());
+	pub static EXTERNAL_ACCOUNT: RefCell<Option<AccountId>> = RefCell::new(None);
 }
 
 construct_runtime!(
@@ -113,11 +115,29 @@ impl GetByKey<Level, Balance> for Volume {
 	}
 }
 
+pub struct TierRewards;
+
+impl GetByKey<Level, Tier> for TierRewards {
+	fn get(level: &Level) -> Tier {
+		TIER_REWARDS
+			.with(|v| v.borrow().get(level).copied())
+			.unwrap_or_default()
+	}
+}
+
 pub struct SeedAmount;
 
 impl Get<Balance> for SeedAmount {
 	fn get() -> Balance {
 		SEED_AMOUNT.with(|v| *v.borrow())
+	}
+}
+
+pub struct ExtAccount;
+
+impl Get<Option<AccountId>> for ExtAccount {
+	fn get() -> Option<AccountId> {
+		EXTERNAL_ACCOUNT.with(|v| *v.borrow())
 	}
 }
 
@@ -133,6 +153,8 @@ impl Config for Test {
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = CodeLength;
 	type TierVolume = Volume;
+	type TierRewardPercentages = TierRewards;
+	type ExternalAccount = ExtAccount;
 	type SeedNativeAmount = SeedAmount;
 	type WeightInfo = ();
 
@@ -205,11 +227,21 @@ impl Default for ExtBuilder {
 		CONVERSION_RATE.with(|v| {
 			v.borrow_mut().clear();
 		});
-
 		SEED_AMOUNT.with(|v| {
 			let mut c = v.borrow_mut();
 			*c = 0u128;
 		});
+		TIER_VOLUME.with(|v| {
+			v.borrow_mut().clear();
+		});
+		TIER_REWARDS.with(|v| {
+			v.borrow_mut().clear();
+		});
+		EXTERNAL_ACCOUNT.with(|v| {
+			let mut c = v.borrow_mut();
+			*c = None;
+		});
+
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
 			shares: vec![],
@@ -257,6 +289,21 @@ impl ExtBuilder {
 	pub fn with_tier_volumes(self, volumes: HashMap<Level, Option<Balance>>) -> Self {
 		TIER_VOLUME.with(|v| {
 			v.swap(&RefCell::new(volumes));
+		});
+		self
+	}
+
+	pub fn with_global_tier_rewards(self, rewards: HashMap<Level, Tier>) -> Self {
+		TIER_REWARDS.with(|v| {
+			v.swap(&RefCell::new(rewards));
+		});
+		self
+	}
+
+	pub fn with_external_account(self, acc: AccountId) -> Self {
+		EXTERNAL_ACCOUNT.with(|v| {
+			let mut m = v.borrow_mut();
+			*m = Some(acc);
 		});
 		self
 	}

@@ -10,8 +10,11 @@ fn setting_asset_tier_should_fail_when_not_correct_origin() {
 				RuntimeOrigin::signed(BOB),
 				DAI,
 				Level::Tier0,
-				Permill::from_percent(1),
-				Permill::from_percent(2),
+				Tier {
+					referrer: Permill::from_percent(1),
+					trader: Permill::from_percent(2),
+					external: Permill::from_percent(2),
+				}
 			),
 			BadOrigin
 		);
@@ -25,15 +28,19 @@ fn setting_asset_tier_should_correctly_update_storage() {
 			RuntimeOrigin::root(),
 			DAI,
 			Level::Tier0,
-			Permill::from_percent(1),
-			Permill::from_percent(2),
+			Tier {
+				referrer: Permill::from_percent(1),
+				trader: Permill::from_percent(2),
+				external: Permill::from_percent(3),
+			}
 		));
 		let d = AssetTier::<Test>::get(DAI, Level::Tier0);
 		assert_eq!(
 			d,
 			Some(Tier {
 				referrer: Permill::from_percent(1),
-				trader: Permill::from_percent(2)
+				trader: Permill::from_percent(2),
+				external: Permill::from_percent(3),
 			})
 		)
 	});
@@ -47,8 +54,11 @@ fn setting_asset_tier_should_fail_when_total_percentage_exceeds_hundred_percent(
 				RuntimeOrigin::root(),
 				DAI,
 				Level::Tier0,
-				Permill::from_percent(70),
-				Permill::from_percent(40),
+				Tier {
+					referrer: Permill::from_percent(60),
+					trader: Permill::from_percent(40),
+					external: Permill::from_percent(10),
+				}
 			),
 			Error::<Test>::IncorrectRewardPercentage
 		);
@@ -62,14 +72,20 @@ fn setting_asset_tier_should_emit_event() {
 			RuntimeOrigin::root(),
 			DAI,
 			Level::Tier0,
-			Permill::from_percent(1),
-			Permill::from_percent(2),
+			Tier {
+				referrer: Permill::from_percent(1),
+				trader: Permill::from_percent(2),
+				external: Permill::from_percent(3),
+			}
 		));
 		expect_events(vec![Event::TierRewardSet {
 			asset_id: DAI,
 			level: Level::Tier0,
-			referrer: Permill::from_percent(1),
-			trader: Permill::from_percent(2),
+			tier: Tier {
+				referrer: Permill::from_percent(1),
+				trader: Permill::from_percent(2),
+				external: Permill::from_percent(3),
+			},
 		}
 		.into()]);
 	});

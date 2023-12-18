@@ -96,14 +96,16 @@ benchmarks! {
 	}
 
 	set_reward_percentage{
-		let referrer_percentage = Permill::from_percent(70);
+		let referrer_percentage = Permill::from_percent(40);
 		let trader_percentage = Permill::from_percent(30);
-	}: _(RawOrigin::Root, T::RewardAsset::get(), Level::Tier2, referrer_percentage, trader_percentage)
+		let external_percentage = Permill::from_percent(30);
+	}: _(RawOrigin::Root, T::RewardAsset::get(), Level::Tier2, Tier{referrer: referrer_percentage, trader: trader_percentage, external: external_percentage})
 	verify {
 		let entry = Pallet::<T>::asset_tier(T::RewardAsset::get(), Level::Tier2);
 		assert_eq!(entry, Some(Tier{
 			referrer: referrer_percentage,
 			trader: trader_percentage,
+			external: external_percentage,
 		}));
 	}
 }

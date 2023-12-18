@@ -57,7 +57,7 @@ where
 	fn on_liquidity_changed_weight() -> Weight;
 	fn on_trade_weight() -> Weight;
 
-	/// Returns unused amount
+	/// Returns used amount
 	fn on_trade_fee(
 		fee_account: AccountId,
 		trader: AccountId,

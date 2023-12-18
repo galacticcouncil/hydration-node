@@ -805,7 +805,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 use pallet_referrals::traits::Convert;
-use pallet_referrals::Level;
+use pallet_referrals::{Level, Tier};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1000,7 +1000,8 @@ parameter_types! {
 	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 222_000_000_000_000, TreasuryAccount::get());
 	pub const MaxCodeLength: u32 = 7;
 	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
-	pub const ReferralsSeedAmount: Balance = 100_000_000_000_000;
+	pub const ReferralsSeedAmount: Balance = 10_000_000_000_000;
+	pub ReferralsExternalRewardAccount: Option<AccountId> = Some(StakingPalletId::get().into_account_truncating());
 }
 
 impl pallet_referrals::Config for Runtime {
@@ -1019,6 +1020,8 @@ impl pallet_referrals::Config for Runtime {
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = MaxCodeLength;
 	type TierVolume = ReferralsLevelTiers;
+	type TierRewardPercentages = ReferralsTierRewards;
+	type ExternalAccount = ReferralsExternalRewardAccount;
 	type SeedNativeAmount = ReferralsSeedAmount;
 	type WeightInfo = weights::referrals::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -1071,11 +1074,49 @@ pub struct ReferralsLevelTiers;
 impl GetByKey<Level, Balance> for ReferralsLevelTiers {
 	fn get(k: &Level) -> Balance {
 		match k {
-			Level::Tier0 => 0,
+			Level::Tier0 | Level::None => 0,
 			Level::Tier1 => 2_000_000_000_000_000,
 			Level::Tier2 => 22_000_000_000_000_000,
 			Level::Tier3 => 222_000_000_000_000_000,
 			Level::Tier4 => 2_222_000_000_000_000_000,
+		}
+	}
+}
+
+pub struct ReferralsTierRewards;
+impl GetByKey<Level, Tier> for ReferralsTierRewards {
+	fn get(k: &Level) -> Tier {
+		match k {
+			Level::None => Tier{
+				referrer: Permill::zero(),
+				trader: Permill::zero(),
+				external: Permill::from_percent(50),
+			},
+			Level::Tier0 => Tier{
+				referrer: Permill::from_percent(5),
+				trader: Permill::from_percent(10),
+				external: Permill::from_percent(35),
+			},
+			Level::Tier1 => Tier{
+				referrer: Permill::from_percent(10),
+				trader: Permill::from_percent(11),
+				external: Permill::from_percent(29),
+			},
+			Level::Tier2 => Tier{
+				referrer: Permill::from_percent(15),
+				trader: Permill::from_percent(12),
+				external: Permill::from_percent(23),
+			},
+			Level::Tier3 => Tier{
+				referrer: Permill::from_percent(20),
+				trader: Permill::from_percent(13),
+				external: Permill::from_percent(17),
+			},
+			Level::Tier4 => Tier{
+				referrer: Permill::from_percent(25),
+				trader: Permill::from_percent(15),
+				external: Permill::from_percent(10),
+			},
 		}
 	}
 }

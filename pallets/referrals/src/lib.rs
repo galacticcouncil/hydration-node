@@ -60,7 +60,7 @@ use sp_core::U256;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Rounding;
-use sp_runtime::{traits::CheckedAdd, ArithmeticError, DispatchError, Permill};
+use sp_runtime::{traits::{CheckedAdd,Zero}, ArithmeticError, DispatchError, Permill};
 
 #[cfg(feature = "runtime-benchmarks")]
 pub use crate::traits::BenchmarkHelper;
@@ -78,8 +78,9 @@ const MIN_CODE_LENGTH: usize = 5;
 /// Indicates current level of the referrer to determine which reward percentages are used.
 #[derive(Hash, Clone, Copy, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Level {
+	None,
 	#[default]
-	Tier0 = 0,
+	Tier0,
 	Tier1,
 	Tier2,
 	Tier3,
@@ -94,6 +95,7 @@ impl Level {
 			Self::Tier2 => Self::Tier3,
 			Self::Tier3 => Self::Tier4,
 			Self::Tier4 => Self::Tier4,
+			Self::None => Self::None,
 		}
 	}
 
@@ -115,12 +117,14 @@ impl Level {
 	}
 }
 
-#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Copy, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Tier {
 	/// Percentage of the fee that goes to the referrer.
-	referrer: Permill,
+	pub referrer: Permill,
 	/// Percentage of the fee that goes back to the trader.
-	trader: Permill,
+	pub trader: Permill,
+	/// Percentage of the fee that goes to specific account given by `ExternalAccount` config parameter as reward.r
+	pub external: Permill,
 }
 
 #[derive(Clone, Debug, PartialEq, Encode, Decode, TypeInfo)]
@@ -189,6 +193,12 @@ pub mod pallet {
 
 		/// Volume needed to reach given level.
 		type TierVolume: GetByKey<Level, Balance>;
+
+		/// Global reward percentages for all assets if not specified explicitly for the asset.
+		type TierRewardPercentages: GetByKey<Level, Tier>;
+
+		/// External account that receives some percentage of the fee. Usually something like staking.
+		type ExternalAccount: Get<Option<Self::AccountId>>;
 
 		/// Seed amount that was sent to the reward pot.
 		#[pallet::constant]
@@ -275,8 +285,7 @@ pub mod pallet {
 		TierRewardSet {
 			asset_id: T::AssetId,
 			level: Level,
-			referrer: Permill,
-			trader: Permill,
+			tier: Tier,
 		},
 	}
 
@@ -515,26 +524,24 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
 			level: Level,
-			referrer: Permill,
-			trader: Permill,
+			tier: Tier,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			//ensure that total percentage does not exceed 100%
 			ensure!(
-				referrer.checked_add(&trader).is_some(),
+				tier.referrer
+					.checked_add(&tier.trader)
+					.ok_or(Error::<T>::IncorrectRewardPercentage)?
+					.checked_add(&tier.external)
+					.is_some(),
 				Error::<T>::IncorrectRewardPercentage
 			);
 
 			AssetTier::<T>::mutate(asset_id, level, |v| {
-				*v = Some(Tier { referrer, trader });
+				*v = Some(tier);
 			});
-			Self::deposit_event(Event::TierRewardSet {
-				asset_id,
-				level,
-				referrer,
-				trader,
-			});
+			Self::deposit_event(Event::TierRewardSet { asset_id, level, tier });
 			Ok(())
 		}
 	}
@@ -583,50 +590,83 @@ impl<T: Config> Pallet<T> {
 		asset_id: T::AssetId,
 		amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		// Does trader have a linked referral account ?
-		let Some(ref_account) = Self::linked_referral_account(&trader) else {
-			return Ok(amount);
-		};
-		// What is the referer level?
-		let Some((level,_)) = Self::referrer_level(&ref_account) else {
-			// Should not really happen, the ref entry should be always there.
-			defensive!("Referrer details not found");
-			return Ok(amount);
-		};
-
-		// What is asset fee for this level? if any.
-		let Some(tier) = Self::asset_tier(asset_id, level) else {
-			return Ok(amount);
-		};
-
 		let Some(price) = T::PriceProvider::get_price(T::RewardAsset::get(), asset_id) else {
 			// no price, no fun.
-			return Ok(amount);
+			return Ok(Balance::zero());
 		};
 
-		let referrer_reward = tier.referrer.mul_floor(amount);
+		let (level,ref_account) = if let Some(acc) = Self::linked_referral_account(&trader) {
+			if let Some((level,_)) = Self::referrer_level(&acc) {
+				// Should not really happen, the ref entry should be always there.
+				(level, Some(acc))
+			}else{
+				defensive!("Referrer details not found");
+				return Ok(Balance::zero());
+			}
+		}else{
+			(Level::None, None)
+		};
+
+		// What is asset fee for this level? if not explicitly set, use global parameter.
+		let tier = Self::asset_tier(asset_id, level).unwrap_or(T::TierRewardPercentages::get(&level));
+
+		// Rewards
+		let external_account = T::ExternalAccount::get();
+		let referrer_reward = if ref_account.is_some() {
+			tier.referrer.mul_floor(amount)
+		}else{
+			0
+		};
 		let trader_reward = tier.trader.mul_floor(amount);
-		let total_taken = referrer_reward.saturating_add(trader_reward);
+		let external_reward = if external_account.is_some() {
+			tier.external.mul_floor(amount)
+		} else {
+			0
+		};
+		let total_taken = referrer_reward
+			.saturating_add(trader_reward)
+			.saturating_add(external_reward);
 		ensure!(total_taken <= amount, Error::<T>::IncorrectRewardCalculation);
 		T::Currency::transfer(asset_id, &source, &Self::pot_account_id(), total_taken, true)?;
 
-		let referrer_shares = multiply_by_rational_with_rounding(referrer_reward, price.n, price.d, Rounding::Down)
-			.ok_or(ArithmeticError::Overflow)?;
+		let referrer_shares = if ref_account.is_some() {
+			multiply_by_rational_with_rounding(referrer_reward, price.n, price.d, Rounding::Down)
+				.ok_or(ArithmeticError::Overflow)?
+		}else{
+			0
+		};
 		let trader_shares = multiply_by_rational_with_rounding(trader_reward, price.n, price.d, Rounding::Down)
 			.ok_or(ArithmeticError::Overflow)?;
+		let external_shares = if external_account.is_some() {
+			multiply_by_rational_with_rounding(external_reward, price.n, price.d, Rounding::Down)
+				.ok_or(ArithmeticError::Overflow)?
+		} else {
+			0
+		};
 
 		TotalShares::<T>::mutate(|v| {
-			*v = v.saturating_add(referrer_shares.saturating_add(trader_shares));
+			*v = v.saturating_add(
+				referrer_shares
+					.saturating_add(trader_shares)
+					.saturating_add(external_shares),
+			);
 		});
-		Shares::<T>::mutate(ref_account, |v| {
-			*v = v.saturating_add(referrer_shares);
-		});
+		if let Some(acc) = ref_account {
+			Shares::<T>::mutate(acc, |v| {
+				*v = v.saturating_add(referrer_shares);
+			});
+		}
 		Shares::<T>::mutate(trader, |v| {
 			*v = v.saturating_add(trader_shares);
 		});
+		if let Some(acc) = external_account {
+			Shares::<T>::mutate(acc, |v| {
+				*v = v.saturating_add(external_shares);
+			});
+		}
 		if asset_id != T::RewardAsset::get() {
 			Assets::<T>::insert(asset_id, ());
 		}
-		Ok(amount.saturating_sub(total_taken))
+		Ok(total_taken)
 	}
 }
