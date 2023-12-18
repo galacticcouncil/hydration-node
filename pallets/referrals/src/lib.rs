@@ -611,7 +611,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// What is asset fee for this level? if not explicitly set, use global parameter.
-		let tier = Self::asset_tier(asset_id, level).unwrap_or(T::TierRewardPercentages::get(&level));
+		let tier = Self::asset_tier(asset_id, level).unwrap_or_else(|| T::TierRewardPercentages::get(&level));
 
 		// Rewards
 		let external_account = T::ExternalAccount::get();

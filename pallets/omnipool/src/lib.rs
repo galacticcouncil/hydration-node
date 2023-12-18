@@ -1959,7 +1959,7 @@ impl<T: Config> Pallet<T> {
 		let asset_reserve = T::Currency::free_balance(asset, &account);
 		let diff = original_asset_reserve.saturating_sub(asset_reserve);
 		ensure!(diff <= amount, Error::<T>::FeeOverdraft);
-		ensure!(diff == used , Error::<T>::FeeOverdraft);
+		ensure!(diff == used, Error::<T>::FeeOverdraft);
 		Ok(())
 	}
 
