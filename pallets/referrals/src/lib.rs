@@ -517,8 +517,7 @@ pub mod pallet {
 		/// Parameters:
 		/// - `asset_id`: asset id
 		/// - `level`: level
-		/// - `referrer`: referrer percentage that goes to the referrer.
-		/// - `trader`: trader percentage that goes back to the trader.
+		/// - `tier`: reward tier percentages
 		///
 		/// Emits `TierRewardSet` event when successful.
 		#[pallet::call_index(4)]
