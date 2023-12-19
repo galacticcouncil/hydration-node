@@ -1146,6 +1146,40 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
 		});
 	}
+
+	#[test]
+	fn dca_should_work_with_high_omnipool_fee() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			let alice_init_hdx_balance = 5000 * UNITS;
+			assert_ok!(Balances::set_balance(
+				RuntimeOrigin::root(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+				0,
+			));
+
+			let dca_budget = 1100 * UNITS;
+			let amount_to_sell = 100 * UNITS;
+			let schedule1 =
+				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget, HDX, DAI, amount_to_sell);
+			create_schedule(ALICE, schedule1);
+
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
+
+			//Act
+			set_relaychain_block_number(11);
+
+			//Assert
+			check_number_of_executed_events(1);
+			check_if_no_failed_events();
+		});
+	}
 }
 
 mod stableswap {
@@ -3220,6 +3254,11 @@ pub fn check_if_no_failed_events() {
 	assert_eq!(0, failed_events);
 }
 
+pub fn check_number_of_executed_events(count: u32) {
+	let executed_events = count_trade_executed_events();
+	assert_eq!(count, executed_events);
+}
+
 pub fn check_if_dcas_completed_without_failed_or_terminated_events() {
 	let failed_events = count_failed_trade_events();
 	let terminated_events = count_terminated_trade_events();
@@ -3247,6 +3286,10 @@ pub fn get_last_schedule_ids_from_trade_executed_events() -> Vec<u32> {
 	}
 
 	schedule_ids
+}
+
+pub fn count_trade_executed_events() -> u32 {
+	count_dca_event!(pallet_dca::Event::TradeExecuted { .. })
 }
 
 pub fn count_failed_trade_events() -> u32 {
