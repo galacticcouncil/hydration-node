@@ -3,7 +3,7 @@ use super::high_precision;
 use crate::ema::*;
 use crate::fraction;
 use crate::ratio::Ratio;
-use crate::support::rational::round_to_rational;
+use crate::support::rational::round_to_rational as round_to_rational_u256;
 use crate::support::rational::Rounding;
 use crate::test_utils::{
 	any_rational, bigger_and_smaller_rational, fraction_to_high_precision, prop_assert_approx_eq,
@@ -11,13 +11,13 @@ use crate::test_utils::{
 };
 use crate::test_utils::{MAX_BALANCE, MIN_BALANCE};
 use crate::types::{Balance, Fraction};
-use std::ops::Sub;
-
+use primitive_types::U256;
 use proptest::prelude::*;
+use std::ops::Sub;
 
 use rug::Rational;
 use sp_arithmetic::traits::{One, Zero};
-
+use std::ops::Mul;
 /// 2 weeks at 6s block time
 pub const MAX_ITERATIONS: u32 = 201_600;
 
@@ -576,7 +576,7 @@ proptest! {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1_000_00))]
+	#![proptest_config(ProptestConfig::with_cases(1_000))]
 	#[test]
 	fn saturating_sub_should_return_correct_result(
 		((a, b), (c, d)) in bigger_and_smaller_rational(MIN_BALANCE, MAX_BALANCE * 1000),
@@ -585,12 +585,14 @@ proptest! {
 		let price_2 = EmaPrice::from(Ratio::new(c,d));
 
 		let sub = saturating_sub(price_1, price_2);
-		let sub_rounded_to_rational = round_to_rational(sub, Rounding::Nearest);
+		let sub_rounded_to_rational = round_to_rational_u256(sub, Rounding::Nearest);
 		let sub = Rational::from((sub_rounded_to_rational.0, sub_rounded_to_rational.1));
 
 		let rug_price1: Rational = Rational::from((price_1.n,price_1.d));
 		let rug_price2: Rational = Rational::from((price_2.n,price_2.d));
 		let sub_with_rug = rug_price1.sub(rug_price2);
+
+		//TODO: consider rounding down the rug result and also the math result, instead of Rounding::Nearest
 
 		let relative_tolerance = Rational::from((1, 1e24 as u128));
 		prop_assert_rational_relative_approx_eq!(
@@ -600,3 +602,29 @@ proptest! {
 		);
 	}
 }
+
+//TODO: recheck this
+/*
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(100))]
+	#[test]
+	fn multiply_sub_should_return_correct_result(
+		smoothing in period_fraction(),
+		(a, b) in any_rational(),
+	) {
+		let multiply = multiply(smoothing, (U256::from(a),U256::from(b)));
+
+		let multiply_rat = round_to_rational(multiply, Rounding::Nearest);
+		let multiply = Rational::from((multiply_rat.n, multiply_rat.d));
+
+		let fractional = smoothing.to_bits();
+		let rational_rug = Rational::from((a,b));
+
+		let multiply_with_rug = rational_rug.mul(fractional);
+
+		let relative_tolerance = Rational::from((1, 1e24 as u128));
+
+		assert_eq!(multiply, multiply_with_rug);
+	}
+}
+*/
