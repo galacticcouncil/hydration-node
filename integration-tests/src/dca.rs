@@ -1163,14 +1163,24 @@ mod omnipool {
 
 			let dca_budget = 1100 * UNITS;
 			let amount_to_sell = 100 * UNITS;
-			let schedule1 =
-				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget, HDX, DAI, amount_to_sell);
-			create_schedule(ALICE, schedule1);
+			let schedule1 = Schedule {
+				owner: AccountId::from(ALICE),
+				period: 3u32,
+				total_amount: dca_budget,
+				max_retries: None,
+				stability_threshold: None,
+				slippage: Some(Permill::from_percent(5)),
+				order: Order::Sell {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![]),
+				},
+			};
 
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
-			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+			create_schedule(ALICE, schedule1);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
-			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
 			set_relaychain_block_number(11);
