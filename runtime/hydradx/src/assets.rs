@@ -1075,10 +1075,10 @@ impl GetByKey<Level, Balance> for ReferralsLevelTiers {
 	fn get(k: &Level) -> Balance {
 		match k {
 			Level::Tier0 | Level::None => 0,
-			Level::Tier1 => 2_000_000_000_000_000,
-			Level::Tier2 => 22_000_000_000_000_000,
-			Level::Tier3 => 222_000_000_000_000_000,
-			Level::Tier4 => 2_222_000_000_000_000_000,
+			Level::Tier1 => 1_222_222_000_000_000_000,
+			Level::Tier2 => 12_222_220_000_000_000_000,
+			Level::Tier3 => 122_222_200_000_000_000_000,
+			Level::Tier4 => 1_222_222_000_000_000_000_000,
 		}
 	}
 }
