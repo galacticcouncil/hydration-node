@@ -1186,7 +1186,7 @@ mod omnipool {
 			set_relaychain_block_number(11);
 
 			//Assert
-			check_number_of_executed_events(1);
+			check_number_of_trade_executed_events(1);
 			check_if_no_failed_events();
 		});
 	}
@@ -3264,7 +3264,7 @@ pub fn check_if_no_failed_events() {
 	assert_eq!(0, failed_events);
 }
 
-pub fn check_number_of_executed_events(count: u32) {
+pub fn check_number_of_trade_executed_events(count: u32) {
 	let executed_events = count_trade_executed_events();
 	assert_eq!(count, executed_events);
 }
