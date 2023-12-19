@@ -2,6 +2,8 @@ use super::high_precision;
 
 use crate::ema::*;
 use crate::fraction;
+use crate::ratio::Ratio;
+use crate::support::rational::round_to_rational;
 use crate::support::rational::Rounding;
 use crate::test_utils::{
 	any_rational, bigger_and_smaller_rational, fraction_to_high_precision, prop_assert_approx_eq,
@@ -9,6 +11,7 @@ use crate::test_utils::{
 };
 use crate::test_utils::{MAX_BALANCE, MIN_BALANCE};
 use crate::types::{Balance, Fraction};
+use std::ops::Sub;
 
 use proptest::prelude::*;
 
@@ -569,5 +572,31 @@ proptest! {
 	) {
 		let res = rounding_sub(EmaPrice::new_unchecked(a, b), (c.into(), d.into()), Rounding::Down);
 		prop_assert!(res <= EmaPrice::new_unchecked(a, b));
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1_000_00))]
+	#[test]
+	fn saturating_sub_should_return_correct_result(
+		((a, b), (c, d)) in bigger_and_smaller_rational(MIN_BALANCE, MAX_BALANCE * 1000),
+	) {
+		let price_1 = EmaPrice::from(Ratio::new(a,b));
+		let price_2 = EmaPrice::from(Ratio::new(c,d));
+
+		let sub = saturating_sub(price_1, price_2);
+		let sub_rounded_to_rational = round_to_rational(sub, Rounding::Nearest);
+		let sub = Rational::from((sub_rounded_to_rational.0, sub_rounded_to_rational.1));
+
+		let rug_price1: Rational = Rational::from((price_1.n,price_1.d));
+		let rug_price2: Rational = Rational::from((price_2.n,price_2.d));
+		let sub_with_rug = rug_price1.sub(rug_price2);
+
+		let relative_tolerance = Rational::from((1, 1e24 as u128));
+		prop_assert_rational_relative_approx_eq!(
+			sub,
+			sub_with_rug,
+			relative_tolerance
+		);
 	}
 }
