@@ -308,6 +308,7 @@ impl ExtBuilder {
 		self
 	}
 
+	#[cfg(feature = "runtime-benchmarks")]
 	pub fn with_default_volumes(self) -> Self {
 		let mut volumes = HashMap::new();
 		volumes.insert(Level::Tier0, Some(0));
