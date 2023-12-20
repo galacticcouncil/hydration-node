@@ -111,7 +111,7 @@ impl Level {
 			self
 		} else {
 			let next_level = self.next_level();
-			let required = T::TierVolume::get(&next_level);
+			let required = T::LevelVolumeAndRewardPercentages::get(&next_level).0;
 			if amount >= required {
 				return next_level.increase::<T>(amount);
 			}
@@ -194,11 +194,8 @@ pub mod pallet {
 		#[pallet::constant]
 		type CodeLength: Get<u32>;
 
-		/// Volume needed to reach given level.
-		type TierVolume: GetByKey<Level, Balance>;
-
-		/// Global reward percentages for all assets if not specified explicitly for the asset.
-		type TierRewardPercentages: GetByKey<Level, Tier>;
+		/// Volume and Global reward percentages for all assets if not specified explicitly for the asset.
+		type LevelVolumeAndRewardPercentages: GetByKey<Level, (Balance, Tier)>;
 
 		/// External account that receives some percentage of the fee. Usually something like staking.
 		type ExternalAccount: Get<Option<Self::AccountId>>;
@@ -612,7 +609,8 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// What is asset fee for this level? if not explicitly set, use global parameter.
-		let tier = Self::asset_tier(asset_id, level).unwrap_or_else(|| T::TierRewardPercentages::get(&level));
+		let tier =
+			Self::asset_tier(asset_id, level).unwrap_or_else(|| T::LevelVolumeAndRewardPercentages::get(&level).1);
 
 		// Rewards
 		let external_account = T::ExternalAccount::get();

@@ -100,28 +100,23 @@ parameter_types! {
 	pub const RewardAsset: AssetId = HDX;
 }
 
-pub struct Volume;
+pub struct TierRewards;
 
-impl GetByKey<Level, Balance> for Volume {
-	fn get(level: &Level) -> Balance {
+impl GetByKey<Level, (Balance, Tier)> for TierRewards {
+	fn get(level: &Level) -> (Balance, Tier) {
 		let c = TIER_VOLUME.with(|v| v.borrow().get(level).copied());
 
-		if let Some(l) = c {
+		let volume = if let Some(l) = c {
 			l.unwrap()
 		} else {
 			// if not explicitly set, we dont care about this in the test
 			0
-		}
-	}
-}
-
-pub struct TierRewards;
-
-impl GetByKey<Level, Tier> for TierRewards {
-	fn get(level: &Level) -> Tier {
-		TIER_REWARDS
+		};
+		let rewards = TIER_REWARDS
 			.with(|v| v.borrow().get(level).copied())
-			.unwrap_or_default()
+			.unwrap_or_default();
+
+		(volume, rewards)
 	}
 }
 
@@ -152,8 +147,7 @@ impl Config for Test {
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = CodeLength;
-	type TierVolume = Volume;
-	type TierRewardPercentages = TierRewards;
+	type LevelVolumeAndRewardPercentages = TierRewards;
 	type ExternalAccount = ExtAccount;
 	type SeedNativeAmount = SeedAmount;
 	type WeightInfo = ();

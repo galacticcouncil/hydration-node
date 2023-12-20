@@ -1019,8 +1019,7 @@ impl pallet_referrals::Config for Runtime {
 	type PalletId = ReferralsPalletId;
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = MaxCodeLength;
-	type TierVolume = ReferralsLevelTiers;
-	type TierRewardPercentages = ReferralsTierRewards;
+	type LevelVolumeAndRewardPercentages = ReferralsLevelVolumeAndRewards;
 	type ExternalAccount = ReferralsExternalRewardAccount;
 	type SeedNativeAmount = ReferralsSeedAmount;
 	type WeightInfo = weights::referrals::HydraWeight<Runtime>;
@@ -1069,24 +1068,18 @@ where
 	}
 }
 
-pub struct ReferralsLevelTiers;
+pub struct ReferralsLevelVolumeAndRewards;
 
-impl GetByKey<Level, Balance> for ReferralsLevelTiers {
-	fn get(k: &Level) -> Balance {
-		match k {
+impl GetByKey<Level, (Balance, Tier)> for ReferralsLevelVolumeAndRewards {
+	fn get(k: &Level) -> (Balance, Tier) {
+		let volume = match k {
 			Level::Tier0 | Level::None => 0,
 			Level::Tier1 => 1_222_222_000_000_000_000,
 			Level::Tier2 => 12_222_220_000_000_000_000,
 			Level::Tier3 => 122_222_200_000_000_000_000,
 			Level::Tier4 => 1_222_222_000_000_000_000_000,
-		}
-	}
-}
-
-pub struct ReferralsTierRewards;
-impl GetByKey<Level, Tier> for ReferralsTierRewards {
-	fn get(k: &Level) -> Tier {
-		match k {
+		};
+		let rewards = match k {
 			Level::None => Tier {
 				referrer: Permill::zero(),
 				trader: Permill::zero(),
@@ -1117,7 +1110,8 @@ impl GetByKey<Level, Tier> for ReferralsTierRewards {
 				trader: Permill::from_percent(15),
 				external: Permill::from_percent(10),
 			},
-		}
+		};
+		(volume, rewards)
 	}
 }
 
