@@ -336,35 +336,31 @@ fn main() {
 			.unwrap()
 			.unwrap();
 
-			// We include a cumulus extrinsic if the runtime is a parachain.
-			#[cfg(feature = "parachain")]
-			{
-				let parachain_validation_data = {
-					use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
+			let parachain_validation_data = {
+				use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 
-					let (relay_storage_root, proof) = RelayStateSproofBuilder::default().into_state_root_and_proof();
+				let (relay_storage_root, proof) = RelayStateSproofBuilder::default().into_state_root_and_proof();
 
-					cumulus_pallet_parachain_system::Call::set_validation_data {
-						data: cumulus_primitives_parachain_inherent::ParachainInherentData {
-							validation_data: cumulus_primitives_core::PersistedValidationData {
-								parent_head: Default::default(),
-								relay_parent_number: block,
-								relay_parent_storage_root: relay_storage_root,
-								max_pov_size: Default::default(),
-							},
-							relay_chain_state: proof,
-							downward_messages: Default::default(),
-							horizontal_messages: Default::default(),
+				cumulus_pallet_parachain_system::Call::set_validation_data {
+					data: cumulus_primitives_parachain_inherent::ParachainInherentData {
+						validation_data: cumulus_primitives_core::PersistedValidationData {
+							parent_head: Default::default(),
+							relay_parent_number: block,
+							relay_parent_storage_root: relay_storage_root,
+							max_pov_size: Default::default(),
 						},
-					}
-				};
+						relay_chain_state: proof,
+						downward_messages: Default::default(),
+						horizontal_messages: Default::default(),
+					},
+				}
+			};
 
-				Executive::apply_extrinsic(UncheckedExtrinsic::new_unsigned(RuntimeCall::ParachainSystem(
-					parachain_validation_data,
-				)))
-				.unwrap()
-				.unwrap();
-			}
+			Executive::apply_extrinsic(UncheckedExtrinsic::new_unsigned(RuntimeCall::ParachainSystem(
+				parachain_validation_data,
+			)))
+			.unwrap()
+			.unwrap();
 
 			// Calls that need to be executed before each block starts (init_calls) go here
 		};
