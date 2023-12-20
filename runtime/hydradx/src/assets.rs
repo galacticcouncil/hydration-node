@@ -51,6 +51,7 @@ use frame_support::{
 	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
 	BoundedVec, PalletId,
 };
+use hydradx_adapters::OraclePriceProvider;
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use hydradx_traits::router::{inverse_route, Trade};
 use orml_traits::currency::MutationHooks;
