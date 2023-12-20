@@ -4069,7 +4069,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.6.3"
+version = "7.7.0"
 dependencies = [
  "approx",
  "criterion",
@@ -4090,7 +4090,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "11.0.0"
+version = "11.1.0"
 dependencies = [
  "async-trait",
  "clap 4.3.9",
@@ -4111,6 +4111,7 @@ dependencies = [
  "fc-mapping-sync",
  "fc-rpc",
  "fc-rpc-core",
+ "fp-consensus",
  "fp-rpc",
  "fp-storage",
  "frame-benchmarking",
@@ -4222,7 +4223,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "193.0.0"
+version = "194.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
