@@ -70,7 +70,7 @@ const FILENAME_MEMORY_MAP: &str = "memory_map.output";
 
 // We won't analyse those native Substrate pallets
 #[cfg(not(fuzzing))]
-const BLOCKLISTED_CALL: [&str; 6] = [
+const BLOCKLISTED_CALL: [&str; 7] = [
 	"RuntimeCall::System",
 	"RuntimeCall::Utility",
 	"RuntimeCall::Proxy",
