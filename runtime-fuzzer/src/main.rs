@@ -77,6 +77,8 @@ const BLOCKLISTED_CALL: [&str; 6] = [
 	"RuntimeCall::Uniques",
 	"RuntimeCall::Balances",
 	"RuntimeCall::Timestamp",
+	// to prevent false negatives from debug_assert_ne
+	"RuntimeCall::XTokens",
 ];
 
 struct Data<'a> {
