@@ -39,6 +39,7 @@ fn claim_rewards_should_remove_assets_from_the_list() {
 			(Pallet::<Test>::pot_account_id(), DAI, 3_000_000_000_000_000_000),
 			(Pallet::<Test>::pot_account_id(), DOT, 4_000_000_000_000),
 		])
+		.with_assets(vec![DAI, DOT])
 		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
 		.with_conversion_price((HDX, DOT), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000))
 		.build()

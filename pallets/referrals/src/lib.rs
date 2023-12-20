@@ -454,7 +454,7 @@ pub mod pallet {
 		})]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			for (asset_id, _) in Assets::<T>::drain() {
+			for (asset_id, _) in Assets::<T>::iter() {
 				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
 				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
 				if let Err(error) = r {
@@ -466,6 +466,8 @@ pub mod pallet {
 					} else {
 						return Err(error);
 					}
+				} else {
+					Assets::<T>::remove(asset_id);
 				}
 			}
 			let shares = Shares::<T>::take(&who);
