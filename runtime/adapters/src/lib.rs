@@ -35,11 +35,12 @@ use hydra_dx_math::{
 	omnipool::types::BalanceUpdate,
 	support::rational::{round_to_rational, Rounding},
 };
-use hydradx_traits::router::{PoolType, Trade};
+use hydradx_traits::router::{AssetPair, PoolType, RouteProvider, Trade};
 use hydradx_traits::{
 	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
 	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
 };
+use orml_traits::GetByKey;
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
@@ -983,5 +984,41 @@ where
 
 	fn on_trade_weight(n: usize) -> Weight {
 		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(n as u64)
+	}
+}
+
+/// Price provider that returns a price of an asset that can be used to pay tx fee.
+/// If an asset cannot be used as fee payment asset, None is returned.
+pub struct AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>(
+	PhantomData<(A, AC, RP, Oracle, FallbackPrice, Period)>,
+);
+
+impl<AssetId, A, RP, AC, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
+	for AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>
+where
+	RP: RouteProvider<AssetId>,
+	Oracle: PriceOracle<AssetId, Price = EmaPrice>,
+	FallbackPrice: GetByKey<AssetId, Option<FixedU128>>,
+	Period: Get<OraclePeriod>,
+	A: Get<AssetId>,
+	AssetId: Copy + PartialEq,
+	AC: Contains<AssetId>,
+{
+	fn price(currency: AssetId) -> Option<EmaPrice> {
+		if currency == A::get() {
+			return Some(EmaPrice::one());
+		}
+
+		if AC::contains(&currency) {
+			let route = RP::get_route(AssetPair::new(currency, A::get()));
+			if let Some(price) = Oracle::price(&route, Period::get()) {
+				Some(price)
+			} else {
+				let fp = FallbackPrice::get(&currency);
+				fp.map(|price| EmaPrice::new(price.into_inner(), FixedU128::DIV))
+			}
+		} else {
+			None
+		}
 	}
 }
