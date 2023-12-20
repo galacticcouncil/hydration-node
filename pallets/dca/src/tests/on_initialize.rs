@@ -864,7 +864,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_en
 			//Assert
 			assert_number_of_executed_buy_trades!(4);
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
-			let left_over_which_is_not_enough_for_last_trade = 9994679568000;
+			let left_over_which_is_not_enough_for_last_trade = 9994669744000;
 			assert_balance!(
 				ALICE,
 				HDX,
@@ -1556,9 +1556,9 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 			set_to_blocknumber(501);
 
 			//Assert
+			assert_balance!(TreasuryAccount::get(), DAI, BUY_DCA_FEE_IN_DAI);
 			assert_number_of_executed_buy_trades!(0);
 			assert_eq!(Currencies::reserved_balance(DAI, &ALICE), budget - BUY_DCA_FEE_IN_DAI);
-			assert_balance!(TreasuryAccount::get(), DAI, BUY_DCA_FEE_IN_DAI);
 		});
 }
 
