@@ -996,11 +996,7 @@ where
 				Some(price)
 			} else {
 				let fp = FallbackPrice::get(&currency);
-				if let Some(price) = fp {
-					Some(EmaPrice::new(price.into_inner(), FixedU128::DIV))
-				} else {
-					None
-				}
+				fp.map(|price| EmaPrice::new(price.into_inner(), FixedU128::DIV))
 			}
 		} else {
 			None

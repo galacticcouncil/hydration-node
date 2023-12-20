@@ -372,36 +372,6 @@ runtime_benchmarks! {
 		assert_eq!((MaxSchedulesPerBlock::get()) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(execution_block + DELAY_AFTER_LAST_RADIUS).len());
 	}
 
-
-	scheduleee{
-		let caller: AccountId = create_account_with_native_balance()?;
-
-		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &caller, 100_000_000_000_000_000_000_000i128)?;
-
-		let amount_sell = 200 * ONE;
-		let schedule1 = schedule_fake(caller.clone(), HDX, DAI, amount_sell);
-		let execution_block = 100u32;
-
-		//We fill blocks with schedules leaving only one place
-		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
-		for i in 0..number_of_all_schedules {
-			assert_ok!(DCA::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
-		}
-
-		let schedule_id : ScheduleId = number_of_all_schedules;
-
-		assert_eq!((MaxSchedulesPerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(execution_block + DELAY_AFTER_LAST_RADIUS).len());
-
-	}: {
-		DCA::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block));
-	}
-	verify {
-		assert!(<Schedules<Runtime>>::get::<ScheduleId>(schedule_id).is_some());
-
-		assert_eq!((MaxSchedulesPerBlock::get()) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(execution_block + DELAY_AFTER_LAST_RADIUS).len());
-	}
-
-
 	terminate {
 		let caller: AccountId = create_account_with_native_balance()?;
 
