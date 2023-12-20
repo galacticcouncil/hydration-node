@@ -46,7 +46,7 @@ fn claim_rewards_should_remove_assets_from_the_list() {
 		.execute_with(|| {
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
 			// Assert
-			let count = Assets::<Test>::iter().count();
+			let count = PendingConversions::<Test>::iter().count();
 			assert_eq!(count, 0);
 		});
 }

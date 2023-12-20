@@ -353,7 +353,7 @@ impl ExtBuilder {
 		});
 		r.execute_with(|| {
 			for asset in self.assets.iter() {
-				Assets::<Test>::insert(asset, ());
+				PendingConversions::<Test>::insert(asset, ());
 			}
 		});
 		r.execute_with(|| {

@@ -42,7 +42,7 @@ fn convert_should_remove_asset_from_the_asset_list() {
 			// Arrange
 			assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE), DAI));
 			// Assert
-			let entry = Assets::<Test>::get(DAI);
+			let entry = PendingConversions::<Test>::get(DAI);
 			assert_eq!(entry, None)
 		});
 }
@@ -81,7 +81,7 @@ fn on_idle_should_convert_all_asset_amount_when_successful() {
 			assert_eq!(balance, 0);
 			let balance = Tokens::free_balance(HDX, &Pallet::<Test>::pot_account_id());
 			assert_eq!(balance, 1_000_000_000_000);
-			let entry = Assets::<Test>::get(DAI);
+			let entry = PendingConversions::<Test>::get(DAI);
 			assert_eq!(entry, None)
 		});
 }

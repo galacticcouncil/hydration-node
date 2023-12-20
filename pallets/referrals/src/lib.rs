@@ -260,8 +260,8 @@ pub mod pallet {
 	/// Information about assets that are currently in the rewards pot.
 	/// Used to easily determine list of assets that need to be converted.
 	#[pallet::storage]
-	#[pallet::getter(fn assets)]
-	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, ()>;
+	#[pallet::getter(fn pending_conversions)]
+	pub(super) type PendingConversions<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, ()>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -425,7 +425,7 @@ pub mod pallet {
 			let total_reward_asset =
 				T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance)?;
 
-			Assets::<T>::remove(asset_id);
+			PendingConversions::<T>::remove(asset_id);
 
 			Self::deposit_event(Event::Converted {
 				from: AssetAmount::new(asset_id, asset_balance),
@@ -446,7 +446,7 @@ pub mod pallet {
 		/// Emits `Claimed` event when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight( {
-			let c = Assets::<T>::iter().count() as u64;
+			let c = PendingConversions::<T>::iter().count() as u64;
 			let convert_weight = (<T as Config>::WeightInfo::convert()).saturating_mul(c);
 			let w  = <T as Config>::WeightInfo::claim_rewards();
 			let one_read = T::DbWeight::get().reads(1_u64);
@@ -454,7 +454,7 @@ pub mod pallet {
 		})]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			for (asset_id, _) in Assets::<T>::iter() {
+			for (asset_id, _) in PendingConversions::<T>::iter() {
 				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
 				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
 				if let Err(error) = r {
@@ -467,7 +467,7 @@ pub mod pallet {
 						return Err(error);
 					}
 				} else {
-					Assets::<T>::remove(asset_id);
+					PendingConversions::<T>::remove(asset_id);
 				}
 			}
 			let shares = Shares::<T>::take(&who);
@@ -560,11 +560,11 @@ pub mod pallet {
 			let one_read = T::DbWeight::get().reads(1u64);
 			let max_converts = remaining_weight.saturating_sub(one_read).ref_time() / convert_weight.ref_time();
 
-			for asset_id in Assets::<T>::iter_keys().take(max_converts as usize) {
+			for asset_id in PendingConversions::<T>::iter_keys().take(max_converts as usize) {
 				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
 				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
 				if r.is_ok() {
-					Assets::<T>::remove(asset_id);
+					PendingConversions::<T>::remove(asset_id);
 				}
 			}
 			convert_weight.saturating_mul(max_converts).saturating_add(one_read)
@@ -669,7 +669,7 @@ impl<T: Config> Pallet<T> {
 			});
 		}
 		if asset_id != T::RewardAsset::get() {
-			Assets::<T>::insert(asset_id, ());
+			PendingConversions::<T>::insert(asset_id, ());
 		}
 		Ok(total_taken)
 	}

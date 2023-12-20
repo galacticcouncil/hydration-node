@@ -158,7 +158,7 @@ fn process_trade_fee_should_add_asset_to_asset_list() {
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,));
 			// Assert
-			let asset = Assets::<Test>::get(DAI);
+			let asset = PendingConversions::<Test>::get(DAI);
 			assert_eq!(asset, Some(()));
 		});
 }
@@ -186,7 +186,7 @@ fn process_trade_fee_should_not_add_reward_asset_to_asset_list() {
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), DAI, HDX, 1_000_000_000_000,));
 			// Assert
-			let asset = Assets::<Test>::get(HDX);
+			let asset = PendingConversions::<Test>::get(HDX);
 			assert_eq!(asset, None);
 		});
 }
