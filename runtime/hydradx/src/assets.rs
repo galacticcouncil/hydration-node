@@ -52,7 +52,6 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_adapters::OraclePriceProvider;
 use hydradx_traits::router::{inverse_route, Trade};
 use orml_traits::currency::MutationHooks;
 use orml_traits::GetByKey;
@@ -487,11 +486,21 @@ impl pallet_dca::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type AmmTradeWeights = RouterWeightInfo;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type NativePriceOracle = AssetFeeOraclePriceProvider<
 		NativeAssetId,
 		MultiTransactionPayment,
 		Router,
 		OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+		MultiTransactionPayment,
+		DCAOraclePeriod,
+	>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type NativePriceOracle = AssetFeeOraclePriceProvider<
+		NativeAssetId,
+		MultiTransactionPayment,
+		Router,
+		DummyOraclePriceProvider,
 		MultiTransactionPayment,
 		DCAOraclePeriod,
 	>;
