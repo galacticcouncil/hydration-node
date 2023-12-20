@@ -82,10 +82,8 @@ use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCur
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sp_runtime::traits::{CheckedMul, One};
-use sp_runtime::{
-	traits::{BlockNumberProvider, Saturating},
-	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill,
-};
+use sp_runtime::{traits::{BlockNumberProvider, Saturating}, ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill, Rounding};
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 
 use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};
@@ -226,7 +224,7 @@ pub mod pallet {
 		type OraclePriceProvider: PriceOracle<Self::AssetId, Price = EmaPrice>;
 
 		///Native price provider to get the price of assets that are accepted as fees
-		type NativePriceOracle: NativePriceOracle<Self::AssetId, FixedU128>;
+		type NativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
 
 		///Router implementation
 		type RouteExecutor: RouterT<
@@ -1043,7 +1041,8 @@ impl<T: Config> Pallet<T> {
 		} else {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 
-			price.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
+			multiply_by_rational_with_rounding(asset_amount, price.n, price.d, Rounding::Up)
+				.ok_or(ArithmeticError::Overflow)?
 		};
 
 		Ok(amount)

@@ -29,7 +29,7 @@ mod mock;
 mod tests;
 mod traits;
 
-use frame_support::traits::Currency as PalletCurrency;
+use frame_support::traits::{Contains, Currency as PalletCurrency};
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
 use frame_system::ensure_signed;
 use hydra_dx_math::ema::EmaPrice;
@@ -556,5 +556,11 @@ impl<T: Config> Happened<(T::AccountId, AssetIdOf<T>)> for RemoveTxAssetOnKilled
 				AccountCurrencyMap::<T>::remove(who);
 			}
 		}
+	}
+}
+
+impl<T: Config> Contains<AssetIdOf<T>> for Pallet<T> {
+	fn contains(currency: &AssetIdOf<T>) -> bool {
+		AcceptedCurrencies::<T>::contains_key(currency)
 	}
 }

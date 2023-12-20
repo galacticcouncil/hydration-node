@@ -655,9 +655,9 @@ impl Config for Test {
 
 pub struct NativePriceOracleMock;
 
-impl NativePriceOracle<AssetId, FixedU128> for NativePriceOracleMock {
-	fn price(_: AssetId) -> Option<FixedU128> {
-		Some(FixedU128::from_rational(88, 100))
+impl NativePriceOracle<AssetId, EmaPrice> for NativePriceOracleMock {
+	fn price(_: AssetId) -> Option<EmaPrice> {
+		Some(EmaPrice::from((88, 100)))
 	}
 }
 
