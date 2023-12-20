@@ -9,7 +9,7 @@ fn process_trade_fee_should_increased_referrer_shares() {
 		.with_tiers(vec![(
 			DAI,
 			Level::Tier0,
-			Tier {
+			FeeDistribution {
 				referrer: Permill::from_percent(50),
 				trader: Permill::zero(),
 				external: Permill::zero(),
@@ -37,7 +37,7 @@ fn process_trade_fee_should_increased_trader_shares() {
 		.with_tiers(vec![(
 			DAI,
 			Level::Tier0,
-			Tier {
+			FeeDistribution {
 				referrer: Permill::from_percent(50),
 				trader: Permill::from_percent(20),
 				external: Permill::zero(),
@@ -65,7 +65,7 @@ fn process_trade_fee_should_increased_total_share_issuance() {
 		.with_tiers(vec![(
 			DAI,
 			Level::Tier0,
-			Tier {
+			FeeDistribution {
 				referrer: Permill::from_percent(50),
 				trader: Permill::from_percent(20),
 				external: Permill::zero(),
@@ -93,7 +93,7 @@ fn process_trade_fee_should_fail_when_taken_amount_is_greater_than_fee_amount() 
 		.with_tiers(vec![(
 			DAI,
 			Level::Tier0,
-			Tier {
+			FeeDistribution {
 				referrer: Permill::from_percent(50),
 				trader: Permill::from_percent(70),
 				external: Permill::zero(),
@@ -143,7 +143,7 @@ fn process_trade_fee_should_add_asset_to_asset_list() {
 		.with_tiers(vec![(
 			DAI,
 			Level::Tier0,
-			Tier {
+			FeeDistribution {
 				referrer: Permill::from_percent(50),
 				trader: Permill::from_percent(20),
 				external: Permill::zero(),
@@ -171,7 +171,7 @@ fn process_trade_fee_should_not_add_reward_asset_to_asset_list() {
 		.with_tiers(vec![(
 			DAI,
 			Level::Tier0,
-			Tier {
+			FeeDistribution {
 				referrer: Permill::from_percent(50),
 				trader: Permill::from_percent(20),
 				external: Permill::zero(),
@@ -196,7 +196,7 @@ fn process_trade_fee_should_increase_external_account_shares_when_trader_has_no_
 	let mut none_rewards = HashMap::new();
 	none_rewards.insert(
 		Level::None,
-		Tier {
+		FeeDistribution {
 			referrer: Default::default(),
 			trader: Default::default(),
 			external: Permill::from_percent(50),
@@ -225,7 +225,7 @@ fn process_trade_fee_should_transfer_fee_to_pot_when_no_code_linked() {
 	let mut none_rewards = HashMap::new();
 	none_rewards.insert(
 		Level::None,
-		Tier {
+		FeeDistribution {
 			referrer: Default::default(),
 			trader: Default::default(),
 			external: Permill::from_percent(50),
@@ -252,7 +252,7 @@ fn process_trade_fee_should_reward_all_parties_based_on_global_config_when_asset
 	let mut global_rewards = HashMap::new();
 	global_rewards.insert(
 		Level::None,
-		Tier {
+		FeeDistribution {
 			referrer: Default::default(),
 			trader: Default::default(),
 			external: Permill::from_percent(50),
@@ -260,7 +260,7 @@ fn process_trade_fee_should_reward_all_parties_based_on_global_config_when_asset
 	);
 	global_rewards.insert(
 		Level::Tier0,
-		Tier {
+		FeeDistribution {
 			referrer: Permill::from_percent(5),
 			trader: Permill::from_percent(5),
 			external: Permill::from_percent(40),
@@ -301,7 +301,7 @@ fn process_trade_fee_should_use_configured_asset_instead_of_global_when_set() {
 	let mut global_rewards = HashMap::new();
 	global_rewards.insert(
 		Level::None,
-		Tier {
+		FeeDistribution {
 			referrer: Default::default(),
 			trader: Default::default(),
 			external: Permill::from_percent(50),
@@ -309,7 +309,7 @@ fn process_trade_fee_should_use_configured_asset_instead_of_global_when_set() {
 	);
 	global_rewards.insert(
 		Level::Tier0,
-		Tier {
+		FeeDistribution {
 			referrer: Permill::from_percent(5),
 			trader: Permill::from_percent(5),
 			external: Permill::from_percent(40),
@@ -321,7 +321,7 @@ fn process_trade_fee_should_use_configured_asset_instead_of_global_when_set() {
 		.with_tiers(vec![(
 			DAI,
 			Level::Tier0,
-			Tier {
+			FeeDistribution {
 				referrer: Permill::from_percent(10),
 				trader: Permill::from_percent(5),
 				external: Permill::from_percent(30),

@@ -121,7 +121,7 @@ impl Level {
 }
 
 #[derive(Clone, Copy, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Tier {
+pub struct FeeDistribution {
 	/// Percentage of the fee that goes to the referrer.
 	pub referrer: Permill,
 	/// Percentage of the fee that goes back to the trader.
@@ -162,7 +162,7 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Origin that can set asset tier reward percentages.
+		/// Origin that can set asset reward percentages.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Asset type
@@ -195,7 +195,7 @@ pub mod pallet {
 		type CodeLength: Get<u32>;
 
 		/// Volume and Global reward percentages for all assets if not specified explicitly for the asset.
-		type LevelVolumeAndRewardPercentages: GetByKey<Level, (Balance, Tier)>;
+		type LevelVolumeAndRewardPercentages: GetByKey<Level, (Balance, FeeDistribution)>;
 
 		/// External account that receives some percentage of the fee. Usually something like staking.
 		type ExternalAccount: Get<Option<Self::AccountId>>;
@@ -241,18 +241,18 @@ pub mod pallet {
 	pub(super) type TotalShares<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	/// Referer level and total accumulated rewards over time.
-	/// Maps referrer account to (Level, Balance). Level indicates current reward tier and Balance is used to unlock next tier level.
+	/// Maps referrer account to (Level, Balance). Level indicates current rewards and Balance is used to unlock next level.
 	/// Dev note: we use OptionQuery here because this helps to easily determine that an account if referrer account.
 	#[pallet::storage]
 	#[pallet::getter(fn referrer_level)]
 	pub(super) type Referrer<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (Level, Balance), OptionQuery>;
 
-	/// Asset tier information.
-	/// Maps (asset_id, level) to Tier which provides information about reward percentages.
+	/// Asset fee distribution rewards information.
+	/// Maps (asset_id, level) to asset reward percentages.
 	#[pallet::storage]
-	#[pallet::getter(fn asset_tier)]
-	pub(super) type AssetTier<T: Config> =
-		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, Level, Tier, OptionQuery>;
+	#[pallet::getter(fn asset_rewards)]
+	pub(super) type AssetRewards<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, Level, FeeDistribution, OptionQuery>;
 
 	/// Information about assets that are currently in the rewards pot.
 	/// Used to easily determine list of assets that need to be converted.
@@ -281,12 +281,14 @@ pub mod pallet {
 		},
 		/// Rewards claimed.
 		Claimed { who: T::AccountId, rewards: Balance },
-		/// New asset tier has been set.
-		TierRewardSet {
+		/// New asset rewards has been set.
+		AssetRewardsUpdated {
 			asset_id: T::AssetId,
 			level: Level,
-			tier: Tier,
+			rewards: FeeDistribution,
 		},
+		/// Referrer reached new level.
+		LevelUp { who: T::AccountId, level: Level },
 	}
 
 	#[pallet::error]
@@ -503,7 +505,14 @@ pub mod pallet {
 			Referrer::<T>::mutate(who.clone(), |v| {
 				if let Some((level, total)) = v {
 					*total = total.saturating_add(rewards);
-					*level = level.increase::<T>(*total);
+					let new_level = level.increase::<T>(*total);
+					if *level != new_level {
+						*level = new_level;
+						Self::deposit_event(Event::LevelUp {
+							who: who.clone(),
+							level: new_level,
+						});
+					}
 				}
 			});
 
@@ -511,38 +520,43 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Set asset tier reward percentages
+		/// Set asset reward percentages
 		///
 		/// Parameters:
 		/// - `asset_id`: asset id
 		/// - `level`: level
-		/// - `tier`: reward tier percentages
+		/// - `rewards`: reward fee percentages
 		///
-		/// Emits `TierRewardSet` event when successful.
+		/// Emits `AssetRewardsUpdated` event when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_reward_percentage())]
 		pub fn set_reward_percentage(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
 			level: Level,
-			tier: Tier,
+			rewards: FeeDistribution,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			//ensure that total percentage does not exceed 100%
 			ensure!(
-				tier.referrer
-					.checked_add(&tier.trader)
+				rewards
+					.referrer
+					.checked_add(&rewards.trader)
 					.ok_or(Error::<T>::IncorrectRewardPercentage)?
-					.checked_add(&tier.external)
+					.checked_add(&rewards.external)
 					.is_some(),
 				Error::<T>::IncorrectRewardPercentage
 			);
 
-			AssetTier::<T>::mutate(asset_id, level, |v| {
-				*v = Some(tier);
+			AssetRewards::<T>::mutate(asset_id, level, |v| {
+				*v = Some(rewards);
 			});
-			Self::deposit_event(Event::TierRewardSet { asset_id, level, tier });
+			Self::deposit_event(Event::AssetRewardsUpdated {
+				asset_id,
+				level,
+				rewards,
+			});
 			Ok(())
 		}
 	}
@@ -609,19 +623,19 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// What is asset fee for this level? if not explicitly set, use global parameter.
-		let tier =
-			Self::asset_tier(asset_id, level).unwrap_or_else(|| T::LevelVolumeAndRewardPercentages::get(&level).1);
+		let rewards =
+			Self::asset_rewards(asset_id, level).unwrap_or_else(|| T::LevelVolumeAndRewardPercentages::get(&level).1);
 
 		// Rewards
 		let external_account = T::ExternalAccount::get();
 		let referrer_reward = if ref_account.is_some() {
-			tier.referrer.mul_floor(amount)
+			rewards.referrer.mul_floor(amount)
 		} else {
 			0
 		};
-		let trader_reward = tier.trader.mul_floor(amount);
+		let trader_reward = rewards.trader.mul_floor(amount);
 		let external_reward = if external_account.is_some() {
-			tier.external.mul_floor(amount)
+			rewards.external.mul_floor(amount)
 		} else {
 			0
 		};

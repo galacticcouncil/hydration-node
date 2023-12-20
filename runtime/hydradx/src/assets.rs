@@ -805,7 +805,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 use pallet_referrals::traits::Convert;
-use pallet_referrals::{Level, Tier};
+use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1070,8 +1070,8 @@ where
 
 pub struct ReferralsLevelVolumeAndRewards;
 
-impl GetByKey<Level, (Balance, Tier)> for ReferralsLevelVolumeAndRewards {
-	fn get(k: &Level) -> (Balance, Tier) {
+impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewards {
+	fn get(k: &Level) -> (Balance, FeeDistribution) {
 		let volume = match k {
 			Level::Tier0 | Level::None => 0,
 			Level::Tier1 => 1_222_222_000_000_000_000,
@@ -1080,32 +1080,32 @@ impl GetByKey<Level, (Balance, Tier)> for ReferralsLevelVolumeAndRewards {
 			Level::Tier4 => 1_222_222_000_000_000_000_000,
 		};
 		let rewards = match k {
-			Level::None => Tier {
+			Level::None => FeeDistribution {
 				referrer: Permill::zero(),
 				trader: Permill::zero(),
 				external: Permill::from_percent(50),
 			},
-			Level::Tier0 => Tier {
+			Level::Tier0 => FeeDistribution {
 				referrer: Permill::from_percent(5),
 				trader: Permill::from_percent(10),
 				external: Permill::from_percent(35),
 			},
-			Level::Tier1 => Tier {
+			Level::Tier1 => FeeDistribution {
 				referrer: Permill::from_percent(10),
 				trader: Permill::from_percent(11),
 				external: Permill::from_percent(29),
 			},
-			Level::Tier2 => Tier {
+			Level::Tier2 => FeeDistribution {
 				referrer: Permill::from_percent(15),
 				trader: Permill::from_percent(12),
 				external: Permill::from_percent(23),
 			},
-			Level::Tier3 => Tier {
+			Level::Tier3 => FeeDistribution {
 				referrer: Permill::from_percent(20),
 				trader: Permill::from_percent(13),
 				external: Permill::from_percent(17),
 			},
-			Level::Tier4 => Tier {
+			Level::Tier4 => FeeDistribution {
 				referrer: Permill::from_percent(25),
 				trader: Permill::from_percent(15),
 				external: Permill::from_percent(10),

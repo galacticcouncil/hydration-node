@@ -75,7 +75,7 @@ pub(crate) const INITIAL_ALICE_BALANCE: Balance = 1_000 * ONE;
 thread_local! {
 	pub static CONVERSION_RATE: RefCell<HashMap<(AssetId,AssetId), EmaPrice>> = RefCell::new(HashMap::default());
 	pub static TIER_VOLUME: RefCell<HashMap<Level, Option<Balance>>> = RefCell::new(HashMap::default());
-	pub static TIER_REWARDS: RefCell<HashMap<Level, Tier>> = RefCell::new(HashMap::default());
+	pub static TIER_REWARDS: RefCell<HashMap<Level, FeeDistribution>> = RefCell::new(HashMap::default());
 	pub static SEED_AMOUNT: RefCell<Balance> = RefCell::new(Balance::zero());
 	pub static EXTERNAL_ACCOUNT: RefCell<Option<AccountId>> = RefCell::new(None);
 }
@@ -100,10 +100,10 @@ parameter_types! {
 	pub const RewardAsset: AssetId = HDX;
 }
 
-pub struct TierRewards;
+pub struct LevelVolumeAndRewards;
 
-impl GetByKey<Level, (Balance, Tier)> for TierRewards {
-	fn get(level: &Level) -> (Balance, Tier) {
+impl GetByKey<Level, (Balance, FeeDistribution)> for LevelVolumeAndRewards {
+	fn get(level: &Level) -> (Balance, FeeDistribution) {
 		let c = TIER_VOLUME.with(|v| v.borrow().get(level).copied());
 
 		let volume = if let Some(l) = c {
@@ -147,7 +147,7 @@ impl Config for Test {
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = CodeLength;
-	type LevelVolumeAndRewardPercentages = TierRewards;
+	type LevelVolumeAndRewardPercentages = LevelVolumeAndRewards;
 	type ExternalAccount = ExtAccount;
 	type SeedNativeAmount = SeedAmount;
 	type WeightInfo = ();
@@ -212,7 +212,7 @@ impl mock_amm::pallet::Config for Test {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	shares: Vec<(AccountId, Balance)>,
-	tiers: Vec<(AssetId, Level, Tier)>,
+	tiers: Vec<(AssetId, Level, FeeDistribution)>,
 	assets: Vec<AssetId>,
 }
 
@@ -260,7 +260,7 @@ impl ExtBuilder {
 		self.assets.extend(shares);
 		self
 	}
-	pub fn with_tiers(mut self, shares: Vec<(AssetId, Level, Tier)>) -> Self {
+	pub fn with_tiers(mut self, shares: Vec<(AssetId, Level, FeeDistribution)>) -> Self {
 		self.tiers.extend(shares);
 		self
 	}
@@ -287,7 +287,7 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_global_tier_rewards(self, rewards: HashMap<Level, Tier>) -> Self {
+	pub fn with_global_tier_rewards(self, rewards: HashMap<Level, FeeDistribution>) -> Self {
 		TIER_REWARDS.with(|v| {
 			v.swap(&RefCell::new(rewards));
 		});
@@ -342,7 +342,7 @@ impl ExtBuilder {
 
 		r.execute_with(|| {
 			for (asset, level, tier) in self.tiers.iter() {
-				AssetTier::<Test>::insert(asset, level, tier);
+				AssetRewards::<Test>::insert(asset, level, tier);
 			}
 		});
 		r.execute_with(|| {

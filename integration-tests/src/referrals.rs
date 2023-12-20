@@ -4,7 +4,7 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens};
 use orml_traits::MultiCurrency;
-use pallet_referrals::{ReferralCode, Tier};
+use pallet_referrals::{FeeDistribution, ReferralCode};
 use primitives::AccountId;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
@@ -243,7 +243,7 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 			RuntimeOrigin::root(),
 			DAI,
 			pallet_referrals::Level::Tier0,
-			Tier {
+			FeeDistribution {
 				referrer: Permill::from_percent(2),
 				trader: Permill::from_percent(1),
 				external: Permill::from_percent(10),

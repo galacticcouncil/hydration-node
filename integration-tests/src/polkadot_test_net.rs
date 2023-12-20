@@ -23,7 +23,7 @@ use hydradx_runtime::evm::WETH_ASSET_LOCATION;
 use hydradx_runtime::Referrals;
 use hydradx_runtime::RuntimeOrigin;
 use pallet_evm::AddressMapping;
-use pallet_referrals::{Level, Tier};
+use pallet_referrals::{FeeDistribution, Level};
 use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_core::H160;
@@ -552,6 +552,6 @@ pub fn set_zero_reward_for_referrals(asset_id: AssetId) {
 		RawOrigin::Root.into(),
 		asset_id,
 		Level::None,
-		Tier::default(),
+		FeeDistribution::default(),
 	));
 }
