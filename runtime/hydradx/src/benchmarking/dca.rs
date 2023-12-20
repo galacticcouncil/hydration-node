@@ -17,31 +17,31 @@
 #![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the Act block
 
 use crate::{
-	AccountId, AssetId, Balance, BlockNumber, Currencies, EmaOracle, MaxSchedulesPerBlock, NamedReserveId, Runtime,
-	System, DCA, XYK,Router,MultiTransactionPayment
+	AccountId, AssetId, Balance, BlockNumber, Currencies, EmaOracle, MaxSchedulesPerBlock, MultiTransactionPayment,
+	NamedReserveId, Router, Runtime, System, DCA, XYK,
 };
 
+use crate::benchmarking::register_asset;
 use frame_benchmarking::account;
+use frame_benchmarking::BenchmarkError;
 use frame_support::{
 	assert_ok,
 	traits::{Hooks, Len},
 	weights::Weight,
 	BoundedVec,
 };
-use crate::benchmarking::register_asset;
-use sp_runtime::FixedU128;
-use frame_benchmarking::BenchmarkError;
-use pallet_route_executor::MAX_NUMBER_OF_TRADES;
-use hydradx_traits::router::AssetPair;
 use frame_system::RawOrigin;
+use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, NamedMultiReservableCurrency};
 use pallet_dca::types::{Order, Schedule, ScheduleId};
 use pallet_dca::{ScheduleIdsPerBlock, Schedules};
 use pallet_route_executor::Trade;
+use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
+use sp_runtime::FixedU128;
 use sp_runtime::{DispatchError, Permill};
 use sp_std::vec;
 
@@ -436,12 +436,11 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 		RawOrigin::Signed(caller).into(),
 		asset_a,
 		asset_b,
-        10 * ONE,
+		10 * ONE,
 		0u128,
 		false,
 	));
 }
-
 
 #[cfg(test)]
 mod tests {
