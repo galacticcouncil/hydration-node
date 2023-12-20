@@ -8069,7 +8069,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "9.1.0"
+version = "9.2.0"
 dependencies = [
  "frame-support",
  "frame-system",
