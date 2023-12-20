@@ -81,9 +81,12 @@ use hydradx_traits::PriceOracle;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use sp_runtime::traits::{CheckedMul, One};
-use sp_runtime::{traits::{BlockNumberProvider, Saturating}, ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill, Rounding};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
+use sp_runtime::traits::{CheckedMul, One};
+use sp_runtime::{
+	traits::{BlockNumberProvider, Saturating},
+	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill, Rounding,
+};
 
 use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};

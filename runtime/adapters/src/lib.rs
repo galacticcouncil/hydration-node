@@ -28,7 +28,6 @@ use frame_support::{
 	traits::{Contains, LockIdentifier, OriginTrait},
 	weights::{Weight, WeightToFee},
 };
-use orml_traits::GetByKey;
 use hydra_dx_math::support::rational::round_u512_to_rational;
 use hydra_dx_math::{
 	ema::EmaPrice,
@@ -41,6 +40,7 @@ use hydradx_traits::{
 	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
 	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
 };
+use orml_traits::GetByKey;
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
@@ -970,18 +970,20 @@ where
 
 /// Price provider that returns a price of an asset that can be used to pay tx fee.
 /// If an asset cannot be used as fee payment asset, None is returned.
-pub struct AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>(PhantomData<(A, AC, RP, Oracle,FallbackPrice, Period)>);
+pub struct AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>(
+	PhantomData<(A, AC, RP, Oracle, FallbackPrice, Period)>,
+);
 
-impl<AssetId, A, RP, AC, Oracle,FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
-for AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>
-	where
-		RP: RouteProvider<AssetId>,
-		Oracle: PriceOracle<AssetId, Price = EmaPrice>,
-		FallbackPrice: GetByKey<AssetId, Option<FixedU128>>,
-		Period: Get<OraclePeriod>,
-		A: Get<AssetId>,
-		AssetId: Copy + PartialEq,
-		AC: Contains<AssetId>,
+impl<AssetId, A, RP, AC, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
+	for AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>
+where
+	RP: RouteProvider<AssetId>,
+	Oracle: PriceOracle<AssetId, Price = EmaPrice>,
+	FallbackPrice: GetByKey<AssetId, Option<FixedU128>>,
+	Period: Get<OraclePeriod>,
+	A: Get<AssetId>,
+	AssetId: Copy + PartialEq,
+	AC: Contains<AssetId>,
 {
 	fn price(currency: AssetId) -> Option<EmaPrice> {
 		if currency == A::get() {
@@ -992,11 +994,11 @@ for AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>
 			let route = RP::get_route(AssetPair::new(currency, A::get()));
 			if let Some(price) = Oracle::price(&route, Period::get()) {
 				Some(price)
-			}else{
+			} else {
 				let fp = FallbackPrice::get(&currency);
 				if let Some(price) = fp {
 					Some(EmaPrice::new(price.into_inner(), FixedU128::DIV))
-				}else{
+				} else {
 					None
 				}
 			}
