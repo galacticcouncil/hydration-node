@@ -46,7 +46,7 @@ use sp_std::marker::PhantomData;
 use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::sp_runtime::FixedPointOperand;
 use hydradx_traits::NativePriceOracle;
-use orml_traits::{Happened, MultiCurrency};
+use orml_traits::{GetByKey, Happened, MultiCurrency};
 
 pub use crate::traits::*;
 use frame_support::traits::{Imbalance, IsSubType, OnUnbalanced};
@@ -562,5 +562,11 @@ impl<T: Config> Happened<(T::AccountId, AssetIdOf<T>)> for RemoveTxAssetOnKilled
 impl<T: Config> Contains<AssetIdOf<T>> for Pallet<T> {
 	fn contains(currency: &AssetIdOf<T>) -> bool {
 		AcceptedCurrencies::<T>::contains_key(currency)
+	}
+}
+
+impl<T: Config> GetByKey<AssetIdOf<T>, Option<FixedU128>> for Pallet<T> {
+	fn get(k: &AssetIdOf<T>) -> Option<FixedU128> {
+		AcceptedCurrencyPrice::<T>::get(k)
 	}
 }

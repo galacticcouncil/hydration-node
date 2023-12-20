@@ -488,6 +488,7 @@ impl pallet_dca::Config for Runtime {
 		MultiTransactionPayment,
 		Router,
 		OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+		MultiTransactionPayment,
 		DCAOraclePeriod,
 	>;
 }
