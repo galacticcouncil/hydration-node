@@ -261,7 +261,11 @@ fn schedule_should_emit_necessary_events() {
 
 			//Act
 			set_block_number(500);
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule.clone(),
+				Option::None
+			));
 
 			//Assert
 			let schedule_id = 0;
@@ -275,6 +279,9 @@ fn schedule_should_emit_necessary_events() {
 				Event::Scheduled {
 					id: schedule_id,
 					who: ALICE,
+					period: schedule.period,
+					total_amount: schedule.total_amount,
+					order: schedule.order,
 				}
 				.into(),
 			]);
@@ -295,7 +302,11 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 			set_block_number(500);
 
 			let schedule_id = 0;
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule.clone(),
+				Option::None
+			));
 			expect_events(vec![
 				Event::ExecutionPlanned {
 					id: schedule_id,
@@ -306,6 +317,9 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 				Event::Scheduled {
 					id: schedule_id,
 					who: ALICE,
+					period: schedule.period,
+					total_amount: schedule.total_amount,
+					order: schedule.order,
 				}
 				.into(),
 			]);
@@ -314,7 +328,7 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 
 			assert_ok!(DCA::schedule(
 				RuntimeOrigin::signed(ALICE),
-				schedule2,
+				schedule2.clone(),
 				Option::Some(1000)
 			));
 			expect_events(vec![
@@ -327,6 +341,9 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 				Event::Scheduled {
 					id: schedule_id2,
 					who: ALICE,
+					period: schedule2.period,
+					total_amount: schedule2.total_amount,
+					order: schedule2.order,
 				}
 				.into(),
 			]);
