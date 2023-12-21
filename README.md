@@ -165,7 +165,7 @@ From the top-level node directory:
 ./scripts/check_performance.sh
 ```
 
-This will run series of benchmarks ( which may take a while).
+This will run a series of benchmarks ( which may take a while).
 The output will show benchmark results of HydraDX pallets and comparison against reference values.
 
 The most interesting information would be the difference between the HydraDx benchmark value and the local machine's benchmark.
