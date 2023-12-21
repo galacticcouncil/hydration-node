@@ -21,6 +21,7 @@
 
 pub mod hydradx;
 pub mod local;
+pub mod moonbase;
 pub mod rococo;
 pub mod staging;
 
@@ -57,6 +58,7 @@ pub struct Extensions {
 	pub relay_chain: String,
 	/// The id of the Parachain.
 	pub para_id: u32,
+	pub evm_since: BlockNumber,
 }
 
 impl Extensions {
@@ -182,6 +184,11 @@ pub fn parachain_genesis(
 		duster,
 		omnipool_warehouse_lm: Default::default(),
 		omnipool_liquidity_mining: Default::default(),
+		evm_chain_id: hydradx_runtime::EVMChainIdConfig {
+			chain_id: 2_222_222u32.into(),
+		},
+		ethereum: Default::default(),
+		evm: Default::default(),
 	}
 }
 

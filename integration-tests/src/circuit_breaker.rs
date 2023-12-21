@@ -578,17 +578,19 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 }
 
 fn init_omnipool() {
-	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
-		222_222_000_000_000_000_000_000,
-	));
-
-	assert_ok!(Omnipool::initialize_pool(
-		RawOrigin::Root.into(),
-		FixedU128::from_float(0.00001), // adjust the amount of LRNA to roughly match the amount of LRNA that belongs to HDX. This way we can avoid MaxOutRatioExceeded error.
+		HDX,
 		FixedU128::from(1),
 		Permill::from_percent(100),
-		Permill::from_percent(100)
+		hydradx_runtime::Omnipool::protocol_account(),
+	));
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
+		FixedU128::from_float(0.00001), // adjust the amount of LRNA to roughly match the amount of LRNA that belongs to HDX. This way we can avoid MaxOutRatioExceeded error.
+		Permill::from_percent(100),
+		hydradx_runtime::Omnipool::protocol_account(),
 	));
 
 	do_trading_activity_to_populate_oracle();

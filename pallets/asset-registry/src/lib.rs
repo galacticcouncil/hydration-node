@@ -638,4 +638,14 @@ impl<T: Config> InspectRegistry<T::AssetId> for Pallet<T> {
 	fn decimals(asset_id: T::AssetId) -> Option<u8> {
 		Some(AssetMetadataMap::<T>::get(asset_id)?.decimals)
 	}
+
+	fn asset_name(asset_id: T::AssetId) -> Option<Vec<u8>> {
+		let asset = Assets::<T>::get(asset_id)?;
+		Some(asset.name.into_inner())
+	}
+
+	fn asset_symbol(asset_id: T::AssetId) -> Option<Vec<u8>> {
+		let asset_metadata = AssetMetadataMap::<T>::get(asset_id)?;
+		Some(asset_metadata.symbol.into_inner())
+	}
 }

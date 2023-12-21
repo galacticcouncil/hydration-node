@@ -4,7 +4,7 @@ use crate::tests::mock::*;
 use crate::tests::mock::{DAI, HDX, NATIVE_AMOUNT};
 use crate::xcm_exchange::XcmAssetExchanger;
 use frame_support::{assert_noop, assert_ok, parameter_types};
-use hydradx_traits::router::PoolType;
+use hydradx_traits::router::{AssetPair, PoolType, Trade};
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use pretty_assertions::assert_eq;
@@ -50,7 +50,7 @@ impl Convert<MultiAsset, Option<CurrencyId>> for CurrencyIdConvert {
 }
 
 #[test]
-fn omni_exchanger_allows_selling_supported_assets() {
+fn xcm_exchanger_allows_selling_supported_assets() {
 	// Arrange
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -81,7 +81,56 @@ fn omni_exchanger_allows_selling_supported_assets() {
 }
 
 #[test]
-fn omni_exchanger_allows_buying_supported_assets() {
+fn xcm_exchanger_should_work_with_onchain_route() {
+	// Arrange
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(CHARLIE, HDX, NATIVE_AMOUNT),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			create_xyk_pool(HDX, DOT);
+
+			assert_ok!(RouteExecutor::set_route(
+				RuntimeOrigin::signed(CHARLIE),
+				AssetPair::new(DAI, DOT),
+				vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: DAI,
+						asset_out: HDX,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+				],
+			));
+
+			let give = MultiAsset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
+			let wanted_amount = 40 * UNITS; // 50 - 10 to cover fees
+			let want: MultiAssets = MultiAsset::from((GeneralIndex(DOT.into()), wanted_amount)).into();
+
+			// Act
+			let received = exchange_asset(None, give, &want, SELL).expect("should return ok");
+
+			// Assert
+			let mut iter = received.fungible_assets_iter();
+			let asset_received = iter.next().expect("there should be at least one asset");
+			assert!(iter.next().is_none(), "there should only be one asset returned");
+			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
+			assert!(received_amount >= wanted_amount);
+			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
+			assert_eq!(Balances::free_balance(&ExchangeTempAccount::get()), 0);
+		});
+}
+
+#[test]
+fn xcm_exchanger_allows_buying_supported_assets() {
 	// Arrange
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -122,7 +171,7 @@ fn omni_exchanger_allows_buying_supported_assets() {
 }
 
 #[test]
-fn omni_exchanger_should_not_allow_trading_for_multiple_assets() {
+fn xcm_exchanger_should_not_allow_trading_for_multiple_assets() {
 	// Arrange
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -144,7 +193,7 @@ fn omni_exchanger_should_not_allow_trading_for_multiple_assets() {
 }
 
 #[test]
-fn omni_exchanger_works_with_specified_origin() {
+fn xcm_exchanger_works_with_specified_origin() {
 	// Arrange
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -169,7 +218,32 @@ fn exchange_asset(
 	want: &MultiAssets,
 	is_sell: bool,
 ) -> Result<Assets, Assets> {
-	XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies, DefaultPoolType>::exchange_asset(
+	XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
 		origin, give, want, is_sell,
 	)
+}
+
+fn create_xyk_pool(asset_a: u32, asset_b: u32) {
+	let amount = 100000 * ONE;
+	assert_ok!(Currencies::update_balance(
+		RuntimeOrigin::root(),
+		DAVE,
+		asset_a,
+		amount as i128,
+	));
+
+	assert_ok!(Currencies::update_balance(
+		RuntimeOrigin::root(),
+		DAVE,
+		asset_b,
+		amount as i128,
+	));
+
+	assert_ok!(XYK::create_pool(
+		RuntimeOrigin::signed(DAVE),
+		asset_a,
+		amount,
+		asset_b,
+		amount,
+	));
 }

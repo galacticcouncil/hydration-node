@@ -1,8 +1,9 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use hydradx_traits::router::Trade;
+use hydradx_traits::router::{AssetPair, RouteProvider, Trade};
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
+use sp_std::vec::Vec;
 
 pub type Balance = u128;
 pub type ScheduleId = u32;
@@ -71,14 +72,15 @@ where
 		*asset_out
 	}
 
-	pub fn get_route(&self) -> &BoundedVec<Trade<AssetId>, ConstU32<5>> {
-		match &self {
+	pub fn get_route_or_default<Provider: RouteProvider<AssetId>>(&self) -> Vec<Trade<AssetId>> {
+		let route = match &self {
 			Order::Sell { route, .. } => route,
 			Order::Buy { route, .. } => route,
+		};
+		if route.is_empty() {
+			Provider::get_route(AssetPair::new(self.get_asset_in(), self.get_asset_out()))
+		} else {
+			route.to_vec()
 		}
-	}
-
-	pub fn get_route_length(&self) -> usize {
-		self.get_route().len()
 	}
 }

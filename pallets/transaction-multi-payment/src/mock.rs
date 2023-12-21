@@ -18,6 +18,7 @@
 use super::*;
 pub use crate as multi_payment;
 use crate::{Config, TransferFees};
+use hydra_dx_math::types::Ratio;
 
 use frame_support::{
 	dispatch::DispatchClass,
@@ -26,7 +27,8 @@ use frame_support::{
 	weights::{IdentityFee, Weight},
 };
 use frame_system as system;
-use hydradx_traits::{pools::SpotPriceProvider, AssetPairAccountIdFor};
+use hydradx_traits::router::{RouteProvider, Trade};
+use hydradx_traits::{AssetPairAccountIdFor, OraclePeriod, PriceOracle};
 use orml_traits::currency::MutationHooks;
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
@@ -153,12 +155,31 @@ impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AcceptedCurrencyOrigin = frame_system::EnsureRoot<u64>;
 	type Currencies = Currencies;
-	type SpotPriceProvider = SpotPrice;
+	type RouteProvider = DefaultRouteProvider;
+	type OraclePriceProvider = PriceProviderMock;
 	type WeightInfo = ();
 	type WeightToFee = IdentityFee<Balance>;
 	type NativeAssetId = HdxAssetId;
 }
 
+pub struct DefaultRouteProvider;
+
+impl RouteProvider<AssetId> for DefaultRouteProvider {}
+
+pub struct PriceProviderMock {}
+
+impl PriceOracle<AssetId> for PriceProviderMock {
+	type Price = Ratio;
+
+	fn price(route: &[Trade<AssetId>], _period: OraclePeriod) -> Option<Ratio> {
+		let asset_a = route.first().unwrap().asset_in;
+		let asset_b = route.first().unwrap().asset_out;
+		match (asset_a, asset_b) {
+			(SUPPORTED_CURRENCY_WITH_PRICE, HDX) => Some(Ratio::new(1, 10)),
+			_ => None,
+		}
+	}
+}
 impl pallet_balances::Config for Test {
 	type MaxLocks = MaxLocks;
 	/// The type for recording an account's balance.
@@ -191,23 +212,6 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 			std::mem::swap(&mut a, &mut b)
 		}
 		(a * 1000 + b) as u64
-	}
-}
-
-pub struct SpotPrice;
-
-impl SpotPriceProvider<AssetId> for SpotPrice {
-	type Price = crate::Price;
-
-	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
-		true
-	}
-
-	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
-		match (asset_a, asset_b) {
-			(SUPPORTED_CURRENCY_WITH_PRICE, HDX) => Some(FixedU128::from_float(0.1)),
-			_ => None,
-		}
 	}
 }
 

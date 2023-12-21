@@ -48,7 +48,7 @@ use pallet_stableswap::types::{PoolState, StableswapHooks};
 use pallet_transaction_multi_payment::DepositFee;
 use polkadot_xcm::latest::prelude::*;
 use primitive_types::{U128, U512};
-use primitives::constants::chain::STABLESWAP_SOURCE;
+use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::BlockNumberProvider;
 use sp_std::vec::Vec;
@@ -351,19 +351,23 @@ where
 		.map_err(|(_, e)| e)?;
 
 		match asset.delta_changes.delta_reserve {
-			BalanceUpdate::Increase(amount) => pallet_circuit_breaker::Pallet::<Runtime>::ensure_add_liquidity_limit(
-				origin,
-				asset.asset_id.into(),
-				asset.before.reserve.into(),
-				amount.into(),
-			)?,
-			BalanceUpdate::Decrease(amount) => {
-				pallet_circuit_breaker::Pallet::<Runtime>::ensure_remove_liquidity_limit(
+			BalanceUpdate::Increase(amount) => {
+				pallet_circuit_breaker::Pallet::<Runtime>::ensure_add_liquidity_limit(
 					origin,
 					asset.asset_id.into(),
 					asset.before.reserve.into(),
 					amount.into(),
-				)?
+				)?;
+			}
+			BalanceUpdate::Decrease(amount) => {
+				if !asset.safe_withdrawal {
+					pallet_circuit_breaker::Pallet::<Runtime>::ensure_remove_liquidity_limit(
+						origin,
+						asset.asset_id.into(),
+						asset.before.reserve.into(),
+						amount.into(),
+					)?;
+				}
 			}
 		};
 
@@ -474,7 +478,7 @@ where
 	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<Price, Self::Error> {
 		let (price, _) =
 			pallet_ema_oracle::Pallet::<Runtime>::get_price(asset_a, asset_b, Period::get(), OMNIPOOL_SOURCE)
-				.map_err(|_| pallet_omnipool::Error::<Runtime>::PriceDifferenceTooHigh)?;
+				.map_err(|_| pallet_omnipool::Error::<Runtime>::InvalidOraclePrice)?;
 		Ok(price)
 	}
 
@@ -556,10 +560,23 @@ where
 
 					EmaPrice::new(rational_as_u128.0, rational_as_u128.1)
 				}
+				PoolType::XYK => {
+					let price_result = AggregatedPriceGetter::get_price(asset_a, asset_b, period, XYK_SOURCE);
+
+					match price_result {
+						Ok(price) => price.0,
+						Err(OracleError::SameAsset) => EmaPrice::from(1),
+						Err(_) => return None,
+					}
+				}
 				_ => return None,
 			};
 
 			prices.push(price);
+		}
+
+		if prices.is_empty() {
+			return None;
 		}
 
 		let nominator = prices

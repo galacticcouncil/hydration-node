@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "10.0.1"
+version = "11.1.0"
 description = "HydraDX node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -26,6 +26,7 @@ serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.85"
 clap = { version = "4.1.8", features = [ "derive" ] }
 futures = "0.3.21"
+async-trait = "0.1"
 
 # local dependencies
 hydradx-runtime = { workspace = true }
@@ -39,6 +40,7 @@ sc-basic-authorship = { workspace = true }
 sc-chain-spec = { workspace = true }
 sc-cli = { workspace = true }
 sc-client-api = { workspace = true }
+sc-client-db = { workspace = true }
 sc-consensus = { workspace = true }
 sc-consensus-aura = { workspace = true }
 sc-executor = { workspace = true }
@@ -96,6 +98,16 @@ polkadot-parachain = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true }
 
+# Frontier
+fc-consensus = { workspace = true }
+fc-db = { workspace = true }
+fc-mapping-sync = { workspace = true }
+fc-rpc = { workspace = true }
+fc-rpc-core = { workspace = true }
+fp-rpc = { workspace = true }
+fp-storage = { workspace = true }
+fp-consensus = { workspace = true }
+
 [features]
 default = [
   "frame-benchmarking-cli",
@@ -113,4 +125,3 @@ try-runtime = [
     "hydradx-runtime/try-runtime",
     "try-runtime-cli/try-runtime",
 ]
-

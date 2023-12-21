@@ -35,10 +35,13 @@ members = [
   'math',
   'pallets/staking',
   'pallets/democracy',
+  'runtime/hydradx/src/evm/evm-utility/macro',
   'runtime-fuzzer',
 ]
 
 [workspace.dependencies]
+async-trait = "0.1"
+futures = "0.3.25"
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
 hydradx-traits = { path = "traits", default-features = false }

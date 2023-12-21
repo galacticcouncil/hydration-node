@@ -1,6 +1,6 @@
 [package]
 name = "pallet-lbp"
-version = "4.6.16"
+version = "4.7.2"
 description = "HydraDX Liquidity Bootstrapping Pool Pallet"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -23,7 +23,6 @@ serde = { features = ["derive"], optional = true, version = "1.0.136" }
 ## Local dependencies
 hydra-dx-math = { workspace = true }
 hydradx-traits = { workspace = true }
-primitives = { workspace = true }
 
 ## ORML dependencies
 orml-traits = { workspace = true }
@@ -63,8 +62,8 @@ std = [
     "sp-runtime/std",
     "sp-core/std",
     "sp-std/std",
-    "primitives/std",
     "hydradx-traits/std",
+    'frame-benchmarking/std',
     "scale-info/std",
     "hydra-dx-math/std",
 ]

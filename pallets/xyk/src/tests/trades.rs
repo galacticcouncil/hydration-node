@@ -4,7 +4,7 @@ use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
 
-use primitives::asset::AssetPair;
+use crate::types::AssetPair;
 
 #[test]
 fn sell_test() {

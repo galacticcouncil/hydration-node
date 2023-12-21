@@ -282,6 +282,9 @@ pub mod pallet {
 		/// Signer is not an owner of the staking position.
 		Forbidden,
 
+		/// Remove vote is not allowed when referendum is finished and staking position exists.
+		RemoveVoteNotAllowed,
+
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
 		InconsistentState(InconsistentStateError),

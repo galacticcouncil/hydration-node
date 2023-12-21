@@ -33,14 +33,13 @@ use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional
 use frame_system::ensure_signed;
 use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
-	OnTradeHandler, Source, AMM,
+	OnTradeHandler, AMM,
 };
-use primitives::{asset::AssetPair, AssetId, Balance};
 use sp_std::{vec, vec::Vec};
 
+use crate::types::{Amount, AssetId, AssetPair, Balance};
 use hydra_dx_math::ratio::Ratio;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use primitives::Amount;
 
 #[cfg(test)]
 mod tests;
@@ -49,14 +48,12 @@ mod benchmarking;
 
 mod impls;
 mod trade_execution;
+pub mod types;
 pub mod weights;
 
 pub use impls::XYKSpotPrice;
 
 use weights::WeightInfo;
-
-/// Oracle source identifier for this pallet.
-pub const SOURCE: Source = *b"hydraxyk";
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -66,7 +63,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::ShareTokenRegistry};
+	use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::ShareTokenRegistry, Source};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -113,6 +110,10 @@ pub mod pallet {
 		/// Max fraction of pool to buy in single transaction
 		#[pallet::constant]
 		type MaxOutRatio: Get<u128>;
+
+		/// Oracle source identifier for this pallet.
+		#[pallet::constant]
+		type OracleSource: Get<Source>;
 
 		/// Called to ensure that pool can be created
 		type CanCreatePool: CanCreatePool<AssetId>;
@@ -461,7 +462,7 @@ pub mod pallet {
 			let liquidity_a = T::Currency::total_balance(asset_a, &pair_account);
 			let liquidity_b = T::Currency::total_balance(asset_b, &pair_account);
 			T::AMMHandler::on_liquidity_changed(
-				SOURCE,
+				T::OracleSource::get(),
 				asset_a,
 				asset_b,
 				amount_a,
@@ -567,7 +568,7 @@ pub mod pallet {
 			let liquidity_a = T::Currency::total_balance(asset_a, &pair_account);
 			let liquidity_b = T::Currency::total_balance(asset_b, &pair_account);
 			T::AMMHandler::on_liquidity_changed(
-				SOURCE,
+				T::OracleSource::get(),
 				asset_a,
 				asset_b,
 				remove_amount_a,
@@ -870,7 +871,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		let liquidity_in = T::Currency::total_balance(transfer.assets.asset_in, &pair_account);
 		let liquidity_out = T::Currency::total_balance(transfer.assets.asset_out, &pair_account);
 		T::AMMHandler::on_trade(
-			SOURCE,
+			T::OracleSource::get(),
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
 			transfer.amount,
@@ -1032,7 +1033,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		let liquidity_in = T::Currency::total_balance(transfer.assets.asset_in, &pair_account);
 		let liquidity_out = T::Currency::total_balance(transfer.assets.asset_out, &pair_account);
 		T::AMMHandler::on_trade(
-			SOURCE,
+			T::OracleSource::get(),
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
 			transfer.amount,

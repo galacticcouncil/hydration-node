@@ -56,6 +56,7 @@ pub trait WeightInfo {
 	fn buy() -> Weight;
 	fn router_execution_sell(c: u32, e: u32) -> Weight;
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
+	fn calculate_buy() -> Weight;
 }
 
 /// Weights for pallet_lbp using the hydraDX node and recommended hardware.
@@ -202,6 +203,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads((9 as u64).saturating_mul(e as u64)))
 			.saturating_add(T::DbWeight::get().writes((7 as u64).saturating_mul(e as u64)))
 	}
+	fn calculate_buy() -> Weight {
+		// Minimum execution time: 66_824 nanoseconds.
+		Weight::from_ref_time(67_440_000 as u64).saturating_add(T::DbWeight::get().reads(3 as u64))
+	}
 }
 
 // For backwards compatibility and tests
@@ -345,5 +350,9 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(3 as u64))
 			.saturating_add(RocksDbWeight::get().reads((9 as u64).saturating_mul(e as u64)))
 			.saturating_add(RocksDbWeight::get().writes((7 as u64).saturating_mul(e as u64)))
+	}
+	fn calculate_buy() -> Weight {
+		// Minimum execution time: 66_824 nanoseconds.
+		Weight::from_ref_time(67_440_000 as u64).saturating_add(RocksDbWeight::get().reads(3 as u64))
 	}
 }

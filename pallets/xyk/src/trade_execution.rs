@@ -1,11 +1,10 @@
+use crate::types::{AssetId, AssetPair, Balance};
 use crate::{Config, Error, Pallet};
 use frame_support::ensure;
 use frame_support::traits::Get;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use primitives::asset::AssetPair;
-use primitives::{AssetId, Balance};
 use sp_runtime::DispatchError;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
@@ -121,5 +120,24 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		}
 
 		Self::buy(who, asset_out, asset_in, amount_out, max_limit, false).map_err(ExecutorError::Error)
+	}
+
+	fn get_liquidity_depth(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		if pool_type != PoolType::XYK {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		let pair_account = Self::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+
+		let liquidty = T::Currency::free_balance(asset_a, &pair_account);
+
+		Ok(liquidty)
 	}
 }
