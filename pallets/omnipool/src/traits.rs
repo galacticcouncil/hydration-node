@@ -5,7 +5,7 @@ use frame_support::traits::Contains;
 use frame_support::weights::Weight;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::AssetStateChange;
-use sp_runtime::traits::{CheckedAdd, CheckedMul, Get, Saturating};
+use sp_runtime::traits::{CheckedAdd, CheckedMul, Get, Saturating, Zero};
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128, Permill};
 
 pub struct AssetInfo<AssetId, Balance>
@@ -57,13 +57,18 @@ where
 	fn on_liquidity_changed_weight() -> Weight;
 	fn on_trade_weight() -> Weight;
 
-	/// Returns unused amount
-	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error>;
+	/// Returns used amount
+	fn on_trade_fee(
+		fee_account: AccountId,
+		trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Balance, Self::Error>;
 }
 
 impl<Origin, AccountId, AssetId, Balance> OmnipoolHooks<Origin, AccountId, AssetId, Balance> for ()
 where
-	Balance: Default + Clone,
+	Balance: Default + Clone + Zero,
 {
 	type Error = DispatchError;
 
@@ -91,8 +96,13 @@ where
 		Weight::zero()
 	}
 
-	fn on_trade_fee(_fee_account: AccountId, _asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
-		Ok(amount)
+	fn on_trade_fee(
+		_fee_account: AccountId,
+		_trader: AccountId,
+		_asset: AssetId,
+		_amount: Balance,
+	) -> Result<Balance, Self::Error> {
+		Ok(Balance::zero())
 	}
 }
 
