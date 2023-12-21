@@ -20,6 +20,7 @@ pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-stableswap = { workspace = true }
+pallet-referrals = { workspace = true }
 
 # Warehouse dependencies
 pallet-asset-registry = { workspace = true }
