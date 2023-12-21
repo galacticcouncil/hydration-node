@@ -18,7 +18,7 @@ use sp_consensus_aura::{Slot, AURA_ENGINE_ID};
 use sp_core::Blake2Hasher;
 use sp_runtime::{
 	traits::{Dispatchable, Header},
-	Digest, DigestItem, Storage,
+	Digest, DigestItem, Storage,  Permill,
 };
 use sp_state_machine::TestExternalities;
 #[cfg(feature = "deprecated-substrate")]
@@ -125,6 +125,8 @@ fn main() {
 
 	let endowed_accounts: Vec<AccountId> = (0..5).map(|i| [i; 32].into()).collect();
 
+	let omnipool_account = pallet_omnipool::Pallet::<FuzzedRuntime>::protocol_account();
+
 	// We generate a genesis storage item, which will be cloned to create a runtime.
 	let genesis_storage: Storage = {
 		use sp_runtime::app_crypto::ByteArray;
@@ -151,6 +153,10 @@ fn main() {
 			(
 				[1; 32].into(),
 				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+			),
+			(
+				omnipool_account.into(),
+				vec![(2, 1_000 * UNITS)],
 			),
 		];
 
@@ -229,6 +235,11 @@ fn main() {
 			},
 			omnipool_warehouse_lm: Default::default(),
 			omnipool_liquidity_mining: Default::default(),
+			evm_chain_id: hydradx_runtime::EVMChainIdConfig {
+				chain_id: 2_222_222u32.into(),
+			},
+			ethereum: Default::default(),
+			evm: Default::default(),
 		}
 		.build_storage()
 		.unwrap()
@@ -382,6 +393,21 @@ fn main() {
 		externalities.execute_with(|| start_block(current_block, current_timestamp));
 
 		// Calls that need to be executed in the first block go here
+		let add_token_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token{
+			asset: 2,
+			initial_price: Price::from_float(0.0000012),
+			weight_cap: Permill::from_percent(100),
+			position_owner: endowed_accounts[0].clone(),
+		});
+
+		externalities.execute_with(||{
+				let res = add_token_call.dispatch(RuntimeOrigin::signed(endowed_accounts[0].clone()));
+				if res.is_err() {
+					println!("{:?}", res);
+					panic!("{:?}", res);
+				}
+			}
+		);
 
 		for (maybe_lapse, origin, extrinsic) in extrinsics {
 			// If the lapse is in the range [0, MAX_BLOCK_LAPSE] we finalize the block and
