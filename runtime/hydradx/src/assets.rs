@@ -248,7 +248,7 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
-	type OmnipoolHooks = OmnipoolHookAdapter<Self::RuntimeOrigin, LRNA, Runtime>;
+	type OmnipoolHooks = OmnipoolHookAdapter<Self::RuntimeOrigin, NativeAssetId, LRNA, Runtime>;
 	type PriceBarrier = (
 		EnsurePriceWithin<
 			AccountId,
@@ -573,18 +573,22 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e)
-					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
-						RuntimeOrigin,
-						AccountId,
-						AssetId,
-						Balance,
-					>>::on_trade_weight())
-					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
-						RuntimeOrigin,
-						AccountId,
-						AssetId,
-						Balance,
-					>>::on_liquidity_changed_weight()),
+					.saturating_add(
+						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_trade_weight(),
+					)
+					.saturating_add(
+						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_liquidity_changed_weight(),
+					),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
@@ -607,18 +611,22 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e)
-					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
-						RuntimeOrigin,
-						AccountId,
-						AssetId,
-						Balance,
-					>>::on_trade_weight())
-					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
-						RuntimeOrigin,
-						AccountId,
-						AssetId,
-						Balance,
-					>>::on_liquidity_changed_weight()),
+					.saturating_add(
+						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_trade_weight(),
+					)
+					.saturating_add(
+						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_liquidity_changed_weight(),
+					),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
@@ -1093,10 +1101,10 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 	fn get(k: &Level) -> (Balance, FeeDistribution) {
 		let volume = match k {
 			Level::Tier0 | Level::None => 0,
-			Level::Tier1 => 1_222_222_000_000_000_000,
-			Level::Tier2 => 12_222_220_000_000_000_000,
-			Level::Tier3 => 122_222_200_000_000_000_000,
-			Level::Tier4 => 1_222_222_000_000_000_000_000,
+			Level::Tier1 => 305 * UNITS,
+			Level::Tier2 => 4_583 * UNITS,
+			Level::Tier3 => 61_111 * UNITS,
+			Level::Tier4 => 763_888 * UNITS,
 		};
 		let rewards = match k {
 			Level::None => FeeDistribution {

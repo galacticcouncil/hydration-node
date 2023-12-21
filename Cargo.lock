@@ -4176,7 +4176,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.6.8"
+version = "0.6.9"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4223,7 +4223,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "195.0.0"
+version = "196.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",

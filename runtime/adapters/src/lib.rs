@@ -324,12 +324,13 @@ where
 }
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
-pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
+pub struct OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>(PhantomData<(Origin, NativeAsset, Lrna, Runtime)>);
 
-impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
-	for OmnipoolHookAdapter<Origin, Lrna, Runtime>
+impl<Origin, NativeAsset, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
+	for OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
+	NativeAsset: Get<AssetId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
 		+ frame_system::Config<RuntimeOrigin = Origin>
@@ -470,12 +471,17 @@ where
 		asset: AssetId,
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
-		let referrals_used = pallet_referrals::Pallet::<Runtime>::process_trade_fee(
-			fee_account.clone().into(),
-			trader.into(),
-			asset.into(),
-			amount,
-		)?;
+		let referrals_used = if asset == NativeAsset::get() {
+			Balance::zero()
+		} else {
+			pallet_referrals::Pallet::<Runtime>::process_trade_fee(
+				fee_account.clone().into(),
+				trader.into(),
+				asset.into(),
+				amount,
+			)?
+		};
+
 		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(
 			fee_account.into(),
 			asset.into(),

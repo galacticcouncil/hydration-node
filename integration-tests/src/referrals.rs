@@ -43,7 +43,7 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 			0
 		));
 		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(pot_balance, 28_540_796_091_592_978);
+		assert_eq!(pot_balance, 28_540_796_051_302_768);
 	});
 }
 
@@ -66,7 +66,7 @@ fn trading_in_omnipool_should_increase_referrer_shares() {
 			0
 		));
 		let referrer_shares = Referrals::account_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 128_499_434);
+		assert_eq!(referrer_shares, 128_499_283);
 	});
 }
 #[test]
@@ -88,7 +88,7 @@ fn trading_in_omnipool_should_increase_trader_shares() {
 			0
 		));
 		let trader_shares = Referrals::account_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 256_998_869);
+		assert_eq!(trader_shares, 256_998_567);
 	});
 }
 #[test]
@@ -110,7 +110,7 @@ fn trading_in_omnipool_should_increase_external_shares() {
 			0
 		));
 		let external_shares = Referrals::account_shares::<AccountId>(Staking::pot_account_id().into());
-		assert_eq!(external_shares, 2_164_560_909_660);
+		assert_eq!(external_shares, 1_067_610_243_609);
 	});
 }
 
@@ -133,7 +133,7 @@ fn trading_in_omnipool_should_increase_total_shares_correctly() {
 			0
 		));
 		let total_shares = Referrals::total_shares();
-		assert_eq!(total_shares, 256_998_869 + 128_499_434 + 2_164_560_909_660);
+		assert_eq!(total_shares, 1_067_995_741_459);
 	});
 }
 
@@ -165,7 +165,7 @@ fn claiming_rewards_should_convert_all_assets_to_reward_asset() {
 }
 
 #[test]
-fn trading_hdx_in_omnipool_should_work_when_fee_is_below_existential_deposit() {
+fn trading_hdx_in_omnipool_should_skip_referrals_program() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 		let code =
@@ -183,7 +183,7 @@ fn trading_hdx_in_omnipool_should_work_when_fee_is_below_existential_deposit() {
 			0
 		));
 		let referrer_shares = Referrals::account_shares::<AccountId>(BOB.into());
-		assert_eq!(referrer_shares, 98_704_716_390);
+		assert_eq!(referrer_shares, 0);
 	});
 }
 
@@ -199,7 +199,7 @@ fn trading_in_omnipool_should_transfer_some_portion_of_fee_when_no_code_linked()
 			0
 		));
 		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(pot_balance, 28_540_796_091_592_980);
+		assert_eq!(pot_balance, 28_540_796_051_302_770);
 		let external_shares = Referrals::account_shares::<AccountId>(Staking::pot_account_id());
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, external_shares);
@@ -225,11 +225,11 @@ fn trading_in_omnipool_should_use_global_rewards_when_not_set() {
 			0
 		));
 		let referrer_shares = Referrals::account_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 128_499_434);
+		assert_eq!(referrer_shares, 128_499_283);
 		let trader_shares = Referrals::account_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 256_998_869);
+		assert_eq!(trader_shares, 256_998_567);
 		let external_shares = Referrals::account_shares::<AccountId>(Staking::pot_account_id());
-		assert_eq!(external_shares, 2_164_560_909_660);
+		assert_eq!(external_shares, 1_067_610_243_609);
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, referrer_shares + trader_shares + external_shares);
 	});
@@ -264,11 +264,11 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 			0
 		));
 		let referrer_shares = Referrals::account_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 51_399_773);
+		assert_eq!(referrer_shares, 51_399_713);
 		let trader_shares = Referrals::account_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 25_699_886);
+		assert_eq!(trader_shares, 25_699_856);
 		let external_shares = Referrals::account_shares::<AccountId>(Staking::pot_account_id());
-		assert_eq!(external_shares, 2_163_918_412_488);
+		assert_eq!(external_shares, 1_066_967_747_190);
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, referrer_shares + trader_shares + external_shares);
 	});
@@ -287,7 +287,7 @@ fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
 		));
 		let staking_acc = Staking::pot_account_id();
 		let staking_shares = Referrals::account_shares::<AccountId>(staking_acc.into());
-		assert_eq!(staking_shares, 2_164_946_407_964);
+		assert_eq!(staking_shares, 1_067_995_741_461);
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, staking_shares);
 	});
