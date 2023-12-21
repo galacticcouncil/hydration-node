@@ -51,7 +51,11 @@ mod omnipool {
 			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
 
 			//Act
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE.into()), schedule1.clone(), None));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE.into()),
+				schedule1.clone(),
+				None
+			));
 
 			//Assert
 			let schedule_id = 0;
@@ -66,7 +70,7 @@ mod omnipool {
 				who: ALICE.into(),
 				period: schedule1.period.clone(),
 				total_amount: schedule1.total_amount.clone(),
-				order: schedule1.order.clone()
+				order: schedule1.order.clone(),
 			}
 			.into()]);
 		});

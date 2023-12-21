@@ -289,7 +289,13 @@ pub mod pallet {
 		///The DCA execution is started
 		ExecutionStarted { id: ScheduleId, block: BlockNumberFor<T> },
 		///The DCA is scheduled for next execution
-		Scheduled { id: ScheduleId, who: T::AccountId, period: BlockNumberFor<T>, total_amount: Balance, order: Order<T::AssetId>},
+		Scheduled {
+			id: ScheduleId,
+			who: T::AccountId,
+			period: BlockNumberFor<T>,
+			total_amount: Balance,
+			order: Order<T::AssetId>,
+		},
 		///The DCA is planned for blocknumber
 		ExecutionPlanned {
 			id: ScheduleId,
