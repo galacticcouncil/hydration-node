@@ -18,7 +18,7 @@ use sp_consensus_aura::{Slot, AURA_ENGINE_ID};
 use sp_core::Blake2Hasher;
 use sp_runtime::{
 	traits::{Dispatchable, Header},
-	Digest, DigestItem, Storage,  Permill,
+	Digest, DigestItem, Storage,  Permill, FixedU128,
 };
 use sp_state_machine::TestExternalities;
 #[cfg(feature = "deprecated-substrate")]
@@ -123,9 +123,14 @@ fn main() {
 		println!("Can't remove the map file, but it's not a problem.");
 	}
 
-	let endowed_accounts: Vec<AccountId> = (0..5).map(|i| [i; 32].into()).collect();
-
 	let omnipool_account = pallet_omnipool::Pallet::<FuzzedRuntime>::protocol_account();
+	let native_amount = 936_329_588_000_000_000u128;
+	let eth_amount = 63_750_000_000_000_000_000u128;
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let eth_price = FixedU128::from_inner(71_145_071_145_071);
+
+	let mut endowed_accounts: Vec<AccountId> = (0..5).map(|i| [i; 32].into()).collect();
+	endowed_accounts.push(omnipool_account.clone());
 
 	// We generate a genesis storage item, which will be cloned to create a runtime.
 	let genesis_storage: Storage = {
@@ -140,6 +145,7 @@ fn main() {
 		let registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)> = vec![
 			(b"KSM".to_vec(), 1_000u128, Some(1)),
 			(b"KUSD".to_vec(), 1_000u128, Some(2)),
+			(b"ETH".to_vec(), 1_000u128, Some(3)),
 		];
 
 		let accepted_assets: Vec<(AssetId, Price)> =
@@ -155,8 +161,8 @@ fn main() {
 				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
 			),
 			(
-				omnipool_account.into(),
-				vec![(2, 1_000 * UNITS)],
+				omnipool_account.clone().into(),
+				vec![(3, eth_amount)],
 			),
 		];
 
@@ -185,7 +191,13 @@ fn main() {
 				balances: endowed_accounts
 					.iter()
 					.cloned()
-					.map(|k| (k, INITIAL_TOKEN_BALANCE))
+					.map(|k| {
+						if k == omnipool_account {
+							(k, native_amount)
+						}else{
+							(k, INITIAL_TOKEN_BALANCE)
+						}
+					})
 					.collect(),
 			},
 			council: CouncilConfig {
@@ -394,8 +406,8 @@ fn main() {
 
 		// Calls that need to be executed in the first block go here
 		let add_token_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token{
-			asset: 2,
-			initial_price: Price::from_float(0.0000012),
+			asset: 0,
+			initial_price: native_price,
 			weight_cap: Permill::from_percent(100),
 			position_owner: endowed_accounts[0].clone(),
 		});
