@@ -279,9 +279,9 @@ fn schedule_should_emit_necessary_events() {
 				Event::Scheduled {
 					id: schedule_id,
 					who: ALICE,
-					period: schedule.period.clone(),
-					total_amount: schedule.total_amount.clone(),
-					order: schedule.order.clone(),
+					period: schedule.period,
+					total_amount: schedule.total_amount,
+					order: schedule.order,
 				}
 				.into(),
 			]);
@@ -317,9 +317,9 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 				Event::Scheduled {
 					id: schedule_id,
 					who: ALICE,
-					period: schedule.period.clone(),
-					total_amount: schedule.total_amount.clone(),
-					order: schedule.order.clone(),
+					period: schedule.period,
+					total_amount: schedule.total_amount,
+					order: schedule.order,
 				}
 				.into(),
 			]);
@@ -341,9 +341,9 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 				Event::Scheduled {
 					id: schedule_id2,
 					who: ALICE,
-					period: schedule2.period.clone(),
-					total_amount: schedule2.total_amount.clone(),
-					order: schedule2.order.clone(),
+					period: schedule2.period,
+					total_amount: schedule2.total_amount,
+					order: schedule2.order,
 				}
 				.into(),
 			]);
