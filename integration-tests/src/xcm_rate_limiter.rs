@@ -74,12 +74,12 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 
 		// Assert
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE - amount
 		);
 	});
 
-	let relay_block = PolkadotRelay::execute_with(|| polkadot_runtime::System::block_number());
+	let relay_block = PolkadotRelay::execute_with(polkadot_runtime::System::block_number);
 
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
@@ -147,7 +147,7 @@ fn xcm_rate_limiter_should_not_limit_aca_when_limit_is_not_exceeded() {
 
 		// Assert
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE - amount
 		);
 	});
@@ -217,12 +217,12 @@ fn deferred_messages_should_be_executable_by_root() {
 
 		// Assert
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE - amount
 		);
 	});
 
-	let relay_block = PolkadotRelay::execute_with(|| polkadot_runtime::System::block_number());
+	let relay_block = PolkadotRelay::execute_with(polkadot_runtime::System::block_number);
 
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
