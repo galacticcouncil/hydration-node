@@ -149,4 +149,22 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for HydraWei
 			.saturating_add(T::DbWeight::get().writes(2))
 			.saturating_add(Weight::from_parts(0, 15020).saturating_mul(m.into()))
 	}
+	// Storage: XcmpQueue DeferredMessageBuckets (r:1 w:1)
+	// Proof Skipped: XcmpQueue DeferredMessageBuckets (max_values: None, max_size: None, mode: Measured)
+	fn discard_deferred_individual() -> Weight {
+		// Minimum execution time: 124_783_889 nanoseconds.
+		Weight::from_ref_time(125_149_821_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+	// Storage: XcmpQueue DeferredIndices (r:1 w:1)
+	// Proof Skipped: XcmpQueue DeferredIndices (max_values: None, max_size: None, mode: Measured)
+	// Storage: XcmpQueue DeferredMessageBuckets (r:1 w:1)
+	// Proof Skipped: XcmpQueue DeferredMessageBuckets (max_values: None, max_size: None, mode: Measured)
+	fn try_place_in_deferred_queue() -> Weight {
+		// Minimum execution time: 530_788 nanoseconds.
+		Weight::from_ref_time(537_065_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
 }

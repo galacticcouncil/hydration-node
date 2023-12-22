@@ -18,8 +18,9 @@ use frame_system::EnsureRoot;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_xcm::XcmPassthrough;
-use polkadot_parachain::primitives::Sibling;
+use polkadot_parachain::primitives::{RelayChainBlockNumber, Sibling};
 use polkadot_xcm::v3::{prelude::*, Weight as XcmWeight};
+use primitives::Price;
 use scale_info::TypeInfo;
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
@@ -161,7 +162,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type MaxDeferredBuckets = MaxDeferredBuckets;
 	type MaxBucketsProcessed = MaxBucketsProcessed;
 	type RelayChainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
-	type XcmDeferFilter = ();
+	type XcmDeferFilter = XcmRateLimiter;
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
@@ -240,6 +241,39 @@ impl pallet_xcm::Config for Runtime {
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
 }
+
+#[test]
+fn defer_duration_configuration() {
+	use sp_runtime::{traits::One, FixedPointNumber, FixedU128};
+	/// Calculate the configuration value for the defer duration based on the desired defer duration and
+	/// the threshold percentage when to start deferring.
+	/// - `defer_by`: the desired defer duration when reaching the rate limit
+	/// - `a``: the fraction of the rate limit where we start deferring, e.g. 0.9
+	fn defer_duration(defer_by: u32, a: FixedU128) -> u32 {
+		assert!(a < FixedU128::one());
+		// defer_by * a / (1 - a)
+		(FixedU128::one() / (FixedU128::one() - a)).saturating_mul_int(a.saturating_mul_int(defer_by))
+	}
+	assert_eq!(
+		defer_duration(600 * 4, FixedU128::from_rational(9, 10)),
+		DeferDuration::get()
+	);
+}
+parameter_types! {
+	pub DeferDuration: RelayChainBlockNumber = 600 * 36; // 36 hours
+	pub MaxDeferDuration: RelayChainBlockNumber = 600 * 24 * 10; // 10 days
+}
+
+impl pallet_xcm_rate_limiter::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type DeferDuration = DeferDuration;
+	type MaxDeferDuration = MaxDeferDuration;
+	type RelayBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type CurrencyIdConvert = CurrencyIdConvert;
+	type RateLimitFor = pallet_asset_registry::XcmRateLimitsInRegistry<Runtime>;
+}
+
 pub struct CurrencyIdConvert;
 use primitives::constants::chain::CORE_ASSET_ID;
 

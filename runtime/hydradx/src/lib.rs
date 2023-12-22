@@ -172,6 +172,7 @@ construct_runtime!(
 		Bonds: pallet_bonds = 71,
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
+		XcmRateLimiter: pallet_xcm_rate_limiter = 75,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
