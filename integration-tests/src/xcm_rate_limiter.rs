@@ -79,9 +79,7 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 		);
 	});
 
-	let relay_block = PolkadotRelay::execute_with(|| {
-		polkadot_runtime::System::block_number()
-	});
+	let relay_block = PolkadotRelay::execute_with(|| polkadot_runtime::System::block_number());
 
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
@@ -224,16 +222,14 @@ fn deferred_messages_should_be_executable_by_root() {
 		);
 	});
 
-	let relay_block = PolkadotRelay::execute_with(|| {
-		polkadot_runtime::System::block_number()
-	});
+	let relay_block = PolkadotRelay::execute_with(|| polkadot_runtime::System::block_number());
 
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
 			cumulus_pallet_xcmp_queue::Event::XcmDeferred {
 				sender: ACALA_PARA_ID.into(),
 				sent_at: relay_block,
-				deferred_to:  hydradx_runtime::DeferDuration::get() + relay_block - 1,
+				deferred_to: hydradx_runtime::DeferDuration::get() + relay_block - 1,
 				message_hash,
 				index: (hydradx_runtime::DeferDuration::get() + relay_block - 1, 0),
 				position: 0,
