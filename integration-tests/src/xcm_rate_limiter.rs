@@ -16,7 +16,7 @@ fn get_message_hash_from_event(n: usize) -> Option<[u8; 32]> {
 	let RuntimeEvent::XcmpQueue(Event::XcmpMessageSent { message_hash }) = &last_hydra_events(n)[0] else {
 		panic!("expecting to find message sent event");
 	};
-	*message_hash
+	Some(*message_hash)
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 
 		message_hash = get_message_hash_from_event(2);
@@ -79,20 +79,24 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 		);
 	});
 
+	let relay_block = PolkadotRelay::execute_with(|| {
+		polkadot_runtime::System::block_number()
+	});
+
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
 			cumulus_pallet_xcmp_queue::Event::XcmDeferred {
 				sender: ACALA_PARA_ID.into(),
-				sent_at: 3,
-				deferred_to: hydradx_runtime::DeferDuration::get() + 4,
+				sent_at: relay_block,
+				deferred_to: hydradx_runtime::DeferDuration::get() + relay_block - 1,
 				message_hash,
-				index: (hydradx_runtime::DeferDuration::get() + 4, 0),
+				index: (hydradx_runtime::DeferDuration::get() + relay_block - 1, 0),
 				position: 0,
 			}
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
-				parachain_block_number: 4,
-				relaychain_block_number: 5,
+				parachain_block_number: 5,
+				relaychain_block_number: relay_block + 1,
 			}
 			.into(),
 		]);
@@ -140,7 +144,7 @@ fn xcm_rate_limiter_should_not_limit_aca_when_limit_is_not_exceeded() {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 
 		// Assert
@@ -191,7 +195,7 @@ fn deferred_messages_should_be_executable_by_root() {
 
 	let amount = 100 * UNITS;
 	let mut message_hash = None;
-	let max_weight = Weight::from_ref_time(399_600_000_000);
+	let max_weight = Weight::from_parts(399_600_000_000, 0);
 	Acala::execute_with(|| {
 		// Act
 		assert_ok!(hydradx_runtime::XTokens::transfer(
@@ -220,32 +224,37 @@ fn deferred_messages_should_be_executable_by_root() {
 		);
 	});
 
+	let relay_block = PolkadotRelay::execute_with(|| {
+		polkadot_runtime::System::block_number()
+	});
+
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
 			cumulus_pallet_xcmp_queue::Event::XcmDeferred {
 				sender: ACALA_PARA_ID.into(),
-				sent_at: 3,
-				deferred_to: hydradx_runtime::DeferDuration::get() + 4,
+				sent_at: relay_block,
+				deferred_to:  hydradx_runtime::DeferDuration::get() + relay_block - 1,
 				message_hash,
-				index: (hydradx_runtime::DeferDuration::get() + 4, 0),
+				index: (hydradx_runtime::DeferDuration::get() + relay_block - 1, 0),
 				position: 0,
 			}
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
-				parachain_block_number: 4,
-				relaychain_block_number: 5,
+				parachain_block_number: 5,
+				relaychain_block_number: relay_block + 1,
 			}
 			.into(),
 		]);
 		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
 
-		set_relaychain_block_number(hydradx_runtime::DeferDuration::get() + 4);
+		set_relaychain_block_number(hydradx_runtime::DeferDuration::get() + relay_block);
 
 		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
 		assert_ok!(hydradx_runtime::XcmpQueue::service_deferred(
 			hydradx_runtime::RuntimeOrigin::root(),
-			max_weight,
+			hydradx_runtime::ReservedXcmpWeight::get(),
 			ACALA_PARA_ID.into(),
+			hydradx_runtime::MaxDeferredBuckets::get(),
 		));
 
 		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
