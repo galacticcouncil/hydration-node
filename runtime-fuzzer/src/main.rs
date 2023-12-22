@@ -129,8 +129,10 @@ fn main() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let eth_price = FixedU128::from_inner(71_145_071_145_071);
 
-	let mut endowed_accounts: Vec<AccountId> = (0..5).map(|i| [i; 32].into()).collect();
-	endowed_accounts.push(omnipool_account.clone());
+	let endowed_accounts: Vec<AccountId> = (0..5).map(|i| [i; 32].into()).collect();
+	let mut e_accounts: Vec<AccountId> = vec![omnipool_account.clone().into()];
+	e_accounts.extend(endowed_accounts.clone());
+	//endowed_accounts.push(omnipool_account.clone());
 
 	// We generate a genesis storage item, which will be cloned to create a runtime.
 	let genesis_storage: Storage = {
@@ -158,7 +160,7 @@ fn main() {
 			),
 			(
 				[1; 32].into(),
-				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE), (3, 10 * UNITS * 1_000_000)],
 			),
 			(
 				omnipool_account.clone().into(),
@@ -188,7 +190,7 @@ fn main() {
 			},
 			balances: BalancesConfig {
 				// Configure endowed accounts with initial balance of 1 << 60.
-				balances: endowed_accounts
+				balances: e_accounts
 					.iter()
 					.cloned()
 					.map(|k| {
@@ -405,15 +407,27 @@ fn main() {
 		externalities.execute_with(|| start_block(current_block, current_timestamp));
 
 		// Calls that need to be executed in the first block go here
-		let add_token_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token{
+		let add_hdx_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token{
 			asset: 0,
 			initial_price: native_price,
 			weight_cap: Permill::from_percent(100),
 			position_owner: endowed_accounts[0].clone(),
 		});
+		let add_eth_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token{
+			asset: 3,
+			initial_price: eth_price,
+			weight_cap: Permill::from_percent(100),
+			position_owner: endowed_accounts[0].clone(),
+		});
+
 
 		externalities.execute_with(||{
-				let res = add_token_call.dispatch(RuntimeOrigin::signed(endowed_accounts[0].clone()));
+				let res = add_hdx_call.dispatch(RuntimeOrigin::root());
+				if res.is_err() {
+					println!("{:?}", res);
+					panic!("{:?}", res);
+				}
+			let res = add_eth_call.dispatch(RuntimeOrigin::root());
 				if res.is_err() {
 					println!("{:?}", res);
 					panic!("{:?}", res);

@@ -68,6 +68,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use sp_std::cmp::max;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::require_transactional;
 use frame_support::PalletId;
@@ -81,6 +82,7 @@ use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::Registry;
 use orml_traits::{GetByKey, MultiCurrency};
+use primitive_types::U256;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
@@ -1076,8 +1078,8 @@ pub mod pallet {
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::set_asset_state(asset_in, new_asset_in_state);
-			Self::set_asset_state(asset_out, new_asset_out_state);
+			Self::set_asset_state(asset_in, new_asset_in_state.clone());
+			Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
@@ -1094,6 +1096,9 @@ pub mod pallet {
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
+
+			//#[cfg(feature = "try-runtime")]
+			Self::ensure_trade_invariant((asset_in, asset_in_state, new_asset_in_state), (asset_out, asset_out_state, new_asset_out_state));
 
 			Ok(())
 		}
@@ -1268,14 +1273,16 @@ pub mod pallet {
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::set_asset_state(asset_in, new_asset_in_state);
-			Self::set_asset_state(asset_out, new_asset_out_state);
+			assert!(asset_in_state.reserve < new_asset_in_state.reserve);
+
+			Self::set_asset_state(asset_in, new_asset_in_state.clone());
+			Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
-			Self::process_trade_fee(&who, asset_in, state_changes.fee.asset_fee)?;
+			//Self::process_trade_fee(&who, asset_in, state_changes.fee.asset_fee)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -1286,6 +1293,9 @@ pub mod pallet {
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_trade_invariant((asset_in, asset_in_state, new_asset_in_state), (asset_out, asset_out_state, new_asset_out_state));
 
 			Ok(())
 		}
@@ -1976,4 +1986,39 @@ impl<T: Config> Pallet<T> {
 		}
 		Ok(())
 	}
+
+	#[cfg(feature = "try-runtime")]
+	fn ensure_trade_invariant(asset_in: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>), asset_out: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>)){
+			let new_in_state = asset_in.2;
+			let new_out_state = asset_out.2;
+
+			let old_in_state = asset_in.1;
+			let old_out_state = asset_out.1;
+			assert!(new_in_state.reserve > old_in_state.reserve);
+			assert!(new_out_state.reserve < old_out_state.reserve);
+
+			let in_new_reserve = U256::from(new_in_state.reserve);
+			let in_new_hub_reserve = U256::from(new_in_state.hub_reserve);
+			let in_old_reserve = U256::from(old_in_state.reserve);
+			let in_old_hub_reserve = U256::from(old_in_state.hub_reserve);
+			let out_new_reserve = U256::from(new_out_state.reserve);
+			let out_new_hub_reserve = U256::from(new_out_state.hub_reserve);
+			let out_old_reserve = U256::from(old_out_state.reserve);
+			let out_old_hub_reserve = U256::from(old_out_state.hub_reserve);
+
+			let rq = in_old_reserve.checked_mul(in_old_hub_reserve).unwrap();
+			let rq_plus = in_new_reserve.checked_mul(in_new_hub_reserve).unwrap();
+			assert!(rq_plus >= rq, "Asset IN trade invariant, {:?}, {:?}", new_in_state, old_in_state);
+			let left = rq + max(in_new_reserve, in_new_hub_reserve);
+			let right = rq_plus;
+			//assert!(left >= right, "Asset IN margin {:?} >= {:?}", left,right);
+
+			let rq = out_old_reserve.checked_mul(out_old_hub_reserve).unwrap();
+			let rq_plus = out_new_reserve.checked_mul(out_new_hub_reserve).unwrap();
+			assert!(rq_plus >= rq, "Asset OUT trade invariant, {:?}, {:?}", new_out_state, old_out_state);
+			let left = rq + max(out_new_reserve, out_new_hub_reserve);
+			let right = rq_plus;
+			//assert!(left >= right, "Asset OUT margin {:?} >= {:?}", left,right);
+	}
+
 }
