@@ -765,15 +765,15 @@ parameter_types! {
 	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(25u32,10000u32), // 0.25%
 		max_fee: Permill::from_rational(5u32,100u32),    // 5%
-		decay: FixedU128::from_rational(1,100000), 	     // 0.001%
-		amplification: FixedU128::from(2),			     // 2
+		decay: FixedU128::from_rational(1,100000),       // 0.001%
+		amplification: FixedU128::from(2),               // 2
 	};
 
 	pub ProtocolFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(5u32,10000u32),  // 0.05%
 		max_fee: Permill::from_rational(1u32,1000u32),   // 0.1%
 		decay: FixedU128::from_rational(5,1000000),      // 0.0005%
-		amplification: FixedU128::one(),                 // 2
+		amplification: FixedU128::one(),                 // 1
 	};
 
 	pub const DynamicFeesOraclePeriod: OraclePeriod = OraclePeriod::Short;
