@@ -1097,7 +1097,7 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			//#[cfg(feature = "try-runtime")]
+			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant((asset_in, asset_in_state, new_asset_in_state), (asset_out, asset_out_state, new_asset_out_state));
 
 			Ok(())
