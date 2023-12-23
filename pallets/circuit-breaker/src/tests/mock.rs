@@ -302,7 +302,12 @@ where
 		todo!()
 	}
 
-	fn on_trade_fee(_fee_account: AccountId, _asset: AssetId, _amount: Balance) -> Result<Balance, Self::Error> {
+	fn on_trade_fee(
+		_fee_account: AccountId,
+		_trader: AccountId,
+		_asset: AssetId,
+		_amount: Balance,
+	) -> Result<Balance, Self::Error> {
 		Ok(Balance::zero())
 	}
 }

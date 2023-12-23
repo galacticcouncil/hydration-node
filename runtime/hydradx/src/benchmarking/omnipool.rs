@@ -1,4 +1,6 @@
-use crate::{AccountId, AssetId, AssetRegistry, Balance, EmaOracle, Omnipool, Runtime, RuntimeOrigin, System};
+use crate::{
+	AccountId, AssetId, AssetRegistry, Balance, EmaOracle, Omnipool, Referrals, Runtime, RuntimeOrigin, System,
+};
 
 use super::*;
 
@@ -20,6 +22,7 @@ use hydradx_traits::{
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_omnipool::types::Tradability;
+use pallet_referrals::ReferralCode;
 
 pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
 	assert_ok!(
@@ -193,9 +196,10 @@ runtime_benchmarks! {
 		let token_amount = 200_000_000_000_000_u128;
 
 		update_balance(token_id, &acc, token_amount);
+		update_balance(0, &owner, 1_000_000_000_000_000_u128);
 
 		// Add the token to the pool
-		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner)?;
+		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner.clone())?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: AccountId = account("provider", 1, 1);
@@ -218,6 +222,10 @@ runtime_benchmarks! {
 		let amount_sell = 100_000_000_000_u128;
 		let buy_min_amount = 10_000_000_000_u128;
 
+		// Register and link referral code to account for the weight too
+		let code = ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MYCODE".to_vec());
+		Referrals::register_code(RawOrigin::Signed(owner).into(), code.clone())?;
+		Referrals::link_code(RawOrigin::Signed(seller.clone()).into(), code)?;
 	}: { Omnipool::sell(RawOrigin::Signed(seller.clone()).into(), token_id, DAI, amount_sell, buy_min_amount)? }
 	verify {
 		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(DAI, &seller) >= buy_min_amount);
@@ -236,9 +244,10 @@ runtime_benchmarks! {
 		let token_amount = 200_000_000_000_000_u128;
 
 		update_balance(token_id, &acc, token_amount);
+		update_balance(0, &owner, 1_000_000_000_000_000_u128);
 
 		// Add the token to the pool
-		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner)?;
+		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner.clone())?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: AccountId = account("provider", 1, 1);
@@ -260,7 +269,10 @@ runtime_benchmarks! {
 
 		let amount_buy = 1_000_000_000_000_u128;
 		let sell_max_limit = 2_000_000_000_000_u128;
-
+		// Register and link referral code to account for the weight too
+		let code = ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"MYCODE".to_vec());
+		Referrals::register_code(RawOrigin::Signed(owner).into(), code.clone())?;
+		Referrals::link_code(RawOrigin::Signed(seller.clone()).into(), code)?;
 	}: { Omnipool::buy(RawOrigin::Signed(seller.clone()).into(), DAI, token_id, amount_buy, sell_max_limit)? }
 	verify {
 		assert!(<Runtime as pallet_omnipool::Config>::Currency::free_balance(DAI, &seller) >= Balance::zero());

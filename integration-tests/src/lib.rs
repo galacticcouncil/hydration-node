@@ -16,6 +16,7 @@ mod omnipool_liquidity_mining;
 mod oracle;
 mod otc;
 mod polkadot_test_net;
+mod referrals;
 mod router;
 mod staking;
 mod transact_call_filter;

@@ -34,11 +34,12 @@ use hydra_dx_math::{
 	omnipool::types::BalanceUpdate,
 	support::rational::{round_to_rational, round_u512_to_rational, Rounding},
 };
-use hydradx_traits::router::{PoolType, Trade};
+use hydradx_traits::router::{AssetPair, PoolType, RouteProvider, Trade};
 use hydradx_traits::{
 	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
 	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
 };
+use orml_traits::GetByKey;
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
@@ -60,6 +61,7 @@ use xcm_executor::{
 };
 
 pub mod inspect;
+pub mod price;
 pub mod xcm_exchange;
 pub mod xcm_execute_filter;
 
@@ -321,18 +323,21 @@ where
 }
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
-pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
+pub struct OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>(PhantomData<(Origin, NativeAsset, Lrna, Runtime)>);
 
-impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
-	for OmnipoolHookAdapter<Origin, Lrna, Runtime>
+impl<Origin, NativeAsset, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
+	for OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
+	NativeAsset: Get<AssetId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
 		+ frame_system::Config<RuntimeOrigin = Origin>
-		+ pallet_staking::Config,
+		+ pallet_staking::Config
+		+ pallet_referrals::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
+	<Runtime as pallet_referrals::Config>::AssetId: From<AssetId>,
 {
 	type Error = DispatchError;
 
@@ -459,8 +464,29 @@ where
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 
-	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
-		pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), amount)
+	fn on_trade_fee(
+		fee_account: AccountId,
+		trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Balance, Self::Error> {
+		let referrals_used = if asset == NativeAsset::get() {
+			Balance::zero()
+		} else {
+			pallet_referrals::Pallet::<Runtime>::process_trade_fee(
+				fee_account.clone().into(),
+				trader.into(),
+				asset.into(),
+				amount,
+			)?
+		};
+
+		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(
+			fee_account.into(),
+			asset.into(),
+			amount.saturating_sub(referrals_used),
+		)?;
+		Ok(staking_used.saturating_add(referrals_used))
 	}
 }
 
@@ -963,5 +989,41 @@ where
 
 	fn on_trade_weight(n: usize) -> Weight {
 		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(n as u64)
+	}
+}
+
+/// Price provider that returns a price of an asset that can be used to pay tx fee.
+/// If an asset cannot be used as fee payment asset, None is returned.
+pub struct AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>(
+	PhantomData<(A, AC, RP, Oracle, FallbackPrice, Period)>,
+);
+
+impl<AssetId, A, RP, AC, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
+	for AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>
+where
+	RP: RouteProvider<AssetId>,
+	Oracle: PriceOracle<AssetId, Price = EmaPrice>,
+	FallbackPrice: GetByKey<AssetId, Option<FixedU128>>,
+	Period: Get<OraclePeriod>,
+	A: Get<AssetId>,
+	AssetId: Copy + PartialEq,
+	AC: Contains<AssetId>,
+{
+	fn price(currency: AssetId) -> Option<EmaPrice> {
+		if currency == A::get() {
+			return Some(EmaPrice::one());
+		}
+
+		if AC::contains(&currency) {
+			let route = RP::get_route(AssetPair::new(currency, A::get()));
+			if let Some(price) = Oracle::price(&route, Period::get()) {
+				Some(price)
+			} else {
+				let fp = FallbackPrice::get(&currency);
+				fp.map(|price| EmaPrice::new(price.into_inner(), FixedU128::DIV))
+			}
+		} else {
+			None
+		}
 	}
 }
