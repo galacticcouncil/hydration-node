@@ -107,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 196,
+	spec_version: 198,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -127,6 +127,7 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 	vec![
 		TreasuryPalletId::get().into_account_truncating(),
 		VestingPalletId::get().into_account_truncating(),
+		ReferralsPalletId::get().into_account_truncating(),
 	]
 }
 
@@ -172,7 +173,8 @@ construct_runtime!(
 		Bonds: pallet_bonds = 71,
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
-		XcmRateLimiter: pallet_xcm_rate_limiter = 75,
+		Referrals: pallet_referrals = 75,
+		XcmRateLimiter: pallet_xcm_rate_limiter = 76,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -619,6 +621,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_staking, Staking);
 			list_benchmark!(list, extra, pallet_lbp, LBP);
 			list_benchmark!(list, extra, pallet_xyk, XYK);
+			list_benchmark!(list, extra, pallet_referrals, Referrals);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
@@ -699,6 +702,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_lbp, LBP);
 			add_benchmark!(params, batches, pallet_xyk, XYK);
 			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
+			add_benchmark!(params, batches, pallet_referrals, Referrals);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);

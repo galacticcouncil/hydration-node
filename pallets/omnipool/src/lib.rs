@@ -403,6 +403,8 @@ pub mod pallet {
 		AssetNotFrozen,
 		/// Configured stable asset cannot be removed from Omnipool.
 		StableAssetCannotBeRemoved,
+		/// Calculated amount out from sell trade is zero.
+		ZeroAmountOut,
 	}
 
 	#[pallet::call]
@@ -983,6 +985,11 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
+				*state_changes.asset_out.delta_reserve > Balance::zero(),
+				Error::<T>::ZeroAmountOut
+			);
+
+			ensure!(
 				*state_changes.asset_out.delta_reserve >= min_buy_amount,
 				Error::<T>::BuyLimitNotReached
 			);
@@ -1075,7 +1082,7 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
-			Self::process_trade_fee(asset_out, state_changes.fee.asset_fee)?;
+			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who,
@@ -1267,7 +1274,7 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
-			Self::process_trade_fee(asset_in, state_changes.fee.asset_fee)?;
+			Self::process_trade_fee(&who, asset_in, state_changes.fee.asset_fee)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -1726,7 +1733,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::process_trade_fee(asset_out, state_changes.fee.asset_fee)?;
+		Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1832,7 +1839,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::process_trade_fee(T::HubAssetId::get(), state_changes.fee.asset_fee)?;
+		Self::process_trade_fee(who, T::HubAssetId::get(), state_changes.fee.asset_fee)?;
 
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
@@ -1944,16 +1951,14 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Calls `on_trade_fee` hook and ensures that no more than the fee amount is transferred.
-	fn process_trade_fee(asset: T::AssetId, amount: Balance) -> DispatchResult {
+	fn process_trade_fee(trader: &T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult {
 		let account = Self::protocol_account();
 		let original_asset_reserve = T::Currency::free_balance(asset, &account);
-		let unused = T::OmnipoolHooks::on_trade_fee(account.clone(), asset, amount)?;
+		let used = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, amount)?;
 		let asset_reserve = T::Currency::free_balance(asset, &account);
-		let updated_asset_reserve = asset_reserve.saturating_add(amount.saturating_sub(unused));
-		ensure!(
-			updated_asset_reserve == original_asset_reserve,
-			Error::<T>::FeeOverdraft
-		);
+		let diff = original_asset_reserve.saturating_sub(asset_reserve);
+		ensure!(diff <= amount, Error::<T>::FeeOverdraft);
+		ensure!(diff == used, Error::<T>::FeeOverdraft);
 		Ok(())
 	}
 

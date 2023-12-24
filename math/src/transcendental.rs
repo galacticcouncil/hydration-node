@@ -107,9 +107,8 @@ where
 	if operand.is_zero() {
 		return Ok(D::one());
 	}
-	if operand == S::one() {
-		//TODO: make this as const somewhere
-		let e = S::from_str("2.718281828459045235360287471352662497757").map_err(|_| ())?;
+	if operand == S::one() && !neg {
+		let e = S::from_num(fixed::consts::E);
 		return Ok(D::from(e));
 	}
 
@@ -295,7 +294,7 @@ mod tests {
 		type S = U64F64;
 		type D = U64F64;
 
-		let e = S::from_str("2.718281828459045235360287471352662497757").unwrap();
+		let e = S::from_num(fixed::consts::E);
 
 		let zero = S::from_num(0);
 		let one = S::one();
@@ -310,6 +309,10 @@ mod tests {
 		assert_eq!(
 			exp::<S, D>(two, true),
 			Ok(D::from_str("0.13533528323661269186").unwrap())
+		);
+		assert_eq!(
+			exp::<S, D>(one, true),
+			Ok(D::from_str("0.367879441171442321595523770161460867445").unwrap()),
 		);
 	}
 

@@ -37,6 +37,7 @@ members = [
   'pallets/staking',
   'pallets/democracy',
   'runtime/hydradx/src/evm/evm-utility/macro',
+  'pallets/referrals',
 ]
 
 [workspace.dependencies]
@@ -78,6 +79,7 @@ warehouse-liquidity-mining = { package = "pallet-liquidity-mining", path = "pall
 pallet-bonds = { path = "pallets/bonds", default-features = false}
 pallet-lbp = { path = "pallets/lbp", default-features = false}
 pallet-xyk = { path = "pallets/xyk", default-features = false}
+pallet-referrals = { path = "pallets/referrals", default-features = false}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

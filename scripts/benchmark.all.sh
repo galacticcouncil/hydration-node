@@ -36,6 +36,7 @@ pallets=(
 "pallet-xcm:xcm"
 "cumulus-pallet-xcmp-queue:xcmp_queue"
 "pallet-xyk:xyk"
+"pallet-referrals:referrals"
 )
 
 command="cargo run --bin hydradx --release --features=runtime-benchmarks -- benchmark pallet --pallet=[pallet] --wasm-execution=compiled --heap-pages=4096 --chain=dev --extrinsic='*' --steps=5 --repeat=20 --output [output].rs --template .maintain/pallet-weight-template-no-back.hbs"
