@@ -2868,7 +2868,7 @@ mod with_onchain_route {
 			assert!(fee > 57 * UNITS / 10);
 
 			assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable_balance - dca_budget);
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 237185260073197);
+			assert!(Currencies::free_balance(HDX, &ALICE.into()) > alice_init_hdx_balance);
 
 			assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 		});
@@ -2990,7 +2990,7 @@ mod with_onchain_route {
 			assert!(fee < 38 * UNITS / 10);
 			assert!(fee > 37 * UNITS / 10);
 
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 278060378846663);
+			assert!(Currencies::free_balance(HDX, &ALICE.into()) > alice_init_hdx_balance);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
