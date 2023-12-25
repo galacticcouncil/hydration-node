@@ -684,3 +684,12 @@ pub fn init_omnipool() {
 	set_zero_reward_for_referrals(DAI);
 	set_zero_reward_for_referrals(HDX);
 }
+
+pub fn set_zero_reward_for_referrals(asset_id: AssetId) {
+	assert_ok!(Referrals::set_reward_percentage(
+		RawOrigin::Root.into(),
+		asset_id,
+		Level::None,
+		FeeDistribution::default(),
+	));
+}
