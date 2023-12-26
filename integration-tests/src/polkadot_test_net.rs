@@ -685,20 +685,6 @@ pub fn init_omnipool() {
 	set_zero_reward_for_referrals(HDX);
 }
 
-#[macro_export]
-macro_rules! assert_balance {
-	( $who:expr, $asset:expr, $amount:expr) => {{
-		assert_eq!(Currencies::free_balance($asset, &$who), $amount);
-	}};
-}
-
-#[macro_export]
-macro_rules! assert_reserved_balance {
-	( $who:expr, $asset:expr, $amount:expr) => {{
-		assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
-	}};
-}
-
 pub fn set_zero_reward_for_referrals(asset_id: AssetId) {
 	assert_ok!(Referrals::set_reward_percentage(
 		RawOrigin::Root.into(),
