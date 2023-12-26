@@ -158,7 +158,6 @@ pub mod pallet {
 	use sp_runtime::traits::Zero;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
