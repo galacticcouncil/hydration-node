@@ -9,7 +9,6 @@ pub mod pallet {
 	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub (crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
