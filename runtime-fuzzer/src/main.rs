@@ -424,6 +424,8 @@ fn main() {
 
 			#[cfg(not(fuzzing))]
 			println!("Testing invariants for block {_block}");
+
+			<AllPalletsWithSystem as TryState<BlockNumber>>::try_state(_block, TryStateSelect::All).unwrap();
 		};
 
 		#[cfg(not(any(fuzzing, coverage)))]

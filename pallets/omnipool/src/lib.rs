@@ -132,6 +132,7 @@ pub mod pallet {
 			+ Parameter
 			+ Default
 			+ Copy
+			+ Ord
 			+ HasCompact
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
@@ -682,7 +683,7 @@ pub mod pallet {
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 
 			#[cfg(feature = "try-runtime")]
-			Self::ensure_invariant_add_liquidity((asset, asset_state, new_asset_state));
+			Self::ensure_liquidity_invariant((asset, asset_state, new_asset_state));
 
 			Ok(())
 		}
@@ -859,6 +860,9 @@ pub mod pallet {
 			});
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_liquidity_invariant((asset_id, asset_state, new_asset_state));
 
 			Ok(())
 		}
@@ -1555,8 +1559,33 @@ pub mod pallet {
 			assert_ne!(T::MaxInRatio::get(), Balance::zero(), "MaxInRatio is 0.");
 			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
 		}
+
+		#[cfg(feature = "try-runtime")]
+		fn try_state(_n: BlockNumberFor<T>) -> Result<(), &'static str> {
+			use sp_std::collections::btree_map::BTreeMap;
+			let asset_hub_amount: Balance = Assets::<T>::iter_values().map(|v| v.hub_reserve).sum();
+			let account_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+			assert_eq!(account_balance, asset_hub_amount, "LRNA amount in assets != amount in account");
+
+			let mut shares: BTreeMap<T::AssetId, u128> = BTreeMap::new();
+			for position in Positions::<T>::iter_values() {
+				if let Some(current) = shares.get(&position.asset_id){
+					shares.insert(position.asset_id, position.shares + current);
+				}else{
+					shares.insert(position.asset_id, position.shares);
+                }
+			}
+			for (asset_id, total) in shares.into_iter() {
+				let state = Assets::<T>::get(&asset_id).unwrap();
+				assert_eq!(state.shares + state.protocol_shares, total, "Asset {:?} shares in positions is not equal to shares in asset state", asset_id);
+			}
+			Ok(())
+		}
+
+
 	}
 }
+
 
 impl<T: Config> Pallet<T> {
 	/// Protocol account address
@@ -2025,7 +2054,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[cfg(feature = "try-runtime")]
-	fn ensure_invariant_add_liquidity(asset: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>)){
+	fn ensure_liquidity_invariant(asset: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>)){
 		let old_state = asset.1;
 		let new_state = asset.2;
 
