@@ -4597,7 +4597,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 2.1.1",
+ "pallet-staking 2.1.2",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -4691,7 +4691,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.1.1",
+ "pallet-staking 2.1.2",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -4735,7 +4735,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.8.2"
+version = "2.8.3"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7221,7 +7221,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.18"
+version = "1.1.19"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8156,7 +8156,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-referrals"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8314,7 +8314,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "2.1.1"
+version = "2.1.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11284,7 +11284,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.1.1",
+ "pallet-staking 2.1.2",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
