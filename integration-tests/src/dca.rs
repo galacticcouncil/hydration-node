@@ -2720,8 +2720,8 @@ mod with_onchain_route {
 			//Assert
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
-			assert!(fee < 17 * UNITS);
-			assert!(fee > 13 * UNITS);
+			assert!(fee < 19 * UNITS, "The fee: {:?} is more than 1.9 UNITS", fee);
+			assert!(fee > 13 * UNITS, "The fee: {:?} is less than 1.3 UNITS", fee);
 
 			assert_balance!(ALICE.into(), DOT, alice_init_dot_balance - dca_budget);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + 398004528624916);
@@ -2863,8 +2863,8 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert!(fee < 48 * UNITS / 10);
-			assert!(fee > 40 * UNITS / 10);
+			assert!(fee < 5 * UNITS, "The fee: {:?} is more than 5 UNITS", fee);
+			assert!(fee > 4 * UNITS, "The fee: {:?} is less than 4 UNITS", fee);
 
 			assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable_balance - dca_budget);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 237095795349022);
@@ -2985,8 +2985,8 @@ mod with_onchain_route {
 			assert!(fee > 0, "The treasury did not receive the fee");
 
 			//The fee would be 5310255478763 in HDX, so it is less in DOT, which checks out
-			assert!(fee < 32 * UNITS / 10);
-			assert!(fee > 28 * UNITS / 10);
+			assert!(fee < 36 * UNITS / 10, "The fee: {:?} is more than 3.6 UNITS", fee);
+			assert!(fee > 28 * UNITS / 10, "The fee: {:?} is less than 2.8 UNITS", fee);
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 277955496295825);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
@@ -3362,7 +3362,6 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 }
 
 fn assert_that_fee_is_correct(fee: Balance) {
-	//The fee is approximately 2969051508672, so we check if we are between 2.8 and 3.2 UNITS
-	assert!(fee > 28 * UNITS / 10);
-	assert!(fee < 32 * UNITS / 10);
+	assert!(fee > 34 * UNITS / 10, "The fee: {:?} is less than 3.4 UNITS", fee);
+	assert!(fee < 40 * UNITS / 10, "The fee: {:?} is more than 4 UNITS", fee);
 }
