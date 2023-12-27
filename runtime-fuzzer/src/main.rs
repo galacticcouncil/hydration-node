@@ -507,7 +507,10 @@ fn main() {
 			}
 
 			externalities.execute_with(|| {
-				let accounts: Vec<AccountId> = frame_system::Account::<FuzzedRuntime>::iter().map(|a| a.0).collect();
+				let accounts: Vec<AccountId> = frame_system::Account::<FuzzedRuntime>::iter()
+					.map(|a| a.0)
+					.filter(|v| *v != omnipool_account.clone().into())
+					.collect();
 
 				assert!(!accounts.is_empty(), "No accounts found on chain");
 				let origin_account = accounts[origin % accounts.len()].clone();
