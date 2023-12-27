@@ -32,6 +32,11 @@ pallet-balances = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-omnipool = { workspace = true }
+pallet-utility = { workspace = true }
+pallet-multisig = { workspace = true }
+pallet-proxy = { workspace = true }
+pallet-collective = { workspace = true }
+
 
 cumulus-pallet-parachain-system = { workspace = true }
 cumulus-primitives-core = { workspace = true }
@@ -40,17 +45,5 @@ cumulus-test-relay-sproof-builder = { workspace = true }
 
 [features]
 default = ["std", "try-runtime"]
-std = [
-    "hydradx-runtime/std",
-	"codec/std",
-	"sp-runtime/std",
-	"frame-support/std",
-	"pallet-timestamp/std",
-	"sp-state-machine/std",
-	"sp-consensus-aura/std",
-]
-try-runtime = [
-    "hydradx-runtime/try-runtime",
-	"frame-support/try-runtime",
-	"pallet-timestamp/try-runtime",
-]
+std = ["hydradx-runtime/std", "codec/std", "sp-runtime/std", "frame-support/std", "pallet-timestamp/std", "sp-state-machine/std", "sp-consensus-aura/std"]
+try-runtime = ["hydradx-runtime/try-runtime", "frame-support/try-runtime", "pallet-timestamp/try-runtime"]
