@@ -18,7 +18,7 @@ use sp_consensus_aura::{Slot, AURA_ENGINE_ID};
 use sp_core::Blake2Hasher;
 use sp_runtime::{
 	traits::{Dispatchable, Header},
-	Digest, DigestItem, Storage,  Permill, FixedU128,
+	Digest, DigestItem, FixedU128, Permill, Storage,
 };
 use sp_state_machine::TestExternalities;
 #[cfg(feature = "deprecated-substrate")]
@@ -116,6 +116,30 @@ impl<'a> Iterator for Data<'a> {
 	}
 }
 
+fn recursively_find_call(call: RuntimeCall, matches_on: fn(RuntimeCall) -> bool) -> bool {
+	if let RuntimeCall::Utility(
+		pallet_utility::Call::batch { calls }
+		| pallet_utility::Call::force_batch { calls }
+		| pallet_utility::Call::batch_all { calls },
+	) = call
+	{
+		for call in calls {
+			if recursively_find_call(call.clone(), matches_on) {
+				return true;
+			}
+		}
+	} else if let RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. })
+	| RuntimeCall::Utility(pallet_utility::Call::as_derivative { call, .. })
+	| RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. })
+	| RuntimeCall::Council(pallet_collective::Call::propose { proposal: call, .. }) = call
+	{
+		return recursively_find_call(*call.clone(), matches_on);
+	} else if matches_on(call) {
+		return true;
+	}
+	false
+}
+
 fn main() {
 	// We ensure that on each run, the mapping is a fresh one
 	#[cfg(not(any(fuzzing, coverage)))]
@@ -160,12 +184,13 @@ fn main() {
 			),
 			(
 				[1; 32].into(),
-				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE), (3, 10 * UNITS * 1_000_000)],
+				vec![
+					(1, INITIAL_TOKEN_BALANCE),
+					(2, INITIAL_TOKEN_BALANCE),
+					(3, 10 * UNITS * 1_000_000),
+				],
 			),
-			(
-				omnipool_account.clone().into(),
-				vec![(3, eth_amount)],
-			),
+			(omnipool_account.clone().into(), vec![(3, eth_amount)]),
 		];
 
 		GenesisConfig {
@@ -196,7 +221,7 @@ fn main() {
 					.map(|k| {
 						if k == omnipool_account {
 							(k, native_amount)
-						}else{
+						} else {
 							(k, INITIAL_TOKEN_BALANCE)
 						}
 					})
@@ -407,35 +432,38 @@ fn main() {
 		externalities.execute_with(|| start_block(current_block, current_timestamp));
 
 		// Calls that need to be executed in the first block go here
-		let add_hdx_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token{
+		let add_hdx_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token {
 			asset: 0,
 			initial_price: native_price,
 			weight_cap: Permill::from_percent(100),
 			position_owner: endowed_accounts[0].clone(),
 		});
-		let add_eth_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token{
+		let add_eth_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token {
 			asset: 3,
 			initial_price: eth_price,
 			weight_cap: Permill::from_percent(100),
 			position_owner: endowed_accounts[0].clone(),
 		});
 
-
-		externalities.execute_with(||{
-				let res = add_hdx_call.dispatch(RuntimeOrigin::root());
-				if res.is_err() {
-					println!("{:?}", res);
-					panic!("{:?}", res);
-				}
-			let res = add_eth_call.dispatch(RuntimeOrigin::root());
-				if res.is_err() {
-					println!("{:?}", res);
-					panic!("{:?}", res);
-				}
+		externalities.execute_with(|| {
+			let res = add_hdx_call.dispatch(RuntimeOrigin::root());
+			if res.is_err() {
+				println!("{:?}", res);
+				panic!("{:?}", res);
 			}
-		);
+			let res = add_eth_call.dispatch(RuntimeOrigin::root());
+			if res.is_err() {
+				println!("{:?}", res);
+				panic!("{:?}", res);
+			}
+		});
 
 		for (maybe_lapse, origin, extrinsic) in extrinsics {
+			if recursively_find_call(extrinsic.clone(), |call| matches!(&call, RuntimeCall::XTokens(..))) {
+				#[cfg(not(fuzzing))]
+				println!("    Skipping because of custom filter");
+				continue;
+			}
 			// If the lapse is in the range [0, MAX_BLOCK_LAPSE] we finalize the block and
 			// initialize a new one.
 			if let Some(lapse) = maybe_lapse {
