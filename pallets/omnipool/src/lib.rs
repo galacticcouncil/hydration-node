@@ -681,6 +681,9 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_invariant_add_liquidity((asset, asset_state, new_asset_state));
+
 			Ok(())
 		}
 
@@ -1078,8 +1081,8 @@ pub mod pallet {
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::set_asset_state(asset_in, new_asset_in_state.clone());
-			Self::set_asset_state(asset_out, new_asset_out_state.clone());
+			Self::set_asset_state(asset_in, new_asset_in_state);
+			Self::set_asset_state(asset_out, new_asset_out_state);
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
@@ -1275,8 +1278,8 @@ pub mod pallet {
 
 			assert!(asset_in_state.reserve < new_asset_in_state.reserve);
 
-			Self::set_asset_state(asset_in, new_asset_in_state.clone());
-			Self::set_asset_state(asset_out, new_asset_out_state.clone());
+			Self::set_asset_state(asset_in, new_asset_in_state);
+			Self::set_asset_state(asset_out, new_asset_out_state);
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
@@ -2019,6 +2022,26 @@ impl<T: Config> Pallet<T> {
 			let left = rq + max(out_new_reserve, out_new_hub_reserve);
 			let right = rq_plus;
 			//assert!(left >= right, "Asset OUT margin {:?} >= {:?}", left,right);
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn ensure_invariant_add_liquidity(asset: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>)){
+		let old_state = asset.1;
+		let new_state = asset.2;
+
+		let new_reserve = U256::from(new_state.reserve);
+		let new_hub_reserve = U256::from(new_state.hub_reserve);
+		let old_reserve = U256::from(old_state.reserve);
+		let old_hub_reserve = U256::from(old_state.hub_reserve);
+
+		let one = U256::from(1_000_000_000_000u128);
+
+		let left = new_hub_reserve.saturating_sub(one).checked_mul(old_reserve).unwrap();
+		let middle = old_hub_reserve.checked_mul(new_reserve).unwrap();
+		let right = new_hub_reserve.checked_add(one).unwrap().checked_mul(old_reserve).unwrap();
+
+		assert!(left <= middle, "Add liquidity first part");
+		assert!(middle <= right, "Add liquidity second part - {:?} <= {:?} <= {:?}", left, middle, right);
 	}
 
 }
