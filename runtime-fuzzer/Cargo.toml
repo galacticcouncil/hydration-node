@@ -11,6 +11,8 @@ repository = "https://github.com/galacticcouncil/HydraDX-node"
 [dependencies]
 ziggy = { version = "0.8.1", default-features = false }
 stats_alloc = "0.1.1"
+serde = { version = "1.0.193", features = ["derive"] }
+toml = "0.5"
 
 hydradx-runtime = { workspace = true }
 primitives = { workspace = true }

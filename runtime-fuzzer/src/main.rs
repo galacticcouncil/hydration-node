@@ -1,3 +1,5 @@
+mod omnipool;
+
 /// hydraDX fuzzer v2.0.0
 /// Inspired by the harness sent to HydraDX from srlabs.de on 01.11.2023
 use codec::{DecodeLimit, Encode};
@@ -20,6 +22,7 @@ use sp_runtime::{
 	traits::{Dispatchable, Header},
 	Digest, DigestItem, FixedU128, Permill, Storage,
 };
+use omnipool::omnipool_initial_state;
 use sp_state_machine::TestExternalities;
 #[cfg(feature = "deprecated-substrate")]
 use {frame_support::weights::constants::WEIGHT_PER_SECOND as WEIGHT_REF_TIME_PER_SECOND, sp_runtime::traits::Zero};
@@ -147,16 +150,24 @@ fn main() {
 		println!("Can't remove the map file, but it's not a problem.");
 	}
 
-	let omnipool_account = pallet_omnipool::Pallet::<FuzzedRuntime>::protocol_account();
-	let native_amount = 936_329_588_000_000_000u128;
-	let eth_amount = 63_750_000_000_000_000_000u128;
-	let native_price = FixedU128::from_inner(1201500000000000);
-	let eth_price = FixedU128::from_inner(71_145_071_145_071);
+	let omnipool_setup = omnipool_initial_state();
+	let omni_assets = omnipool_setup.asset_balances();
+	let mut asset_to_register = Vec::new();
+	let mut omnipool_balances = Vec::new();
+	let mut omnipool_native_balance = 0u128;
+	for asset in omni_assets {
+		if asset.1 == 0u32 {
+			omnipool_native_balance = asset.2;
+		}else{
+			asset_to_register.push((asset.0, 1000u128, Some(asset.1)));
+			omnipool_balances.push((asset.1, asset.2));
+		}
+	}
 
+	let omnipool_account = pallet_omnipool::Pallet::<FuzzedRuntime>::protocol_account();
 	let endowed_accounts: Vec<AccountId> = (0..5).map(|i| [i; 32].into()).collect();
 	let mut e_accounts: Vec<AccountId> = vec![omnipool_account.clone().into()];
 	e_accounts.extend(endowed_accounts.clone());
-	//endowed_accounts.push(omnipool_account.clone());
 
 	// We generate a genesis storage item, which will be cloned to create a runtime.
 	let genesis_storage: Storage = {
@@ -169,10 +180,12 @@ fn main() {
 		];
 
 		let registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)> = vec![
-			(b"KSM".to_vec(), 1_000u128, Some(1)),
-			(b"KUSD".to_vec(), 1_000u128, Some(2)),
+			(b"LRNA".to_vec(), 1_000u128, Some(1)),
+			(b"DAI".to_vec(), 1_000u128, Some(2)),
 			(b"ETH".to_vec(), 1_000u128, Some(3)),
 		];
+
+		let registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)> = registered_assets.into_iter().chain(asset_to_register.into_iter()).filter(|v| v.2 != Some(0)).collect();
 
 		let accepted_assets: Vec<(AssetId, Price)> =
 			vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))];
@@ -180,7 +193,8 @@ fn main() {
 		let token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)> = vec![
 			(
 				[0; 32].into(),
-				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+				vec![(1, INITIAL_TOKEN_BALANCE),
+					 (2, INITIAL_TOKEN_BALANCE)],
 			),
 			(
 				[1; 32].into(),
@@ -190,7 +204,7 @@ fn main() {
 					(3, 10 * UNITS * 1_000_000),
 				],
 			),
-			(omnipool_account.clone().into(), vec![(3, eth_amount)]),
+			(omnipool_account.clone().into(), omnipool_balances),
 		];
 
 		GenesisConfig {
@@ -220,7 +234,7 @@ fn main() {
 					.cloned()
 					.map(|k| {
 						if k == omnipool_account {
-							(k, native_amount)
+							(k, omnipool_native_balance)
 						} else {
 							(k, INITIAL_TOKEN_BALANCE)
 						}
@@ -434,29 +448,9 @@ fn main() {
 		externalities.execute_with(|| start_block(current_block, current_timestamp));
 
 		// Calls that need to be executed in the first block go here
-		let add_hdx_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token {
-			asset: 0,
-			initial_price: native_price,
-			weight_cap: Permill::from_percent(100),
-			position_owner: endowed_accounts[0].clone(),
-		});
-		let add_eth_call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token {
-			asset: 3,
-			initial_price: eth_price,
-			weight_cap: Permill::from_percent(100),
-			position_owner: endowed_accounts[0].clone(),
-		});
-
 		externalities.execute_with(|| {
-			let res = add_hdx_call.dispatch(RuntimeOrigin::root());
-			if res.is_err() {
-				println!("{:?}", res);
-				panic!("{:?}", res);
-			}
-			let res = add_eth_call.dispatch(RuntimeOrigin::root());
-			if res.is_err() {
-				println!("{:?}", res);
-				panic!("{:?}", res);
+			for call in omnipool_setup.calls(&endowed_accounts[0]) {
+				call.dispatch(RuntimeOrigin::root()).unwrap();
 			}
 		});
 

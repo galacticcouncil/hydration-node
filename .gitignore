@@ -54,3 +54,4 @@ SNAPSHOT*
 db.sqlite
 
 runtime-fuzzer/output/*
+__pycache__/

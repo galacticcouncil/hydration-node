@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "hydradump"
+version = "0.1.0"
+description = ""
+authors = ["Martin <martin.hloska@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+hydradx-api = "^0.2.6"
+tomli = "^2.0.1"
+tomli-w = "^1.0.0"
+click = "^8.1.7"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
