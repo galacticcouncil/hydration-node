@@ -16,41 +16,40 @@ pub struct RegistrySetup {
 }
 
 fn load_setup(filename: &str) -> RegistrySetup {
-	let toml_str = fs::read_to_string(filename).expect("Failed to read omnipool.toml file");
-	toml::from_str(&toml_str).expect("Failed to deserialize OmnipoolSetup")
+	let toml_str = fs::read_to_string(filename).expect("Failed to read registry.toml file");
+	toml::from_str(&toml_str).expect("Failed to deserialize RegistrySetup")
 }
 
 impl RegistrySetup {
 	fn new(filename: &str) -> Self {
 		load_setup(filename)
 	}
+
 	pub fn asset_decimals(&self) -> Vec<(u32, u8)> {
-		let mut results = Vec::new();
-		for asset in self.asset.iter() {
-			results.push((asset.asset_id, asset.decimals as u8));
-		}
-		results
+		self.asset
+			.iter()
+			.map(|asset| (asset.asset_id, asset.decimals as u8))
+			.collect()
 	}
+
 	pub fn assets(&self) -> Vec<(Vec<u8>, u32)> {
-		let mut results = Vec::new();
-		for asset in self.asset.iter() {
-			results.push((asset.symbol.clone().into(), asset.asset_id));
-		}
-		results
+		self.asset
+			.iter()
+			.map(|asset| (asset.symbol.clone().into(), asset.asset_id))
+			.collect()
 	}
 
 	pub fn calls(&self) -> Vec<RuntimeCall> {
-		let mut calls = Vec::new();
-		for asset in self.asset.iter() {
-			let call = RuntimeCall::AssetRegistry(pallet_asset_registry::Call::set_metadata {
-				asset_id: asset.asset_id,
-				symbol: asset.symbol.as_bytes().to_vec(),
-				decimals: asset.decimals as u8,
-			});
-			calls.push(call);
-		}
-
-		calls
+		self.asset
+			.iter()
+			.map(|asset| {
+				RuntimeCall::AssetRegistry(pallet_asset_registry::Call::set_metadata {
+					asset_id: asset.asset_id,
+					symbol: asset.symbol.as_bytes().to_vec(),
+					decimals: asset.decimals as u8,
+				})
+			})
+			.collect()
 	}
 }
 

@@ -71,7 +71,6 @@ const MAX_BLOCK_LAPSE: u32 = 864_000;
 const DELIMITER: [u8; 8] = [42; 8];
 
 const TOKEN_SYMBOL: &str = "HDX";
-const INITIAL_TOKEN_BALANCE: u128 = 100_000 * UNITS;
 const PARA_ID: u32 = 2034;
 
 /// Constants for the fee-memory mapping
@@ -157,34 +156,30 @@ fn main() {
 		println!("Can't remove the map file, but it's not a problem.");
 	}
 
+	// List of accounts to choose as origin
 	let accounts = get_accounts_as_potential_origins();
 
+	// Assets to register
 	let registry_setup = registry_state();
-	let omnipool_setup = omnipool_initial_state();
-	let omni_assets = omnipool_setup.asset_balances();
-	let mut registered_assets = Vec::new();
-	let mut omnipool_balances = Vec::new();
-	let mut omnipool_native_balance = 0u128;
-	for asset in omni_assets {
-		if asset.1 == 0u32 {
-			omnipool_native_balance = asset.2;
-		} else {
-			omnipool_balances.push((asset.1, asset.2));
-		}
-	}
+	let registered_assets: Vec<(Vec<u8>, u128, Option<u32>)> = registry_setup
+		.assets()
+		.into_iter()
+		.filter(|(_, asset_id)| *asset_id != 0) // Exclude HDX as it is registed in genesis of registry pallet
+		.map(|(symbol, asset_id)| (symbol, 1000u128, Some(asset_id)))
+		.collect();
 
-	for asset in registry_setup.assets() {
-		// exclude native asset because it is registered in genesis
-		if asset.1 != 0 {
-			registered_assets.push((asset.0, 1000u128, Some(asset.1)));
-		}
-	}
-
+	// Omnipool state
 	let omnipool_account = pallet_omnipool::Pallet::<FuzzedRuntime>::protocol_account();
+	let omnipool_setup = omnipool_initial_state();
+	let (omnipool_native_balance, omnipool_balances) = omnipool_setup.get_omnipool_reserves();
+
+	// Endowed accounts - Native and non-native
 	let mut native_endowed_accounts = get_native_endowed_accounts();
+	// Extend with omnipool initial state of HDX
 	native_endowed_accounts.push((omnipool_account.clone(), omnipool_native_balance));
 
 	let mut non_native_endowed_accounts = get_nonnative_endowed_accounts(registry_setup.asset_decimals());
+	// Extend with omnipool initial state of each asset in omnipool
 	non_native_endowed_accounts.push((omnipool_account.clone(), omnipool_balances));
 
 	// We generate a genesis storage item, which will be cloned to create a runtime.
@@ -236,7 +231,7 @@ fn main() {
 			},
 			vesting: VestingConfig { vesting: vec![] },
 			asset_registry: AssetRegistryConfig {
-				registered_assets: registered_assets.clone(),
+				registered_assets: registered_assets,
 				native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
 				native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
 			},

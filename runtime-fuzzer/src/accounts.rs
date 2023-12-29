@@ -10,10 +10,10 @@ pub fn get_native_endowed_accounts() -> Vec<(AccountId, u128)> {
 	endowed_accounts
 }
 pub fn get_nonnative_endowed_accounts(assets: Vec<(u32, u8)>) -> Vec<(AccountId, Vec<(u32, u128)>)> {
-	let mut amounts = Vec::new();
-	for (asset_id, decimals) in assets {
-		amounts.push((asset_id, INITIAL_AMOUNT * 10u128.pow(decimals as u32)));
-	}
+	let amounts: Vec<(u32, u128)> = assets
+		.into_iter()
+		.map(|(asset_id, decimals)| (asset_id, INITIAL_AMOUNT * 10u128.pow(decimals as u32)))
+		.collect();
 	(0..ACCOUNT_COUNT).map(|i| ([i; 32].into(), amounts.clone())).collect()
 }
 

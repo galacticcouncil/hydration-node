@@ -8,7 +8,6 @@ use toml;
 
 #[derive(Debug, Deserialize)]
 struct AssetConfig {
-	symbol: String,
 	asset_id: u32,
 	#[serde(deserialize_with = "from_u128_str")]
 	reserve: u128,
@@ -52,27 +51,33 @@ impl OmnipoolSetup {
 		Self { state }
 	}
 
-	pub fn asset_balances(&self) -> Vec<(Vec<u8>, u32, u128)> {
+	pub fn get_omnipool_reserves(&self) -> (u128, Vec<(u32, u128)>) {
 		let mut results = Vec::new();
+		let mut native_reserve = 0u128;
 		for asset in self.state.asset.iter() {
-			results.push((asset.symbol.clone().into(), asset.asset_id, asset.reserve));
+			if asset.asset_id == 0 {
+				native_reserve = asset.reserve;
+			} else {
+				results.push((asset.asset_id, asset.reserve));
+			}
 		}
-		results
+		(native_reserve, results)
 	}
 
 	pub fn calls(&self, owner: &AccountId) -> Vec<RuntimeCall> {
-		let mut calls = Vec::new();
-		for asset in self.state.asset.iter() {
-			let price = FixedU128::from_rational(asset.hub_reserve, asset.reserve);
-			let call = RuntimeCall::Omnipool(pallet_omnipool::Call::add_token {
-				asset: asset.asset_id,
-				initial_price: price,
-				weight_cap: Permill::from_percent(100),
-				position_owner: owner.clone(),
-			});
-			calls.push(call);
-		}
-		calls
+		self.state
+			.asset
+			.iter()
+			.map(|asset| {
+				let price = FixedU128::from_rational(asset.hub_reserve, asset.reserve);
+				RuntimeCall::Omnipool(pallet_omnipool::Call::add_token {
+					asset: asset.asset_id,
+					initial_price: price,
+					weight_cap: Permill::from_percent(100),
+					position_owner: owner.clone(),
+				})
+			})
+			.collect()
 	}
 }
 
