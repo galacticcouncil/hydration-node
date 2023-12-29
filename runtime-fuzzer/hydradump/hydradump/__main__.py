@@ -29,7 +29,17 @@ def omnipool():
 
  return {"asset": assets}
 
-SUPPORTED_MODULES = {"omnipool": omnipool}
+def registry():
+ chain = HydraDX(RPC)
+ chain.connect()
+ state = chain.api.registry.assets()
+ assets =[]
+ for s in state.values():
+  assets.append(s.as_dict())
+ return {"asset": assets}
+
+SUPPORTED_MODULES = {"omnipool": omnipool,
+                     "registry": registry}
 
 @click.command()
 @click.argument("module")
@@ -38,6 +48,8 @@ def hydradump(module, output):
   r = SUPPORTED_MODULES[module]()
   if output:
     output.write(tomli_w.dumps(r))
+  else:
+   print(r)
 
 hydradump()
 

@@ -4349,6 +4349,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydradx-runtime",
+ "pallet-asset-registry",
  "pallet-aura",
  "pallet-balances",
  "pallet-collective",

@@ -1,4 +1,5 @@
 mod omnipool;
+mod registry;
 
 /// hydraDX fuzzer v2.0.0
 /// Inspired by the harness sent to HydraDX from srlabs.de on 01.11.2023
@@ -12,17 +13,18 @@ use frame_support::{
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use hydradx_runtime::*;
+use omnipool::omnipool_initial_state;
 use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::SLOT_DURATION,
 };
+use registry::registry_state;
 use sp_consensus_aura::{Slot, AURA_ENGINE_ID};
 use sp_core::Blake2Hasher;
 use sp_runtime::{
 	traits::{Dispatchable, Header},
-	Digest, DigestItem, FixedU128, Permill, Storage,
+	Digest, DigestItem, Storage,
 };
-use omnipool::omnipool_initial_state;
 use sp_state_machine::TestExternalities;
 #[cfg(feature = "deprecated-substrate")]
 use {frame_support::weights::constants::WEIGHT_PER_SECOND as WEIGHT_REF_TIME_PER_SECOND, sp_runtime::traits::Zero};
@@ -150,17 +152,24 @@ fn main() {
 		println!("Can't remove the map file, but it's not a problem.");
 	}
 
+	let registry_setup = registry_state();
 	let omnipool_setup = omnipool_initial_state();
 	let omni_assets = omnipool_setup.asset_balances();
-	let mut asset_to_register = Vec::new();
+	let mut registered_assets = Vec::new();
 	let mut omnipool_balances = Vec::new();
 	let mut omnipool_native_balance = 0u128;
 	for asset in omni_assets {
 		if asset.1 == 0u32 {
 			omnipool_native_balance = asset.2;
-		}else{
-			asset_to_register.push((asset.0, 1000u128, Some(asset.1)));
+		} else {
 			omnipool_balances.push((asset.1, asset.2));
+		}
+	}
+
+	for asset in registry_setup.assets() {
+		// exclude native asset because it is registered in genesis
+		if asset.1 != 0 {
+			registered_assets.push((asset.0, 1000u128, Some(asset.1)));
 		}
 	}
 
@@ -179,22 +188,13 @@ fn main() {
 			([1; 32].into(), AuraId::from_slice(&[1; 32]).unwrap()),
 		];
 
-		let registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)> = vec![
-			(b"LRNA".to_vec(), 1_000u128, Some(1)),
-			(b"DAI".to_vec(), 1_000u128, Some(2)),
-			(b"ETH".to_vec(), 1_000u128, Some(3)),
-		];
-
-		let registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)> = registered_assets.into_iter().chain(asset_to_register.into_iter()).filter(|v| v.2 != Some(0)).collect();
-
 		let accepted_assets: Vec<(AssetId, Price)> =
 			vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))];
 
 		let token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)> = vec![
 			(
 				[0; 32].into(),
-				vec![(1, INITIAL_TOKEN_BALANCE),
-					 (2, INITIAL_TOKEN_BALANCE)],
+				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
 			),
 			(
 				[1; 32].into(),
@@ -449,7 +449,9 @@ fn main() {
 
 		// Calls that need to be executed in the first block go here
 		externalities.execute_with(|| {
-			for call in omnipool_setup.calls(&endowed_accounts[0]) {
+			let registry_calls = registry_setup.calls();
+			let omnipool_calls = omnipool_setup.calls(&endowed_accounts[0]);
+			for call in registry_calls.into_iter().chain(omnipool_calls.into_iter()) {
 				call.dispatch(RuntimeOrigin::root()).unwrap();
 			}
 		});

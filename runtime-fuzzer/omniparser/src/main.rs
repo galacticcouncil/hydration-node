@@ -26,6 +26,19 @@ struct OmnipoolSetup{
     position: Option<Vec<Position>>
 }
 
+#[derive(Debug, Deserialize)]
+struct Asset{
+    symbol: String,
+    decimals: u32,
+    asset_id: u32,
+}
+
+
+#[derive(Debug, Deserialize)]
+struct RegistrySetup{
+    asset: Vec<Asset>,
+}
+
 pub fn from_u128_str<'de, D>(deserializer: D) -> Result<u128, D::Error>
 where
     D: Deserializer<'de>,
@@ -40,6 +53,14 @@ fn load_setup() {
     println!("{:#?}", cargo_toml);
 }
 
+fn load_registry() {
+    let toml_str = fs::read_to_string("data/registry.toml").expect("Failed to read omnipool.toml file");
+    let cargo_toml: RegistrySetup = toml::from_str(&toml_str).expect("Failed to deserialize OmnipoolSetup");
+    println!("{:#?}", cargo_toml);
+}
+
+
 fn main() {
 	load_setup();
+    load_registry();
 }
