@@ -1,6 +1,11 @@
+mod accounts;
 mod omnipool;
 mod registry;
 
+use accounts::{
+	get_accounts_as_potential_origins, get_council_members, get_duster_dest_account, get_duster_reward_account,
+	get_native_endowed_accounts, get_nonnative_endowed_accounts, get_omnipool_position_owner, get_technical_committee,
+};
 /// hydraDX fuzzer v2.0.0
 /// Inspired by the harness sent to HydraDX from srlabs.de on 01.11.2023
 use codec::{DecodeLimit, Encode};
@@ -152,6 +157,8 @@ fn main() {
 		println!("Can't remove the map file, but it's not a problem.");
 	}
 
+	let accounts = get_accounts_as_potential_origins();
+
 	let registry_setup = registry_state();
 	let omnipool_setup = omnipool_initial_state();
 	let omni_assets = omnipool_setup.asset_balances();
@@ -174,9 +181,11 @@ fn main() {
 	}
 
 	let omnipool_account = pallet_omnipool::Pallet::<FuzzedRuntime>::protocol_account();
-	let endowed_accounts: Vec<AccountId> = (0..5).map(|i| [i; 32].into()).collect();
-	let mut e_accounts: Vec<AccountId> = vec![omnipool_account.clone().into()];
-	e_accounts.extend(endowed_accounts.clone());
+	let mut native_endowed_accounts = get_native_endowed_accounts();
+	native_endowed_accounts.push((omnipool_account.clone(), omnipool_native_balance));
+
+	let mut non_native_endowed_accounts = get_nonnative_endowed_accounts(registry_setup.asset_decimals());
+	non_native_endowed_accounts.push((omnipool_account.clone(), omnipool_balances));
 
 	// We generate a genesis storage item, which will be cloned to create a runtime.
 	let genesis_storage: Storage = {
@@ -188,24 +197,11 @@ fn main() {
 			([1; 32].into(), AuraId::from_slice(&[1; 32]).unwrap()),
 		];
 
+		//TODO: dump from HydraDX production too
 		let accepted_assets: Vec<(AssetId, Price)> =
 			vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))];
 
-		let token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)> = vec![
-			(
-				[0; 32].into(),
-				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
-			),
-			(
-				[1; 32].into(),
-				vec![
-					(1, INITIAL_TOKEN_BALANCE),
-					(2, INITIAL_TOKEN_BALANCE),
-					(3, 10 * UNITS * 1_000_000),
-				],
-			),
-			(omnipool_account.clone().into(), omnipool_balances),
-		];
+		let token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)> = non_native_endowed_accounts;
 
 		GenesisConfig {
 			system: Default::default(),
@@ -228,25 +224,14 @@ fn main() {
 				..Default::default()
 			},
 			balances: BalancesConfig {
-				// Configure endowed accounts with initial balance of 1 << 60.
-				balances: e_accounts
-					.iter()
-					.cloned()
-					.map(|k| {
-						if k == omnipool_account {
-							(k, omnipool_native_balance)
-						} else {
-							(k, INITIAL_TOKEN_BALANCE)
-						}
-					})
-					.collect(),
+				balances: native_endowed_accounts,
 			},
 			council: CouncilConfig {
-				members: endowed_accounts.clone(),
+				members: get_council_members(),
 				phantom: Default::default(),
 			},
 			technical_committee: TechnicalCommitteeConfig {
-				members: endowed_accounts.clone(),
+				members: get_technical_committee(),
 				phantom: Default::default(),
 			},
 			vesting: VestingConfig { vesting: vec![] },
@@ -283,8 +268,8 @@ fn main() {
 			ema_oracle: Default::default(),
 			duster: DusterConfig {
 				account_blacklist: vec![],
-				reward_account: endowed_accounts.first().cloned(),
-				dust_account: endowed_accounts.first().cloned(),
+				reward_account: Some(get_duster_reward_account()),
+				dust_account: Some(get_duster_dest_account()),
 			},
 			omnipool_warehouse_lm: Default::default(),
 			omnipool_liquidity_mining: Default::default(),
@@ -450,7 +435,7 @@ fn main() {
 		// Calls that need to be executed in the first block go here
 		externalities.execute_with(|| {
 			let registry_calls = registry_setup.calls();
-			let omnipool_calls = omnipool_setup.calls(&endowed_accounts[0]);
+			let omnipool_calls = omnipool_setup.calls(&get_omnipool_position_owner());
 			for call in registry_calls.into_iter().chain(omnipool_calls.into_iter()) {
 				call.dispatch(RuntimeOrigin::root()).unwrap();
 			}
@@ -503,12 +488,7 @@ fn main() {
 			}
 
 			externalities.execute_with(|| {
-				let accounts: Vec<AccountId> = frame_system::Account::<FuzzedRuntime>::iter()
-					.map(|a| a.0)
-					.filter(|v| *v != omnipool_account.clone().into())
-					.collect();
-
-				assert!(!accounts.is_empty(), "No accounts found on chain");
+				// We use given list of accounts to choose from, not a random account from the system
 				let origin_account = accounts[origin % accounts.len()].clone();
 
 				#[cfg(not(any(fuzzing, coverage)))]

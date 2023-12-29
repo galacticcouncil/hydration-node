@@ -24,6 +24,13 @@ impl RegistrySetup {
 	fn new(filename: &str) -> Self {
 		load_setup(filename)
 	}
+	pub fn asset_decimals(&self) -> Vec<(u32, u8)> {
+		let mut results = Vec::new();
+		for asset in self.asset.iter() {
+			results.push((asset.asset_id, asset.decimals as u8));
+		}
+		results
+	}
 	pub fn assets(&self) -> Vec<(Vec<u8>, u32)> {
 		let mut results = Vec::new();
 		for asset in self.asset.iter() {
