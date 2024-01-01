@@ -17,6 +17,7 @@ pub mod otc;
 pub mod payment;
 pub mod preimage;
 pub mod proxy;
+pub mod referrals;
 pub mod registry;
 pub mod route_executor;
 pub mod scheduler;

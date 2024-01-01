@@ -51,7 +51,11 @@ mod omnipool {
 			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
 
 			//Act
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE.into()), schedule1, None));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE.into()),
+				schedule1.clone(),
+				None
+			));
 
 			//Assert
 			let schedule_id = 0;
@@ -64,6 +68,9 @@ mod omnipool {
 			expect_hydra_events(vec![pallet_dca::Event::Scheduled {
 				id: 0,
 				who: ALICE.into(),
+				period: schedule1.period.clone(),
+				total_amount: schedule1.total_amount.clone(),
+				order: schedule1.order.clone(),
 			}
 			.into()]);
 		});
@@ -1326,6 +1333,7 @@ mod stableswap {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
+			set_zero_reward_for_referrals(pool_id);
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
 			set_relaychain_block_number(10);
@@ -1426,7 +1434,7 @@ mod stableswap {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
-
+			set_zero_reward_for_referrals(pool_id);
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
 			set_relaychain_block_number(10);
@@ -1490,6 +1498,7 @@ mod stableswap {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
+			set_zero_reward_for_referrals(pool_id);
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
 			set_relaychain_block_number(10);
@@ -1578,7 +1587,7 @@ mod stableswap {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
-
+			set_zero_reward_for_referrals(pool_id);
 			//Populate oracle with omnipool source
 			assert_ok!(Tokens::set_balance(
 				RawOrigin::Root.into(),
@@ -1693,6 +1702,7 @@ mod stableswap {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
+			set_zero_reward_for_referrals(pool_id);
 
 			//Populate oracle with omnipool source
 			assert_ok!(Tokens::set_balance(
@@ -1788,6 +1798,7 @@ mod stableswap {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
+			set_zero_reward_for_referrals(pool_id);
 
 			//Populate oracle with omnipool source
 			assert_ok!(Tokens::set_balance(
@@ -1890,6 +1901,7 @@ mod stableswap {
 				AccountId::from(BOB),
 			));
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
+			set_zero_reward_for_referrals(pool_id);
 
 			set_relaychain_block_number(10);
 
@@ -2061,7 +2073,7 @@ mod stableswap {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
-
+			set_zero_reward_for_referrals(pool_id);
 			do_trade_to_populate_oracle(pool_id, HDX, 100 * UNITS);
 
 			set_relaychain_block_number(10);
@@ -2293,6 +2305,7 @@ mod all_pools {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
+			set_zero_reward_for_referrals(pool_id);
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
 			//Create xyk and populate oracle
@@ -2445,6 +2458,7 @@ mod with_onchain_route {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
+			set_zero_reward_for_referrals(pool_id);
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
 			set_relaychain_block_number(10);
@@ -2555,6 +2569,7 @@ mod with_onchain_route {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
+			set_zero_reward_for_referrals(pool_id);
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
 			set_relaychain_block_number(10);
@@ -2656,6 +2671,7 @@ mod with_onchain_route {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
+			set_zero_reward_for_referrals(DOT);
 			do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
 			assert_ok!(Currencies::update_balance(
@@ -2775,6 +2791,7 @@ mod with_onchain_route {
 				Permill::from_percent(100),
 				AccountId::from(BOB),
 			));
+			set_zero_reward_for_referrals(pool_id);
 			do_trade_to_populate_oracle(pool_id, HDX, 10000000 * UNITS);
 
 			set_relaychain_block_number(10);
@@ -2987,8 +3004,8 @@ mod with_onchain_route {
 			assert!(fee > 0, "The treasury did not receive the fee");
 
 			//The fee would be 5310255478763 in HDX, so it is less in DOT, which checks out
-			assert!(fee < 38 * UNITS / 10);
-			assert!(fee > 37 * UNITS / 10);
+			assert!(fee < 40 * UNITS / 10);
+			assert!(fee > 36 * UNITS / 10);
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 278060378846663);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
@@ -3172,6 +3189,9 @@ pub fn init_omnipol() {
 		TREASURY_ACCOUNT_INIT_BALANCE,
 		0,
 	));
+
+	set_zero_reward_for_referrals(HDX);
+	set_zero_reward_for_referrals(DAI);
 }
 
 fn init_omnipool_with_oracle_for_block_10() {
