@@ -62,9 +62,11 @@ benchmarks! {
 		let (asset_id, amount) = T::BenchmarkHelper::prepare_convertible_asset_and_amount();
 		T::Currency::mint_into(asset_id.clone(), &Pallet::<T>::pot_account_id(), amount)?;
 		PendingConversions::<T>::insert(asset_id.clone(),());
+		let count = PendingConversions::<T>::count();
+		assert_eq!(count , 1);
 	}: _(RawOrigin::Signed(caller), asset_id.clone())
 	verify {
-		let count = PendingConversions::<T>::iter().count();
+		let count = PendingConversions::<T>::count();
 		assert_eq!(count , 0);
 		let balance = T::Currency::balance(asset_id, &Pallet::<T>::pot_account_id());
 		assert_eq!(balance, 0);
@@ -86,7 +88,7 @@ benchmarks! {
 		TotalShares::<T>::put(1_000_000_000_000);
 	}: _(RawOrigin::Signed(caller.clone()))
 	verify {
-		let count = PendingConversions::<T>::iter().count();
+		let count = PendingConversions::<T>::count();
 		assert_eq!(count , 0);
 		let balance = T::Currency::balance(T::RewardAsset::get(), &caller);
 		assert!(balance > caller_balance);
