@@ -47,7 +47,7 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 	});
 }
 #[test]
-fn trading_lrnn_omnipool_should_not_transfer_portion_of_fee_to_reward_pot() {
+fn trading_lrna_omnipool_should_not_transfer_portion_of_fee_to_reward_pot() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 		let code =
