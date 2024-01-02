@@ -216,13 +216,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn referral_account)]
 	pub(super) type ReferralCodes<T: Config> =
-	StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
+		StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
 
 	/// Referral accounts
 	#[pallet::storage]
 	#[pallet::getter(fn referral_code)]
 	pub(super) type ReferralAccounts<T: Config> =
-	StorageMap<_, Blake2_128Concat, T::AccountId, ReferralCode<T::CodeLength>>;
+		StorageMap<_, Blake2_128Concat, T::AccountId, ReferralCode<T::CodeLength>>;
 
 	/// Linked accounts.
 	/// Maps an account to a referral account.
@@ -252,7 +252,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn asset_rewards)]
 	pub(super) type AssetRewards<T: Config> =
-	StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, Level, FeeDistribution, OptionQuery>;
+		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, Level, FeeDistribution, OptionQuery>;
 
 	/// Information about assets that are currently in the rewards pot.
 	/// Used to easily determine list of assets that need to be converted.
@@ -487,7 +487,7 @@ pub mod pallet {
 					.checked_div(share_issuance_hp)?;
 				Balance::try_from(r).ok()
 			}()
-				.ok_or(ArithmeticError::Overflow)?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 			// Make sure that we can transfer all the rewards if all shares withdrawn.
 			let keep_pot_alive = shares != share_issuance;
