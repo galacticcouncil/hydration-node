@@ -44,9 +44,11 @@ fn claim_rewards_should_remove_assets_from_the_list() {
 		.with_conversion_price((HDX, DOT), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000))
 		.build()
 		.execute_with(|| {
+			let count = PendingConversions::<Test>::count();
+			assert_eq!(count, 2);
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
 			// Assert
-			let count = PendingConversions::<Test>::iter().count();
+			let count = PendingConversions::<Test>::count();
 			assert_eq!(count, 0);
 		});
 }

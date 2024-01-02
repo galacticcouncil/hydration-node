@@ -216,13 +216,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn referral_account)]
 	pub(super) type ReferralCodes<T: Config> =
-		StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
+	StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
 
 	/// Referral accounts
 	#[pallet::storage]
 	#[pallet::getter(fn referral_code)]
 	pub(super) type ReferralAccounts<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, ReferralCode<T::CodeLength>>;
+	StorageMap<_, Blake2_128Concat, T::AccountId, ReferralCode<T::CodeLength>>;
 
 	/// Linked accounts.
 	/// Maps an account to a referral account.
@@ -252,13 +252,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn asset_rewards)]
 	pub(super) type AssetRewards<T: Config> =
-		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, Level, FeeDistribution, OptionQuery>;
+	StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, Level, FeeDistribution, OptionQuery>;
 
 	/// Information about assets that are currently in the rewards pot.
 	/// Used to easily determine list of assets that need to be converted.
 	#[pallet::storage]
 	#[pallet::getter(fn pending_conversions)]
-	pub(super) type PendingConversions<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, ()>;
+	pub(super) type PendingConversions<T: Config> = CountedStorageMap<_, Blake2_128Concat, T::AssetId, ()>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -445,11 +445,11 @@ pub mod pallet {
 		/// Emits `Claimed` event when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight( {
-			let c = PendingConversions::<T>::iter().count() as u64;
-			let convert_weight = (<T as Config>::WeightInfo::convert()).saturating_mul(c);
-			let w  = <T as Config>::WeightInfo::claim_rewards();
-			let one_read = T::DbWeight::get().reads(1_u64);
-			w.saturating_add(convert_weight).saturating_add(one_read)
+		let c = PendingConversions::<T>::count() as u64;
+		let convert_weight = (<T as Config>::WeightInfo::convert()).saturating_mul(c);
+		let w  = <T as Config>::WeightInfo::claim_rewards();
+		let one_read = T::DbWeight::get().reads(1_u64);
+		w.saturating_add(convert_weight).saturating_add(one_read)
 		})]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -487,7 +487,7 @@ pub mod pallet {
 					.checked_div(share_issuance_hp)?;
 				Balance::try_from(r).ok()
 			}()
-			.ok_or(ArithmeticError::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 
 			// Make sure that we can transfer all the rewards if all shares withdrawn.
 			let keep_pot_alive = shares != share_issuance;
