@@ -449,6 +449,10 @@ impl ExtBuilder {
 			});
 		}
 
+		r.execute_with(|| {
+			System::set_block_number(1);
+		});
+
 		r
 	}
 }
@@ -645,4 +649,8 @@ impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
 	fn get(_: &AssetId) -> (Permill, Permill) {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
 	}
+}
+
+pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
+	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }

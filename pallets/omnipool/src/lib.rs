@@ -287,6 +287,8 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: Balance,
 			amount_out: Balance,
+			hub_amount_in: Balance,
+			hub_amount_out: Balance,
 			asset_fee_amount: Balance,
 			protocol_fee_amount: Balance,
 		},
@@ -297,6 +299,8 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: Balance,
 			amount_out: Balance,
+            hub_amount_in: Balance,
+            hub_amount_out: Balance,
 			asset_fee_amount: Balance,
 			protocol_fee_amount: Balance,
 		},
@@ -973,7 +977,8 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
-			let (asset_fee, protocol_fee) = T::Fee::get(&asset_out);
+			let (asset_fee, _) = T::Fee::get(&asset_out);
+			let (_, protocol_fee) = T::Fee::get(&asset_in);
 
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state).into(),
@@ -1091,6 +1096,8 @@ pub mod pallet {
 				asset_out,
 				amount_in: amount,
 				amount_out: *state_changes.asset_out.delta_reserve,
+				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
+				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
@@ -1166,7 +1173,8 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
-			let (asset_fee, protocol_fee) = T::Fee::get(&asset_in);
+			let (asset_fee, _) = T::Fee::get(&asset_out);
+			let (_, protocol_fee) = T::Fee::get(&asset_in);
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
@@ -1283,6 +1291,8 @@ pub mod pallet {
 				asset_out,
 				amount_in: *state_changes.asset_in.delta_reserve,
 				amount_out: *state_changes.asset_out.delta_reserve,
+				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
+				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
@@ -1742,6 +1752,8 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
+			hub_amount_in: 0,
+			hub_amount_out: 0,
 			asset_fee_amount: state_changes.fee.asset_fee,
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
@@ -1848,6 +1860,8 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
+			hub_amount_in: 0,
+			hub_amount_out: 0,
 			asset_fee_amount: state_changes.fee.asset_fee,
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
