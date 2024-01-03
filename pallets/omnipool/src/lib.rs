@@ -1283,7 +1283,7 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
-			Self::process_trade_fee(&who, asset_in, state_changes.fee.asset_fee)?;
+			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -1852,7 +1852,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::process_trade_fee(who, T::HubAssetId::get(), state_changes.fee.asset_fee)?;
+		Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
