@@ -471,7 +471,7 @@ where
 		asset: AssetId,
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
-		if asset == Lrna::get(){
+		if asset == Lrna::get() {
 			return Ok(Balance::zero());
 		}
 		let referrals_used = if asset == NativeAsset::get() {
