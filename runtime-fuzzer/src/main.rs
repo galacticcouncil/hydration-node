@@ -1,6 +1,7 @@
 mod accounts;
 mod omnipool;
 mod registry;
+mod stableswap;
 
 use accounts::{
 	get_accounts_as_potential_origins, get_council_members, get_duster_dest_account, get_duster_reward_account,
@@ -19,6 +20,7 @@ use frame_support::{
 };
 use hydradx_runtime::*;
 use omnipool::omnipool_initial_state;
+use stableswap::stablepools;
 use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::SLOT_DURATION,
@@ -171,6 +173,10 @@ fn main() {
 	// Omnipool state
 	let omnipool_account = pallet_omnipool::Pallet::<FuzzedRuntime>::protocol_account();
 	let omnipool_setup = omnipool_initial_state();
+	let stableswap_pool = stablepools();
+	let stablepools_creator: AccountId = [222; 32].into();
+	let stable_account_balacnes = stableswap_pool.endowed_account(stablepools_creator.clone());
+
 	let (omnipool_native_balance, omnipool_balances) = omnipool_setup.get_omnipool_reserves();
 
 	// Endowed accounts - Native and non-native
@@ -181,6 +187,7 @@ fn main() {
 	let mut non_native_endowed_accounts = get_nonnative_endowed_accounts(registry_setup.asset_decimals());
 	// Extend with omnipool initial state of each asset in omnipool
 	non_native_endowed_accounts.push((omnipool_account.clone(), omnipool_balances));
+	non_native_endowed_accounts.extend(stable_account_balacnes);
 
 	// We generate a genesis storage item, which will be cloned to create a runtime.
 	let genesis_storage: Storage = {
@@ -431,9 +438,17 @@ fn main() {
 		externalities.execute_with(|| {
 			let registry_calls = registry_setup.calls();
 			let omnipool_calls = omnipool_setup.calls(&get_omnipool_position_owner());
-			for call in registry_calls.into_iter().chain(omnipool_calls.into_iter()) {
+			let stableswap_calls = stableswap_pool.calls();
+			for call in registry_calls.into_iter().chain(omnipool_calls.into_iter()).chain(stableswap_calls.into_iter()) {
 				call.dispatch(RuntimeOrigin::root()).unwrap();
 			}
+
+			let stableswap_liquidity = stableswap_pool.add_liquid_calls();
+			for call in stableswap_liquidity.into_iter() {
+				println!("  call:       {:?}", call);
+				call.dispatch(RuntimeOrigin::signed(stablepools_creator.clone())).unwrap();
+			}
+
 		});
 
 		for (maybe_lapse, origin, extrinsic) in extrinsics {
