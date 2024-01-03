@@ -15,7 +15,10 @@ fn register_code_should_work_when_code_is_max_length() {
 #[test]
 fn register_code_should_work_when_code_is_min_length() {
 	ExtBuilder::default().build().execute_with(|| {
-		let code: ReferralCode<<Test as Config>::CodeLength> = vec![b'x'; crate::MIN_CODE_LENGTH].try_into().unwrap();
+		let code: ReferralCode<<Test as Config>::CodeLength> =
+			vec![b'x'; <Test as Config>::MinCodeLength::get() as usize]
+				.try_into()
+				.unwrap();
 		assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code,));
 	});
 }
@@ -23,8 +26,8 @@ fn register_code_should_work_when_code_is_min_length() {
 #[test]
 fn register_code_should_fail_when_code_is_too_short() {
 	ExtBuilder::default().build().execute_with(|| {
-		for len in 0..MIN_CODE_LENGTH {
-			let code: ReferralCode<<Test as Config>::CodeLength> = vec![b'x'; len].try_into().unwrap();
+		for len in 0..<Test as Config>::MinCodeLength::get() {
+			let code: ReferralCode<<Test as Config>::CodeLength> = vec![b'x'; len as usize].try_into().unwrap();
 			assert_noop!(
 				Referrals::register_code(RuntimeOrigin::signed(ALICE), code),
 				Error::<Test>::TooShort
