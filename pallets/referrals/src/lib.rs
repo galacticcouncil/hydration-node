@@ -232,10 +232,15 @@ pub mod pallet {
 	#[pallet::getter(fn linked_referral_account)]
 	pub(super) type LinkedAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId>;
 
-	/// Shares per account.
+	/// Shares of a referral account
 	#[pallet::storage]
-	#[pallet::getter(fn account_shares)]
-	pub(super) type Shares<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+	#[pallet::getter(fn referrer_shares)]
+	pub(super) type ReferrerShares<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+
+	/// Shares of a trader account
+	#[pallet::storage]
+	#[pallet::getter(fn trader_shares)]
+	pub(super) type TraderShares<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
 
 	/// Total share issuance.
 	#[pallet::storage]
@@ -282,7 +287,11 @@ pub mod pallet {
 			to: AssetAmount<T::AssetId>,
 		},
 		/// Rewards claimed.
-		Claimed { who: T::AccountId, rewards: Balance },
+		Claimed {
+			who: T::AccountId,
+			referral_rewards: Balance,
+			trade_rewards: Balance,
+		},
 		/// New asset rewards has been set.
 		AssetRewardsUpdated {
 			asset_id: T::AssetId,
@@ -447,11 +456,11 @@ pub mod pallet {
 		/// Emits `Claimed` event when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight( {
-		let c = PendingConversions::<T>::count() as u64;
-		let convert_weight = (<T as Config>::WeightInfo::convert()).saturating_mul(c);
-		let w  = <T as Config>::WeightInfo::claim_rewards();
-		let one_read = T::DbWeight::get().reads(1_u64);
-		w.saturating_add(convert_weight).saturating_add(one_read)
+			let c = PendingConversions::<T>::count() as u64;
+			let convert_weight = (<T as Config>::WeightInfo::convert()).saturating_mul(c);
+			let w  = <T as Config>::WeightInfo::claim_rewards();
+			let one_read = T::DbWeight::get().reads(1_u64);
+			w.saturating_add(convert_weight).saturating_add(one_read)
 		})]
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -471,8 +480,10 @@ pub mod pallet {
 					PendingConversions::<T>::remove(asset_id);
 				}
 			}
-			let shares = Shares::<T>::take(&who);
-			if shares == Balance::zero() {
+			let referrer_shares = ReferrerShares::<T>::take(&who);
+			let trader_shares = TraderShares::<T>::take(&who);
+			let total_shares = referrer_shares.saturating_add(trader_shares);
+			if total_shares == Balance::zero() {
 				return Ok(());
 			}
 
@@ -480,33 +491,39 @@ pub mod pallet {
 			let reward_reserve = reward_reserve.saturating_sub(T::SeedNativeAmount::get());
 			let share_issuance = TotalShares::<T>::get();
 
-			let rewards = || -> Option<Balance> {
-				let shares_hp = U256::from(shares);
+			let convert_shares = |to_convert: Balance| -> Option<Balance> {
+				let shares_hp = U256::from(to_convert);
 				let reward_reserve_hp = U256::from(reward_reserve);
 				let share_issuance_hp = U256::from(share_issuance);
 				let r = shares_hp
 					.checked_mul(reward_reserve_hp)?
 					.checked_div(share_issuance_hp)?;
 				Balance::try_from(r).ok()
-			}()
-			.ok_or(ArithmeticError::Overflow)?;
+			};
+
+			let referrer_rewards = convert_shares(referrer_shares).ok_or(ArithmeticError::Overflow)?;
+			let trader_rewards = convert_shares(trader_shares).ok_or(ArithmeticError::Overflow)?;
+			let total_rewards = referrer_rewards
+				.checked_add(trader_rewards)
+				.ok_or(ArithmeticError::Overflow)?;
+			ensure!(total_rewards <= reward_reserve, Error::<T>::IncorrectRewardCalculation);
 
 			// Make sure that we can transfer all the rewards if all shares withdrawn.
-			let keep_pot_alive = shares != share_issuance;
+			let keep_pot_alive = total_shares != share_issuance;
 
 			T::Currency::transfer(
 				T::RewardAsset::get(),
 				&Self::pot_account_id(),
 				&who,
-				rewards,
+				total_rewards,
 				keep_pot_alive,
 			)?;
 			TotalShares::<T>::mutate(|v| {
-				*v = v.saturating_sub(shares);
+				*v = v.saturating_sub(total_shares);
 			});
 			Referrer::<T>::mutate(who.clone(), |v| {
 				if let Some((level, total)) = v {
-					*total = total.saturating_add(rewards);
+					*total = total.saturating_add(referrer_rewards);
 					let new_level = level.increase::<T>(*total);
 					if *level != new_level {
 						*level = new_level;
@@ -518,7 +535,11 @@ pub mod pallet {
 				}
 			});
 
-			Self::deposit_event(Event::Claimed { who, rewards });
+			Self::deposit_event(Event::Claimed {
+				who,
+				referral_rewards: referrer_rewards,
+				trade_rewards: trader_rewards,
+			});
 			Ok(())
 		}
 
@@ -670,15 +691,15 @@ impl<T: Config> Pallet<T> {
 			);
 		});
 		if let Some(acc) = ref_account {
-			Shares::<T>::mutate(acc, |v| {
+			ReferrerShares::<T>::mutate(acc, |v| {
 				*v = v.saturating_add(referrer_shares);
 			});
 		}
-		Shares::<T>::mutate(trader, |v| {
+		TraderShares::<T>::mutate(trader, |v| {
 			*v = v.saturating_add(trader_shares);
 		});
 		if let Some(acc) = external_account {
-			Shares::<T>::mutate(acc, |v| {
+			TraderShares::<T>::mutate(acc, |v| {
 				*v = v.saturating_add(external_shares);
 			});
 		}
