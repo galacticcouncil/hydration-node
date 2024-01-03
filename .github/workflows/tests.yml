@@ -140,6 +140,8 @@ jobs:
 
   version-check:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     if: github.event_name == 'pull_request'
     outputs:
       runtime-upgraded: ${{ steps.check-runtime.outputs.upgraded }}
