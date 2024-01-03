@@ -75,8 +75,6 @@ use weights::WeightInfo;
 pub type Balance = u128;
 pub type ReferralCode<S> = BoundedVec<u8, S>;
 
-const MIN_CODE_LENGTH: usize = 4;
-
 /// Referrer level.
 /// Indicates current level of the referrer to determine which reward percentages are used.
 #[derive(Hash, Clone, Copy, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -193,6 +191,10 @@ pub mod pallet {
 		/// Maximum referral code length.
 		#[pallet::constant]
 		type CodeLength: Get<u32>;
+
+		// Minimum referral code length.
+		#[pallet::constant]
+		type MinCodeLength: Get<u32>;
 
 		/// Volume and Global reward percentages for all assets if not specified explicitly for the asset.
 		type LevelVolumeAndRewardPercentages: GetByKey<Level, (Balance, FeeDistribution)>;
@@ -331,7 +333,7 @@ pub mod pallet {
 		/// `origin` pays the registration fee.
 		/// `code` is assigned to the given `account`.
 		///
-		/// Length of the `code` must be at least `MIN_CODE_LENGTH`.
+		/// Length of the `code` must be at least `T::MinCodeLength`.
 		/// Maximum length is limited to `T::CodeLength`.
 		/// `code` must contain only alfa-numeric characters and all characters will be converted to upper case.
 		///
@@ -348,7 +350,7 @@ pub mod pallet {
 				Error::<T>::AlreadyRegistered
 			);
 
-			ensure!(code.len() >= MIN_CODE_LENGTH, Error::<T>::TooShort);
+			ensure!(code.len() >= T::MinCodeLength::get() as usize, Error::<T>::TooShort);
 
 			ensure!(
 				code.clone()

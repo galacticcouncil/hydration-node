@@ -95,7 +95,8 @@ construct_runtime!(
 
 parameter_types! {
 	pub const RefarralPalletId: PalletId = PalletId(*b"test_ref");
-	pub const CodeLength: u32 = 7;
+	pub const CodeLength: u32 = 10;
+	pub const MinCodeLength: u32 = 4;
 	pub const RegistrationFee: (AssetId,Balance, AccountId) = (HDX, 222 * 1_000_000_000_000, TREASURY) ;
 	pub const RewardAsset: AssetId = HDX;
 }
@@ -147,6 +148,7 @@ impl Config for Test {
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = CodeLength;
+	type MinCodeLength = MinCodeLength;
 	type LevelVolumeAndRewardPercentages = LevelVolumeAndRewards;
 	type ExternalAccount = ExtAccount;
 	type SeedNativeAmount = SeedAmount;
