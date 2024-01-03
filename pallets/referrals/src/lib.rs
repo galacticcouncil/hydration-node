@@ -289,7 +289,7 @@ pub mod pallet {
 		/// Rewards claimed.
 		Claimed {
 			who: T::AccountId,
-			referral_rewards: Balance,
+			referrer_rewards: Balance,
 			trade_rewards: Balance,
 		},
 		/// New asset rewards has been set.
@@ -537,7 +537,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::Claimed {
 				who,
-				referral_rewards: referrer_rewards,
+				referrer_rewards: referrer_rewards,
 				trade_rewards: trader_rewards,
 			});
 			Ok(())

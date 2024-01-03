@@ -140,7 +140,7 @@ fn claim_rewards_should_emit_event_when_claimed_by_referrer() {
 			// Assert
 			expect_events(vec![Event::Claimed {
 				who: BOB,
-				referral_rewards: 5_000_000_000_000,
+				referrer_rewards: 5_000_000_000_000,
 				trade_rewards: 0,
 			}
 			.into()]);
@@ -159,7 +159,7 @@ fn claim_rewards_should_emit_event_when_claimed_by_trader() {
 			// Assert
 			expect_events(vec![Event::Claimed {
 				who: BOB,
-				referral_rewards: 0,
+				referrer_rewards: 0,
 				trade_rewards: 5_000_000_000_000,
 			}
 			.into()]);
