@@ -1969,10 +1969,13 @@ impl<T: Config> Pallet<T> {
 	fn process_trade_fee(trader: &T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult {
 		let account = Self::protocol_account();
 		let original_asset_reserve = T::Currency::free_balance(asset, &account);
-		let used = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, amount)?;
+
+		// Subtracting one due to potential rounding errors
+		let fee_amount_to_transfer = amount.saturating_sub(Balance::one());
+		let used = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, fee_amount_to_transfer)?;
 		let asset_reserve = T::Currency::free_balance(asset, &account);
 		let diff = original_asset_reserve.saturating_sub(asset_reserve);
-		ensure!(diff <= amount, Error::<T>::FeeOverdraft);
+		ensure!(diff <= fee_amount_to_transfer, Error::<T>::FeeOverdraft);
 		ensure!(diff == used, Error::<T>::FeeOverdraft);
 		Ok(())
 	}
