@@ -699,7 +699,7 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		asset: AssetId,
 		amount: Balance,
 	) -> Result<Balance, Self::Error> {
-		let percentage = ON_TRADE_WITHDRAWAL.with(|v| v.borrow().clone());
+		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
 		let to_take = percentage.mul_floor(amount);
 		Tokens::withdraw(asset, &fee_account, to_take)?;
 		Ok(to_take)
