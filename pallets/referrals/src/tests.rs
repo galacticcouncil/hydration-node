@@ -213,7 +213,8 @@ impl mock_amm::pallet::Config for Test {
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
-	shares: Vec<(AccountId, Balance)>,
+	referrer_shares: Vec<(AccountId, Balance)>,
+	trader_shares: Vec<(AccountId, Balance)>,
 	tiers: Vec<(AssetId, Level, FeeDistribution)>,
 	assets: Vec<AssetId>,
 }
@@ -240,7 +241,8 @@ impl Default for ExtBuilder {
 
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
-			shares: vec![],
+			referrer_shares: vec![],
+			trader_shares: vec![],
 			tiers: vec![],
 			assets: vec![],
 		}
@@ -253,8 +255,13 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_shares(mut self, shares: Vec<(AccountId, Balance)>) -> Self {
-		self.shares.extend(shares);
+	pub fn with_referrer_shares(mut self, shares: Vec<(AccountId, Balance)>) -> Self {
+		self.referrer_shares.extend(shares);
+		self
+	}
+
+	pub fn with_trader_shares(mut self, shares: Vec<(AccountId, Balance)>) -> Self {
+		self.trader_shares.extend(shares);
 		self
 	}
 
@@ -334,8 +341,14 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
-			for (acc, amount) in self.shares.iter() {
-				Shares::<Test>::insert(acc, amount);
+			for (acc, amount) in self.referrer_shares.iter() {
+				ReferrerShares::<Test>::insert(acc, amount);
+				TotalShares::<Test>::mutate(|v| {
+					*v = v.saturating_add(*amount);
+				});
+			}
+			for (acc, amount) in self.trader_shares.iter() {
+				TraderShares::<Test>::insert(acc, amount);
 				TotalShares::<Test>::mutate(|v| {
 					*v = v.saturating_add(*amount);
 				});

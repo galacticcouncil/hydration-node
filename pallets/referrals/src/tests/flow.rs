@@ -100,11 +100,11 @@ fn complete_referral_flow_should_work_as_expected() {
 			));
 
 			// Assert shares
-			let alice_shares = Shares::<Test>::get(ALICE);
+			let alice_shares = ReferrerShares::<Test>::get(ALICE);
 			assert_eq!(alice_shares, 120_000_000);
-			let bob_shares = Shares::<Test>::get(BOB);
+			let bob_shares = TraderShares::<Test>::get(BOB);
 			assert_eq!(bob_shares, 30_000_000);
-			let charlie_shares = Shares::<Test>::get(CHARLIE);
+			let charlie_shares = TraderShares::<Test>::get(CHARLIE);
 			assert_eq!(charlie_shares, 20_000_000);
 			let total_shares = TotalShares::<Test>::get();
 			assert_eq!(total_shares, alice_shares + bob_shares + charlie_shares);
@@ -112,7 +112,7 @@ fn complete_referral_flow_should_work_as_expected() {
 			// CLAIMS
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(CHARLIE),));
 			// Assert charlie rewards
-			let shares = Shares::<Test>::get(CHARLIE);
+			let shares = ReferrerShares::<Test>::get(CHARLIE);
 			assert_eq!(shares, 0);
 			let total_shares = TotalShares::<Test>::get();
 			assert_eq!(total_shares, alice_shares + bob_shares);
@@ -121,7 +121,7 @@ fn complete_referral_flow_should_work_as_expected() {
 
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB),));
 			// Assert BOB rewards
-			let shares = Shares::<Test>::get(BOB);
+			let shares = TraderShares::<Test>::get(BOB);
 			assert_eq!(shares, 0);
 			let total_shares = TotalShares::<Test>::get();
 			assert_eq!(total_shares, alice_shares);
@@ -130,7 +130,7 @@ fn complete_referral_flow_should_work_as_expected() {
 
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE),));
 			// Assert ALICE rewards
-			let shares = Shares::<Test>::get(ALICE);
+			let shares = ReferrerShares::<Test>::get(ALICE);
 			assert_eq!(shares, 0);
 			let total_shares = TotalShares::<Test>::get();
 			assert_eq!(total_shares, 0);

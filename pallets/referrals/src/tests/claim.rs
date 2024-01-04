@@ -57,7 +57,7 @@ fn claim_rewards_should_remove_assets_from_the_list() {
 fn claim_rewards_should_calculate_correct_portion_when_claimed() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
-		.with_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_referrer_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
 		.build()
 		.execute_with(|| {
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
@@ -73,7 +73,7 @@ fn claim_rewards_should_calculate_correct_portion_when_claimed() {
 fn claim_rewards_should_decrease_total_shares_issuance_when_claimed() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
-		.with_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_referrer_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
 		.build()
 		.execute_with(|| {
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
@@ -84,24 +84,55 @@ fn claim_rewards_should_decrease_total_shares_issuance_when_claimed() {
 }
 
 #[test]
-fn claim_rewards_should_reset_account_shares_to_zero() {
+fn claim_rewards_should_reset_referrer_account_shares_to_zero() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
-		.with_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_referrer_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
 		.build()
 		.execute_with(|| {
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
 			// Assert
-			let shares = Shares::<Test>::get(BOB);
+			let shares = ReferrerShares::<Test>::get(BOB);
 			assert_eq!(shares, 0);
 		});
 }
 
 #[test]
-fn claim_rewards_should_emit_event_when_successful() {
+fn claim_rewards_should_reset_trader_account_shares_to_zero() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
-		.with_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_trader_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
+			// Assert
+			let shares = TraderShares::<Test>::get(BOB);
+			assert_eq!(shares, 0);
+		});
+}
+
+#[test]
+fn claim_rewards_should_reset_both_account_shares_to_zero() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
+		.with_trader_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_referrer_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
+			// Assert
+			let shares = TraderShares::<Test>::get(BOB);
+			assert_eq!(shares, 0);
+			let shares = ReferrerShares::<Test>::get(BOB);
+			assert_eq!(shares, 0);
+		});
+}
+
+#[test]
+fn claim_rewards_should_emit_event_when_claimed_by_referrer() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
+		.with_referrer_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
 		.build()
 		.execute_with(|| {
 			// Act
@@ -109,7 +140,27 @@ fn claim_rewards_should_emit_event_when_successful() {
 			// Assert
 			expect_events(vec![Event::Claimed {
 				who: BOB,
-				rewards: 5_000_000_000_000,
+				referrer_rewards: 5_000_000_000_000,
+				trade_rewards: 0,
+			}
+			.into()]);
+		});
+}
+
+#[test]
+fn claim_rewards_should_emit_event_when_claimed_by_trader() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
+		.with_trader_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			// Act
+			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
+			// Assert
+			expect_events(vec![Event::Claimed {
+				who: BOB,
+				referrer_rewards: 0,
+				trade_rewards: 5_000_000_000_000,
 			}
 			.into()]);
 		});
@@ -119,7 +170,8 @@ fn claim_rewards_should_emit_event_when_successful() {
 fn claim_rewards_update_total_accumulated_for_referrer_account() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
-		.with_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_trader_shares(vec![(BOB, 5_000_000_000_000)])
+		.with_referrer_shares(vec![(ALICE, 15_000_000_000_000)])
 		.build()
 		.execute_with(|| {
 			// ARRANGE
@@ -135,10 +187,37 @@ fn claim_rewards_update_total_accumulated_for_referrer_account() {
 }
 
 #[test]
+fn claim_rewards_should_claim_both_shares_when_account_have_both() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
+		.with_trader_shares(vec![(ALICE, 5_000_000_000_000)])
+		.with_referrer_shares(vec![(ALICE, 15_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			// ARRANGE
+			let code: ReferralCode<<Test as Config>::CodeLength> = b"BALLS69".to_vec().try_into().unwrap();
+			assert_ok!(Referrals::register_code(RuntimeOrigin::signed(ALICE), code.clone(),));
+			assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB), code));
+
+			let reserve = TotalShares::<Test>::get();
+			assert_eq!(reserve, 20_000_000_000_000);
+			let alice_balance = Tokens::free_balance(HDX, &ALICE);
+			// Act
+			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE)));
+			// Assert
+			let (_, total) = Referrer::<Test>::get(ALICE).unwrap();
+			assert_eq!(total, 15_000_000_000_000);
+
+			let reserve = Tokens::free_balance(HDX, &ALICE) - alice_balance;
+			assert_eq!(reserve, 20_000_000_000_000);
+		});
+}
+
+#[test]
 fn claim_rewards_should_exclude_seed_amount() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
-		.with_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_referrer_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
 		.with_seed_amount(100_000_000_000_000)
 		.build()
 		.execute_with(|| {
@@ -163,7 +242,7 @@ fn claim_rewards_should_increase_referrer_level_when_limit_is_reached() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
-		.with_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_referrer_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
 		.with_tier_volumes(volumes)
 		.build()
 		.execute_with(|| {
@@ -191,7 +270,7 @@ fn claim_rewards_should_increase_referrer_level_directly_to_top_tier_when_limit_
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), HDX, 20_000_000_000_000)])
-		.with_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
+		.with_referrer_shares(vec![(BOB, 5_000_000_000_000), (ALICE, 15_000_000_000_000)])
 		.with_tier_volumes(volumes)
 		.build()
 		.execute_with(|| {
