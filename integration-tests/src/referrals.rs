@@ -321,6 +321,80 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 }
 
 #[test]
+fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
+		let staking_acc = Staking::pot_account_id();
+		let ref_account = Referrals::pot_account_id();
+		let orig_balance = Currencies::free_balance(DAI, &ref_account);
+		let stak_orig_balance = Currencies::free_balance(HDX, &staking_acc);
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			1_000_000_000_000,
+			u128::MAX,
+		));
+
+		expect_hydra_events(vec![pallet_omnipool::Event::BuyExecuted {
+			who: BOB.into(),
+			asset_in: DAI,
+			asset_out: HDX,
+			amount_in: 26_831_707_982_513_510,
+			amount_out: 1_000_000_000_000,
+			hub_amount_in: 1_209_571_666,
+			hub_amount_out: 1_208_966_881,
+			asset_fee_amount: 2_650_003_961,
+			protocol_fee_amount: 604785,
+		}
+		.into()]);
+
+		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
+		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
+		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 0);
+		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 2_650_003_961);
+	});
+}
+
+#[test]
+fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
+		let staking_acc = Staking::pot_account_id();
+		let ref_account = Referrals::pot_account_id();
+		let orig_balance = Currencies::free_balance(DAI, &ref_account);
+		let stak_orig_balance = Currencies::free_balance(HDX, &staking_acc);
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(BOB.into()),
+			DAI,
+			HDX,
+			1_000_000_000_000_000_000,
+			u128::MAX,
+		));
+
+		expect_hydra_events(vec![pallet_omnipool::Event::BuyExecuted {
+			who: BOB.into(),
+			asset_in: HDX,
+			asset_out: DAI,
+			amount_in: 37_504_158_320_270,
+			amount_out: 1_000_000_000_000_000_000,
+			hub_amount_in: 45219585307,
+			hub_amount_out: 45196975515,
+			asset_fee_amount: 2_575_616_759_455_039,
+			protocol_fee_amount: 22609792,
+		}
+		.into()]);
+
+		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
+		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
+		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 2_575_616_759_455_039 / 2);
+		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 0);
+	});
+}
+
+#[test]
 fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
