@@ -48,7 +48,7 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 }
 
 #[test]
-fn buying_in_omnipool_should_transfer_portion_of_asse_t_out_fee_to_reward_pot() {
+fn buying_in_omnipool_should_transfer_portion_of_asset_out_fee_to_reward_pot() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 		let code =
