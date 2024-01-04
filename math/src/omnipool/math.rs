@@ -129,24 +129,14 @@ pub fn calculate_sell_hub_state_changes(
 }
 
 #[inline]
-fn calculate_fee_amount_for_buy(fee: Permill, amount: Balance) -> Balance {
+pub(crate) fn calculate_fee_amount_for_buy(fee: Permill, amount: Balance) -> Balance {
 	if fee == Permill::one() {
 		return amount;
 	}
+	// convert to Prequintill to have better precision
 	let fee: Perquintill = Perquintill::from_rational(fee.deconstruct() as u64, 1_000_000u64);
 	let p = fee.div(Perquintill::one().saturating_sub(fee)); // div safe
 	p.mul_ceil(amount)
-}
-
-#[test]
-fn test_fee_amount() {
-	assert_eq!(calculate_fee_amount_for_buy(Permill::from_float(0.01), 99), 1);
-	assert_eq!(
-		calculate_fee_amount_for_buy(Permill::from_percent(10), 50_000_000_000_000),
-		5555555555556
-	);
-	assert_eq!(calculate_fee_amount_for_buy(Permill::from_percent(100), 99), 99);
-	assert_eq!(calculate_fee_amount_for_buy(Permill::from_percent(0), 99), 0);
 }
 
 /// Calculate delta changes of a buy trade where asset_in is Hub Asset
