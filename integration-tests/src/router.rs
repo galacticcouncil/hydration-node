@@ -833,6 +833,8 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				hub_amount_in: 12014871681,
+				hub_amount_out: 12008864246,
 				asset_fee_amount: 667_155_563_986_401,
 				protocol_fee_amount: 6_007_435,
 			}
@@ -979,7 +981,9 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
-				asset_fee_amount: 111_528,
+				hub_amount_in: 45135,
+				hub_amount_out: 45113,
+				asset_fee_amount: 2_506_265_665,
 				protocol_fee_amount: 22,
 			}
 			.into()]);

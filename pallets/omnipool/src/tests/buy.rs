@@ -434,7 +434,8 @@ fn buy_should_emit_event_with_correct_fees() {
 				hub_amount_out: 57142857142858,
 				asset_fee_amount: 5_555_555_555_556,
 				protocol_fee_amount: 0,
-			}.into()]);
+			}
+			.into()]);
 		});
 }
 
@@ -467,7 +468,7 @@ fn sell_should_get_same_amount() {
 				0
 			));
 
-			expect_events(vec![Event::SellExecuted{
+			expect_events(vec![Event::SellExecuted {
 				who: LP1,
 				asset_in: 100,
 				asset_out: 200,
@@ -477,10 +478,10 @@ fn sell_should_get_same_amount() {
 				hub_amount_out: 57142857142858,
 				asset_fee_amount: 5555555555556,
 				protocol_fee_amount: 0,
-			}.into()]);
+			}
+			.into()]);
 		});
 }
-
 
 #[test]
 fn buy_should_fail_when_buying_more_than_in_pool() {

@@ -46,6 +46,30 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 		assert_eq!(pot_balance, 28_540_796_051_302_768);
 	});
 }
+
+#[test]
+fn buying_in_omnipool_should_transfer_portion_of_asse_t_out_fee_to_reward_pot() {
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE.into()),
+			code.clone()
+		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(BOB.into()),
+			DAI,
+			HDX,
+			1_000_000_000_000_000_000,
+			u128::MAX,
+		));
+		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
+		assert_eq!(pot_balance, 29_794_264_670_024_389);
+	});
+}
+
 #[test]
 fn trading_lrna_omnipool_should_not_transfer_portion_of_fee_to_reward_pot() {
 	Hydra::execute_with(|| {
