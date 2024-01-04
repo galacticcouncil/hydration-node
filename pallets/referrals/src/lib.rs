@@ -537,7 +537,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::Claimed {
 				who,
-				referrer_rewards: referrer_rewards,
+				referrer_rewards,
 				trade_rewards: trader_rewards,
 			});
 			Ok(())
