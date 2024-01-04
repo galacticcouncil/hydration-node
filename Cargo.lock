@@ -4069,7 +4069,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.7.0"
+version = "7.7.1"
 dependencies = [
  "approx",
  "criterion",
@@ -4223,7 +4223,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "200.0.0"
+version = "201.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7643,7 +7643,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.0.3"
+version = "4.1.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -10791,7 +10791,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.16.8"
+version = "1.16.9"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
