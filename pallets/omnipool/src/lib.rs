@@ -1090,6 +1090,12 @@ pub mod pallet {
 
 			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
+			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
+			debug_assert_eq!(
+				*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
+				state_changes.fee.protocol_fee
+			);
+
 			Self::deposit_event(Event::SellExecuted {
 				who,
 				asset_in,
@@ -1284,6 +1290,12 @@ pub mod pallet {
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
 			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
+
+			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
+			debug_assert_eq!(
+				*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
+				state_changes.fee.protocol_fee
+			);
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
