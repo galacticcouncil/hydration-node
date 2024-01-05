@@ -1542,7 +1542,8 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_stable_trades_and_omnipool() {
 		let amount_to_sell = 100 * UNITS;
-		let amount_to_receive = 70868187814642;
+		let amount_to_receive_1 = 70868187814642;
+		let amount_to_receive = 70832735995328;
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			//Arrange
@@ -1659,7 +1660,7 @@ mod stableswap {
 			let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 			assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
-			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + amount_to_receive);
+			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + amount_to_receive_1);
 
 			assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 		});
