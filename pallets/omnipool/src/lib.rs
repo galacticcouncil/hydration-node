@@ -1983,11 +1983,11 @@ impl<T: Config> Pallet<T> {
 		let original_asset_reserve = T::Currency::free_balance(asset, &account);
 
 		// Let's give little bit less to process. Subtracting one due to potential rounding errors
-		let fee_amount_to_transfer = amount.saturating_sub(Balance::one());
-		let used = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, fee_amount_to_transfer)?;
+		let allowed_amount = amount.saturating_sub(Balance::one());
+		let used = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, allowed_amount)?;
 		let asset_reserve = T::Currency::free_balance(asset, &account);
 		let diff = original_asset_reserve.saturating_sub(asset_reserve);
-		ensure!(diff <= fee_amount_to_transfer, Error::<T>::FeeOverdraft);
+		ensure!(diff <= allowed_amount, Error::<T>::FeeOverdraft);
 		ensure!(diff == used, Error::<T>::FeeOverdraft);
 		Ok(())
 	}
