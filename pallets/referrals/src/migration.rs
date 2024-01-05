@@ -39,7 +39,7 @@ where
 				ReferralCodes::<T>::insert(&code, &who);
 				ReferralAccounts::<T>::insert(&who, code);
 				Referrer::<T>::insert(&who, (Level::default(), Balance::zero()));
-				weight = weight.saturating_add(T::DbWeight::get().writes(3));
+				weight.saturating_accrue(T::DbWeight::get().writes(3));
 			}
 		}
 	}
