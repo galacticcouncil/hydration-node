@@ -6,6 +6,7 @@ use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, S
 use orml_traits::MultiCurrency;
 use pallet_referrals::{FeeDistribution, ReferralCode};
 use primitives::AccountId;
+use sp_core::crypto::Ss58AddressFormat;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use xcm_emulator::TestExt;
@@ -489,4 +490,37 @@ fn seed_pot_account() {
 		HDX,
 		(10 * UNITS) as i128,
 	));
+}
+
+use sp_core::crypto::Ss58Codec;
+pub const PARACHAIN_CODES: [(&str, &str); 12] = [
+	("MOONBEAM", "7LCt6dFmtiRrwZv2YyEgQWW3GxsGX3Krmgzv9Xj7GQ9tG2j8"),
+	("ASSETHUB", "7LCt6dFqtxzdKVB2648jWW9d85doiFfLSbZJDNAMVJNxh5rJ"),
+	("INTERLAY", "7LCt6dFsW7xwUutdYad3oeQ1zfQvZ9THXbBupWLqpd72bmnM"),
+	("CENTRIFUGE", "7LCt6dFsJVukxnxpix9KcTkwu2kWQnXARsy6BuBHEL54NcS6"),
+	("ASTAR", "7LCt6dFnHxYDyomeCEC8nsnBUEC6omC6y7SZQk4ESzDpiDYo"),
+	("BIFROST", "7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq"),
+	("ZEITGEIST", "7LCt6dFCEKr7CctCKBb6CcQdV9iHDue3JcpxkkFCqJZbk3Xk"),
+	("PHALA", "7LCt6dFt6z8V3Gg41U4EPCKEHZQAzEFepirNiKqXbWCwHECN"),
+	("UNIQUE", "7LCt6dFtWEEr5WXfej1gmZbNUpj1Gx7u29J1yYAen6GsjQTj"),
+	("NODLE", "7LCt6dFrJPdrNCKncokgeYZbQsSRgyrYwKrz2sMUGruDF9gJ"),
+	("SUBSOCIAL", "7LCt6dFE2vLjshEThqtdwGAGMqg2XA39C1pMSCjG9wsKnR2Q"),
+	("POLKADOT", "7KQx4f7yU3hqZHfvDVnSfe6mpgAT8Pxyr67LXHV6nsbZo3Tm"),
+];
+
+#[test]
+fn verify_preregisters_codes() {
+	Hydra::execute_with(|| {
+		pallet_referrals::migration::preregister_parachain_codes::<hydradx_runtime::Runtime>();
+		for (code, account) in PARACHAIN_CODES.into_iter() {
+			let code =
+				ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::try_from(code.as_bytes().to_vec())
+					.unwrap();
+			let a = Referrals::referral_account(code);
+			assert_eq!(
+				a.unwrap().to_ss58check_with_version(Ss58AddressFormat::custom(63)),
+				account
+			);
+		}
+	});
 }
