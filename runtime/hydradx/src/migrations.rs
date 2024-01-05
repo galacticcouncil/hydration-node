@@ -10,8 +10,7 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		Ok(vec![])
 	}
 
-	fn on_runtime_upgrade() -> Weight
-	{
+	fn on_runtime_upgrade() -> Weight {
 		pallet_referrals::migration::preregister_parachain_codes::<Runtime>()
 	}
 
