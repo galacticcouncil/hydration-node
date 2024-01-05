@@ -988,7 +988,7 @@ mod omnipool {
 			init_omnipool_with_oracle_for_block_10();
 
 			//Trade 1
-			let amount_to_sell1 = 150 * UNITS;
+			let amount_to_sell1 = 200 * UNITS;
 			let dca_budget1 = 1000 * UNITS;
 			let schedule1 =
 				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget1, HDX, DAI, amount_to_sell1);
@@ -1002,7 +1002,7 @@ mod omnipool {
 			create_schedule(ALICE, schedule2);
 
 			//Trade 3
-			let amount_to_sell3 = 300 * UNITS;
+			let amount_to_sell3 = 800 * UNITS;
 			let dca_budget3 = 2000 * UNITS;
 			let schedule3 =
 				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget3, HDX, DAI, amount_to_sell3);
