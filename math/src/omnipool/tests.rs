@@ -1061,7 +1061,7 @@ fn calculate_withdrawal_fee_should_work_correctly() {
 
 #[test]
 fn test_fee_amount() {
-	assert_eq!(calculate_fee_amount_for_buy(Permill::from_float(0.01), 99), 1);
+	assert_eq!(calculate_fee_amount_for_buy(Permill::from_float(0.01), 99), 2);
 	assert_eq!(
 		calculate_fee_amount_for_buy(Permill::from_percent(10), 50_000_000_000_000),
 		5555555555556

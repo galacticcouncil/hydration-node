@@ -9,7 +9,7 @@ use crate::{to_balance, to_u256};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Permill, Perquintill};
+use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::cmp::min;
 use sp_std::ops::{Div, Sub};
 
@@ -130,13 +130,23 @@ pub fn calculate_sell_hub_state_changes(
 
 #[inline]
 pub(crate) fn calculate_fee_amount_for_buy(fee: Permill, amount: Balance) -> Balance {
+	if fee.is_zero() {
+		return Balance::zero();
+	}
 	if fee == Permill::one() {
 		return amount;
 	}
-	// convert to Prequintill to have better precision
-	let fee: Perquintill = Perquintill::from_rational(fee.deconstruct() as u64, 1_000_000u64);
-	let p = fee.div(Perquintill::one().saturating_sub(fee)); // div safe
-	p.mul_ceil(amount)
+
+	let (numerator, denominator) = (fee.deconstruct() as u128, 1_000_000u128);
+	// Already handled but just in case, so div is safe safe. this is 100%
+	if numerator == denominator {
+		return amount;
+	}
+	// Round up
+	numerator
+		.saturating_mul(amount)
+		.div(denominator.saturating_sub(numerator))
+		.saturating_add(Balance::one())
 }
 
 /// Calculate delta changes of a buy trade where asset_in is Hub Asset
