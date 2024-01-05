@@ -63,7 +63,7 @@ fn assert_asset_invariant(
 	assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
 }
 fn fee() -> impl Strategy<Value = Permill> {
-	// Allow values between 0.001 and 0.1
+	// Allow values between 0.001 and 3%
 	(
 		0u32..=30u32,
 		prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)],
