@@ -2,6 +2,7 @@
 use crate::Vec;
 use frame_support::{codec::alloc::vec, traits::OnRuntimeUpgrade, weights::Weight};
 pub struct OnRuntimeUpgradeMigration;
+use super::Runtime;
 
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	#[cfg(feature = "try-runtime")]
@@ -9,8 +10,9 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		Ok(vec![])
 	}
 
-	fn on_runtime_upgrade() -> Weight {
-		Weight::zero()
+	fn on_runtime_upgrade() -> Weight
+	{
+		pallet_referrals::migration::preregister_parachain_codes::<Runtime>()
 	}
 
 	#[cfg(feature = "try-runtime")]
