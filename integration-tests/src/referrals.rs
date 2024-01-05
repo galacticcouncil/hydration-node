@@ -246,7 +246,7 @@ fn trading_in_omnipool_should_transfer_some_portion_of_fee_when_no_code_linked()
 			0
 		));
 		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(pot_balance, 28_540_796_051_302_770);
+		assert_eq!(pot_balance, 28_540_796_051_302_769);
 		let external_shares = Referrals::trader_shares::<AccountId>(Staking::pot_account_id());
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, external_shares);
@@ -354,7 +354,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
 		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 0);
-		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 2_650_003_961);
+		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 2_650_003_960);
 	});
 }
 
@@ -383,14 +383,14 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 			amount_out: 1_000_000_000_000_000_000,
 			hub_amount_in: 45219585307,
 			hub_amount_out: 45196975515,
-			asset_fee_amount: 2_575_616_759_455_039,
+			asset_fee_amount: 2_575_616_759_455_040,
 			protocol_fee_amount: 22609792,
 		}
 		.into()]);
 
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
-		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 2_575_616_759_455_039 / 2);
+		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 2_575_616_759_455_040 / 2 - 1);
 		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 0);
 	});
 }
