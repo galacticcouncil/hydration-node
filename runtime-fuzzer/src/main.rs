@@ -1,6 +1,7 @@
 mod accounts;
 mod omnipool;
 mod registry;
+mod staking;
 
 use accounts::{
 	get_accounts_as_potential_origins, get_council_members, get_duster_dest_account, get_duster_reward_account,
@@ -173,10 +174,14 @@ fn main() {
 	let omnipool_setup = omnipool_initial_state();
 	let (omnipool_native_balance, omnipool_balances) = omnipool_setup.get_omnipool_reserves();
 
+	// Staking
+	let staking_initial = staking::staking_state();
+
 	// Endowed accounts - Native and non-native
 	let mut native_endowed_accounts = get_native_endowed_accounts();
 	// Extend with omnipool initial state of HDX
 	native_endowed_accounts.push((omnipool_account.clone(), omnipool_native_balance));
+	native_endowed_accounts.extend(staking_initial.get_native_endowed_accounts());
 
 	let mut non_native_endowed_accounts = get_nonnative_endowed_accounts(registry_setup.asset_decimals());
 	// Extend with omnipool initial state of each asset in omnipool
@@ -430,8 +435,13 @@ fn main() {
 		// Calls that need to be executed in the first block go here
 		externalities.execute_with(|| {
 			let registry_calls = registry_setup.calls();
+			let staking_calls = staking_initial.calls();
 			let omnipool_calls = omnipool_setup.calls(&get_omnipool_position_owner());
-			for call in registry_calls.into_iter().chain(omnipool_calls.into_iter()) {
+			for call in registry_calls
+				.into_iter()
+				.chain(staking_calls.into_iter())
+				.chain(omnipool_calls.into_iter())
+			{
 				call.dispatch(RuntimeOrigin::root()).unwrap();
 			}
 		});

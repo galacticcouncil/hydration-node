@@ -35,6 +35,7 @@ pallet-timestamp = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-omnipool = { workspace = true }
 pallet-asset-registry = { workspace = true }
+pallet-staking = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-multisig = { workspace = true }
 pallet-proxy = { workspace = true }
