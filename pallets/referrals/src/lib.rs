@@ -43,6 +43,7 @@ pub mod weights;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarking;
+pub mod migration;
 #[cfg(test)]
 mod tests;
 pub mod traits;
