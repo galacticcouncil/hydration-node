@@ -65,7 +65,7 @@ fn assert_asset_invariant(
 fn fee() -> impl Strategy<Value = Permill> {
 	// Allow values between 0.001 and 0.1
 	(
-		0u32..=1u32,
+		0u32..=30u32,
 		prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)],
 	)
 		.prop_map(|(n, d)| Permill::from_rational(n, d))
