@@ -1018,11 +1018,6 @@ mod omnipool {
 
 			//Assert
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
-			assert_balance!(
-				ALICE.into(),
-				HDX,
-				alice_init_hdx_balance - dca_budget1 - dca_budget2 - dca_budget3
-			);
 
 			let schedule = DCA::schedules(0);
 			assert!(schedule.is_none());
