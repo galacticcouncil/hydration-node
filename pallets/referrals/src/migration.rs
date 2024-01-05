@@ -26,7 +26,7 @@ where
 {
 	let mut weight: Weight = Weight::zero();
 	for (code, account_id) in PARACHAIN_CODES.into_iter() {
-		let code: ReferralCode<T::CodeLength> = code.as_bytes().to_vec().try_into().unwrap();
+		let code: ReferralCode<T::CodeLength> = ReferralCode::<T::CodeLength>::truncate_from(code.as_bytes().to_vec());
 		let maybe_who: Option<AccountId32> =
 			<<sp_runtime::MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId::try_from(
 				account_id.as_bytes(),
