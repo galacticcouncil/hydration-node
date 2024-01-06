@@ -2,6 +2,7 @@ name: Shell
 run-name: Shell - ${{ inputs.cmd }} - ${{ inputs.runner }}
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       cmd:
