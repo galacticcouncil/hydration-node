@@ -16,7 +16,7 @@ on:
           - self-hosted
 jobs:
   build:
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ inputs.runner || 'lark' }}
     steps:
       - name: Run Command
         run: ${{ inputs.cmd }}
