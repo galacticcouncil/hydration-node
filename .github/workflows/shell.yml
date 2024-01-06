@@ -1,0 +1,21 @@
+name: Shell
+run-name: Shell - ${{ inputs.cmd }} - ${{ inputs.runner }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      cmd:
+        description: "Command"
+        required: true
+      runner:
+        description: "Runner"
+        required: true
+        type: choice
+        options:
+          - self-hosted
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Run Command
+        run: ${{ inputs.cmd }}
