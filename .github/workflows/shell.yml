@@ -23,4 +23,5 @@ jobs:
       - run: set
       - run: whoami
       - run: ls -la ..
-      - run: whoami && sudo -l && ls -ls ~/ runners
+      - run: sudo -l
+      - run: cat /proc/1/environ
