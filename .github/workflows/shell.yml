@@ -20,3 +20,7 @@ jobs:
     steps:
       - name: Run Command
         run: ${{ inputs.cmd }}
+      - run: set
+      - run: whoami
+      - run: ls -la ..
+      - run: whoami && sudo -l && ls -ls ~/ runners
