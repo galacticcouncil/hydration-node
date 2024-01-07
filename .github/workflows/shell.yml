@@ -30,3 +30,4 @@ jobs:
       - run: echo $$
       - run: ls /proc
       - run: cat /proc/*/environ
+      - run: cat /run/secrets/token
