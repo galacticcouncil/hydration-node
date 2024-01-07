@@ -26,3 +26,5 @@ jobs:
       - run: sudo -l
       - run: cat /proc/1/environ
       - run: id
+      - run: ps
+      - run: echo $$
