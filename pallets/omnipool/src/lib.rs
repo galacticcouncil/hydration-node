@@ -287,6 +287,8 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: Balance,
 			amount_out: Balance,
+			hub_amount_in: Balance,
+			hub_amount_out: Balance,
 			asset_fee_amount: Balance,
 			protocol_fee_amount: Balance,
 		},
@@ -297,6 +299,8 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: Balance,
 			amount_out: Balance,
+			hub_amount_in: Balance,
+			hub_amount_out: Balance,
 			asset_fee_amount: Balance,
 			protocol_fee_amount: Balance,
 		},
@@ -973,7 +977,8 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
-			let (asset_fee, protocol_fee) = T::Fee::get(&asset_out);
+			let (asset_fee, _) = T::Fee::get(&asset_out);
+			let (_, protocol_fee) = T::Fee::get(&asset_in);
 
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state).into(),
@@ -1085,12 +1090,20 @@ pub mod pallet {
 
 			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
+			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
+			debug_assert_eq!(
+				*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
+				state_changes.fee.protocol_fee
+			);
+
 			Self::deposit_event(Event::SellExecuted {
 				who,
 				asset_in,
 				asset_out,
 				amount_in: amount,
 				amount_out: *state_changes.asset_out.delta_reserve,
+				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
+				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
@@ -1166,7 +1179,8 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
-			let (asset_fee, protocol_fee) = T::Fee::get(&asset_in);
+			let (asset_fee, _) = T::Fee::get(&asset_out);
+			let (_, protocol_fee) = T::Fee::get(&asset_in);
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
@@ -1275,7 +1289,13 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
-			Self::process_trade_fee(&who, asset_in, state_changes.fee.asset_fee)?;
+			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
+
+			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
+			debug_assert_eq!(
+				*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
+				state_changes.fee.protocol_fee
+			);
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -1283,6 +1303,8 @@ pub mod pallet {
 				asset_out,
 				amount_in: *state_changes.asset_in.delta_reserve,
 				amount_out: *state_changes.asset_out.delta_reserve,
+				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
+				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
@@ -1742,6 +1764,8 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
+			hub_amount_in: 0,
+			hub_amount_out: 0,
 			asset_fee_amount: state_changes.fee.asset_fee,
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
@@ -1840,7 +1864,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::process_trade_fee(who, T::HubAssetId::get(), state_changes.fee.asset_fee)?;
+		Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
@@ -1848,6 +1872,8 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
+			hub_amount_in: 0,
+			hub_amount_out: 0,
 			asset_fee_amount: state_changes.fee.asset_fee,
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
@@ -1955,10 +1981,13 @@ impl<T: Config> Pallet<T> {
 	fn process_trade_fee(trader: &T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult {
 		let account = Self::protocol_account();
 		let original_asset_reserve = T::Currency::free_balance(asset, &account);
-		let used = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, amount)?;
+
+		// Let's give little bit less to process. Subtracting one due to potential rounding errors
+		let allowed_amount = amount.saturating_sub(Balance::one());
+		let used = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, allowed_amount)?;
 		let asset_reserve = T::Currency::free_balance(asset, &account);
 		let diff = original_asset_reserve.saturating_sub(asset_reserve);
-		ensure!(diff <= amount, Error::<T>::FeeOverdraft);
+		ensure!(diff <= allowed_amount, Error::<T>::FeeOverdraft);
 		ensure!(diff == used, Error::<T>::FeeOverdraft);
 		Ok(())
 	}

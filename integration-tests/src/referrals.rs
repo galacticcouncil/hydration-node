@@ -6,6 +6,7 @@ use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, S
 use orml_traits::MultiCurrency;
 use pallet_referrals::{FeeDistribution, ReferralCode};
 use primitives::AccountId;
+use sp_core::crypto::Ss58AddressFormat;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use xcm_emulator::TestExt;
@@ -46,6 +47,30 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 		assert_eq!(pot_balance, 28_540_796_051_302_768);
 	});
 }
+
+#[test]
+fn buying_in_omnipool_should_transfer_portion_of_asset_out_fee_to_reward_pot() {
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE.into()),
+			code.clone()
+		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(BOB.into()),
+			DAI,
+			HDX,
+			1_000_000_000_000_000_000,
+			u128::MAX,
+		));
+		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
+		assert_eq!(pot_balance, 29_794_264_670_024_389);
+	});
+}
+
 #[test]
 fn trading_lrna_omnipool_should_not_transfer_portion_of_fee_to_reward_pot() {
 	Hydra::execute_with(|| {
@@ -221,7 +246,7 @@ fn trading_in_omnipool_should_transfer_some_portion_of_fee_when_no_code_linked()
 			0
 		));
 		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(pot_balance, 28_540_796_051_302_770);
+		assert_eq!(pot_balance, 28_540_796_051_302_769);
 		let external_shares = Referrals::trader_shares::<AccountId>(Staking::pot_account_id());
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, external_shares);
@@ -293,6 +318,80 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 		assert_eq!(external_shares, 1_066_967_747_190);
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, referrer_shares + trader_shares + external_shares);
+	});
+}
+
+#[test]
+fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
+		let staking_acc = Staking::pot_account_id();
+		let ref_account = Referrals::pot_account_id();
+		let orig_balance = Currencies::free_balance(DAI, &ref_account);
+		let stak_orig_balance = Currencies::free_balance(HDX, &staking_acc);
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			1_000_000_000_000,
+			u128::MAX,
+		));
+
+		expect_hydra_events(vec![pallet_omnipool::Event::BuyExecuted {
+			who: BOB.into(),
+			asset_in: DAI,
+			asset_out: HDX,
+			amount_in: 26_831_707_982_513_510,
+			amount_out: 1_000_000_000_000,
+			hub_amount_in: 1_209_571_666,
+			hub_amount_out: 1_208_966_881,
+			asset_fee_amount: 2_650_003_961,
+			protocol_fee_amount: 604785,
+		}
+		.into()]);
+
+		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
+		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
+		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 0);
+		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 2_650_003_960);
+	});
+}
+
+#[test]
+fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
+		let staking_acc = Staking::pot_account_id();
+		let ref_account = Referrals::pot_account_id();
+		let orig_balance = Currencies::free_balance(DAI, &ref_account);
+		let stak_orig_balance = Currencies::free_balance(HDX, &staking_acc);
+		assert_ok!(Omnipool::buy(
+			RuntimeOrigin::signed(BOB.into()),
+			DAI,
+			HDX,
+			1_000_000_000_000_000_000,
+			u128::MAX,
+		));
+
+		expect_hydra_events(vec![pallet_omnipool::Event::BuyExecuted {
+			who: BOB.into(),
+			asset_in: HDX,
+			asset_out: DAI,
+			amount_in: 37_504_158_320_270,
+			amount_out: 1_000_000_000_000_000_000,
+			hub_amount_in: 45219585307,
+			hub_amount_out: 45196975515,
+			asset_fee_amount: 2_575_616_759_455_040,
+			protocol_fee_amount: 22609792,
+		}
+		.into()]);
+
+		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
+		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
+		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 2_575_616_759_455_040 / 2 - 1);
+		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 0);
 	});
 }
 
@@ -391,4 +490,37 @@ fn seed_pot_account() {
 		HDX,
 		(10 * UNITS) as i128,
 	));
+}
+
+use sp_core::crypto::Ss58Codec;
+pub const PARACHAIN_CODES: [(&str, &str); 12] = [
+	("MOONBEAM", "7LCt6dFmtiRrwZv2YyEgQWW3GxsGX3Krmgzv9Xj7GQ9tG2j8"),
+	("ASSETHUB", "7LCt6dFqtxzdKVB2648jWW9d85doiFfLSbZJDNAMVJNxh5rJ"),
+	("INTERLAY", "7LCt6dFsW7xwUutdYad3oeQ1zfQvZ9THXbBupWLqpd72bmnM"),
+	("CENTRIFUGE", "7LCt6dFsJVukxnxpix9KcTkwu2kWQnXARsy6BuBHEL54NcS6"),
+	("ASTAR", "7LCt6dFnHxYDyomeCEC8nsnBUEC6omC6y7SZQk4ESzDpiDYo"),
+	("BIFROST", "7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq"),
+	("ZEITGEIST", "7LCt6dFCEKr7CctCKBb6CcQdV9iHDue3JcpxkkFCqJZbk3Xk"),
+	("PHALA", "7LCt6dFt6z8V3Gg41U4EPCKEHZQAzEFepirNiKqXbWCwHECN"),
+	("UNIQUE", "7LCt6dFtWEEr5WXfej1gmZbNUpj1Gx7u29J1yYAen6GsjQTj"),
+	("NODLE", "7LCt6dFrJPdrNCKncokgeYZbQsSRgyrYwKrz2sMUGruDF9gJ"),
+	("SUBSOCIAL", "7LCt6dFE2vLjshEThqtdwGAGMqg2XA39C1pMSCjG9wsKnR2Q"),
+	("POLKADOT", "7KQx4f7yU3hqZHfvDVnSfe6mpgAT8Pxyr67LXHV6nsbZo3Tm"),
+];
+
+#[test]
+fn verify_preregisters_codes() {
+	Hydra::execute_with(|| {
+		pallet_referrals::migration::preregister_parachain_codes::<hydradx_runtime::Runtime>();
+		for (code, account) in PARACHAIN_CODES.into_iter() {
+			let code =
+				ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::try_from(code.as_bytes().to_vec())
+					.unwrap();
+			let a = Referrals::referral_account(code);
+			assert_eq!(
+				a.unwrap().to_ss58check_with_version(Ss58AddressFormat::custom(63)),
+				account
+			);
+		}
+	});
 }

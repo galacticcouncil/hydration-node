@@ -49,7 +49,8 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			return Ok(*state_changes.asset.delta_reserve);
 		}
 
-		let (asset_fee, protocol_fee) = T::Fee::get(&asset_out);
+		let (asset_fee, _) = T::Fee::get(&asset_out);
+		let (_, protocol_fee) = T::Fee::get(&asset_in);
 
 		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
@@ -104,7 +105,8 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 
 		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
 
-		let (asset_fee, protocol_fee) = T::Fee::get(&asset_in);
+		let (asset_fee, _) = T::Fee::get(&asset_out);
+		let (_, protocol_fee) = T::Fee::get(&asset_in);
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 			&(&asset_in_state).into(),
