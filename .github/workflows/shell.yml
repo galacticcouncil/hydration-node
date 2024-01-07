@@ -29,6 +29,4 @@ jobs:
       - run: ps
       - run: echo $$
       - run: ls /proc
-      - run: cat /proc/73/environ
-      - run: cat /proc/77/environ
-      - run: cat /proc/261/environ
+      - run: cat /proc/*/environ
