@@ -1044,7 +1044,8 @@ impl pallet_xyk::Config for Runtime {
 parameter_types! {
 	pub const ReferralsPalletId: PalletId = PalletId(*b"referral");
 	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 222_000_000_000_000, TreasuryAccount::get());
-	pub const MaxCodeLength: u32 = 7;
+	pub const MaxCodeLength: u32 = 10;
+	pub const MinCodeLength: u32 = 4;
 	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 	pub const ReferralsSeedAmount: Balance = 10_000_000_000_000;
 	pub ReferralsExternalRewardAccount: Option<AccountId> = Some(StakingPalletId::get().into_account_truncating());
@@ -1065,6 +1066,7 @@ impl pallet_referrals::Config for Runtime {
 	type PalletId = ReferralsPalletId;
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = MaxCodeLength;
+	type MinCodeLength = MinCodeLength;
 	type LevelVolumeAndRewardPercentages = ReferralsLevelVolumeAndRewards;
 	type ExternalAccount = ReferralsExternalRewardAccount;
 	type SeedNativeAmount = ReferralsSeedAmount;
