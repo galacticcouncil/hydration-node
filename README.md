@@ -171,7 +171,7 @@ The output will show benchmark results of HydraDX pallets and comparison against
 The most interesting information would be the difference between the HydraDx benchmark value and the local machine's benchmark.
 
 If the difference is >= 0, performance is similar or better.
-However, if the difference < 0 - your machine might not suitable to run HydraDX node. Contact HydraDX devs to discuss the results.
+However, if the difference < 0 - your machine might not be suitable to run HydraDX node. Contact HydraDX devs to discuss the results.
 
 ### Testing of storage migrations and runtime upgrades
 

@@ -625,23 +625,21 @@ mod router_different_pools_tests {
 			assert_eq!(
 				RouterWeightInfo::sell_weight(trades.as_slice()),
 				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 1)
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_trade_weight()
-					)
+					.checked_add(&<OmnipoolHookAdapter<
+						RuntimeOrigin,
+						ConstU32<HDX>,
+						ConstU32<LRNA>,
+						Runtime,
+					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_trade_weight(
+					))
 					.unwrap()
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_liquidity_changed_weight()
-					)
+					.checked_add(&<OmnipoolHookAdapter<
+						RuntimeOrigin,
+						ConstU32<HDX>,
+						ConstU32<LRNA>,
+						Runtime,
+					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
+					))
 					.unwrap()
 					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1))
 					.unwrap()
@@ -655,23 +653,21 @@ mod router_different_pools_tests {
 			assert_eq!(
 				RouterWeightInfo::buy_weight(trades.as_slice()),
 				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(1, 1)
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_trade_weight()
-					)
+					.checked_add(&<OmnipoolHookAdapter<
+						RuntimeOrigin,
+						ConstU32<HDX>,
+						ConstU32<LRNA>,
+						Runtime,
+					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_trade_weight(
+					))
 					.unwrap()
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_liquidity_changed_weight()
-					)
+					.checked_add(&<OmnipoolHookAdapter<
+						RuntimeOrigin,
+						ConstU32<HDX>,
+						ConstU32<LRNA>,
+						Runtime,
+					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
+					))
 					.unwrap()
 					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1))
 					.unwrap()
@@ -837,6 +833,8 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				hub_amount_in: 12014871681,
+				hub_amount_out: 12008864246,
 				asset_fee_amount: 667_155_563_986_401,
 				protocol_fee_amount: 6_007_435,
 			}
@@ -983,7 +981,9 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
-				asset_fee_amount: 111_528,
+				hub_amount_in: 45135,
+				hub_amount_out: 45113,
+				asset_fee_amount: 2_506_265_665,
 				protocol_fee_amount: 22,
 			}
 			.into()]);
