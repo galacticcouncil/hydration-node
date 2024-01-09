@@ -12,6 +12,7 @@ pub fn get_native_endowed_accounts() -> Vec<(AccountId, u128)> {
 pub fn get_nonnative_endowed_accounts(assets: Vec<(u32, u8)>) -> Vec<(AccountId, Vec<(u32, u128)>)> {
 	let amounts: Vec<(u32, u128)> = assets
 		.into_iter()
+		.filter(|(asset_id, _)| *asset_id != 100) // Exclude stablepools. TODO: make as parameter
 		.map(|(asset_id, decimals)| (asset_id, INITIAL_AMOUNT * 10u128.pow(decimals as u32)))
 		.collect();
 	(0..ACCOUNT_COUNT).map(|i| ([i; 32].into(), amounts.clone())).collect()

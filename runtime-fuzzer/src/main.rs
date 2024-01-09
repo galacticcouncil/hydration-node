@@ -19,8 +19,8 @@ use frame_support::{
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use hydradx_runtime::*;
+use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
 use omnipool::omnipool_initial_state;
-use stableswap::stablepools;
 use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::SLOT_DURATION,
@@ -33,6 +33,7 @@ use sp_runtime::{
 	Digest, DigestItem, Storage,
 };
 use sp_state_machine::TestExternalities;
+use stableswap::stablepools;
 #[cfg(feature = "deprecated-substrate")]
 use {frame_support::weights::constants::WEIGHT_PER_SECOND as WEIGHT_REF_TIME_PER_SECOND, sp_runtime::traits::Zero};
 
@@ -439,16 +440,23 @@ fn main() {
 			let registry_calls = registry_setup.calls();
 			let omnipool_calls = omnipool_setup.calls(&get_omnipool_position_owner());
 			let stableswap_calls = stableswap_pool.calls();
-			for call in registry_calls.into_iter().chain(omnipool_calls.into_iter()).chain(stableswap_calls.into_iter()) {
+			for call in registry_calls
+				.into_iter()
+				.chain(omnipool_calls.into_iter())
+				.chain(stableswap_calls.into_iter())
+			{
 				call.dispatch(RuntimeOrigin::root()).unwrap();
 			}
 
 			let stableswap_liquidity = stableswap_pool.add_liquid_calls();
 			for call in stableswap_liquidity.into_iter() {
-				println!("  call:       {:?}", call);
-				call.dispatch(RuntimeOrigin::signed(stablepools_creator.clone())).unwrap();
+				call.dispatch(RuntimeOrigin::signed(stablepools_creator.clone()))
+					.unwrap();
 			}
-
+			let add_stable_tokens = stableswap_pool.add_token_calls(stablepools_creator.clone());
+			for call in add_stable_tokens.into_iter() {
+				call.dispatch(RuntimeOrigin::root()).unwrap();
+			}
 		});
 
 		for (maybe_lapse, origin, extrinsic) in extrinsics {

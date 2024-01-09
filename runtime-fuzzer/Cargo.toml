@@ -41,6 +41,9 @@ pallet-multisig = { workspace = true }
 pallet-proxy = { workspace = true }
 pallet-collective = { workspace = true }
 
+orml-tokens = { workspace = true }
+hydradx-traits = {workspace = true}
+
 
 cumulus-pallet-parachain-system = { workspace = true }
 cumulus-primitives-core = { workspace = true }

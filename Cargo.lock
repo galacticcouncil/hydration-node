@@ -4349,6 +4349,8 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydradx-runtime",
+ "hydradx-traits",
+ "orml-tokens",
  "pallet-asset-registry",
  "pallet-aura",
  "pallet-balances",
