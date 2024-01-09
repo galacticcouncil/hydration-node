@@ -1599,7 +1599,7 @@ pub mod pallet {
 			}
 			for (asset_id, total) in shares.into_iter() {
 				let state = Assets::<T>::get(&asset_id).unwrap();
-				assert_eq!(state.shares + state.protocol_shares, total, "Asset {:?} shares in positions is not equal to shares in asset state", asset_id);
+				assert_eq!(state.shares - state.protocol_shares, total, "Asset {:?} shares in positions is not equal to shares in asset state", asset_id);
 			}
 			Ok(())
 		}
