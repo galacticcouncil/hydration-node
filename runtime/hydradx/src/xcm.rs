@@ -414,6 +414,7 @@ impl Contains<RuntimeCall> for SafeCallFilter {
 				| RuntimeCall::OmnipoolLiquidityMining(..)
 				| RuntimeCall::OTC(..)
 				| RuntimeCall::CircuitBreaker(..)
+				| RuntimeCall::Router(..)
 				| RuntimeCall::DCA(..)
 				| RuntimeCall::MultiTransactionPayment(..)
 				| RuntimeCall::Currencies(..)
