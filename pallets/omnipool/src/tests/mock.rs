@@ -77,6 +77,7 @@ thread_local! {
 	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 	pub static WITHDRAWAL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static ON_TRADE_WITHDRAWAL: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 }
 
 construct_runtime!(
@@ -192,7 +193,7 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
-	type OmnipoolHooks = ();
+	type OmnipoolHooks = MockHooks;
 	type PriceBarrier = (
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff, ()>,
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, ()>,
@@ -353,6 +354,11 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_on_trade_withdrawal(self, p: Permill) -> Self {
+		ON_TRADE_WITHDRAWAL.with(|v| *v.borrow_mut() = p);
+		self
+	}
+
 	pub fn with_token(
 		mut self,
 		asset_id: AssetId,
@@ -448,6 +454,10 @@ impl ExtBuilder {
 				}
 			});
 		}
+
+		r.execute_with(|| {
+			System::set_block_number(1);
+		});
 
 		r
 	}
@@ -644,5 +654,54 @@ pub struct FeeProvider;
 impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
 	fn get(_: &AssetId) -> (Permill, Permill) {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
+}
+
+pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
+	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
+
+pub struct MockHooks;
+
+impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
+	type Error = DispatchError;
+
+	fn on_liquidity_changed(
+		_origin: RuntimeOrigin,
+		_asset: AssetInfo<AssetId, Balance>,
+	) -> Result<Weight, Self::Error> {
+		Ok(Weight::zero())
+	}
+
+	fn on_trade(
+		_origin: RuntimeOrigin,
+		_asset_in: AssetInfo<AssetId, Balance>,
+		_asset_out: AssetInfo<AssetId, Balance>,
+	) -> Result<Weight, Self::Error> {
+		Ok(Weight::zero())
+	}
+
+	fn on_hub_asset_trade(_origin: RuntimeOrigin, _asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		Ok(Weight::zero())
+	}
+
+	fn on_liquidity_changed_weight() -> Weight {
+		Weight::zero()
+	}
+
+	fn on_trade_weight() -> Weight {
+		Weight::zero()
+	}
+
+	fn on_trade_fee(
+		fee_account: AccountId,
+		_trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Balance, Self::Error> {
+		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
+		let to_take = percentage.mul_floor(amount);
+		Tokens::withdraw(asset, &fee_account, to_take)?;
+		Ok(to_take)
 	}
 }

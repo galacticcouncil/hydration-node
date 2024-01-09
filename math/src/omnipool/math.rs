@@ -11,7 +11,7 @@ use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::cmp::min;
-use sp_std::ops::Sub;
+use sp_std::ops::{Div, Sub};
 
 #[inline]
 fn amount_without_fee(amount: Balance, fee: Permill) -> Option<Balance> {
@@ -128,39 +128,25 @@ pub fn calculate_sell_hub_state_changes(
 	})
 }
 
-// only temporary helper function to calculate in amount with no fees
-// will be removed when fee calculation in buy is simplified
-fn calculate_hub_asset_in_for_given_out_no_fees(
-	asset_out_state: &AssetReserveState<Balance>,
-	asset_out_amount: Balance,
-	imbalance: I129<Balance>,
-	total_hub_reserve: Balance,
-) -> Option<HubTradeStateChange<Balance>> {
-	let asset_fee = Permill::zero();
-	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
-	let hub_denominator = reserve_no_fee.checked_sub(asset_out_amount)?;
+#[inline]
+pub(crate) fn calculate_fee_amount_for_buy(fee: Permill, amount: Balance) -> Balance {
+	if fee.is_zero() {
+		return Balance::zero();
+	}
+	if fee == Permill::one() {
+		return amount;
+	}
 
-	let (hub_reserve_hp, amount_hp, hub_denominator_hp) =
-		to_u256!(asset_out_state.hub_reserve, asset_out_amount, hub_denominator);
-
-	let delta_hub_reserve_hp = hub_reserve_hp.checked_mul(amount_hp).and_then(|v| {
-		v.checked_div(hub_denominator_hp)
-			.and_then(|v| v.checked_add(U256::one()))
-	})?;
-
-	let delta_hub_reserve = to_balance!(delta_hub_reserve_hp).ok()?;
-
-	let delta_imbalance = calculate_imbalance_in_hub_swap(total_hub_reserve, delta_hub_reserve, imbalance)?;
-
-	Some(HubTradeStateChange {
-		asset: AssetStateChange {
-			delta_reserve: Decrease(asset_out_amount),
-			delta_hub_reserve: Increase(delta_hub_reserve),
-			..Default::default()
-		},
-		delta_imbalance: Decrease(delta_imbalance),
-		fee: TradeFee::default(),
-	})
+	let (numerator, denominator) = (fee.deconstruct() as u128, 1_000_000u128);
+	// Already handled but just in case, so div is safe safe. this is 100%
+	if numerator == denominator {
+		return amount;
+	}
+	// Round up
+	numerator
+		.saturating_mul(amount)
+		.div(denominator.saturating_sub(numerator))
+		.saturating_add(Balance::one())
 }
 
 /// Calculate delta changes of a buy trade where asset_in is Hub Asset
@@ -186,12 +172,7 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 
 	let delta_imbalance = calculate_imbalance_in_hub_swap(total_hub_reserve, delta_hub_reserve, imbalance)?;
 
-	// TODO: consider rework the math here
-	// currently we just recalculate the state changes with zero fees and work out the difference to get fee amount
-	let no_fee_changes =
-		calculate_hub_asset_in_for_given_out_no_fees(asset_out_state, asset_out_amount, imbalance, total_hub_reserve)?;
-	let asset_fee = delta_hub_reserve.saturating_sub(*no_fee_changes.asset.delta_hub_reserve);
-
+	let fee_amount = calculate_fee_amount_for_buy(asset_fee, asset_out_amount);
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(asset_out_amount),
@@ -200,72 +181,9 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 		},
 		delta_imbalance: Decrease(delta_imbalance),
 		fee: TradeFee {
-			asset_fee,
+			asset_fee: fee_amount,
 			..Default::default()
 		},
-	})
-}
-
-// only temporary helper function to calculate in amount with no fees
-// will be removed when fee calculation in buy is simplified
-fn calculate_amount_in_no_fee(
-	asset_in_state: &AssetReserveState<Balance>,
-	asset_out_state: &AssetReserveState<Balance>,
-	amount: Balance,
-	imbalance: Balance,
-) -> Option<TradeStateChange<Balance>> {
-	let asset_fee = Permill::zero();
-	let protocol_fee = Permill::zero();
-	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
-	let (out_hub_reserve, out_reserve_no_fee, out_amount) =
-		to_u256!(asset_out_state.hub_reserve, reserve_no_fee, amount);
-
-	let delta_hub_reserve_out = out_hub_reserve
-		.checked_mul(out_amount)
-		.and_then(|v| v.checked_div(out_reserve_no_fee.checked_sub(out_amount)?))?;
-
-	let delta_hub_reserve_out = to_balance!(delta_hub_reserve_out).ok()?;
-	let delta_hub_reserve_out = delta_hub_reserve_out.checked_add(Balance::one())?;
-
-	// Negative
-	let delta_hub_reserve_in: Balance = FixedU128::from_inner(delta_hub_reserve_out)
-		.checked_div(&Permill::from_percent(100).sub(protocol_fee).into())?
-		.into_inner();
-
-	if delta_hub_reserve_in >= asset_in_state.hub_reserve {
-		return None;
-	}
-
-	let (delta_hub_reserve_in_hp, in_hub_reserve_hp, in_reserve_hp) =
-		to_u256!(delta_hub_reserve_in, asset_in_state.hub_reserve, asset_in_state.reserve);
-
-	let delta_reserve_in = in_reserve_hp
-		.checked_mul(delta_hub_reserve_in_hp)
-		.and_then(|v| v.checked_div(in_hub_reserve_hp.checked_sub(delta_hub_reserve_in_hp)?))?;
-
-	let delta_reserve_in = to_balance!(delta_reserve_in).ok()?;
-	let delta_reserve_in = delta_reserve_in.checked_add(Balance::one())?;
-
-	// Fee accounting and imbalance
-	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
-	let delta_imbalance = min(protocol_fee_amount, imbalance);
-
-	let hdx_fee_amount = protocol_fee_amount.checked_sub(delta_imbalance)?;
-
-	Some(TradeStateChange {
-		asset_in: AssetStateChange {
-			delta_reserve: Increase(delta_reserve_in),
-			delta_hub_reserve: Decrease(delta_hub_reserve_in),
-			..Default::default()
-		},
-		asset_out: AssetStateChange {
-			delta_reserve: Decrease(amount),
-			delta_hub_reserve: Increase(delta_hub_reserve_out),
-			..Default::default()
-		},
-		delta_imbalance: BalanceUpdate::Increase(delta_imbalance),
-		hdx_hub_amount: hdx_fee_amount,
-		fee: TradeFee::default(),
 	})
 }
 
@@ -308,12 +226,7 @@ pub fn calculate_buy_state_changes(
 	let delta_reserve_in = to_balance!(delta_reserve_in).ok()?;
 	let delta_reserve_in = delta_reserve_in.checked_add(Balance::one())?;
 
-	// TODO: consider rework the math here
-	// currently we just recalculate the state changes with zero fees and work out the difference to get fee amount
-	// but it is unnecessary work
-	let no_fee_changes = calculate_amount_in_no_fee(asset_in_state, asset_out_state, amount, imbalance)?;
-	let asset_fee = delta_reserve_in.saturating_sub(*no_fee_changes.asset_in.delta_reserve);
-
+	let fee_amount = calculate_fee_amount_for_buy(asset_fee, amount);
 	// Fee accounting and imbalance
 	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 	let delta_imbalance = min(protocol_fee_amount, imbalance);
@@ -334,7 +247,7 @@ pub fn calculate_buy_state_changes(
 		delta_imbalance: BalanceUpdate::Increase(delta_imbalance),
 		hdx_hub_amount: hdx_fee_amount,
 		fee: TradeFee {
-			asset_fee,
+			asset_fee: fee_amount,
 			protocol_fee: protocol_fee_amount,
 		},
 	})
