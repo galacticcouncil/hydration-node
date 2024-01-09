@@ -12161,16 +12161,20 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "scraper"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "clap 3.2.25",
  "frame-remote-externalities",
+ "frame-support",
+ "frame-system",
  "hydradx-runtime",
  "jsonrpsee 0.15.1",
+ "pallet-balances",
  "parity-scale-codec",
  "serde",
+ "sp-core",
  "sp-rpc",
- "sp-runtime",
+ "sp-state-machine",
  "substrate-rpc-client",
  "tokio",
 ]
