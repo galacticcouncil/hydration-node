@@ -1,16 +1,4 @@
 [[asset]]
-symbol = "4-Pool"
-asset_id = 100
-reserve = "1537699181726746364831155"
-hub_reserve = "40725106702591093"
-shares = "1205803918839916596024870"
-protocol_shares = "189164481498470554359"
-cap = "200000000000000000"
-tradability = "15"
-asset_fee = "0.2543"
-protocol_fee = "0.05"
-
-[[asset]]
 symbol = "HDX"
 asset_id = 0
 reserve = "73927734532192294158"

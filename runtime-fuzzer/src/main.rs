@@ -1,6 +1,7 @@
 mod accounts;
 mod omnipool;
 mod registry;
+mod stableswap;
 mod staking;
 
 use accounts::{
@@ -19,6 +20,7 @@ use frame_support::{
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use hydradx_runtime::*;
+use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
 use omnipool::omnipool_initial_state;
 use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
@@ -32,6 +34,7 @@ use sp_runtime::{
 	Digest, DigestItem, Storage,
 };
 use sp_state_machine::TestExternalities;
+use stableswap::stablepools;
 #[cfg(feature = "deprecated-substrate")]
 use {frame_support::weights::constants::WEIGHT_PER_SECOND as WEIGHT_REF_TIME_PER_SECOND, sp_runtime::traits::Zero};
 
@@ -172,6 +175,10 @@ fn main() {
 	// Omnipool state
 	let omnipool_account = pallet_omnipool::Pallet::<FuzzedRuntime>::protocol_account();
 	let omnipool_setup = omnipool_initial_state();
+	let stableswap_pool = stablepools();
+	let stablepools_creator: AccountId = [222; 32].into();
+	let stable_account_balacnes = stableswap_pool.endowed_account(stablepools_creator.clone());
+
 	let (omnipool_native_balance, omnipool_balances) = omnipool_setup.get_omnipool_reserves();
 
 	// Staking
@@ -186,6 +193,7 @@ fn main() {
 	let mut non_native_endowed_accounts = get_nonnative_endowed_accounts(registry_setup.asset_decimals());
 	// Extend with omnipool initial state of each asset in omnipool
 	non_native_endowed_accounts.push((omnipool_account.clone(), omnipool_balances));
+	non_native_endowed_accounts.extend(stable_account_balacnes);
 
 	// We generate a genesis storage item, which will be cloned to create a runtime.
 	let genesis_storage: Storage = {
@@ -436,12 +444,23 @@ fn main() {
 		externalities.execute_with(|| {
 			let registry_calls = registry_setup.calls();
 			let staking_calls = staking_initial.calls();
+			let stableswap_calls = stableswap_pool.calls();
 			let omnipool_calls = omnipool_setup.calls(&get_omnipool_position_owner());
 			for call in registry_calls
 				.into_iter()
 				.chain(staking_calls.into_iter())
+				.chain(stableswap_calls.into_iter())
 				.chain(omnipool_calls.into_iter())
 			{
+				call.dispatch(RuntimeOrigin::root()).unwrap();
+			}
+			let stableswap_liquidity = stableswap_pool.add_liquid_calls();
+			for call in stableswap_liquidity.into_iter() {
+				call.dispatch(RuntimeOrigin::signed(stablepools_creator.clone()))
+					.unwrap();
+			}
+			let add_stable_tokens = stableswap_pool.add_token_calls(stablepools_creator.clone());
+			for call in add_stable_tokens.into_iter() {
 				call.dispatch(RuntimeOrigin::root()).unwrap();
 			}
 		});
