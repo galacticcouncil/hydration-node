@@ -44,6 +44,7 @@ extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional};
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
 pub use pallet::*;
 use sp_runtime::traits::{BlockNumberProvider, Zero};
@@ -610,6 +611,13 @@ pub mod pallet {
 
 			let assets = pool.assets.clone();
 
+			#[cfg(feature = "try-runtime")]
+			let balances_copy = balances.clone();
+			#[cfg(feature = "try-runtime")]
+			let updated_balances_copy = updated_balances.clone();
+			#[cfg(feature = "try-runtime")]
+			let pool_copy = pool.clone();
+
 			let state = PoolState {
 				assets: pool.assets.into_inner(),
 				before: balances.into_iter().map(|v| v.into()).collect(),
@@ -632,6 +640,9 @@ pub mod pallet {
 				amounts: vec![AssetAmount { asset_id, amount }],
 				fee,
 			});
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_remove_liquidity_invariant(&balances_copy, &updated_balances_copy, pool_copy);
 
 			Ok(())
 		}
@@ -794,6 +805,13 @@ pub mod pallet {
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
+			#[cfg(feature = "try-runtime")]
+			let initial_reserves_copy = initial_reserves.clone();
+			#[cfg(feature = "try-runtime")]
+			let updated_reserves_copy = updated_balances.clone();
+			#[cfg(feature = "try-runtime")]
+			let pool_copy = pool.clone();
+
 			let state = PoolState {
 				assets: pool.assets.into_inner(),
 				before: initial_reserves.into_iter().map(|v| v.into()).collect(),
@@ -826,6 +844,9 @@ pub mod pallet {
 				amount_out,
 				fee: fee_amount,
 			});
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_trade_invariant(&initial_reserves_copy, &updated_reserves_copy, pool_copy);
 
 			Ok(())
 		}
@@ -1161,6 +1182,13 @@ impl<T: Config> Pallet<T> {
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
+		#[cfg(feature = "try-runtime")]
+		let initial_reserves_copy = initial_reserves.clone();
+		#[cfg(feature = "try-runtime")]
+		let updated_reserves_copy = updated_reserves.clone();
+		#[cfg(feature = "try-runtime")]
+		let pool_copy = pool.clone();
+
 		let state = PoolState {
 			assets: pool.assets.into_inner(),
 			before: initial_reserves.into_iter().map(|v| v.into()).collect(),
@@ -1172,6 +1200,9 @@ impl<T: Config> Pallet<T> {
 		};
 
 		T::Hooks::on_liquidity_changed(pool_id, state)?;
+
+		#[cfg(feature = "try-runtime")]
+		Self::ensure_add_liquidity_invariant(&initial_reserves_copy, &updated_reserves_copy, pool_copy);
 
 		Ok(share_amount)
 	}
@@ -1336,5 +1367,60 @@ impl<T: Config> Pallet<T> {
 		.ok_or(ArithmeticError::Overflow)?;
 
 		Ok(share_amount)
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn ensure_add_liquidity_invariant(
+		initial_reserves: &[AssetReserve],
+		updated_reserves: &[AssetReserve],
+		pool: PoolInfo<T::AssetId, BlockNumberFor<T>>,
+	) {
+		let amplification = Self::get_amplification(&pool);
+		let initial_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification).unwrap();
+		let final_d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(updated_reserves, amplification).unwrap();
+		assert!(
+			final_d >= initial_d,
+			"Add liquidity Invariant broken: D+ is less than initial D; {:?} <= {:?}",
+			initial_d,
+			final_d
+		);
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn ensure_remove_liquidity_invariant(
+		initial_reserves: &[AssetReserve],
+		updated_reserves: &[AssetReserve],
+		pool: PoolInfo<T::AssetId, BlockNumberFor<T>>,
+	) {
+		let amplification = Self::get_amplification(&pool);
+		let initial_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification).unwrap();
+		let final_d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(updated_reserves, amplification).unwrap();
+		assert!(
+			final_d <= initial_d,
+			"Remove liquidity Invariant broken: D+ is more than initial D; {:?} >= {:?}",
+			initial_d,
+			final_d
+		);
+	}
+	#[cfg(feature = "try-runtime")]
+	fn ensure_trade_invariant(
+		initial_reserves: &[AssetReserve],
+		updated_reserves: &[AssetReserve],
+		pool: PoolInfo<T::AssetId, BlockNumberFor<T>>,
+	) {
+		let amplification = Self::get_amplification(&pool);
+		let initial_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification).unwrap();
+		let final_d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(updated_reserves, amplification).unwrap();
+		assert!(
+			final_d >= initial_d,
+			"Trade Invariant broken: D+ is less than initial D; {:?} <= {:?}",
+			initial_d,
+			final_d
+		);
+		let diff = final_d - initial_d;
+		assert!(diff <= 5000, "Trade D difference is too big: {:?}", diff);
 	}
 }
