@@ -457,7 +457,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `Referrals::CounterForPendingConversions` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1974 + e * (4788 ±0)`
 		//  Estimated: `6156 + e * (7749 ±0)`
@@ -514,7 +514,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `Referrals::CounterForPendingConversions` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_buy(c: u32, e: u32, ) -> Weight {
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `6762`
 		//  Estimated: `13905`
@@ -920,7 +920,7 @@ impl WeightInfo for () {
 	/// Proof: `Referrals::CounterForPendingConversions` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1974 + e * (4788 ±0)`
 		//  Estimated: `6156 + e * (7749 ±0)`
@@ -977,7 +977,7 @@ impl WeightInfo for () {
 	/// Proof: `Referrals::CounterForPendingConversions` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_buy(c: u32, e: u32, ) -> Weight {
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `6762`
 		//  Estimated: `13905`
