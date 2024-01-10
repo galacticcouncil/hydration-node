@@ -28,7 +28,7 @@ fn registering_a_code_should_charge_registration_fee() {
 #[test]
 fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
@@ -44,14 +44,14 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 			0
 		));
 		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(pot_balance, 29_007_403_068_934_309);
+		assert_eq!(pot_balance, 28_540_796_051_302_768);
 	});
 }
 
 #[test]
 fn buying_in_omnipool_should_transfer_portion_of_asset_out_fee_to_reward_pot() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
@@ -74,7 +74,7 @@ fn buying_in_omnipool_should_transfer_portion_of_asset_out_fee_to_reward_pot() {
 #[test]
 fn trading_lrna_omnipool_should_not_transfer_portion_of_fee_to_reward_pot() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
@@ -97,7 +97,7 @@ fn trading_lrna_omnipool_should_not_transfer_portion_of_fee_to_reward_pot() {
 #[test]
 fn trading_in_omnipool_should_increase_referrer_shares() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
@@ -119,7 +119,7 @@ fn trading_in_omnipool_should_increase_referrer_shares() {
 #[test]
 fn trading_in_omnipool_should_increase_trader_shares() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
@@ -141,7 +141,7 @@ fn trading_in_omnipool_should_increase_trader_shares() {
 #[test]
 fn trading_in_omnipool_should_increase_external_shares() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
@@ -164,7 +164,7 @@ fn trading_in_omnipool_should_increase_external_shares() {
 #[test]
 fn trading_in_omnipool_should_increase_total_shares_correctly() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
@@ -180,14 +180,14 @@ fn trading_in_omnipool_should_increase_total_shares_correctly() {
 			0
 		));
 		let total_shares = Referrals::total_shares();
-		assert_eq!(total_shares, 1_085_456_162_214);
+		assert_eq!(total_shares, 1_067_995_741_459);
 	});
 }
 
 #[test]
 fn claiming_rewards_should_convert_all_assets_to_reward_asset() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
@@ -214,7 +214,7 @@ fn claiming_rewards_should_convert_all_assets_to_reward_asset() {
 #[test]
 fn trading_hdx_in_omnipool_should_skip_referrals_program() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
@@ -237,7 +237,7 @@ fn trading_hdx_in_omnipool_should_skip_referrals_program() {
 #[test]
 fn trading_in_omnipool_should_transfer_some_portion_of_fee_when_no_code_linked() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			HDX,
@@ -256,7 +256,7 @@ fn trading_in_omnipool_should_transfer_some_portion_of_fee_when_no_code_linked()
 #[test]
 fn trading_in_omnipool_should_use_global_rewards_when_not_set() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		let code =
 			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
 		assert_ok!(Referrals::register_code(
@@ -285,7 +285,7 @@ fn trading_in_omnipool_should_use_global_rewards_when_not_set() {
 #[test]
 fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		assert_ok!(Referrals::set_reward_percentage(
 			RuntimeOrigin::root(),
 			DAI,
@@ -324,7 +324,7 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 #[test]
 fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 		let staking_acc = Staking::pot_account_id();
 		let ref_account = Referrals::pot_account_id();
@@ -361,7 +361,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 #[test]
 fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 		let staking_acc = Staking::pot_account_id();
 		let ref_account = Referrals::pot_account_id();
@@ -398,7 +398,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 #[test]
 fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_for_block_12();
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			HDX,
@@ -449,10 +449,10 @@ fn init_omnipool() {
 	));
 }
 
-fn init_omnipool_with_oracle_for_block_10() {
+fn init_omnipool_with_oracle_for_block_12() {
 	init_omnipool();
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
-	set_relaychain_block_number(10);
+	set_relaychain_block_number(12);
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
 }
 
