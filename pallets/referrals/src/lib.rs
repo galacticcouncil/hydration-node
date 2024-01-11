@@ -193,7 +193,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type CodeLength: Get<u32>;
 
-		// Minimum referral code length.
+		/// Minimum referral code length.
 		#[pallet::constant]
 		type MinCodeLength: Get<u32>;
 
@@ -215,13 +215,14 @@ pub mod pallet {
 	}
 
 	/// Referral codes
-	/// Maps an account to a referral code.
+	/// Maps a referral code to an account.
 	#[pallet::storage]
 	#[pallet::getter(fn referral_account)]
 	pub(super) type ReferralCodes<T: Config> =
 		StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
 
 	/// Referral accounts
+	/// Maps an account to a referral code.
 	#[pallet::storage]
 	#[pallet::getter(fn referral_code)]
 	pub(super) type ReferralAccounts<T: Config> =
@@ -621,7 +622,7 @@ impl<T: Config> Pallet<T> {
 	/// `source`: account to take the fee from
 	/// `trader`: account that does the trade
 	///
-	/// Returns unused amount on success.
+	/// Returns used amount on success.
 	#[transactional]
 	pub fn process_trade_fee(
 		source: T::AccountId,
@@ -691,22 +692,30 @@ impl<T: Config> Pallet<T> {
 					.saturating_add(external_shares),
 			);
 		});
+
 		if let Some(acc) = ref_account {
 			ReferrerShares::<T>::mutate(acc, |v| {
 				*v = v.saturating_add(referrer_shares);
 			});
 		}
-		TraderShares::<T>::mutate(trader, |v| {
-			*v = v.saturating_add(trader_shares);
-		});
+
+		// don't store zero values
+		if !trader_shares.is_zero() {
+			TraderShares::<T>::mutate(trader, |v| {
+				*v = v.saturating_add(trader_shares);
+			});
+		}
+
 		if let Some(acc) = external_account {
 			TraderShares::<T>::mutate(acc, |v| {
 				*v = v.saturating_add(external_shares);
 			});
 		}
+
 		if asset_id != T::RewardAsset::get() {
 			PendingConversions::<T>::insert(asset_id, ());
 		}
+
 		Ok(total_taken)
 	}
 }
