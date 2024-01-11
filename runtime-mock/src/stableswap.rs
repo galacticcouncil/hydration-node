@@ -1,4 +1,4 @@
-use crate::{AccountId, FuzzedRuntime};
+use crate::{AccountId, MockedRuntime};
 use hydradx_runtime::RuntimeCall;
 use pallet_stableswap::types::AssetAmount;
 use serde::Deserialize;
@@ -101,7 +101,7 @@ impl Stablepools {
 		vec![
 			RuntimeCall::Tokens(orml_tokens::Call::force_transfer {
 				source: owner.clone(),
-				dest: pallet_omnipool::Pallet::<FuzzedRuntime>::protocol_account(),
+				dest: pallet_omnipool::Pallet::<MockedRuntime>::protocol_account(),
 				currency_id: 100,
 				amount: 1200000000000000000000000,
 			}),

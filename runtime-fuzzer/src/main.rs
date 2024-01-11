@@ -1,13 +1,3 @@
-mod accounts;
-mod omnipool;
-mod registry;
-mod stableswap;
-mod staking;
-
-use accounts::{
-	get_accounts_as_potential_origins, get_council_members, get_duster_dest_account, get_duster_reward_account,
-	get_native_endowed_accounts, get_nonnative_endowed_accounts, get_omnipool_position_owner, get_technical_committee,
-};
 /// hydraDX fuzzer v2.0.0
 /// Inspired by the harness sent to HydraDX from srlabs.de on 01.11.2023
 use codec::{DecodeLimit, Encode};
@@ -20,21 +10,15 @@ use frame_support::{
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use hydradx_runtime::*;
-use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
-use omnipool::omnipool_initial_state;
-use primitives::constants::{
-	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
-	time::SLOT_DURATION,
-};
-use registry::registry_state;
+use primitives::constants::time::SLOT_DURATION;
+use runtime_mock::hydradx_mocked_runtime;
+use scraper::{load_snapshot, save_externalities};
 use sp_consensus_aura::{Slot, AURA_ENGINE_ID};
-use sp_core::Blake2Hasher;
 use sp_runtime::{
 	traits::{Dispatchable, Header},
-	Digest, DigestItem, Storage,
+	Digest, DigestItem,
 };
-use sp_state_machine::TestExternalities;
-use stableswap::stablepools;
+use std::path::PathBuf;
 #[cfg(feature = "deprecated-substrate")]
 use {frame_support::weights::constants::WEIGHT_PER_SECOND as WEIGHT_REF_TIME_PER_SECOND, sp_runtime::traits::Zero};
 
@@ -47,8 +31,6 @@ type RuntimeOrigin = <FuzzedRuntime as frame_system::Config>::Origin;
 #[cfg(not(feature = "deprecated-substrate"))]
 type RuntimeOrigin = <FuzzedRuntime as frame_system::Config>::RuntimeOrigin;
 type AccountId = <FuzzedRuntime as frame_system::Config>::AccountId;
-// The externalities used by our fuzzer
-type Externalities = TestExternalities<Blake2Hasher>;
 
 /// The maximum number of blocks per fuzzer input.
 /// If set to 0, then there is no limit at all.
@@ -73,9 +55,6 @@ const MAX_BLOCK_LAPSE: u32 = 864_000;
 
 // Extrinsic delimiter: `********`
 const DELIMITER: [u8; 8] = [42; 8];
-
-const TOKEN_SYMBOL: &str = "HDX";
-const PARA_ID: u32 = 2034;
 
 /// Constants for the fee-memory mapping
 #[cfg(not(fuzzing))]
@@ -154,6 +133,7 @@ fn recursively_find_call(call: RuntimeCall, matches_on: fn(RuntimeCall) -> bool)
 }
 
 fn main() {
+	let snapshot: PathBuf = PathBuf::from("./SNAPSHOT");
 	// We ensure that on each run, the mapping is a fresh one
 	#[cfg(not(any(fuzzing, coverage)))]
 	if std::fs::remove_file(FILENAME_MEMORY_MAP).is_err() {
@@ -161,135 +141,10 @@ fn main() {
 	}
 
 	// List of accounts to choose as origin
-	let accounts = get_accounts_as_potential_origins();
+	let accounts: Vec<AccountId> = (0..20).map(|i| [i; 32].into()).collect();
 
-	// Assets to register
-	let registry_setup = registry_state();
-	let registered_assets: Vec<(Vec<u8>, u128, Option<u32>)> = registry_setup
-		.assets()
-		.into_iter()
-		.filter(|(_, asset_id)| *asset_id != 0) // Exclude HDX as it is registed in genesis of registry pallet
-		.map(|(symbol, asset_id)| (symbol, 1000u128, Some(asset_id)))
-		.collect();
-
-	// Omnipool state
-	let omnipool_account = pallet_omnipool::Pallet::<FuzzedRuntime>::protocol_account();
-	let omnipool_setup = omnipool_initial_state();
-	let stableswap_pool = stablepools();
-	let stablepools_creator: AccountId = [222; 32].into();
-	let stable_account_balacnes = stableswap_pool.endowed_account(stablepools_creator.clone());
-
-	let (omnipool_native_balance, omnipool_balances) = omnipool_setup.get_omnipool_reserves();
-
-	// Staking
-	let staking_initial = staking::staking_state();
-
-	// Endowed accounts - Native and non-native
-	let mut native_endowed_accounts = get_native_endowed_accounts();
-	// Extend with omnipool initial state of HDX
-	native_endowed_accounts.push((omnipool_account.clone(), omnipool_native_balance));
-	native_endowed_accounts.extend(staking_initial.get_native_endowed_accounts());
-
-	let mut non_native_endowed_accounts = get_nonnative_endowed_accounts(registry_setup.asset_decimals());
-	// Extend with omnipool initial state of each asset in omnipool
-	non_native_endowed_accounts.push((omnipool_account.clone(), omnipool_balances));
-	non_native_endowed_accounts.extend(stable_account_balacnes);
-
-	// We generate a genesis storage item, which will be cloned to create a runtime.
-	let genesis_storage: Storage = {
-		use sp_runtime::app_crypto::ByteArray;
-		use sp_runtime::BuildStorage;
-
-		let initial_authorities: Vec<(AccountId, AuraId)> = vec![
-			([0; 32].into(), AuraId::from_slice(&[0; 32]).unwrap()),
-			([1; 32].into(), AuraId::from_slice(&[1; 32]).unwrap()),
-		];
-
-		//TODO: dump from HydraDX production too
-		let accepted_assets: Vec<(AssetId, Price)> =
-			vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))];
-
-		let token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)> = non_native_endowed_accounts;
-
-		GenesisConfig {
-			system: Default::default(),
-			session: SessionConfig {
-				keys: initial_authorities
-					.iter()
-					.map(|x| {
-						(
-							x.0.clone(),
-							x.0.clone(),
-							hydradx_runtime::opaque::SessionKeys { aura: x.1.clone() },
-						)
-					})
-					.collect::<Vec<_>>(),
-			},
-			aura: Default::default(),
-			collator_selection: CollatorSelectionConfig {
-				invulnerables: initial_authorities.iter().cloned().map(|(acc, _)| acc).collect(),
-				candidacy_bond: 10_000 * UNITS,
-				..Default::default()
-			},
-			balances: BalancesConfig {
-				balances: native_endowed_accounts,
-			},
-			council: CouncilConfig {
-				members: get_council_members(),
-				phantom: Default::default(),
-			},
-			technical_committee: TechnicalCommitteeConfig {
-				members: get_technical_committee(),
-				phantom: Default::default(),
-			},
-			vesting: VestingConfig { vesting: vec![] },
-			asset_registry: AssetRegistryConfig {
-				registered_assets: registered_assets,
-				native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
-				native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
-			},
-			multi_transaction_payment: MultiTransactionPaymentConfig {
-				currencies: accepted_assets,
-				account_currencies: vec![],
-			},
-			tokens: TokensConfig {
-				balances: token_balances
-					.iter()
-					.flat_map(|x| {
-						x.1.clone()
-							.into_iter()
-							.map(|(asset_id, amount)| (x.0.clone(), asset_id, amount))
-					})
-					.collect(),
-			},
-			treasury: Default::default(),
-			elections: Default::default(),
-			genesis_history: GenesisHistoryConfig::default(),
-			claims: ClaimsConfig {
-				claims: Default::default(),
-			},
-			parachain_info: ParachainInfoConfig {
-				parachain_id: PARA_ID.into(),
-			},
-			aura_ext: Default::default(),
-			polkadot_xcm: Default::default(),
-			ema_oracle: Default::default(),
-			duster: DusterConfig {
-				account_blacklist: vec![],
-				reward_account: Some(get_duster_reward_account()),
-				dust_account: Some(get_duster_dest_account()),
-			},
-			omnipool_warehouse_lm: Default::default(),
-			omnipool_liquidity_mining: Default::default(),
-			evm_chain_id: hydradx_runtime::EVMChainIdConfig {
-				chain_id: 2_222_222u32.into(),
-			},
-			ethereum: Default::default(),
-			evm: Default::default(),
-		}
-		.build_storage()
-		.unwrap()
-	};
+	let mocked_runtime = hydradx_mocked_runtime();
+	save_externalities::<Block>(mocked_runtime, snapshot.clone()).unwrap();
 
 	ziggy::fuzz!(|data: &[u8]| {
 		let iteratable = Data {
@@ -361,7 +216,7 @@ fn main() {
 		}
 
 		// `externalities` represents the state of our mock chain.
-		let mut externalities = Externalities::new(genesis_storage.clone());
+		let mut externalities = load_snapshot::<Block>(snapshot.clone()).unwrap();
 
 		let mut current_block: u32 = 1;
 		let mut current_timestamp: u64 = SLOT_DURATION;
@@ -441,30 +296,6 @@ fn main() {
 		externalities.execute_with(|| start_block(current_block, current_timestamp));
 
 		// Calls that need to be executed in the first block go here
-		externalities.execute_with(|| {
-			let registry_calls = registry_setup.calls();
-			let staking_calls = staking_initial.calls();
-			let stableswap_calls = stableswap_pool.calls();
-			let omnipool_calls = omnipool_setup.calls(&get_omnipool_position_owner());
-			for call in registry_calls
-				.into_iter()
-				.chain(staking_calls.into_iter())
-				.chain(stableswap_calls.into_iter())
-				.chain(omnipool_calls.into_iter())
-			{
-				call.dispatch(RuntimeOrigin::root()).unwrap();
-			}
-			let stableswap_liquidity = stableswap_pool.add_liquid_calls();
-			for call in stableswap_liquidity.into_iter() {
-				call.dispatch(RuntimeOrigin::signed(stablepools_creator.clone()))
-					.unwrap();
-			}
-			let add_stable_tokens = stableswap_pool.add_token_calls(stablepools_creator.clone());
-			for call in add_stable_tokens.into_iter() {
-				call.dispatch(RuntimeOrigin::root()).unwrap();
-			}
-		});
-
 		for (maybe_lapse, origin, extrinsic) in extrinsics {
 			if recursively_find_call(extrinsic.clone(), |call| matches!(&call, RuntimeCall::XTokens(..))) {
 				#[cfg(not(fuzzing))]
