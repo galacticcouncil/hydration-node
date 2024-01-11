@@ -10947,7 +10947,6 @@ dependencies = [
  "pallet-stableswap",
  "pallet-staking 2.1.1",
  "primitives",
- "scraper",
  "serde",
  "sp-core",
  "sp-rpc",
