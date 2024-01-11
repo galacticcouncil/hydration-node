@@ -15,7 +15,6 @@ toml = "0.5"
 # local dependencies
 hydradx-runtime = { workspace = true }
 primitives = { workspace = true }
-scraper = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }

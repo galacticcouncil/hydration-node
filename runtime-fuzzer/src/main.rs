@@ -12,7 +12,6 @@ use frame_support::{
 use hydradx_runtime::*;
 use primitives::constants::time::SLOT_DURATION;
 use runtime_mock::hydradx_mocked_runtime;
-use scraper::{load_snapshot, save_externalities};
 use sp_consensus_aura::{Slot, AURA_ENGINE_ID};
 use sp_runtime::{
 	traits::{Dispatchable, Header},
@@ -133,7 +132,6 @@ fn recursively_find_call(call: RuntimeCall, matches_on: fn(RuntimeCall) -> bool)
 }
 
 fn main() {
-	let snapshot: PathBuf = PathBuf::from("./SNAPSHOT");
 	// We ensure that on each run, the mapping is a fresh one
 	#[cfg(not(any(fuzzing, coverage)))]
 	if std::fs::remove_file(FILENAME_MEMORY_MAP).is_err() {
@@ -142,9 +140,6 @@ fn main() {
 
 	// List of accounts to choose as origin
 	let accounts: Vec<AccountId> = (0..20).map(|i| [i; 32].into()).collect();
-
-	let mocked_runtime = hydradx_mocked_runtime();
-	save_externalities::<Block>(mocked_runtime, snapshot.clone()).unwrap();
 
 	ziggy::fuzz!(|data: &[u8]| {
 		let iteratable = Data {
@@ -216,7 +211,7 @@ fn main() {
 		}
 
 		// `externalities` represents the state of our mock chain.
-		let mut externalities = load_snapshot::<Block>(snapshot.clone()).unwrap();
+		let mut externalities = hydradx_mocked_runtime();
 
 		let mut current_block: u32 = 1;
 		let mut current_timestamp: u64 = SLOT_DURATION;
