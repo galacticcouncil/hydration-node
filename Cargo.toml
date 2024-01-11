@@ -38,6 +38,7 @@ members = [
   'runtime/hydradx/src/evm/evm-utility/macro',
   'pallets/referrals',
   'runtime-fuzzer',
+  'runtime-mock',
 ]
 
 [workspace.dependencies]
@@ -82,6 +83,7 @@ pallet-referrals = { path = "pallets/referrals", default-features = false}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
+runtime-mock = { path = "runtime-mock", default-features = false }
 test-utils = { path = "utils/test-utils", default-features = false }
 
 integration-tests = { path = "integration-tests", default-features = false }

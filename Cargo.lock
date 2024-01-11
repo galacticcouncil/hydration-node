@@ -4365,6 +4365,8 @@ dependencies = [
  "pallet-utility",
  "parity-scale-codec",
  "primitives",
+ "runtime-mock",
+ "scraper",
  "serde",
  "sp-consensus-aura",
  "sp-core",
@@ -10929,6 +10931,28 @@ dependencies = [
  "xcm-builder",
  "xcm-emulator",
  "xcm-executor",
+]
+
+[[package]]
+name = "runtime-mock"
+version = "1.0.0"
+dependencies = [
+ "frame-remote-externalities",
+ "frame-support",
+ "frame-system",
+ "hydradx-runtime",
+ "orml-tokens",
+ "pallet-asset-registry",
+ "pallet-omnipool",
+ "pallet-stableswap",
+ "pallet-staking 2.1.1",
+ "primitives",
+ "scraper",
+ "serde",
+ "sp-core",
+ "sp-rpc",
+ "sp-runtime",
+ "toml",
 ]
 
 [[package]]

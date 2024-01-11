@@ -129,7 +129,7 @@ pub fn save_externalities<Block: BlockT>(ext: TestExternalities, path: PathBuf) 
 	Ok(())
 }
 
-fn load_snapshot<Block: BlockT>(path: PathBuf) -> Result<TestExternalities, &'static str> {
+pub fn load_snapshot<Block: BlockT>(path: PathBuf) -> Result<TestExternalities, &'static str> {
 	let bytes = fs::read(path).map_err(|_| "fs::read failed.")?;
 	let snapshot: Snapshot<Block> = Decode::decode(&mut &*bytes).map_err(|_| "decode failed")?;
 
