@@ -32,7 +32,8 @@ use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
-	AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry, Inspect as InspectRegistry,router::PoolType,
+	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
+	Inspect as InspectRegistry,
 };
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::fungibles::FungibleCurrencies;

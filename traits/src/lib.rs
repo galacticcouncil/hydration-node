@@ -26,6 +26,8 @@ pub mod router;
 
 pub use registry::*;
 pub mod oracle;
+pub mod price;
+
 pub use oracle::*;
 
 use codec::{Decode, Encode};

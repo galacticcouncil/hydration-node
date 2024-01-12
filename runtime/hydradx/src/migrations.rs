@@ -40,6 +40,8 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		ChainId::<Runtime>::put(evm_id);
 		weight = weight.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().reads_writes(0, 1));
 
+		weight = weight.saturating_add(pallet_referrals::migration::preregister_parachain_codes::<Runtime>());
+
 		weight
 	}
 

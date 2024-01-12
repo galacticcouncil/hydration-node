@@ -96,7 +96,7 @@ fn create_global_farm_should_work_when_origin_is_root() {
 		);
 
 		let g_farm_account = hydradx_runtime::OmnipoolWarehouseLM::farm_account_id(farm_id).unwrap();
-		assert_eq!(hydradx_runtime::Balances::free_balance(&g_farm_account), total_rewards);
+		assert_eq!(hydradx_runtime::Balances::free_balance(g_farm_account), total_rewards);
 	});
 }
 

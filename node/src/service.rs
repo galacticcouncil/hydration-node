@@ -51,7 +51,7 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::rpc;
+use crate::{chain_spec, rpc};
 
 /// Native executor type.
 pub struct HydraDXNativeExecutor;
@@ -156,9 +156,14 @@ pub fn new_partial(
 		&evm::db_config_dir(config),
 	)?);
 
+	let evm_since = chain_spec::Extensions::try_get(&config.chain_spec)
+		.map(|e| e.evm_since)
+		.unwrap_or(1);
 	let block_import = evm::BlockImport::new(
 		ParachainBlockImport::new(client.clone(), backend.clone()),
 		client.clone(),
+		frontier_backend.clone(),
+		evm_since,
 	);
 
 	let import_queue = build_import_queue(

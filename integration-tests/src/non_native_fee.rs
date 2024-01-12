@@ -86,10 +86,7 @@ fn fee_currency_on_account_lifecycle() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 
 		// ------------ set on create ------------
 		assert_ok!(Currencies::transfer(
@@ -104,7 +101,7 @@ fn fee_currency_on_account_lifecycle() {
 			50_000_000_000_000
 		);
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
+			MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)),
 			Some(1)
 		);
 
@@ -116,10 +113,7 @@ fn fee_currency_on_account_lifecycle() {
 			false,
 		));
 
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 	});
 }
 
@@ -143,10 +137,7 @@ fn fee_currency_cannot_be_set_to_not_accepted_asset() {
 	Hydra::execute_with(|| {
 		// assemble
 		let amount = 50_000_000 * UNITS;
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 
 		// act
 		assert_ok!(Currencies::transfer(
@@ -158,10 +149,7 @@ fn fee_currency_cannot_be_set_to_not_accepted_asset() {
 
 		// assert
 		assert_eq!(Tokens::free_balance(PEPE, &AccountId::from(HITCHHIKER)), amount);
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 	});
 }
 
@@ -182,11 +170,8 @@ fn fee_currency_should_not_change_when_account_holds_native_currency_already() {
 			50_000_000_000_000,
 		));
 
-		assert_eq!(Balances::free_balance(&AccountId::from(HITCHHIKER)), UNITS);
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(Balances::free_balance(AccountId::from(HITCHHIKER)), UNITS);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 	});
 }
 
@@ -209,7 +194,7 @@ fn fee_currency_should_not_change_when_account_holds_other_token_already() {
 		));
 
 		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
+			MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)),
 			Some(1)
 		);
 	});
@@ -239,10 +224,7 @@ fn fee_currency_should_reset_to_default_when_account_spends_tokens() {
 			false,
 		));
 
-		assert_eq!(
-			MultiTransactionPayment::get_currency(&AccountId::from(HITCHHIKER)),
-			None
-		);
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
 	});
 }
 

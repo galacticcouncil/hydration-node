@@ -107,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 194,
+	spec_version: 203,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -127,6 +127,7 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 	vec![
 		TreasuryPalletId::get().into_account_truncating(),
 		VestingPalletId::get().into_account_truncating(),
+		ReferralsPalletId::get().into_account_truncating(),
 		BondsPalletId::get().into_account_truncating(),
 	]
 }
@@ -173,6 +174,8 @@ construct_runtime!(
 		Bonds: pallet_bonds = 71,
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
+		Referrals: pallet_referrals = 75,
+		XcmRateLimiter: pallet_xcm_rate_limiter = 76,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -446,8 +449,6 @@ impl_runtime_apis! {
 			let is_transactional = false;
 			let validate = true;
 
-			// Copied from Moonbeam
-			//
 			// Estimated encoded transaction size must be based on the heaviest transaction
 			// type (EIP1559Transaction) to be compatible with all transaction types.
 			let mut estimated_transaction_len = data.len() +
@@ -645,11 +646,20 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark};
+			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch, add_benchmark};
 			use frame_support::traits::TrackedStorageKey;
 			use orml_benchmarking::add_benchmark as orml_add_benchmark;
 			use frame_system_benchmarking::Pallet as SystemBench;
-			impl frame_system_benchmarking::Config for Runtime {}
+			impl frame_system_benchmarking::Config for Runtime {
+				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
+					ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
+					Ok(())
+				}
+
+				fn verify_set_code() {
+					System::assert_last_event(cumulus_pallet_parachain_system::Event::<Runtime>::ValidationFunctionStored.into());
+				}
+			}
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -692,6 +702,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_lbp, LBP);
 			add_benchmark!(params, batches, pallet_xyk, XYK);
 			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
+			add_benchmark!(params, batches, pallet_referrals, Referrals);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);

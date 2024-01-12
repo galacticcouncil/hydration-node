@@ -44,7 +44,6 @@ use sp_core::{Get, U256};
 mod accounts_conversion;
 pub mod precompiles;
 
-// Centrifuge / Moonbeam:
 // Current approximation of the gas per second consumption considering
 // EVM execution over compiled WASM (on 4.4Ghz CPU).
 // Given the 500ms Weight, from which 75% only are used for transactions,
@@ -118,8 +117,6 @@ impl FeeCalculator for FixedGasPrice {
 }
 
 parameter_types! {
-	/// Configuration values copied from Moonriver
-	///
 	/// The amount of gas per pov. A ratio of 4 if we convert ref_time to gas and we compare
 	/// it with the pov_size for a block. E.g.
 	/// ceil(

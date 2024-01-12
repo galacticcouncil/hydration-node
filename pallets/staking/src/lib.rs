@@ -939,9 +939,9 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Balance, DispatchError> {
 		if asset == T::NativeAssetId::get() && Self::is_initialized() {
 			T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
-			Ok(Balance::zero())
-		} else {
 			Ok(amount)
+		} else {
+			Ok(Balance::zero())
 		}
 	}
 

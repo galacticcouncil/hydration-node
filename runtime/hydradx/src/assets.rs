@@ -20,8 +20,8 @@ use crate::system::NativeAssetId;
 
 use frame_support::traits::Defensive;
 use hydradx_adapters::{
-	EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter, OracleAssetVolumeProvider,
-	PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
+	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
+	OracleAssetVolumeProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
 };
 
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
@@ -44,7 +44,7 @@ use primitives::constants::{
 	chain::OMNIPOOL_SOURCE,
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 };
-use sp_runtime::{traits::Zero, DispatchResult, FixedPointNumber};
+use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedPointNumber};
 
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -155,7 +155,7 @@ impl SufficiencyCheck {
 	/// Emits `pallet_asset_registry::Event::ExistentialDepositPaid` when ED was paid.
 	fn on_funds(asset: AssetId, paying_account: &AccountId, to: &AccountId) -> DispatchResult {
 		if AssetRegistry::is_blacklisted(asset) {
-			return Err(sp_runtime::DispatchError::Other("BlacklistedAssetTransfer"));
+			return Err(DispatchError::Other("BlacklistedAssetTransfer"));
 		}
 
 		//NOTE: To prevent duplicate ED collection we assume account already paid ED
@@ -435,7 +435,7 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
-	type OmnipoolHooks = OmnipoolHookAdapter<Self::RuntimeOrigin, LRNA, Runtime>;
+	type OmnipoolHooks = OmnipoolHookAdapter<Self::RuntimeOrigin, NativeAssetId, LRNA, Runtime>;
 	type PriceBarrier = (
 		EnsurePriceWithin<
 			AccountId,
@@ -602,8 +602,9 @@ where
 	}
 }
 
+use hydradx_traits::pools::SpotPriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
-use hydradx_traits::{pools::SpotPriceProvider, PriceOracle};
+use hydradx_traits::PriceOracle;
 
 #[cfg(feature = "runtime-benchmarks")]
 use hydra_dx_math::ema::EmaPrice;
@@ -643,6 +644,8 @@ parameter_types! {
 	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
+	pub DCAOraclePeriod: OraclePeriod = OraclePeriod::Short;
+
 }
 
 impl pallet_dca::Config for Runtime {
@@ -672,7 +675,24 @@ impl pallet_dca::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type AmmTradeWeights = RouterWeightInfo;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
-	type NativePriceOracle = MultiTransactionPayment;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type NativePriceOracle = AssetFeeOraclePriceProvider<
+		NativeAssetId,
+		MultiTransactionPayment,
+		Router,
+		OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+		MultiTransactionPayment,
+		DCAOraclePeriod,
+	>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type NativePriceOracle = AssetFeeOraclePriceProvider<
+		NativeAssetId,
+		MultiTransactionPayment,
+		Router,
+		DummyOraclePriceProvider,
+		MultiTransactionPayment,
+		DCAOraclePeriod,
+	>;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -685,13 +705,11 @@ impl RouterWeightInfo {
 		num_of_calc_sell: u32,
 		num_of_execute_sell: u32,
 	) -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(
-			num_of_calc_sell,
-		)
-		.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(
-			num_of_calc_sell.saturating_add(num_of_execute_sell),
-			num_of_execute_sell,
-		))
+		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(num_of_calc_sell)
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(
+				num_of_calc_sell.saturating_add(num_of_execute_sell),
+				num_of_execute_sell,
+			))
 	}
 
 	pub fn buy_and_calculate_buy_trade_amounts_overhead_weight(
@@ -739,18 +757,22 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e)
-					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
-						RuntimeOrigin,
-						AccountId,
-						AssetId,
-						Balance,
-					>>::on_trade_weight())
-					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
-						RuntimeOrigin,
-						AccountId,
-						AssetId,
-						Balance,
-					>>::on_liquidity_changed_weight()),
+					.saturating_add(
+						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_trade_weight(),
+					)
+					.saturating_add(
+						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_liquidity_changed_weight(),
+					),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
@@ -773,18 +795,22 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e)
-					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
-						RuntimeOrigin,
-						AccountId,
-						AssetId,
-						Balance,
-					>>::on_trade_weight())
-					.saturating_add(<OmnipoolHookAdapter<RuntimeOrigin, LRNA, Runtime> as OmnipoolHooks<
-						RuntimeOrigin,
-						AccountId,
-						AssetId,
-						Balance,
-					>>::on_liquidity_changed_weight()),
+					.saturating_add(
+						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_trade_weight(),
+					)
+					.saturating_add(
+						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
+							RuntimeOrigin,
+							AccountId,
+							AssetId,
+							Balance,
+						>>::on_liquidity_changed_weight(),
+					),
 				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
@@ -989,11 +1015,18 @@ where
 
 use pallet_currencies::fungibles::FungibleCurrencies;
 
+#[cfg(not(feature = "runtime-benchmarks"))]
+use hydradx_adapters::price::OraclePriceProviderUsingRoute;
+
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+use pallet_referrals::traits::Convert;
+use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
-
+#[cfg(feature = "runtime-benchmarks")]
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
 
@@ -1174,4 +1207,206 @@ impl pallet_xyk::Config for Runtime {
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;
 	type OracleSource = XYKOracleSourceIdentifier;
+}
+
+parameter_types! {
+	pub const ReferralsPalletId: PalletId = PalletId(*b"referral");
+	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 222_000_000_000_000, TreasuryAccount::get());
+	pub const MaxCodeLength: u32 = 10;
+	pub const MinCodeLength: u32 = 4;
+	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+	pub const ReferralsSeedAmount: Balance = 10_000_000_000_000;
+	pub ReferralsExternalRewardAccount: Option<AccountId> = Some(StakingPalletId::get().into_account_truncating());
+}
+
+impl pallet_referrals::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type AssetId = AssetId;
+	type Currency = FungibleCurrencies<Runtime>;
+	type Convert = ConvertViaOmnipool<Omnipool>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type PriceProvider =
+		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type PriceProvider = ReferralsDummyPriceProvider;
+	type RewardAsset = NativeAssetId;
+	type PalletId = ReferralsPalletId;
+	type RegistrationFee = RegistrationFee;
+	type CodeLength = MaxCodeLength;
+	type MinCodeLength = MinCodeLength;
+	type LevelVolumeAndRewardPercentages = ReferralsLevelVolumeAndRewards;
+	type ExternalAccount = ReferralsExternalRewardAccount;
+	type SeedNativeAmount = ReferralsSeedAmount;
+	type WeightInfo = weights::referrals::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ReferralsBenchmarkHelper;
+}
+
+pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
+impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
+where
+	SP: SpotPriceProvider<AssetId, Price = FixedU128>,
+{
+	type Error = DispatchError;
+
+	fn convert(
+		who: AccountId,
+		asset_from: AssetId,
+		asset_to: AssetId,
+		amount: Balance,
+	) -> Result<Balance, Self::Error> {
+		if amount < <Runtime as pallet_omnipool::Config>::MinimumTradingLimit::get() {
+			return Err(pallet_referrals::Error::<Runtime>::ConversionMinTradingAmountNotReached.into());
+		}
+		let price = SP::spot_price(asset_to, asset_from).ok_or(pallet_referrals::Error::<Runtime>::PriceNotFound)?;
+		let amount_to_receive = price.saturating_mul_int(amount);
+		let min_expected = amount_to_receive
+			.saturating_sub(Permill::from_percent(1).mul_floor(amount_to_receive))
+			.max(1);
+		let balance = Currencies::free_balance(asset_to, &who);
+		let r = Omnipool::sell(
+			RuntimeOrigin::signed(who.clone()),
+			asset_from,
+			asset_to,
+			amount,
+			min_expected,
+		);
+		if let Err(error) = r {
+			if error == pallet_omnipool::Error::<Runtime>::ZeroAmountOut.into() {
+				return Err(pallet_referrals::Error::<Runtime>::ConversionZeroAmountReceived.into());
+			}
+			return Err(error);
+		}
+		let balance_after = Currencies::free_balance(asset_to, &who);
+		let received = balance_after.saturating_sub(balance);
+		Ok(received)
+	}
+}
+
+pub struct ReferralsLevelVolumeAndRewards;
+
+impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewards {
+	fn get(k: &Level) -> (Balance, FeeDistribution) {
+		let volume = match k {
+			Level::Tier0 | Level::None => 0,
+			Level::Tier1 => 305 * UNITS,
+			Level::Tier2 => 4_583 * UNITS,
+			Level::Tier3 => 61_111 * UNITS,
+			Level::Tier4 => 763_888 * UNITS,
+		};
+		let rewards = match k {
+			Level::None => FeeDistribution {
+				referrer: Permill::zero(),
+				trader: Permill::zero(),
+				external: Permill::from_percent(50),
+			},
+			Level::Tier0 => FeeDistribution {
+				referrer: Permill::from_percent(5),
+				trader: Permill::from_percent(10),
+				external: Permill::from_percent(35),
+			},
+			Level::Tier1 => FeeDistribution {
+				referrer: Permill::from_percent(10),
+				trader: Permill::from_percent(11),
+				external: Permill::from_percent(29),
+			},
+			Level::Tier2 => FeeDistribution {
+				referrer: Permill::from_percent(15),
+				trader: Permill::from_percent(12),
+				external: Permill::from_percent(23),
+			},
+			Level::Tier3 => FeeDistribution {
+				referrer: Permill::from_percent(20),
+				trader: Permill::from_percent(13),
+				external: Permill::from_percent(17),
+			},
+			Level::Tier4 => FeeDistribution {
+				referrer: Permill::from_percent(25),
+				trader: Permill::from_percent(15),
+				external: Permill::from_percent(10),
+			},
+		};
+		(volume, rewards)
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct ReferralsBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
+	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
+		let asset_id: u32 = 1234u32;
+		let asset_name = asset_id.to_le_bytes().to_vec();
+
+		AssetRegistry::register_asset(
+			Some(asset_id),
+			Some(&asset_name),
+			AssetKind::Token,
+			Some(1_000_000),
+			Some(&asset_name),
+			Some(18),
+			None,
+			None,
+			true,
+		)
+		.unwrap();
+
+		let native_price = FixedU128::from_inner(1201500000000000);
+		let asset_price = FixedU128::from_inner(45_000_000_000);
+
+		Currencies::update_balance(
+			RuntimeOrigin::root(),
+			Omnipool::protocol_account(),
+			NativeAssetId::get(),
+			1_000_000_000_000_000_000,
+		)
+		.unwrap();
+
+		Currencies::update_balance(
+			RuntimeOrigin::root(),
+			Omnipool::protocol_account(),
+			asset_id,
+			1_000_000_000_000_000_000_000_000,
+		)
+		.unwrap();
+
+		Omnipool::add_token(
+			RuntimeOrigin::root(),
+			NativeAssetId::get(),
+			native_price,
+			Permill::from_percent(10),
+			TreasuryAccount::get(),
+		)
+		.unwrap();
+
+		Omnipool::add_token(
+			RuntimeOrigin::root(),
+			asset_id,
+			asset_price,
+			Permill::from_percent(10),
+			TreasuryAccount::get(),
+		)
+		.unwrap();
+		(1234, 1_000_000_000_000_000_000)
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct ReferralsDummyPriceProvider;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl PriceProvider<AssetId> for ReferralsDummyPriceProvider {
+	type Price = EmaPrice;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+		if asset_a == asset_b {
+			return Some(EmaPrice::one());
+		}
+		Some(EmaPrice::new(1_000_000_000_000, 2_000_000_000_000_000_000))
+	}
 }

@@ -363,10 +363,9 @@ mod router_different_pools_tests {
 
 				//Assert
 				assert_eq!(
-					hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+					hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 					ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell
 				);
-
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -426,7 +425,7 @@ mod router_different_pools_tests {
 
 				//Assert
 				assert_eq!(
-					hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+					hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 					ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell
 				);
 
@@ -654,23 +653,21 @@ mod router_different_pools_tests {
 			assert_eq!(
 				RouterWeightInfo::sell_weight(trades.as_slice()),
 				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 1)
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_trade_weight()
-					)
+					.checked_add(&<OmnipoolHookAdapter<
+						RuntimeOrigin,
+						ConstU32<HDX>,
+						ConstU32<LRNA>,
+						Runtime,
+					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_trade_weight(
+					))
 					.unwrap()
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_liquidity_changed_weight()
-					)
+					.checked_add(&<OmnipoolHookAdapter<
+						RuntimeOrigin,
+						ConstU32<HDX>,
+						ConstU32<LRNA>,
+						Runtime,
+					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
+					))
 					.unwrap()
 					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1))
 					.unwrap()
@@ -684,23 +681,21 @@ mod router_different_pools_tests {
 			assert_eq!(
 				RouterWeightInfo::buy_weight(trades.as_slice()),
 				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(1, 1)
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_trade_weight()
-					)
+					.checked_add(&<OmnipoolHookAdapter<
+						RuntimeOrigin,
+						ConstU32<HDX>,
+						ConstU32<LRNA>,
+						Runtime,
+					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_trade_weight(
+					))
 					.unwrap()
-					.checked_add(
-						&<OmnipoolHookAdapter<RuntimeOrigin, ConstU32<LRNA>, Runtime> as OmnipoolHooks::<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_liquidity_changed_weight()
-					)
+					.checked_add(&<OmnipoolHookAdapter<
+						RuntimeOrigin,
+						ConstU32<HDX>,
+						ConstU32<LRNA>,
+						Runtime,
+					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
+					))
 					.unwrap()
 					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1))
 					.unwrap()
@@ -866,6 +861,8 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				hub_amount_in: 12014871681,
+				hub_amount_out: 12008864246,
 				asset_fee_amount: 667_155_563_986_401,
 				protocol_fee_amount: 6_007_435,
 			}
@@ -1012,7 +1009,9 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
-				asset_fee_amount: 111_528,
+				hub_amount_in: 45135,
+				hub_amount_out: 45113,
+				asset_fee_amount: 2_506_265_665,
 				protocol_fee_amount: 22,
 			}
 			.into()]);
@@ -2434,11 +2433,7 @@ mod set_route {
 
 					//We try to set back the more expensive but did not replace
 					assert_noop!(
-						Router::set_route(
-							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-							asset_pair,
-							route1.clone()
-						),
+						Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
 						pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 					);
 					assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
@@ -2491,11 +2486,7 @@ mod set_route {
 
 			//Act and assert
 			assert_noop!(
-				Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					route1.clone()
-				),
+				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
 				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 			);
 		});
@@ -2545,7 +2536,7 @@ mod set_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				route1.clone()
+				route1
 			));
 
 			create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
@@ -2566,7 +2557,7 @@ mod set_route {
 				Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					invalid_route.clone()
+					invalid_route
 				),
 				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 			);
@@ -2617,7 +2608,7 @@ mod set_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				route2.clone()
+				route2
 			),);
 		});
 	}
@@ -2666,7 +2657,7 @@ mod set_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				route1.clone()
+				route1
 			));
 
 			assert_ok!(XYK::remove_liquidity(
@@ -2691,11 +2682,7 @@ mod set_route {
 
 			//Act and assert
 			assert_noop!(
-				Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					route2.clone()
-				),
+				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
 				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 			);
 		});
@@ -2753,7 +2740,7 @@ mod set_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				route1.clone()
+				route1
 			));
 
 			let route2 = vec![
@@ -2771,11 +2758,7 @@ mod set_route {
 
 			//Act and assert
 			assert_noop!(
-				Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					route2.clone()
-				),
+				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
 				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 			);
 		});
@@ -2825,7 +2808,7 @@ mod set_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				route1.clone()
+				route1
 			));
 
 			assert_ok!(Omnipool::set_asset_tradable_state(
@@ -2851,7 +2834,7 @@ mod set_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				route2.clone()
+				route2
 			),);
 		});
 	}
@@ -2883,7 +2866,7 @@ mod set_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				route1.clone()
+				route1
 			));
 		});
 	}
@@ -2920,11 +2903,7 @@ mod set_route {
 			let asset_pair = Pair::new(HDX, DOT);
 
 			assert_noop!(
-				Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					route1.clone()
-				),
+				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
 				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 			);
 		});
@@ -2974,7 +2953,7 @@ mod set_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				route1.clone()
+				route1
 			),);
 
 			assert_ok!(Omnipool::buy(
@@ -2999,11 +2978,7 @@ mod set_route {
 			];
 
 			assert_noop!(
-				Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					route1.clone()
-				),
+				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
 				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 			);
 		});

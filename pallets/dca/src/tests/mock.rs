@@ -54,10 +54,10 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1330108000;
-pub const BUY_DCA_FEE_IN_DAI: Balance = 1170495040;
-pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1329215000;
-pub const SELL_DCA_FEE_IN_DAI: Balance = 1169709200;
+pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1374044000;
+pub const BUY_DCA_FEE_IN_DAI: Balance = 1209158720;
+pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1374576000;
+pub const SELL_DCA_FEE_IN_DAI: Balance = 1209626880;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -655,9 +655,9 @@ impl Config for Test {
 
 pub struct NativePriceOracleMock;
 
-impl NativePriceOracle<AssetId, FixedU128> for NativePriceOracleMock {
-	fn price(_: AssetId) -> Option<FixedU128> {
-		Some(FixedU128::from_rational(88, 100))
+impl NativePriceOracle<AssetId, EmaPrice> for NativePriceOracleMock {
+	fn price(_: AssetId) -> Option<EmaPrice> {
+		Some(EmaPrice::from((88, 100)))
 	}
 }
 

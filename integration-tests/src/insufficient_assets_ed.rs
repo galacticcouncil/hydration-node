@@ -1216,7 +1216,7 @@ fn sender_should_pay_ed_when_tranferred_or_deposited_to_whitelisted_dest() {
 		);
 		assert_event_times!(
 			RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
-				who: treasury.clone().into(),
+				who: treasury.clone(),
 				fee_asset: HDX,
 				amount: InsufficientEDinHDX::get()
 			}),
@@ -1242,7 +1242,7 @@ fn ed_should_be_released_when_whitelisted_account_was_killed() {
 
 		assert_ok!(Tokens::transfer(
 			hydra_origin::signed(BOB.into()),
-			treasury.clone().into(),
+			treasury.clone(),
 			sht1,
 			1_000_000 * UNITS
 		));
@@ -1256,7 +1256,7 @@ fn ed_should_be_released_when_whitelisted_account_was_killed() {
 			1
 		);
 
-		assert!(DustRemovalWhitelist::contains(&treasury.clone().into()));
+		assert!(DustRemovalWhitelist::contains(&treasury));
 		assert_eq!(MultiTransactionPayment::account_currency(&treasury), HDX);
 		let treasury_hdx_balance = Currencies::free_balance(HDX, &treasury);
 
