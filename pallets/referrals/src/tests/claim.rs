@@ -33,7 +33,7 @@ fn claim_rewards_should_convert_all_assets() {
 }
 
 #[test]
-fn claim_rewards_should_remove_assets_from_the_list() {
+fn claim_rewards_should_remove_assets_from_the_list_when_successful() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Pallet::<Test>::pot_account_id(), DAI, 3_000_000_000_000_000_000),
@@ -46,6 +46,27 @@ fn claim_rewards_should_remove_assets_from_the_list() {
 		.execute_with(|| {
 			let count = PendingConversions::<Test>::count();
 			assert_eq!(count, 2);
+			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
+			// Assert
+			let count = PendingConversions::<Test>::count();
+			assert_eq!(count, 0);
+		});
+}
+
+#[test]
+fn claim_rewards_should_remove_assets_from_the_list_when_not_successful() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Pallet::<Test>::pot_account_id(), DAI, 3_000_000_000_000_000_000),
+			(Pallet::<Test>::pot_account_id(), DOT, 4_000_000_000_000),
+		])
+		.with_assets(vec![DAI, DOT])
+		.with_conversion_price((HDX, DOT), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000))
+		.build()
+		.execute_with(|| {
+			let count = PendingConversions::<Test>::count();
+			assert_eq!(count, 2);
+			// conversion for DAI fails, but the asset should be removed from PendingConversions
 			assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB)));
 			// Assert
 			let count = PendingConversions::<Test>::count();

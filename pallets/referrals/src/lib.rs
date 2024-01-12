@@ -470,17 +470,13 @@ pub mod pallet {
 				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
 				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
 				if let Err(error) = r {
-					if error == Error::<T>::ConversionMinTradingAmountNotReached.into()
-						|| error == Error::<T>::ConversionZeroAmountReceived.into()
+					if error != Error::<T>::ConversionMinTradingAmountNotReached.into()
+						&& error != Error::<T>::ConversionZeroAmountReceived.into()
 					{
-						// We allow these errors to continue claiming as the current amount of asset that needed to be converted
-						// has very low impact on the rewards.
-					} else {
 						return Err(error);
 					}
-				} else {
-					PendingConversions::<T>::remove(asset_id);
 				}
+				PendingConversions::<T>::remove(asset_id);
 			}
 			let referrer_shares = ReferrerShares::<T>::take(&who);
 			let trader_shares = TraderShares::<T>::take(&who);
@@ -598,10 +594,9 @@ pub mod pallet {
 
 			for asset_id in PendingConversions::<T>::iter_keys().take(max_converts as usize) {
 				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
-				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
-				if r.is_ok() {
-					PendingConversions::<T>::remove(asset_id);
-				}
+				// remove the asset_id from PendingConversions even when the conversion fails
+				let _ = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
+				PendingConversions::<T>::remove(asset_id);
 			}
 			convert_weight.saturating_mul(max_converts).saturating_add(one_read)
 		}
