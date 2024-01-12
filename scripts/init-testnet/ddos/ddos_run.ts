@@ -86,7 +86,7 @@ async function createDcaSchedules(api, user, block) {
             let balance_diff = prev_balance.data.free - balance.data.free;
             const blockWeight = await api.query.system.blockWeight();
 
-            console.log(`Fee spent in block ${blockNumber} with weight ${blockWeight.normal.refTime}: ${balance_diff} HDX`);
+            console.log(`${balance_diff} HDX fee spent in block ${blockNumber} with weight ${blockWeight.normal.refTime}`);
 
             prev_block = blockNumber;
             prev_balance = balance;
