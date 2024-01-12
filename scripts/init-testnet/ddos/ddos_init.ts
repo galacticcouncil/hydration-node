@@ -90,7 +90,7 @@ function mintUsersWithHDX(api, txs) {
 }
 
 function assetRegistry(api, txs) {
-    const assets = require('./assets.json');
+    const assets = require('../assets.json');
     let keys = Object.keys(assets);
 
     for (let i = 0, l = keys.length; i < l; i++) {
