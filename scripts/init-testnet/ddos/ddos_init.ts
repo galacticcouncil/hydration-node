@@ -61,7 +61,6 @@ function mintForAlice(api, txs) {
     txs.push(api.tx.currencies.updateBalance(alice, 8, "5000000000000000000"));
     txs.push(api.tx.currencies.updateBalance(alice, 9, "5000000000000000000"));
     txs.push(api.tx.currencies.updateBalance(alice, 10, "5000000000000000000"));
-    txs.push(api.tx.currencies.updateBalance(alice, 20, "5000000000000000000"));
 }
 
 function mintUsersWithHDX(api, txs) {
