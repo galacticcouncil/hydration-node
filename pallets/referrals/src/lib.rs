@@ -470,6 +470,8 @@ pub mod pallet {
 				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
 				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
 				if let Err(error) = r {
+					// We allow these errors to continue claiming as the current amount of asset that needed to be converted
+					// has very low impact on the rewards.
 					if error != Error::<T>::ConversionMinTradingAmountNotReached.into()
 						&& error != Error::<T>::ConversionZeroAmountReceived.into()
 					{
