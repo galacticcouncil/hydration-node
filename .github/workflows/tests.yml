@@ -26,8 +26,6 @@ jobs:
           profile: minimal
       - name: Run tests
         run: make test-release
-      - name: Clippy
-        run: make clippy
       - name: Build release
         run: time make build
       - name: Version info
@@ -42,22 +40,7 @@ jobs:
         with:
           name: hydradx_runtime.compact.compressed.wasm
           path: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
-
-  test-benchmarks:
-    runs-on: lark
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      - run: git describe --tags --abbrev=0 --always
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.12
-      - name: Install Rust
-        uses: codota/toolchain@00a8bf2bdcfe93aefd70422d3dec07337959d3a4
-        with:
-          profile: minimal
-      - name: Clippy all
+      - name: Clippy
         run: make clippy-all
       - name: Test benchmarks
         run: make test-benchmarks
