@@ -23,6 +23,7 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 
 		hydradx_runtime::System::on_finalize(b);
 		hydradx_runtime::EmaOracle::on_finalize(b);
+		hydradx_runtime::TransactionPayment::on_finalize(b);
 
 		hydradx_runtime::System::on_initialize(b + 1);
 		hydradx_runtime::EmaOracle::on_initialize(b + 1);
