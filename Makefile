@@ -31,7 +31,7 @@ clippy:
 	cargo clippy --release --locked --all-targets -- -D warnings -A deprecated
 
 .PHONY: clippy-all
-clippy:
+clippy-all:
 	cargo clippy --release --locked --all-targets --all-features -- -D warnings -A deprecated
 
 .PHONY: format
