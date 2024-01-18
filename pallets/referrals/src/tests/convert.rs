@@ -85,3 +85,23 @@ fn on_idle_should_convert_all_asset_amount_when_successful() {
 			assert_eq!(entry, None)
 		});
 }
+
+#[test]
+fn on_idle_should_remove_asset_from_pending_conversions_when_not_successful() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(Pallet::<Test>::pot_account_id(), DAI, 1_000_000_000_000_000_000)])
+		.with_assets(vec![DAI])
+		.build()
+		.execute_with(|| {
+			// Arrange
+			// conversion fails, but the asset should be removed from PendingConversions
+			Referrals::on_idle(10, 1_000_000_000_000.into());
+			// Assert
+			let balance = Tokens::free_balance(DAI, &Pallet::<Test>::pot_account_id());
+			assert_eq!(balance, 1_000_000_000_000_000_000);
+			let balance = Tokens::free_balance(HDX, &Pallet::<Test>::pot_account_id());
+			assert_eq!(balance, 0);
+			let entry = PendingConversions::<Test>::get(DAI);
+			assert!(entry.is_none())
+		});
+}
