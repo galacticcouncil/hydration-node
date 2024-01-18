@@ -384,7 +384,7 @@ impl Convert<AccountId, AssetId, Balance> for AssetConvert {
 	) -> Result<Balance, Self::Error> {
 		let price = CONVERSION_RATE
 			.with(|v| v.borrow().get(&(asset_to, asset_from)).copied())
-			.ok_or(Error::<Test>::InvalidCode)?;
+			.ok_or(Error::<Test>::ConversionMinTradingAmountNotReached)?;
 		let result = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down).unwrap();
 		Tokens::update_balance(asset_from, &who, -(amount as i128)).unwrap();
 		Tokens::update_balance(asset_to, &who, result as i128).unwrap();

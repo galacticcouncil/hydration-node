@@ -221,6 +221,31 @@ fn process_trade_fee_should_increase_external_account_shares_when_trader_has_no_
 }
 
 #[test]
+fn process_trade_fee_should_not_store_zero_trader_reward_in_storage() {
+	let mut none_rewards = HashMap::new();
+	none_rewards.insert(
+		Level::None,
+		FeeDistribution {
+			referrer: Default::default(),
+			trader: Default::default(),
+			external: Permill::from_percent(50),
+		},
+	);
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, DAI, 2_000_000_000_000_000_000)])
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
+		.with_global_tier_rewards(none_rewards)
+		.build()
+		.execute_with(|| {
+			// Act
+			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000));
+			// Assert
+			assert_eq!(TraderShares::<Test>::try_get(BOB), Err(()));
+		});
+}
+
+#[test]
 fn process_trade_fee_should_transfer_fee_to_pot_when_no_code_linked() {
 	let mut none_rewards = HashMap::new();
 	none_rewards.insert(

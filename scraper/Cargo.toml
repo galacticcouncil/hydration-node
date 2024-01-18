@@ -33,5 +33,6 @@ pallet-balances = { workspace = true }
 default= ["std"]
 
 std = [
-"hydradx-runtime/std"
+    "hydradx-runtime/std",
+    "sp-state-machine/std",
 ]
