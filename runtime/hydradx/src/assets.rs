@@ -83,20 +83,25 @@ impl OnUnbalanced<CreditOf> for DustRemovalAdapter {
 	}
 }
 
+parameter_types! {
+	pub const MaxHolds: u32 = 0;
+	pub const MaxFreezes: u32 = 0;
+}
+
 impl pallet_balances::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::balances::HydraWeight<Runtime>;
 	type Balance = Balance;
 	type DustRemoval = DustRemovalAdapter;
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = NativeExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = weights::balances::HydraWeight<Runtime>;
+	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = ();
+	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
-	type FreezeIdentifier = ();
-	type MaxFreezes = ();
-	type MaxHolds = ();
-	type RuntimeHoldReason = ();
+	type MaxHolds = MaxHolds;
+	type MaxFreezes = MaxFreezes;
 }
 
 pub struct CurrencyHooks;
