@@ -82,7 +82,7 @@ proptest! {
 				let pool_account = pool_account(pool_id);
 
 				let share_price_initial = get_share_price(pool_id, 0);
-				let initial_shares = Tokens::total_issuance(&pool_id);
+				let initial_shares = Tokens::total_issuance(pool_id);
 				assert_ok!(Stableswap::add_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
@@ -90,7 +90,7 @@ proptest! {
 					AssetAmount::new(asset_a, added_liquidity),
 				]
 				));
-				let final_shares = Tokens::total_issuance(&pool_id);
+				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
 				let exec_price = FixedU128::from_rational(added_liquidity , delta_s);
 				assert!(share_price_initial <= exec_price);

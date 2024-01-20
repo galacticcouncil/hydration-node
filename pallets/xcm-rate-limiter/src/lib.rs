@@ -65,9 +65,9 @@
 
 use codec::{Decode, Encode};
 use cumulus_pallet_xcmp_queue::XcmDeferFilter;
-
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::Get;
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::rate_limiter::{calculate_deferred_duration, calculate_new_accumulated_amount};
 
 use orml_traits::GetByKey;
@@ -107,7 +107,7 @@ pub mod pallet {
 	use xcm::lts::MultiLocation;
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -144,7 +144,6 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
@@ -164,16 +163,6 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {}
 }
 
-fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
-	match m.id {
-		AssetId::Concrete(location) => match m.fun {
-			Fungibility::Fungible(amount) => Some((location, amount)),
-			_ => None,
-		},
-		_ => None,
-	}
-}
-
 impl<T: Config> Pallet<T> {
 	fn get_locations_and_amounts(instruction: &Instruction<T::RuntimeCall>) -> Vec<(MultiLocation, u128)> {
 		use Instruction::*;
@@ -184,6 +173,16 @@ impl<T: Config> Pallet<T> {
 			}
 			_ => Vec::new(),
 		}
+	}
+}
+
+fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
+	match m.id {
+		AssetId::Concrete(location) => match m.fun {
+			Fungibility::Fungible(amount) => Some((location, amount)),
+			_ => None,
+		},
+		_ => None,
 	}
 }
 

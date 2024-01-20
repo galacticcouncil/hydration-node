@@ -68,6 +68,7 @@
 
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::{BlockNumberProvider, One, Zero};
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
 	OnLiquidityChangedHandler, OnTradeHandler,
@@ -116,7 +117,7 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 
 		/// Provider for the current block number.
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		/// The periods supported by the pallet. I.e. which oracles to track.
 		type SupportedPeriods: Get<BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>>>;
@@ -140,7 +141,7 @@ pub mod pallet {
 	#[pallet::getter(fn accumulator)]
 	pub type Accumulator<T: Config> = StorageValue<
 		_,
-		BoundedBTreeMap<(Source, (AssetId, AssetId)), OracleEntry<T::BlockNumber>, T::MaxUniqueEntries>,
+		BoundedBTreeMap<(Source, (AssetId, AssetId)), OracleEntry<BlockNumberFor<T>>, T::MaxUniqueEntries>,
 		ValueQuery,
 	>;
 
@@ -156,26 +157,28 @@ pub mod pallet {
 			NMapKey<Twox64Concat, (AssetId, AssetId)>,
 			NMapKey<Twox64Concat, OraclePeriod>,
 		),
-		(OracleEntry<T::BlockNumber>, T::BlockNumber),
+		(OracleEntry<BlockNumberFor<T>>, BlockNumberFor<T>),
 		OptionQuery,
 	>;
 
 	#[pallet::genesis_config]
-	#[derive(Default)]
-	pub struct GenesisConfig {
+	#[derive(frame_support::DefaultNoBound)]
+	pub struct GenesisConfig<T: Config> {
 		pub initial_data: Vec<(Source, (AssetId, AssetId), Price, Liquidity<Balance>)>,
+		#[serde(skip)]
+		pub _marker: PhantomData<T>,
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			for &(source, (asset_a, asset_b), price, liquidity) in self.initial_data.iter() {
-				let entry: OracleEntry<T::BlockNumber> = {
+				let entry: OracleEntry<BlockNumberFor<T>> = {
 					let e = OracleEntry {
 						price,
 						volume: Volume::default(),
 						liquidity,
-						updated_at: T::BlockNumber::zero(),
+						updated_at: BlockNumberFor::<T>::zero(),
 					};
 					if ordered_pair(asset_a, asset_b) == (asset_a, asset_b) {
 						e
@@ -220,7 +223,7 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn on_entry(
 		src: Source,
 		assets: (AssetId, AssetId),
-		oracle_entry: OracleEntry<T::BlockNumber>,
+		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), ()> {
 		Accumulator::<T>::mutate(|accumulator| {
 			if let Some(entry) = accumulator.get_mut(&(src, assets)) {
@@ -240,7 +243,7 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn on_trade(
 		src: Source,
 		assets: (AssetId, AssetId),
-		oracle_entry: OracleEntry<T::BlockNumber>,
+		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		let weight = OnActivityHandler::<T>::on_trade_weight();
 		Self::on_entry(src, assets, oracle_entry)
@@ -253,7 +256,7 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn on_liquidity_changed(
 		src: Source,
 		assets: (AssetId, AssetId),
-		oracle_entry: OracleEntry<T::BlockNumber>,
+		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		let weight = OnActivityHandler::<T>::on_liquidity_changed_weight();
 		Self::on_entry(src, assets, oracle_entry)
@@ -265,8 +268,8 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn last_block_oracle(
 		source: Source,
 		assets: (AssetId, AssetId),
-		block: T::BlockNumber,
-	) -> Option<(OracleEntry<T::BlockNumber>, T::BlockNumber)> {
+		block: BlockNumberFor<T>,
+	) -> Option<(OracleEntry<BlockNumberFor<T>>, BlockNumberFor<T>)> {
 		Self::oracle((source, assets, LastBlock)).map(|(mut last_block, init)| {
 			// update the `LastBlock` oracle to the last block if it hasn't been updated for a while
 			// price and liquidity stay constant, volume becomes zero
@@ -295,7 +298,7 @@ impl<T: Config> Pallet<T> {
 		src: Source,
 		assets: (AssetId, AssetId),
 		period: OraclePeriod,
-		incoming_entry: OracleEntry<T::BlockNumber>,
+		incoming_entry: OracleEntry<BlockNumberFor<T>>,
 	) {
 		Oracles::<T>::mutate((src, assets, period), |oracle| {
 			// initialize the oracle entry if it doesn't exist
@@ -308,26 +311,28 @@ impl<T: Config> Pallet<T> {
 				// update the entry to the parent block if it hasn't been updated for a while
 				if parent > prev_entry.updated_at {
 					Self::last_block_oracle(src, assets, parent)
-                        .and_then(|(last_block, _)| {
-                            prev_entry.update_outdated_to_current(period, &last_block).map(|_| ())
-                        }).unwrap_or_else(|| {
-                            log::warn!(
-                                target: LOG_TARGET,
-                                "Updating EMA oracle ({src:?}, {assets:?}, {period:?}) to parent block failed. Defaulting to previous value."
-                            );
-                            debug_assert!(false, "Updating to parent block should not fail.");
-                        })
+						.and_then(|(last_block, _)| {
+							prev_entry.update_outdated_to_current(period, &last_block).map(|_| ())
+						})
+						.unwrap_or_else(|| {
+							log::warn!(
+								target: LOG_TARGET,
+								"Updating EMA oracle ({src:?}, {assets:?}, {period:?}) to parent block failed. Defaulting to previous value."
+							);
+							debug_assert!(false, "Updating to parent block should not fail.");
+						})
 				}
 				// calculate the actual update with the new value
-				prev_entry.update_to_new_by_integrating_incoming(period, &incoming_entry)
-                    .map(|_| ())
-                    .unwrap_or_else(|| {
-                        log::warn!(
-                            target: LOG_TARGET,
-                            "Updating EMA oracle ({src:?}, {assets:?}, {period:?}) to new value failed. Defaulting to previous value."
-                        );
-                        debug_assert!(false, "Updating to new value should not fail.");
-                });
+				prev_entry
+					.update_to_new_by_integrating_incoming(period, &incoming_entry)
+					.map(|_| ())
+					.unwrap_or_else(|| {
+						log::warn!(
+							target: LOG_TARGET,
+							"Updating EMA oracle ({src:?}, {assets:?}, {period:?}) to new value failed. Defaulting to previous value."
+						);
+						debug_assert!(false, "Updating to new value should not fail.");
+					});
 			};
 		});
 	}
@@ -340,7 +345,7 @@ impl<T: Config> Pallet<T> {
 		src: Source,
 		assets: (AssetId, AssetId),
 		period: OraclePeriod,
-	) -> Option<(OracleEntry<T::BlockNumber>, T::BlockNumber)> {
+	) -> Option<(OracleEntry<BlockNumberFor<T>>, BlockNumberFor<T>)> {
 		let parent = T::BlockNumberProvider::current_block_number().saturating_sub(One::one());
 		// First get the `LastBlock` oracle to calculate the updated values for the others.
 		let (last_block, last_block_init) = Self::last_block_oracle(src, assets, parent)?;
@@ -513,7 +518,7 @@ pub enum OracleError {
 	SameAsset,
 }
 
-impl<T: Config> AggregatedOracle<AssetId, Balance, T::BlockNumber, Price> for Pallet<T> {
+impl<T: Config> AggregatedOracle<AssetId, Balance, BlockNumberFor<T>, Price> for Pallet<T> {
 	type Error = OracleError;
 
 	/// Returns the entry corresponding to the given assets and period.
@@ -526,7 +531,7 @@ impl<T: Config> AggregatedOracle<AssetId, Balance, T::BlockNumber, Price> for Pa
 		asset_b: AssetId,
 		period: OraclePeriod,
 		source: Source,
-	) -> Result<AggregatedEntry<Balance, T::BlockNumber, Price>, OracleError> {
+	) -> Result<AggregatedEntry<Balance, BlockNumberFor<T>, Price>, OracleError> {
 		if asset_a == asset_b {
 			return Err(OracleError::SameAsset);
 		};
@@ -547,7 +552,7 @@ impl<T: Config> AggregatedOracle<AssetId, Balance, T::BlockNumber, Price> for Pa
 	}
 }
 
-impl<T: Config> AggregatedPriceOracle<AssetId, T::BlockNumber, Price> for Pallet<T> {
+impl<T: Config> AggregatedPriceOracle<AssetId, BlockNumberFor<T>, Price> for Pallet<T> {
 	type Error = OracleError;
 
 	fn get_price(
@@ -555,7 +560,7 @@ impl<T: Config> AggregatedPriceOracle<AssetId, T::BlockNumber, Price> for Pallet
 		asset_b: AssetId,
 		period: OraclePeriod,
 		source: Source,
-	) -> Result<(Price, T::BlockNumber), Self::Error> {
+	) -> Result<(Price, BlockNumberFor<T>), Self::Error> {
 		Self::get_entry(asset_a, asset_b, period, source)
 			.map(|AggregatedEntry { price, oracle_age, .. }| (price, oracle_age))
 	}

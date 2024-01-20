@@ -25,7 +25,8 @@ use hydradx_adapters::{
 
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{
-	router::PoolType, AccountIdFor, AssetKind, AssetPairAccountIdFor, OnTradeHandler, OraclePeriod, Source,
+	router::{inverse_route, PoolType, Trade},
+	AccountIdFor, AssetKind, AssetPairAccountIdFor, OnTradeHandler, OraclePeriod, Source,
 };
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{
@@ -48,11 +49,12 @@ use frame_support::{
 	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
-	traits::{AsEnsureOriginWithArg, ConstU32, Contains, EnsureOrigin, NeverEnsureOrigin},
+	traits::{
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, EnsureOrigin, Imbalance, NeverEnsureOrigin, OnUnbalanced,
+	},
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_traits::router::{inverse_route, Trade};
 use orml_traits::currency::MutationHooks;
 use orml_traits::{GetByKey, MultiCurrency};
 use pallet_dynamic_fees::types::FeeParams;
@@ -70,16 +72,36 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 }
 
+// pallet-treasury did not impl OnUnbalanced<Credit>, need an adapter to handle dust.
+type CreditOf = frame_support::traits::fungible::Credit<<Runtime as frame_system::Config>::AccountId, Balances>;
+type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
+pub struct DustRemovalAdapter;
+impl OnUnbalanced<CreditOf> for DustRemovalAdapter {
+	fn on_nonzero_unbalanced(amount: CreditOf) {
+		let new_amount = NegativeImbalance::new(amount.peek());
+		Treasury::on_nonzero_unbalanced(new_amount);
+	}
+}
+
+parameter_types! {
+	pub const MaxHolds: u32 = 0;
+	pub const MaxFreezes: u32 = 0;
+}
+
 impl pallet_balances::Config for Runtime {
-	type Balance = Balance;
-	type DustRemoval = Treasury;
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::balances::HydraWeight<Runtime>;
+	type Balance = Balance;
+	type DustRemoval = DustRemovalAdapter;
 	type ExistentialDeposit = NativeExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = weights::balances::HydraWeight<Runtime>;
+	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = ();
+	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
+	type MaxHolds = MaxHolds;
+	type MaxFreezes = MaxFreezes;
 }
 
 pub struct CurrencyHooks;
@@ -518,14 +540,11 @@ impl RouterWeightInfo {
 		num_of_calc_sell: u32,
 		num_of_execute_sell: u32,
 	) -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(
-			num_of_calc_sell,
-			num_of_execute_sell,
-		)
-		.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(
-			num_of_calc_sell.saturating_add(num_of_execute_sell),
-			num_of_execute_sell,
-		))
+		weights::route_executor::HydraWeight::<Runtime>::calculate_and_execute_sell_in_lbp(num_of_calc_sell)
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::router_execution_sell(
+				num_of_calc_sell.saturating_add(num_of_execute_sell),
+				num_of_execute_sell,
+			))
 	}
 
 	pub fn buy_and_calculate_buy_trade_amounts_overhead_weight(
@@ -746,6 +765,10 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	}
 }
 
+parameter_types! {
+	pub const DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+}
+
 impl pallet_route_executor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -753,6 +776,7 @@ impl pallet_route_executor::Config for Runtime {
 	type Currency = FungibleCurrencies<Runtime>;
 	type WeightInfo = RouterWeightInfo;
 	type AMM = (Omnipool, Stableswap, XYK, LBP);
+	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 }
 

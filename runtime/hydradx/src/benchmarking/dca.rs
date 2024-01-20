@@ -263,7 +263,7 @@ runtime_benchmarks! {
 		let execution_block = 100u32;
 		assert_eq!(DCA::schedules::<ScheduleId>(execution_block), None);
 		let r = DCA::schedules::<ScheduleId>(execution_block);
-		let mut weight = Weight::from_ref_time(0);
+		let mut weight = Weight::zero();
 	}: {
 		weight = DCA::on_initialize(execution_block);
 	}
@@ -445,12 +445,12 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 mod tests {
 	use super::*;
 	use crate::NativeExistentialDeposit;
-	use frame_support::traits::GenesisBuild;
 	use orml_benchmarking::impl_benchmark_test_suite;
+	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default()
-			.build_storage::<Runtime>()
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
 			.unwrap();
 
 		pallet_asset_registry::GenesisConfig::<Runtime> {
