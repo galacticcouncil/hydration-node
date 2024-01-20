@@ -21,7 +21,6 @@ use sp_std::vec::Vec;
 
 pub mod v1 {
 	use super::*;
-	use frame_support::log;
 	use frame_support::traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion};
 
 	pub fn pre_migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() {

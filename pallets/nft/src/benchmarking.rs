@@ -20,12 +20,13 @@
 use super::*;
 
 use crate as NFT;
-use frame_benchmarking::{account, benchmarks, vec};
+use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::{tokens::nonfungibles::InspectEnumerable, Currency, Get};
 use frame_system::RawOrigin;
 use pallet_uniques as UNQ;
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::convert::TryInto;
+use sp_std::vec;
 
 const SEED: u32 = 0;
 const ENDOWMENT: u128 = 100_000_000_000_000_000_000;
@@ -111,5 +112,5 @@ mod tests {
 	use crate::mock::*;
 	use frame_benchmarking::impl_benchmark_test_suite;
 
-	impl_benchmark_test_suite!(Pallet, super::ExtBuilder::default().build(), super::Test);
+	impl_benchmark_test_suite!(Pallet, super::ExtBuilder.build(), super::Test);
 }

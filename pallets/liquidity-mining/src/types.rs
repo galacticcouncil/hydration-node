@@ -78,7 +78,7 @@ impl<T: Config<I>, I: 'static> GlobalFarmData<T, I> {
 		reward_currency: T::AssetId,
 		yield_per_period: Perquintill,
 		planned_yielding_periods: PeriodOf<T>,
-		blocks_per_period: T::BlockNumber,
+		blocks_per_period: BlockNumberFor<T>,
 		owner: T::AccountId,
 		incentivized_asset: T::AssetId,
 		max_reward_per_period: Balance,
@@ -229,7 +229,7 @@ impl<T: Config<I>, I: 'static> YieldFarmData<T, I> {
 			entries_count: Default::default(),
 			left_to_distribute: Default::default(),
 			total_stopped: Default::default(),
-			_phantom: PhantomData::default(),
+			_phantom: PhantomData,
 		}
 	}
 

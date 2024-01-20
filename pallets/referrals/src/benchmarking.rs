@@ -60,11 +60,11 @@ benchmarks! {
 	convert{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let (asset_id, amount) = T::BenchmarkHelper::prepare_convertible_asset_and_amount();
-		T::Currency::mint_into(asset_id, &Pallet::<T>::pot_account_id(), amount)?;
-		PendingConversions::<T>::insert(asset_id,());
+		T::Currency::mint_into(asset_id.clone(), &Pallet::<T>::pot_account_id(), amount)?;
+		PendingConversions::<T>::insert(asset_id.clone(),());
 		let count = PendingConversions::<T>::count();
 		assert_eq!(count , 1);
-	}: _(RawOrigin::Signed(caller), asset_id)
+	}: _(RawOrigin::Signed(caller), asset_id.clone())
 	verify {
 		let count = PendingConversions::<T>::count();
 		assert_eq!(count , 0);

@@ -2,7 +2,7 @@
 
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
-use frame_support::{assert_ok, codec::Encode, dispatch::GetDispatchInfo, traits::Contains};
+use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{
@@ -235,9 +235,9 @@ mod currency_precompile {
 
 			//Assert
 
-			// 950330588000000000
+			// 950331588000000000
 			let expected_output = hex! {"
-				00000000000000000000000000000000 00000000000000000D3040A27CED9800
+				00000000000000000000000000000000 00000000000000000D30418B5192A800								  
 			"};
 
 			assert_eq!(
@@ -734,11 +734,10 @@ pub fn init_omnipol() {
 		AccountId::from(ALICE),
 	));
 
-	assert_ok!(Balances::set_balance(
+	assert_ok!(Balances::force_set_balance(
 		RawOrigin::Root.into(),
 		hydradx_runtime::Treasury::account_id(),
 		TREASURY_ACCOUNT_INIT_BALANCE,
-		0,
 	));
 }
 
@@ -747,7 +746,7 @@ pub fn init_omnipol() {
 const DISPATCH_ADDR: H160 = addr(1025);
 
 fn gas_price() -> U256 {
-	U256::from(10_u128.pow(8))
+	U256::from(8 * 10_u128.pow(7))
 }
 
 fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
@@ -790,6 +789,17 @@ impl PrecompileHandle for MockHandle {
 	fn record_cost(&mut self, _: u64) -> Result<(), ExitError> {
 		Ok(())
 	}
+
+	fn record_external_cost(
+		&mut self,
+		_ref_time: Option<u64>,
+		_proof_size: Option<u64>,
+		_storage_growth: Option<u64>,
+	) -> Result<(), ExitError> {
+		Ok(())
+	}
+
+	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
 
 	fn remaining_gas(&self) -> u64 {
 		unimplemented!()

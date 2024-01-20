@@ -11,9 +11,9 @@ sp-runtime = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-std = { workspace = true }
+log = { workspace = true }
 
 # Optionals
-frame-system-benchmarking = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
 sp-api = { workspace = true, optional = true }
 
@@ -33,6 +33,7 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"sp-std/std",
+	"pallet-balances/std",
 ]
 runtime-benchmarks = [
   "frame-benchmarking",

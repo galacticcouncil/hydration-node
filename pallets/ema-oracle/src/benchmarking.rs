@@ -42,7 +42,7 @@ benchmarks! {
 
 	#[extra]
 	on_finalize_insert_one_token {
-		let block_num: T::BlockNumber = 5u32.into();
+		let block_num: BlockNumberFor<T> = 5u32.into();
 		let prev_block = block_num.saturating_sub(One::one());
 
 		frame_system::Pallet::<T>::set_block_number(prev_block);
@@ -74,7 +74,7 @@ benchmarks! {
 
 	#[extra]
 	on_finalize_update_one_token {
-		let initial_data_block: T::BlockNumber = 5u32.into();
+		let initial_data_block: BlockNumberFor<T> = 5u32.into();
 		// higher update time difference might make exponentiation more expensive
 		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
 
@@ -111,7 +111,7 @@ benchmarks! {
 	on_finalize_multiple_tokens {
 		let b in 1 .. (T::MaxUniqueEntries::get() - 1);
 
-		let initial_data_block: T::BlockNumber = 5u32.into();
+		let initial_data_block: BlockNumberFor<T> = 5u32.into();
 		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
 
 		frame_system::Pallet::<T>::set_block_number(initial_data_block);
@@ -155,7 +155,7 @@ benchmarks! {
 	on_trade_multiple_tokens {
 		let b in 1 .. (T::MaxUniqueEntries::get() - 1);
 
-		let initial_data_block: T::BlockNumber = 5u32.into();
+		let initial_data_block: BlockNumberFor<T> = 5u32.into();
 		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
 
 		let mut entries = Vec::new();
@@ -211,7 +211,7 @@ benchmarks! {
 	on_liquidity_changed_multiple_tokens {
 		let b in 1 .. (T::MaxUniqueEntries::get() - 1);
 
-		let initial_data_block: T::BlockNumber = 5u32.into();
+		let initial_data_block: BlockNumberFor<T> = 5u32.into();
 		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
 
 		let mut entries = Vec::new();
@@ -271,8 +271,8 @@ benchmarks! {
 	}
 
 	get_entry {
-		let initial_data_block: T::BlockNumber = 5u32.into();
-		let oracle_age: T::BlockNumber = 999_999u32.into();
+		let initial_data_block: BlockNumberFor<T> = 5u32.into();
+		let oracle_age: BlockNumberFor<T> = 999_999u32.into();
 		let block_num = initial_data_block.saturating_add(oracle_age.saturating_add(One::one()));
 
 		frame_system::Pallet::<T>::set_block_number(initial_data_block);

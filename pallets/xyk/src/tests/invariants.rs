@@ -92,7 +92,7 @@ proptest! {
 				let bob_balance_a = Currency::free_balance(asset_a, &BOB);
 				let bob_balance_b = Currency::free_balance(asset_b, &BOB);
 
-				let issuance = XYK::total_liquidity(&pool_account);
+				let issuance = XYK::total_liquidity(pool_account);
 
 				assert_ok!(XYK::add_liquidity(
 					RuntimeOrigin::signed(BOB),
@@ -209,7 +209,7 @@ proptest! {
 
 				let bob_shares = Currency::free_balance(share_token, &BOB);
 
-				let issuance = XYK::total_liquidity(&pool_account);
+				let issuance = XYK::total_liquidity(pool_account);
 
 				assert_ok!(XYK::remove_liquidity(
 						RuntimeOrigin::signed(BOB),

@@ -19,8 +19,6 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use frame_support::log;
-
 use crate::{
 	evm::{
 		precompiles::{

@@ -31,29 +31,22 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use frame_support::{
-	construct_runtime, parameter_types,
-	sp_runtime::traits::Zero,
-	sp_runtime::{
-		testing::Header,
-		traits::{BlakeTwo256, IdentityLookup},
-	},
-	traits::{ConstU32, ConstU64, Everything, GenesisBuild},
+	assert_noop, assert_ok, construct_runtime, parameter_types,
+	sp_runtime::traits::{BlakeTwo256, ConstU32, ConstU64, IdentityLookup, Zero},
+	traits::Everything,
 	PalletId,
 };
 use sp_core::H256;
 
 use crate::tests::mock_amm::{Hooks, TradeResult};
 use crate::traits::Convert;
-use frame_support::{assert_noop, assert_ok};
 use frame_system::EnsureRoot;
 use hydra_dx_math::ema::EmaPrice;
 use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::DispatchError;
-use sp_runtime::Rounding;
+use sp_runtime::{BuildStorage, DispatchError, Rounding};
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub(crate) type AccountId = u64;
@@ -81,10 +74,7 @@ thread_local! {
 }
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
 		System: frame_system,
 		Referrals: pallet_referrals,
@@ -164,13 +154,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -326,7 +315,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self

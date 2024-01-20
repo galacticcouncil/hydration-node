@@ -21,10 +21,10 @@ use crate::*;
 use frame_support::{
 	construct_runtime, parameter_types,
 	sp_runtime::{
-		testing::Header,
 		traits::{BlakeTwo256, IdentityLookup},
+		BuildStorage,
 	},
-	traits::{ConstU32, ConstU64, Everything, GenesisBuild, SortedMembers},
+	traits::{ConstU32, ConstU64, Everything, SortedMembers},
 };
 use frame_system::EnsureSignedBy;
 use sp_core::H256;
@@ -40,7 +40,6 @@ pub use primitives::constants::{
 	},
 };
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
@@ -65,10 +64,7 @@ thread_local! {
 }
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
 		System: frame_system,
 		Timestamp: pallet_timestamp,
@@ -124,13 +120,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -247,7 +242,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		REGISTERED_ASSETS.with(|v| {
 			self.registered_assets.iter().for_each(|(asset, existential_details)| {

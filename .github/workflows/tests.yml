@@ -20,16 +20,12 @@ jobs:
       - run: git describe --tags --abbrev=0
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v1.12
-      - name: Install misc dependencies
-        run: sudo rm /var/lib/dpkg/lock-frontend && sudo rm /var/lib/dpkg/lock && sudo apt-get install -y protobuf-compiler m4
       - name: Install Rust
         uses: codota/toolchain@00a8bf2bdcfe93aefd70422d3dec07337959d3a4
         with:
           profile: minimal
       - name: Run tests
-        run: make test
-      - name: Run clippy
-        run: make clippy
+        run: make test-release
       - name: Build release
         run: time make build
       - name: Version info
@@ -44,43 +40,10 @@ jobs:
         with:
           name: hydradx_runtime.compact.compressed.wasm
           path: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
-      - name: Run benchmark tests
+      - name: Clippy
+        run: make clippy-all
+      - name: Test benchmarks
         run: make test-benchmarks
-
-  test-inclusion:
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      - uses: actions/download-artifact@v2
-        name: Download node binary
-        with:
-          name: hydradx
-          path: target/release
-      - uses: robinraju/release-downloader@v1
-        name: Download relay chain binary
-        with:
-          repository: paritytech/polkadot
-          tag: ${{ env.RELAY_CHAIN_VERSION }}
-          fileName: polkadot
-          out-file-path: ../polkadot/target/release
-      - run: chmod +x ./hydradx && ./hydradx --version
-        name: HydraDX version
-        working-directory: target/release
-      - run: chmod +x ./polkadot && ./polkadot --version
-        name: Polkadot version
-        working-directory: ../polkadot/target/release
-      - uses: actions/setup-node@v2
-        name: Setup node.js
-        with:
-          node-version: '14'
-          check-latest: true
-      - run: npm install && npm start
-        name: Launch rococo local & wait for inclusion
-        working-directory: scripts/wait-for-inclusion
 
   version-check:
     runs-on: ubuntu-latest

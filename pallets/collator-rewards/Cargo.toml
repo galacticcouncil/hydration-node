@@ -32,7 +32,6 @@ pallet-session = { workspace = true }
 orml-traits = { workspace = true }
 
 # Optionals
-frame-system-benchmarking = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -40,8 +39,6 @@ orml-tokens = { workspace = true }
 sp-io = { workspace = true }
 sp-core = { workspace = true }
 pallet-balances = { workspace = true }
-sp-consensus-aura = { workspace = true }
-pallet-aura = { workspace = true }
 
 [features]
 default = ["std"]
@@ -58,10 +55,10 @@ std = [
     "frame-system/std",
     "sp-std/std",
     "orml-traits/std",
+    "orml-tokens/std",
     "scale-info/std",
     "sp-runtime/std",
     "pallet-balances/std",
-    "pallet-aura/std",
     "pallet-session/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

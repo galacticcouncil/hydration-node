@@ -1,7 +1,7 @@
 #![cfg(test)]
 use crate::polkadot_test_net::*;
 
-use frame_support::{assert_ok, weights::Weight};
+use frame_support::{assert_ok, dispatch::GetDispatchInfo};
 use sp_runtime::codec::Encode;
 
 use polkadot_xcm::latest::prelude::*;
@@ -49,7 +49,7 @@ fn allowed_transact_call_should_pass_filter() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: Weight::from_parts(10_000_000_000, 0u64),
+				require_weight_at_most: call.get_dispatch_info().weight,
 				origin_kind: OriginKind::SovereignAccount,
 				call: hydradx_runtime::RuntimeCall::Balances(call).encode().into(),
 			},
@@ -80,7 +80,7 @@ fn allowed_transact_call_should_pass_filter() {
 			hydradx_runtime::RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
 		)));
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
 			BOB_INITIAL_NATIVE_BALANCE + UNITS
 		);
 	});
@@ -128,7 +128,7 @@ fn blocked_transact_calls_should_not_pass_filter() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: Weight::from_parts(10_000_000_000, 0u64),
+				require_weight_at_most: call.get_dispatch_info().weight,
 				origin_kind: OriginKind::Native,
 				call: hydradx_runtime::RuntimeCall::Tips(call).encode().into(),
 			},
@@ -206,7 +206,7 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: Weight::from_parts(1_000_000_000, 2653u64),
+				require_weight_at_most: call.get_dispatch_info().weight,
 				origin_kind: OriginKind::Native,
 				call: hydradx_runtime::RuntimeCall::Balances(call).encode().into(),
 			},

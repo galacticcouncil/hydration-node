@@ -47,7 +47,7 @@ fn register_asset_works() {
 			Error::<Test>::TooLong
 		);
 
-		let name: Vec<u8> = b"HDX".to_vec();
+		let name: Vec<u8> = b"BSX".to_vec();
 
 		assert_ok!(AssetRegistryPallet::register(
 			RuntimeOrigin::root(),
@@ -105,7 +105,7 @@ fn create_asset() {
 		let ed = 1_000_000u128;
 
 		assert_ok!(AssetRegistryPallet::get_or_create_asset(
-			b"HDX".to_vec(),
+			b"BSX".to_vec(),
 			AssetType::Token,
 			ed,
 			None,
@@ -147,18 +147,18 @@ fn create_asset() {
 #[test]
 fn location_mapping_works() {
 	new_test_ext().execute_with(|| {
-		let bn = AssetRegistryPallet::to_bounded_name(b"HDX".to_vec()).unwrap();
+		let bn = AssetRegistryPallet::to_bounded_name(b"BSX".to_vec()).unwrap();
 
 		let ed = 1_000_000u128;
 
 		assert_ok!(AssetRegistryPallet::get_or_create_asset(
-			b"HDX".to_vec(),
+			b"BSX".to_vec(),
 			AssetType::Token,
 			ed,
 			None,
 		));
 		let asset_id: RegistryAssetId =
-			AssetRegistryPallet::get_or_create_asset(b"HDX".to_vec(), AssetType::Token, ed, None).unwrap();
+			AssetRegistryPallet::get_or_create_asset(b"BSX".to_vec(), AssetType::Token, ed, None).unwrap();
 
 		crate::Assets::<Test>::insert(
 			asset_id,
@@ -229,7 +229,7 @@ fn genesis_config_works() {
 			let native: BoundedVec<u8, <Test as crate::Config>::StringLimit> = b"NATIVE".to_vec().try_into().unwrap();
 			assert_eq!(AssetRegistryPallet::asset_ids(native), None);
 
-			let bsx: BoundedVec<u8, <Test as crate::Config>::StringLimit> = b"BSX".to_vec().try_into().unwrap();
+			let bsx: BoundedVec<u8, <Test as crate::Config>::StringLimit> = b"HDX".to_vec().try_into().unwrap();
 			assert_eq!(AssetRegistryPallet::asset_ids(bsx).unwrap(), 0u32);
 
 			let one: BoundedVec<u8, <Test as crate::Config>::StringLimit> = one.try_into().unwrap();
