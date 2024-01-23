@@ -10885,6 +10885,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-trie",
  "sp-version",
+ "test-utils",
  "tokio",
  "xcm",
  "xcm-builder",
