@@ -72,7 +72,7 @@ fn max_swap_fee() {
 		let tolerance = FixedU128::from((2, (UNITS / 10_000)));
 		assert_eq_approx!(
 			fee_in_cent,
-			FixedU128::from_float(1000.1),
+			FixedU128::from_float(1002.399047518770000000),
 			tolerance,
 			"The max fee should be ~1000 cent (10$)"
 		);

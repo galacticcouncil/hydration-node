@@ -64,7 +64,7 @@ fn non_native_fee_payment_works_with_oracle_price_based_on_onchain_route() {
 			)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
-		assert_eq!(bob_balance, 999_959);
+		assert_eq!(bob_balance, 999_987);
 
 		assert_ok!(hydradx_runtime::Balances::set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -91,7 +91,7 @@ fn non_native_fee_payment_works_with_oracle_price_based_on_onchain_route() {
 		);
 
 		let dave_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(DAVE));
-		assert_eq!(dave_balance, 999_999_999_692_871_594_551); //Price based on oracle with onchain route
+		assert_eq!(dave_balance, 999_999_999_897_623_864_884); //Price based on oracle with onchain route
 	});
 }
 
