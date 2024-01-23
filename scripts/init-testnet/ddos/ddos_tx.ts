@@ -58,7 +58,7 @@ async function doOmnipoolSells(api, user, block) {
         const blockNumber = blockInfo.block.header.number;
 
         //Change this `ddos_run_duration` variable to define how long (in blocks) the DDOS should take
-        let ddos_run_duration = 1000;
+        let ddos_run_duration = 350;
         let block_spent = blockNumber - block;
         if (block_spent == ddos_run_duration) {
             console.log(`The specified blocktime ${block_spent} passed`);
