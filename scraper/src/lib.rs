@@ -6,12 +6,13 @@ use frame_support::sp_runtime::{
 	traits::{Block as BlockT, HashingFor},
 	StateVersion,
 };
-use sp_state_machine::TestExternalities;
+use sp_io::TestExternalities;
 use std::{
 	fs,
 	path::{Path, PathBuf},
 	str::FromStr,
 };
+use sp_core::H256;
 
 pub fn save_blocks_snapshot<Block: Encode>(data: &Vec<Block>, path: &Path) -> Result<(), &'static str> {
 	let mut path = path.to_path_buf();
@@ -83,7 +84,7 @@ impl<B: BlockT> Snapshot<B> {
 	}
 }
 
-pub fn save_externalities<B: BlockT>(ext: TestExternalities<HashingFor<B>>, path: PathBuf) -> Result<(), &'static str> {
+pub fn save_externalities<B: BlockT<Hash = H256>>(ext: TestExternalities, path: PathBuf) -> Result<(), &'static str> {
 	let state_version = ext.state_version;
 	let (raw_storage, storage_root) = ext.into_raw_snapshot();
 
@@ -95,7 +96,7 @@ pub fn save_externalities<B: BlockT>(ext: TestExternalities<HashingFor<B>>, path
 	Ok(())
 }
 
-pub fn load_snapshot<B: BlockT>(path: PathBuf) -> Result<TestExternalities<HashingFor<B>>, &'static str> {
+pub fn load_snapshot<B: BlockT<Hash = H256>>(path: PathBuf) -> Result<TestExternalities, &'static str> {
 	let Snapshot {
 		snapshot_version: _,
 		block_hash: _,
@@ -110,9 +111,9 @@ pub fn load_snapshot<B: BlockT>(path: PathBuf) -> Result<TestExternalities<Hashi
 }
 
 pub fn extend_externalities<B: BlockT>(
-	mut ext: TestExternalities<HashingFor<B>>,
+	mut ext: TestExternalities,
 	execute: impl FnOnce(),
-) -> Result<TestExternalities<HashingFor<B>>, String> {
+) -> Result<TestExternalities, String> {
 	ext.execute_with(execute);
 	ext.commit_all()?;
 	Ok(ext)
@@ -123,7 +124,7 @@ pub const BOB: [u8; 32] = [5u8; 32];
 
 #[cfg(test)]
 /// used in tests to generate TestExternalities
-fn externalities_from_genesis() -> TestExternalities<HashingFor<hydradx_runtime::Block>> {
+fn externalities_from_genesis() -> TestExternalities {
 	use frame_support::sp_runtime::BuildStorage;
 
 	let mut storage = frame_system::GenesisConfig::<hydradx_runtime::Runtime>::default()

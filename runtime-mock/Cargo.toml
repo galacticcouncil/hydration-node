@@ -18,6 +18,7 @@ primitives = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
+sp-io = { workspace = true }
 sp-rpc = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }

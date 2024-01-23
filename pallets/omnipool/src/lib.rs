@@ -83,6 +83,8 @@ use hydradx_traits::Registry;
 use orml_traits::{GetByKey, MultiCurrency};
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
+#[cfg(feature = "try-runtime")]
+use primitive_types::U256;
 
 #[cfg(test)]
 mod tests;
@@ -1580,7 +1582,7 @@ pub mod pallet {
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn try_state(_n: BlockNumberFor<T>) -> Result<(), &'static str> {
+		fn try_state(_n: BlockNumberFor<T>) -> Result<(), DispatchError> {
 			use sp_std::collections::btree_map::BTreeMap;
 			let asset_hub_amount: Balance = Assets::<T>::iter_values().map(|v| v.hub_reserve).sum();
 			let account_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
@@ -2045,9 +2047,10 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+
+
 	#[cfg(feature = "try-runtime")]
 	fn ensure_trade_invariant(asset_in: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>), asset_out: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>)){
-			use primitive_types::U256;
 			let new_in_state = asset_in.2;
 			let new_out_state = asset_out.2;
 

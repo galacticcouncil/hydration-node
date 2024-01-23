@@ -4,11 +4,11 @@ mod registry;
 mod stableswap;
 mod staking;
 
+use sp_io::TestExternalities;
 use accounts::{
 	get_council_members, get_duster_dest_account, get_duster_reward_account, get_native_endowed_accounts,
 	get_nonnative_endowed_accounts, get_omnipool_position_owner, get_technical_committee,
 };
-use frame_remote_externalities::TestExternalities;
 use hydradx_runtime::Runtime as MockedRuntime;
 use hydradx_runtime::*;
 use omnipool::omnipool_initial_state;
@@ -127,6 +127,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			},
 			parachain_info: ParachainInfoConfig {
 				parachain_id: PARA_ID.into(),
+				..Default::default()
 			},
 			aura_ext: Default::default(),
 			polkadot_xcm: Default::default(),
@@ -140,6 +141,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			omnipool_liquidity_mining: Default::default(),
 			evm_chain_id: hydradx_runtime::EVMChainIdConfig {
 				chain_id: 2_222_222u32.into(),
+				..Default::default()
 			},
 			ethereum: Default::default(),
 			evm: Default::default(),
