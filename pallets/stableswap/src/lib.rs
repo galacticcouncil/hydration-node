@@ -98,7 +98,6 @@ pub mod pallet {
 	use sp_std::num::NonZeroU16;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -107,7 +106,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Provider for the current block number.
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		/// Identifier for the class of asset.
 		type AssetId: Member
@@ -160,7 +159,7 @@ pub mod pallet {
 	/// Existing pools
 	#[pallet::storage]
 	#[pallet::getter(fn pools)]
-	pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolInfo<T::AssetId, T::BlockNumber>>;
+	pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolInfo<T::AssetId, BlockNumberFor<T>>>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -228,8 +227,8 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			current_amplification: NonZeroU16,
 			final_amplification: NonZeroU16,
-			start_block: T::BlockNumber,
-			end_block: T::BlockNumber,
+			start_block: BlockNumberFor<T>,
+			end_block: BlockNumberFor<T>,
 		},
 	}
 
@@ -410,8 +409,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
 			final_amplification: u16,
-			start_block: T::BlockNumber,
-			end_block: T::BlockNumber,
+			start_block: BlockNumberFor<T>,
+			end_block: BlockNumberFor<T>,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -1290,7 +1289,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[inline]
-	pub(crate) fn get_amplification(pool: &PoolInfo<T::AssetId, T::BlockNumber>) -> u128 {
+	pub(crate) fn get_amplification(pool: &PoolInfo<T::AssetId, BlockNumberFor<T>>) -> u128 {
 		hydra_dx_math::stableswap::calculate_amplification(
 			pool.initial_amplification.get().into(),
 			pool.final_amplification.get().into(),

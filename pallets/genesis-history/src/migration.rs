@@ -17,7 +17,6 @@
 
 pub use crate::*;
 pub use frame_support::{
-	log,
 	traits::{Get, StorageVersion},
 	weights::Weight,
 };

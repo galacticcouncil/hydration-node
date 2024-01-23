@@ -1,12 +1,12 @@
 #![allow(dead_code)]
+#![allow(clippy::type_complexity)]
 
-use codec::{Decode, Encode};
-use frame_remote_externalities::TestExternalities;
-use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion};
-use sp_core::storage::{
-	well_known_keys::is_default_child_storage_key, ChildInfo, ChildType, PrefixedStorageKey, StorageData, StorageKey,
+use codec::{Compact, Decode, Encode};
+use frame_support::sp_runtime::{
+	traits::{Block as BlockT, HashingFor},
+	StateVersion,
 };
-use sp_state_machine::Backend;
+use sp_state_machine::TestExternalities;
 use std::{
 	fs,
 	path::{Path, PathBuf},
@@ -38,119 +38,84 @@ where
 		.map_err(|_| "Could not parse block hash")
 }
 
-type KeyValue = (StorageKey, StorageData);
-type TopKeyValues = Vec<KeyValue>;
-type ChildKeyValues = Vec<(ChildInfo, Vec<KeyValue>)>;
-
-fn load_top_keys(ext: &TestExternalities) -> TopKeyValues {
-	let pairs = ext
-		.backend
-		.pairs()
-		.iter()
-		.map(|e| (StorageKey(e.clone().0), StorageData(e.clone().1)))
-		.collect();
-	pairs
-}
-
-fn load_child_keys(ext: &TestExternalities, top_kv: &[KeyValue]) -> Result<ChildKeyValues, &'static str> {
-	let child_roots = top_kv
-		.iter()
-		.filter_map(|(k, _)| is_default_child_storage_key(k.as_ref()).then(|| k.clone()))
-		.collect::<Vec<_>>();
-
-	let mut child_kv = vec![];
-
-	for prefixed_top_key in child_roots {
-		let storage_key = PrefixedStorageKey::new(prefixed_top_key.as_ref().to_vec());
-		let child_info = match ChildType::from_prefixed_key(&storage_key) {
-			Some((ChildType::ParentKeyId, storage_key)) => ChildInfo::new_default(storage_key),
-			None => return Err("load_child_keys failed."),
-		};
-		let child_keys: Vec<StorageKey> = ext
-			.backend
-			.child_keys(&child_info, &StorageKey(vec![]).0)
-			.into_iter()
-			.map(StorageKey)
-			.collect();
-
-		let mut child_kv_inner = vec![];
-		for key in child_keys {
-			let child_info = match ChildType::from_prefixed_key(&storage_key) {
-				Some((ChildType::ParentKeyId, storage_key)) => ChildInfo::new_default(storage_key),
-				None => return Err("load_child_keys failed."),
-			};
-			let value = match ext.backend.child_storage(&child_info, &key.0) {
-				Ok(Some(value)) => value,
-				_ => return Err("load_child_keys failed."),
-			};
-			child_kv_inner.push((key, StorageData(value)));
-		}
-
-		let prefixed_top_key = PrefixedStorageKey::new(prefixed_top_key.clone().0);
-		let un_prefixed = match ChildType::from_prefixed_key(&prefixed_top_key) {
-			Some((ChildType::ParentKeyId, storage_key)) => storage_key,
-			None => return Err("load_child_keys failed."),
-		};
-
-		child_kv.push((ChildInfo::new_default(un_prefixed), child_kv_inner));
-	}
-
-	Ok(child_kv)
-}
-
-pub fn extend_externalities(mut ext: TestExternalities, execute: impl FnOnce()) -> Result<TestExternalities, String> {
-	ext.execute_with(execute);
-	ext.commit_all()?;
-	Ok(ext)
-}
+pub type SnapshotVersion = Compact<u16>;
+pub const SNAPSHOT_VERSION: SnapshotVersion = Compact(3);
 
 /// The snapshot that we store on disk.
 #[derive(Decode, Encode)]
-struct Snapshot<B: BlockT> {
+pub struct Snapshot<B: BlockT> {
+	snapshot_version: SnapshotVersion,
 	state_version: StateVersion,
 	block_hash: B::Hash,
-	top: TopKeyValues,
-	child: ChildKeyValues,
+	// <Vec<Key, (Value, MemoryDbRefCount)>>
+	raw_storage: Vec<(Vec<u8>, (Vec<u8>, i32))>,
+	storage_root: B::Hash,
 }
 
-pub fn save_externalities<Block: BlockT>(ext: TestExternalities, path: PathBuf) -> Result<(), &'static str> {
-	let top_kv = load_top_keys(&ext);
-	let child_kv = load_child_keys(&ext, &top_kv)?;
+impl<B: BlockT> Snapshot<B> {
+	pub fn new(
+		state_version: StateVersion,
+		block_hash: B::Hash,
+		raw_storage: Vec<(Vec<u8>, (Vec<u8>, i32))>,
+		storage_root: B::Hash,
+	) -> Self {
+		Self {
+			snapshot_version: SNAPSHOT_VERSION,
+			state_version,
+			block_hash,
+			raw_storage,
+			storage_root,
+		}
+	}
 
-	let snapshot = Snapshot::<Block> {
-		state_version: ext.state_version,
-		block_hash: Block::Hash::default(),
-		top: top_kv,
-		child: child_kv,
-	};
+	fn load(path: &PathBuf) -> Result<Snapshot<B>, &'static str> {
+		let bytes = fs::read(path).map_err(|_| "fs::read failed.")?;
+		// The first item in the SCALE encoded struct bytes is the snapshot version. We decode and
+		// check that first, before proceeding to decode the rest of the snapshot.
+		let snapshot_version =
+			SnapshotVersion::decode(&mut &*bytes).map_err(|_| "Failed to decode snapshot version")?;
+
+		if snapshot_version != SNAPSHOT_VERSION {
+			return Err("Unsupported snapshot version detected. Please create a new snapshot.");
+		}
+
+		Decode::decode(&mut &*bytes).map_err(|_| "Decode failed")
+	}
+}
+
+pub fn save_externalities<B: BlockT>(ext: TestExternalities<HashingFor<B>>, path: PathBuf) -> Result<(), &'static str> {
+	let state_version = ext.state_version;
+	let (raw_storage, storage_root) = ext.into_raw_snapshot();
+
+	let snapshot = Snapshot::<B>::new(state_version, B::Hash::default(), raw_storage, storage_root);
+
 	let encoded = snapshot.encode();
-
 	fs::write(path, encoded).map_err(|_| "fs::write failed")?;
+
 	Ok(())
 }
 
-pub fn load_snapshot<Block: BlockT>(path: PathBuf) -> Result<TestExternalities, &'static str> {
-	let bytes = fs::read(path).map_err(|_| "fs::read failed.")?;
-	let snapshot: Snapshot<Block> = Decode::decode(&mut &*bytes).map_err(|_| "decode failed")?;
+pub fn load_snapshot<B: BlockT>(path: PathBuf) -> Result<TestExternalities<HashingFor<B>>, &'static str> {
+	let Snapshot {
+		snapshot_version: _,
+		block_hash: _,
+		state_version,
+		raw_storage,
+		storage_root,
+	} = Snapshot::<B>::load(&path)?;
 
-	let mut ext_from_snapshot =
-		TestExternalities::new_with_code_and_state(Default::default(), Default::default(), Default::default());
-
-	for (k, v) in snapshot.top {
-		// skip writing the child root data.
-		if is_default_child_storage_key(k.as_ref()) {
-			continue;
-		}
-		ext_from_snapshot.insert(k.0, v.0);
-	}
-
-	for (info, key_values) in snapshot.child {
-		for (k, v) in key_values {
-			ext_from_snapshot.insert_child(info.clone(), k.0, v.0);
-		}
-	}
+	let ext_from_snapshot = TestExternalities::from_raw_snapshot(raw_storage, storage_root, state_version);
 
 	Ok(ext_from_snapshot)
+}
+
+pub fn extend_externalities<B: BlockT>(
+	mut ext: TestExternalities<HashingFor<B>>,
+	execute: impl FnOnce(),
+) -> Result<TestExternalities<HashingFor<B>>, String> {
+	ext.execute_with(execute);
+	ext.commit_all()?;
+	Ok(ext)
 }
 
 pub const ALICE: [u8; 32] = [4u8; 32];
@@ -158,9 +123,11 @@ pub const BOB: [u8; 32] = [5u8; 32];
 
 #[cfg(test)]
 /// used in tests to generate TestExternalities
-fn externalities_from_genesis() -> TestExternalities {
-	let mut storage = frame_system::GenesisConfig::default()
-		.build_storage::<hydradx_runtime::Runtime>()
+fn externalities_from_genesis() -> TestExternalities<HashingFor<hydradx_runtime::Block>> {
+	use frame_support::sp_runtime::BuildStorage;
+
+	let mut storage = frame_system::GenesisConfig::<hydradx_runtime::Runtime>::default()
+		.build_storage()
 		.unwrap();
 
 	pallet_balances::GenesisConfig::<hydradx_runtime::Runtime> {
@@ -178,9 +145,9 @@ fn extend_externalities_should_work() {
 
 	let ext = externalities_from_genesis();
 
-	let mut modified_ext = extend_externalities(ext, || {
+	let mut modified_ext = extend_externalities::<hydradx_runtime::Block>(ext, || {
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&hydradx_runtime::AccountId::from(BOB)),
+			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
 			0
 		);
 		assert_ok!(hydradx_runtime::Balances::transfer(
@@ -189,7 +156,7 @@ fn extend_externalities_should_work() {
 			1_000_000_000_000,
 		));
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&hydradx_runtime::AccountId::from(BOB)),
+			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
 			1_000_000_000_000
 		);
 	})
@@ -197,7 +164,7 @@ fn extend_externalities_should_work() {
 
 	modified_ext.execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&hydradx_runtime::AccountId::from(BOB)),
+			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
 			1_000_000_000_000
 		);
 	});
@@ -209,9 +176,9 @@ fn save_and_load_externalities_should_work() {
 
 	let ext = externalities_from_genesis();
 
-	let modified_ext = extend_externalities(ext, || {
+	let modified_ext = extend_externalities::<hydradx_runtime::Block>(ext, || {
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&hydradx_runtime::AccountId::from(BOB)),
+			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
 			0
 		);
 		assert_ok!(hydradx_runtime::Balances::transfer(
@@ -220,7 +187,7 @@ fn save_and_load_externalities_should_work() {
 			1_000_000_000_000,
 		));
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&hydradx_runtime::AccountId::from(BOB)),
+			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
 			1_000_000_000_000
 		);
 	})
@@ -236,7 +203,7 @@ fn save_and_load_externalities_should_work() {
 
 	ext_from_snapshot.execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&hydradx_runtime::AccountId::from(BOB)),
+			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
 			1_000_000_000_000
 		);
 	});

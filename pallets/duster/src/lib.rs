@@ -48,12 +48,12 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
+	use sp_std::vec::Vec;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
@@ -129,25 +129,15 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_config]
+	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		pub account_blacklist: Vec<T::AccountId>,
 		pub reward_account: Option<T::AccountId>,
 		pub dust_account: Option<T::AccountId>,
 	}
 
-	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			GenesisConfig {
-				account_blacklist: vec![],
-				reward_account: None,
-				dust_account: None,
-			}
-		}
-	}
-
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			self.account_blacklist.iter().for_each(|account_id| {
 				AccountBlacklist::<T>::insert(account_id, ());

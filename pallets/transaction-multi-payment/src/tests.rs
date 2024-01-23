@@ -18,6 +18,7 @@
 pub use crate::{mock::*, Config, Error};
 use crate::{AcceptedCurrencies, AcceptedCurrencyPrice, Event, PaymentInfo, Price};
 
+use frame_support::traits::tokens::Precision;
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::{DispatchInfo, PostDispatchInfo},
@@ -105,7 +106,7 @@ fn set_supported_currency_without_spot_price_should_charge_fee_in_correct_curren
 		});
 
 		let len = 10;
-		let info = info_from_weight(Weight::from_ref_time(5));
+		let info = info_from_weight(Weight::from_parts(5, 0));
 
 		let pre = ChargeTransactionPayment::<Test>::from(0).pre_dispatch(&ALICE, call, &info, len);
 		assert!(pre.is_ok());
@@ -134,7 +135,7 @@ fn set_supported_currency_with_spot_price_should_charge_fee_in_correct_currency(
 		});
 
 		let len = 10;
-		let info = info_from_weight(Weight::from_ref_time(5));
+		let info = info_from_weight(Weight::from_parts(5, 0));
 
 		let pre = ChargeTransactionPayment::<Test>::from(0).pre_dispatch(&ALICE, call, &info, len);
 		assert!(pre.is_ok());
@@ -177,7 +178,7 @@ fn fee_payment_in_native_currency() {
 		.build()
 		.execute_with(|| {
 			let len = 10;
-			let info = info_from_weight(Weight::from_ref_time(5));
+			let info = info_from_weight(Weight::from_parts(5, 0));
 
 			assert!(ChargeTransactionPayment::<Test>::from(0)
 				.pre_dispatch(&CHARLIE, CALL, &info, len)
@@ -201,7 +202,7 @@ fn fee_payment_in_non_native_currency() {
 			assert_eq!(Balances::free_balance(CHARLIE), 0);
 
 			let len = 1000;
-			let info = info_from_weight(Weight::from_ref_time(5));
+			let info = info_from_weight(Weight::from_parts(5, 0));
 
 			assert_eq!(Tokens::free_balance(SUPPORTED_CURRENCY_WITH_PRICE, &CHARLIE), 10_000);
 
@@ -225,7 +226,7 @@ fn fee_payment_in_expensive_non_native_currency_should_be_non_zero() {
 		.build()
 		.execute_with(|| {
 			let len = 100;
-			let info = info_from_weight(Weight::from_ref_time(5));
+			let info = info_from_weight(Weight::from_parts(5, 0));
 
 			assert_eq!(Tokens::free_balance(HIGH_VALUE_CURRENCY, &BOB), 10_000);
 
@@ -236,7 +237,7 @@ fn fee_payment_in_expensive_non_native_currency_should_be_non_zero() {
 			// Bob should be charged at least 1 token
 			assert_eq!(Tokens::free_balance(HIGH_VALUE_CURRENCY, &BOB), 9999);
 
-			let post_info = post_info_from_weight(Weight::from_ref_time(3));
+			let post_info = post_info_from_weight(Weight::from_parts(3, 0));
 			assert!(
 				ChargeTransactionPayment::<Test>::post_dispatch(Some(pre), &info, &post_info, len, &Ok(())).is_ok()
 			);
@@ -256,7 +257,7 @@ fn fee_payment_non_native_insufficient_balance() {
 		.build()
 		.execute_with(|| {
 			let len = 1000;
-			let info = info_from_weight(Weight::from_ref_time(5));
+			let info = info_from_weight(Weight::from_parts(5, 0));
 
 			assert!(ChargeTransactionPayment::<Test>::from(0)
 				.pre_dispatch(&CHARLIE, CALL, &info, len)
@@ -374,7 +375,7 @@ fn fee_should_be_transferred_when_paid_in_native_currency() {
 		.execute_with(|| {
 			let len = 10;
 			let tip = 0;
-			let dispatch_info = info_from_weight(Weight::from_ref_time(15));
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
 
 			// Act
 			let pre = ChargeTransactionPayment::<Test>::from(tip)
@@ -412,7 +413,7 @@ fn fee_should_be_withdrawn_when_paid_in_native_currency() {
 		.execute_with(|| {
 			let len = 10;
 			let tip = 0;
-			let dispatch_info = info_from_weight(Weight::from_ref_time(15));
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
 			let previous_total_issuance = Balances::total_issuance();
 
 			// Act
@@ -451,8 +452,8 @@ fn fee_should_be_transferred_when_paid_in_native_currency_work_with_tip() {
 		.execute_with(|| {
 			let len = 10;
 			let tip = 5;
-			let dispatch_info = info_from_weight(Weight::from_ref_time(15));
-			let post_dispatch_info = post_info_from_weight(Weight::from_ref_time(10));
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
+			let post_dispatch_info = post_info_from_weight(Weight::from_parts(10, 0));
 
 			// Act
 			let pre = ChargeTransactionPayment::<Test>::from(tip)
@@ -491,8 +492,8 @@ fn fee_should_be_withdrawn_when_paid_in_native_currency_work_with_tip() {
 		.execute_with(|| {
 			let len = 10;
 			let tip = 5;
-			let dispatch_info = info_from_weight(Weight::from_ref_time(15));
-			let post_dispatch_info = post_info_from_weight(Weight::from_ref_time(10));
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
+			let post_dispatch_info = post_info_from_weight(Weight::from_parts(10, 0));
 			let previous_total_issuance = Balances::total_issuance();
 
 			// Act
@@ -533,7 +534,7 @@ fn fee_should_be_transferred_when_paid_in_non_native_currency() {
 		.execute_with(|| {
 			let len = 10;
 			let tip = 0;
-			let dispatch_info = info_from_weight(Weight::from_ref_time(15));
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
 
 			// Act
 			let pre = ChargeTransactionPayment::<Test>::from(tip)
@@ -585,7 +586,7 @@ fn fee_should_be_withdrawn_when_paid_in_non_native_currency() {
 		.execute_with(|| {
 			let len = 10;
 			let tip = 0;
-			let dispatch_info = info_from_weight(Weight::from_ref_time(15));
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
 			let previous_total_issuance = Tokens::total_issuance(SUPPORTED_CURRENCY);
 
 			// Act
@@ -630,8 +631,8 @@ fn fee_should_be_transferred_when_paid_in_non_native_currency_with_tip() {
 		.execute_with(|| {
 			let len = 10;
 			let tip = 5;
-			let dispatch_info = info_from_weight(Weight::from_ref_time(15));
-			let post_dispatch_info = post_info_from_weight(Weight::from_ref_time(10));
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
+			let post_dispatch_info = post_info_from_weight(Weight::from_parts(10, 0));
 
 			// Act
 			let pre = ChargeTransactionPayment::<Test>::from(tip)
@@ -683,8 +684,8 @@ fn fee_should_be_withdrawn_and_not_refunded_when_paid_in_non_native_currency_wit
 		.execute_with(|| {
 			let len = 10;
 			let tip = 5;
-			let dispatch_info = info_from_weight(Weight::from_ref_time(15));
-			let post_dispatch_info = post_info_from_weight(Weight::from_ref_time(10));
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
+			let post_dispatch_info = post_info_from_weight(Weight::from_parts(10, 0));
 			let previous_total_issuance = Tokens::total_issuance(SUPPORTED_CURRENCY);
 
 			// Act
@@ -726,7 +727,7 @@ fn fee_payment_in_native_currency_with_no_balance() {
 		.build()
 		.execute_with(|| {
 			let len = 10;
-			let info = info_from_weight(Weight::from_ref_time(5));
+			let info = info_from_weight(Weight::from_parts(5, 0));
 
 			assert!(ChargeTransactionPayment::<Test>::from(0)
 				.pre_dispatch(&CHARLIE, CALL, &info, len)
@@ -748,7 +749,7 @@ fn fee_payment_in_non_native_currency_with_no_balance() {
 		.build()
 		.execute_with(|| {
 			let len = 1000;
-			let info = info_from_weight(Weight::from_ref_time(5));
+			let info = info_from_weight(Weight::from_parts(5, 0));
 
 			assert!(ChargeTransactionPayment::<Test>::from(0)
 				.pre_dispatch(&CHARLIE, CALL, &info, len)
@@ -773,7 +774,7 @@ fn fee_payment_in_non_native_currency_with_no_price() {
 			assert_eq!(Balances::free_balance(CHARLIE), 0);
 
 			let len = 10;
-			let info = info_from_weight(Weight::from_ref_time(5));
+			let info = info_from_weight(Weight::from_parts(5, 0));
 
 			assert_eq!(Tokens::free_balance(SUPPORTED_CURRENCY, &FEE_RECEIVER), 0);
 
@@ -800,7 +801,7 @@ fn fee_payment_in_unregistered_currency() {
 		.build()
 		.execute_with(|| {
 			let len = 1000;
-			let info = info_from_weight(Weight::from_ref_time(5));
+			let info = info_from_weight(Weight::from_parts(5, 0));
 
 			assert_ok!(PaymentPallet::remove_currency(
 				RuntimeOrigin::root(),
@@ -826,7 +827,7 @@ fn fee_payment_non_native_insufficient_balance_with_no_pool() {
 		.build()
 		.execute_with(|| {
 			let len = 1000;
-			let info = info_from_weight(Weight::from_ref_time(5));
+			let info = info_from_weight(Weight::from_parts(5, 0));
 
 			assert!(ChargeTransactionPayment::<Test>::from(0)
 				.pre_dispatch(&CHARLIE, CALL, &info, len)
@@ -848,7 +849,7 @@ fn fee_transfer_can_kill_account_when_paid_in_native() {
 		.execute_with(|| {
 			let len = 10;
 			let tip = 0;
-			let dispatch_info = info_from_weight(Weight::from_ref_time(15));
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
 
 			// Act
 			let pre = ChargeTransactionPayment::<Test>::from(tip)
@@ -885,7 +886,7 @@ fn fee_transfer_can_kill_account_when_paid_in_non_native() {
 		.execute_with(|| {
 			let len = 10;
 			let tip = 0;
-			let dispatch_info = info_from_weight(Weight::from_ref_time(15));
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
 
 			assert_ok!(Currencies::withdraw(SUPPORTED_CURRENCY, &ALICE, INITIAL_BALANCE - 45));
 
@@ -963,7 +964,13 @@ fn currency_stays_around_until_reaping() {
 		.build()
 		.execute_with(|| {
 			// setup
-			assert_ok!(<Tokens as Balanced<AccountId>>::deposit(HIGH_ED_CURRENCY, &DAVE, HIGH_ED * 2).map(|_| ()));
+			assert_ok!(<Tokens as Balanced<AccountId>>::deposit(
+				HIGH_ED_CURRENCY,
+				&DAVE,
+				HIGH_ED * 2,
+				Precision::Exact
+			)
+			.map(|_| ()));
 			assert_eq!(Currencies::free_balance(HIGH_ED_CURRENCY, &DAVE), HIGH_ED * 2);
 			assert_eq!(PaymentPallet::get_currency(DAVE), Some(HIGH_ED_CURRENCY));
 
@@ -993,7 +1000,13 @@ fn currency_is_removed_when_balance_hits_zero() {
 		.build()
 		.execute_with(|| {
 			// setup
-			assert_ok!(<Tokens as Balanced<AccountId>>::deposit(SUPPORTED_CURRENCY_WITH_PRICE, &DAVE, 10).map(|_| ()));
+			assert_ok!(<Tokens as Balanced<AccountId>>::deposit(
+				SUPPORTED_CURRENCY_WITH_PRICE,
+				&DAVE,
+				10,
+				Precision::Exact
+			)
+			.map(|_| ()));
 			assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY_WITH_PRICE, &DAVE), 10);
 			assert_eq!(PaymentPallet::get_currency(DAVE), Some(SUPPORTED_CURRENCY_WITH_PRICE));
 
@@ -1024,7 +1037,13 @@ fn currency_is_not_changed_on_unrelated_account_activity() {
 		.build()
 		.execute_with(|| {
 			// setup
-			assert_ok!(<Tokens as Balanced<AccountId>>::deposit(SUPPORTED_CURRENCY_WITH_PRICE, &DAVE, 10).map(|_| ()));
+			assert_ok!(<Tokens as Balanced<AccountId>>::deposit(
+				SUPPORTED_CURRENCY_WITH_PRICE,
+				&DAVE,
+				10,
+				Precision::Exact
+			)
+			.map(|_| ()));
 			assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY_WITH_PRICE, &DAVE), 10);
 			assert_eq!(PaymentPallet::get_currency(DAVE), Some(SUPPORTED_CURRENCY_WITH_PRICE));
 

@@ -18,14 +18,14 @@
 use crate as ema_oracle;
 use crate::Config;
 use ema_oracle::OracleEntry;
-use frame_support::bounded_vec;
 use frame_support::pallet_prelude::ConstU32;
 use frame_support::parameter_types;
 use frame_support::sp_runtime::{
-	testing::Header,
+	bounded_vec,
 	traits::{BlakeTwo256, IdentityLookup},
+	BuildStorage,
 };
-use frame_support::traits::{Everything, GenesisBuild};
+use frame_support::traits::Everything;
 use frame_support::BoundedVec;
 use hydradx_traits::OraclePeriod::{self, *};
 use hydradx_traits::{AssetPairAccountIdFor, Liquidity, Volume};
@@ -36,7 +36,6 @@ pub use hydradx_traits::Source;
 use crate::types::{AssetId, Balance, Price};
 pub type BlockNumber = u64;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 use crate::MAX_PERIODS;
@@ -69,10 +68,7 @@ pub const ORACLE_ENTRY_2: OracleEntry<BlockNumber> = OracleEntry {
 };
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	 Block = Block,
-	 NodeBlock = Block,
-	 UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	 {
 		 System: frame_system,
 		 EmaOracle: ema_oracle,
@@ -90,13 +86,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = BlockNumber;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -150,14 +145,14 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-		GenesisBuild::<Test>::assimilate_storage(
-			&crate::GenesisConfig {
-				initial_data: self.initial_data,
-			},
-			&mut t,
-		)
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+		crate::GenesisConfig::<Test> {
+			initial_data: self.initial_data,
+			..Default::default()
+		}
+		.assimilate_storage(&mut t)
 		.unwrap();
+
 		let mut ext: sp_io::TestExternalities = t.into();
 		ext.execute_with(|| {
 			System::set_block_number(0);

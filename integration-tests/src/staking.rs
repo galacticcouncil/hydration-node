@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use frame_support::traits::{LockIdentifier, WithdrawReasons};
+use frame_support::traits::LockIdentifier;
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::DispatchResult,
@@ -33,11 +33,7 @@ fn vesting_schedule() -> Schedule {
 }
 
 fn set_balance_proposal(who: AccountId, value: u128) -> BoundedCallOf<hydradx_runtime::Runtime> {
-	let inner = pallet_balances::Call::set_balance {
-		who,
-		new_free: value,
-		new_reserved: 0,
-	};
+	let inner = pallet_balances::Call::force_set_balance { who, new_free: value };
 	let outer = hydradx_runtime::RuntimeCall::Balances(inner);
 	Preimage::bound(outer).unwrap()
 }
@@ -113,7 +109,6 @@ fn staking_should_transfer_hdx_fees_to_pot_account_when_omnipool_trade_is_execut
 fn democracy_vote_should_record_stake_vote() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -124,11 +119,10 @@ fn democracy_vote_should_record_stake_vote() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -164,7 +158,6 @@ fn democracy_vote_should_record_stake_vote() {
 fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -175,11 +168,10 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -219,7 +211,6 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 fn staking_should_transfer_rewards_when_claimed() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -230,11 +221,10 @@ fn staking_should_transfer_rewards_when_claimed() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -285,7 +275,6 @@ fn staking_should_transfer_rewards_when_claimed() {
 fn staking_should_not_reward_when_double_claimed() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -296,11 +285,10 @@ fn staking_should_not_reward_when_double_claimed() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -345,7 +333,6 @@ fn staking_should_not_reward_when_double_claimed() {
 fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -356,11 +343,10 @@ fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -411,7 +397,6 @@ fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -422,11 +407,10 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		assert_ok!(Staking::stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -474,7 +458,6 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 fn staking_should_remove_vote_when_democracy_removes_vote() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -485,11 +468,10 @@ fn staking_should_remove_vote_when_democracy_removes_vote() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -531,7 +513,6 @@ fn staking_should_remove_vote_when_democracy_removes_vote() {
 fn staking_should_not_reward_when_refenrendum_is_ongoing() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -542,11 +523,10 @@ fn staking_should_not_reward_when_refenrendum_is_ongoing() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -582,7 +562,6 @@ fn staking_should_not_reward_when_refenrendum_is_ongoing() {
 fn democracy_vote_should_work_correctly_when_account_has_no_stake() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -593,11 +572,10 @@ fn democracy_vote_should_work_correctly_when_account_has_no_stake() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Democracy::vote(
@@ -613,7 +591,6 @@ fn democracy_vote_should_work_correctly_when_account_has_no_stake() {
 fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -625,11 +602,10 @@ fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
 			10_000 * UNITS,
 			0,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Democracy::vote(
@@ -649,7 +625,6 @@ fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
 fn staking_position_transfer_should_fail_when_origin_is_owner() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -660,11 +635,10 @@ fn staking_position_transfer_should_fail_when_origin_is_owner() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 
 		assert_ok!(Staking::stake(
@@ -696,7 +670,6 @@ fn staking_position_transfer_should_fail_when_origin_is_owner() {
 fn thaw_staking_position_should_fail_when_origin_is_position_owner() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -707,11 +680,10 @@ fn thaw_staking_position_should_fail_when_origin_is_position_owner() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 
 		assert_ok!(Staking::stake(
@@ -742,7 +714,6 @@ fn thaw_staking_position_should_fail_when_origin_is_position_owner() {
 fn thaw_staking_collection_should_fail_when_origin_is_not_pallet_account() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -753,11 +724,10 @@ fn thaw_staking_collection_should_fail_when_origin_is_not_pallet_account() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 
 		assert_ok!(Staking::stake(
@@ -781,7 +751,6 @@ fn thaw_staking_collection_should_fail_when_origin_is_not_pallet_account() {
 fn stake_should_fail_when_tokens_are_vested() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -818,7 +787,6 @@ fn stake_should_fail_when_tokens_are_vested() {
 fn stake_should_fail_when_tokens_are_already_staked() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -865,7 +833,6 @@ fn stake_should_fail_when_tokens_are_already_staked() {
 fn staking_should_assign_less_action_points_when_portion_of_staking_lock_is_vested() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -962,7 +929,6 @@ fn staking_should_assign_less_action_points_when_portion_of_staking_lock_is_vest
 fn staking_should_not_allow_to_remove_vote_when_referendum_is_finished_and_staking_position_exists_and_user_lost() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -973,17 +939,15 @@ fn staking_should_not_allow_to_remove_vote_when_referendum_is_finished_and_staki
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -1045,7 +1009,6 @@ fn staking_should_not_allow_to_remove_vote_when_referendum_is_finished_and_staki
 fn staking_should_allow_to_remove_vote_when_user_lost_and_conviction_expires() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -1056,17 +1019,15 @@ fn staking_should_allow_to_remove_vote_when_user_lost_and_conviction_expires() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -1122,7 +1083,7 @@ fn staking_should_allow_to_remove_vote_when_user_lost_and_conviction_expires() {
 		assert!(stake_voting.votes.is_empty());
 		let position = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
 		assert_eq!(position.get_action_points(), 1);
-		assert_lock(&BOB.into(), 0, DEMOCRACY_ID);
+		assert_no_lock(&BOB.into(), DEMOCRACY_ID);
 	});
 }
 
@@ -1130,7 +1091,6 @@ fn staking_should_allow_to_remove_vote_when_user_lost_and_conviction_expires() {
 fn staking_should_allow_to_remove_vote_when_user_won() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -1141,17 +1101,15 @@ fn staking_should_allow_to_remove_vote_when_user_won() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -1213,7 +1171,6 @@ fn staking_should_allow_to_remove_vote_when_user_won() {
 fn staking_should_allow_to_remove_vote_when_user_lost_with_no_conviction() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -1224,17 +1181,15 @@ fn staking_should_allow_to_remove_vote_when_user_lost_with_no_conviction() {
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			1_000_000 * UNITS,
-			0,
 		));
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			BOB.into(),
 			1_000_000 * UNITS,
-			0,
 		));
 		let r = begin_referendum();
 		assert_ok!(Staking::stake(
@@ -1288,26 +1243,28 @@ fn staking_should_allow_to_remove_vote_when_user_lost_with_no_conviction() {
 		assert!(stake_voting.votes.is_empty());
 		let position = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
 		assert_eq!(position.get_action_points(), 1);
-		assert_lock(&BOB.into(), 0, DEMOCRACY_ID);
+		assert_no_lock(&BOB.into(), DEMOCRACY_ID);
 	});
 }
 
 const DEMOCRACY_ID: LockIdentifier = *b"democrac";
-use pallet_balances::BalanceLock;
 fn assert_lock(who: &AccountId, amount: Balance, lock_id: LockIdentifier) {
 	let locks = Balances::locks(who);
 	let lock = locks.iter().find(|e| e.id == lock_id);
 
-	if amount == 0 {
-		assert_eq!(lock, None);
-	} else {
-		assert_eq!(
-			lock,
-			Some(&BalanceLock {
-				id: lock_id,
-				amount: amount,
-				reasons: WithdrawReasons::TRANSFER.into()
-			})
-		);
-	}
+	assert_eq!(
+		lock,
+		Some(&pallet_balances::BalanceLock {
+			id: lock_id,
+			amount,
+			reasons: pallet_balances::Reasons::All
+		})
+	);
+}
+
+fn assert_no_lock(who: &AccountId, lock_id: LockIdentifier) {
+	let locks = Balances::locks(who);
+	let lock = locks.iter().find(|e| e.id == lock_id);
+
+	assert_eq!(lock, None);
 }

@@ -44,7 +44,6 @@ use sp_core::{Get, U256};
 mod accounts_conversion;
 pub mod precompiles;
 
-// Centrifuge / Moonbeam:
 // Current approximation of the gas per second consumption considering
 // EVM execution over compiled WASM (on 4.4Ghz CPU).
 // Given the 500ms Weight, from which 75% only are used for transactions,
@@ -54,16 +53,16 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
-// Fixed gas price of 0.1 gwei per gas
+// Fixed gas price of 0.08 gwei per gas
 // pallet-base-fee to be implemented after migration to polkadot-v1.1.0
-const DEFAULT_BASE_FEE_PER_GAS: u128 = 100_000_000;
+const DEFAULT_BASE_FEE_PER_GAS: u128 = 80_000_000;
 
 parameter_types! {
 	// We allow for a 75% fullness of a 0.5s block
 	pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
 
 	pub PrecompilesValue: precompiles::HydraDXPrecompiles<crate::Runtime> = precompiles::HydraDXPrecompiles::<_>::new();
-	pub WeightPerGas: Weight = Weight::from_ref_time(WEIGHT_PER_GAS);
+	pub WeightPerGas: Weight = Weight::from_parts(WEIGHT_PER_GAS, 0);
 }
 
 const MOONBEAM_PARA_ID: u32 = 2004;
@@ -117,6 +116,18 @@ impl FeeCalculator for FixedGasPrice {
 	}
 }
 
+parameter_types! {
+	/// The amount of gas per pov. A ratio of 4 if we convert ref_time to gas and we compare
+	/// it with the pov_size for a block. E.g.
+	/// ceil(
+	///     (max_extrinsic.ref_time() / max_extrinsic.proof_size()) / WEIGHT_PER_GAS
+	/// )
+	pub const GasLimitPovSizeRatio: u64 = 4;
+	/// The amount of gas per storage (in bytes): BLOCK_GAS_LIMIT / BLOCK_STORAGE_LIMIT
+	/// The current definition of BLOCK_STORAGE_LIMIT is 40 KB, resulting in a value of 366.
+	pub GasLimitStorageGrowthRatio: u64 = 366;
+}
+
 impl pallet_evm::Config for crate::Runtime {
 	type AddressMapping = ExtendedAddressMapping;
 	type BlockGasLimit = BlockGasLimit;
@@ -135,11 +146,21 @@ impl pallet_evm::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
 	type WeightPerGas = WeightPerGas;
 	type WithdrawOrigin = EnsureAddressTruncated;
+	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
+	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
+	type Timestamp = crate::Timestamp;
+	type WeightInfo = pallet_evm::weights::SubstrateWeight<crate::Runtime>;
 }
 
 impl pallet_evm_chain_id::Config for crate::Runtime {}
 
+parameter_types! {
+	pub PostLogContent: pallet_ethereum::PostLogContent = pallet_ethereum::PostLogContent::BlockAndTxnHashes;
+}
+
 impl pallet_ethereum::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
 	type StateRoot = pallet_ethereum::IntermediateStateRoot<Self>;
+	type PostLogContent = PostLogContent;
+	type ExtraDataLength = sp_core::ConstU32<1>;
 }
