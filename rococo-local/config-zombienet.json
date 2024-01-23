@@ -41,7 +41,7 @@
         {
           "name": "alice",
           "command": "../target/release/hydradx",
-          "args": ["--pruning=archive"],
+          "args": ["--pruning=archive", "--log=info"],
           "ws_port": 9988,
           "rpc_port": 9999
         },

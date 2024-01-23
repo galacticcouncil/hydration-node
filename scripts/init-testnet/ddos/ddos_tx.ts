@@ -67,13 +67,13 @@ async function doOmnipoolSells(api, user, block) {
 
         //If there is a new block
         if (!(Math.abs(blockNumber - prev_block) < Number.EPSILON)) {
-            let sells_per_block = 1;
+            let sells_per_block = 62;
             for (let i = 0; i < sells_per_block; i++) {
                 let user_pub_key = user.publicKey;
                 const nonce = await api.rpc.system.accountNextIndex(user_pub_key);
                 const tip = 1;
 
-                await omniSell(api, user, nonce, tip)       
+                await omniSell(api, user, nonce, tip)
             }
 
             //Print out block feeresult

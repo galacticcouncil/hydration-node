@@ -5,13 +5,13 @@ use frame_support::assert_ok;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::pallet_prelude::Weight;
 use frame_support::weights::WeightToFee as WeightToFeeTrait;
-use hydradx_runtime::Runtime;
-use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::WeightToFee;
+use hydradx_runtime::{Runtime, UncheckedExtrinsic};
+use hydradx_runtime::{SignedExtra, TransactionPayment};
 use pallet_dynamic_fees::types::FeeEntry;
 use pallet_omnipool::traits::OmnipoolHooks;
 use pallet_omnipool::WeightInfo;
-use primitives::AssetId;
+use primitives::{AssetId, Balance};
 use sp_core::Encode;
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
@@ -21,11 +21,224 @@ const ETH_UNITS: u128 = 1_000_000_000_000_000_000;
 
 //TODO: clean up in this test file
 
+use frame_support::dispatch::DispatchClass;
 ///original fee - 1.560005867338
 ///1 cent per swap, we don't want to be more expensive
 ///300 blocks to reach the max
 ///30k per hour
 use frame_support::dispatch::DispatchInfo;
+use frame_support::weights::ConstantMultiplier;
+use hex_literal::hex;
+use hydradx_runtime::TransactionByteFee;
+use sp_runtime::testing::TestXt;
+use sp_runtime::traits::CheckedDiv;
+use sp_runtime::FixedPointNumber;
+use test_utils::assert_eq_approx;
+
+const HDX_USD_SPOT_PRICE_IN_CENTS: Balance = 2; //1HDX =~ 2 CENTS;
+const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
+
+#[test]
+fn min_swap_fee() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		let call = hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+			asset_in: DOT,
+			asset_out: 2,
+			amount: UNITS,
+			min_buy_amount: 0,
+		});
+
+		let info = call.get_dispatch_info();
+		let info_len = 146;
+		let fee = TransactionPayment::compute_fee(info_len, &info, 0);
+		let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
+		let tolerance = FixedU128::from((2, (UNITS / 10_000)));
+		println!("Swap tx fee in cents: {fee_in_cent:?}");
+
+		assert_eq_approx!(
+			fee_in_cent,
+			FixedU128::from_float(1.040003910584000000),
+			tolerance,
+			"The min fee should be ~1 cent (0.01$)"
+		);
+	});
+}
+
+#[test]
+fn max_swap_fee() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MaximumMultiplier::get(),
+		);
+
+		let call = hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+			asset_in: DOT,
+			asset_out: 2,
+			amount: UNITS,
+			min_buy_amount: 0,
+		});
+
+		let info = call.get_dispatch_info();
+		let info_len = 146; //We use this as this is what the UI send as length when omnipool swap is executed
+		let fee = TransactionPayment::compute_fee(info_len, &info, 0);
+		let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
+		let tolerance = FixedU128::from((2, (UNITS / 10_000)));
+		assert_eq_approx!(
+			fee_in_cent,
+			FixedU128::from_float(501.719523758898000000),
+			tolerance,
+			"The max fee should be ~200 cent (2$)"
+		);
+	});
+}
+
+#[test]
+fn fee_growth_simulator_starting_with_genesis_chain() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let prod_init_multiplier = FixedU128::from_inner(1000000000000000000);
+
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(prod_init_multiplier);
+		init_omnipool();
+		init_oracle();
+		let block_weight = hydradx_runtime::BlockWeights::get()
+			.get(DispatchClass::Normal)
+			.max_total
+			.unwrap();
+
+		for b in 2..=HOURS {
+			hydradx_run_to_block(b);
+			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
+			let call =
+				hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+					asset_in: HDX,
+					asset_out: 2,
+					amount: 10 * UNITS,
+					min_buy_amount: 10000,
+				});
+
+			let info = call.get_dispatch_info();
+			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
+			let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
+
+			let next = TransactionPayment::next_fee_multiplier();
+
+			//let next = SlowAdjustingFeeUpdate::<Runtime>::convert(multiplier);
+			println!("Swap tx fee in cents: {fee_in_cent:?} at block {b:?} with multiplier: {next:?}");
+		}
+	});
+}
+
+#[test]
+fn fee_growth_simulator_with_idle_chain() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//We simulate that the chain has no activity so the MinimumMultiplier kept diverged to absolute minimum
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		init_omnipool();
+		init_oracle();
+		let block_weight = hydradx_runtime::BlockWeights::get()
+			.get(DispatchClass::Normal)
+			.max_total
+			.unwrap();
+
+		for b in 2..=HOURS {
+			hydradx_run_to_block(b);
+			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
+			let call =
+				hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+					asset_in: HDX,
+					asset_out: 2,
+					amount: 10 * UNITS,
+					min_buy_amount: 10000,
+				});
+
+			let info = call.get_dispatch_info();
+			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
+			let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
+
+			let next = TransactionPayment::next_fee_multiplier();
+
+			//let next = SlowAdjustingFeeUpdate::<Runtime>::convert(multiplier);
+			println!("Swap tx fee in cents: {fee_in_cent:?} at block {b:?} with multiplier: {next:?}");
+		}
+	});
+}
+
+#[test]
+fn fee_asd() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let call = hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+			asset_in: DOT,
+			asset_out: 2,
+			amount: UNITS,
+			min_buy_amount: 0,
+		});
+
+		let encoded =
+			hex!["3b05000000000500000000a0724e18090000000000000000000000000000000000000000000000000000"].to_vec();
+
+		let info = call.get_dispatch_info();
+
+		/*let length = <Runtime as frame_system::Config>::CodeLength::get();
+		assert_eq!(length, 0);*/
+
+		let origin = 111111;
+		let extra = ();
+		let xt = TestXt::new(call.clone(), Some((origin, extra)));
+		let info = xt.get_dispatch_info();
+		let ext = xt.encode();
+		let len = ext.len() as u32;
+		assert_eq!(len, 51);
+
+		let s = call.encode();
+		assert_eq!(s.len() as u32, 66);
+
+		/*let unchecked = UncheckedExtrinsic::new_signed(
+			call.into(),
+			sp_runtime::AccountId32::from(ALICE).into(),
+			Signature::default(),
+			SignedExtra::default(),
+		);*/
+
+		let unadjusted_weight_fee: primitives::Balance = WeightToFee::weight_to_fee(&info.weight);
+
+		//Prod weight
+		let prod_low_multiplier = FixedU128::from_inner(1000000000000);
+		assert_eq!(prod_low_multiplier, FixedU128::from_rational(1, 10));
+		let prod_adjusted_weight = prod_low_multiplier.saturating_mul_int(unadjusted_weight_fee);
+		assert_eq!(prod_adjusted_weight, 5867338);
+
+		//Zombienet weight
+		let prod_init_multiplier = FixedU128::from_inner(999580731830769414);
+		let prod_adjusted_weight = prod_init_multiplier.saturating_mul_int(unadjusted_weight_fee);
+		assert_eq!(prod_adjusted_weight, 5864878180934);
+
+		let len = call.encoded_size() as u32;
+		assert_eq!(len, 146); //The length fee is a per-byte fee multiplier for the size of the transaction in bytes.
+
+		let len_fee =
+			ConstantMultiplier::<Balance, TransactionByteFee>::weight_to_fee(&Weight::from_ref_time(len as u64));
+		assert_eq!(len_fee, 1460000000000);
+
+		//pallet_transaction_payment    INFO: LEN FEE: 1460000000000
+		//pallet_transaction_payment    INFO: BASE FEE: 100000000000
+
+		//let base_fee = Self::weight_to_fee(T::BlockWeights::get().get(class).base_extrinsic);
+	});
+}
 
 #[test]
 fn fee_with_min_multiplier() {
@@ -49,26 +262,26 @@ fn fee_with_min_multiplier() {
 
 		let info = call.get_dispatch_info();
 
-		/*pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
-		);*/
+		);
 
 		let multiplier = pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::get();
 		//assert_eq!(multiplier, 1.into());
 
 		let rust_encoded_len = call.encoded_size() as u32;
 		let rust_encoded_fees = TransactionPayment::compute_fee(rust_encoded_len, &info, 0); //638733816906
-		assert_eq!(rust_encoded_fees / 4, 1596834542266);
+		assert_eq!(rust_encoded_fees, 6377250159654);
 
 		/*let post = PostDispatchInfo {
 			actual_weight: Some(Weight::from_ref_time(55)), //520000033053
 			pays_fee: Default::default(),
 		};
 		let rust_encoded_fees = TransactionPayment::compute_actual_fee(rust_encoded_len, &info, &post, 0);*/
-		hydradx_run_to_block(3);
+		/*hydradx_run_to_block(3);
 		hydradx_run_to_block(4);
 		hydradx_run_to_block(5);
-		hydradx_run_to_block(6);
+		hydradx_run_to_block(6);*/
 	});
 }
 
@@ -105,42 +318,6 @@ fn fee_with_max_multiplier() {
 	});
 }
 
-use frame_support::dispatch::DispatchClass;
-
-#[test]
-fn fee_growth_simulator() {
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		init_omnipool();
-		init_oracle();
-		let block_weight = hydradx_runtime::BlockWeights::get()
-			.get(DispatchClass::Normal)
-			.max_total
-			.unwrap();
-
-		for b in 2..=HOURS {
-			hydradx_run_to_block(b);
-			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
-			let call =
-				hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-					asset_in: DOT,
-					asset_out: 2,
-					amount: UNITS,
-					min_buy_amount: 0,
-				});
-
-			let info = call.get_dispatch_info();
-			let info_len = call.encoded_size() as u32;
-			let fee = TransactionPayment::compute_fee(info_len, &info, 0);
-			let next = TransactionPayment::next_fee_multiplier();
-
-			//let next = SlowAdjustingFeeUpdate::<Runtime>::convert(multiplier);
-			println!("Swap tx fee: {fee:?} with multiplier: {next:?}");
-		}
-	});
-}
-
 #[test]
 fn price_of_omnipool_swap_with_min_multiplier() {
 	TestNet::reset();
@@ -170,6 +347,7 @@ use sp_runtime::traits::SignedExtension;
 
 use frame_support::dispatch::Dispatchable;
 use frame_system::Origin;
+use primitives::constants::currency::UNITS;
 use primitives::constants::time::HOURS;
 
 #[test]
@@ -209,6 +387,14 @@ fn fee_with_tx_payment_pallet() {
 				len,
 			)
 			.expect("pre_dispatch error");
+
+		let pre_d_len = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+			.pre_dispatch(
+				&AccountId::from(ALICE),
+				&hydradx_runtime::RuntimeCall::Omnipool(call.clone()),
+				&info,
+				len,
+			);
 
 		let post_result = hydradx_runtime::RuntimeCall::Omnipool(call)
 			.dispatch(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()))
