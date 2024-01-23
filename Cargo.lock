@@ -4124,8 +4124,8 @@ dependencies = [
  "hydradx-runtime",
  "jsonrpsee 0.16.2",
  "log",
- "pallet-transaction-payment-rpc",
- "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-payment-rpc 4.0.0-dev",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev",
  "parity-scale-codec",
  "polkadot-cli",
  "polkadot-parachain",
@@ -4300,8 +4300,8 @@ dependencies = [
  "pallet-tips",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-payment 4.0.0-dev",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev",
  "pallet-treasury",
  "pallet-uniques",
  "pallet-utility",
@@ -4972,8 +4972,8 @@ dependencies = [
  "pallet-staking 4.0.0-dev",
  "pallet-timestamp",
  "pallet-tips",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-payment 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-treasury",
  "pallet-utility",
  "pallet-vesting",
@@ -8104,7 +8104,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "pallet-evm",
- "pallet-transaction-payment",
+ "pallet-transaction-payment 4.0.0-dev",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -8140,6 +8140,30 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment"
 version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-traits",
+ "pallet-balances",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-transaction-payment"
+version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
 dependencies = [
  "frame-support",
@@ -8156,10 +8180,25 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment-rpc"
 version = "4.0.0-dev"
+dependencies = [
+ "jsonrpsee 0.16.2",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev",
+ "parity-scale-codec",
+ "sp-api",
+ "sp-blockchain",
+ "sp-core",
+ "sp-rpc",
+ "sp-runtime",
+ "sp-weights",
+]
+
+[[package]]
+name = "pallet-transaction-payment-rpc"
+version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
 dependencies = [
  "jsonrpsee 0.16.2",
- "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "parity-scale-codec",
  "sp-api",
  "sp-blockchain",
@@ -8172,9 +8211,20 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment-rpc-runtime-api"
 version = "4.0.0-dev"
+dependencies = [
+ "pallet-transaction-payment 4.0.0-dev",
+ "parity-scale-codec",
+ "sp-api",
+ "sp-runtime",
+ "sp-weights",
+]
+
+[[package]]
+name = "pallet-transaction-payment-rpc-runtime-api"
+version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
 dependencies = [
- "pallet-transaction-payment",
+ "pallet-transaction-payment 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "parity-scale-codec",
  "sp-api",
  "sp-runtime",
@@ -8810,8 +8860,8 @@ dependencies = [
  "frame-system",
  "frame-system-rpc-runtime-api",
  "futures",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-payment 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "polkadot-core-primitives",
  "polkadot-node-core-parachains-inherent",
  "polkadot-primitives",
@@ -9525,7 +9575,7 @@ dependencies = [
  "beefy-gadget-rpc",
  "jsonrpsee 0.16.2",
  "mmr-rpc",
- "pallet-transaction-payment-rpc",
+ "pallet-transaction-payment-rpc 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "polkadot-primitives",
  "sc-chain-spec",
  "sc-client-api",
@@ -9597,8 +9647,8 @@ dependencies = [
  "pallet-staking-reward-curve",
  "pallet-timestamp",
  "pallet-tips",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-payment 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-treasury",
  "pallet-utility",
  "pallet-vesting",
@@ -9661,7 +9711,7 @@ dependencies = [
  "pallet-staking 4.0.0-dev",
  "pallet-staking-reward-fn",
  "pallet-timestamp",
- "pallet-transaction-payment",
+ "pallet-transaction-payment 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-treasury",
  "pallet-vesting",
  "parity-scale-codec",
@@ -9776,7 +9826,7 @@ dependencies = [
  "pallet-babe",
  "pallet-im-online",
  "pallet-staking 4.0.0-dev",
- "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "parity-db",
  "polkadot-approval-distribution",
  "polkadot-availability-bitfield-distribution",
@@ -10662,8 +10712,8 @@ dependencies = [
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-payment 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-treasury",
  "pallet-utility",
  "pallet-vesting",
@@ -10855,8 +10905,8 @@ dependencies = [
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-payment 4.0.0-dev",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev",
  "pallet-treasury",
  "pallet-uniques",
  "pallet-utility",
@@ -10885,6 +10935,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-trie",
  "sp-version",
+ "test-utils",
  "tokio",
  "xcm",
  "xcm-builder",
@@ -15189,8 +15240,8 @@ dependencies = [
  "pallet-state-trie-migration",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-payment 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
+ "pallet-transaction-payment-rpc-runtime-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "pallet-treasury",
  "pallet-utility",
  "pallet-vesting",
@@ -15622,7 +15673,7 @@ dependencies = [
  "frame-system",
  "impl-trait-for-tuples",
  "log",
- "pallet-transaction-payment",
+ "pallet-transaction-payment 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "parity-scale-codec",
  "polkadot-parachain",
  "scale-info",

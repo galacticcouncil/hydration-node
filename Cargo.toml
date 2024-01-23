@@ -37,6 +37,9 @@ members = [
   'pallets/democracy',
   'runtime/hydradx/src/evm/evm-utility/macro',
   'pallets/referrals',
+  "pallets/transaction-payment",
+  "pallets/transaction-payment/rpc/runtime-api",
+  "pallets/transaction-payment/rpc",
 ]
 
 [workspace.dependencies]
@@ -78,6 +81,9 @@ pallet-bonds = { path = "pallets/bonds", default-features = false}
 pallet-lbp = { path = "pallets/lbp", default-features = false}
 pallet-xyk = { path = "pallets/xyk", default-features = false}
 pallet-referrals = { path = "pallets/referrals", default-features = false}
+pallet-transaction-payment = { path = "pallets/transaction-payment", default-features = false}
+pallet-transaction-payment-rpc-runtime-api = { path = "pallets/transaction-payment/rpc/runtime-api", default-features = false}
+pallet-transaction-payment-rpc = { path = "pallets/transaction-payment/rpc/", default-features = false}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
@@ -161,9 +167,9 @@ pallet-session = { git = "https://github.com/paritytech/substrate", branch = "po
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-tips = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+#pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+#pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+#pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-uniques = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
