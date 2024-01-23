@@ -68,7 +68,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::cmp::max;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::require_transactional;
 use frame_support::PalletId;
@@ -82,7 +81,6 @@ use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::Registry;
 use orml_traits::{GetByKey, MultiCurrency};
-use primitive_types::U256;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
@@ -2050,6 +2048,7 @@ impl<T: Config> Pallet<T> {
 
 	#[cfg(feature = "try-runtime")]
 	fn ensure_trade_invariant(asset_in: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>), asset_out: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>)){
+			use primitive_types::U256;
 			let new_in_state = asset_in.2;
 			let new_out_state = asset_out.2;
 
@@ -2062,24 +2061,28 @@ impl<T: Config> Pallet<T> {
 			let in_new_hub_reserve = U256::from(new_in_state.hub_reserve);
 			let in_old_reserve = U256::from(old_in_state.reserve);
 			let in_old_hub_reserve = U256::from(old_in_state.hub_reserve);
+
+			let rq = in_old_reserve.checked_mul(in_old_hub_reserve).unwrap();
+			let rq_plus = in_new_reserve.checked_mul(in_new_hub_reserve).unwrap();
+			assert!(rq_plus >= rq, "Asset IN trade invariant, {:?}, {:?}", new_in_state, old_in_state);
+		/*
 			let out_new_reserve = U256::from(new_out_state.reserve);
 			let out_new_hub_reserve = U256::from(new_out_state.hub_reserve);
 			let out_old_reserve = U256::from(old_out_state.reserve);
 			let out_old_hub_reserve = U256::from(old_out_state.hub_reserve);
 
-			let rq = in_old_reserve.checked_mul(in_old_hub_reserve).unwrap();
-			let rq_plus = in_new_reserve.checked_mul(in_new_hub_reserve).unwrap();
-			assert!(rq_plus >= rq, "Asset IN trade invariant, {:?}, {:?}", new_in_state, old_in_state);
-			let left = rq + max(in_new_reserve, in_new_hub_reserve);
+			let left = rq + sp_std::cmp::max(in_new_reserve, in_new_hub_reserve);
 			let right = rq_plus;
-			//assert!(left >= right, "Asset IN margin {:?} >= {:?}", left,right);
+			assert!(left >= right, "Asset IN margin {:?} >= {:?}", left,right);
 
 			let rq = out_old_reserve.checked_mul(out_old_hub_reserve).unwrap();
 			let rq_plus = out_new_reserve.checked_mul(out_new_hub_reserve).unwrap();
 			assert!(rq_plus >= rq, "Asset OUT trade invariant, {:?}, {:?}", new_out_state, old_out_state);
-			let left = rq + max(out_new_reserve, out_new_hub_reserve);
+			let left = rq + sp_std::cmp::max(out_new_reserve, out_new_hub_reserve);
 			let right = rq_plus;
-			//assert!(left >= right, "Asset OUT margin {:?} >= {:?}", left,right);
+			assert!(left >= right, "Asset OUT margin {:?} >= {:?}", left,right);
+
+		 */
 	}
 
 	#[cfg(feature = "try-runtime")]

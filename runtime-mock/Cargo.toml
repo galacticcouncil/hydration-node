@@ -30,6 +30,7 @@ pallet-stableswap = { workspace = true }
 pallet-staking = { workspace = true }
 
 orml-tokens = { workspace = true }
+scraper = { workspace = true}
 
 [features]
 default= ["std"]

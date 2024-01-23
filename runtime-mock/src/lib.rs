@@ -174,5 +174,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 		}
 	});
 
+	externalities.commit_all().unwrap();
+
 	externalities
 }

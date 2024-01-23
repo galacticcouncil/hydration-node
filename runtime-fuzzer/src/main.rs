@@ -211,7 +211,8 @@ fn main() {
 		}
 
 		// `externalities` represents the state of our mock chain.
-		let mut externalities = hydradx_mocked_runtime();
+		let path = std::path::PathBuf::from("data/MOCK_SNAPSHOT");
+		let mut externalities = scraper::load_snapshot::<Block>(path).unwrap();
 
 		let mut current_block: u32 = 1;
 		let mut current_timestamp: u64 = SLOT_DURATION;
@@ -287,6 +288,12 @@ fn main() {
 
 		#[cfg(not(any(fuzzing, coverage)))]
 		let mut mapper = MemoryMapper::new();
+
+		externalities.execute_with(|| {
+			// lets assert that the mock is correctly setup, just in case
+			let omnipool_asset = pallet_omnipool::Pallet::<FuzzedRuntime>::assets(&0);
+			assert!(omnipool_asset.is_some());
+		});
 
 		externalities.execute_with(|| start_block(current_block, current_timestamp));
 
