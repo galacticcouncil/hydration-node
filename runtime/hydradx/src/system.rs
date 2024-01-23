@@ -452,12 +452,12 @@ parameter_types! {
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
 	/// change the fees more rapidly.
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(10, 119);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(10, 115);
 	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	/// The maximum amount of the multiplier.
-	pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_integer(128);
+	pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_integer(256);
 }
 
 impl pallet_transaction_payment::Config for Runtime {
