@@ -435,7 +435,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `Referrals::AssetRewards` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
 	/// Storage: `Referrals::TotalShares` (r:1 w:1)
 	/// Proof: `Referrals::TotalShares` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `Referrals::TraderShares` (r:2 w:2)
+	/// Storage: `Referrals::TraderShares` (r:1 w:1)
 	/// Proof: `Referrals::TraderShares` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
 	/// Storage: `Referrals::PendingConversions` (r:1 w:1)
 	/// Proof: `Referrals::PendingConversions` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
@@ -445,17 +445,17 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `1974 + e * (4788 ±0)`
-		//  Estimated: `6156 + e * (7749 ±0)`
-		// Minimum execution time: 48_705_000 picoseconds.
-		Weight::from_parts(49_088_855, 6156)
-			// Standard Error: 97_412
-			.saturating_add(Weight::from_parts(321_546, 0).saturating_mul(c.into()))
-			// Standard Error: 97_412
-			.saturating_add(Weight::from_parts(291_861_384, 0).saturating_mul(e.into()))
+		//  Measured:  `1974 + e * (4750 ±0)`
+		//  Estimated: `6156 + e * (7749 ±118_379_753_737_997_488)`
+		// Minimum execution time: 49_393_000 picoseconds.
+		Weight::from_parts(47_313_937, 6156)
+			// Standard Error: 84_954
+			.saturating_add(Weight::from_parts(1_522_262, 0).saturating_mul(c.into()))
+			// Standard Error: 84_954
+			.saturating_add(Weight::from_parts(288_560_770, 0).saturating_mul(e.into()))
 			.saturating_add(T::DbWeight::get().reads(7))
-			.saturating_add(T::DbWeight::get().reads((26_u64).saturating_mul(e.into())))
-			.saturating_add(T::DbWeight::get().writes((22_u64).saturating_mul(e.into())))
+			.saturating_add(T::DbWeight::get().reads((25_u64).saturating_mul(e.into())))
+			.saturating_add(T::DbWeight::get().writes((21_u64).saturating_mul(e.into())))
 			.saturating_add(Weight::from_parts(0, 7749).saturating_mul(e.into()))
 	}
 	/// Storage: `Omnipool::Assets` (r:3 w:3)
@@ -492,7 +492,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `Referrals::AssetRewards` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
 	/// Storage: `Referrals::TotalShares` (r:1 w:1)
 	/// Proof: `Referrals::TotalShares` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `Referrals::TraderShares` (r:2 w:2)
+	/// Storage: `Referrals::TraderShares` (r:1 w:1)
 	/// Proof: `Referrals::TraderShares` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
 	/// Storage: `Referrals::PendingConversions` (r:1 w:1)
 	/// Proof: `Referrals::PendingConversions` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
@@ -502,15 +502,15 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_buy(c: u32, e: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `6762`
+		//  Measured:  `6724`
 		//  Estimated: `13905`
-		// Minimum execution time: 325_047_000 picoseconds.
-		Weight::from_parts(309_584_818, 13905)
-			// Standard Error: 196_245
-			.saturating_add(Weight::from_parts(16_694_995, 0).saturating_mul(c.into()))
-			// Standard Error: 196_245
-			.saturating_add(Weight::from_parts(1_594_024, 0).saturating_mul(e.into()))
-			.saturating_add(T::DbWeight::get().reads(33))
-			.saturating_add(T::DbWeight::get().writes(22))
+		// Minimum execution time: 319_950_000 picoseconds.
+		Weight::from_parts(308_443_101, 13905)
+			// Standard Error: 135_443
+			.saturating_add(Weight::from_parts(14_990_074, 0).saturating_mul(c.into()))
+			// Standard Error: 135_443
+			.saturating_add(Weight::from_parts(285_316, 0).saturating_mul(e.into()))
+			.saturating_add(T::DbWeight::get().reads(32))
+			.saturating_add(T::DbWeight::get().writes(21))
 	}
 }

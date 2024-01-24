@@ -196,7 +196,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type CodeLength: Get<u32>;
 
-		// Minimum referral code length.
+		/// Minimum referral code length.
 		#[pallet::constant]
 		type MinCodeLength: Get<u32>;
 
@@ -218,13 +218,14 @@ pub mod pallet {
 	}
 
 	/// Referral codes
-	/// Maps an account to a referral code.
+	/// Maps a referral code to an account.
 	#[pallet::storage]
 	#[pallet::getter(fn referral_account)]
 	pub(super) type ReferralCodes<T: Config> =
 		StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
 
 	/// Referral accounts
+	/// Maps an account to a referral code.
 	#[pallet::storage]
 	#[pallet::getter(fn referral_code)]
 	pub(super) type ReferralAccounts<T: Config> =
@@ -481,17 +482,15 @@ pub mod pallet {
 					asset_balance,
 				);
 				if let Err(error) = r {
-					if error == Error::<T>::ConversionMinTradingAmountNotReached.into()
-						|| error == Error::<T>::ConversionZeroAmountReceived.into()
+					// We allow these errors to continue claiming as the current amount of asset that needed to be converted
+					// has very low impact on the rewards.
+					if error != Error::<T>::ConversionMinTradingAmountNotReached.into()
+						&& error != Error::<T>::ConversionZeroAmountReceived.into()
 					{
-						// We allow these errors to continue claiming as the current amount of asset that needed to be converted
-						// has very low impact on the rewards.
-					} else {
 						return Err(error);
 					}
-				} else {
-					PendingConversions::<T>::remove(asset_id);
 				}
+				PendingConversions::<T>::remove(asset_id);
 			}
 			let referrer_shares = ReferrerShares::<T>::take(&who);
 			let trader_shares = TraderShares::<T>::take(&who);
@@ -612,15 +611,14 @@ pub mod pallet {
 
 			for asset_id in PendingConversions::<T>::iter_keys().take(max_converts as usize) {
 				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
-				let r = T::Convert::convert(
+				// remove the asset_id from PendingConversions even when the conversion fails
+				let _ = T::Convert::convert(
 					Self::pot_account_id(),
 					asset_id.clone(),
 					T::RewardAsset::get(),
 					asset_balance,
 				);
-				if r.is_ok() {
-					PendingConversions::<T>::remove(asset_id);
-				}
+				PendingConversions::<T>::remove(asset_id);
 			}
 			convert_weight.saturating_mul(max_converts).saturating_add(one_read)
 		}
@@ -641,7 +639,7 @@ impl<T: Config> Pallet<T> {
 	/// `source`: account to take the fee from
 	/// `trader`: account that does the trade
 	///
-	/// Returns unused amount on success.
+	/// Returns used amount on success.
 	#[transactional]
 	pub fn process_trade_fee(
 		source: T::AccountId,
@@ -717,22 +715,30 @@ impl<T: Config> Pallet<T> {
 					.saturating_add(external_shares),
 			);
 		});
+
 		if let Some(acc) = ref_account {
 			ReferrerShares::<T>::mutate(acc, |v| {
 				*v = v.saturating_add(referrer_shares);
 			});
 		}
-		TraderShares::<T>::mutate(trader, |v| {
-			*v = v.saturating_add(trader_shares);
-		});
+
+		// don't store zero values
+		if !trader_shares.is_zero() {
+			TraderShares::<T>::mutate(trader, |v| {
+				*v = v.saturating_add(trader_shares);
+			});
+		}
+
 		if let Some(acc) = external_account {
 			TraderShares::<T>::mutate(acc, |v| {
 				*v = v.saturating_add(external_shares);
 			});
 		}
+
 		if asset_id != T::RewardAsset::get() {
 			PendingConversions::<T>::insert(asset_id, ());
 		}
+
 		Ok(total_taken)
 	}
 }

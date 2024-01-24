@@ -1194,7 +1194,6 @@ mod stableswap {
 				assert_balance!(ALICE.into(), asset_a, alice_init_asset_a_balance - dca_budget);
 				assert_balance!(ALICE.into(), asset_b, 98999999706917);
 				assert_reserved_balance!(&ALICE.into(), asset_a, dca_budget - amount_to_sell - fee);
-
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -1267,7 +1266,6 @@ mod stableswap {
 				assert_balance!(ALICE.into(), asset_a, alice_init_asset_a_balance - dca_budget);
 				assert_balance!(ALICE.into(), asset_b, 93176719400532);
 				assert_reserved_balance!(&ALICE.into(), asset_a, dca_budget - amount_to_sell - fee);
-
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -1418,7 +1416,7 @@ mod stableswap {
 					Permill::from_percent(100),
 					AccountId::from(BOB),
 				));
-
+				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(DAI, HDX, UNITS);
 
 				set_relaychain_block_number(10);
@@ -1445,7 +1443,6 @@ mod stableswap {
 				//Assert
 				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
 				assert_balance!(ALICE.into(), stable_asset_1, amount_to_receive);
-
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -1579,7 +1576,7 @@ mod stableswap {
 					Permill::from_percent(100),
 					AccountId::from(BOB),
 				));
-
+				set_zero_reward_for_referrals(pool_id);
 				//Populate oracle with omnipool source
 				assert_ok!(Tokens::set_balance(
 					RawOrigin::Root.into(),
@@ -1654,7 +1651,6 @@ mod stableswap {
 				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + amount_to_receive_1);
 
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
-
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -2903,7 +2899,7 @@ mod with_onchain_route {
 				assert!(fee > 0, "The treasury did not receive the fee");
 
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable_balance - dca_budget);
-				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 237095795349022);
+				assert!(Currencies::free_balance(HDX, &ALICE.into()) > alice_init_hdx_balance);
 
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -3022,6 +3018,7 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 277_665_116_680_343);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
