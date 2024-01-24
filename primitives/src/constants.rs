@@ -20,7 +20,7 @@ pub mod currency {
 
 	pub const FORTUNE: Balance = u128::MAX;
 	pub const UNITS: Balance = 1_000_000_000_000;
-	pub const DOLLARS: Balance = UNITS * 100 / 3; // 100 UNITS ~= 1 $, and we divide by three as HDX price is high (~0.02$), but we want to reduce the fee price
+	pub const DOLLARS: Balance = UNITS * 100; // 100 UNITS ~= 1 $, and we divide by three as HDX price is high (~0.02$), but we want to reduce the fee price
 	pub const CENTS: Balance = DOLLARS / 100; // 1 UNITS ~= 1 cent
 	pub const MILLICENTS: Balance = CENTS / 1_000;
 	pub const NATIVE_EXISTENTIAL_DEPOSIT: Balance = CENTS;

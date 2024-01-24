@@ -420,6 +420,9 @@ pub type SlowAdjustingFeeUpdate<R> =
 
 pub struct WeightToFee;
 
+const DIVIDER_FOR_FEE: u128 = 3; // We use this to divide fee related constant as HDX price is high (~0.02$), but we want to reduce the fee price
+								 //TODO: make constant for fee related stuff
+
 impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
 
@@ -435,7 +438,7 @@ impl WeightToFeePolynomial for WeightToFee {
 	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
-		let p = CENTS; // 1_000_000_000_000
+		let p = CENTS / DIVIDER_FOR_FEE; // 1_000_000_000_000
 		let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time()); // 7_919_840_000
 		smallvec::smallvec![WeightToFeeCoefficient {
 			degree: 1,
@@ -447,18 +450,18 @@ impl WeightToFeePolynomial for WeightToFee {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
+	pub const TransactionByteFee: Balance = 10 * MILLICENTS / DIVIDER_FOR_FEE;
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
 	/// change the fees more rapidly.
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(10, 115);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(10, 113);
 	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	/// The maximum amount of the multiplier.
-	pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_integer(256);
+	pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_integer(320);
 }
 
 impl pallet_transaction_payment::Config for Runtime {
