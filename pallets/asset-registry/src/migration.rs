@@ -32,10 +32,20 @@ pub mod v1 {
 	use sp_core::RuntimeDebug;
 	use sp_runtime::BoundedVec;
 
+	#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub enum AssetType<AssetId> {
+		Token,
+		PoolShare(AssetId, AssetId), // Use XYX instead
+		XYK,
+		StableSwap,
+		Bond,
+		External,
+	}
+
 	#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo)]
-	pub struct AssetDetails<Balance, BoundedString> {
+	pub struct AssetDetails<AssetId, Balance, BoundedString> {
 		pub name: BoundedString,
-		pub asset_type: AssetType,
+		pub asset_type: AssetType<AssetId>,
 		pub existential_deposit: Balance,
 		pub xcm_rate_limit: Option<Balance>,
 	}
@@ -51,7 +61,7 @@ pub mod v1 {
 		Pallet<T>,
 		Twox64Concat,
 		<T as crate::Config>::AssetId,
-		AssetDetails<Balance, BoundedVec<u8, <T as crate::Config>::StringLimit>>,
+		AssetDetails<<T as crate::Config>::AssetId, Balance, BoundedVec<u8, <T as crate::Config>::StringLimit>>,
 		OptionQuery,
 	>;
 
@@ -77,6 +87,18 @@ pub mod v1 {
 pub mod v2 {
 	use super::*;
 
+	impl From<v1::AssetType<u32>> for AssetType {
+		fn from(value: v1::AssetType<u32>) -> Self {
+			match value {
+				v1::AssetType::Token => Self::Token,
+				v1::AssetType::PoolShare(_, _) => Self::XYK,
+				v1::AssetType::XYK => Self::XYK,
+				v1::AssetType::StableSwap => Self::StableSwap,
+				v1::AssetType::Bond => Self::Bond,
+				v1::AssetType::External => Self::External,
+			}
+		}
+	}
 	pub fn pre_migrate<T: Config>() {
 		assert_eq!(StorageVersion::get::<Pallet<T>>(), 1, "Storage version too high.");
 
@@ -118,7 +140,7 @@ pub mod v2 {
 				k,
 				AssetDetails {
 					name: Some(v.name),
-					asset_type: v.asset_type,
+					asset_type: v.asset_type.into(),
 					existential_deposit: v.existential_deposit,
 					symbol,
 					decimals,
