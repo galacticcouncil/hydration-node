@@ -19,11 +19,11 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::TreasuryAccount;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
+use crate::{TreasuryAccount, FEE_DIVIDER};
 use frame_support::{
 	parameter_types,
 	traits::{Defensive, FindAuthor, Imbalance, OnUnbalanced},
@@ -53,9 +53,9 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
-// Fixed gas price of 0.08 gwei per gas
-// pallet-base-fee to be implemented after migration to polkadot-v1.1.0
-const DEFAULT_BASE_FEE_PER_GAS: u128 = 80_000_000;
+// Fixed gas price of 0.08 gwei per gas, but also divided with the fee divider as HDX price is high atm (~0.02￠)
+// TODO: pallet-base-fee to be implemented after migration to polkadot-v1.1.0
+const DEFAULT_BASE_FEE_PER_GAS: u128 = 80_000_000 / FEE_DIVIDER;
 
 parameter_types! {
 	// We allow for a 75% fullness of a 0.5s block

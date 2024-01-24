@@ -20,8 +20,8 @@ use pretty_assertions::assert_eq;
 use sp_core::{blake2_256, H160, H256, U256};
 use sp_runtime::{traits::SignedExtension, FixedU128, Permill};
 use std::borrow::Cow;
+use std::ops::Div;
 use xcm_emulator::TestExt;
-
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 mod currency_precompile {
@@ -746,7 +746,7 @@ pub fn init_omnipol() {
 const DISPATCH_ADDR: H160 = addr(1025);
 
 fn gas_price() -> U256 {
-	U256::from(8 * 10_u128.pow(7))
+	U256::from(8 * 10_u128.pow(7)).div(3) //We divide by three as we const `FEE_DIVIDER` set to 3 in system.rs
 }
 
 fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
