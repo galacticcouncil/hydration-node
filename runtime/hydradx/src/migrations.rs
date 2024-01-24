@@ -24,8 +24,8 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 
 		log::info!("Migrate Asset Registry Pallet");
 		weight = weight
-			.saturating_add(pallet_collator_selection::migration::v1::MigrateToV1::<Runtime>::on_runtime_upgrade());
-		log::info!("Migrate Asset Registry Pallet");
+			.saturating_add(pallet_asset_registry::migration::v2::migrate::<Runtime>());
+		log::info!("Migrate Asset Registry Pallet end");
 
 		log::info!("Migrate Collator Selection Pallet to v1 start");
 		weight = weight

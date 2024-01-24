@@ -66,7 +66,7 @@ pub mod pallet {
 
 	use super::*;
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	pub type AssetDetailsT<T> = AssetDetails<<T as Config>::StringLimit>;
 
