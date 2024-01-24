@@ -17,12 +17,12 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::dispatch::DispatchError;
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::CheckedAdd;
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_arithmetic::traits::BaseArithmetic;
+use sp_runtime::DispatchError;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
@@ -53,6 +53,8 @@ pub mod pallet {
 	use super::*;
 	use crate::types::Metadata;
 	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	pub type AssetDetailsT<T> =
 		AssetDetails<<T as Config>::AssetId, <T as Config>::Balance, BoundedVec<u8, <T as Config>::StringLimit>>;
@@ -101,10 +103,11 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -176,18 +179,17 @@ pub mod pallet {
 		pub native_existential_deposit: T::Balance,
 	}
 
-	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
 			GenesisConfig::<T> {
-				registered_assets: vec![],
-				native_asset_name: b"BSX".to_vec(),
+				registered_assets: sp_std::vec![],
+				native_asset_name: b"HDX".to_vec(),
 				native_existential_deposit: Default::default(),
 			}
 		}
 	}
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			// Register native asset first
 			// It is to make sure that native is registered as any other asset
@@ -340,7 +342,7 @@ pub mod pallet {
 			T::RegistryOrigin::ensure_origin(origin)?;
 
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
-				let mut detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+				let detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
 				let bounded_name = Self::to_bounded_name(name)?;
 

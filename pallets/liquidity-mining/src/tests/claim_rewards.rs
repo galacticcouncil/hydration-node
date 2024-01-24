@@ -72,7 +72,7 @@ fn claim_rewards_should_work() {
 						updated_at: 25,
 						valued_shares: 2_500 * ONE,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					}]
 					.try_into()
 					.unwrap(),
@@ -139,7 +139,7 @@ fn claim_rewards_should_work() {
 						entered_at: 25,
 						updated_at: 30,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					}]
 					.try_into()
 					.unwrap(),
@@ -230,7 +230,7 @@ fn claim_rewards_should_work() {
 						entered_at: 18,
 						updated_at: 1_258,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					}]
 					.try_into()
 					.unwrap(),
@@ -322,7 +322,7 @@ fn claim_rewards_should_work() {
 						updated_at: 18,
 						valued_shares: 2_500 * ONE,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					}]
 					.try_into()
 					.unwrap(),
@@ -381,7 +381,7 @@ fn claim_rewards_deposit_with_multiple_entries_should_work() {
 						entered_at: 18,
 						updated_at: 18,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 					YieldFarmEntry {
 						global_farm_id: EVE_FARM,
@@ -392,7 +392,7 @@ fn claim_rewards_deposit_with_multiple_entries_should_work() {
 						entered_at: 50,
 						updated_at: 50,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 					YieldFarmEntry {
 						global_farm_id: DAVE_FARM,
@@ -403,7 +403,7 @@ fn claim_rewards_deposit_with_multiple_entries_should_work() {
 						entered_at: 800,
 						updated_at: 800,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 				]
 			);
@@ -454,7 +454,7 @@ fn claim_rewards_deposit_with_multiple_entries_should_work() {
 						entered_at: 18,
 						updated_at: 10_000,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 					YieldFarmEntry {
 						global_farm_id: EVE_FARM,
@@ -465,7 +465,7 @@ fn claim_rewards_deposit_with_multiple_entries_should_work() {
 						entered_at: 50,
 						updated_at: 1_000,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 					YieldFarmEntry {
 						global_farm_id: DAVE_FARM,
@@ -476,7 +476,7 @@ fn claim_rewards_deposit_with_multiple_entries_should_work() {
 						entered_at: 800,
 						updated_at: 800,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 				]
 			);
@@ -527,7 +527,7 @@ fn claim_rewards_deposit_with_multiple_entries_should_work() {
 						entered_at: 18,
 						updated_at: 10_000,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 					YieldFarmEntry {
 						global_farm_id: EVE_FARM,
@@ -538,7 +538,7 @@ fn claim_rewards_deposit_with_multiple_entries_should_work() {
 						entered_at: 50,
 						updated_at: 1_000,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 					YieldFarmEntry {
 						global_farm_id: DAVE_FARM,
@@ -549,7 +549,7 @@ fn claim_rewards_deposit_with_multiple_entries_should_work() {
 						entered_at: 800,
 						updated_at: 1_000,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					},
 				]
 			);
@@ -593,7 +593,7 @@ fn claim_rewards_doubleclaim_in_the_same_period_should_not_work() {
 						entered_at: 18,
 						updated_at: 25,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					}]
 					.try_into()
 					.unwrap(),
@@ -677,7 +677,7 @@ fn claim_rewards_should_claim_correct_amount_when_yield_farm_is_stopped() {
 						entered_at: 18,
 						updated_at: 200,
 						stopped_at_creation: 0,
-						_phantom: PhantomData::default(),
+						_phantom: PhantomData,
 					}]
 					.try_into()
 					.unwrap(),
@@ -911,7 +911,6 @@ fn deposits_should_claim_same_amount_when_created_in_the_same_period() {
 fn claim_rewards_should_claim_correct_amount_when_yield_farm_was_resumed() {
 	predefined_test_ext_with_deposits().execute_with(|| {
 		let _ = with_transaction(|| {
-			const FAIL_ON_DOUBLECLAIM: bool = true;
 			const REWARD_CURRENCY: AssetId = ACA;
 
 			//Arrange
@@ -986,7 +985,6 @@ fn claim_rewards_should_claim_correct_amount_when_yield_farm_was_resumed() {
 fn claim_rewards_should_claim_correct_amount_when_deposit_is_created_after_yield_farm_was_resumed() {
 	predefined_test_ext_with_deposits().execute_with(|| {
 		let _ = with_transaction(|| {
-			const FAIL_ON_DOUBLECLAIM: bool = true;
 			const REWARD_CURRENCY: AssetId = ACA;
 
 			//Arrange
@@ -1060,7 +1058,6 @@ fn claim_rewards_should_claim_correct_amount_when_deposit_is_created_after_yield
 fn claim_rewards_should_claim_correct_amount_when_yield_was_resumed_multiple_times() {
 	predefined_test_ext_with_deposits().execute_with(|| {
 		let _ = with_transaction(|| {
-			const FAIL_ON_DOUBLECLAIM: bool = true;
 			const REWARD_CURRENCY: AssetId = ACA;
 
 			//Arrange
@@ -1163,7 +1160,6 @@ fn claim_rewards_should_claim_correct_amount_when_yield_was_resumed_multiple_tim
 fn claim_rewards_should_claim_correct_amount_when_yield_was_resumed_multiple_times_and_is_stopped_now() {
 	predefined_test_ext_with_deposits().execute_with(|| {
 		let _ = with_transaction(|| {
-			const FAIL_ON_DOUBLECLAIM: bool = true;
 			const REWARD_CURRENCY: AssetId = ACA;
 
 			//Arrange

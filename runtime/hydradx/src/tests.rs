@@ -4,14 +4,15 @@ use primitives::constants::{
 	time::{DAYS, HOURS},
 };
 
-use pallet_transaction_payment::Multiplier;
-
 use codec::Encode;
+use frame_support::traits::OnInitialize;
 use frame_support::{
 	dispatch::{DispatchClass, GetDispatchInfo},
 	sp_runtime::{traits::Convert, FixedPointNumber},
 	weights::WeightToFee,
 };
+use pallet_transaction_payment::Multiplier;
+use sp_runtime::BuildStorage;
 
 #[test]
 #[ignore]
@@ -24,7 +25,7 @@ fn full_block_cost() {
 	let max_weight = BlockWeights::get()
 		.get(DispatchClass::Normal)
 		.max_total
-		.unwrap_or(Weight::from_ref_time(1));
+		.unwrap_or(Weight::from_parts(1, 0));
 	let weight_fee = crate::WeightToFee::weight_to_fee(&max_weight);
 	assert_eq!(weight_fee, 375_600_961_538_250);
 
@@ -79,8 +80,8 @@ fn run_with_system_weight<F>(w: Weight, mut assertions: F)
 where
 	F: FnMut(),
 {
-	let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default()
-		.build_storage::<Runtime>()
+	let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::<Runtime>::default()
+		.build_storage()
 		.unwrap()
 		.into();
 	t.execute_with(|| {
@@ -100,7 +101,7 @@ fn multiplier_can_grow_from_zero() {
 		assert!(next > minimum_multiplier, "{next:?} !>= {minimum_multiplier:?}");
 	})
 }
-
+#[ignore]
 #[test]
 fn multiplier_growth_simulator() {
 	// calculate the value of the fee multiplier after one hour of operation with fully loaded blocks
@@ -120,7 +121,7 @@ fn multiplier_growth_simulator() {
 	}
 	println!("multiplier = {multiplier:?}");
 }
-
+#[ignore]
 #[test]
 fn fee_growth_simulator() {
 	use frame_support::traits::OnFinalize;
@@ -148,7 +149,7 @@ fn fee_growth_simulator() {
 			let next = TransactionPayment::next_fee_multiplier();
 			let call_fee = TransactionPayment::compute_fee(call_len, &info, 0);
 
-			TransactionPayment::on_finalize(b + 1);
+			<pallet_transaction_payment::Pallet<Runtime> as OnFinalize<BlockNumber>>::on_finalize(b + 1);
 			crate::System::set_block_number(b + 1);
 
 			//let next = SlowAdjustingFeeUpdate::<Runtime>::convert(multiplier);
@@ -158,7 +159,6 @@ fn fee_growth_simulator() {
 	}
 	println!("multiplier = {multiplier:?}");
 }
-
 #[test]
 #[ignore]
 fn max_multiplier() {

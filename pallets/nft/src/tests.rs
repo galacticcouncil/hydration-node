@@ -24,7 +24,7 @@ type NFTPallet = Pallet<Test>;
 
 #[test]
 fn create_collection_works() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -87,7 +87,7 @@ fn create_collection_works() {
 
 #[test]
 fn mint_works() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -168,7 +168,7 @@ fn mint_works() {
 
 #[test]
 fn transfer_works() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -233,7 +233,7 @@ fn transfer_works() {
 
 #[test]
 fn burn_works() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -288,7 +288,7 @@ fn burn_works() {
 
 #[test]
 fn destroy_collection_works() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -347,7 +347,7 @@ fn destroy_collection_works() {
 
 #[test]
 fn deposit_works() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -402,7 +402,7 @@ fn deposit_works() {
 
 #[test]
 fn inspect_trait_should_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -454,7 +454,7 @@ fn inspect_trait_should_work() {
 
 #[test]
 fn inspect_enumerable_trait_should_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -495,7 +495,7 @@ fn inspect_enumerable_trait_should_work() {
 
 #[test]
 fn destroy_trait_should_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -591,7 +591,7 @@ fn destroy_trait_should_work() {
 
 #[test]
 fn mutate_trait_should_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -669,7 +669,7 @@ fn mutate_trait_should_work() {
 
 #[test]
 fn transfer_trait_should_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		// collection does not exist
 		assert_noop!(
 			<NFTPallet as Transfer<<Test as frame_system::Config>::AccountId>>::transfer(
@@ -746,7 +746,7 @@ fn is_id_reserved_should_return_false_when_id_is_not_from_reserved_range() {
 
 #[test]
 fn create_typed_collection_should_work_without_deposit_when_deposit_is_not_required() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 
@@ -769,7 +769,7 @@ fn create_typed_collection_should_work_without_deposit_when_deposit_is_not_requi
 
 #[test]
 fn create_typed_collection_should_work_with_reserved_id() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		assert_ok!(NFTPallet::create_typed_collection(
 			ALICE,
 			COLLECTION_ID_RESERVED,
@@ -789,7 +789,7 @@ fn create_typed_collection_should_work_with_reserved_id() {
 
 #[test]
 fn create_typed_collection_should_not_work_without_deposit_when_deposit_is_required() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		assert_noop!(
 			NFTPallet::create_typed_collection(
 				ACCOUNT_WITH_NO_BALANCE,
@@ -804,7 +804,7 @@ fn create_typed_collection_should_not_work_without_deposit_when_deposit_is_requi
 
 #[test]
 fn do_mint_should_work_when_account_has_no_balance() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		//arrange
 		assert_ok!(NFTPallet::create_typed_collection(
 			ACCOUNT_WITH_NO_BALANCE,
@@ -824,7 +824,7 @@ fn do_mint_should_work_when_account_has_no_balance() {
 
 #[test]
 fn burn_should_work_when_account_has_no_balance() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		//arrange
 		assert_ok!(NFTPallet::create_typed_collection(
 			ACCOUNT_WITH_NO_BALANCE,
@@ -869,7 +869,7 @@ fn burn_should_work_when_account_has_no_balance() {
 
 #[test]
 fn do_destroy_collection_works() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let metadata: BoundedVec<u8, <Test as pallet_uniques::Config>::StringLimit> =
 			b"metadata".to_vec().try_into().unwrap();
 

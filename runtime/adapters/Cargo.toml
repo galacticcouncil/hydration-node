@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "0.6.10"
+version = "1.0.0"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -85,4 +85,5 @@ std = [
     "xcm-executor/std",
     "cumulus-pallet-parachain-system/std",
     "polkadot-parachain/std",
+    "orml-tokens/std",
 ]

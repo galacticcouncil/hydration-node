@@ -414,7 +414,7 @@ runtime_benchmarks! {
 	}
 
 	router_execution_sell {
-		let c in 0..1;	// if c == 1, calculate_sell is executed
+		let c in 1..2;
 		let e in 0..1;	// if e == 1, execute_sell is executed
 		init()?;
 
@@ -455,9 +455,7 @@ runtime_benchmarks! {
 		let buy_min_amount = 10_000_000_000_u128;
 
 	}: {
-		if c != 0 {
-			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_sell(PoolType::Omnipool, token_id, DAI, amount_sell).is_ok());
-		}
+		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_sell(PoolType::Omnipool, token_id, DAI, amount_sell).is_ok());
 		if e != 0 {
 			assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(seller.clone()).into(), PoolType::Omnipool, token_id, DAI, amount_sell, buy_min_amount).is_ok());
 		}
@@ -527,12 +525,12 @@ runtime_benchmarks! {
 mod tests {
 	use super::*;
 	use crate::NativeExistentialDeposit;
-	use frame_support::traits::GenesisBuild;
 	use orml_benchmarking::impl_benchmark_test_suite;
+	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default()
-			.build_storage::<crate::Runtime>()
+		let mut t = frame_system::GenesisConfig::<crate::Runtime>::default()
+			.build_storage()
 			.unwrap();
 
 		pallet_asset_registry::GenesisConfig::<crate::Runtime> {

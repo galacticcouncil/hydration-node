@@ -1,6 +1,6 @@
 // This file is part of Substrate.
 
-// Copyright (C) 2017-2022 Parity Technologies (UK) Ltd.
+// Copyright (C) Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -187,7 +187,7 @@ impl<Balance: Saturating + Ord + Zero + Copy, BlockNumber: Ord + Copy + Zero, Ac
 		.rejig(now);
 	}
 
-	/// The amount of this account's balance that much currently be locked due to voting.
+	/// The amount of this account's balance that must currently be locked due to voting.
 	pub fn locked_balance(&self) -> Balance {
 		match self {
 			Voting::Direct { votes, prior, .. } => votes

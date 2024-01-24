@@ -20,6 +20,7 @@
 use codec::MaxEncodedLen;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungibles::Mutate;
+use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::PalletId;
 use frame_support::{
 	ensure,
@@ -97,6 +98,9 @@ pub mod pallet {
 			Self::Balance,
 			Error = DispatchError,
 		>;
+
+		/// Pool type used in the default route
+		type DefaultRoutePoolType: Get<PoolType<Self::AssetId>>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
@@ -179,8 +183,11 @@ pub mod pallet {
 
 			let route = Self::get_route_or_default(route, AssetPair::new(asset_in, asset_out))?;
 
-			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, false);
-			let user_balance_of_asset_out_before_trade = T::Currency::reducible_balance(asset_out, &who, false);
+			let user_balance_of_asset_in_before_trade =
+				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+			let user_balance_of_asset_out_before_trade =
+				T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
+
 			ensure!(
 				user_balance_of_asset_in_before_trade >= amount_in,
 				Error::<T>::InsufficientBalance
@@ -195,7 +202,8 @@ pub mod pallet {
 			);
 
 			for (trade_amount, trade) in trade_amounts.iter().zip(route) {
-				let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(trade.asset_in, &who, true);
+				let user_balance_of_asset_in_before_trade =
+					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
@@ -262,7 +270,8 @@ pub mod pallet {
 
 			let route = Self::get_route_or_default(route, AssetPair::new(asset_in, asset_out))?;
 
-			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, true);
+			let user_balance_of_asset_in_before_trade =
+				T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
@@ -274,7 +283,7 @@ pub mod pallet {
 
 			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
 				let user_balance_of_asset_out_before_trade =
-					T::Currency::reducible_balance(trade.asset_out, &who, false);
+					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
@@ -417,7 +426,8 @@ impl<T: Config> Pallet<T> {
 		user_balance_of_asset_out_before_trade: T::Balance,
 		received_amount: T::Balance,
 	) -> Result<(), DispatchError> {
-		let user_balance_of_asset_out_after_trade = T::Currency::reducible_balance(asset_out, &who, false);
+		let user_balance_of_asset_out_after_trade =
+			T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 		let user_expected_balance_of_asset_out_after_trade = user_balance_of_asset_out_before_trade
 			.checked_add(&received_amount)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -437,7 +447,8 @@ impl<T: Config> Pallet<T> {
 		spent_amount: T::Balance,
 	) -> Result<(), DispatchError> {
 		if spent_amount < user_balance_of_asset_in_before_trade {
-			let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, true);
+			let user_balance_of_asset_in_after_trade =
+				T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
 			ensure!(
 				user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
@@ -701,7 +712,7 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 		let onchain_route = Routes::<T>::get(asset_pair.ordered_pair());
 
 		let default_route = vec![Trade {
-			pool: PoolType::Omnipool,
+			pool: T::DefaultRoutePoolType::get(),
 			asset_in: asset_pair.asset_in,
 			asset_out: asset_pair.asset_out,
 		}];

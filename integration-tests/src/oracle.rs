@@ -2,18 +2,20 @@
 
 use crate::polkadot_test_net::*;
 
+use frame_support::traits::OnFinalize;
+use frame_support::traits::OnInitialize;
 use frame_support::{
 	assert_ok,
 	sp_runtime::{FixedU128, Permill},
-	traits::{tokens::fungibles::Mutate, OnFinalize, OnInitialize},
+	traits::tokens::fungibles::Mutate,
 };
 use hydradx_runtime::{EmaOracle, RuntimeOrigin};
 use hydradx_traits::{
 	AggregatedPriceOracle,
 	OraclePeriod::{self, *},
 };
+
 use pallet_ema_oracle::OracleError;
-use polkadot_primitives::v2::BlockNumber;
 use primitives::constants::chain::OMNIPOOL_SOURCE;
 use xcm_emulator::TestExt;
 
@@ -46,7 +48,7 @@ fn omnipool_trades_are_ingested_into_oracle() {
 
 	Hydra::execute_with(|| {
 		// arrange
-		hydradx_run_to_block(2);
+		hydradx_run_to_next_block();
 
 		init_omnipool();
 
@@ -70,7 +72,7 @@ fn omnipool_trades_are_ingested_into_oracle() {
 
 		// act
 		// will store the data received in the sell as oracle values
-		hydradx_run_to_block(3);
+		hydradx_run_to_next_block();
 
 		// assert
 		let expected_a = ((936334588000000000, 1124993995517813).into(), 0);
@@ -104,7 +106,7 @@ fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
 
 	Hydra::execute_with(|| {
 		// arrange
-		hydradx_run_to_block(2);
+		hydradx_run_to_next_block();
 
 		init_omnipool();
 
@@ -120,7 +122,7 @@ fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
 
 		// act
 		// will store the data received in the sell as oracle values
-		hydradx_run_to_block(3);
+		hydradx_run_to_next_block();
 
 		// assert
 		let expected = ((936324588000000000, 1125006022570633).into(), 0);

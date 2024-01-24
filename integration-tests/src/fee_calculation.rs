@@ -43,7 +43,7 @@ fn min_swap_fee() {
 
 		assert_eq_approx!(
 			fee_in_cent,
-			FixedU128::from_float(1.040003910584000000),
+			FixedU128::from_float(1.040003140744000000),
 			tolerance,
 			"The min fee should be ~1 cent (0.01$)"
 		);
@@ -72,7 +72,7 @@ fn max_swap_fee() {
 		let tolerance = FixedU128::from((2, (UNITS / 10_000)));
 		assert_eq_approx!(
 			fee_in_cent,
-			FixedU128::from_float(1002.399047518770000000),
+			FixedU128::from_float(1006.390180650782000000),
 			tolerance,
 			"The max fee should be ~1000 cent (10$)"
 		);
@@ -84,7 +84,7 @@ fn fee_growth_simulator_starting_with_genesis_chain() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		let prod_init_multiplier = FixedU128::from_inner(1000000000000000000);
+		let prod_init_multiplier = FixedU128::from_u32(1);
 
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(prod_init_multiplier);
 		init_omnipool();

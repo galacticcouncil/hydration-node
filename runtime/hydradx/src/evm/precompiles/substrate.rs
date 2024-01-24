@@ -28,7 +28,8 @@ use smallvec::alloc;
 use {
 	core::marker::PhantomData,
 	frame_support::{
-		dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo},
+		dispatch::{GetDispatchInfo, PostDispatchInfo},
+		sp_runtime::traits::Dispatchable,
 		traits::Get,
 		weights::Weight,
 	},
@@ -93,15 +94,17 @@ where
 {
 	/// Cost of a Substrate DB write in gas.
 	pub fn db_write_gas_cost() -> u64 {
-		<Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(Weight::from_ref_time(
+		<Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(Weight::from_parts(
 			<Runtime as frame_system::Config>::DbWeight::get().write,
+			0,
 		))
 	}
 
 	/// Cost of a Substrate DB read in gas.
 	pub fn db_read_gas_cost() -> u64 {
-		<Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(Weight::from_ref_time(
+		<Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(Weight::from_parts(
 			<Runtime as frame_system::Config>::DbWeight::get().read,
+			0,
 		))
 	}
 }

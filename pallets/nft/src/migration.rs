@@ -17,7 +17,6 @@
 
 use crate::{Collections, Config, ItemInfoOf, Items, Pallet};
 use frame_support::{
-	log,
 	traits::{Get, PalletInfoAccess, StorageVersion},
 	weights::Weight,
 };

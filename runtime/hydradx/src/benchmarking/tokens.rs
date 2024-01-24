@@ -103,10 +103,11 @@ runtime_benchmarks! {
 mod tests {
 	use super::*;
 	use orml_benchmarking::impl_benchmark_test_suite;
+	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::default()
-			.build_storage::<crate::Runtime>()
+		frame_system::GenesisConfig::<crate::Runtime>::default()
+			.build_storage()
 			.unwrap()
 			.into()
 	}

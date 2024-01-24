@@ -1,6 +1,6 @@
 [package]
 name = "pallet-liquidity-mining"
-version = "4.2.4"
+version = "4.2.5"
 description = "Liquidity mining"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -33,7 +33,6 @@ sp-std = { workspace = true }
 test-utils = { workspace = true }
 sp-io = { workspace = true }
 sp-core = { workspace = true }
-orml-currencies = { workspace = true }
 orml-tokens = { workspace = true }
 pallet-balances = { workspace = true }
 # This can be updated to lates after rust update(>=1.61)
@@ -50,6 +49,8 @@ std = [
     "frame-system/std",
     "sp-std/std",
     "orml-traits/std",
+    "orml-tokens/std",
+    "pallet-balances/std",
     "hydradx-traits/std",
     "sp-arithmetic/std",
     "sp-runtime/std",
