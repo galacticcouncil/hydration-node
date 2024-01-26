@@ -46,7 +46,7 @@ pub use types::AssetType;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-pub use crate::types::{AssetDetails, Balance};
+pub use crate::types::{AssetDetails, Balance, Name, Symbol};
 use frame_support::storage::with_transaction;
 use frame_support::BoundedVec;
 use hydradx_traits::{
@@ -239,16 +239,16 @@ pub mod pallet {
 		//asset_id, name, existential deposit, symbol, decimals, xcm_rate_limit, is_sufficient
 		pub registered_assets: Vec<(
 			Option<T::AssetId>,
-			Option<Vec<u8>>,
+			Option<Name<T::StringLimit>>,
 			Balance,
-			Option<Vec<u8>>,
+			Option<Symbol<T::StringLimit>>,
 			Option<u8>,
 			Option<Balance>,
 			bool,
 		)>,
-		pub native_asset_name: Vec<u8>,
+		pub native_asset_name: Name<T::StringLimit>,
 		pub native_existential_deposit: Balance,
-		pub native_symbol: Vec<u8>,
+		pub native_symbol: Symbol<T::StringLimit>,
 		pub native_decimals: u8,
 	}
 
@@ -256,9 +256,9 @@ pub mod pallet {
 		fn default() -> Self {
 			GenesisConfig::<T> {
 				registered_assets: sp_std::vec![],
-				native_asset_name: b"HDX".to_vec(),
+				native_asset_name: b"HDX".to_vec().try_into().expect("Invalid native asset name!"),
 				native_existential_deposit: DEFAULT_ED,
-				native_symbol: b"HDX".to_vec(),
+				native_symbol: b"HDX".to_vec().try_into().expect("Invalid native asset symbol!"),
 				native_decimals: 12,
 			}
 		}
@@ -269,23 +269,14 @@ pub mod pallet {
 			with_transaction(|| {
 				// Register native asset first
 				// It is to make sure that native is registered as any other asset
-				let native_asset_name = Pallet::<T>::try_into_bounded(Some(self.native_asset_name.to_vec()))
-					.expect("Invalid native asset name!");
-
-				let native_symbol = Pallet::<T>::try_into_bounded(Some(self.native_symbol.to_vec()))
-					.expect("Invalid native asset symbol!");
-
 				let native_asset_id = T::AssetId::from(0);
-				AssetIds::<T>::insert(
-					native_asset_name.as_ref().expect("Invalid native asset name!"),
-					native_asset_id,
-				);
+				AssetIds::<T>::insert(&self.native_asset_name, native_asset_id);
 				let details = AssetDetails {
-					name: native_asset_name,
+					name: Some(self.native_asset_name.clone()),
 					asset_type: AssetType::Token,
 					existential_deposit: self.native_existential_deposit,
 					xcm_rate_limit: None,
-					symbol: native_symbol,
+					symbol: Some(self.native_symbol.clone()),
 					decimals: Some(self.native_decimals),
 					is_sufficient: true,
 				};
@@ -294,23 +285,12 @@ pub mod pallet {
 
 				self.registered_assets.iter().for_each(
 					|(id, name, ed, symbol, decimals, xcm_rate_limit, is_sufficient)| {
-						let bounded_name = name.as_ref().map(|name| {
-							Pallet::<T>::try_into_bounded(Some(name.to_vec()))
-								.expect("Invalid asset name!")
-								.unwrap()
-						});
-						let bounded_symbol = symbol.as_ref().map(|symbol| {
-							Pallet::<T>::try_into_bounded(Some(symbol.to_vec()))
-								.expect("Invalid symbol!")
-								.unwrap()
-						});
-
 						let details = AssetDetails {
-							name: bounded_name,
+							name: name.clone(),
 							asset_type: AssetType::Token,
 							existential_deposit: *ed,
 							xcm_rate_limit: *xcm_rate_limit,
-							symbol: bounded_symbol,
+							symbol: symbol.clone(),
 							decimals: *decimals,
 							is_sufficient: *is_sufficient,
 						};
@@ -392,10 +372,10 @@ pub mod pallet {
 		pub fn register(
 			origin: OriginFor<T>,
 			asset_id: Option<T::AssetId>,
-			name: Option<Vec<u8>>,
+			name: Option<Name<T::StringLimit>>,
 			asset_type: AssetType,
 			existential_deposit: Option<Balance>,
-			symbol: Option<Vec<u8>>,
+			symbol: Option<Symbol<T::StringLimit>>,
 			decimals: Option<u8>,
 			location: Option<T::AssetNativeLocation>,
 			xcm_rate_limit: Option<Balance>,
@@ -403,14 +383,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::RegistryOrigin::ensure_origin(origin)?;
 
-			let bounded_name = Self::try_into_bounded(name)?;
-			let bounded_symbol = Self::try_into_bounded(symbol)?;
-
 			let details = AssetDetails::new(
-				bounded_name,
+				name,
 				asset_type,
 				existential_deposit.unwrap_or(DEFAULT_ED),
-				bounded_symbol,
+				symbol,
 				decimals,
 				xcm_rate_limit,
 				is_sufficient,
@@ -435,12 +412,12 @@ pub mod pallet {
 		pub fn update(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
-			name: Option<Vec<u8>>,
+			name: Option<Name<T::StringLimit>>,
 			asset_type: Option<AssetType>,
 			existential_deposit: Option<Balance>,
 			xcm_rate_limit: Option<Balance>,
 			is_sufficient: Option<bool>,
-			symbol: Option<Vec<u8>>,
+			symbol: Option<Symbol<T::StringLimit>>,
 			decimals: Option<u8>,
 			location: Option<T::AssetNativeLocation>,
 		) -> DispatchResult {
@@ -452,8 +429,7 @@ pub mod pallet {
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
 				let detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-				let new_bounded_name = Self::try_into_bounded(name)?;
-				if let Some(new_name) = new_bounded_name.as_ref() {
+				if let Some(new_name) = name.as_ref() {
 					ensure!(Self::asset_ids(new_name).is_none(), Error::<T>::AssetAlreadyRegistered);
 
 					if let Some(old_name) = &detail.name {
@@ -464,13 +440,12 @@ pub mod pallet {
 						AssetIds::<T>::insert(new_name, asset_id);
 					}
 				};
-				let bounded_symbol = Self::try_into_bounded(symbol)?;
 
-				detail.name = new_bounded_name.or_else(|| detail.name.clone());
+				detail.name = name.or_else(|| detail.name.clone());
 				detail.asset_type = asset_type.unwrap_or(detail.asset_type);
 				detail.existential_deposit = existential_deposit.unwrap_or(detail.existential_deposit);
 				detail.xcm_rate_limit = xcm_rate_limit.or(detail.xcm_rate_limit);
-				detail.symbol = bounded_symbol.or_else(|| detail.symbol.clone());
+				detail.symbol = symbol.or_else(|| detail.symbol.clone());
 
 				let suff = is_sufficient.unwrap_or(detail.is_sufficient);
 				if detail.is_sufficient != suff {
@@ -588,15 +563,6 @@ impl<T: Config> Pallet<T> {
 		NextAssetId::<T>::get().checked_add(&T::SequentialIdStartAt::get())
 	}
 
-	/// Convert Vec<u8> to BoundedVec so it respects the max set limit, otherwise return TooLong error
-	pub fn try_into_bounded(name: Option<Vec<u8>>) -> Result<Option<BoundedVec<u8, T::StringLimit>>, Error<T>> {
-		let Some(s) = name else {
-            return Ok(None);
-        };
-
-		s.try_into().map_err(|_| Error::<T>::TooLong).map(Some)
-	}
-
 	fn do_set_location(asset_id: T::AssetId, location: T::AssetNativeLocation) -> Result<(), DispatchError> {
 		ensure!(
 			Self::location_assets(&location).is_none(),
@@ -662,25 +628,20 @@ impl<T: Config> Pallet<T> {
 
 	/// Create asset for given name or return existing AssetId if such asset already exists.
 	pub fn get_or_create_asset(
-		name: Vec<u8>,
+		name: Name<T::StringLimit>,
 		asset_type: AssetType,
 		existential_deposit: Balance,
 		asset_id: Option<T::AssetId>,
 		is_sufficient: bool,
 	) -> Result<T::AssetId, DispatchError> {
-		let bounded_name = Self::try_into_bounded(Some(name))?;
-
-		if let Some(asset_id) = AssetIds::<T>::get(
-			bounded_name
-				.as_ref()
-				.ok_or_else(|| -> pallet::Error<T> { InconsistentStateError::BoundedConversionFailed.into() })?,
-		) {
+		//TODO: remove this fn
+		if let Some(asset_id) = AssetIds::<T>::get(&name) {
 			Ok(asset_id)
 		} else {
 			Self::do_register_asset(
 				asset_id,
 				&AssetDetails::new(
-					bounded_name,
+					Some(name),
 					asset_type,
 					existential_deposit,
 					None,
@@ -776,26 +737,25 @@ impl<T: Config> Mutate for Pallet<T> {
 
 impl<T: Config> Create<Balance> for Pallet<T> {
 	type Error = DispatchError;
+	type Name = Name<T::StringLimit>;
+	type Symbol = Symbol<T::StringLimit>;
 
 	fn register_asset(
 		asset_id: Option<Self::AssetId>,
-		name: Option<&[u8]>,
+		name: Option<Self::Name>,
 		kind: AssetKind,
 		existential_deposit: Option<Balance>,
-		symbol: Option<&[u8]>,
+		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
 		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
 		is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {
-		let bounded_name = Self::try_into_bounded(name.map(|x| x.to_vec()))?;
-		let bounded_symbol = Self::try_into_bounded(symbol.map(|x| x.to_vec()))?;
-
 		let details = AssetDetails::new(
-			bounded_name,
+			name,
 			kind.into(),
 			existential_deposit.unwrap_or(DEFAULT_ED),
-			bounded_symbol,
+			symbol,
 			decimals,
 			xcm_rate_limit,
 			is_sufficient,
@@ -805,31 +765,24 @@ impl<T: Config> Create<Balance> for Pallet<T> {
 	}
 
 	fn get_or_register_asset(
-		name: &[u8],
+		name: Self::Name,
 		kind: AssetKind,
 		existential_deposit: Option<Balance>,
-		symbol: Option<&[u8]>,
+		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
 		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
 		is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {
 		//NOTE: in this case `try_into_bounded()` should never return None.
-		let bounded_name = match Self::try_into_bounded(Some(name.to_vec()))? {
-			Some(n) => n,
-			None => return Err(Error::<T>::InconsistentState(InconsistentStateError::BoundedConversionFailed).into()),
-		};
-
-		match Self::asset_ids(bounded_name.clone()) {
+		match Self::asset_ids(&name) {
 			Some(id) => Ok(id),
 			None => {
-				let bounded_symbol = Self::try_into_bounded(symbol.map(|x| x.to_vec()))?;
-
 				let details = AssetDetails::new(
-					Some(bounded_name),
+					Some(name),
 					kind.into(),
 					existential_deposit.unwrap_or(DEFAULT_ED),
-					bounded_symbol,
+					symbol,
 					decimals,
 					xcm_rate_limit,
 					is_sufficient,

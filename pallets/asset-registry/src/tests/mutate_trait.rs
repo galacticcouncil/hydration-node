@@ -15,7 +15,7 @@ fn set_location_should_work_when_location_was_not_set_yet() {
 	ExtBuilder::default()
 		.with_assets(vec![(
 			Some(asset_id),
-			Some(b"Suff".to_vec()),
+			Some(b"Suff".to_vec().try_into().unwrap()),
 			UNIT,
 			None,
 			None,
@@ -43,7 +43,7 @@ fn set_location_should_not_work_when_location_was_not() {
 	ExtBuilder::default()
 		.with_assets(vec![(
 			Some(asset_id),
-			Some(b"Suff".to_vec()),
+			Some(b"Suff".to_vec().try_into().unwrap()),
 			UNIT,
 			None,
 			None,

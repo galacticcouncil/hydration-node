@@ -7,9 +7,33 @@ use pretty_assertions::assert_eq;
 fn blacklist_add_should_work_when_asset_is_not_blacklisted() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"tkn1".to_vec()), UNIT, None, None, None, true),
-			(Some(2), Some(b"tkn2".to_vec()), UNIT, None, None, None, false),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+			(
+				Some(1),
+				Some(b"tkn1".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(b"tkn2".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				false,
+			),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
 		])
 		.build()
 		.execute_with(|| {
@@ -29,9 +53,33 @@ fn blacklist_add_should_fial_when_asset_is_already_blacklisted() {
 	let asset_id: u32 = 1;
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(asset_id), Some(b"tkn1".to_vec()), UNIT, None, None, None, true),
-			(Some(2), Some(b"tkn2".to_vec()), UNIT, None, None, None, false),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+			(
+				Some(asset_id),
+				Some(b"tkn1".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(b"tkn2".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				false,
+			),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
 		])
 		.build()
 		.execute_with(|| {
@@ -52,9 +100,33 @@ fn blacklist_add_should_fial_when_asset_is_already_blacklisted() {
 fn blacklist_add_should_fail_when_asset_is_not_registered() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"tkn1".to_vec()), UNIT, None, None, None, true),
-			(Some(2), Some(b"tkn2".to_vec()), UNIT, None, None, None, false),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+			(
+				Some(1),
+				Some(b"tkn1".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(b"tkn2".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				false,
+			),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
 		])
 		.build()
 		.execute_with(|| {
@@ -74,9 +146,33 @@ fn blacklist_remove_should_work_when_asset_is_blacklisted() {
 	let asset_id: u32 = 1;
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(asset_id), Some(b"tkn1".to_vec()), UNIT, None, None, None, true),
-			(Some(2), Some(b"tkn2".to_vec()), UNIT, None, None, None, false),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+			(
+				Some(asset_id),
+				Some(b"tkn1".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(b"tkn2".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				false,
+			),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
 		])
 		.build()
 		.execute_with(|| {
@@ -100,9 +196,33 @@ fn blacklist_remove_should_fail_when_asset_is_not_blacklisted() {
 	let asset_id: u32 = 1;
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(asset_id), Some(b"tkn1".to_vec()), UNIT, None, None, None, true),
-			(Some(2), Some(b"tkn2".to_vec()), UNIT, None, None, None, false),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+			(
+				Some(asset_id),
+				Some(b"tkn1".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(b"tkn2".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				false,
+			),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
 		])
 		.build()
 		.execute_with(|| {

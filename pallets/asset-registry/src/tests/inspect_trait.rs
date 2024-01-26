@@ -17,7 +17,7 @@ fn is_sufficient_should_work() {
 		.with_assets(vec![
 			(
 				Some(suff_asset_id),
-				Some(b"Suff".to_vec()),
+				Some(b"Suff".to_vec().try_into().unwrap()),
 				UNIT,
 				None,
 				None,
@@ -26,7 +26,7 @@ fn is_sufficient_should_work() {
 			),
 			(
 				Some(insuff_asset_id),
-				Some(b"Insuff".to_vec()),
+				Some(b"Insuff".to_vec().try_into().unwrap()),
 				UNIT,
 				None,
 				None,
@@ -52,7 +52,7 @@ fn exists_should_work() {
 	ExtBuilder::default()
 		.with_assets(vec![(
 			Some(asset_id),
-			Some(b"Suff".to_vec()),
+			Some(b"Suff".to_vec().try_into().unwrap()),
 			UNIT,
 			None,
 			None,
@@ -73,9 +73,33 @@ fn decimals_should_work() {
 
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"TKN1".to_vec()), UNIT, None, Some(5_u8), None, true),
-			(Some(2), Some(b"TKN2".to_vec()), UNIT, None, Some(0_u8), None, true),
-			(Some(3), Some(b"TKN3".to_vec()), UNIT, None, None, None, true),
+			(
+				Some(1),
+				Some(b"TKN1".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				Some(5_u8),
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(b"TKN2".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				Some(0_u8),
+				None,
+				true,
+			),
+			(
+				Some(3),
+				Some(b"TKN3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
 		])
 		.build()
 		.execute_with(|| {
@@ -136,8 +160,24 @@ fn asset_type_should_work() {
 fn is_blacklisted_should_work() {
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(b"Suff".to_vec()), UNIT, None, None, None, true),
-			(Some(2), Some(b"Insuff".to_vec()), UNIT, None, None, None, false),
+			(
+				Some(1),
+				Some(b"Suff".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(b"Insuff".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				false,
+			),
 		])
 		.build()
 		.execute_with(|| {
@@ -159,9 +199,25 @@ fn asset_name_should_work() {
 
 	ExtBuilder::default()
 		.with_assets(vec![
-			(Some(1), Some(asset_one_name.clone()), UNIT, None, None, None, true),
+			(
+				Some(1),
+				Some(asset_one_name.clone().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
 			(Some(2), None, UNIT, None, None, None, false),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
 		])
 		.build()
 		.execute_with(|| {
@@ -183,15 +239,23 @@ fn asset_symbol_should_work() {
 		.with_assets(vec![
 			(
 				Some(1),
-				Some(b"Tkn1".to_vec()),
+				Some(b"Tkn1".to_vec().try_into().unwrap()),
 				UNIT,
-				Some(asset_one_symbol.clone()),
+				Some(asset_one_symbol.clone().try_into().unwrap()),
 				None,
 				None,
 				true,
 			),
 			(Some(2), None, UNIT, None, None, None, false),
-			(Some(3), Some(b"Tkn3".to_vec()), UNIT, None, None, None, true),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
 		])
 		.build()
 		.execute_with(|| {

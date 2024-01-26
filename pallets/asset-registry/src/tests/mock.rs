@@ -31,6 +31,7 @@ use frame_support::traits::Everything;
 use polkadot_xcm::v3::MultiLocation;
 
 use crate as pallet_asset_registry;
+use crate::types::{Name, Symbol};
 
 pub type AssetId = u32;
 pub type Balance = u128;
@@ -137,9 +138,9 @@ impl orml_tokens::Config for Test {
 pub struct ExtBuilder {
 	registered_assets: Vec<(
 		Option<AssetId>,
-		Option<Vec<u8>>,
+		Option<Name<RegistryStringLimit>>,
 		Balance,
-		Option<Vec<u8>>,
+		Option<Symbol<RegistryStringLimit>>,
 		Option<u8>,
 		Option<Balance>,
 		bool,
@@ -152,9 +153,9 @@ impl ExtBuilder {
 		mut self,
 		assets: Vec<(
 			Option<AssetId>,
-			Option<Vec<u8>>,
+			Option<Name<RegistryStringLimit>>,
 			Balance,
-			Option<Vec<u8>>,
+			Option<Symbol<RegistryStringLimit>>,
 			Option<u8>,
 			Option<Balance>,
 			bool,

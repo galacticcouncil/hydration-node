@@ -51,13 +51,15 @@ pub trait Inspect {
 #[allow(clippy::too_many_arguments)]
 pub trait Create<Balance>: Inspect {
 	type Error;
+	type Name: Parameter;
+	type Symbol: Parameter;
 
 	fn register_asset(
 		asset_id: Option<Self::AssetId>,
-		name: Option<&[u8]>,
+		name: Option<Self::Name>,
 		kind: AssetKind,
 		existential_deposit: Option<Balance>,
-		symbol: Option<&[u8]>,
+		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
 		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
@@ -66,10 +68,10 @@ pub trait Create<Balance>: Inspect {
 
 	fn register_insufficient_asset(
 		asset_id: Option<Self::AssetId>,
-		name: Option<&[u8]>,
+		name: Option<Self::Name>,
 		kind: AssetKind,
 		existential_deposit: Option<Balance>,
-		symbol: Option<&[u8]>,
+		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
 		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
@@ -89,10 +91,10 @@ pub trait Create<Balance>: Inspect {
 
 	fn register_sufficient_asset(
 		asset_id: Option<Self::AssetId>,
-		name: Option<&[u8]>,
+		name: Option<Self::Name>,
 		kind: AssetKind,
 		existential_deposit: Balance,
-		symbol: Option<&[u8]>,
+		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
 		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
@@ -111,10 +113,10 @@ pub trait Create<Balance>: Inspect {
 	}
 
 	fn get_or_register_asset(
-		name: &[u8],
+		name: Self::Name,
 		kind: AssetKind,
 		existential_deposit: Option<Balance>,
-		symbol: Option<&[u8]>,
+		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
 		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
@@ -122,10 +124,10 @@ pub trait Create<Balance>: Inspect {
 	) -> Result<Self::AssetId, Self::Error>;
 
 	fn get_or_register_sufficient_asset(
-		name: &[u8],
+		name: Self::Name,
 		kind: AssetKind,
 		existential_deposit: Balance,
-		symbol: Option<&[u8]>,
+		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
 		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,
@@ -143,10 +145,10 @@ pub trait Create<Balance>: Inspect {
 	}
 
 	fn get_or_register_insufficient_asset(
-		name: &[u8],
+		name: Self::Name,
 		kind: AssetKind,
 		existential_deposit: Option<Balance>,
-		symbol: Option<&[u8]>,
+		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
 		location: Option<Self::Location>,
 		xcm_rate_limit: Option<Balance>,

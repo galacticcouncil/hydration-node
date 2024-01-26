@@ -24,6 +24,9 @@ use hydradx_traits::AssetKind;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
+pub type Name<L> = BoundedVec<u8, L>;
+pub type Symbol<L> = BoundedVec<u8, L>;
+
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum AssetType {
@@ -63,7 +66,7 @@ impl From<AssetType> for AssetKind {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AssetDetails<StringLimit: Get<u32>> {
 	/// The name of this asset. Limited in length by `StringLimit`.
-	pub name: Option<BoundedVec<u8, StringLimit>>,
+	pub name: Option<Name<StringLimit>>,
 
 	/// Asset type
 	pub asset_type: AssetType,
@@ -72,7 +75,7 @@ pub struct AssetDetails<StringLimit: Get<u32>> {
 	pub existential_deposit: Balance,
 
 	/// The ticker symbol for this asset. Limited in length by `StringLimit`.
-	pub symbol: Option<BoundedVec<u8, StringLimit>>,
+	pub symbol: Option<Symbol<StringLimit>>,
 
 	/// The number of decimals this asset uses to represent one unit.
 	pub decimals: Option<u8>,
