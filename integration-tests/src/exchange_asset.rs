@@ -277,7 +277,7 @@ fn register_glmr() {
 	assert_ok!(hydradx_runtime::AssetRegistry::register(
 		hydradx_runtime::RuntimeOrigin::root(),
 		Some(GLMR),
-		Some(b"GLRM".to_vec()),
+		Some(b"GLRM".to_vec().try_into().unwrap()),
 		pallet_asset_registry::AssetType::Token,
 		Some(1_000_000),
 		None,
@@ -295,7 +295,7 @@ fn register_aca() {
 	assert_ok!(hydradx_runtime::AssetRegistry::register(
 		hydradx_runtime::RuntimeOrigin::root(),
 		Some(ACA),
-		Some(b"ACAL".to_vec()),
+		Some(b"ACAL".to_vec().try_into().unwrap()),
 		pallet_asset_registry::AssetType::Token,
 		Some(1_000_000),
 		None,
@@ -313,7 +313,7 @@ fn register_ibtc() {
 	assert_ok!(hydradx_runtime::AssetRegistry::register(
 		hydradx_runtime::RuntimeOrigin::root(),
 		Some(IBTC),
-		Some(b"iBTC".to_vec()),
+		Some(b"iBTC".to_vec().try_into().unwrap()),
 		pallet_asset_registry::AssetType::Token,
 		Some(1_000_000),
 		None,

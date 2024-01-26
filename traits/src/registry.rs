@@ -51,8 +51,8 @@ pub trait Inspect {
 #[allow(clippy::too_many_arguments)]
 pub trait Create<Balance>: Inspect {
 	type Error;
-	type Name: Parameter;
-	type Symbol: Parameter;
+	type Name: Parameter + TryFrom<sp_std::prelude::Vec<u8>>;
+	type Symbol: Parameter + TryFrom<sp_std::prelude::Vec<u8>>;
 
 	fn register_asset(
 		asset_id: Option<Self::AssetId>,

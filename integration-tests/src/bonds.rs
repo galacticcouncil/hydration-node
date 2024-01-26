@@ -73,7 +73,7 @@ fn issue_bonds_should_work_when_issued_for_share_asset() {
 			let name = b"SHARED".to_vec();
 			let share_asset_id = AssetRegistry::register_insufficient_asset(
 				None,
-				Some(&name),
+				Some(name.try_into().unwrap()),
 				AssetKind::XYK,
 				Some(1_000),
 				None,
@@ -132,7 +132,7 @@ fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 			let name = b"BOND".to_vec();
 			let underlying_asset_id = AssetRegistry::register_insufficient_asset(
 				None,
-				Some(&name),
+				Some(name.try_into().unwrap()),
 				AssetKind::Bond,
 				Some(1_000),
 				None,

@@ -183,6 +183,8 @@ pub mod pallet {
 		DisallowedAsset,
 		/// Asset is not registered in `AssetRegistry`
 		AssetNotFound,
+		/// Generated name is not valid.
+		InvalidBondName,
 	}
 
 	#[pallet::call]
@@ -231,9 +233,10 @@ pub mod pallet {
 					ensure!(maturity >= T::TimestampProvider::now(), Error::<T>::InvalidMaturity);
 
 					let ed = T::ExistentialDeposits::get(&asset_id);
+					let b_name = Self::bond_name(asset_id, maturity);
 					let bond_id = T::AssetRegistry::register_insufficient_asset(
 						None,
-						Some(&Self::bond_name(asset_id, maturity)),
+						Some(b_name.try_into().map_err(|_| Error::<T>::InvalidBondName)?),
 						AssetKind::Bond,
 						Some(ed),
 						None,

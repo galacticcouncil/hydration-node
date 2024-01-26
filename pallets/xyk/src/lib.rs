@@ -349,7 +349,7 @@ pub mod pallet {
 			let token_name = asset_pair.name();
 
 			let share_token = T::AssetRegistry::get_or_register_insufficient_asset(
-				&token_name,
+				token_name.try_into().map_err(|_| Error::<T>::CannotCreatePool)?,
 				AssetKind::XYK,
 				None,
 				None,

@@ -30,8 +30,8 @@ use hex_literal::hex;
 use hydradx_runtime::{
 	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
 	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisHistoryConfig,
-	MultiTransactionPaymentConfig, ParachainInfoConfig, RuntimeGenesisConfig, SessionConfig, Signature, SystemConfig,
-	TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
+	MultiTransactionPaymentConfig, ParachainInfoConfig, RegistryStrLimit, RuntimeGenesisConfig, SessionConfig,
+	Signature, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
 };
 use primitives::{
 	constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
@@ -42,7 +42,10 @@ use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use serde_json::map::Map;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sp_runtime::{
+	traits::{IdentifyAccount, Verify},
+	BoundedVec,
+};
 
 const PARA_ID: u32 = 2034;
 const TOKEN_DECIMALS: u8 = 12;
@@ -100,9 +103,9 @@ pub fn parachain_genesis(
 	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
 	registered_assets: Vec<(
 		Option<AssetId>,
-		Option<Vec<u8>>,
+		Option<BoundedVec<u8, RegistryStrLimit>>,
 		Balance,
-		Option<Vec<u8>>,
+		Option<BoundedVec<u8, RegistryStrLimit>>,
 		Option<u8>,
 		Option<Balance>,
 		bool,
@@ -158,9 +161,17 @@ pub fn parachain_genesis(
 		vesting: VestingConfig { vesting: vesting_list },
 		asset_registry: AssetRegistryConfig {
 			registered_assets: registered_assets.clone(),
-			native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
+			native_asset_name: TOKEN_SYMBOL
+				.as_bytes()
+				.to_vec()
+				.try_into()
+				.expect("Native asset name is too long."),
 			native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
-			native_symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
+			native_symbol: TOKEN_SYMBOL
+				.as_bytes()
+				.to_vec()
+				.try_into()
+				.expect("Native symbol is too long."),
 			native_decimals: TOKEN_DECIMALS,
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {

@@ -118,6 +118,7 @@ sp-io = { workspace = true }
 sp-consensus-babe = { workspace = true }
 sp-authority-discovery = { workspace = true }
 sc-consensus-grandpa = { workspace = true }
+sp-state-machine = { workspace = true }
 
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true, features = ["full-node"] }
@@ -193,6 +194,7 @@ std = [
     "polkadot-runtime/std",
     "hydradx-runtime/std",
     "pallet-staking/std",
+    "sp-state-machine/std",
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

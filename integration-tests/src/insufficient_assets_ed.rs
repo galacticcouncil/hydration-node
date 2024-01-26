@@ -1339,7 +1339,7 @@ fn tx_should_fail_with_unsupported_currency_error_when_fee_asset_price_was_not_p
 }
 
 #[test]
-fn blacklisted_asset_should_not_create_new_account() {
+fn banned_asset_should_not_create_new_account() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let tech_comm = pallet_collective::RawOrigin::<AccountId, TechnicalCollective>::Members(1, 1);
@@ -1353,7 +1353,7 @@ fn blacklisted_asset_should_not_create_new_account() {
 			0,
 		));
 
-		assert_ok!(Registry::blacklist_add(tech_comm.into(), sht1));
+		assert_ok!(Registry::ban_asset(tech_comm.into(), sht1));
 
 		assert_eq!(Currencies::free_balance(sht1, &ALICE.into()), 0);
 		assert_eq!(treasury_sufficiency_lock(), 0);
@@ -1361,13 +1361,13 @@ fn blacklisted_asset_should_not_create_new_account() {
 		//Act & assert
 		assert_noop!(
 			Tokens::transfer(hydra_origin::signed(BOB.into()), ALICE.into(), sht1, 1_000_000 * UNITS),
-			sp_runtime::DispatchError::Other("BlacklistedAssetTransfer")
+			sp_runtime::DispatchError::Other("BannedAssetTransfer")
 		);
 	});
 }
 
 #[test]
-fn blacklisted_asset_should_not_be_transferable_to_existing_account() {
+fn banned_asset_should_not_be_transferable_to_existing_account() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let tech_comm = pallet_collective::RawOrigin::<AccountId, TechnicalCollective>::Members(1, 1);
@@ -1389,12 +1389,12 @@ fn blacklisted_asset_should_not_be_transferable_to_existing_account() {
 			0,
 		));
 
-		assert_ok!(Registry::blacklist_add(tech_comm.into(), sht1));
+		assert_ok!(Registry::ban_asset(tech_comm.into(), sht1));
 
 		//Act & assert
 		assert_noop!(
 			Tokens::transfer(hydra_origin::signed(BOB.into()), ALICE.into(), sht1, 1_000_000 * UNITS),
-			sp_runtime::DispatchError::Other("BlacklistedAssetTransfer")
+			sp_runtime::DispatchError::Other("BannedAssetTransfer")
 		);
 	});
 }

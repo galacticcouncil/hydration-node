@@ -3316,10 +3316,10 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
 		let asset_id = AssetRegistry::register_sufficient_asset(
 			None,
-			Some(name.as_ref()),
+			Some(name.try_into().unwrap()),
 			AssetKind::Token,
 			1u128,
-			Some(b"xDUM".as_ref()),
+			Some(b"xDUM".to_vec().try_into().unwrap()),
 			Some(18u8),
 			None,
 			None,
@@ -3336,7 +3336,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	}
 	let pool_id = AssetRegistry::register_sufficient_asset(
 		None,
-		Some(b"pool".as_ref()),
+		Some(b"pool".to_vec().try_into().unwrap()),
 		AssetKind::Token,
 		1u128,
 		None,
@@ -3373,10 +3373,10 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 
 		let asset_id = AssetRegistry::register_sufficient_asset(
 			None,
-			Some(name.as_ref()),
+			Some(name.try_into().unwrap()),
 			AssetKind::Token,
 			1u128,
-			Some(b"xDUM".as_ref()),
+			Some(b"xDUM".to_vec().try_into().unwrap()),
 			Some(decimals_for_each_asset[idx as usize]),
 			None,
 			None,
@@ -3400,7 +3400,7 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 	}
 	let pool_id = AssetRegistry::register_insufficient_asset(
 		None,
-		Some(b"pool".as_ref()),
+		Some(b"pool".to_vec().try_into().unwrap()),
 		AssetKind::Token,
 		Some(1u128),
 		None,

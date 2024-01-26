@@ -159,8 +159,8 @@ impl SufficiencyCheck {
 	///
 	/// Emits `pallet_asset_registry::Event::ExistentialDepositPaid` when ED was paid.
 	fn on_funds(asset: AssetId, paying_account: &AccountId, to: &AccountId) -> DispatchResult {
-		if AssetRegistry::is_blacklisted(asset) {
-			return Err(DispatchError::Other("BlacklistedAssetTransfer"));
+		if AssetRegistry::is_banned(asset) {
+			return Err(DispatchError::Other("BannedAssetTransfer"));
 		}
 
 		//NOTE: To prevent duplicate ED collection we assume account already paid ED
@@ -356,6 +356,8 @@ impl pallet_claims::Config for Runtime {
 parameter_types! {
 	#[derive(PartialEq, Debug)]
 	pub const RegistryStrLimit: u32 = 32;
+	#[derive(PartialEq, Debug)]
+	pub const MinRegistryStrLimit: u32 = 3;
 	pub const SequentialIdOffset: u32 = 1_000_000;
 	pub const StoreFees: Balance = 100 * UNITS; //TODO:
 }
@@ -368,6 +370,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type AssetId = AssetId;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
+	type MinStringLimit = MinRegistryStrLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type StorageFeesAssetId = NativeAssetId;
 	type StorageFees = StoreFees;
