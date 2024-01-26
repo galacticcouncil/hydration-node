@@ -634,34 +634,6 @@ impl<T: Config> Pallet<T> {
 		Ok(asset_id)
 	}
 
-	/// Create asset for given name or return existing AssetId if such asset already exists.
-	pub fn get_or_create_asset(
-		name: Name<T::StringLimit>,
-		asset_type: AssetType,
-		existential_deposit: Balance,
-		asset_id: Option<T::AssetId>,
-		is_sufficient: bool,
-	) -> Result<T::AssetId, DispatchError> {
-		//TODO: remove this fn
-		if let Some(asset_id) = AssetIds::<T>::get(&name) {
-			Ok(asset_id)
-		} else {
-			Self::do_register_asset(
-				asset_id,
-				&AssetDetails::new(
-					Some(name),
-					asset_type,
-					existential_deposit,
-					None,
-					None,
-					None,
-					is_sufficient,
-				),
-				None,
-			)
-		}
-	}
-
 	/// Return location for given asset.
 	pub fn asset_to_location(asset_id: T::AssetId) -> Option<T::AssetNativeLocation> {
 		Self::locations(asset_id)
