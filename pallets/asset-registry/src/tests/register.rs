@@ -708,3 +708,131 @@ fn register_should_not_work_when_symbol_is_not_valid() {
 		);
 	});
 }
+
+#[test]
+fn register_should_not_work_when_name_is_too_short() {
+	ExtBuilder::default()
+		.with_assets(vec![
+			(
+				Some(1),
+				Some(b"Tkn1".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(b"Tkn2".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+		])
+		.build()
+		.execute_with(|| {
+			let asset_id = 4;
+			let name: BoundedVec<u8, RegistryStringLimit> = b"T".to_vec().try_into().unwrap();
+			let symbol: BoundedVec<u8, RegistryStringLimit> = b"TKN".to_vec().try_into().unwrap();
+			let decimals = 12;
+			let xcm_rate_limit = 1_000;
+			let ed = 10_000;
+			let is_sufficient = true;
+
+			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
+			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
+
+			//Act
+			assert_noop!(
+				Registry::register(
+					RuntimeOrigin::root(),
+					Some(asset_id),
+					Some(name),
+					AssetType::Token,
+					Some(ed),
+					Some(symbol),
+					Some(decimals),
+					Some(asset_location),
+					Some(xcm_rate_limit),
+					is_sufficient
+				),
+				Error::<Test>::TooShort
+			);
+		});
+}
+
+#[test]
+fn register_should_not_work_when_symbol_is_too_short() {
+	ExtBuilder::default()
+		.with_assets(vec![
+			(
+				Some(1),
+				Some(b"Tkn1".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(b"Tkn2".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+		])
+		.build()
+		.execute_with(|| {
+			let asset_id = 4;
+			let name: BoundedVec<u8, RegistryStringLimit> = b"TKN".to_vec().try_into().unwrap();
+			let symbol: BoundedVec<u8, RegistryStringLimit> = b"T".to_vec().try_into().unwrap();
+			let decimals = 12;
+			let xcm_rate_limit = 1_000;
+			let ed = 10_000;
+			let is_sufficient = true;
+
+			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
+			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
+
+			//Act
+			assert_noop!(
+				Registry::register(
+					RuntimeOrigin::root(),
+					Some(asset_id),
+					Some(name),
+					AssetType::Token,
+					Some(ed),
+					Some(symbol),
+					Some(decimals),
+					Some(asset_location),
+					Some(xcm_rate_limit),
+					is_sufficient
+				),
+				Error::<Test>::TooShort
+			);
+		});
+}

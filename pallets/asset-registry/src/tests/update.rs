@@ -979,3 +979,137 @@ fn update_should_not_work_when_symbol_is_not_valid() {
 			);
 		});
 }
+
+#[test]
+fn update_should_work_when_name_is_too_short() {
+	let old_asset_name = b"Tkn2".to_vec();
+	ExtBuilder::default()
+		.with_assets(vec![
+			(
+				Some(1),
+				Some(b"Tkn1".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(old_asset_name.clone().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				false,
+			),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+		])
+		.build()
+		.execute_with(|| {
+			let asset_id = 2;
+			let name: BoundedVec<u8, RegistryStringLimit> = b"N".to_vec().try_into().unwrap();
+			let ed = 10_000 * UNIT;
+			let xcm_rate_limit = 463;
+			let symbol: BoundedVec<u8, RegistryStringLimit> = b"nTkn2".to_vec().try_into().unwrap();
+			let decimals = 23;
+			let is_sufficient = true;
+
+			//Arrange
+			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
+			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
+			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
+
+			//Act
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					Some(name.clone()),
+					Some(AssetType::External),
+					Some(ed),
+					Some(xcm_rate_limit),
+					Some(is_sufficient),
+					Some(symbol.clone()),
+					Some(decimals),
+					None
+				),
+				Error::<Test>::TooShort
+			);
+		});
+}
+
+#[test]
+fn update_should_work_when_symbol_is_too_short() {
+	let old_asset_name = b"Tkn2".to_vec();
+	ExtBuilder::default()
+		.with_assets(vec![
+			(
+				Some(1),
+				Some(b"Tkn1".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(2),
+				Some(old_asset_name.clone().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				false,
+			),
+			(
+				Some(3),
+				Some(b"Tkn3".to_vec().try_into().unwrap()),
+				UNIT,
+				None,
+				None,
+				None,
+				true,
+			),
+		])
+		.build()
+		.execute_with(|| {
+			let asset_id = 2;
+			let name: BoundedVec<u8, RegistryStringLimit> = b"Name new".to_vec().try_into().unwrap();
+			let ed = 10_000 * UNIT;
+			let xcm_rate_limit = 463;
+			let symbol: BoundedVec<u8, RegistryStringLimit> = b"T".to_vec().try_into().unwrap();
+			let decimals = 23;
+			let is_sufficient = true;
+
+			//Arrange
+			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
+			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
+			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
+
+			//Act
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					Some(name.clone()),
+					Some(AssetType::External),
+					Some(ed),
+					Some(xcm_rate_limit),
+					Some(is_sufficient),
+					Some(symbol.clone()),
+					Some(decimals),
+					None
+				),
+				Error::<Test>::TooShort
+			);
+		});
+}

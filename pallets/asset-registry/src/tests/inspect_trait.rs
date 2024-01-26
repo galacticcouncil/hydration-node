@@ -157,7 +157,7 @@ fn asset_type_should_work() {
 }
 
 #[test]
-fn is_blacklisted_should_work() {
+fn is_banned_should_work() {
 	ExtBuilder::default()
 		.with_assets(vec![
 			(
@@ -183,12 +183,12 @@ fn is_blacklisted_should_work() {
 		.execute_with(|| {
 			//Arrange
 			//NOTE: update origin is set to ensure_signed in tests
-			assert_ok!(Registry::blacklist_add(RuntimeOrigin::signed(ALICE), 1));
+			assert_ok!(Registry::ban_asset(RuntimeOrigin::signed(ALICE), 1));
 
 			//Act & assert
-			assert_eq!(<Registry as Inspect>::is_blacklisted(1), true);
+			assert_eq!(<Registry as Inspect>::is_banned(1), true);
 
-			assert_eq!(<Registry as Inspect>::is_blacklisted(2), false);
+			assert_eq!(<Registry as Inspect>::is_banned(2), false);
 		});
 }
 

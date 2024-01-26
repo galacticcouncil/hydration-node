@@ -104,7 +104,7 @@ benchmarks! {
 		assert_eq!(Pallet::<T>::location_assets(location), Some(expected_asset_id));
 	}
 
-	blacklist_add {
+	ban_asset {
 		let asset_id = T::AssetId::from(3);
 		let name = vec![97u8; T::StringLimit::get() as usize];
 		let ed = 1_000_000_u128;
@@ -122,7 +122,7 @@ benchmarks! {
 		assert_eq!(Pallet::<T>::blacklists(asset_id), Some(()));
 	}
 
-	blacklist_remove {
+	unban_asset {
 		let asset_id = T::AssetId::from(3);
 		let name = vec![97u8; T::StringLimit::get() as usize];
 		let ed = 1_000_000_u128;

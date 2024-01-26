@@ -4,7 +4,7 @@ use mock::Registry;
 use pretty_assertions::assert_eq;
 
 #[test]
-fn blacklist_add_should_work_when_asset_is_not_blacklisted() {
+fn ban_asset_should_work_when_asset_is_not_banned() {
 	ExtBuilder::default()
 		.with_assets(vec![
 			(
@@ -39,17 +39,17 @@ fn blacklist_add_should_work_when_asset_is_not_blacklisted() {
 		.execute_with(|| {
 			//Act
 			//NOTE: update origin is set to ensure_signed in tests
-			assert_ok!(Registry::blacklist_add(RuntimeOrigin::signed(ALICE), 1));
+			assert_ok!(Registry::ban_asset(RuntimeOrigin::signed(ALICE), 1));
 
 			//Assert
-			assert_last_event!(Event::<Test>::BlacklistAdded { asset_id: 1 }.into());
+			assert_last_event!(Event::<Test>::AssetBanned { asset_id: 1 }.into());
 
-			assert_eq!(Registry::blacklists(1), Some(()))
+			assert_eq!(Registry::banned_assets(1), Some(()))
 		});
 }
 
 #[test]
-fn blacklist_add_should_fial_when_asset_is_already_blacklisted() {
+fn ban_asset_should_fial_when_asset_is_already_banned() {
 	let asset_id: u32 = 1;
 	ExtBuilder::default()
 		.with_assets(vec![
@@ -84,20 +84,20 @@ fn blacklist_add_should_fial_when_asset_is_already_blacklisted() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			assert_ok!(Registry::blacklist_add(RuntimeOrigin::signed(ALICE), 2));
-			assert_ok!(Registry::blacklist_add(RuntimeOrigin::signed(ALICE), asset_id));
+			assert_ok!(Registry::ban_asset(RuntimeOrigin::signed(ALICE), 2));
+			assert_ok!(Registry::ban_asset(RuntimeOrigin::signed(ALICE), asset_id));
 
 			//Act
 			//NOTE: update origin is set to ensure_signed in tests
 			assert_noop!(
-				Registry::blacklist_add(RuntimeOrigin::signed(ALICE), asset_id),
-				Error::<Test>::AssetAlreadyBlacklisted
+				Registry::ban_asset(RuntimeOrigin::signed(ALICE), asset_id),
+				Error::<Test>::AssetAlreadyBanned
 			);
 		});
 }
 
 #[test]
-fn blacklist_add_should_fail_when_asset_is_not_registered() {
+fn ban_asset_should_fail_when_asset_is_not_registered() {
 	ExtBuilder::default()
 		.with_assets(vec![
 			(
@@ -135,14 +135,14 @@ fn blacklist_add_should_fail_when_asset_is_not_registered() {
 			//Act
 			//NOTE: update origin is set to ensure_signed in tests
 			assert_noop!(
-				Registry::blacklist_add(RuntimeOrigin::signed(ALICE), not_existing_asset),
+				Registry::ban_asset(RuntimeOrigin::signed(ALICE), not_existing_asset),
 				Error::<Test>::AssetNotFound
 			);
 		});
 }
 
 #[test]
-fn blacklist_remove_should_work_when_asset_is_blacklisted() {
+fn unban_asset_should_work_when_asset_is_banned() {
 	let asset_id: u32 = 1;
 	ExtBuilder::default()
 		.with_assets(vec![
@@ -177,22 +177,22 @@ fn blacklist_remove_should_work_when_asset_is_blacklisted() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			assert_ok!(Registry::blacklist_add(RuntimeOrigin::signed(ALICE), 3));
-			assert_ok!(Registry::blacklist_add(RuntimeOrigin::signed(ALICE), asset_id));
+			assert_ok!(Registry::ban_asset(RuntimeOrigin::signed(ALICE), 3));
+			assert_ok!(Registry::ban_asset(RuntimeOrigin::signed(ALICE), asset_id));
 
 			//Act
 			//NOTE: update origin is set to ensure_signed in tests
-			assert_ok!(Registry::blacklist_remove(RuntimeOrigin::signed(ALICE), asset_id),);
+			assert_ok!(Registry::unban_asset(RuntimeOrigin::signed(ALICE), asset_id),);
 
 			//Assert
-			assert_last_event!(Event::<Test>::BlacklistRemoved { asset_id }.into());
+			assert_last_event!(Event::<Test>::AssetUnbanned { asset_id }.into());
 
-			assert_eq!(Registry::blacklists(asset_id), None)
+			assert_eq!(Registry::banned_assets(asset_id), None)
 		});
 }
 
 #[test]
-fn blacklist_remove_should_fail_when_asset_is_not_blacklisted() {
+fn unban_asset_should_fail_when_asset_is_not_banned() {
 	let asset_id: u32 = 1;
 	ExtBuilder::default()
 		.with_assets(vec![
@@ -227,14 +227,14 @@ fn blacklist_remove_should_fail_when_asset_is_not_blacklisted() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			assert_ok!(Registry::blacklist_add(RuntimeOrigin::signed(ALICE), 3));
-			assert_ok!(Registry::blacklist_add(RuntimeOrigin::signed(ALICE), 2));
+			assert_ok!(Registry::ban_asset(RuntimeOrigin::signed(ALICE), 3));
+			assert_ok!(Registry::ban_asset(RuntimeOrigin::signed(ALICE), 2));
 
 			//Act
 			//NOTE: update origin is set to ensure_signed in tests
 			assert_noop!(
-				Registry::blacklist_remove(RuntimeOrigin::signed(ALICE), asset_id),
-				Error::<Test>::AssetNotBlacklisted
+				Registry::unban_asset(RuntimeOrigin::signed(ALICE), asset_id),
+				Error::<Test>::AssetNotBanned
 			);
 		});
 }

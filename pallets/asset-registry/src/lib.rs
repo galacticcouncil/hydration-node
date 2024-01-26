@@ -116,6 +116,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type StringLimit: Get<u32> + Debug + PartialEq;
 
+		/// The min length of a name or symbol stored on-chain.
+		#[pallet::constant]
+		type MinStringLimit: Get<u32> + Debug + PartialEq;
+
 		/// Weight information for the extrinsics
 		type WeightInfo: WeightInfo;
 	}
@@ -135,7 +139,10 @@ pub mod pallet {
 		/// Invalid asset name or symbol.
 		AssetNotFound,
 
-		/// Asset's symbol can't contain whitespace characters.
+		/// Length of name or symbol is less than min. length.
+		TooShort,
+
+		/// Asset's symbol can't contain whitespace characters .
 		InvalidSymbol,
 
 		/// Asset ID is not registered in the asset-registry.
@@ -165,11 +172,11 @@ pub mod pallet {
 		/// Sufficient assets can't be changed to insufficient.
 		ForbiddenSufficiencyChange,
 
-		/// Asset is already blacklisted.
-		AssetAlreadyBlacklisted,
+		/// Asset is already banned.
+		AssetAlreadyBanned,
 
-		/// Asset is not in assets blacklist.
-		AssetNotBlacklisted,
+		/// Asset is not banned.
+		AssetNotBanned,
 	}
 
 	#[pallet::type_value]
@@ -201,9 +208,9 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::AssetId, T::AssetNativeLocation, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn blacklists)]
-	/// Assets that are blacklisted.
-	pub type BlacklistedAssets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (), OptionQuery>;
+	#[pallet::getter(fn banned_assets)]
+	/// Non-native assets which transfer is banned.
+	pub type BannedAssets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (), OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn location_assets)]
@@ -328,11 +335,11 @@ pub mod pallet {
 			location: T::AssetNativeLocation,
 		},
 
-		/// Asset was added to assets blacklist.
-		BlacklistAdded { asset_id: T::AssetId },
+		/// Asset was banned.
+		AssetBanned { asset_id: T::AssetId },
 
-		/// Asset was removed from assets blacklist.
-		BlacklistRemoved { asset_id: T::AssetId },
+		/// Asset's ban was removed.
+		AssetUnbanned { asset_id: T::AssetId },
 	}
 
 	#[pallet::call]
@@ -365,8 +372,6 @@ pub mod pallet {
 			is_sufficient: bool,
 		) -> DispatchResult {
 			T::RegistryOrigin::ensure_origin(origin)?;
-
-			Self::validate_symbol(&symbol)?;
 
 			let details = AssetDetails::new(
 				name,
@@ -409,6 +414,10 @@ pub mod pallet {
 			let is_registry_origin = T::RegistryOrigin::ensure_origin(origin.clone()).is_ok();
 			if !is_registry_origin {
 				T::UpdateOrigin::ensure_origin(origin)?;
+			}
+
+			if let Some(n) = name.as_ref() {
+				ensure!(n.len() >= T::MinStringLimit::get() as usize, Error::<T>::TooShort);
 			}
 
 			Self::validate_symbol(&symbol)?;
@@ -510,36 +519,33 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::blacklist_add())]
-		pub fn blacklist_add(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+		#[pallet::weight(<T as Config>::WeightInfo::ban_asset())]
+		pub fn ban_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 
 			ensure!(Assets::<T>::contains_key(asset_id), Error::<T>::AssetNotFound);
 
 			ensure!(
-				!BlacklistedAssets::<T>::contains_key(asset_id),
-				Error::<T>::AssetAlreadyBlacklisted
+				!BannedAssets::<T>::contains_key(asset_id),
+				Error::<T>::AssetAlreadyBanned
 			);
 
-			BlacklistedAssets::<T>::insert(asset_id, ());
+			BannedAssets::<T>::insert(asset_id, ());
 
-			Self::deposit_event(Event::BlacklistAdded { asset_id });
+			Self::deposit_event(Event::AssetBanned { asset_id });
 			Ok(())
 		}
 
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::blacklist_remove())]
-		pub fn blacklist_remove(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+		#[pallet::weight(<T as Config>::WeightInfo::unban_asset())]
+		pub fn unban_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 
-			ensure!(
-				BlacklistedAssets::<T>::contains_key(asset_id),
-				Error::<T>::AssetNotBlacklisted
-			);
+			ensure!(BannedAssets::<T>::contains_key(asset_id), Error::<T>::AssetNotBanned);
 
-			BlacklistedAssets::<T>::remove(asset_id);
+			BannedAssets::<T>::remove(asset_id);
 
-			Self::deposit_event(Event::BlacklistRemoved { asset_id });
+			Self::deposit_event(Event::AssetUnbanned { asset_id });
 			Ok(())
 		}
 	}
@@ -548,6 +554,8 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	fn validate_symbol(symbol: &Option<Symbol<T::StringLimit>>) -> Result<(), DispatchError> {
 		if let Some(s) = symbol.clone() {
+			ensure!(s.len() >= T::MinStringLimit::get() as usize, Error::<T>::TooShort);
+
 			ensure!(
 				s.into_inner().iter().all(|c| !char::is_whitespace(*c as char)),
 				Error::<T>::InvalidSymbol
@@ -580,6 +588,8 @@ impl<T: Config> Pallet<T> {
 		details: &AssetDetails<T::StringLimit>,
 		location: Option<T::AssetNativeLocation>,
 	) -> Result<T::AssetId, DispatchError> {
+		Self::validate_symbol(&details.symbol)?;
+
 		let asset_id = if let Some(id) = selected_asset_id {
 			ensure!(id < T::SequentialIdStartAt::get(), Error::<T>::NotInReservedRange);
 
@@ -601,6 +611,7 @@ impl<T: Config> Pallet<T> {
 
 		Assets::<T>::insert(asset_id, details);
 		if let Some(name) = details.name.as_ref() {
+			ensure!(name.len() >= T::MinStringLimit::get() as usize, Error::<T>::TooShort);
 			ensure!(!AssetIds::<T>::contains_key(name), Error::<T>::AssetAlreadyRegistered);
 			AssetIds::<T>::insert(name, asset_id);
 		}
@@ -698,7 +709,7 @@ impl<T: Config> Inspect for Pallet<T> {
 	}
 
 	fn exists(id: Self::AssetId) -> bool {
-		Assets::<T>::try_get(id).is_ok()
+		Assets::<T>::contains_key(id)
 	}
 
 	fn decimals(id: Self::AssetId) -> Option<u8> {
@@ -706,11 +717,11 @@ impl<T: Config> Inspect for Pallet<T> {
 	}
 
 	fn asset_type(id: Self::AssetId) -> Option<AssetKind> {
-		Self::assets(id).map(|a| a.asset_type.into())
+		Self::assets(id).and_then(|a| Some(a.asset_type.into()))
 	}
 
-	fn is_blacklisted(id: Self::AssetId) -> bool {
-		BlacklistedAssets::<T>::contains_key(id)
+	fn is_banned(id: Self::AssetId) -> bool {
+		BannedAssets::<T>::contains_key(id)
 	}
 
 	fn asset_name(id: Self::AssetId) -> Option<Vec<u8>> {
