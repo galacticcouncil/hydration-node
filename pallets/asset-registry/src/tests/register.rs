@@ -621,3 +621,90 @@ fn register_external_asset_should_not_work_when_user_cant_pay_storage_fees() {
 		);
 	});
 }
+
+#[test]
+fn register_should_not_work_when_symbol_is_not_valid() {
+	ExtBuilder::default().build().execute_with(|| {
+		let asset_id = 1;
+		let name: BoundedVec<u8, RegistryStringLimit> = b"Test asset".to_vec().try_into().unwrap();
+		let decimals = 12;
+		let xcm_rate_limit = 1_000;
+		let ed = 10_000;
+		let is_sufficient = true;
+
+		let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
+		let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
+
+		let symbol: BoundedVec<u8, RegistryStringLimit> = b"TKN ".to_vec().try_into().unwrap();
+		//Act
+		assert_noop!(
+			Registry::register(
+				RuntimeOrigin::root(),
+				Some(asset_id),
+				Some(name.clone()),
+				AssetType::Token,
+				Some(ed),
+				Some(symbol.clone()),
+				Some(decimals),
+				Some(asset_location.clone()),
+				Some(xcm_rate_limit),
+				is_sufficient
+			),
+			Error::<Test>::InvalidSymbol
+		);
+
+		let symbol: BoundedVec<u8, RegistryStringLimit> = b" TKN".to_vec().try_into().unwrap();
+		//Act
+		assert_noop!(
+			Registry::register(
+				RuntimeOrigin::root(),
+				Some(asset_id),
+				Some(name.clone()),
+				AssetType::Token,
+				Some(ed),
+				Some(symbol.clone()),
+				Some(decimals),
+				Some(asset_location.clone()),
+				Some(xcm_rate_limit),
+				is_sufficient
+			),
+			Error::<Test>::InvalidSymbol
+		);
+
+		let symbol: BoundedVec<u8, RegistryStringLimit> = b"T KN".to_vec().try_into().unwrap();
+		//Act
+		assert_noop!(
+			Registry::register(
+				RuntimeOrigin::root(),
+				Some(asset_id),
+				Some(name.clone()),
+				AssetType::Token,
+				Some(ed),
+				Some(symbol.clone()),
+				Some(decimals),
+				Some(asset_location.clone()),
+				Some(xcm_rate_limit),
+				is_sufficient
+			),
+			Error::<Test>::InvalidSymbol
+		);
+
+		let symbol: BoundedVec<u8, RegistryStringLimit> = b"T\tKN".to_vec().try_into().unwrap();
+		//Act
+		assert_noop!(
+			Registry::register(
+				RuntimeOrigin::root(),
+				Some(asset_id),
+				Some(name.clone()),
+				AssetType::Token,
+				Some(ed),
+				Some(symbol.clone()),
+				Some(decimals),
+				Some(asset_location.clone()),
+				Some(xcm_rate_limit),
+				is_sufficient
+			),
+			Error::<Test>::InvalidSymbol
+		);
+	});
+}

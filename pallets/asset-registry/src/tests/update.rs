@@ -879,3 +879,103 @@ fn change_sufficiency_should_fail_when_asset_is_sufficient() {
 			);
 		});
 }
+
+#[test]
+fn update_should_not_work_when_symbol_is_not_valid() {
+	ExtBuilder::default()
+		.with_assets(vec![(
+			Some(1),
+			Some(b"Tkn1".to_vec().try_into().unwrap()),
+			UNIT,
+			None,
+			None,
+			None,
+			true,
+		)])
+		.build()
+		.execute_with(|| {
+			let asset_id = 1;
+			let name: BoundedVec<u8, RegistryStringLimit> = b"New Tkn 2".to_vec().try_into().unwrap();
+			let ed = 10_000 * UNIT;
+			let xcm_rate_limit = 463;
+			let decimals = 23;
+			let is_sufficient = true;
+
+			//Arrange
+			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
+			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
+			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
+
+			let symbol: BoundedVec<u8, RegistryStringLimit> = b"nTkn2 ".to_vec().try_into().unwrap();
+			//Act
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					Some(name.clone()),
+					Some(AssetType::External),
+					Some(ed),
+					Some(xcm_rate_limit),
+					Some(is_sufficient),
+					Some(symbol.clone()),
+					Some(decimals),
+					None
+				),
+				Error::<Test>::InvalidSymbol
+			);
+
+			let symbol: BoundedVec<u8, RegistryStringLimit> = b"nTk n2".to_vec().try_into().unwrap();
+			//Act
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					Some(name.clone()),
+					Some(AssetType::External),
+					Some(ed),
+					Some(xcm_rate_limit),
+					Some(is_sufficient),
+					Some(symbol.clone()),
+					Some(decimals),
+					None
+				),
+				Error::<Test>::InvalidSymbol
+			);
+
+			let symbol: BoundedVec<u8, RegistryStringLimit> = b" nTkn2".to_vec().try_into().unwrap();
+			//Act
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					Some(name.clone()),
+					Some(AssetType::External),
+					Some(ed),
+					Some(xcm_rate_limit),
+					Some(is_sufficient),
+					Some(symbol.clone()),
+					Some(decimals),
+					None
+				),
+				Error::<Test>::InvalidSymbol
+			);
+
+			let symbol: BoundedVec<u8, RegistryStringLimit> = b"Tk\n2".to_vec().try_into().unwrap();
+			//Act
+			assert_noop!(
+				Registry::update(
+					RuntimeOrigin::root(),
+					asset_id,
+					Some(name.clone()),
+					Some(AssetType::External),
+					Some(ed),
+					Some(xcm_rate_limit),
+					Some(is_sufficient),
+					Some(symbol.clone()),
+					Some(decimals),
+					None
+				),
+				Error::<Test>::InvalidSymbol
+			);
+		});
+}

@@ -135,8 +135,8 @@ pub mod pallet {
 		/// Invalid asset name or symbol.
 		AssetNotFound,
 
-		/// Invalid asset name or symbol.
-		TooLong,
+		/// Asset's symbol can't contain whitespace characters.
+		InvalidSymbol,
 
 		/// Asset ID is not registered in the asset-registry.
 		AssetNotRegistered,
@@ -170,23 +170,6 @@ pub mod pallet {
 
 		/// Asset is not in assets blacklist.
 		AssetNotBlacklisted,
-
-		/// Action cannot be completed because unexpected error has occurred. This should be reported
-		/// to protocol maintainers.
-		InconsistentState(InconsistentStateError),
-	}
-
-	// NOTE: these errors should never happen.
-	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
-	pub enum InconsistentStateError {
-		/// Name or symbol conversion to bounded string failed.
-		BoundedConversionFailed,
-	}
-
-	impl<T> From<InconsistentStateError> for Error<T> {
-		fn from(e: InconsistentStateError) -> Error<T> {
-			Error::<T>::InconsistentState(e)
-		}
 	}
 
 	#[pallet::type_value]
@@ -383,6 +366,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::RegistryOrigin::ensure_origin(origin)?;
 
+			Self::validate_symbol(&symbol)?;
+
 			let details = AssetDetails::new(
 				name,
 				asset_type,
@@ -425,6 +410,8 @@ pub mod pallet {
 			if !is_registry_origin {
 				T::UpdateOrigin::ensure_origin(origin)?;
 			}
+
+			Self::validate_symbol(&symbol)?;
 
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
 				let detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
@@ -559,6 +546,16 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	fn validate_symbol(symbol: &Option<Symbol<T::StringLimit>>) -> Result<(), DispatchError> {
+		if let Some(s) = symbol.clone() {
+			ensure!(
+				s.into_inner().iter().all(|c| !char::is_whitespace(*c as char)),
+				Error::<T>::InvalidSymbol
+			);
+		}
+		Ok(())
+	}
+
 	pub fn next_asset_id() -> Option<T::AssetId> {
 		NextAssetId::<T>::get().checked_add(&T::SequentialIdStartAt::get())
 	}
