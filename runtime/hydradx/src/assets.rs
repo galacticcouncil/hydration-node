@@ -122,6 +122,8 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 pub const SUFFICIENCY_LOCK: LockIdentifier = *b"insuffED";
 
 parameter_types! {
+	//NOTE: This should always be > 1 otherwise we will payout more than we collected as ED for
+	//insufficient assets.
 	pub InsufficientEDinHDX: Balance = FixedU128::from_rational(11, 10)
 		.saturating_mul_int(<Runtime as pallet_balances::Config>::ExistentialDeposit::get());
 }
@@ -133,7 +135,8 @@ impl SufficiencyCheck {
 	/// If transferred asset is not sufficient asset, it calculates ED amount in user's fee asset
 	/// and transfers it from user to treasury account.
 	/// Function also locks corresponding HDX amount in the treasury because returned ED to the users
-	/// when the account is killed is in the HDX.
+	/// when the account is killed is in the HDX. We are collecting little bit more (currencty 10%)than
+	/// we are paying back when account is killed.
 	///
 	/// We assume account already paid ED if it holds transferred insufficient asset so additional
 	/// ED payment is not necessary.
@@ -182,12 +185,13 @@ impl SufficiencyCheck {
 			)
 			.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
+			//NOTE: we are locking little bit less than charging.
 			let to_lock = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
 				.iter()
 				.find(|x| x.id == SUFFICIENCY_LOCK)
 				.map(|p| p.amount)
 				.unwrap_or_default()
-				.saturating_add(InsufficientEDinHDX::get());
+				.saturating_add(<Runtime as pallet_balances::Config>::ExistentialDeposit::get());
 
 			<Currencies as MultiLockableCurrency<AccountId>>::set_lock(
 				SUFFICIENCY_LOCK,
@@ -244,9 +248,9 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			.map(|p| p.amount)
 			.unwrap_or_default();
 
-		let paid_accounts = pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get();
-		let ed_to_refund = if paid_accounts != 0 {
-			locked_ed.saturating_div(paid_accounts)
+		let paid_counts = pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get();
+		let ed_to_refund = if paid_counts != 0 {
+			locked_ed.saturating_div(paid_counts)
 		} else {
 			0
 		};
@@ -277,7 +281,7 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 		);
 
 		frame_system::Pallet::<Runtime>::dec_sufficients(who);
-		pallet_asset_registry::ExistentialDepositCounter::<Runtime>::set(paid_accounts.saturating_sub(1));
+		pallet_asset_registry::ExistentialDepositCounter::<Runtime>::set(paid_counts.saturating_sub(1));
 	}
 }
 
