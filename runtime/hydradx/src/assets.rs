@@ -1041,13 +1041,17 @@ pub struct RegisterAsset<T>(PhantomData<T>);
 #[cfg(feature = "runtime-benchmarks")]
 impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsset<T> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
-		let asset_name = asset_id.to_le_bytes().to_vec();
+		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id
+			.to_le_bytes()
+			.to_vec()
+			.try_into()
+			.map_err(|_| "BoundedConversionFailed")?;
 		AssetRegistry::register_sufficient_asset(
 			Some(asset_id),
-			Some(&asset_name),
+			Some(asset_name.clone()),
 			AssetKind::Token,
 			1,
-			Some(&asset_name),
+			Some(asset_name),
 			Some(decimals),
 			None,
 			None,
@@ -1349,14 +1353,14 @@ pub struct ReferralsBenchmarkHelper;
 impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
 	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
 		let asset_id: u32 = 1234u32;
-		let asset_name = asset_id.to_le_bytes().to_vec();
+		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id.to_le_bytes().to_vec().try_into().unwrap();
 
 		AssetRegistry::register_asset(
 			Some(asset_id),
-			Some(&asset_name),
+			Some(asset_name.clone()),
 			AssetKind::Token,
 			Some(1_000_000),
-			Some(&asset_name),
+			Some(asset_name),
 			Some(18),
 			None,
 			None,

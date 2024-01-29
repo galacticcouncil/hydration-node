@@ -334,7 +334,7 @@ where
 		matches!(asset, Some(_))
 	}
 
-	fn is_blacklisted(_id: Self::AssetId) -> bool {
+	fn is_banned(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 

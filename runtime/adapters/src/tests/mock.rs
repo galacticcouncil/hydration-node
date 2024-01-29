@@ -44,11 +44,11 @@ use pallet_omnipool::traits::ExternalPriceProvider;
 use primitive_types::{U128, U256};
 use sp_core::H256;
 use sp_runtime::traits::Zero;
-use sp_runtime::Permill;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError, DispatchResult, FixedU128,
 };
+use sp_runtime::{BoundedVec, Permill};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -600,7 +600,7 @@ where
 		matches!(asset, Some(_))
 	}
 
-	fn is_blacklisted(_id: Self::AssetId) -> bool {
+	fn is_banned(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
@@ -618,13 +618,15 @@ where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
 	type Error = DispatchError;
+	type Name = BoundedVec<u8, ConstU32<50>>;
+	type Symbol = BoundedVec<u8, ConstU32<50>>;
 
 	fn register_asset(
 		_asset_id: Option<Self::AssetId>,
-		_name: Option<&[u8]>,
+		_name: Option<Self::Name>,
 		_kind: AssetKind,
 		_existential_deposit: Option<Balance>,
-		_symbol: Option<&[u8]>,
+		_symbol: Option<Self::Symbol>,
 		_decimals: Option<u8>,
 		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
@@ -635,10 +637,10 @@ where
 
 	fn register_insufficient_asset(
 		_asset_id: Option<Self::AssetId>,
-		_name: Option<&[u8]>,
+		_name: Option<Self::Name>,
 		_kind: AssetKind,
 		_existential_deposit: Option<Balance>,
-		_symbol: Option<&[u8]>,
+		_symbol: Option<Self::Symbol>,
 		_decimals: Option<u8>,
 		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
@@ -646,10 +648,10 @@ where
 		unimplemented!()
 	}
 	fn get_or_register_asset(
-		_name: &[u8],
+		_name: Self::Name,
 		_kind: AssetKind,
 		_existential_deposit: Option<Balance>,
-		_symbol: Option<&[u8]>,
+		_symbol: Option<Self::Symbol>,
 		_decimals: Option<u8>,
 		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,

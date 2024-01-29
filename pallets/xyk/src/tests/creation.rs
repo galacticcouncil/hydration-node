@@ -379,7 +379,7 @@ fn share_asset_id_should_be_offset() {
 		assert_ok!(AssetRegistry::register(
 			RuntimeOrigin::signed(ALICE),
 			Some(next_asset_id),
-			Some(asset_pair.name()),
+			Some(asset_pair.name().try_into().unwrap()),
 			AssetType::XYK,
 			Some(<Test as crate::Config>::MinPoolLiquidity::get()),
 			None,
@@ -402,10 +402,11 @@ fn share_asset_id_should_be_offset() {
 		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(share_token, next_asset_id);
-		let bounded_name = AssetRegistry::try_into_bounded(Some(asset_pair.name()))
-			.unwrap()
-			.unwrap();
-		assert_eq!(AssetRegistry::asset_ids(bounded_name).unwrap(), share_token);
+		assert_eq!(
+			AssetRegistry::asset_ids::<BoundedVec<u8, RegistryStringLimit>>(asset_pair.name().try_into().unwrap())
+				.unwrap(),
+			share_token
+		);
 
 		// Act
 		let next_asset_id = AssetRegistry::next_asset_id().unwrap();
@@ -429,9 +430,10 @@ fn share_asset_id_should_be_offset() {
 
 		// Assert
 		assert_eq!(share_token, next_asset_id);
-		let bounded_name = AssetRegistry::try_into_bounded(Some(asset_pair.name()))
-			.unwrap()
-			.unwrap();
-		assert_eq!(AssetRegistry::asset_ids(bounded_name).unwrap(), share_token);
+		assert_eq!(
+			AssetRegistry::asset_ids::<BoundedVec<u8, RegistryStringLimit>>(asset_pair.name().try_into().unwrap())
+				.unwrap(),
+			share_token
+		);
 	});
 }

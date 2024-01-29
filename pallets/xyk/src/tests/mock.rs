@@ -98,6 +98,8 @@ parameter_types! {
 	pub const NativeAssetId: AssetId = HDX;
 	#[derive(PartialEq, Debug)]
 	pub RegistryStringLimit: u32 = 100;
+	#[derive(PartialEq, Debug)]
+	pub MinRegistryStringLimit: u32 = 2;
 	pub const SequentialIdOffset: u32 = 1_000_000;
 	pub const StoreFees: Balance = 10 * ONE;
 	pub const FeesBeneficiarry: u64 = TREASURY;
@@ -111,6 +113,7 @@ impl pallet_asset_registry::Config for Test {
 	type AssetId = AssetId;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStringLimit;
+	type MinStringLimit = MinRegistryStringLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type StorageFeesAssetId = NativeAssetId;
 	type StorageFees = StoreFees;

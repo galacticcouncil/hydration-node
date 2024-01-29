@@ -445,7 +445,7 @@ impl Inspect for DummyRegistry {
 		name != UNKNOWN_ASSET
 	}
 
-	fn is_blacklisted(_id: Self::AssetId) -> bool {
+	fn is_banned(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 

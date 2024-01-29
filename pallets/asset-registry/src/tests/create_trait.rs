@@ -337,7 +337,7 @@ fn get_or_register_asset_should_return_asset_id_when_asset_exists() {
 						name.clone(),
 						AssetKind::XYK,
 						Some(ed),
-						Some(symbol.clone()),
+						Some(symbol),
 						Some(decimals),
 						Some(asset_location),
 						Some(xcm_rate_limit),

@@ -35,9 +35,9 @@ benchmarks! {
 
 	register {
 		let asset_id= T::AssetId::from(3);
-		let name = vec![97u8; T::StringLimit::get() as usize];
+		let name: BoundedVec<u8, T::StringLimit> = vec![97u8; T::StringLimit::get() as usize].try_into().unwrap();
 		let ed = 1_000_000_u128;
-		let symbol = vec![97u8; T::StringLimit::get() as usize];
+		let symbol: BoundedVec<u8, T::StringLimit> = vec![97u8; T::StringLimit::get() as usize].try_into().unwrap();
 		let decimals = 12_u8;
 		let location: T::AssetNativeLocation = Default::default();
 		let xcm_rate_limit = 1_000_u128;
@@ -45,17 +45,16 @@ benchmarks! {
 
 	}: _(RawOrigin::Root, Some(asset_id), Some(name.clone()), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient)
 	verify {
-		let b_name = Pallet::<T>::try_into_bounded(Some(name)).unwrap().unwrap();
-		assert!(Pallet::<T>::asset_ids(b_name).is_some());
+		assert!(Pallet::<T>::asset_ids(name).is_some());
 
 		assert!(Pallet::<T>::assets(asset_id).is_some());
 	}
 
 	update {
 		let asset_id = T::AssetId::from(3);
-		let name = vec![97u8; T::StringLimit::get() as usize];
+		let name = vec![97u8; T::StringLimit::get() as usize].try_into().unwrap();
 		let ed = 1_000_000_u128;
-		let symbol = vec![97u8; T::StringLimit::get() as usize];
+		let symbol = vec![97u8; T::StringLimit::get() as usize].try_into().unwrap();
 		let decimals = 12_u8;
 		let location: T::AssetNativeLocation = Default::default();
 		let xcm_rate_limit = 1_000_u128;
@@ -63,27 +62,24 @@ benchmarks! {
 
 		let _ = Pallet::<T>::register(RawOrigin::Root.into(), Some(asset_id), Some(name), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient);
 
-		let new_name= vec![98u8; T::StringLimit::get() as usize];
+		let new_name:BoundedVec<u8, T::StringLimit> = vec![98u8; T::StringLimit::get() as usize].try_into().unwrap();
 		let new_type = AssetType::XYK;
 		let new_ed = 1_000_000_u128;
 		let new_xcm_rate_limit = 1_000_u128;
 		let new_is_sufficient = true;
-		let new_symbol = vec![98u8; T::StringLimit::get() as usize];
+		let new_symbol: BoundedVec<u8, T::StringLimit> = vec![98u8; T::StringLimit::get() as usize].try_into().unwrap();
 		let new_decimals = 12_u8;
 
 
 	}: _(RawOrigin::Root, asset_id, Some(new_name.clone()), Some(new_type), Some(new_ed), Some(new_xcm_rate_limit), Some(new_is_sufficient), Some(new_symbol.clone()), Some(new_decimals), Some(Default::default()))
 	verify {
-		let b_name = Pallet::<T>::try_into_bounded(Some(new_name)).unwrap().unwrap();
-		let b_symbol = Pallet::<T>::try_into_bounded(Some(new_symbol)).unwrap().unwrap();
-
-		assert_eq!(Pallet::<T>::asset_ids(&b_name), Some(asset_id));
+		assert_eq!(Pallet::<T>::asset_ids(&new_name), Some(asset_id));
 
 		assert_eq!(crate::Pallet::<T>::assets(asset_id), Some(AssetDetails {
-			name: Some(b_name),
+			name: Some(new_name),
 			asset_type: new_type,
 			existential_deposit: new_ed,
-			symbol: Some(b_symbol),
+			symbol: Some(new_symbol),
 			decimals: Some(new_decimals),
 			xcm_rate_limit: Some(xcm_rate_limit),
 			is_sufficient: new_is_sufficient,
@@ -106,9 +102,9 @@ benchmarks! {
 
 	ban_asset {
 		let asset_id = T::AssetId::from(3);
-		let name = vec![97u8; T::StringLimit::get() as usize];
+		let name = vec![97u8; T::StringLimit::get() as usize].try_into().unwrap();
 		let ed = 1_000_000_u128;
-		let symbol = vec![97u8; T::StringLimit::get() as usize];
+		let symbol = vec![97u8; T::StringLimit::get() as usize].try_into().unwrap();
 		let decimals = 12_u8;
 		let location: T::AssetNativeLocation = Default::default();
 		let xcm_rate_limit = 1_000_u128;
@@ -119,14 +115,14 @@ benchmarks! {
 		let origin = T::UpdateOrigin::try_successful_origin().unwrap();
 	}: _<T::RuntimeOrigin>(origin, asset_id)
 	verify {
-		assert_eq!(Pallet::<T>::blacklists(asset_id), Some(()));
+		assert_eq!(Pallet::<T>::banned_assets(asset_id), Some(()));
 	}
 
 	unban_asset {
 		let asset_id = T::AssetId::from(3);
-		let name = vec![97u8; T::StringLimit::get() as usize];
+		let name = vec![97u8; T::StringLimit::get() as usize].try_into().unwrap();
 		let ed = 1_000_000_u128;
-		let symbol = vec![97u8; T::StringLimit::get() as usize];
+		let symbol = vec![97u8; T::StringLimit::get() as usize].try_into().unwrap();
 		let decimals = 12_u8;
 		let location: T::AssetNativeLocation = Default::default();
 		let xcm_rate_limit = 1_000_u128;
@@ -134,12 +130,12 @@ benchmarks! {
 
 		let origin = T::UpdateOrigin::try_successful_origin().unwrap();
 		let _ = Pallet::<T>::register(RawOrigin::Root.into(), Some(asset_id), Some(name), AssetType::Token, Some(ed), Some(symbol), Some(decimals), Some(location), Some(xcm_rate_limit), is_sufficient);
-		let _ = Pallet::<T>::blacklist_add(origin.clone(), asset_id);
+		let _ = Pallet::<T>::ban_asset(origin.clone(), asset_id);
 
-		assert_eq!(Pallet::<T>::blacklists(asset_id), Some(()));
+		assert_eq!(Pallet::<T>::banned_assets(asset_id), Some(()));
 	}: _<T::RuntimeOrigin>(origin, asset_id)
 	verify {
-		assert_eq!(Pallet::<T>::blacklists(asset_id), None);
+		assert_eq!(Pallet::<T>::banned_assets(asset_id), None);
 	}
 
 

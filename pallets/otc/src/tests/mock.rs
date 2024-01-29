@@ -153,7 +153,7 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 		matches!(asset, Some(_))
 	}
 
-	fn is_blacklisted(_id: Self::AssetId) -> bool {
+	fn is_banned(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
@@ -176,13 +176,15 @@ where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
 	type Error = DispatchError;
+	type Name = sp_runtime::BoundedVec<u8, sp_core::ConstU32<100>>;
+	type Symbol = sp_runtime::BoundedVec<u8, sp_core::ConstU32<100>>;
 
 	fn register_asset(
 		_asset_id: Option<Self::AssetId>,
-		_name: Option<&[u8]>,
+		_name: Option<Self::Name>,
 		_kind: AssetKind,
 		_existential_deposit: Option<Balance>,
-		_symbol: Option<&[u8]>,
+		_symbol: Option<Self::Symbol>,
 		_decimals: Option<u8>,
 		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
@@ -202,10 +204,10 @@ where
 	}
 
 	fn get_or_register_asset(
-		_name: &[u8],
+		_name: Self::Name,
 		_kind: AssetKind,
 		_existential_deposit: Option<Balance>,
-		_symbol: Option<&[u8]>,
+		_symbol: Option<Self::Symbol>,
 		_decimals: Option<u8>,
 		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,

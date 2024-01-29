@@ -689,7 +689,7 @@ impl<T: Config> Inspect for Pallet<T> {
 	}
 
 	fn asset_type(id: Self::AssetId) -> Option<AssetKind> {
-		Self::assets(id).and_then(|a| Some(a.asset_type.into()))
+		Self::assets(id).map(|a| a.asset_type.into())
 	}
 
 	fn is_banned(id: Self::AssetId) -> bool {

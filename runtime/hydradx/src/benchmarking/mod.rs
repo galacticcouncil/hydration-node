@@ -23,10 +23,11 @@ use frame_support::storage::with_transaction;
 use sp_runtime::TransactionOutcome;
 
 pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
+	let n = name.try_into().map_err(|_| ())?;
 	with_transaction(|| {
 		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
 			None,
-			Some(&name),
+			Some(n),
 			AssetKind::Token,
 			deposit,
 			None,
@@ -40,11 +41,17 @@ pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 
 #[allow(dead_code)]
 pub fn update_asset(asset_id: AssetId, name: Option<Vec<u8>>, deposit: Balance) -> Result<(), ()> {
+	let nm = if let Some(n) = name {
+		Some(n.try_into().map_err(|_| ())?)
+	} else {
+		None
+	};
+
 	with_transaction(|| {
 		TransactionOutcome::Commit(AssetRegistry::update(
 			RawOrigin::Root.into(),
 			asset_id,
-			name,
+			nm,
 			None,
 			Some(deposit),
 			None,

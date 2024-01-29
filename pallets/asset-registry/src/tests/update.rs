@@ -904,7 +904,7 @@ fn update_should_not_work_when_symbol_is_not_valid() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location).unwrap();
 
 			let symbol: BoundedVec<u8, RegistryStringLimit> = b"nTkn2 ".to_vec().try_into().unwrap();
 			//Act
@@ -917,7 +917,7 @@ fn update_should_not_work_when_symbol_is_not_valid() {
 					Some(ed),
 					Some(xcm_rate_limit),
 					Some(is_sufficient),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
 					None
 				),
@@ -935,7 +935,7 @@ fn update_should_not_work_when_symbol_is_not_valid() {
 					Some(ed),
 					Some(xcm_rate_limit),
 					Some(is_sufficient),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
 					None
 				),
@@ -953,7 +953,7 @@ fn update_should_not_work_when_symbol_is_not_valid() {
 					Some(ed),
 					Some(xcm_rate_limit),
 					Some(is_sufficient),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
 					None
 				),
@@ -966,12 +966,12 @@ fn update_should_not_work_when_symbol_is_not_valid() {
 				Registry::update(
 					RuntimeOrigin::root(),
 					asset_id,
-					Some(name.clone()),
+					Some(name),
 					Some(AssetType::External),
 					Some(ed),
 					Some(xcm_rate_limit),
 					Some(is_sufficient),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
 					None
 				),
@@ -996,7 +996,7 @@ fn update_should_work_when_name_is_too_short() {
 			),
 			(
 				Some(2),
-				Some(old_asset_name.clone().try_into().unwrap()),
+				Some(old_asset_name.try_into().unwrap()),
 				UNIT,
 				None,
 				None,
@@ -1026,19 +1026,19 @@ fn update_should_work_when_name_is_too_short() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location).unwrap();
 
 			//Act
 			assert_noop!(
 				Registry::update(
 					RuntimeOrigin::root(),
 					asset_id,
-					Some(name.clone()),
+					Some(name),
 					Some(AssetType::External),
 					Some(ed),
 					Some(xcm_rate_limit),
 					Some(is_sufficient),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
 					None
 				),
@@ -1063,7 +1063,7 @@ fn update_should_work_when_symbol_is_too_short() {
 			),
 			(
 				Some(2),
-				Some(old_asset_name.clone().try_into().unwrap()),
+				Some(old_asset_name.try_into().unwrap()),
 				UNIT,
 				None,
 				None,
@@ -1093,19 +1093,19 @@ fn update_should_work_when_symbol_is_too_short() {
 			//Arrange
 			let key = Junction::from(BoundedVec::try_from(asset_id.encode()).unwrap());
 			let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-			Pallet::<Test>::set_location(asset_id, asset_location.clone()).unwrap();
+			Pallet::<Test>::set_location(asset_id, asset_location).unwrap();
 
 			//Act
 			assert_noop!(
 				Registry::update(
 					RuntimeOrigin::root(),
 					asset_id,
-					Some(name.clone()),
+					Some(name),
 					Some(AssetType::External),
 					Some(ed),
 					Some(xcm_rate_limit),
 					Some(is_sufficient),
-					Some(symbol.clone()),
+					Some(symbol),
 					Some(decimals),
 					None
 				),

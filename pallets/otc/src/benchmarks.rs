@@ -90,10 +90,11 @@ where
 	use sp_runtime::TransactionOutcome;
 
 	// Register new asset in asset registry
+	let name = b"DOT".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
 	let dot = with_transaction(|| {
 		TransactionOutcome::Commit(<T as crate::Config>::AssetRegistry::register_sufficient_asset(
 			None,
-			Some(b"DOT".as_ref()),
+			Some(name),
 			AssetKind::Token,
 			ONE,
 			None,
@@ -102,10 +103,11 @@ where
 			None,
 		))
 	})?;
+	let name = b"DAI".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
 	let dai = with_transaction(|| {
 		TransactionOutcome::Commit(<T as crate::Config>::AssetRegistry::register_sufficient_asset(
 			None,
-			Some(b"DAI".as_ref()),
+			Some(name),
 			AssetKind::Token,
 			ONE,
 			None,

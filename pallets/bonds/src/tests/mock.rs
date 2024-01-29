@@ -28,6 +28,7 @@ use frame_support::{
 };
 use frame_system::EnsureSignedBy;
 use sp_core::H256;
+use sp_runtime::BoundedVec;
 use std::{cell::RefCell, collections::HashMap};
 
 use hydradx_traits::registry::{Create, Inspect};
@@ -171,13 +172,15 @@ pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> Create<Balance> for DummyRegistry<T> {
 	type Error = DispatchError;
+	type Name = BoundedVec<u8, ConstU32<20>>;
+	type Symbol = BoundedVec<u8, ConstU32<20>>;
 
 	fn register_asset(
 		_asset_id: Option<Self::AssetId>,
-		_name: Option<&[u8]>,
+		_name: Option<Self::Name>,
 		_kind: AssetKind,
 		_existential_deposit: Option<Balance>,
-		_symbol: Option<&[u8]>,
+		_symbol: Option<Self::Symbol>,
 		_decimals: Option<u8>,
 		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
@@ -188,10 +191,10 @@ impl<T: Config> Create<Balance> for DummyRegistry<T> {
 
 	fn register_insufficient_asset(
 		_asset_id: Option<Self::AssetId>,
-		_name: Option<&[u8]>,
+		_name: Option<Self::Name>,
 		_kind: AssetKind,
 		existential_deposit: Option<Balance>,
-		_symbol: Option<&[u8]>,
+		_symbol: Option<Self::Symbol>,
 		_decimals: Option<u8>,
 		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
@@ -205,10 +208,10 @@ impl<T: Config> Create<Balance> for DummyRegistry<T> {
 		Ok(assigned)
 	}
 	fn get_or_register_asset(
-		_name: &[u8],
+		_name: Self::Name,
 		_kind: AssetKind,
 		_existential_deposit: Option<Balance>,
-		_symbol: Option<&[u8]>,
+		_symbol: Option<Self::Symbol>,
 		_decimals: Option<u8>,
 		_location: Option<Self::Location>,
 		_xcm_rate_limit: Option<Balance>,
@@ -238,7 +241,7 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 		unimplemented!()
 	}
 
-	fn is_blacklisted(_id: Self::AssetId) -> bool {
+	fn is_banned(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 

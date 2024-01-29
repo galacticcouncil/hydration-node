@@ -128,11 +128,12 @@ where
 		acc.clone(),
 	)?;
 
+	let name = b"BSX".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
 	// Register new asset in asset registry
 	with_transaction(|| {
 		TransactionOutcome::Commit(T::AssetRegistry::register_sufficient_asset(
 			None,
-			Some(b"BSX".as_ref()),
+			Some(name),
 			AssetKind::Token,
 			Balance::one(),
 			None,
@@ -141,10 +142,11 @@ where
 			None,
 		))
 	})?;
+	let name = b"ETH".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
 	with_transaction(|| {
 		TransactionOutcome::Commit(T::AssetRegistry::register_sufficient_asset(
 			None,
-			Some(b"ETH".as_ref()),
+			Some(name),
 			AssetKind::Token,
 			Balance::one(),
 			None,
@@ -153,10 +155,11 @@ where
 			None,
 		))
 	})?;
+	let name = b"BTC".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
 	with_transaction(|| {
 		TransactionOutcome::Commit(T::AssetRegistry::register_sufficient_asset(
 			None,
-			Some(b"BTC".as_ref()),
+			Some(name),
 			AssetKind::Token,
 			Balance::one(),
 			None,
