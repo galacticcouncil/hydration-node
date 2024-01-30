@@ -893,7 +893,10 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::UnknownDecimals)?;
 
 		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
-		ensure!(!initial_reserves[index_out].is_zero(), Error::<T>::InsufficientLiquidity);
+		ensure!(
+			!initial_reserves[index_out].is_zero(),
+			Error::<T>::InsufficientLiquidity
+		);
 
 		let amplification = Self::get_amplification(&pool);
 		hydra_dx_math::stableswap::calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(

@@ -31,10 +31,20 @@ pub fn calculate_out_given_in<const D: u8, const Y: u8>(
 		return None;
 	}
 	let reserves = normalize_reserves(initial_reserves);
-	let amount_in = normalize_value(amount_in, initial_reserves[idx_in].decimals, TARGET_PRECISION, Rounding::Down);
+	let amount_in = normalize_value(
+		amount_in,
+		initial_reserves[idx_in].decimals,
+		TARGET_PRECISION,
+		Rounding::Down,
+	);
 	let new_reserve_out = calculate_y_given_in::<D, Y>(amount_in, idx_in, idx_out, &reserves, amplification)?;
 	let amount_out = reserves[idx_out].checked_sub(new_reserve_out)?;
-	let amount_out = normalize_value(amount_out, TARGET_PRECISION, initial_reserves[idx_out].decimals, Rounding::Down);
+	let amount_out = normalize_value(
+		amount_out,
+		TARGET_PRECISION,
+		initial_reserves[idx_out].decimals,
+		Rounding::Down,
+	);
 	Some(amount_out.saturating_sub(1u128))
 }
 
@@ -52,10 +62,20 @@ pub fn calculate_in_given_out<const D: u8, const Y: u8>(
 		return None;
 	}
 	let reserves = normalize_reserves(initial_reserves);
-	let amount_out = normalize_value(amount_out, initial_reserves[idx_out].decimals, TARGET_PRECISION, Rounding::Down);
+	let amount_out = normalize_value(
+		amount_out,
+		initial_reserves[idx_out].decimals,
+		TARGET_PRECISION,
+		Rounding::Down,
+	);
 	let new_reserve_in = calculate_y_given_out::<D, Y>(amount_out, idx_in, idx_out, &reserves, amplification)?;
 	let amount_in = new_reserve_in.checked_sub(reserves[idx_in])?;
-	let amount_in = normalize_value(amount_in, TARGET_PRECISION, initial_reserves[idx_in].decimals, Rounding::Up);
+	let amount_in = normalize_value(
+		amount_in,
+		TARGET_PRECISION,
+		initial_reserves[idx_in].decimals,
+		Rounding::Up,
+	);
 	Some(amount_in.saturating_add(1u128))
 }
 
