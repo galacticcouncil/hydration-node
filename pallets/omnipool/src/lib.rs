@@ -21,50 +21,65 @@
 //!
 //! Omnipool is type of AMM where all assets are pooled together into one single pool.
 //!
+//! Each asset is internally paired with so called Hub Asset ( LRNA ). When a liquidity is provided, corresponding
+//! amount of hub asset is minted. When a liquidity is removed, corresponding amount of hub asset is burned.
+//!
 //! Liquidity provider can provide any asset of their choice to the Omnipool and in return
 //! they will receive pool shares for this single asset.
 //!
-//! The position is represented with a NFT token which saves the amount of shares distributed
+//! The position is represented as a NFT token which stores the amount of shares distributed
 //! and the price of the asset at the time of provision.
 //!
-//! For traders this means that they can benefit from the fill asset position
-//! which can be used for trades with all other assets - there is no fragmented liquidity.
+//! For traders this means that they can benefit from non-fragmented liquidity.
 //! They can send any token to the pool using the swap mechanism
 //! and in return they will receive the token of their choice in the appropriate quantity.
 //!
 //! Omnipool is implemented with concrete Balance type: u128.
 //!
-//! ### Terminology
+//! ### Imbalance mechanism
+//! The Imbalance mechanism is designed to stabilize the value of LRNA. By design it is a weak and passive mechanism,
+//! and is specifically meant to deal with one cause of LRNA volatility: LRNA being sold back to the pool.
+//!
+//! Imbalance is always negative, internally represented by a special type `SimpleImbalance` which uses unsigned integer and boolean flag.
+//! This was done initially because of the intention that in future imbalance can also become positive.
+//!
+//! ### Omnipool Hooks
+//!
+//! Omnipool pallet supports multiple hooks which are triggerred on certain operations:
+//! - on_liquidity_changed - called when liquidity is added or removed from the pool
+//! - on_trade - called when trade is executed
+//!
+//! This is currently used to update on-chain oracle and in case of liquidity_changed - in the circuit breaker.
+//!
+//! ## Terminology
 //!
 //! * **LP:**  liquidity provider
 //! * **Position:**  a moment when LP added liquidity to the pool. It stores amount,shares and price at the time
 //!  of provision
 //! * **Hub Asset:** dedicated 'hub' token for trade executions (LRNA)
 //! * **Native Asset:** governance token
+//! * **Imbalance:** Tracking of hub asset imbalance.
 //!
 //! ## Assumptions
 //!
 //! Below are assumptions that must be held when using this pallet.
 //!
-//! * First two asset in pool must be Stable Asset and Native Asset. This must be achieved by calling
-//!   `initialize_pool` dispatchable.
-//! * Stable asset balance and native asset balance must be transferred to omnipool account manually.
-//! * All tokens added to the pool must be first registered in Asset Registry.
 //! * Initial liquidity of new token being added to Omnipool must be transferred manually to pool account prior to calling add_token.
+//! * All tokens added to the pool must be first registered in Asset Registry.
 //!
 //! ## Interface
 //!
 //! ### Dispatchable Functions
 //!
-//! * `initialize_pool` - Initializes Omnipool with Stable and Native assets. This must be executed first.
-//! * `set_asset_tradable_state` - Updates state of an asset in the pool to allow/disallow trading.
 //! * `add_token` - Adds token to the pool. Initial liquidity must be transffered to pool account prior to calling add_token.
 //! * `add_liquidity` - Adds liquidity of selected asset to the pool. Mints corresponding position NFT.
 //! * `remove_liquidity` - Removes liquidity of selected position from the pool. Partial withdrawals are allowed.
 //! * `sell` - Trades an asset in for asset out by selling given amount of asset in.
 //! * `buy` - Trades an asset in for asset out by buying given amount of asset out.
-//! * `set_asset_tradable_state` - Updates asset's tradable asset with new flags. This allows/forbids asset operation such SELL,BUY,ADD or  REMOVE liquidtityy.
+//! * `set_asset_tradable_state` - Updates asset's tradable state with new flags. This allows/forbids asset operation such SELL,BUY,ADD or  REMOVE liquidtityy.
 //! * `refund_refused_asset` - Refunds the initial liquidity amount sent to pool account prior to add_token if the token has been refused to be added.
+//! * `sacrifice_position` - Destroys a position and position's share become protocol's shares.
+//! * `withdraw_protocol_liquidity` - Withdraws protocol's liquidity from the pool. Used to withdraw liquidity from sacrificed position.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -124,7 +139,7 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Identifier for the class of asset.
+		/// Asset type.
 		type AssetId: Member
 			+ Parameter
 			+ Default
@@ -137,10 +152,10 @@ pub mod pallet {
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
-		/// Origin that can add token, refund refused asset etc.
+		/// Origin that can add token, refund refused asset and withdraw protocol liquidity.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		/// Origin to be able to suspend asset trades.
+		/// Origin that can change asset's tradability and weight.
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
@@ -154,7 +169,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type HubAssetId: Get<Self::AssetId>;
 
-		/// Asset and Protocol Fee for given asset
+		/// Dynamic fee support - returns (Asset Fee, Protocol Fee) for given asset
 		type Fee: GetByKey<Self::AssetId, (Permill, Permill)>;
 
 		/// Minimum withdrawal fee
@@ -204,8 +219,10 @@ pub mod pallet {
 			Error = DispatchError,
 		>;
 
+		/// Safety mechanism when adding and removing liquidity. Determines how much price can change between spot price and oracle price.
 		type PriceBarrier: ShouldAllow<Self::AccountId, Self::AssetId, EmaPrice>;
 
+		/// Oracle price provider. Provides price for given asset. Used in remove liquidity to support calculation of dynamic withdrawal fee.
 		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
 	}
 
@@ -263,7 +280,7 @@ pub mod pallet {
 			amount: Balance,
 			position_id: T::PositionItemId,
 		},
-		/// Liquidity of an asset was removed to Omnipool.
+		/// Liquidity of an asset was removed from Omnipool.
 		LiquidityRemoved {
 			who: T::AccountId,
 			position_id: T::PositionItemId,
@@ -271,7 +288,7 @@ pub mod pallet {
 			shares_removed: Balance,
 			fee: FixedU128,
 		},
-		/// Liquidity of an asset was removed to Omnipool.
+		/// PRotocol Liquidity was removed from Omnipool.
 		ProtocolLiquidityRemoved {
 			who: T::AccountId,
 			asset_id: T::AssetId,
@@ -317,7 +334,7 @@ pub mod pallet {
 			position_id: T::PositionItemId,
 			owner: T::AccountId,
 		},
-		/// LP Position was created and NFT instance minted.
+		/// LP Position was updated.
 		PositionUpdated {
 			position_id: T::PositionItemId,
 			owner: T::AccountId,
@@ -326,7 +343,7 @@ pub mod pallet {
 			shares: Balance,
 			price: Price,
 		},
-		/// Aseet's tradable state has been updated.
+		/// Asset's tradable state has been updated.
 		TradableStateUpdated { asset_id: T::AssetId, state: Tradability },
 
 		/// Amount has been refunded for asset which has not been accepted to add to omnipool.
@@ -349,23 +366,19 @@ pub mod pallet {
 		AssetAlreadyAdded,
 		/// Asset is not in omnipool
 		AssetNotFound,
-		/// No stable asset in the pool
-		NoStableAssetInPool,
-		/// No native asset in the pool yet.
-		NoNativeAssetInPool,
-		/// Adding token as protocol ( root ), token balance has not been updated prior to add token.
+		/// Failed to add token to Omnipool due to insufficient initial liquidity.
 		MissingBalance,
-		/// Invalid initial asset price. Price must be non-zero.
+		/// Invalid initial asset price.
 		InvalidInitialAssetPrice,
-		/// Minimum limit has not been reached during trade.
+		/// Slippage protection - minimum limit has not been reached.
 		BuyLimitNotReached,
-		/// Maximum limit has been exceeded during trade.
+		/// Slippage protection - maximum limit has been exceeded.
 		SellLimitExceeded,
 		/// Position has not been found.
 		PositionNotFound,
 		/// Insufficient shares in position
 		InsufficientShares,
-		/// Asset is not allowed to be bought or sold
+		/// Asset is not allowed to be traded.
 		NotAllowed,
 		/// Signed account is not owner of position instance.
 		Forbidden,
@@ -385,13 +398,13 @@ pub mod pallet {
 		PositiveImbalance,
 		/// Amount of shares provided cannot be 0.
 		InvalidSharesAmount,
-		/// HJb Asset's trabable is only allowed to be SELL or BUY.
+		/// Hub asset is only allowed to be sold.
 		InvalidHubAssetTradableState,
 		/// Asset is not allowed to be refunded.
 		AssetRefundNotAllowed,
-		/// Max fraction of asset reserve to buy has been exceeded.
+		/// Max fraction of asset to buy has been exceeded.
 		MaxOutRatioExceeded,
-		/// Max fraction of asset reserve to sell has been exceeded.
+		/// Max fraction of asset to sell has been exceeded.
 		MaxInRatioExceeded,
 		/// Max allowed price difference has been exceeded.
 		PriceDifferenceTooHigh,
@@ -401,12 +414,10 @@ pub mod pallet {
 		InvalidWithdrawalFee,
 		/// More than allowed amount of fee has been transferred.
 		FeeOverdraft,
-		/// Token cannot be removed from Omnipool due to some shares are remaining owned by other users.
+		/// Token cannot be removed from Omnipool due to shares still owned by other users.
 		SharesRemaining,
 		/// Token cannot be removed from Omnipool because asset is not frozen.
 		AssetNotFrozen,
-		/// Configured stable asset cannot be removed from Omnipool.
-		StableAssetCannotBeRemoved,
 		/// Calculated amount out from sell trade is zero.
 		ZeroAmountOut,
 	}
@@ -414,8 +425,6 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Add new token to omnipool in quantity `amount` at price `initial_price`
-		///
-		/// Can be called only after pool is initialized, otherwise it returns `NoStableAssetInPool`
 		///
 		/// Initial liquidity must be transferred to pool's account for this new token manually prior to calling `add_token`.
 		///
@@ -427,6 +436,7 @@ pub mod pallet {
 		/// - `asset`: The identifier of the new asset added to the pool. Must be registered in Asset registry
 		/// - `initial_price`: Initial price
 		/// - `position_owner`: account id for which share are distributed in form on NFT
+		/// - `weight_cap`: asset weight cap
 		///
 		/// Emits `TokenAdded` event when successful.
 		///
@@ -539,7 +549,7 @@ pub mod pallet {
 
 		/// Add liquidity of asset `asset` in quantity `amount` to Omnipool
 		///
-		/// `add_liquidity` adds specified asset amount to pool and in exchange gives the origin
+		/// `add_liquidity` adds specified asset amount to Omnipool and in exchange gives the origin
 		/// corresponding shares amount in form of NFT at current price.
 		///
 		/// Asset's tradable state must contain ADD_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
@@ -548,6 +558,8 @@ pub mod pallet {
 		///
 		/// Asset weight cap must be respected, otherwise `AssetWeightExceeded` error is returned.
 		/// Asset weight is ratio between new HubAsset reserve and total reserve of Hub asset in Omnipool.
+		///
+		/// Add liquidity fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
 		///
 		/// Parameters:
 		/// - `asset`: The identifier of the new asset added to the pool. Must be already in the pool
@@ -562,9 +574,6 @@ pub mod pallet {
 		)]
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
-			//
-			// Preconditions
-			//
 			let who = ensure_signed(origin.clone())?;
 
 			ensure!(
@@ -628,10 +637,6 @@ pub mod pallet {
 				Error::<T>::AssetWeightCapExceeded
 			);
 
-			//
-			// Post - update states
-			//
-
 			// Create LP position with given shares
 			let lp_position = Position::<Balance, T::AssetId> {
 				asset_id: asset,
@@ -691,7 +696,12 @@ pub mod pallet {
 		///
 		/// Asset's tradable state must contain REMOVE_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
 		///
-		/// if all shares from given position are removed, NFT is burned.
+		/// if all shares from given position are removed, position is destroyed and NFT is burned.
+		///
+		/// Remove liquidity fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
+		///
+		/// Dynamic withdrawal fee is applied if withdrawal is not safe. It is calculated using spot price and external price oracle.
+		/// Withdrawal is considered safe when trading is disabled.
 		///
 		/// Parameters:
 		/// - `position_id`: The identifier of position which liquidity is removed from.
@@ -707,9 +717,6 @@ pub mod pallet {
 			position_id: T::PositionItemId,
 			amount: Balance,
 		) -> DispatchResult {
-			//
-			// Preconditions
-			//
 			let who = ensure_signed(origin.clone())?;
 
 			ensure!(amount > Balance::zero(), Error::<T>::InvalidSharesAmount);
@@ -788,9 +795,6 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			//
-			// Post - update states
-			//
 			T::Currency::transfer(
 				asset_id,
 				&Self::protocol_account(),
@@ -892,7 +896,7 @@ pub mod pallet {
 				Ok(())
 			})?;
 
-			// Desotry position and burn NFT
+			// Destroy position and burn NFT
 			<Positions<T>>::remove(position_id);
 			T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
 
@@ -1004,7 +1008,7 @@ pub mod pallet {
 					<= asset_out_state
 						.reserve
 						.checked_div(T::MaxOutRatio::get())
-						.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxOutRatio is zero.
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: let's be safe. this can only fail if MaxOutRatio is zero.
 				Error::<T>::MaxOutRatioExceeded
 			);
 
@@ -1035,7 +1039,7 @@ pub mod pallet {
 				*state_changes.asset_out.delta_reserve,
 			)?;
 
-			// Hub liquidity update - work out difference between in and amount so only one update needed.
+			// Hub liquidity update - work out difference between in and amount so only one update is needed.
 			let delta_hub_asset = state_changes
 				.asset_in
 				.delta_hub_reserve
@@ -1053,7 +1057,7 @@ pub mod pallet {
 					// nothing to do if zero.
 				}
 				BalanceUpdate::Increase(_) => {
-					// trade can only burn some.
+					// trade can only burn some. This would be a bug.
 					return Err(Error::<T>::HubAssetUpdateError.into());
 				}
 				BalanceUpdate::Decrease(amount) => {
@@ -1172,7 +1176,7 @@ pub mod pallet {
 					<= asset_out_state
 						.reserve
 						.checked_div(T::MaxOutRatio::get())
-						.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxOutRatio is zero.
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: Let's be safe. this can only fail if MaxOutRatio is zero.
 				Error::<T>::MaxOutRatioExceeded
 			);
 
@@ -1236,7 +1240,7 @@ pub mod pallet {
 				*state_changes.asset_out.delta_reserve,
 			)?;
 
-			// Hub liquidity update - work out difference between in and amount so only one update needed.
+			// Hub liquidity update - work out difference between in and amount so only one update is needed.
 			let delta_hub_asset = state_changes
 				.asset_in
 				.delta_hub_reserve
@@ -1254,7 +1258,7 @@ pub mod pallet {
 					// nothing to do if zero.
 				}
 				BalanceUpdate::Increase(_) => {
-					// trade can only burn some.
+					// trade can only burn some. This would be a bug.
 					return Err(Error::<T>::HubAssetUpdateError.into());
 				}
 				BalanceUpdate::Decrease(amount) => {
@@ -1330,7 +1334,7 @@ pub mod pallet {
 			T::TechnicalOrigin::ensure_origin(origin)?;
 
 			if asset_id == T::HubAssetId::get() {
-				// current omnipool does not allow liquidity add or remove of hub asset.
+				// Atm omnipool does not allow adding/removing liquidity of hub asset.
 				// Although BUY is not supported yet, we can allow the new state to be set to SELL/BUY.
 				ensure!(
 					!state.contains(Tradability::ADD_LIQUIDITY) && !state.contains(Tradability::REMOVE_LIQUIDITY),
@@ -1358,9 +1362,9 @@ pub mod pallet {
 		///
 		/// A refund is needed when a token is refused to be added to Omnipool, and initial liquidity of the asset has been already transferred to pool's account.
 		///
-		/// Transfer is performed only when asset is not in Omnipool and pool's balance has sufficient amount.
+		/// Transfer can be executed only if asset is not in Omnipool and pool's balance has sufficient amount.
 		///
-		/// Only `AuthorityOrigin` can perform this operition -same as `add_token`o
+		/// Only `AuthorityOrigin` can perform this operation.
 		///
 		/// Emits `AssetRefunded`
 		#[pallet::call_index(8)]
@@ -1420,6 +1424,17 @@ pub mod pallet {
 			})
 		}
 
+		/// Removes protocol liquidity.
+		///
+		/// Protocol liquidity is liquidity from sacrificed positions. In order to remove protocol liquidity,
+		/// we need the know the price of the position at the time of sacrifice. Hence this specific call.
+		///
+		/// Only `AuthorityOrigin` can perform this call.
+		///
+		/// Note that sacrifice position will be deprecated in future. There is no longer a need for that.
+		///
+		/// IT works the same way as remove liquidity call, but position is temporary reconstructed.
+		///
 		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw_protocol_liquidity())]
 		#[transactional]
@@ -1508,6 +1523,17 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Removes token from Omnipool.
+		///
+		/// Asset's tradability must be FROZEN, otherwise `AssetNotFrozen` error is returned.
+		///
+		/// Remaining shares must belong to protocol, otherwise `SharesRemaining` error is returned.
+		///
+		/// Protocol's liquidity is transferred to the beneficiary account and hub asset amount is burned.
+		///
+		/// Only `AuthorityOrigin` can perform this call.
+		///
+		/// Emits `TokenRemoved` event when successful.
 		#[pallet::call_index(12)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_token())]
 		#[transactional]
@@ -1633,8 +1659,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Update total hub asset liquidity and write new value to storage.
-	/// Update total issueance if AdjustSupply is specified.
+	/// Mint or burn hub asset amount
 	#[require_transactional]
 	fn update_hub_asset_liquidity(delta_amount: &BalanceUpdate<Balance>) -> DispatchResult {
 		match delta_amount {
@@ -1647,7 +1672,8 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Update imbalance with given delta_imbalance - increase or decrease
+	/// Update imbalance with given delta_imbalance - increase or decrease.
+	/// It cannot result in imbalance being > 0.
 	fn update_imbalance(delta_imbalance: BalanceUpdate<Balance>) -> DispatchResult {
 		<HubAssetImbalance<T>>::try_mutate(|current_imbalance| -> DispatchResult {
 			*current_imbalance = match delta_imbalance {
