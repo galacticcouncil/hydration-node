@@ -1087,6 +1087,10 @@ impl<T: Config> Pallet<T> {
 		asset_id: T::AssetId,
 		max_asset_amount: Balance,
 	) -> Result<Balance, DispatchError> {
+		ensure!(
+			Self::is_asset_allowed(pool_id, asset_id, Tradability::ADD_LIQUIDITY),
+			Error::<T>::NotAllowed
+		);
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 		let share_issuance = T::Currency::total_issuance(pool_id);

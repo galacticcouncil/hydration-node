@@ -35,7 +35,7 @@ pub fn calculate_out_given_in<const D: u8, const Y: u8>(
 		amount_in,
 		initial_reserves[idx_in].decimals,
 		TARGET_PRECISION,
-		Rounding::Down,
+		Rounding::Up,
 	);
 	let new_reserve_out = calculate_y_given_in::<D, Y>(amount_in, idx_in, idx_out, &reserves, amplification)?;
 	let amount_out = reserves[idx_out].checked_sub(new_reserve_out)?;
@@ -387,7 +387,7 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 	let dy = y1.checked_sub(asset_reserve)?;
 	let dy_0 = y.checked_sub(asset_reserve)?;
 	let fee = dy.checked_sub(dy_0)?;
-	let amount_in = normalize_value(dy, TARGET_PRECISION, asset_in_decimals, Rounding::Down);
+	let amount_in = normalize_value(dy, TARGET_PRECISION, asset_in_decimals, Rounding::Up);
 	let fee = normalize_value(fee, TARGET_PRECISION, asset_in_decimals, Rounding::Down);
 	Some((amount_in, fee))
 }
