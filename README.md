@@ -64,7 +64,7 @@ zombienet spawn config-zombienet.json
 Go to the polkadot apps at https://polkadot.js.org/apps
 
 Connect to 
-- Mainnet: `wss://hack.hydradx.io:9944`
+- Mainnet: `wss://rpc.hydradx.cloud`
 - local node: `ws://localhost:8000` (if you are using chopsticks)
 
 ### Testing of storage migrations and runtime upgrades
