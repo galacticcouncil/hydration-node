@@ -78,7 +78,7 @@ try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wa
 or against HydraDX testnet on Rococo using `--uri wss://rococo-hydradx-rpc.hydration.dev:443`
 
 
-### Security
+## Security
 Useful resources:
 
 * https://github.com/galacticcouncil/HydraDX-security
