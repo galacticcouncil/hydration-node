@@ -80,3 +80,9 @@ or against HydraDX testnet on Rococo using `--uri wss://rococo-hydradx-rpc.hydra
 
 ### Security
 You can find details on [HydraDX Security](https://github.com/galacticcouncil/HydraDX-security)
+
+Other useful resources:
+* https://apidocs.bsx.fi/HydraDX
+* https://docs.hydradx.io/
+* https://docs.hydradx.io/omnipool_design
+* https://docs.hydradx.io/fees
