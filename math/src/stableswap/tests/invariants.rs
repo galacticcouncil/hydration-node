@@ -36,6 +36,8 @@ fn decimals() -> impl Strategy<Value = u8> {
 	prop_oneof![Just(6), Just(8), Just(10), Just(12), Just(18)]
 }
 
+// Note that his can generate very unbalanced pools. Should be adjusted to generate more balanced pools.
+// In such case, we can see some outliers in the tests.
 fn some_pool(size: usize) -> impl Strategy<Value = Vec<AssetReserve>> {
 	prop::collection::vec(
 		(asset_reserve(), decimals()).prop_map(|(v, dec)| AssetReserve::new(to_precision(v, dec), dec)),
