@@ -37,7 +37,7 @@ Omnipool pallet supports multiple hooks which are triggerred on certain operatio
 - on_trade - called when trade is executed
 - on_trade_fee - called after successful trade with fee amount that can be taken out of the pool if needed.
 
-This is currently used to update on-chain oracle and in case of liquidity_changed - in the circuit breaker.
+This is currently used to update on-chain oracle and in the circuit breaker.
 
 ### Terminology
 
