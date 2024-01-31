@@ -19,6 +19,10 @@ fn trade_amount() -> impl Strategy<Value = Balance> {
 	1_000_000..100_000 * ONE
 }
 
+fn share_amount() -> impl Strategy<Value = Balance> {
+	1_000_000..100_000 * ONE * 1_000_000
+}
+
 fn asset_reserve() -> impl Strategy<Value = Balance> {
 	RESERVE_RANGE.0..RESERVE_RANGE.1
 }
@@ -103,6 +107,156 @@ proptest! {
 					asset_a,
 					delta_s,
 					0u128,
+				));
+				let a_final = Tokens::free_balance(asset_a, &pool_account);
+				let delta_a = a_initial - a_final;
+				let exec_price = FixedU128::from_rational(delta_a, delta_s);
+				assert!(share_price_initial >= exec_price);
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn test_share_price_in_add_withdraw_asset(
+		initial_liquidity in asset_reserve(),
+		added_liquidity in trade_amount(),
+		amplification in some_amplification(),
+		trade_fee in trade_fee()
+	) {
+		let asset_a: AssetId = 1000;
+		let asset_b: AssetId = 2000;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(BOB, asset_a, added_liquidity),
+				(BOB, asset_b, added_liquidity * 1000),
+				(ALICE, asset_a, initial_liquidity),
+				(ALICE, asset_b, initial_liquidity),
+			])
+			.with_registered_asset("one".as_bytes().to_vec(), asset_a,12)
+			.with_registered_asset("two".as_bytes().to_vec(), asset_b,12)
+			.with_pool(
+				ALICE,
+				PoolInfo::<AssetId, u64> {
+					assets: vec![asset_a,asset_b].try_into().unwrap(),
+					initial_amplification: amplification,
+					final_amplification: amplification,
+					initial_block: 0,
+					final_block: 0,
+					fee: trade_fee,
+				},
+				InitialLiquidity{ account: ALICE,
+				assets:	vec![
+					AssetAmount::new(asset_a, initial_liquidity),
+					AssetAmount::new(asset_b, initial_liquidity),
+					]},
+			)
+			.build()
+			.execute_with(|| {
+				let pool_id = get_pool_id_at(0);
+				let pool_account = pool_account(pool_id);
+
+				let share_price_initial = get_share_price(pool_id, 0);
+				let initial_shares = Tokens::total_issuance(pool_id);
+				assert_ok!(Stableswap::add_liquidity(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					vec![
+					AssetAmount::new(asset_a, added_liquidity),
+				]
+				));
+				let final_shares = Tokens::total_issuance(pool_id);
+				let delta_s = final_shares - initial_shares;
+				let exec_price = FixedU128::from_rational(added_liquidity , delta_s);
+				assert!(share_price_initial <= exec_price);
+
+				let share_price_initial = get_share_price(pool_id, 0);
+				let a_initial = Tokens::free_balance(asset_a, &pool_account);
+				assert_ok!(Stableswap::withdraw_asset_amount(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					asset_a,
+					added_liquidity / 2,
+					u128::MAX,
+				));
+				let a_final = Tokens::free_balance(asset_a, &pool_account);
+				let delta_a = a_initial - a_final;
+				let exec_price = FixedU128::from_rational(delta_a, delta_s);
+				assert!(share_price_initial >= exec_price);
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn test_share_price_in_add_shares_withdraw_asset(
+		initial_liquidity in asset_reserve(),
+		added_liquidity in trade_amount(),
+		shares_amount in share_amount(),
+		amplification in some_amplification(),
+		trade_fee in trade_fee()
+	) {
+		let asset_a: AssetId = 1000;
+		let asset_b: AssetId = 2000;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(BOB, asset_a, added_liquidity * 1_000_000_000),
+				(BOB, asset_b, added_liquidity * 1000),
+				(ALICE, asset_a, initial_liquidity),
+				(ALICE, asset_b, initial_liquidity),
+			])
+			.with_registered_asset("one".as_bytes().to_vec(), asset_a,12)
+			.with_registered_asset("two".as_bytes().to_vec(), asset_b,12)
+			.with_pool(
+				ALICE,
+				PoolInfo::<AssetId, u64> {
+					assets: vec![asset_a,asset_b].try_into().unwrap(),
+					initial_amplification: amplification,
+					final_amplification: amplification,
+					initial_block: 0,
+					final_block: 0,
+					fee: trade_fee,
+				},
+				InitialLiquidity{ account: ALICE,
+				assets:	vec![
+					AssetAmount::new(asset_a, initial_liquidity),
+					AssetAmount::new(asset_b, initial_liquidity),
+					]},
+			)
+			.build()
+			.execute_with(|| {
+				let pool_id = get_pool_id_at(0);
+				let pool_account = pool_account(pool_id);
+
+				let share_price_initial = get_share_price(pool_id, 0);
+				let initial_shares = Tokens::total_issuance(pool_id);
+				let initial_a = Tokens::free_balance(asset_a, &BOB);
+				assert_ok!(Stableswap::add_liquidity_shares(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					shares_amount,
+					asset_a,
+					u128::MAX,
+				));
+				let final_a = Tokens::free_balance(asset_a, &BOB);
+				let added_liquidity = initial_a - final_a;
+				let final_shares = Tokens::total_issuance(pool_id);
+				let delta_s = final_shares - initial_shares;
+				let exec_price = FixedU128::from_rational(added_liquidity , delta_s);
+				assert!(share_price_initial <= exec_price);
+
+				let share_price_initial = get_share_price(pool_id, 0);
+				let a_initial = Tokens::free_balance(asset_a, &pool_account);
+				assert_ok!(Stableswap::withdraw_asset_amount(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					asset_a,
+					added_liquidity / 2,
+					u128::MAX,
 				));
 				let a_final = Tokens::free_balance(asset_a, &pool_account);
 				let delta_a = a_initial - a_final;
