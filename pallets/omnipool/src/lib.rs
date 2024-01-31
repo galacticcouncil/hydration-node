@@ -1434,7 +1434,7 @@ pub mod pallet {
 		///
 		/// Note that sacrifice position will be deprecated in future. There is no longer a need for that.
 		///
-		/// IT works the same way as remove liquidity call, but position is temporary reconstructed.
+		/// It works the same way as remove liquidity call, but position is temporary reconstructed.
 		///
 		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw_protocol_liquidity())]
