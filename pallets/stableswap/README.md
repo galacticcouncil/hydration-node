@@ -6,7 +6,7 @@ Curve/stableswap AMM implementation.
 
 ### Overview
 
-Curve style AMM at is designed to provide highly efficient and low-slippage trades for stablecoins.
+Curve style AMM, designed to provide highly efficient and low-slippage trades for stablecoins.
 
 #### Stableswap Hooks
 
