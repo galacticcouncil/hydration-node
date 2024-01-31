@@ -66,7 +66,7 @@ Below are assumptions that must be held when using this pallet.
 * `buy` - Trades an asset in for asset out by buying given amount of asset out.
 * `set_asset_tradable_state` - Updates asset's tradable state with new flags. This allows/forbids asset operation such SELL,BUY,ADD or  REMOVE liquidtityy.
 * `refund_refused_asset` - Refunds the initial liquidity amount sent to pool account prior to add_token if the token has been refused to be added.
-* `sacrifice_position` - Destroys a position and position's share become protocol's shares.
+* `sacrifice_position` - Destroys a position and position's shares become protocol's shares.
 * `withdraw_protocol_liquidity` - Withdraws protocol's liquidity from the pool. Used to withdraw liquidity from sacrificed position.
 
 License: Apache-2.0
