@@ -46,7 +46,7 @@ impl<AssetId, Blocknumber> PoolInfo<AssetId, Blocknumber>
 where
 	AssetId: Ord + Copy,
 {
-	pub fn find_asset(&self, asset: AssetId) -> Option<usize> {
+	pub(crate) fn find_asset(&self, asset: AssetId) -> Option<usize> {
 		self.assets.iter().position(|v| *v == asset)
 	}
 
@@ -54,7 +54,7 @@ where
 		self.assets.len() >= 2 && has_unique_elements(&mut self.assets.iter())
 	}
 
-	pub fn balances<T: Config>(&self, account: &T::AccountId) -> Option<Vec<AssetReserve>>
+	pub(crate) fn reserves_with_decimals<T: Config>(&self, account: &T::AccountId) -> Option<Vec<AssetReserve>>
 	where
 		T::AssetId: From<AssetId>,
 	{
