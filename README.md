@@ -87,4 +87,6 @@ Useful resources:
 * https://docs.hydradx.io/omnipool_design
 * https://docs.hydradx.io/fees
 
+Bug bounty: [https://immunefi.com/bounty/hydradx/](https://immunefi.com/bounty/hydradx/)
+
 Reponsible disclosure: security@hydradx.io
