@@ -14,6 +14,7 @@ use frame_system::RawOrigin;
 
 use hydradx_traits::{registry::Create, AssetKind};
 use primitives::{AssetId, Balance};
+use sp_runtime::traits::One;
 use sp_std::vec;
 use sp_std::vec::Vec;
 
@@ -30,6 +31,23 @@ pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 			Some(n),
 			AssetKind::Token,
 			deposit,
+			None,
+			None,
+			None,
+			None,
+		))
+	})
+	.map_err(|_| ())
+}
+
+pub fn register_external_asset(name: Vec<u8>) -> Result<AssetId, ()> {
+	let n = name.try_into().map_err(|_| ())?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::register_insufficient_asset(
+			None,
+			Some(n),
+			AssetKind::External,
+			Some(Balance::one()),
 			None,
 			None,
 			None,
