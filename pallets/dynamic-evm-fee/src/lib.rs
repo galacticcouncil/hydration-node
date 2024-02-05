@@ -122,8 +122,10 @@ pub mod pallet {
 					return;
 				};
 
-				let evm_fee_change =
-					Permill::from_percent(percentage_change.to_float() as u32).mul_floor(new_base_fee_per_gas);
+				let percentage_change_permill =
+					Permill::from_rational(percentage_change.into_inner(), FixedU128::DIV * 100);
+
+				let evm_fee_change = percentage_change_permill.mul_floor(new_base_fee_per_gas);
 
 				if hdx_price_increased {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_sub(evm_fee_change);

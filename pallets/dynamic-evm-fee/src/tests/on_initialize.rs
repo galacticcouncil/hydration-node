@@ -18,7 +18,7 @@ fn should_return_default_base_fee_when_min_multiplier() {
 }
 
 #[test]
-fn should_return_increased_fee_with_max_multiplier() {
+fn should_increase_evm_fee_with_max_multiplier() {
 	ExtBuilder::default().build().execute_with(|| {
 		set_multiplier(Multiplier::from_rational(320, 1));
 
@@ -30,7 +30,7 @@ fn should_return_increased_fee_with_max_multiplier() {
 }
 
 #[test]
-fn should_return_decreased_fee_when_hdx_pumping_against_eth() {
+fn should_decrease_evm_fee_when_hdx_pumping_10percent_against_eth() {
 	ExtBuilder::default().build().execute_with(|| {
 		set_oracle_price(FixedU128::from_rational(11, 700000));
 
@@ -42,13 +42,25 @@ fn should_return_decreased_fee_when_hdx_pumping_against_eth() {
 }
 
 #[test]
-fn should_return_increased_fee_when_hdx_dumping_against_eth() {
+fn should_decrease_evm_fee_when_hdx_pumping_1percent_against_eth() {
+	ExtBuilder::default().build().execute_with(|| {
+		set_oracle_price(FixedU128::from_rational(101, 7000000));
+
+		DynamicEvmFee::on_initialize(1);
+
+		let new_base_fee = DynamicEvmFee::base_evm_fee();
+		assert_eq!(new_base_fee, U256::from(26479225));
+	});
+}
+
+#[test]
+fn should_increase_evm_fee_when_hdx_dumping_10percent_against_eth() {
 	ExtBuilder::default().build().execute_with(|| {
 		set_oracle_price(FixedU128::from_rational(9, 700000));
 
 		DynamicEvmFee::on_initialize(1);
 
 		let new_base_fee = DynamicEvmFee::base_evm_fee();
-		assert_eq!(new_base_fee, U256::from(29153863));
+		assert_eq!(new_base_fee, U256::from(29421303));
 	});
 }
