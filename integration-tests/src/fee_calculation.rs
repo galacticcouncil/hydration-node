@@ -9,9 +9,8 @@ use primitives::constants::currency::UNITS;
 use primitives::constants::time::HOURS;
 use primitives::{AssetId, Balance};
 use sp_runtime::{FixedU128, Permill};
-use xcm_emulator::TestExt;
-
 use test_utils::assert_eq_approx;
+use xcm_emulator::TestExt;
 
 const DOT_UNITS: u128 = 10_000_000_000;
 const BTC_UNITS: u128 = 10_000_000;
@@ -43,7 +42,7 @@ fn min_swap_fee() {
 
 		assert_eq_approx!(
 			fee_in_cent,
-			FixedU128::from_float(1.040003140744000000),
+			FixedU128::from_float(1.043141719216000000),
 			tolerance,
 			"The min fee should be ~1 cent (0.01$)"
 		);
@@ -78,6 +77,8 @@ fn max_swap_fee() {
 		);
 	});
 }
+
+use crate::evm::get_evm_fee_in_cent;
 
 #[test]
 fn fee_growth_simulator_starting_with_genesis_chain() {
@@ -136,7 +137,7 @@ fn fee_growth_simulator_with_idle_chain() {
 
 		for b in 2..=HOURS {
 			hydradx_run_to_block(b);
-			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
+			hydradx_runtime::System::set_block_consumed_resources(block_weight / 3, 0);
 			let call =
 				hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
 					asset_in: HDX,
@@ -155,6 +156,69 @@ fn fee_growth_simulator_with_idle_chain() {
 			println!("Swap tx fee in cents: {fee_in_cent:?} at block {b:?} with multiplier: {next:?}");
 		}
 	});
+}
+use pallet_evm::FeeCalculator;
+#[test]
+fn substrate_evm_free_growth_simulator_with_idle_chain() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//We simulate that the chain has no activity so the MinimumMultiplier kept diverged to absolute minimum
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account(),
+			HDX,
+			1000000 * UNITS as i128,
+		));
+
+		init_omnipool();
+		//init_oracle();
+		let block_weight = hydradx_runtime::BlockWeights::get()
+			.get(DispatchClass::Normal)
+			.max_total
+			.unwrap();
+
+		let mut nonce = 0;
+
+		for b in 2..3 {
+			//=HOURS {
+			hydradx_run_to_block(b);
+			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
+			let call =
+				hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+					asset_in: HDX,
+					asset_out: 2,
+					amount: 10 * UNITS,
+					min_buy_amount: 10000,
+				});
+
+			let info = call.get_dispatch_info();
+			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
+			//let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
+			//let fee_in_cent = (fee * HDX_USD_SPOT_PRICE_IN_CENTS) as f64 / 1000000000000.0;
+			let hdx_usd_spot_price = 0.02;
+
+			let fee_in_cent = (fee as f64 * hdx_usd_spot_price) as f64 / 1000000000000.0;
+			let fee_in_cent = round(fee_in_cent);
+
+			let evm_fee_in_cent = get_evm_fee_in_cent(nonce);
+			let next = TransactionPayment::next_fee_multiplier();
+
+			let gas_price = hydradx_runtime::evm::PolynomialGasPrice::min_gas_price();
+
+			println!("{b:?} - fee: ${fee_in_cent:?}  - evm_fee: ${evm_fee_in_cent:?} - multiplier: {next:?} - gas {gas_price:?}");
+			nonce = nonce + 1;
+		}
+	});
+}
+
+fn round(fee_in_cent: f64) -> f64 {
+	let decimal_places = 3;
+	let rounder = 10_f64.powi(decimal_places);
+	(fee_in_cent * rounder).round() / rounder
 }
 
 fn set_balance(who: hydradx_runtime::AccountId, currency: AssetId, amount: i128) {

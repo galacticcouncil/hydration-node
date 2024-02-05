@@ -194,6 +194,7 @@ std = [
     "polkadot-runtime/std",
     "hydradx-runtime/std",
     "pallet-staking/std",
+    "scraper/std"
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

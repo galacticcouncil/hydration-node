@@ -14,15 +14,19 @@ use hydradx_runtime::{
 	},
 	AssetRegistry, Balances, CallFilter, Currencies, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM,
 };
+use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
 use sp_core::{blake2_256, H160, H256, U256};
+use sp_runtime::traits::CheckedDiv;
+use sp_runtime::FixedPointNumber;
 use sp_runtime::{traits::SignedExtension, FixedU128, Permill};
 use std::borrow::Cow;
 use std::ops::Div;
 use xcm_emulator::TestExt;
-const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
+
+pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 mod currency_precompile {
 	use super::*;
@@ -677,6 +681,9 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 		let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
 		let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
 
+		println!("FEE in WETH: {:?}", fee_weth_evm);
+		println!("FEE in hdx: {:?}", fee_weth_native);
+
 		let fee_difference = fee_weth_evm - fee_weth_native;
 
 		let relative_fee_difference = FixedU128::from_rational(fee_difference, fee_weth_native);
@@ -690,7 +697,50 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 	})
 }
 
-fn init_omnipool_with_oracle_for_block_10() {
+use hydradx_runtime::evm::PolynomialGasPrice;
+pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
+	let treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
+
+	let omni_sell = hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+		asset_in: HDX,
+		asset_out: DAI,
+		amount: UNITS,
+		min_buy_amount: 0,
+	});
+
+	let gas_limit = 1000000;
+
+	let gas_price = PolynomialGasPrice::min_gas_price();
+	//Execute omnipool via EVM
+	assert_ok!(EVM::call(
+		evm_signed_origin(evm_address()),
+		evm_address(),
+		DISPATCH_ADDR,
+		omni_sell.encode(),
+		U256::from(0),
+		gas_limit,
+		gas_price.0 * 10,
+		None,
+		Some(U256::from(nonce)),
+		[].into(),
+	));
+
+	let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
+	let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
+
+	let weth_price = FixedU128::from_u32(2273);
+
+	let fee_in_cents = weth_price.checked_mul_int(fee_weth_evm).unwrap() as f64 / 1000000000000000000.0;
+	round(fee_in_cents)
+}
+
+fn round(fee_in_cent: f64) -> f64 {
+	let decimal_places = 20;
+	let rounder = 10_f64.powi(decimal_places);
+	(fee_in_cent * rounder).round() / rounder
+}
+
+pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	//do_trade_to_populate_oracle(DAI, HDX, UNITS);
 	set_relaychain_block_number(10);
@@ -743,10 +793,11 @@ pub fn init_omnipol() {
 
 // TODO: test that we charge approximatelly same fee on evm as with extrinsics directly
 
-const DISPATCH_ADDR: H160 = addr(1025);
+pub const DISPATCH_ADDR: H160 = addr(1025);
 
-fn gas_price() -> U256 {
-	U256::from(8 * 10_u128.pow(7)).div(3) //We divide by three as we const `FEE_DIVIDER` set to 3 in system.rs
+//TODO: Here we should use the PROD one, as used specifily in test call
+pub fn gas_price() -> U256 {
+	U256::from(8 * 10_u128.pow(7)).div(3) //We divide by three as we const `FEE_DIVIDER` set to 3 in system.rs.
 }
 
 fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {

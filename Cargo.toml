@@ -38,6 +38,7 @@ members = [
   'pallets/democracy',
   'runtime/hydradx/src/evm/evm-utility/macro',
   'pallets/referrals',
+  'pallets/dynamic-evm-fee'
 ]
 
 [workspace.dependencies]
@@ -60,6 +61,7 @@ pallet-currencies = { path = "pallets/currencies", default-features = false }
 pallet-dca = { path = "pallets/dca", default-features = false }
 pallet-duster = { path = "pallets/duster", default-features = false }
 pallet-dynamic-fees = { path = "pallets/dynamic-fees", default-features = false }
+pallet-dynamic-evm-fee = { path = "pallets/dynamic-evm-fee", default-features = false }
 pallet-ema-oracle = { path = "pallets/ema-oracle", default-features = false }
 pallet-genesis-history = { path = "pallets/genesis-history", default-features = false }
 pallet-liquidity-mining = { path = "pallets/liquidity-mining", default-features = false }
