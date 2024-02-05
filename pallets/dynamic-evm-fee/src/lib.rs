@@ -108,7 +108,6 @@ pub mod pallet {
 					return;
 				};
 
-				//TODO: refactor to use cmp
 				let (price_diff, hdx_price_increased) = if hdx_eth_price > reference_price {
 					(hdx_eth_price.saturating_sub(reference_price), true)
 				} else {
