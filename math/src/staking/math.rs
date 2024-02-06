@@ -1,5 +1,5 @@
 use crate::types::Balance;
-use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One};
+use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
 use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128, Perbill, Permill};
 use sp_std::num::NonZeroU128;
 use sp_std::ops::Div;
@@ -37,9 +37,9 @@ pub fn calculate_slashed_points(
 	stake_weight: u8,
 ) -> Option<Balance> {
 	let stake_weighted = current_stake.checked_mul(stake_weight.into())?;
-	FixedU128::checked_from_rational(stake_increase, stake_weighted)?
-		.min(FixedU128::one())
-		.checked_mul_int(points)
+    let p = stake_increase.checked_mul(points)?;
+
+    p.checked_div(stake_weighted)?.min(points).into()
 }
 
 /// Function calculates period number from block number and period size.
