@@ -131,6 +131,10 @@ fn recursively_find_call(call: RuntimeCall, matches_on: fn(RuntimeCall) -> bool)
 	false
 }
 
+fn try_specific_extrinsic(identifier: u8, data: &[u8]) -> Option<RuntimeCall> {
+	None
+}
+
 fn main() {
 	// We ensure that on each run, the mapping is a fresh one
 	#[cfg(not(any(fuzzing, coverage)))]
@@ -164,14 +168,19 @@ fn main() {
 				if MAX_BLOCKS_PER_INPUT != 0 && block_count >= MAX_BLOCKS_PER_INPUT {
 					return None;
 				}
-				// lapse is u32 (4 bytes), origin is u16 (2 bytes) -> 6 bytes minimum
-				let min_data_len = 4 + 2;
+				// Min lengths required for the data
+				// - lapse is u32 (4 bytes),
+				// - origin is u16 (2 bytes)
+				// - structure fuzzer (1 byte)
+				// -> 7 bytes minimum
+				let min_data_len = 4 + 2 + 1;
 				if data.len() <= min_data_len {
 					return None;
 				}
 				let lapse: u32 = u32::from_ne_bytes(data[0..4].try_into().unwrap());
 				let origin: usize = u16::from_ne_bytes(data[4..6].try_into().unwrap()) as usize;
-				let mut encoded_extrinsic: &[u8] = &data[6..];
+				let specific_extrinsic: u8 = data[6];
+				let mut encoded_extrinsic: &[u8] = &data[7..];
 
 				// If the lapse is in the range [1, MAX_BLOCK_LAPSE] it is valid.
 				let maybe_lapse = match lapse {
@@ -187,21 +196,28 @@ fn main() {
 					return None;
 				}
 
-				match DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic) {
-					Ok(decoded_extrinsic) => {
-						if maybe_lapse.is_some() {
-							block_count += 1;
-							extrinsics_in_block = 1;
-						} else {
-							extrinsics_in_block += 1;
-						}
-						// We have reached the limit of block we want to decode
-						if MAX_BLOCKS_PER_INPUT != 0 && block_count >= MAX_BLOCKS_PER_INPUT {
-							return None;
-						}
-						Some((maybe_lapse, origin, decoded_extrinsic))
+				let maybe_extrinsic =
+					if let Some(extrinsic) = try_specific_extrinsic(specific_extrinsic, encoded_extrinsic) {
+						Ok(extrinsic)
+					} else {
+						DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic)
+					};
+
+				if let Ok(decoded_extrinsic) = maybe_extrinsic {
+					if maybe_lapse.is_some() {
+						block_count += 1;
+						extrinsics_in_block = 1;
+					} else {
+						extrinsics_in_block += 1;
 					}
-					Err(_) => None,
+					// We have reached the limit of block we want to decode
+					if MAX_BLOCKS_PER_INPUT != 0 && block_count >= MAX_BLOCKS_PER_INPUT {
+						return None;
+					}
+
+					Some((maybe_lapse, origin, decoded_extrinsic))
+				} else {
+					None
 				}
 			})
 			.collect();
