@@ -15,7 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::*;
 pub use crate as multi_payment;
 use crate::Config;
 use hydra_dx_math::types::Ratio;
@@ -23,23 +22,21 @@ use hydra_dx_math::types::Ratio;
 use crate as dynamic_evm_fee;
 use crate::types::MultiplierProvider;
 use frame_support::{
-	dispatch::DispatchClass,
 	parameter_types,
 	traits::{Everything, Get, Nothing},
-	weights::{IdentityFee, Weight},
+	weights::Weight,
 };
 use frame_system as system;
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::router::{RouteProvider, Trade};
-use hydradx_traits::{AssetPairAccountIdFor, NativePriceOracle, OraclePeriod, PriceOracle};
-use orml_traits::currency::MutationHooks;
+use hydradx_traits::router::RouteProvider;
+use hydradx_traits::NativePriceOracle;
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_transaction_payment::Multiplier;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, FixedPointNumber, FixedU128, Perbill,
+	BuildStorage, FixedPointNumber, FixedU128,
 };
 use sp_std::cell::RefCell;
 pub type AccountId = u64;
@@ -50,22 +47,17 @@ pub type Amount = i128;
 pub const INITIAL_BALANCE: Balance = 1_000_000_000_000_000u128;
 
 pub const ALICE: AccountId = 1;
-pub const BOB: AccountId = 2;
 pub const FEE_RECEIVER: AccountId = 300;
 
 pub const HDX: AssetId = 0;
 pub const WETH: AssetId = 1;
 pub const SUPPORTED_CURRENCY: AssetId = 2000;
 pub const SUPPORTED_CURRENCY_WITH_PRICE: AssetId = 3000;
-pub const UNSUPPORTED_CURRENCY: AssetId = 4000;
-pub const SUPPORTED_CURRENCY_NO_BALANCE: AssetId = 5000; // Used for insufficient balance testing
 pub const HIGH_ED_CURRENCY: AssetId = 6000;
 pub const HIGH_VALUE_CURRENCY: AssetId = 7000;
 
 pub const HIGH_ED: Balance = 5;
 
-const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-const MAX_BLOCK_WEIGHT: Weight = Weight::from_parts(1024, 0);
 pub const DEFAULT_ETH_HDX_ORACLE_PRICE: Ratio = Ratio::new(16420844565569051996, FixedU128::DIV);
 
 thread_local! {
@@ -167,20 +159,6 @@ pub struct DefaultRouteProvider;
 
 impl RouteProvider<AssetId> for DefaultRouteProvider {}
 
-pub struct PriceProviderMock {}
-
-impl PriceOracle<AssetId> for PriceProviderMock {
-	type Price = Ratio;
-
-	fn price(route: &[Trade<AssetId>], _period: OraclePeriod) -> Option<Ratio> {
-		let asset_a = route.first().unwrap().asset_in;
-		let asset_b = route.first().unwrap().asset_out;
-		match (asset_a, asset_b) {
-			(SUPPORTED_CURRENCY_WITH_PRICE, HDX) => Some(Ratio::new(1, 10)),
-			_ => None,
-		}
-	}
-}
 impl pallet_balances::Config for Test {
 	type MaxLocks = MaxLocks;
 	/// The type for recording an account's balance.
@@ -238,7 +216,6 @@ pub struct ExtBuilder {
 	base_weight: Weight,
 	native_balances: Vec<(AccountId, Balance)>,
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
-	account_currencies: Vec<(AccountId, AssetId)>,
 }
 
 impl Default for ExtBuilder {
@@ -251,35 +228,15 @@ impl Default for ExtBuilder {
 				(ALICE, SUPPORTED_CURRENCY, INITIAL_BALANCE), // used for fallback price test
 				(ALICE, SUPPORTED_CURRENCY_WITH_PRICE, INITIAL_BALANCE),
 			],
-
-			account_currencies: vec![],
 		}
 	}
 }
 
 impl ExtBuilder {
-	pub fn base_weight(mut self, base_weight: u64) -> Self {
-		self.base_weight = Weight::from_parts(base_weight, 0);
-		self
-	}
-	pub fn account_native_balance(mut self, account: AccountId, balance: Balance) -> Self {
-		self.native_balances.push((account, balance));
-		self
-	}
-	pub fn account_tokens(mut self, account: AccountId, asset: AssetId, balance: Balance) -> Self {
-		self.endowed_accounts.push((account, asset, balance));
-		self
-	}
-	pub fn with_currencies(mut self, account_currencies: Vec<(AccountId, AssetId)>) -> Self {
-		self.account_currencies = account_currencies;
-		self
-	}
 	fn set_constants(&self) {
 		EXTRINSIC_BASE_WEIGHT.with(|v| *v.borrow_mut() = self.base_weight);
 	}
 	pub fn build(self) -> sp_io::TestExternalities {
-		use frame_support::traits::OnInitialize;
-
 		self.set_constants();
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
@@ -309,10 +266,6 @@ impl ExtBuilder {
 		});
 		ext
 	}
-}
-
-pub fn expect_events(e: Vec<RuntimeEvent>) {
-	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
 
 pub fn set_multiplier(multiplier: Multiplier) {

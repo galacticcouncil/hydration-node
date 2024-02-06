@@ -1,12 +1,9 @@
 use crate::tests::mock::DynamicEvmFee;
 use crate::tests::mock::*;
-use crate::tests::*;
 use frame_support::traits::OnInitialize;
-use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::types::Ratio;
 use pallet_transaction_payment::Multiplier;
 use sp_core::U256;
-use sp_runtime::{FixedPointNumber, FixedU128};
 
 #[test]
 fn should_return_default_base_fee_when_min_multiplier() {

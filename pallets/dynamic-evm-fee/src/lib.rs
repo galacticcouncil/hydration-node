@@ -28,19 +28,17 @@ pub use pallet::*;
 use crate::types::MultiplierProvider;
 use codec::HasCompact;
 use frame_support::pallet_prelude::*;
-use frame_support::sp_runtime::traits::BlockNumberProvider;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
-use primitives::BlockNumber;
 use sp_core::U256;
 use sp_runtime::FixedPointNumber;
-use sp_runtime::FixedPointOperand;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::Saturating;
 
 pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(16420844565569051996); //Current onchain ETH price on at block 4418935
+pub const MAX_BASE_FEE_PER_GAS: u128 = 17304992000u128;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -96,9 +94,8 @@ pub mod pallet {
 		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
 			//TODO: add a integration test
 			BaseFeePerGas::<T>::mutate(|old_base_fee_per_gas| {
-				let min_gas_price = T::DefaultBaseFeePerGas::get().saturating_div(10);
-				let max_gas_price = 17304992000u128; //TODO: make it constant
-				let mut multiplier = T::Multiplier::next();
+				let min_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_div(10);
+				let multiplier = T::Multiplier::next();
 
 				let mut new_base_fee_per_gas = T::DefaultBaseFeePerGas::get()
 					+ multiplier
@@ -106,7 +103,7 @@ pub mod pallet {
 						.saturating_mul(3);
 
 				let Some(eth_hdx_price) = T::NativePriceOracle::price(T::WethAssetId::get()) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Can not get HDX-ETH price from oracle");
+					log::warn!(target: "runtime::dynamic-evm-fee", "Can not get ETH-HDX price from oracle");
 					return;
 				};
 				let eth_hdx_price = FixedU128::from_rational(eth_hdx_price.n, eth_hdx_price.d);
@@ -120,7 +117,7 @@ pub mod pallet {
 				let Some(percentage_change) = price_diff
 					.saturating_mul(FixedU128::saturating_from_integer(100))
 					.const_checked_div(ETH_HDX_REFERENCE_PRICE) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Can not calculate percentage change");
+					log::warn!(target: "runtime::dynamic-evm-fee", "Unexpected error: Can not calculate percentage change");
 					return;
 				};
 
@@ -135,7 +132,7 @@ pub mod pallet {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_add(evm_fee_change);
 				}
 
-				new_base_fee_per_gas = new_base_fee_per_gas.clamp(min_gas_price, max_gas_price);
+				new_base_fee_per_gas = new_base_fee_per_gas.clamp(min_base_fee_per_gas, MAX_BASE_FEE_PER_GAS);
 
 				*old_base_fee_per_gas = U256::from(new_base_fee_per_gas);
 			});
