@@ -185,6 +185,7 @@ construct_runtime!(
 		EVM: pallet_evm = 90,
 		EVMChainId: pallet_evm_chain_id = 91,
 		Ethereum: pallet_ethereum = 92,
+		DynamicEvmFee: pallet_dynamic_evm_fee = 93,
 
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,

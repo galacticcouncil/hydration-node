@@ -5,6 +5,7 @@ use fp_evm::{Context, Transfer};
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
+use hydradx_runtime::evm::FixedGasPrice;
 use hydradx_runtime::{
 	evm::precompiles::{
 		addr,
@@ -14,13 +15,10 @@ use hydradx_runtime::{
 	},
 	AssetRegistry, Balances, CallFilter, Currencies, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM,
 };
-use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
 use sp_core::{blake2_256, H160, H256, U256};
-use sp_runtime::traits::CheckedDiv;
-use sp_runtime::FixedPointNumber;
 use sp_runtime::{traits::SignedExtension, FixedU128, Permill};
 use std::borrow::Cow;
 use std::ops::Div;
@@ -608,12 +606,16 @@ fn dispatch_should_respect_call_filter() {
 		);
 	});
 }
-
 #[test]
 fn compare_fee_between_evm_and_native_omnipool_calls() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		//Set up to idle state where the chain is not utilized at all
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
 		//Set alice with as fee currency and fund it
 		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -623,7 +625,7 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			WETH,
-			100 * UNITS as i128,
+			1000000000 * UNITS as i128,
 		));
 
 		//Fund evm account with HDX to dispatch omnipool sell
@@ -648,6 +650,8 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			});
 
 		let gas_limit = 1000000;
+		let gas_price = FixedGasPrice::min_gas_price();
+
 		//Execute omnipool via EVM
 		assert_ok!(EVM::call(
 			evm_signed_origin(evm_address()),
@@ -656,7 +660,7 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			omni_sell.encode(),
 			U256::from(0),
 			gas_limit,
-			gas_price(),
+			gas_price.0 * 10,
 			None,
 			Some(U256::zero()),
 			[].into(),
@@ -664,7 +668,7 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 
 		//Pre dispatch the native omnipool call - so withdrawring only the fees for the execution
 		let info = omni_sell.get_dispatch_info();
-		let len: usize = 1;
+		let len: usize = 146; //Just like on the UI
 		assert_ok!(
 			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
 				&AccountId::from(ALICE),
@@ -680,9 +684,11 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 
 		let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
 		let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
-
+		/*
+		assert_eq!(fee_weth_native, 4282317006577);
+		assert_eq!(fee_weth_evm, 4716541412000);
 		println!("FEE in WETH: {:?}", fee_weth_evm);
-		println!("FEE in hdx: {:?}", fee_weth_native);
+		println!("FEE in hdx: {:?}", fee_weth_native);*/
 
 		let fee_difference = fee_weth_evm - fee_weth_native;
 
@@ -696,8 +702,8 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 		assert!(relative_fee_difference < tolerated_fee_difference);
 	})
 }
-
-use hydradx_runtime::evm::PolynomialGasPrice;
+use crate::fee_calculation::ETH_USD_SPOT_PRICE;
+//TODO: replace this
 pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
 	let treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
 
@@ -710,7 +716,7 @@ pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
 
 	let gas_limit = 1000000;
 
-	let gas_price = PolynomialGasPrice::min_gas_price();
+	let gas_price = FixedGasPrice::min_gas_price();
 	//Execute omnipool via EVM
 	assert_ok!(EVM::call(
 		evm_signed_origin(evm_address()),
@@ -728,9 +734,7 @@ pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
 	let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
 	let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
 
-	let weth_price = FixedU128::from_u32(2273);
-
-	let fee_in_cents = weth_price.checked_mul_int(fee_weth_evm).unwrap() as f64 / 1000000000000000000.0;
+	let fee_in_cents = ETH_USD_SPOT_PRICE * fee_weth_evm as f64 / 1000000000000000000.0;
 	round(fee_in_cents)
 }
 
@@ -797,7 +801,7 @@ pub const DISPATCH_ADDR: H160 = addr(1025);
 
 //TODO: Here we should use the PROD one, as used specifily in test call
 pub fn gas_price() -> U256 {
-	U256::from(8 * 10_u128.pow(7)).div(3) //We divide by three as we const `FEE_DIVIDER` set to 3 in system.rs.
+	U256::from(hydradx_runtime::evm::DEFAULT_BASE_FEE_PER_GAS) //We divide by three as we const `FEE_DIVIDER` set to 3 in system.rs.
 }
 
 fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {

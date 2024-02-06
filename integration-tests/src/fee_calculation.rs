@@ -17,6 +17,8 @@ const BTC_UNITS: u128 = 10_000_000;
 const ETH_UNITS: u128 = 1_000_000_000_000_000_000;
 const HDX_USD_SPOT_PRICE_IN_CENTS: Balance = 2; //1HDX =~ 2 CENTS;
 const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
+const HDX_USD_SPOT_PRICE: f64 = 0.038; //Current HDX price in USD on CoinGecko on 6th Feb, 2024
+pub const ETH_USD_SPOT_PRICE: f64 = 2337.92; //Current HDX price in USD on CoinGecko on 6th Feb, 2024
 
 #[test]
 fn min_swap_fee() {
@@ -36,15 +38,15 @@ fn min_swap_fee() {
 		let info = call.get_dispatch_info();
 		let info_len = 146;
 		let fee = TransactionPayment::compute_fee(info_len, &info, 0);
-		let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
+		let fee_in_cent = FixedU128::from_float(fee as f64 * HDX_USD_SPOT_PRICE).div(UNITS.into());
 		let tolerance = FixedU128::from((2, (UNITS / 10_000)));
 		println!("Swap tx fee in cents: {fee_in_cent:?}");
 
 		assert_eq_approx!(
 			fee_in_cent,
-			FixedU128::from_float(1.043141719216000000),
+			FixedU128::from_float(0.009909846329778000),
 			tolerance,
-			"The min fee should be ~1 cent (0.01$)"
+			"The min fee should be ~0.01$ (1 cent)"
 		);
 	});
 }
@@ -67,11 +69,11 @@ fn max_swap_fee() {
 		let info = call.get_dispatch_info();
 		let info_len = 146; //We use this as this is what the UI send as length when omnipool swap is executed
 		let fee = TransactionPayment::compute_fee(info_len, &info, 0);
-		let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
+		let fee_in_cent = FixedU128::from_float(fee as f64 * HDX_USD_SPOT_PRICE).div(UNITS.into());
 		let tolerance = FixedU128::from((2, (UNITS / 10_000)));
 		assert_eq_approx!(
 			fee_in_cent,
-			FixedU128::from_float(1006.390180650782000000),
+			FixedU128::from_float(10.008401718494404694),
 			tolerance,
 			"The max fee should be ~1000 cent (10$)"
 		);
@@ -158,8 +160,9 @@ fn fee_growth_simulator_with_idle_chain() {
 	});
 }
 use pallet_evm::FeeCalculator;
+
 #[test]
-fn substrate_evm_free_growth_simulator_with_idle_chain() {
+fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -183,7 +186,7 @@ fn substrate_evm_free_growth_simulator_with_idle_chain() {
 
 		let mut nonce = 0;
 
-		for b in 2..3 {
+		for b in 2..HOURS {
 			//=HOURS {
 			hydradx_run_to_block(b);
 			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
@@ -199,15 +202,14 @@ fn substrate_evm_free_growth_simulator_with_idle_chain() {
 			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
 			//let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
 			//let fee_in_cent = (fee * HDX_USD_SPOT_PRICE_IN_CENTS) as f64 / 1000000000000.0;
-			let hdx_usd_spot_price = 0.02;
 
-			let fee_in_cent = (fee as f64 * hdx_usd_spot_price) as f64 / 1000000000000.0;
+			let fee_in_cent = (fee as f64 * HDX_USD_SPOT_PRICE) as f64 / 1000000000000.0;
 			let fee_in_cent = round(fee_in_cent);
 
-			let evm_fee_in_cent = get_evm_fee_in_cent(nonce);
+			let evm_fee_in_cent = round(get_evm_fee_in_cent(nonce));
 			let next = TransactionPayment::next_fee_multiplier();
 
-			let gas_price = hydradx_runtime::evm::PolynomialGasPrice::min_gas_price();
+			let gas_price = hydradx_runtime::evm::FixedGasPrice::min_gas_price();
 
 			println!("{b:?} - fee: ${fee_in_cent:?}  - evm_fee: ${evm_fee_in_cent:?} - multiplier: {next:?} - gas {gas_price:?}");
 			nonce = nonce + 1;
@@ -216,7 +218,7 @@ fn substrate_evm_free_growth_simulator_with_idle_chain() {
 }
 
 fn round(fee_in_cent: f64) -> f64 {
-	let decimal_places = 3;
+	let decimal_places = 6;
 	let rounder = 10_f64.powi(decimal_places);
 	(fee_in_cent * rounder).round() / rounder
 }

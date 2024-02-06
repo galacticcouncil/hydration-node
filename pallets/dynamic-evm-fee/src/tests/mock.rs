@@ -39,10 +39,9 @@ use pallet_transaction_payment::Multiplier;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, FixedU128, Perbill,
+	BuildStorage, FixedPointNumber, FixedU128, Perbill,
 };
 use sp_std::cell::RefCell;
-
 pub type AccountId = u64;
 pub type Balance = u128;
 pub type AssetId = u32;
@@ -67,11 +66,12 @@ pub const HIGH_ED: Balance = 5;
 
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 const MAX_BLOCK_WEIGHT: Weight = Weight::from_parts(1024, 0);
+pub const DEFAULT_ETH_HDX_ORACLE_PRICE: Ratio = Ratio::new(16420844565569051996, FixedU128::DIV);
 
 thread_local! {
 	static EXTRINSIC_BASE_WEIGHT: RefCell<Weight> = RefCell::new(Weight::zero());
 	static MULTIPLIER: RefCell<Multiplier> = RefCell::new(Multiplier::from_rational(1,1000));
-	static ORACLE_PRICE: RefCell<FixedU128> = RefCell::new(FixedU128::from_rational(1, 70000));
+	static ETH_HDX_ORACLE_PRICE: RefCell<Ratio> = RefCell::new(DEFAULT_ETH_HDX_ORACLE_PRICE);
 }
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -139,9 +139,9 @@ impl MultiplierProvider for MultiplierProviderMock {
 
 pub struct NativePriceOracleMock;
 
-impl NativePriceOracle<AssetId, FixedU128> for NativePriceOracleMock {
-	fn price(_: AssetId) -> Option<FixedU128> {
-		Some(ORACLE_PRICE.with(|v| *v.borrow()))
+impl NativePriceOracle<AssetId, EmaPrice> for NativePriceOracleMock {
+	fn price(_: AssetId) -> Option<EmaPrice> {
+		Some(ETH_HDX_ORACLE_PRICE.with(|v| *v.borrow()))
 	}
 }
 
@@ -320,8 +320,8 @@ pub fn set_multiplier(multiplier: Multiplier) {
 		*v.borrow_mut() = multiplier;
 	});
 }
-pub fn set_oracle_price(price: FixedU128) {
-	ORACLE_PRICE.with(|v| {
+pub fn set_oracle_price(price: Ratio) {
+	ETH_HDX_ORACLE_PRICE.with(|v| {
 		*v.borrow_mut() = price;
 	});
 }

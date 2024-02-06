@@ -451,7 +451,7 @@ pub mod hydra {
 					(DAI, Price::from(1)),
 					(ACA, Price::from(1)),
 					(BTC, Price::from_inner(134_000_000)),
-					(WETH, Price::from_inner(3_666_754_716_981_130_000)),
+					(WETH, pallet_dynamic_evm_fee::HDX_ETH_PRICE),
 				],
 				account_currencies: vec![],
 			},
@@ -598,6 +598,7 @@ pub fn polkadot_run_to_block(to: BlockNumber) {
 		hydradx_runtime::EmaOracle::on_initialize(b + 1);
 		hydradx_runtime::DCA::on_initialize(b + 1);
 		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
+		hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
 
 		hydradx_runtime::System::set_block_number(b + 1);
 	}

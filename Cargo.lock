@@ -11295,6 +11295,7 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy 4.1.0",
  "pallet-duster",
+ "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",

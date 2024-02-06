@@ -23,7 +23,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{TreasuryAccount, FEE_DIVIDER};
+use crate::{DCAOraclePeriod, NativeAssetId, TreasuryAccount, FEE_DIVIDER, LRNA};
 use frame_support::{
 	parameter_types,
 	traits::{Defensive, FindAuthor, Imbalance, OnUnbalanced},
@@ -31,16 +31,21 @@ use frame_support::{
 	ConsensusEngineId,
 };
 use hex_literal::hex;
+use hydra_dx_math::ema::EmaPrice;
+use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
+use hydradx_traits::{AggregatedPriceOracle, NativePriceOracle};
 use orml_tokens::CurrencyAdapter;
+use pallet_dynamic_evm_fee::types::MultiplierProvider;
+use pallet_ema_oracle::OracleError;
 use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
+use pallet_transaction_payment::Multiplier;
 use polkadot_xcm::{
 	latest::MultiLocation,
 	prelude::{AccountKey20, PalletInstance, Parachain, X3},
 };
-use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId};
+use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId, BlockNumber};
 use sp_core::{Get, U256};
-
 mod accounts_conversion;
 pub mod precompiles;
 
@@ -53,9 +58,8 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
-// Fixed gas price of 0.08 gwei per gas, but also divided with the fee divider as HDX price is high atm (~0.02￠)
-// TODO: pallet-base-fee to be implemented after migration to polkadot-v1.1.0
-const DEFAULT_BASE_FEE_PER_GAS: u128 = 80_000_000 / FEE_DIVIDER;
+// Fixed gas price of 0.019 gwei per gas
+pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 19_000_000;
 
 parameter_types! {
 	// We allow for a 75% fullness of a 0.5s block
@@ -93,6 +97,7 @@ impl Get<AssetId> for WethAssetId {
 
 type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
 use frame_support::traits::Currency as PalletCurrency;
+use sp_runtime::{FixedU128, Permill};
 
 type NegativeImbalance = <WethCurrency as PalletCurrency<AccountId>>::NegativeImbalance;
 
@@ -108,14 +113,103 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 	}
 }
 
-pub struct FixedGasPrice;
+parameter_types! {
+	pub PostLogContent: pallet_ethereum::PostLogContent = pallet_ethereum::PostLogContent::BlockAndTxnHashes;
+}
+use frame_support::weights::FeePolynomial;
+use frame_support::weights::WeightToFee;
+use frame_support::weights::WeightToFeePolynomial;
+use sp_runtime::FixedPointNumber;
+
+pub struct FixedGasPrice; //TODO: rename to DynamicGasPrice
 impl FeeCalculator for FixedGasPrice {
 	fn min_gas_price() -> (U256, Weight) {
 		// Return some meaningful gas price and weight
-		(DEFAULT_BASE_FEE_PER_GAS.into(), Weight::from_parts(7u64, 0))
+		let base_fee_per_gas = crate::DynamicEvmFee::base_evm_fee();
+		(base_fee_per_gas.into(), Weight::from_parts(7u64, 0)) //TODO: add the weight once benchmarked
 	}
 }
 
+pub struct TransactionPaymentMultiplier;
+
+impl MultiplierProvider for TransactionPaymentMultiplier {
+	fn next() -> Multiplier {
+		crate::TransactionPayment::next_fee_multiplier()
+	}
+}
+
+/*pub trait MultiplierProvider {
+	fn next() -> Multiplier;
+}*/
+
+/*
+pub struct PolynomialGasPrice;
+
+pub struct GasPriceCalc<MP, AggregatedPriceGetter, Weth>(
+	sp_std::marker::PhantomData<(MP, AggregatedPriceGetter, Weth)>,
+);
+
+impl<MP, AggregatedPriceGetter, Weth> FeeCalculator for GasPriceCalc<MP, AggregatedPriceGetter, Weth>
+where
+	MP: MultiplierProvider,
+	AggregatedPriceGetter: NativePriceOracle<AssetId, EmaPrice>,
+	Weth: Get<AssetId>,
+{
+	fn min_gas_price() -> (U256, Weight) {
+		//TODO: add steps how much it can change?
+		//TODO: add min and max range?!
+		//TODO: migration for multiplier?
+		let mut multiplier = crate::TransactionPayment::next_fee_multiplier();
+
+		let max_gas_price = 17304992000;
+
+		let bfpg = DEFAULT_BASE_FEE_PER_GAS
+			+ multiplier
+				.saturating_mul_int(DEFAULT_BASE_FEE_PER_GAS)
+				.saturating_mul(3);
+
+		let bfpg = bfpg.clamp(DEFAULT_BASE_FEE_PER_GAS, max_gas_price); //TODO: is there some minimum price we want
+
+		(bfpg.into(), Weight::from_parts(u64::MAX, 0))
+	}
+}
+
+
+
+impl FeeCalculator for PolynomialGasPrice {
+	fn min_gas_price() -> (U256, Weight) {
+		//TODO: add steps how much it can change?
+		//TODO: add min and max range?!
+		//TODO: migration for multiplier?
+		let mut multiplier = crate::TransactionPayment::next_fee_multiplier();
+
+		let max_gas_price = 17304992000;
+
+		let bfpg = DEFAULT_BASE_FEE_PER_GAS
+			+ multiplier
+				.saturating_mul_int(DEFAULT_BASE_FEE_PER_GAS)
+				.saturating_mul(3);
+
+		let bfpg = bfpg.clamp(DEFAULT_BASE_FEE_PER_GAS, max_gas_price); //TODO: is there some minimum price we want
+
+		(bfpg.into(), Weight::from_parts(u64::MAX, 0))
+	}
+}
+
+fn calculate_polynomial(multiplier: Multiplier) -> FixedU128 {
+	let degree = 2; // You can adjust the degree to control the growth rate.
+	let coefficients: [FixedU128; 3] = [FixedU128::from_u32(0), FixedU128::from_u32(1), FixedU128::from_u32(2)];
+
+	let mut result = FixedU128::from_u32(0);
+	let mut power_x = FixedU128::from_u32(1);
+
+	for i in 0..=degree {
+		result = result + (coefficients[i] * power_x);
+		power_x = power_x * multiplier;
+	}
+
+	result
+}*/
 parameter_types! {
 	/// The amount of gas per pov. A ratio of 4 if we convert ref_time to gas and we compare
 	/// it with the pov_size for a block. E.g.
@@ -128,6 +222,7 @@ parameter_types! {
 	pub GasLimitStorageGrowthRatio: u64 = 366;
 }
 
+//TODO: check if we need to plug the base fee in better way. How does elasticity work?
 impl pallet_evm::Config for crate::Runtime {
 	type AddressMapping = ExtendedAddressMapping;
 	type BlockGasLimit = BlockGasLimit;
@@ -136,6 +231,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type ChainId = crate::EVMChainId;
 	type Currency = WethCurrency;
 	type FeeCalculator = FixedGasPrice;
+	//type FeeCalculator = crate::BaseFee;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type OnChargeTransaction = TransferEvmFees<DealWithFees>;
@@ -154,13 +250,29 @@ impl pallet_evm::Config for crate::Runtime {
 
 impl pallet_evm_chain_id::Config for crate::Runtime {}
 
-parameter_types! {
-	pub PostLogContent: pallet_ethereum::PostLogContent = pallet_ethereum::PostLogContent::BlockAndTxnHashes;
-}
-
 impl pallet_ethereum::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
 	type StateRoot = pallet_ethereum::IntermediateStateRoot<Self>;
 	type PostLogContent = PostLogContent;
 	type ExtraDataLength = sp_core::ConstU32<1>;
+}
+
+parameter_types! {
+	pub const DefaultBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS;
+}
+
+impl pallet_dynamic_evm_fee::Config for crate::Runtime {
+	type RuntimeEvent = crate::RuntimeEvent;
+	type AssetId = AssetId;
+	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
+	type Multiplier = TransactionPaymentMultiplier;
+	type NativePriceOracle = AssetFeeOraclePriceProvider<
+		NativeAssetId,
+		crate::MultiTransactionPayment,
+		crate::Router,
+		OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
+		crate::MultiTransactionPayment,
+		DCAOraclePeriod,
+	>;
+	type WethAssetId = WethAssetId;
 }

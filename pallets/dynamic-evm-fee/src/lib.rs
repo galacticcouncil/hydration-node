@@ -20,7 +20,7 @@
 #[cfg(test)]
 mod tests;
 
-mod types;
+pub mod types;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -39,6 +39,8 @@ use sp_runtime::FixedPointOperand;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::Saturating;
+
+pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(16420844565569051996); //Current onchain ETH price on at block 4418935
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -65,7 +67,7 @@ pub mod pallet {
 		type Multiplier: MultiplierProvider;
 
 		/// Native price oracle
-		type NativePriceOracle: NativePriceOracle<Self::AssetId, FixedU128>;
+		type NativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
 
 		/// Eth Asset
 		#[pallet::constant]
@@ -92,6 +94,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
+			//TODO: add a integration test
 			BaseFeePerGas::<T>::mutate(|old_base_fee_per_gas| {
 				let min_gas_price = T::DefaultBaseFeePerGas::get().saturating_div(10);
 				let max_gas_price = 17304992000u128; //TODO: make it constant
@@ -102,21 +105,21 @@ pub mod pallet {
 						.saturating_mul_int(T::DefaultBaseFeePerGas::get())
 						.saturating_mul(3);
 
-				let reference_price = FixedU128::saturating_from_rational(1, 70000); //TODO:
-				let Some(hdx_eth_price) = T::NativePriceOracle::price(T::WethAssetId::get()) else {
+				let Some(eth_hdx_price) = T::NativePriceOracle::price(T::WethAssetId::get()) else {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Can not get HDX-ETH price from oracle");
 					return;
 				};
+				let eth_hdx_price = FixedU128::from_rational(eth_hdx_price.n, eth_hdx_price.d);
 
-				let (price_diff, hdx_price_increased) = if hdx_eth_price > reference_price {
-					(hdx_eth_price.saturating_sub(reference_price), true)
+				let (price_diff, hdx_pumps_against_hdx) = if eth_hdx_price > ETH_HDX_REFERENCE_PRICE {
+					(eth_hdx_price.saturating_sub(ETH_HDX_REFERENCE_PRICE), false)
 				} else {
-					(reference_price.saturating_sub(hdx_eth_price), false)
+					(ETH_HDX_REFERENCE_PRICE.saturating_sub(eth_hdx_price), true)
 				};
 
 				let Some(percentage_change) = price_diff
 					.saturating_mul(FixedU128::saturating_from_integer(100))
-					.const_checked_div(reference_price) else {
+					.const_checked_div(ETH_HDX_REFERENCE_PRICE) else {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Can not calculate percentage change");
 					return;
 				};
@@ -126,7 +129,7 @@ pub mod pallet {
 
 				let evm_fee_change = percentage_change_permill.mul_floor(new_base_fee_per_gas);
 
-				if hdx_price_increased {
+				if hdx_pumps_against_hdx {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_sub(evm_fee_change);
 				} else {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_add(evm_fee_change);
@@ -148,6 +151,3 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {}
 }
-
-//#[pallet::call]
-//impl<T: Config> Pallet<T> {}

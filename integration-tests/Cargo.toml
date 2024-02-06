@@ -35,6 +35,7 @@ pallet-relaychain-info = { workspace = true }
 pallet-route-executor = { workspace = true}
 pallet-dca = { workspace = true}
 pallet-dynamic-fees = { workspace = true }
+pallet-dynamic-evm-fee = { workspace = true }
 pallet-staking = { workspace = true}
 pallet-lbp = { workspace = true}
 pallet-xyk = { workspace = true}
@@ -194,7 +195,8 @@ std = [
     "polkadot-runtime/std",
     "hydradx-runtime/std",
     "pallet-staking/std",
-    "scraper/std"
+    "scraper/std",
+    "pallet-dynamic-evm-fee/std"
 ]
 
 # we don't include integration tests when benchmarking feature is enabled
