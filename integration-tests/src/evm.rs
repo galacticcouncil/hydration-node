@@ -700,47 +700,6 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 		assert!(relative_fee_difference < tolerated_fee_difference);
 	})
 }
-use crate::fee_calculation::ETH_USD_SPOT_PRICE;
-//TODO: replace this
-pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
-	let treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
-
-	let omni_sell = hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-		asset_in: HDX,
-		asset_out: DAI,
-		amount: UNITS,
-		min_buy_amount: 0,
-	});
-
-	let gas_limit = 1000000;
-
-	let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
-	//Execute omnipool via EVM
-	assert_ok!(EVM::call(
-		evm_signed_origin(evm_address()),
-		evm_address(),
-		DISPATCH_ADDR,
-		omni_sell.encode(),
-		U256::from(0),
-		gas_limit,
-		gas_price.0 * 10,
-		None,
-		Some(U256::from(nonce)),
-		[].into(),
-	));
-
-	let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
-	let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
-
-	let fee_in_cents = ETH_USD_SPOT_PRICE * fee_weth_evm as f64 / 1000000000000000000.0;
-	round(fee_in_cents)
-}
-
-fn round(fee_in_cent: f64) -> f64 {
-	let decimal_places = 20;
-	let rounder = 10_f64.powi(decimal_places);
-	(fee_in_cent * rounder).round() / rounder
-}
 
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();

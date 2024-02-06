@@ -1,13 +1,19 @@
 #![cfg(test)]
 
+use crate::evm::DISPATCH_ADDR;
 use crate::{oracle::hydradx_run_to_block, polkadot_test_net::*};
 use frame_support::assert_ok;
 use frame_support::dispatch::DispatchClass;
 use frame_support::dispatch::GetDispatchInfo;
+use hydradx_runtime::Tokens;
 use hydradx_runtime::TransactionPayment;
+use hydradx_runtime::EVM;
+use orml_traits::MultiCurrency;
 use primitives::constants::currency::UNITS;
 use primitives::constants::time::HOURS;
 use primitives::{AssetId, Balance};
+use sp_core::Encode;
+use sp_core::U256;
 use sp_runtime::{FixedU128, Permill};
 use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;
@@ -79,8 +85,6 @@ fn max_swap_fee() {
 		);
 	});
 }
-
-use crate::evm::get_evm_fee_in_cent;
 
 #[test]
 fn fee_growth_simulator_starting_with_genesis_chain() {
@@ -215,6 +219,39 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 			nonce = nonce + 1;
 		}
 	});
+}
+pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
+	let treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
+
+	let omni_sell = hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+		asset_in: HDX,
+		asset_out: DAI,
+		amount: UNITS,
+		min_buy_amount: 0,
+	});
+
+	let gas_limit = 1000000;
+
+	let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
+	//Execute omnipool via EVM
+	assert_ok!(EVM::call(
+		evm_signed_origin(evm_address()),
+		evm_address(),
+		DISPATCH_ADDR,
+		omni_sell.encode(),
+		U256::from(0),
+		gas_limit,
+		gas_price.0 * 10,
+		None,
+		Some(U256::from(nonce)),
+		[].into(),
+	));
+
+	let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
+	let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
+
+	let fee_in_cents = ETH_USD_SPOT_PRICE * fee_weth_evm as f64 / 1000000000000000000.0;
+	round(fee_in_cents)
 }
 
 fn round(fee_in_cent: f64) -> f64 {
