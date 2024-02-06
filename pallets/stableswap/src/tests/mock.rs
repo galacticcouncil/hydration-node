@@ -228,6 +228,13 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_registered_assets(mut self, assets: Vec<(Vec<u8>, AssetId, u8)>) -> Self {
+		for (name, asset, decimals) in assets.into_iter() {
+			self.registered_assets.push((name, asset, decimals));
+		}
+		self
+	}
+
 	pub fn with_pool(
 		mut self,
 		who: AccountId,

@@ -24,7 +24,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let pool_account = Self::pool_account(pool_id);
 					let balances = pool
-						.balances::<T>(&pool_account)
+						.reserves_with_decimals::<T>(&pool_account)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 
@@ -75,7 +75,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let pool_account = Self::pool_account(pool_id);
 					let balances = pool
-						.balances::<T>(&pool_account)
+						.reserves_with_decimals::<T>(&pool_account)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 					let amplification = Self::get_amplification(&pool);
@@ -99,7 +99,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let pool_account = Self::pool_account(pool_id);
 					let balances = pool
-						.balances::<T>(&pool_account)
+						.reserves_with_decimals::<T>(&pool_account)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 					let amplification = Self::get_amplification(&pool);
