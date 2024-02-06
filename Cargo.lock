@@ -7467,6 +7467,7 @@ dependencies = [
 name = "pallet-dynamic-evm-fee"
 version = "1.0.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hydra-dx-math",

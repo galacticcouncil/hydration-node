@@ -150,8 +150,8 @@ impl Config for Test {
 	type DefaultBaseFeePerGas = DefaultBaseDFeePerGas;
 	type Multiplier = MultiplierProviderMock;
 	type NativePriceOracle = NativePriceOracleMock;
-
 	type WethAssetId = HdxAssetId;
+	type WeightInfo = ();
 }
 
 pub struct DefaultRouteProvider;

@@ -194,4 +194,5 @@ impl pallet_dynamic_evm_fee::Config for crate::Runtime {
 		DCAOraclePeriod,
 	>;
 	type WethAssetId = WethAssetId;
+	type WeightInfo = crate::weights::dynamic_evm_fee::HydraWeight<crate::Runtime>;
 }

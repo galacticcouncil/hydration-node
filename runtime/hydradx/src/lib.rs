@@ -638,6 +638,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_omnipool, benchmarking::omnipool);
 			orml_list_benchmark!(list, extra, pallet_route_executor, benchmarking::route_executor);
 			orml_list_benchmark!(list, extra, pallet_dca, benchmarking::dca);
+			orml_list_benchmark!(list, extra, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -719,6 +720,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_omnipool, benchmarking::omnipool);
 			orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
 			orml_add_benchmark!(params, batches, pallet_dca, benchmarking::dca);
+			orml_add_benchmark!(params, batches, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

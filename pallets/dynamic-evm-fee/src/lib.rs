@@ -21,9 +21,11 @@
 mod tests;
 
 pub mod types;
+pub mod weights;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+pub use weights::WeightInfo;
 
 use crate::types::MultiplierProvider;
 use codec::HasCompact;
@@ -68,6 +70,9 @@ pub mod pallet {
 		/// Eth Asset Id
 		#[pallet::constant]
 		type WethAssetId: Get<Self::AssetId>;
+
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 	}
 
 	/// The current storage version.
@@ -135,7 +140,9 @@ pub mod pallet {
 				*old_base_fee_per_gas = U256::from(new_base_fee_per_gas);
 			});
 
-			Weight::default() //TODO: benchmark
+			let mut weight = Weight::default();
+			weight.saturating_accrue(T::WeightInfo::on_initialize());
+			weight
 		}
 	}
 }
@@ -143,6 +150,6 @@ impl<T: Config> pallet_evm::FeeCalculator for Pallet<T> {
 	fn min_gas_price() -> (U256, Weight) {
 		// Return some meaningful gas price and weight
 		let base_fee_per_gas = Self::base_evm_fee();
-		(base_fee_per_gas.into(), Weight::from_parts(7u64, 0)) //TODO: add the weight once benchmarked
+		(base_fee_per_gas.into(), T::WeightInfo::on_initialize()) //TODO: add the weight once benchmarked
 	}
 }
