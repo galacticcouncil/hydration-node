@@ -37,9 +37,9 @@ pub fn calculate_slashed_points(
 	stake_weight: u8,
 ) -> Option<Balance> {
 	let stake_weighted = current_stake.checked_mul(stake_weight.into())?;
-    let p = stake_increase.checked_mul(points)?;
+	let p = stake_increase.checked_mul(points)?;
 
-    p.checked_div(stake_weighted)?.min(points).into()
+	p.checked_div(stake_weighted)?.min(points).into()
 }
 
 /// Function calculates period number from block number and period size.
@@ -119,4 +119,15 @@ pub fn calculate_rewards(
 /// - `percentage` - percentage we want from `amount`. This value should be less than 1.
 pub fn calculate_percentage_amount(amount: u128, percentage: FixedU128) -> Balance {
 	percentage.saturating_mul_int(amount)
+}
+
+/// Function calculates total position's rewards from partial rewards.
+///
+/// - `new_rewards` - new rewards that are not included in locked nor unpaid rewards.
+/// - `locked_rewards` - rewards that were already paid and are locked.
+/// - `unpaid_rewards` - rewards that wasn't paid yet but were put away for future payments.
+pub fn calculate_total_rewards(new_rewards: u128, locked_rewards: u128, unpaid_rewards: u128) -> u128 {
+	new_rewards
+		.saturating_add(locked_rewards)
+		.saturating_add(unpaid_rewards)
 }

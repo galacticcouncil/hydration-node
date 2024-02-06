@@ -443,36 +443,32 @@ pub mod pallet {
 					let created_at = Self::get_period_number(position.created_at)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
-					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, payable_percentage) =
-						Self::calculate_rewards(
-							position,
-							staking.accumulated_reward_per_stake,
-							current_period,
-							created_at,
-						)
-						.ok_or(Error::<T>::Arithmetic)?;
+					let (new_allocated_rewards, rewards, unpaid_rewards, payable_percentage) = Self::calculate_rewards(
+						position,
+						staking.accumulated_reward_per_stake,
+						current_period,
+						created_at,
+					)
+					.ok_or(Error::<T>::Arithmetic)?;
 
-					let rewards = claimable_rewards
-						.checked_add(claimable_unpaid_rewards)
-						.ok_or(Error::<T>::Arithmetic)?;
+					if !rewards.is_zero() {
+						let pot = Self::pot_account_id();
+						T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards)?;
 
-					let pot = Self::pot_account_id();
-					T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards)?;
+						position.accumulated_locked_rewards = position
+							.accumulated_locked_rewards
+							.checked_add(rewards)
+							.ok_or(Error::<T>::Arithmetic)?;
 
-					position.accumulated_unpaid_rewards = position
-						.accumulated_unpaid_rewards
-						.checked_add(unpaid_rewards)
-						.ok_or(Error::<T>::Arithmetic)?;
-					position.accumulated_unpaid_rewards = position
-						.accumulated_unpaid_rewards
-						.checked_sub(claimable_unpaid_rewards)
-						.defensive_ok_or::<Error<T>>(InconsistentStateError::NegativeUnpaidRewards.into())?;
+						T::Currency::set_lock(
+							STAKING_LOCK_ID,
+							T::NativeAssetId::get(),
+							&who,
+							position.get_total_locked()?,
+						)?;
+					}
 
-					position.accumulated_locked_rewards = position
-						.accumulated_locked_rewards
-						.checked_add(rewards)
-						.ok_or(Error::<T>::Arithmetic)?;
-
+					position.accumulated_unpaid_rewards = unpaid_rewards;
 					position.reward_per_stake = staking.accumulated_reward_per_stake;
 
 					let points =
@@ -490,17 +486,10 @@ pub mod pallet {
 
 					staking.pot_reserved_balance = staking
 						.pot_reserved_balance
-						.checked_sub(rewards)
+						.checked_sub(new_allocated_rewards)
 						.ok_or(Error::<T>::Arithmetic)?;
 
 					staking.add_stake(amount)?;
-
-					T::Currency::set_lock(
-						STAKING_LOCK_ID,
-						T::NativeAssetId::get(),
-						&who,
-						position.get_total_locked()?,
-					)?;
 
 					Self::deposit_event(Event::StakeAdded {
 						who,
@@ -555,34 +544,23 @@ pub mod pallet {
 					let created_at = Self::get_period_number(position.created_at)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
-					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, payable_percentage) =
-						Self::calculate_rewards(
-							position,
-							staking.accumulated_reward_per_stake,
-							current_period,
-							created_at,
-						)
-						.ok_or(Error::<T>::Arithmetic)?;
+					let (_, rewards_to_pay, accumulated_unpaid_rewards, payable_percentage) = Self::calculate_rewards(
+						position,
+						staking.accumulated_reward_per_stake,
+						current_period,
+						created_at,
+					)
+					.ok_or(Error::<T>::Arithmetic)?;
 
-					let rewards_to_pay = claimable_rewards
-						.checked_add(claimable_unpaid_rewards)
-						.ok_or(Error::<T>::Arithmetic)?;
-
-					let pot = Self::pot_account_id();
-					T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards_to_pay)?;
+					if !rewards_to_pay.is_zero() {
+						let pot = Self::pot_account_id();
+						T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards_to_pay)?;
+					}
 
 					let rewards_to_unlock = position.accumulated_locked_rewards;
 					position.accumulated_locked_rewards = Zero::zero();
 
-					position.accumulated_unpaid_rewards = position
-						.accumulated_unpaid_rewards
-						.checked_add(unpaid_rewards)
-						.ok_or(Error::<T>::Arithmetic)?;
-
-					position.accumulated_unpaid_rewards = position
-						.accumulated_unpaid_rewards
-						.checked_sub(claimable_unpaid_rewards)
-						.defensive_ok_or::<Error<T>>(InconsistentStateError::NegativeUnpaidRewards.into())?;
+					position.accumulated_unpaid_rewards = accumulated_unpaid_rewards;
 
 					let points_to_slash =
 						Self::get_points(position, current_period, created_at).ok_or(Error::<T>::Arithmetic)?;
@@ -593,9 +571,8 @@ pub mod pallet {
 
 					let slashed_unpaid_rewards =
 						if current_period.saturating_sub(created_at) > T::UnclaimablePeriods::get() {
-							let p = position.accumulated_unpaid_rewards;
 							position.accumulated_unpaid_rewards = Zero::zero();
-							p
+							accumulated_unpaid_rewards
 						} else {
 							Zero::zero()
 						};
@@ -666,32 +643,22 @@ pub mod pallet {
 					let created_at = Self::get_period_number(position.created_at)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
-					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, payable_percentage) =
-						Self::calculate_rewards(
-							position,
-							staking.accumulated_reward_per_stake,
-							current_period,
-							created_at,
-						)
-						.ok_or(Error::<T>::Arithmetic)?;
+					let (_, rewards_to_pay, return_to_pot, payable_percentage) = Self::calculate_rewards(
+						position,
+						staking.accumulated_reward_per_stake,
+						current_period,
+						created_at,
+					)
+					.ok_or(Error::<T>::Arithmetic)?;
 
-					let rewards_to_pay = claimable_rewards
-						.checked_add(claimable_unpaid_rewards)
-						.ok_or(Error::<T>::Arithmetic)?;
-
-					let pot = Self::pot_account_id();
-					T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards_to_pay)?;
+					if !rewards_to_pay.is_zero() {
+						let pot = Self::pot_account_id();
+						T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards_to_pay)?;
+					}
 
 					staking.total_stake = staking
 						.total_stake
 						.checked_sub(position.stake)
-						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
-
-					let return_to_pot = position
-						.accumulated_unpaid_rewards
-						.checked_add(unpaid_rewards)
-						.ok_or(Error::<T>::Arithmetic)?
-						.checked_sub(claimable_unpaid_rewards)
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
 
 					staking.pot_reserved_balance = staking
@@ -891,12 +858,12 @@ impl<T: Config> Pallet<T> {
 		))
 	}
 
-	/// This function calculates `claimable`, `claimable_unpaid`, `unpaid` rewards and `payable_percentage`.
+	/// This function calculates `new_alloocated`, claimable` and `accumulated_unpaid` rewards and `payable_percentage`.
 	///
+	/// `new_allocated_rewards` - amount of new rewards that should be allocated for the user in the `pot`.
 	/// `claimable` - amount of rewards user can claim from the `pot`
-	/// `claimable_unpaid` - amount to unlock from user's `accumulated_unpaid_rewards`
-	/// `unpaid` - amount of rewards which won't be paid to user
-	/// `payable_percentage` - percentage of the rewards that is available to user
+	/// `accumulated_unpaid` - total amount of rewards which won't be paid to user.
+	/// `payable_percentage` - percentage of the rewards that is available to user.
 	///
 	/// Return `(claimable, claimable_unpaid, unpaid, payable_percentage)`
 	fn calculate_rewards(
@@ -905,27 +872,33 @@ impl<T: Config> Pallet<T> {
 		current_period: Period,
 		position_created_at: Period,
 	) -> Option<(Balance, Balance, Balance, FixedU128)> {
-		let max_rewards =
+		let new_rewards =
 			math::calculate_rewards(accumulated_reward_per_stake, position.reward_per_stake, position.stake)?;
 
 		if current_period.saturating_sub(position_created_at) <= T::UnclaimablePeriods::get() {
-			return Some((Balance::zero(), Balance::zero(), max_rewards, FixedU128::zero()));
+			let unpaid_rewards = position.accumulated_unpaid_rewards.saturating_add(new_rewards);
+			return Some((new_rewards, Balance::zero(), unpaid_rewards, FixedU128::zero()));
 		}
 
 		let points = Self::get_points(position, current_period, position_created_at)?;
 		let payable_percentage = T::PayablePercentage::get(points)?;
 
-		let claimable_rewards = math::calculate_percentage_amount(max_rewards, payable_percentage);
+		let total_rewards = math::calculate_total_rewards(
+			new_rewards,
+			position.accumulated_locked_rewards,
+			position.accumulated_unpaid_rewards,
+		);
+		let user_rewards = math::calculate_percentage_amount(new_rewards, payable_percentage);
 
-		let unpaid_rewards = max_rewards.checked_sub(claimable_rewards)?;
-
-		let claimable_unpaid_rewards =
-			math::calculate_percentage_amount(position.accumulated_unpaid_rewards, payable_percentage);
+		let claimable_rewards = user_rewards.saturating_sub(position.accumulated_locked_rewards);
+		let accumulated_unpaid_rewards = total_rewards
+			.saturating_sub(position.accumulated_locked_rewards)
+			.saturating_sub(claimable_rewards);
 
 		Some((
+			new_rewards,
 			claimable_rewards,
-			claimable_unpaid_rewards,
-			unpaid_rewards,
+			accumulated_unpaid_rewards,
 			payable_percentage,
 		))
 	}
