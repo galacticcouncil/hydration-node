@@ -5,6 +5,7 @@ use serde::Deserializer;
 use sp_runtime::{FixedU128, Permill};
 use std::fs;
 use toml;
+use crate::traits::Balance;
 
 #[derive(Debug, Deserialize)]
 struct AssetConfig {
@@ -83,4 +84,28 @@ impl OmnipoolSetup {
 
 pub fn omnipool_initial_state() -> OmnipoolSetup {
 	OmnipoolSetup::new("data/omnipool.toml")
+}
+
+
+struct OmnipoolPallet;
+
+
+impl crate::traits::FuzzedPallet<RuntimeCall, u32, AccountId> for OmnipoolPallet{
+	fn initial_calls(&self) -> Vec<RuntimeCall> {
+		todo!()
+	}
+
+	fn native_endowed_accounts(&self) -> Vec<(AccountId, Balance)> {
+		todo!()
+	}
+
+	fn foreign_endowed_accounts(&self) -> Vec<(AccountId, Vec<(u32, Balance)>)> {
+		todo!()
+	}
+}
+
+impl crate::traits::Loader for OmnipoolPallet {
+	fn load_setup(filename: &str) -> Self {
+		todo!()
+	}
 }

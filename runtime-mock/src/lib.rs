@@ -3,6 +3,7 @@ mod omnipool;
 mod registry;
 mod stableswap;
 mod staking;
+mod traits;
 
 use sp_io::TestExternalities;
 use accounts::{
@@ -16,9 +17,14 @@ use primitives::constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS};
 use registry::registry_state;
 use sp_runtime::{traits::Dispatchable, Storage};
 use stableswap::stablepools;
+use crate::traits::FuzzedPallet;
 
 const TOKEN_SYMBOL: &str = "HDX";
 const PARA_ID: u32 = 2034;
+
+fn fuzzed_pallets() -> Vec<Box<dyn FuzzedPallet<RuntimeCall, u32, AccountId>>>{
+	vec![]
+}
 
 pub fn hydradx_mocked_runtime() -> TestExternalities {
 	// Assets to register
