@@ -209,7 +209,7 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 			let evm_fee_in_cent = round(get_evm_fee_in_cent(nonce));
 			let next = TransactionPayment::next_fee_multiplier();
 
-			let gas_price = hydradx_runtime::evm::FixedGasPrice::min_gas_price();
+			let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 
 			println!("{b:?} - fee: ${fee_in_cent:?}  - evm_fee: ${evm_fee_in_cent:?} - multiplier: {next:?} - gas {gas_price:?}");
 			nonce = nonce + 1;

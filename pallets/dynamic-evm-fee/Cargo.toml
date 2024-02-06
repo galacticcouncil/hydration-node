@@ -32,6 +32,9 @@ sp-std = { workspace = true }
 sp-runtime = { workspace = true }
 sp-io = { workspace = true }
 
+# Evm dependencies
+pallet-evm = { workspace = true }
+
 [dev-dependencies]
 pallet-currencies = { workspace = true }
 orml-tokens = { workspace = true, features=["std"] }

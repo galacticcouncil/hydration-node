@@ -46,8 +46,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Identifier for the class of asset.
 		type AssetId: Member
 			+ Parameter
@@ -67,7 +65,7 @@ pub mod pallet {
 		/// Native price oracle
 		type NativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
 
-		/// Eth Asset
+		/// Eth Asset Id
 		#[pallet::constant]
 		type WethAssetId: Get<Self::AssetId>;
 	}
@@ -84,7 +82,7 @@ pub mod pallet {
 		U256::from(T::DefaultBaseFeePerGas::get())
 	}
 
-	/// Base Evm Fee
+	/// Base fee per gas
 	#[pallet::storage]
 	#[pallet::getter(fn base_evm_fee)]
 	pub type BaseFeePerGas<T> = StorageValue<_, U256, ValueQuery, DefaultBaseFeePerGas<T>>;
@@ -92,7 +90,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
-			//TODO: add a integration test
+			//TODO: add a integration test with price change from trades so oracle price changes
 			BaseFeePerGas::<T>::mutate(|old_base_fee_per_gas| {
 				let min_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_div(10);
 				let multiplier = T::Multiplier::next();
@@ -140,11 +138,11 @@ pub mod pallet {
 			Weight::default() //TODO: benchmark
 		}
 	}
-
-	#[pallet::error]
-	pub enum Error<T> {}
-
-	#[pallet::event]
-	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event<T: Config> {}
+}
+impl<T: Config> pallet_evm::FeeCalculator for Pallet<T> {
+	fn min_gas_price() -> (U256, Weight) {
+		// Return some meaningful gas price and weight
+		let base_fee_per_gas = Self::base_evm_fee();
+		(base_fee_per_gas.into(), Weight::from_parts(7u64, 0)) //TODO: add the weight once benchmarked
+	}
 }

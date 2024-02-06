@@ -7476,6 +7476,7 @@ dependencies = [
  "orml-traits",
  "pallet-balances",
  "pallet-currencies",
+ "pallet-evm",
  "pallet-transaction-payment",
  "parity-scale-codec",
  "primitives",

@@ -146,7 +146,6 @@ impl Get<u128> for DefaultBaseDFeePerGas {
 }
 
 impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type DefaultBaseFeePerGas = DefaultBaseDFeePerGas;
 	type Multiplier = MultiplierProviderMock;

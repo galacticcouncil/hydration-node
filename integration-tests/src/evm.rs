@@ -5,7 +5,6 @@ use fp_evm::{Context, Transfer};
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::evm::FixedGasPrice;
 use hydradx_runtime::{
 	evm::precompiles::{
 		addr,
@@ -21,7 +20,6 @@ use pretty_assertions::assert_eq;
 use sp_core::{blake2_256, H160, H256, U256};
 use sp_runtime::{traits::SignedExtension, FixedU128, Permill};
 use std::borrow::Cow;
-use std::ops::Div;
 use xcm_emulator::TestExt;
 
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
@@ -650,7 +648,7 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			});
 
 		let gas_limit = 1000000;
-		let gas_price = FixedGasPrice::min_gas_price();
+		let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 
 		//Execute omnipool via EVM
 		assert_ok!(EVM::call(
@@ -716,7 +714,7 @@ pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
 
 	let gas_limit = 1000000;
 
-	let gas_price = FixedGasPrice::min_gas_price();
+	let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 	//Execute omnipool via EVM
 	assert_ok!(EVM::call(
 		evm_signed_origin(evm_address()),

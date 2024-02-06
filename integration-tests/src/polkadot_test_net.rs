@@ -451,7 +451,7 @@ pub mod hydra {
 					(DAI, Price::from(1)),
 					(ACA, Price::from(1)),
 					(BTC, Price::from_inner(134_000_000)),
-					(WETH, pallet_dynamic_evm_fee::HDX_ETH_PRICE),
+					(WETH, pallet_dynamic_evm_fee::ETH_HDX_REFERENCE_PRICE),
 				],
 				account_currencies: vec![],
 			},
