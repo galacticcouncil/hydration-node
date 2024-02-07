@@ -106,7 +106,7 @@ pub mod pallet {
 						.saturating_mul(3);
 
 				let Some(eth_hdx_price) = T::NativePriceOracle::price(T::WethAssetId::get()) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Can not get ETH-HDX price from oracle");
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX price from oracle");
 					return;
 				};
 				let eth_hdx_price = FixedU128::from_rational(eth_hdx_price.n, eth_hdx_price.d);
@@ -120,7 +120,7 @@ pub mod pallet {
 				let Some(percentage_change) = price_diff
 					.saturating_mul(FixedU128::saturating_from_integer(100))
 					.const_checked_div(ETH_HDX_REFERENCE_PRICE) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Unexpected error: Can not calculate percentage change");
+					log::warn!(target: "runtime::dynamic-evm-fee", "Unexpected error: Could not calculate percentage change");
 					return;
 				};
 
