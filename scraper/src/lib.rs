@@ -6,13 +6,13 @@ use frame_support::sp_runtime::{
 	traits::{Block as BlockT, HashingFor},
 	StateVersion,
 };
+use sp_core::H256;
 use sp_io::TestExternalities;
 use std::{
 	fs,
 	path::{Path, PathBuf},
 	str::FromStr,
 };
-use sp_core::H256;
 
 pub fn save_blocks_snapshot<Block: Encode>(data: &Vec<Block>, path: &Path) -> Result<(), &'static str> {
 	let mut path = path.to_path_buf();

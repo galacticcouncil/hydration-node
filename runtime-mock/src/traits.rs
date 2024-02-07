@@ -1,15 +1,15 @@
 pub type Balance = u128;
 
 pub trait FuzzedPallet<Call, AssetId, AccountId> {
-    fn initial_calls(&self) -> Vec<Call>;
-    fn native_endowed_accounts(&self) -> Vec<(AccountId, Balance)>;
-    fn foreign_endowed_accounts(&self) -> Vec<(AccountId, Vec<(AssetId,Balance)>)>;
+	fn initial_calls(&self) -> Vec<Call>;
+	fn native_endowed_accounts(&self) -> Vec<(AccountId, Balance)>;
+	fn foreign_endowed_accounts(&self) -> Vec<(AccountId, Vec<(AssetId, Balance)>)>;
 }
 
 pub trait Loader {
-    fn load_setup(filename: &str) -> Self;
+	fn load_setup(filename: &str) -> Self;
 }
 
 pub trait TryExtrinsic<Call, AssetId> {
-    fn try_extrinsic(identifier: u8, data: &[u8], assets: &[AssetId]) -> Option<Call>;
+	fn try_extrinsic(&self, identifier: u8, data: &[u8], assets: &[AssetId]) -> Option<Call>;
 }

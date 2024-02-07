@@ -3,9 +3,10 @@ mod omnipool;
 mod registry;
 mod stableswap;
 mod staking;
-mod traits;
+pub mod traits;
 
-use sp_io::TestExternalities;
+use crate::omnipool::OmnipoolHandler;
+use crate::traits::{FuzzedPallet, TryExtrinsic};
 use accounts::{
 	get_council_members, get_duster_dest_account, get_duster_reward_account, get_native_endowed_accounts,
 	get_nonnative_endowed_accounts, get_omnipool_position_owner, get_technical_committee,
@@ -15,15 +16,19 @@ use hydradx_runtime::*;
 use omnipool::omnipool_initial_state;
 use primitives::constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS};
 use registry::registry_state;
+use sp_io::TestExternalities;
 use sp_runtime::{traits::Dispatchable, Storage};
 use stableswap::stablepools;
-use crate::traits::FuzzedPallet;
 
 const TOKEN_SYMBOL: &str = "HDX";
 const PARA_ID: u32 = 2034;
 
-fn fuzzed_pallets() -> Vec<Box<dyn FuzzedPallet<RuntimeCall, u32, AccountId>>>{
+fn fuzzed_pallets() -> Vec<Box<dyn FuzzedPallet<RuntimeCall, u32, AccountId>>> {
 	vec![]
+}
+
+pub fn extrinsics_handlers() -> Vec<Box<dyn TryExtrinsic<RuntimeCall, u32>>> {
+	vec![Box::new(OmnipoolHandler {}), Box::new(stableswap::StableswapHandler {})]
 }
 
 pub fn hydradx_mocked_runtime() -> TestExternalities {

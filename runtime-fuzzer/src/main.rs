@@ -130,8 +130,15 @@ fn recursively_find_call(call: RuntimeCall, matches_on: fn(RuntimeCall) -> bool)
 	}
 	false
 }
+use runtime_mock::traits::TryExtrinsic;
+fn try_specific_extrinsic(identifier: u8, data: &[u8], assets: &[u32]) -> Option<RuntimeCall> {
+	let extrinsics_handlers = runtime_mock::extrinsics_handlers();
 
-fn try_specific_extrinsic(identifier: u8, data: &[u8]) -> Option<RuntimeCall> {
+	for handler in extrinsics_handlers {
+		if let Some(call) = handler.try_extrinsic(identifier, data, assets) {
+			return Some(call);
+		}
+	}
 	None
 }
 
@@ -160,6 +167,24 @@ fn main() {
 
 		let mut block_count = 0;
 		let mut extrinsics_in_block = 0;
+
+		// We need to load snapshot first to obtain list of registereted assets
+		// This might be a bit unnecessary, especially if there is not valid extrinsic in the input
+		// TODO: consider reordering the code to avoid this and retrieve list of assets another way
+
+		// `externalities` represents the state of our mock chain.
+		let path = std::path::PathBuf::from("data/MOCK_SNAPSHOT");
+		let mut externalities = scraper::load_snapshot::<Block>(path).unwrap();
+
+		// load AssetIds
+		let mut assets: Vec<u32> = Vec::new();
+		externalities.execute_with(|| {
+			// lets assert that the mock is correctly setup, just in case
+			let asset_ids = pallet_asset_registry::Assets::<FuzzedRuntime>::iter_keys();
+			for asset_id in asset_ids {
+				assets.push(asset_id);
+			}
+		});
 
 		let extrinsics: Vec<(Option<u32>, usize, RuntimeCall)> = iteratable
 			.filter_map(|data| {
@@ -197,7 +222,7 @@ fn main() {
 				}
 
 				let maybe_extrinsic =
-					if let Some(extrinsic) = try_specific_extrinsic(specific_extrinsic, encoded_extrinsic) {
+					if let Some(extrinsic) = try_specific_extrinsic(specific_extrinsic, encoded_extrinsic, &assets) {
 						Ok(extrinsic)
 					} else {
 						DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic)
@@ -225,10 +250,6 @@ fn main() {
 		if extrinsics.is_empty() {
 			return;
 		}
-
-		// `externalities` represents the state of our mock chain.
-		let path = std::path::PathBuf::from("data/MOCK_SNAPSHOT");
-		let mut externalities = scraper::load_snapshot::<Block>(path).unwrap();
 
 		let mut current_block: u32 = 1;
 		let mut current_timestamp: u64 = SLOT_DURATION;
@@ -377,7 +398,7 @@ fn main() {
 				#[cfg(not(any(fuzzing, coverage)))]
 				mapper.finalize_extrinsic(_res, extrinsic, origin_account);
 
-				#[cfg(not(fuzzing))]
+				#[cfg(not(any(fuzzing, coverage)))]
 				{
 					let elapsed = Duration::from_nanos(mapper.get_elapsed().try_into().unwrap()).as_secs();
 					if elapsed > MAX_TIME_FOR_BLOCK {
