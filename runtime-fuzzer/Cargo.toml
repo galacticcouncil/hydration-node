@@ -9,7 +9,7 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-ziggy = { version = "0.8.1", default-features = false }
+ziggy = { version = "1.0.0", default-features = false }
 stats_alloc = "0.1.1"
 serde = { version = "1.0.193", features = ["derive"] }
 toml = "0.5"
