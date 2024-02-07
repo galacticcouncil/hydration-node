@@ -682,11 +682,6 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 
 		let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
 		let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
-		/*
-		assert_eq!(fee_weth_native, 4282317006577);
-		assert_eq!(fee_weth_evm, 4716541412000);
-		println!("FEE in WETH: {:?}", fee_weth_evm);
-		println!("FEE in hdx: {:?}", fee_weth_native);*/
 
 		let fee_difference = fee_weth_evm - fee_weth_native;
 
@@ -756,7 +751,6 @@ pub fn init_omnipol() {
 
 pub const DISPATCH_ADDR: H160 = addr(1025);
 
-//TODO: Here we should use the PROD one, as used specifily in test call
 pub fn gas_price() -> U256 {
 	U256::from(hydradx_runtime::evm::DEFAULT_BASE_FEE_PER_GAS) //We divide by three as we const `FEE_DIVIDER` set to 3 in system.rs.
 }
