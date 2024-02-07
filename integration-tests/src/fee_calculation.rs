@@ -22,7 +22,7 @@ const DOT_UNITS: u128 = 10_000_000_000;
 const BTC_UNITS: u128 = 10_000_000;
 const ETH_UNITS: u128 = 1_000_000_000_000_000_000;
 const HDX_USD_SPOT_PRICE_IN_CENTS: Balance = 2; //1HDX =~ 2 CENTS;
-const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
+pub const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
 const HDX_USD_SPOT_PRICE: f64 = 0.038; //Current HDX price in USD on CoinGecko on 6th Feb, 2024
 pub const ETH_USD_SPOT_PRICE: f64 = 2337.92; //Current HDX price in USD on CoinGecko on 6th Feb, 2024
 

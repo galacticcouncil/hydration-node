@@ -666,13 +666,12 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 
 		//Pre dispatch the native omnipool call - so withdrawring only the fees for the execution
 		let info = omni_sell.get_dispatch_info();
-		let len: usize = 146; //Just like on the UI
 		assert_ok!(
 			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
 				&AccountId::from(ALICE),
 				&omni_sell,
 				&info,
-				len,
+				crate::fee_calculation::SWAP_ENCODED_LEN as usize,
 			)
 		);
 
