@@ -43,6 +43,29 @@ fn should_decrease_evm_fee_when_hdx_pumping_10percent_against_eth() {
 }
 
 #[test]
+fn should_not_change_when_price_pumps_then_remains_same_in_consquent_block() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		set_oracle_price(Ratio::new(
+			DEFAULT_ETH_HDX_ORACLE_PRICE.n * 90 / 100,
+			DEFAULT_ETH_HDX_ORACLE_PRICE.d,
+		));
+
+		DynamicEvmFee::on_initialize(1);
+
+		let new_base_fee = DynamicEvmFee::base_evm_fee();
+		assert_eq!(new_base_fee, U256::from(24071998));
+
+		//Act
+		DynamicEvmFee::on_initialize(2);
+
+		//Assert
+		let new_base_fee = DynamicEvmFee::base_evm_fee();
+		assert_eq!(new_base_fee, U256::from(24071998));
+	});
+}
+
+#[test]
 fn should_decrease_evm_fee_when_hdx_pumping_1percent_against_eth() {
 	ExtBuilder::default().build().execute_with(|| {
 		set_oracle_price(Ratio::new(
