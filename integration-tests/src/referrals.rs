@@ -423,16 +423,20 @@ fn transfer_using_mutate_should_emit_event() {
 	use frame_support::traits::tokens::Preservation;
 
 	Hydra::execute_with(|| {
-		assert_ok!(
-		<Runtime as pallet_referrals::Config>::Currency::transfer(HDX, &ALICE.into(), &BOB.into(), 1_000_000_000_000, Preservation::Preserve)
-		);
+		assert_ok!(<Runtime as pallet_referrals::Config>::Currency::transfer(
+			HDX,
+			&ALICE.into(),
+			&BOB.into(),
+			1_000_000_000_000,
+			Preservation::Preserve
+		));
 
 		expect_hydra_events(vec![pallet_balances::Event::Transfer {
 			from: ALICE.into(),
 			to: BOB.into(),
 			amount: 1_000_000_000_000,
-			}
-			.into()])
+		}
+		.into()])
 	});
 }
 
@@ -514,8 +518,8 @@ fn seed_pot_account() {
 	));
 }
 
-use sp_core::crypto::Ss58Codec;
 use scraper::ALICE;
+use sp_core::crypto::Ss58Codec;
 
 pub const PARACHAIN_CODES: [(&str, &str); 12] = [
 	("MOONBEAM", "7LCt6dFmtiRrwZv2YyEgQWW3GxsGX3Krmgzv9Xj7GQ9tG2j8"),
