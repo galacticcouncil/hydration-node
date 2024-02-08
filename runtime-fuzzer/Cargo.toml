@@ -53,6 +53,6 @@ cumulus-primitives-parachain-inherent = { workspace = true }
 cumulus-test-relay-sproof-builder = { workspace = true }
 
 [features]
-default = ["std", "try-runtime"]
+default = ["std"]
 std = ["hydradx-runtime/std", "codec/std", "sp-runtime/std", "frame-support/std", "pallet-timestamp/std", "sp-consensus-aura/std"]
 try-runtime = ["hydradx-runtime/try-runtime", "frame-support/try-runtime", "pallet-timestamp/try-runtime"]

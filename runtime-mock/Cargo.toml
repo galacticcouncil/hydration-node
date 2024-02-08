@@ -34,7 +34,7 @@ orml-tokens = { workspace = true }
 scraper = { workspace = true}
 
 [features]
-default= ["std"]
+default = ["std"]
 
 std = [
 "hydradx-runtime/std"
