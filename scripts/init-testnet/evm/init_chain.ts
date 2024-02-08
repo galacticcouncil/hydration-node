@@ -2,51 +2,7 @@
 const { ApiPromise, WsProvider } = require('@polkadot/api');
 const { hexToU8a } = require('@polkadot/util');
 const { encodeAddress, decodeAddress } = require('@polkadot/util-crypto');
-/*const {
-  isAddress,
-  getAddress,
-}  =  require('@ethersproject/address')
-
-*/
 const { Keyring } = require('@polkadot/keyring');
-
-/*
-export class H160 {
-  static prefixBytes = Buffer.from("ETH\0")
-  address: string
-
-  constructor(address: string) {
-    this.address = safeConvertAddressH160(address) ?? ""
-  }
-
-  toAccount = () => {
-    const addressBytes = Buffer.from(this.address.slice(2), "hex")
-    return encodeAddress(
-      new Uint8Array(
-        Buffer.concat([H160.prefixBytes, addressBytes, Buffer.alloc(8)]),
-      ),
-      63,
-    )
-  }
-
-  static fromAccount = (address: string) => {
-    const decodedBytes = decodeAddress(address)
-    const addressBytes = decodedBytes.slice(H160.prefixBytes.length, -8)
-    return (
-      safeConvertAddressH160(Buffer.from(addressBytes).toString("hex")) ?? ""
-    )
-  }
-}
-
-export function safeConvertAddressH160(value: string): string | null {
-  try {
-    return getAddress(value?.toLowerCase())
-  } catch {
-    return null
-  }
-}*/
-
-
 
 async function main () {
   // Initialise the provider to connect to the local node
@@ -68,35 +24,7 @@ async function main () {
   const keyring = new Keyring({ type: 'sr25519' });
   const alice = keyring.addFromUri('//Alice');
 
-  /*await api.tx.assetRegistry.register(
-    "test token", 
-    {"Token": 0}, 
-    1000, 
-    5, 
-    {symbol: "ttt", decimals: 10}, 
-    null,
-    null
-  ).signAndSend(alice, );*/
-
   let transactions = [];
-
-  //let evmUser = "7KATdGbFsc58BDyfV9ZtxHEYPt5icvS5itHcJh3yWYmpwG8k";
-  //const evmUserAcc = keyring.addFromUri(evmUser);
-
-  /*let balance = await api.query.system.account(alice.publicKey);
-  console.log(`Alice's HDX balance before tx ${balance.data.free}`);
-
-  let weth = 20;
-  let wethBalance = await api.query.tokens.accounts(alice.publicKey, weth);
-  console.log(`Alice's HDX balance before tx ${wethBalance.free}`);
-
-  const nonce = await api.rpc.system.accountNextIndex(alice.publicKey);
-  await api.tx.evm.withdraw(safeConvertAddressH160(alice.publicKey), "2000000000000").signAndSend(alice, { nonce });
-  console.log("Evm tx done");
-
-
-  balance = await api.query.system.account(alice.publicKey);
-  console.log(`Alice's HDX balance is after evm ${balance.data.free}`);*/
 
   assetRegistry(api, transactions);
   mintForAlice(api, transactions);

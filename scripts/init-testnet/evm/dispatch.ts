@@ -26,6 +26,7 @@ async function main() {
     const dispatchContractAddress = '0x0000000000000000000000000000000000000401';
 
     try {
+      // Omnipool sell call encoded
       const extrinsicData = '0x3b05000000000500000000a0724e18090000000000000000000000000000000000000000000000000000'; // Replace with your extrinsic data
       const nonce = await provider.getTransactionCount(wallet.address, 'latest');
   
@@ -38,21 +39,9 @@ async function main() {
         data: extrinsicData,
       };
   
-      const signer = wallet.connect(provider); // Connect the wallet to the provider
-      const signedTx = await signer.signTransaction(tx); // Sign the transaction
-      //const txResponse = await provider.sendTransaction(signedTx); // Send the signed transaction
-      const signer2= wallet.connect(provider); // Connect the wallet to the provider
+      const signer= wallet.connect(provider); // Connect the wallet to the provider
+      await signer.sendTransaction(tx);
 
-      await signer2.sendTransaction(tx);
-
-      //await signer.sendTransaction(tx);
-     /* const signedTx = await wallet.signTransaction(tx);
-      const txResponse = await provider.send(signedTx);*/
-  
-     // console.log('Transaction Hash:', txResponse.hash);
-  
-    //  const receipt = await txResponse.wait();
-      //console.log('Transaction Receipt:', receipt);
     } catch (error) {
       console.error('Error:', error);
     }
