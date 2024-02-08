@@ -4679,6 +4679,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-aura",
  "pallet-authorship",
+ "pallet-bags-list",
  "pallet-balances",
  "pallet-bonds",
  "pallet-circuit-breaker",
