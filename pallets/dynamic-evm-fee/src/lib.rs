@@ -15,6 +15,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # Dynamic EVM Fee
+//!
+//! ## Overview
+//!
+//! The goal of this pallet to have EVM transaction fees in tandem with Substrate fees.
+//!
+//! This pallet enables dynamic adjustment of the EVM transaction fee, leveraging two primary metrics:
+//! - Current network congestion
+//! - The oracle price difference between ETH and HDX
+//!
+//! Fees are calculated with the production of each new block, ensuring responsiveness to changing network conditions.
+//!
+//! ### Fee Adjustment Based on Network Congestion
+//! The formula for adjusting fees in response to network congestion is as follows:
+//! ```
+//! BaseFeePerGas = DefaultBaseFeePerGas + (DefaultBaseFeePerGas * Multiplier * 3)
+//! ```
+//! - `DefaultBaseFeePerGas`: This represents the minimum fee payable for a transaction, set in pallet configuration.
+//! - `Multiplier`: Derived from current network congestion levels, this multiplier is computed within the `pallet-transaction-payment`.
+//!
+//! ### Fee Adjustment Based on ETH-HDX Price Fluctuations
+//!
+//! The transaction fee is also adjusted in accordance with in ETH-HDX oracle price change:
+//! - When HDX increases in value against ETH, the fee is reduced accordingly.
+//! - When HDX decreases in value against ETH, the fee is increased accordingly.
+//!
+//! This dual-criteria approach ensures that transaction fees remain fair and reflective of both market conditions and network demand.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(test)]
@@ -61,13 +89,13 @@ pub mod pallet {
 		/// Default base fee per gas value. Used in genesis if no other value specified explicitly.
 		type DefaultBaseFeePerGas: Get<u128>;
 
-		/// Multiplier provider
+		/// Transaction fee multiplier provider
 		type Multiplier: MultiplierProvider;
 
 		/// Native price oracle
 		type NativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
 
-		/// Eth Asset Id
+		/// WETH Asset Id
 		#[pallet::constant]
 		type WethAssetId: Get<Self::AssetId>;
 
@@ -111,7 +139,7 @@ pub mod pallet {
 				};
 				let eth_hdx_price = FixedU128::from_rational(eth_hdx_price.n, eth_hdx_price.d);
 
-				let (price_diff, hdx_pumps_against_hdx) = if eth_hdx_price > ETH_HDX_REFERENCE_PRICE {
+				let (price_diff, hdx_pumps_against_eth) = if eth_hdx_price > ETH_HDX_REFERENCE_PRICE {
 					(eth_hdx_price.saturating_sub(ETH_HDX_REFERENCE_PRICE), false)
 				} else {
 					(ETH_HDX_REFERENCE_PRICE.saturating_sub(eth_hdx_price), true)
@@ -129,7 +157,7 @@ pub mod pallet {
 
 				let evm_fee_change = percentage_change_permill.mul_floor(new_base_fee_per_gas);
 
-				if hdx_pumps_against_hdx {
+				if hdx_pumps_against_eth {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_sub(evm_fee_change);
 				} else {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_add(evm_fee_change);
@@ -148,8 +176,8 @@ pub mod pallet {
 }
 impl<T: Config> pallet_evm::FeeCalculator for Pallet<T> {
 	fn min_gas_price() -> (U256, Weight) {
-		// Return some meaningful gas price and weight
 		let base_fee_per_gas = Self::base_evm_fee();
+
 		(base_fee_per_gas.into(), T::WeightInfo::on_initialize())
 	}
 }
