@@ -27,7 +27,6 @@ sp-core = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-io = { workspace = true }
 sp-runtime = { workspace = true }
-sp-state-machine = { workspace = true }
 
 pallet-aura = { workspace = true }
 pallet-balances = { workspace = true }
@@ -55,5 +54,5 @@ cumulus-test-relay-sproof-builder = { workspace = true }
 
 [features]
 default = ["std", "try-runtime"]
-std = ["hydradx-runtime/std", "codec/std", "sp-runtime/std", "frame-support/std", "pallet-timestamp/std", "sp-state-machine/std", "sp-consensus-aura/std"]
+std = ["hydradx-runtime/std", "codec/std", "sp-runtime/std", "frame-support/std", "pallet-timestamp/std", "sp-consensus-aura/std"]
 try-runtime = ["hydradx-runtime/try-runtime", "frame-support/try-runtime", "pallet-timestamp/try-runtime"]
