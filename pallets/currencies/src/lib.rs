@@ -851,9 +851,7 @@ impl<T: Config> TransferAll<T::AccountId> for Pallet<T> {
 }
 
 use frame_support::traits::fungible::{Dust, Inspect, Mutate, Unbalanced};
-use frame_support::traits::tokens::{
-	DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
-};
+use frame_support::traits::tokens::{DepositConsequence, Fortitude, Preservation, Provenance, WithdrawConsequence};
 
 impl<T: Config, AccountId, Currency, Amount, Moment> Inspect<AccountId>
 	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
