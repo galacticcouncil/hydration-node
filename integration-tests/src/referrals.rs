@@ -417,6 +417,25 @@ fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
 	});
 }
 
+#[test]
+fn transfer_using_mutate_should_emit_event() {
+	use frame_support::traits::fungibles::Mutate;
+	use frame_support::traits::tokens::Preservation;
+
+	Hydra::execute_with(|| {
+		assert_ok!(
+		<Runtime as pallet_referrals::Config>::Currency::transfer(HDX, &ALICE.into(), &BOB.into(), 1_000_000_000_000, Preservation::Preserve)
+		);
+
+		expect_hydra_events(vec![pallet_balances::Event::Transfer {
+			from: ALICE.into(),
+			to: BOB.into(),
+			amount: 1_000_000_000_000,
+			}
+			.into()])
+	});
+}
+
 fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
@@ -496,6 +515,8 @@ fn seed_pot_account() {
 }
 
 use sp_core::crypto::Ss58Codec;
+use scraper::ALICE;
+
 pub const PARACHAIN_CODES: [(&str, &str); 12] = [
 	("MOONBEAM", "7LCt6dFmtiRrwZv2YyEgQWW3GxsGX3Krmgzv9Xj7GQ9tG2j8"),
 	("ASSETHUB", "7LCt6dFqtxzdKVB2648jWW9d85doiFfLSbZJDNAMVJNxh5rJ"),
