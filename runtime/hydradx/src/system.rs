@@ -420,8 +420,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 
 pub struct WeightToFee;
 
-//TODO: make constants for all fee related stuff
-pub const FEE_DIVIDER: u128 = 6; // We use this to divide fee related constant as HDX price is high (~0.04$), but we want to reduce the fee price
+pub const SUBSTRATE_FEE_DIVIDER: u128 = 6; // We use this to divide fee related constant as HDX price is high (~0.04$), but we want to reduce the fee price
 
 impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
@@ -438,7 +437,7 @@ impl WeightToFeePolynomial for WeightToFee {
 	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
-		let p = CENTS / FEE_DIVIDER; // 1_000_000_000_000
+		let p = CENTS / SUBSTRATE_FEE_DIVIDER; // 1_000_000_000_000 / SUBSTRATE_FEE_DIVIDER
 		let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time()); // 7_919_840_000
 		smallvec::smallvec![WeightToFeeCoefficient {
 			degree: 1,
@@ -450,7 +449,7 @@ impl WeightToFeePolynomial for WeightToFee {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MILLICENTS / FEE_DIVIDER;
+	pub const TransactionByteFee: Balance = 10 * MILLICENTS / SUBSTRATE_FEE_DIVIDER;
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);

@@ -113,16 +113,6 @@ parameter_types! {
 	pub PostLogContent: pallet_ethereum::PostLogContent = pallet_ethereum::PostLogContent::BlockAndTxnHashes;
 }
 
-/*
-pub struct FixedGasPrice; //TODO: rename to DynamicGasPrice
-impl FeeCalculator for FixedGasPrice {
-	fn min_gas_price() -> (U256, Weight) {
-		// Return some meaningful gas price and weight
-		let base_fee_per_gas = crate::DynamicEvmFee::base_evm_fee();
-		(base_fee_per_gas.into(), Weight::from_parts(7u64, 0)) //TODO: add the weight once benchmarked
-	}
-}*/
-
 pub struct TransactionPaymentMultiplier;
 
 impl MultiplierProvider for TransactionPaymentMultiplier {
@@ -151,7 +141,6 @@ impl pallet_evm::Config for crate::Runtime {
 	type ChainId = crate::EVMChainId;
 	type Currency = WethCurrency;
 	type FeeCalculator = crate::DynamicEvmFee;
-	//type FeeCalculator = crate::BaseFee;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type OnChargeTransaction = TransferEvmFees<DealWithFees>;

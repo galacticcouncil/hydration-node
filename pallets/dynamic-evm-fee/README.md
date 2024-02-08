@@ -25,3 +25,7 @@ The transaction fee is also adjusted in accordance with in ETH-HDX oracle price 
 - When HDX decreases in value against ETH, the fee is increased accordingly.
 
 This dual-criteria approach ensures that transaction fees remain fair and reflective of both market conditions and network demand.
+
+
+### FeeCalculator
+The pallet implements `FeeCalculator` trait of pallet_evm to be used for EVM transactions

@@ -96,40 +96,6 @@ runtime_benchmarks! {
 }
 use crate::Omnipool;
 use sp_runtime::Permill;
-/*
-use crate::Omnipool;
-use sp_runtime::Permill;
-const HDX: AssetId = 0;
-const DAI: AssetId = 2;
-
-pub fn init() -> DispatchResult {
-	let stable_amount: Balance = 1_000_000_000_000_000u128;
-	let native_amount: Balance = 1_000_000_000_000_000u128;
-	let stable_price: FixedU128 = FixedU128::from((1, 2));
-	let native_price: FixedU128 = FixedU128::from(1);
-
-	let acc = Omnipool::protocol_account();
-
-	update_balance(DAI, &acc, stable_amount);
-	update_balance(HDX, &acc, native_amount);
-
-	Omnipool::add_token(
-		RawOrigin::Root.into(),
-		HDX,
-		native_price,
-		Permill::from_percent(100),
-		acc.clone(),
-	)?;
-	Omnipool::add_token(
-		RawOrigin::Root.into(),
-		DAI,
-		stable_price,
-		Permill::from_percent(100),
-		acc,
-	)?;
-
-	Ok(())
-}*/
 
 fn create_xyk_pool<T: pallet_xyk::Config>(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_b: Balance)
 where
