@@ -29,9 +29,9 @@
 //!
 //! ### Fee Adjustment Based on Network Congestion
 //! The formula for adjusting fees in response to network congestion is as follows:
-//! ```
-//! BaseFeePerGas = DefaultBaseFeePerGas + (DefaultBaseFeePerGas * Multiplier * 3)
-//! ```
+//!
+//! BaseFeePerGas = DefaultBaseFeePerGas + (DefaultBaseFeePerGas * Multiplier * 3
+//!
 //! - `DefaultBaseFeePerGas`: This represents the minimum fee payable for a transaction, set in pallet configuration.
 //! - `Multiplier`: Derived from current network congestion levels, this multiplier is computed within the `pallet-transaction-payment`.
 //!
