@@ -4461,7 +4461,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.8.0"
+version = "7.8.1"
 dependencies = [
  "approx",
  "criterion",
@@ -4597,7 +4597,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 2.1.2",
+ "pallet-staking 2.1.3",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -4618,7 +4618,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "206.0.0"
+version = "207.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4691,7 +4691,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.1.2",
+ "pallet-staking 2.1.3",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -8315,7 +8315,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "2.1.2"
+version = "2.1.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11226,7 +11226,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.17.2"
+version = "1.17.3"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -11285,7 +11285,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 2.1.2",
+ "pallet-staking 2.1.3",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",

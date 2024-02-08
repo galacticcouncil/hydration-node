@@ -213,14 +213,15 @@ fn unstake_should_work_when_called_after_unclaimable_periods_and_stake_was_incre
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			let slashed_unpaid_rewards = 65_631_977_451_377_840_u128;
 			assert!(has_event(
 				Event::<Test>::RewardsClaimed {
 					who: BOB,
 					position_id: bob_position_id,
-					paid_rewards: 586_654_644_470_047_u128,
-					unlocked_rewards: 95_992_170_755_783_u128,
+					paid_rewards: 491_514_126_454_657_u128,
+					unlocked_rewards: 95_992_170_755_784_u128,
 					slashed_points: 29,
-					slashed_unpaid_rewards: 65_536_836_933_362_451_u128,
+					slashed_unpaid_rewards,
 					payable_percentage: FixedU128::from_inner(8_872_106_273_751_589_u128)
 				}
 				.into()
@@ -231,7 +232,7 @@ fn unstake_should_work_when_called_after_unclaimable_periods_and_stake_was_incre
 				unlocked_stake: 420_000 * ONE,
 			}
 			.into());
-			assert_unlocked_balance!(&BOB, HDX, 500_682_646_815_225_830_u128);
+			assert_unlocked_balance!(&BOB, HDX, 500_587_506_297_210_441_u128);
 			assert_hdx_lock!(BOB, 0, STAKING_LOCK);
 			assert_eq!(Staking::positions(bob_position_id), None);
 			assert_eq!(Staking::get_user_position_id(&BOB).unwrap(), None);
@@ -241,6 +242,11 @@ fn unstake_should_work_when_called_after_unclaimable_periods_and_stake_was_incre
 				FixedU128::from_inner(2_502_134_933_892_361_376_u128),
 				254_780_516_251_411_720_u128 + NON_DUSTABLE_BALANCE
 			);
+
+			let staking = Staking::staking();
+			let pot_balance = Tokens::free_balance(HDX, &Staking::pot_account_id());
+			//NOTE: `slashed_unpaid_rewards` will become new rewards for all staker after claim so this must hold.
+			assert_eq!(pot_balance - staking.pot_reserved_balance, slashed_unpaid_rewards)
 		});
 }
 
@@ -277,6 +283,9 @@ fn unstake_should_claim_no_additional_rewards_when_called_immediately_after_clai
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			//NOTE: these unpaid rewards exists because portion of user's unpaid rewards that
+			//were returned to the pot from previous claim were distributed to his as a new rewards.
+			let slashed_unpaid_rewards = 52_009_264_975_337_621_u128;
 			assert!(has_event(
 				Event::<Test>::RewardsClaimed {
 					who: BOB,
@@ -284,7 +293,7 @@ fn unstake_should_claim_no_additional_rewards_when_called_immediately_after_clai
 					paid_rewards: 0_u128,
 					unlocked_rewards: 0_u128,
 					slashed_points: 0,
-					slashed_unpaid_rewards: 51_933_872_025_079_204_u128,
+					slashed_unpaid_rewards,
 					payable_percentage: FixedU128::from_inner(0_u128)
 				}
 				.into()
@@ -303,9 +312,14 @@ fn unstake_should_claim_no_additional_rewards_when_called_immediately_after_clai
 
 			assert_staking_data!(
 				110_010 * ONE,
-				FixedU128::from_inner(2_625_787_010_142_549_959_u128),
-				268_383_481_159_694_967_u128 + NON_DUSTABLE_BALANCE
+				FixedU128::from_inner(2_625_966_517_166_974_760_u128),
+				268_403_228_727_451_939_u128 + NON_DUSTABLE_BALANCE
 			);
+
+			let staking = Staking::staking();
+			let pot_balance = Tokens::free_balance(HDX, &Staking::pot_account_id());
+			//NOTE: `slashed_unpaid_rewards` will become new rewards for all staker after claim so this must hold.
+			assert_eq!(pot_balance - staking.pot_reserved_balance, slashed_unpaid_rewards)
 		});
 }
 
@@ -345,10 +359,10 @@ fn unstake_should_work_when_called_by_all_stakers() {
 				Event::<Test>::RewardsClaimed {
 					who: BOB,
 					position_id: bob_position_id,
-					paid_rewards: 586_654_644_470_047_u128,
-					unlocked_rewards: 95_992_170_755_783_u128,
+					paid_rewards: 491_514_126_454_657_u128,
+					unlocked_rewards: 95_992_170_755_784_u128,
 					slashed_points: 29,
-					slashed_unpaid_rewards: 65_536_836_933_362_451_u128,
+					slashed_unpaid_rewards: 65_631_977_451_377_840_u128,
 					payable_percentage: FixedU128::from_inner(8_872_106_273_751_589_u128)
 				}
 				.into()
@@ -368,10 +382,10 @@ fn unstake_should_work_when_called_by_all_stakers() {
 				Event::<Test>::RewardsClaimed {
 					who: ALICE,
 					position_id: alice_position_id,
-					paid_rewards: 7_965_081_713_348_758_u128,
+					paid_rewards: 7_967_305_332_292_237_u128,
 					unlocked_rewards: 0_u128,
 					slashed_points: 38,
-					slashed_unpaid_rewards: 301_821_938_567_408_560_u128,
+					slashed_unpaid_rewards: 301_906_198_466_341_082_u128,
 					payable_percentage: FixedU128::from_inner(25_711_476_569_063_717_u128)
 				}
 				.into()
@@ -390,10 +404,10 @@ fn unstake_should_work_when_called_by_all_stakers() {
 				Event::<Test>::RewardsClaimed {
 					who: CHARLIE,
 					position_id: charlie_position_id,
-					paid_rewards: 8_023_126_771_488_456_u128,
+					paid_rewards: 8_025_513_415_517_784_u128,
 					unlocked_rewards: 0_u128,
 					slashed_points: 38,
-					slashed_unpaid_rewards: 304_021_447_951_301_121_u128,
+					slashed_unpaid_rewards: 304_111_885_382_268_706_u128,
 					payable_percentage: FixedU128::from_inner(25_711_476_569_063_717_u128)
 				}
 				.into()
@@ -410,10 +424,10 @@ fn unstake_should_work_when_called_by_all_stakers() {
 				Event::<Test>::RewardsClaimed {
 					who: DAVE,
 					position_id: dave_position_id,
-					paid_rewards: 5_672_178_270_331_647_u128,
+					paid_rewards: 5_673_865_600_495_067_u128,
 					unlocked_rewards: 0_u128,
 					slashed_points: 35,
-					slashed_unpaid_rewards: 298_656_966_429_605_307_u128,
+					slashed_unpaid_rewards: 298_745_809_354_484_468_u128,
 					payable_percentage: FixedU128::from_inner(18_638_301_224_564_978_u128)
 				}
 				.into()
@@ -426,10 +440,10 @@ fn unstake_should_work_when_called_by_all_stakers() {
 			.into());
 
 			//Assert
-			assert_unlocked_balance!(&ALICE, HDX, 157_965_081_713_348_758_u128);
-			assert_unlocked_balance!(&BOB, HDX, 500_682_646_815_225_830_u128);
-			assert_unlocked_balance!(&CHARLIE, HDX, 18_023_126_771_488_456_u128);
-			assert_unlocked_balance!(&DAVE, HDX, 105_672_178_270_331_647_u128);
+			assert_unlocked_balance!(&ALICE, HDX, 157_967_305_332_292_237_u128);
+			assert_unlocked_balance!(&BOB, HDX, 500_587_506_297_210_441_u128);
+			assert_unlocked_balance!(&CHARLIE, HDX, 18_025_513_415_517_784_u128);
+			assert_unlocked_balance!(&DAVE, HDX, 105_673_865_600_495_067_u128);
 
 			assert_hdx_lock!(ALICE, 0, STAKING_LOCK);
 			assert_hdx_lock!(BOB, 0, STAKING_LOCK);
@@ -448,9 +462,9 @@ fn unstake_should_work_when_called_by_all_stakers() {
 
 			assert_staking_data!(
 				0,
-				FixedU128::from_inner(30_435_394_707_147_845_603_253_u128),
+				FixedU128::from_inner(30_444_447_732_652_103_794_534_u128),
 				//NOTE: rounding error, nothing, except non dustable, should stay reserved when all users are gone.
-				3_u128 + NON_DUSTABLE_BALANCE
+				4_u128 + NON_DUSTABLE_BALANCE
 			);
 		});
 }

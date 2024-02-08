@@ -245,13 +245,13 @@ fn staking_should_transfer_rewards_when_claimed() {
 		)
 		.unwrap()
 		.unwrap();
+		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
+
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			alice_position_id,
 			1_000 * UNITS
 		));
-
-		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 
 		assert_ok!(Staking::claim(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -373,6 +373,7 @@ fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 			1_000 * UNITS
 		));
 
+		fast_forward_to(80_000);
 		// first claim
 		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert_ok!(Staking::claim(
@@ -431,13 +432,13 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 		)
 		.unwrap()
 		.unwrap();
+		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			alice_position_id,
 			1_000 * UNITS
 		));
 
-		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert_ok!(Staking::unstake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			alice_position_id
