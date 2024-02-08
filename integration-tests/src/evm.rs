@@ -751,7 +751,7 @@ pub fn init_omnipol() {
 pub const DISPATCH_ADDR: H160 = addr(1025);
 
 pub fn gas_price() -> U256 {
-	U256::from(hydradx_runtime::evm::DEFAULT_BASE_FEE_PER_GAS) //We divide by three as we const `FEE_DIVIDER` set to 3 in system.rs.
+	U256::from(hydradx_runtime::evm::DEFAULT_BASE_FEE_PER_GAS)
 }
 
 fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {

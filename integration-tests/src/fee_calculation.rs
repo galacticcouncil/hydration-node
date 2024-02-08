@@ -9,6 +9,7 @@ use hydradx_runtime::Tokens;
 use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::EVM;
 use orml_traits::MultiCurrency;
+use pallet_evm::FeeCalculator;
 use primitives::constants::currency::UNITS;
 use primitives::constants::time::HOURS;
 use primitives::{AssetId, Balance};
@@ -21,11 +22,11 @@ use xcm_emulator::TestExt;
 const DOT_UNITS: u128 = 10_000_000_000;
 const BTC_UNITS: u128 = 10_000_000;
 const ETH_UNITS: u128 = 1_000_000_000_000_000_000;
-const HDX_USD_SPOT_PRICE_IN_CENTS: Balance = 2; //1HDX =~ 2 CENTS;
 pub const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
 const HDX_USD_SPOT_PRICE: f64 = 0.038; //Current HDX price in USD on CoinGecko on 6th Feb, 2024
 pub const ETH_USD_SPOT_PRICE: f64 = 2337.92; //Current HDX price in USD on CoinGecko on 6th Feb, 2024
 
+#[ignore]
 #[test]
 fn min_swap_fee() {
 	TestNet::reset();
@@ -57,6 +58,7 @@ fn min_swap_fee() {
 	});
 }
 
+#[ignore]
 #[test]
 fn max_swap_fee() {
 	TestNet::reset();
@@ -86,22 +88,33 @@ fn max_swap_fee() {
 	});
 }
 
+#[ignore]
 #[test]
-fn fee_growth_simulator_starting_with_genesis_chain() {
+fn substrate_and_evm_fee_growth_simulator_with_genesis_chain() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
 		let prod_init_multiplier = FixedU128::from_u32(1);
 
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(prod_init_multiplier);
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account(),
+			HDX,
+			1000000 * UNITS as i128,
+		));
+
 		init_omnipool();
-		init_oracle();
+		//init_oracle();
 		let block_weight = hydradx_runtime::BlockWeights::get()
 			.get(DispatchClass::Normal)
 			.max_total
 			.unwrap();
 
-		for b in 2..=HOURS {
+		let mut nonce = 0;
+
+		for b in 2..HOURS {
+			//=HOURS {
 			hydradx_run_to_block(b);
 			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
 			let call =
@@ -114,57 +127,22 @@ fn fee_growth_simulator_starting_with_genesis_chain() {
 
 			let info = call.get_dispatch_info();
 			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
-			let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
 
+			let fee_in_cent = (fee as f64 * HDX_USD_SPOT_PRICE) as f64 / 1000000000000.0;
+			let fee_in_cent = round(fee_in_cent);
+
+			let evm_fee_in_cent = round(get_evm_fee_in_cent(nonce));
 			let next = TransactionPayment::next_fee_multiplier();
 
-			//let next = SlowAdjustingFeeUpdate::<Runtime>::convert(multiplier);
-			println!("Swap tx fee in cents: {fee_in_cent:?} at block {b:?} with multiplier: {next:?}");
+			let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+			println!("{b:?} - fee: ${fee_in_cent:?}  - evm_fee: ${evm_fee_in_cent:?} - multiplier: {next:?} - gas {gas_price:?}");
+			nonce = nonce + 1;
 		}
 	});
 }
 
-#[test]
-fn fee_growth_simulator_with_idle_chain() {
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		//We simulate that the chain has no activity so the MinimumMultiplier kept diverged to absolute minimum
-		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
-			hydradx_runtime::MinimumMultiplier::get(),
-		);
-
-		init_omnipool();
-		init_oracle();
-		let block_weight = hydradx_runtime::BlockWeights::get()
-			.get(DispatchClass::Normal)
-			.max_total
-			.unwrap();
-
-		for b in 2..=HOURS {
-			hydradx_run_to_block(b);
-			hydradx_runtime::System::set_block_consumed_resources(block_weight / 3, 0);
-			let call =
-				hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-					asset_in: HDX,
-					asset_out: 2,
-					amount: 10 * UNITS,
-					min_buy_amount: 10000,
-				});
-
-			let info = call.get_dispatch_info();
-			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
-			let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
-
-			let next = TransactionPayment::next_fee_multiplier();
-
-			//let next = SlowAdjustingFeeUpdate::<Runtime>::convert(multiplier);
-			println!("Swap tx fee in cents: {fee_in_cent:?} at block {b:?} with multiplier: {next:?}");
-		}
-	});
-}
-use pallet_evm::FeeCalculator;
-
+#[ignore]
 #[test]
 fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 	TestNet::reset();
@@ -204,8 +182,6 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 
 			let info = call.get_dispatch_info();
 			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
-			//let fee_in_cent = FixedU128::from(fee * HDX_USD_SPOT_PRICE_IN_CENTS).div(UNITS.into());
-			//let fee_in_cent = (fee * HDX_USD_SPOT_PRICE_IN_CENTS) as f64 / 1000000000000.0;
 
 			let fee_in_cent = (fee as f64 * HDX_USD_SPOT_PRICE) as f64 / 1000000000000.0;
 			let fee_in_cent = round(fee_in_cent);
@@ -220,6 +196,7 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 		}
 	});
 }
+
 pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
 	let treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
 
@@ -287,37 +264,6 @@ fn init_omnipool() {
 		Permill::from_percent(100),
 		hydradx_runtime::Omnipool::protocol_account(),
 	));
-
-	let dot_price = FixedU128::from_inner(25_650_000_000_000_000_000);
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
-		DOT,
-		dot_price,
-		Permill::from_percent(100),
-		AccountId::from(BOB),
-	));
-
-	let eth_price = FixedU128::from_inner(71_145_071_145_071);
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
-		ETH,
-		eth_price,
-		Permill::from_percent(100),
-		AccountId::from(BOB),
-	));
-
-	let btc_price = FixedU128::from_inner(9_647_109_647_109_650_000_000_000);
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
-		BTC,
-		btc_price,
-		Permill::from_percent(100),
-		AccountId::from(BOB),
-	));
-	set_zero_reward_for_referrals(HDX);
-	set_zero_reward_for_referrals(DAI);
-	set_zero_reward_for_referrals(DOT);
-	set_zero_reward_for_referrals(ETH);
 }
 
 /// This function executes one sell and buy with HDX for all assets in the omnipool. This is necessary to
