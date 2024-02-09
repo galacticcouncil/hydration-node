@@ -419,6 +419,9 @@ fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
 
 #[test]
 fn transfer_using_mutate_should_emit_event() {
+	// In our 1.1.0 upgrade, we introduced in issue where events weren't emitted
+	// for the native asset from fungibles::Mutate trait.
+	// This tests verifies the fix.
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::traits::tokens::Preservation;
 
