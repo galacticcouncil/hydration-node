@@ -22,29 +22,15 @@ use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
 use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::RawOrigin;
-use hydradx_traits::router::PoolType;
-use hydradx_traits::router::RouteProvider;
-use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;
-use pallet_route_executor::MAX_NUMBER_OF_TRADES;
-use primitives::{BlockNumber, Price};
+use primitives::BlockNumber;
 use sp_runtime::traits::SaturatedConversion;
-use sp_runtime::{DispatchResult, FixedU128};
+use sp_runtime::FixedU128;
 
-type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
 type DynamicEvmFeePallet<T> = pallet_dynamic_evm_fee::Pallet<T>;
-type XykPallet<T> = pallet_xyk::Pallet<T>;
-type Router<T> = pallet_route_executor::Pallet<T>;
 use crate::evm::WETH_ASSET_LOCATION;
-use hydradx_traits::router::AssetPair;
-use hydradx_traits::router::Trade;
-use hydradx_traits::OraclePeriod;
 use pallet_dynamic_evm_fee::BaseFeePerGas;
-
-const SEED: u32 = 1;
-
-const UNITS: Balance = 1_000_000_000_000;
 
 pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
 	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
@@ -79,16 +65,16 @@ runtime_benchmarks! {
 		update_balance(0, &owner, 1_000_000_000_000_000_u128);
 
 		// Add the token to the pool
-		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner.clone())?;
+		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner)?;
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(0, &seller, 500_000_000_000_000_u128);
-		Omnipool::sell(RawOrigin::Signed(seller.clone()).into(), 0, token_id, 10000000000000, 0)?;
+		Omnipool::sell(RawOrigin::Signed(seller).into(), 0, token_id, 10000000000000, 0)?;
 
 		set_period(10);
 		let base_fee_per_gas = <BaseFeePerGas<Runtime>>::get();
 
 	}: {
-		DynamicEvmFeePallet::<Runtime>::on_initialize(1u32.into())
+		DynamicEvmFeePallet::<Runtime>::on_initialize(1u32)
 		}
 	verify{
 		assert!(<BaseFeePerGas<Runtime>>::get() != base_fee_per_gas);
@@ -96,56 +82,6 @@ runtime_benchmarks! {
 }
 use crate::Omnipool;
 use sp_runtime::Permill;
-
-fn create_xyk_pool<T: pallet_xyk::Config>(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_b: Balance)
-where
-	<T as frame_system::Config>::RuntimeOrigin: core::convert::From<frame_system::RawOrigin<sp_runtime::AccountId32>>,
-{
-	let maker: AccountId = account("xyk-maker", 0, SEED);
-
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		maker.clone(),
-		asset_a,
-		amount_a as i128,
-	));
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		maker.clone(),
-		asset_b,
-		amount_b as i128,
-	));
-
-	assert_ok!(XykPallet::<T>::create_pool(
-		RawOrigin::Signed(maker).into(),
-		asset_a,
-		amount_a,
-		asset_b,
-		amount_b,
-	));
-}
-
-fn xyk_sell<T: pallet_xyk::Config>(asset_a: AssetId, asset_b: AssetId, amount_a: Balance)
-where
-	<T as frame_system::Config>::RuntimeOrigin: core::convert::From<frame_system::RawOrigin<sp_runtime::AccountId32>>,
-{
-	let maker: AccountId = account("xyk-seller", 0, SEED);
-
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		maker.clone(),
-		asset_a,
-		amount_a as i128,
-	));
-	assert_ok!(XykPallet::<T>::sell(
-		RawOrigin::Signed(maker).into(),
-		asset_a,
-		asset_b,
-		amount_a,
-		u128::MIN,
-		false
-	));
-}
 
 fn set_period(to: u32) {
 	while System::block_number() < Into::<BlockNumber>::into(to) {
