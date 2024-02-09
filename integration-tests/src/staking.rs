@@ -14,6 +14,7 @@ use hydradx_runtime::{
 use orml_traits::currency::MultiCurrency;
 use orml_vesting::VestingSchedule;
 use pallet_democracy::{AccountVote, Conviction, ReferendumIndex, Vote};
+use pretty_assertions::assert_eq;
 use primitives::constants::time::DAYS;
 use primitives::AccountId;
 use sp_runtime::AccountId32;
@@ -73,6 +74,16 @@ const AYE: Vote = Vote {
 fn aye(amount: u128) -> AccountVote<u128> {
 	AccountVote::Standard {
 		vote: AYE,
+		balance: amount,
+	}
+}
+
+fn aye6x(amount: u128) -> AccountVote<u128> {
+	AccountVote::Standard {
+		vote: Vote {
+			aye: true,
+			conviction: Conviction::Locked6x,
+		},
 		balance: amount,
 	}
 }
@@ -373,17 +384,17 @@ fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 			1_000 * UNITS
 		));
 
-		fast_forward_to(80_000);
-		// first claim
+		// second increase
 		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
-		assert_ok!(Staking::claim(
+		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			alice_position_id
+			alice_position_id,
+			1_000 * UNITS
 		));
 		let alice_balance_after_claim = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
-		assert!(alice_balance_after_claim > alice_balance);
+		assert_eq!(alice_balance_after_claim, alice_balance);
 
-		// second claim
+		// claim
 		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert_ok!(Staking::claim(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -391,6 +402,67 @@ fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 		));
 		let alice_balance_after_claim = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert_eq!(alice_balance, alice_balance_after_claim);
+	});
+}
+
+#[test]
+fn increase_should_slash_min_amount_when_increase_is_low() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		init_omnipool();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			(10_000 * UNITS) as i128,
+		));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+		));
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			100_000 * UNITS
+		));
+
+		let r = begin_referendum();
+
+		assert_ok!(Democracy::vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r,
+			aye6x(100_000 * UNITS)
+		));
+		end_referendum();
+
+		assert_ok!(propose_set_balance(ALICE.into(), CHARLIE.into(), 2));
+		fast_forward_to(10 * DAYS);
+
+		assert_ok!(Democracy::vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			1,
+			aye6x(100_000 * UNITS)
+		));
+		fast_forward_to(17 * DAYS);
+
+		let alice_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
+			&sp_runtime::AccountId32::from(ALICE),
+		)
+		.unwrap()
+		.unwrap();
+
+		assert_ok!(Staking::increase_stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			alice_position_id,
+			1_000 * UNITS
+		));
+
+		let stake_position =
+			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(alice_position_id).unwrap();
+		assert_eq!(stake_position.accumulated_slash_points, 30);
 	});
 }
 

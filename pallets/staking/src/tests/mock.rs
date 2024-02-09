@@ -235,8 +235,7 @@ impl GetByKey<FixedU128, Point> for DummyMinSlash {
 	fn get(k: &FixedU128) -> Point {
 		if k.ge(&FixedU128::from_float(0.5)) {
 			return 100_u128;
-		
-        }
+		}
 		0_u128
 	}
 }

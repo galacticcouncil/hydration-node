@@ -472,7 +472,8 @@ pub mod pallet {
 					let slash_points =
 						math::calculate_slashed_points(points, position.stake, amount, T::CurrentStakeWeight::get())
 							.ok_or(Error::<T>::Arithmetic)?
-							.max(T::MinSlash::get(&payable_percentage));
+							.max(T::MinSlash::get(&payable_percentage))
+							.min(points);
 
 					position.accumulated_slash_points = position
 						.accumulated_slash_points
