@@ -7,7 +7,7 @@ use hydradx_traits::AMM;
 use pallet_xyk::types::AssetPair;
 use xcm_emulator::TestExt;
 
-use frame_support::{assert_ok, traits::Contains};
+use frame_support::{assert_noop, assert_ok, traits::Contains};
 
 fn pair_account(asset_a: AssetId, asset_b: AssetId) -> AccountId {
 	let asset_pair = AssetPair {
@@ -128,5 +128,49 @@ fn share_asset_id_should_be_offset() {
 		let offset = <hydradx_runtime::Runtime as pallet_asset_registry::Config>::SequentialIdStartAt::get();
 		//assert
 		assert!(share_token >= offset);
+	});
+}
+
+#[test]
+fn creating_xyk_pool_should_fail_when_asset_is_pool_share_asset() {
+	TestNet::reset();
+	let asset_a = 1;
+	let asset_b = 2;
+
+	Hydra::execute_with(|| {
+		//arrange
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(ALICE.into()),
+			asset_a,
+			100 * UNITS,
+			asset_b,
+			200 * UNITS,
+		));
+
+		let share_token = XYK::get_share_token(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+
+		assert_noop!(
+			XYK::create_pool(
+				RuntimeOrigin::signed(ALICE.into()),
+				share_token,
+				100 * UNITS,
+				asset_b,
+				200 * UNITS,
+			),
+			pallet_xyk::Error::<hydradx_runtime::Runtime>::CannotCreatePool
+		);
+		assert_noop!(
+			XYK::create_pool(
+				RuntimeOrigin::signed(ALICE.into()),
+				asset_a,
+				100 * UNITS,
+				share_token,
+				200 * UNITS,
+			),
+			pallet_xyk::Error::<hydradx_runtime::Runtime>::CannotCreatePool
+		);
 	});
 }
