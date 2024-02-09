@@ -507,3 +507,54 @@ fn increase_stake_should_not_return_arithmetic_error_when_vested_and_locked_rewa
 			);
 		});
 }
+
+#[test]
+fn increase_stake_should_slash_min_slash_when_user_increase() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 250_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
+		.with_stakes(vec![
+			(ALICE, 100_000 * ONE, 1_452_987, 100_000 * ONE),
+			(BOB, 50_000 * ONE, 1_452_987, 0),
+		])
+		.start_at_block(1_452_987)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_pending_rewards(5_000 * ONE);
+			set_block_number(5_600_000);
+
+			let alice_position_id = 0;
+			//Act
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(ALICE),
+				alice_position_id,
+				10 * ONE
+			));
+
+			//Assert
+			assert_last_event!(Event::<Test>::StakeAdded {
+				who: ALICE,
+				position_id: alice_position_id,
+				stake: 10 * ONE,
+				total_stake: 100_010 * ONE,
+				locked_rewards: 103_291_349_065_169_157_u128,
+				slashed_points: 100,
+				payable_percentage: FixedU128::from_inner(999_593_700_630_669_270_u128)
+			}
+			.into());
+
+			assert_eq!(
+				Staking::positions(alice_position_id).unwrap(),
+				Position {
+					stake: 100_010 * ONE,
+					reward_per_stake: FixedU128::from_inner(1_033_333_333_333_333_333_u128),
+					created_at: 1_452_987,
+					accumulated_unpaid_rewards: 41_984_268_164_176_u128,
+					action_points: 0,
+					accumulated_slash_points: 100,
+					accumulated_locked_rewards: 103_291_349_065_169_157_u128,
+				}
+			);
+		});
+}

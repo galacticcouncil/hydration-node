@@ -161,6 +161,9 @@ pub mod pallet {
 			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>
 			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
+		/// Minimum amount of points to slash based on payable percentage.
+		type MinSlash: GetByKey<FixedU128, Point>;
+
 		/// Max amount of action points user can receive for action. Users receives
 		/// percentage of this based on how much of staking power they used. e.g. for democracy
 		/// vote it is percentage of stake used for voting.
@@ -468,7 +471,8 @@ pub mod pallet {
 						Self::get_points(position, current_period, created_at).ok_or(Error::<T>::Arithmetic)?;
 					let slash_points =
 						math::calculate_slashed_points(points, position.stake, amount, T::CurrentStakeWeight::get())
-							.ok_or(Error::<T>::Arithmetic)?;
+							.ok_or(Error::<T>::Arithmetic)?
+							.max(T::MinSlash::get(&payable_percentage));
 
 					position.accumulated_slash_points = position
 						.accumulated_slash_points
