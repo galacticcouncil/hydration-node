@@ -336,7 +336,7 @@ fn claim_trapped_asset_should_work() {
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			1029_959_811_596_766 //1000 * UNITS + 30 * UNITS - fee
+			1_029_959_811_596_766 //1000 * UNITS + 30 * UNITS - fee
 		);
 
 		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));

@@ -5,7 +5,6 @@ use primitives::constants::{
 };
 
 use codec::Encode;
-use frame_support::traits::OnInitialize;
 use frame_support::{
 	dispatch::{DispatchClass, GetDispatchInfo},
 	sp_runtime::{traits::Convert, FixedPointNumber},

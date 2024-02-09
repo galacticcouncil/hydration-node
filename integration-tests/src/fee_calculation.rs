@@ -12,16 +12,12 @@ use orml_traits::MultiCurrency;
 use pallet_evm::FeeCalculator;
 use primitives::constants::currency::UNITS;
 use primitives::constants::time::HOURS;
-use primitives::{AssetId, Balance};
 use sp_core::Encode;
 use sp_core::U256;
 use sp_runtime::{FixedU128, Permill};
 use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;
 
-const DOT_UNITS: u128 = 10_000_000_000;
-const BTC_UNITS: u128 = 10_000_000;
-const ETH_UNITS: u128 = 1_000_000_000_000_000_000;
 pub const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
 const HDX_USD_SPOT_PRICE: f64 = 0.038; //Current HDX price in USD on CoinGecko on 6th Feb, 2024
 pub const ETH_USD_SPOT_PRICE: f64 = 2337.92; //Current HDX price in USD on CoinGecko on 6th Feb, 2024
@@ -51,7 +47,7 @@ fn min_swap_fee() {
 
 		assert_eq_approx!(
 			fee_in_cent,
-			FixedU128::from_float(0.009909846329778000),
+			FixedU128::from_float(0.009_909_846_329_778),
 			tolerance,
 			"The min fee should be ~0.01$ (1 cent)"
 		);
@@ -81,7 +77,7 @@ fn max_swap_fee() {
 		let tolerance = FixedU128::from((2, (UNITS / 10_000)));
 		assert_eq_approx!(
 			fee_in_cent,
-			FixedU128::from_float(10.008401718494404694),
+			FixedU128::from_float(10.008_401_718_494_405),
 			tolerance,
 			"The max fee should be ~1000 cent (10$)"
 		);
@@ -105,15 +101,12 @@ fn substrate_and_evm_fee_growth_simulator_with_genesis_chain() {
 		));
 
 		init_omnipool();
-		//init_oracle();
 		let block_weight = hydradx_runtime::BlockWeights::get()
 			.get(DispatchClass::Normal)
 			.max_total
 			.unwrap();
 
-		let mut nonce = 0;
-
-		for b in 2..HOURS {
+		for (nonce, b) in (2..HOURS).enumerate() {
 			//=HOURS {
 			hydradx_run_to_block(b);
 			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
@@ -128,16 +121,15 @@ fn substrate_and_evm_fee_growth_simulator_with_genesis_chain() {
 			let info = call.get_dispatch_info();
 			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
 
-			let fee_in_cent = (fee as f64 * HDX_USD_SPOT_PRICE) as f64 / 1000000000000.0;
+			let fee_in_cent = (fee as f64 * HDX_USD_SPOT_PRICE) / 1000000000000.0;
 			let fee_in_cent = round(fee_in_cent);
 
-			let evm_fee_in_cent = round(get_evm_fee_in_cent(nonce));
+			let evm_fee_in_cent = round(get_evm_fee_in_cent(nonce as u128));
 			let next = TransactionPayment::next_fee_multiplier();
 
 			let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 
 			println!("{b:?} - fee: ${fee_in_cent:?}  - evm_fee: ${evm_fee_in_cent:?} - multiplier: {next:?} - gas {gas_price:?}");
-			nonce = nonce + 1;
 		}
 	});
 }
@@ -160,15 +152,12 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 		));
 
 		init_omnipool();
-		//init_oracle();
 		let block_weight = hydradx_runtime::BlockWeights::get()
 			.get(DispatchClass::Normal)
 			.max_total
 			.unwrap();
 
-		let mut nonce = 0;
-
-		for b in 2..HOURS {
+		for (nonce, b) in (2..HOURS).enumerate() {
 			//=HOURS {
 			hydradx_run_to_block(b);
 			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
@@ -183,16 +172,15 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 			let info = call.get_dispatch_info();
 			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
 
-			let fee_in_cent = (fee as f64 * HDX_USD_SPOT_PRICE) as f64 / 1000000000000.0;
+			let fee_in_cent = (fee as f64 * HDX_USD_SPOT_PRICE) / 1000000000000.0;
 			let fee_in_cent = round(fee_in_cent);
 
-			let evm_fee_in_cent = round(get_evm_fee_in_cent(nonce));
+			let evm_fee_in_cent = round(get_evm_fee_in_cent(nonce as u128));
 			let next = TransactionPayment::next_fee_multiplier();
 
 			let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 
 			println!("{b:?} - fee: ${fee_in_cent:?}  - evm_fee: ${evm_fee_in_cent:?} - multiplier: {next:?} - gas {gas_price:?}");
-			nonce = nonce + 1;
 		}
 	});
 }
@@ -237,15 +225,6 @@ fn round(fee_in_cent: f64) -> f64 {
 	(fee_in_cent * rounder).round() / rounder
 }
 
-fn set_balance(who: hydradx_runtime::AccountId, currency: AssetId, amount: i128) {
-	assert_ok!(hydradx_runtime::Currencies::update_balance(
-		hydradx_runtime::RuntimeOrigin::root(),
-		who,
-		currency,
-		amount,
-	));
-}
-
 fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
@@ -263,65 +242,5 @@ fn init_omnipool() {
 		stable_price,
 		Permill::from_percent(100),
 		hydradx_runtime::Omnipool::protocol_account(),
-	));
-}
-
-/// This function executes one sell and buy with HDX for all assets in the omnipool. This is necessary to
-/// oracle have a prices for the assets.
-/// NOTE: It's necessary to change parachain block to oracle have prices.
-fn init_oracle() {
-	let trader = DAVE;
-
-	set_balance(trader.into(), HDX, 1_000 * UNITS as i128);
-	set_balance(trader.into(), DOT, 1_000 * DOT_UNITS as i128);
-	set_balance(trader.into(), ETH, 1_000 * ETH_UNITS as i128);
-	set_balance(trader.into(), BTC, 1_000 * BTC_UNITS as i128);
-
-	assert_ok!(hydradx_runtime::Omnipool::sell(
-		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
-		DOT,
-		HDX,
-		2 * DOT_UNITS,
-		0,
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::buy(
-		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
-		DOT,
-		HDX,
-		2 * DOT_UNITS,
-		u128::MAX
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::sell(
-		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
-		ETH,
-		HDX,
-		2 * ETH_UNITS,
-		0,
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::buy(
-		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
-		ETH,
-		HDX,
-		2 * ETH_UNITS,
-		u128::MAX
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::sell(
-		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
-		BTC,
-		HDX,
-		2 * BTC_UNITS,
-		0,
-	));
-
-	assert_ok!(hydradx_runtime::Omnipool::buy(
-		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
-		BTC,
-		HDX,
-		2 * BTC_UNITS,
-		u128::MAX
 	));
 }

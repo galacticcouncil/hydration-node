@@ -178,6 +178,6 @@ impl<T: Config> pallet_evm::FeeCalculator for Pallet<T> {
 	fn min_gas_price() -> (U256, Weight) {
 		let base_fee_per_gas = Self::base_evm_fee();
 
-		(base_fee_per_gas.into(), T::WeightInfo::on_initialize())
+		(base_fee_per_gas, T::WeightInfo::on_initialize())
 	}
 }
