@@ -2,7 +2,7 @@
 
 use crate::polkadot_test_net::*;
 
-use hydradx_runtime::{DustRemovalWhitelist, RuntimeOrigin, XYK};
+use hydradx_runtime::{DustRemovalWhitelist, RuntimeOrigin, LBP, XYK};
 use hydradx_traits::AMM;
 use pallet_xyk::types::AssetPair;
 use xcm_emulator::TestExt;
@@ -168,6 +168,64 @@ fn creating_xyk_pool_should_fail_when_asset_is_pool_share_asset() {
 				asset_a,
 				100 * UNITS,
 				share_token,
+				200 * UNITS,
+			),
+			pallet_xyk::Error::<hydradx_runtime::Runtime>::CannotCreatePool
+		);
+	});
+}
+
+#[test]
+fn creating_xyk_pool_should_fail_when_lbp_pool_is_running() {
+	TestNet::reset();
+	let asset_a = 1;
+	let asset_b = 2;
+
+	Hydra::execute_with(|| {
+		// Arrange
+		assert_ok!(LBP::create_pool(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			asset_a,
+			1_000_000_000,
+			asset_b,
+			2_000_000_000,
+			20_000_000u32,
+			90_000_000u32,
+			pallet_lbp::WeightCurveType::Linear,
+			(2, 1_000),
+			ALICE.into(),
+			0,
+		));
+
+		let pool_id = LBP::get_pair_id(pallet_lbp::AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+
+		assert_ok!(LBP::update_pool_data(
+			RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			None,
+			Some(10),
+			Some(100),
+			None,
+			None,
+			None,
+			None,
+			None,
+		));
+
+		// running LBP
+		hydradx_run_to_block(20);
+
+		// Act & Assert
+		assert_noop!(
+			XYK::create_pool(
+				RuntimeOrigin::signed(ALICE.into()),
+				asset_a,
+				100 * UNITS,
+				asset_b,
 				200 * UNITS,
 			),
 			pallet_xyk::Error::<hydradx_runtime::Runtime>::CannotCreatePool
