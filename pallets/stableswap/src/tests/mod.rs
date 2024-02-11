@@ -25,7 +25,7 @@ macro_rules! to_precision {
 pub(crate) fn get_share_price(pool_id: AssetId, asset_idx: usize) -> FixedU128 {
 	let pool_account = pool_account(pool_id);
 	let pool = <Pools<Test>>::get(pool_id).unwrap();
-	let balances = pool.balances::<Test>(&pool_account).unwrap();
+	let balances = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
 	let amp = Pallet::<Test>::get_amplification(&pool);
 	let issuance = Tokens::total_issuance(pool_id);
 	let share_price =
@@ -36,7 +36,7 @@ pub(crate) fn get_share_price(pool_id: AssetId, asset_idx: usize) -> FixedU128 {
 pub(crate) fn asset_spot_price(pool_id: AssetId, asset_id: AssetId) -> FixedU128 {
 	let pool_account = pool_account(pool_id);
 	let pool = <Pools<Test>>::get(pool_id).unwrap();
-	let balances = pool.balances::<Test>(&pool_account).unwrap();
+	let balances = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
 	let amp = Pallet::<Test>::get_amplification(&pool);
 	let asset_idx = pool.find_asset(asset_id).unwrap();
 	let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp).unwrap();

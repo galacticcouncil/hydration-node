@@ -8,6 +8,8 @@ use orml_traits::{GetByKey, MultiCurrency};
 use sp_runtime::traits::Get;
 use sp_runtime::{ArithmeticError, DispatchError};
 
+// dev note: The code is calculate sell and buy is copied from the corresponding functions.
+// This is not ideal and should be refactored to avoid code duplication.
 impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 

@@ -142,7 +142,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, desired_shares,asset_id, 1221886049851226)
 	verify {
 		assert_eq!(T::Currency::free_balance(pool_id, &lp_provider), desired_shares);
-		assert_eq!(T::Currency::free_balance(asset_id, &lp_provider), 999998791384905220211);
+		assert_eq!(T::Currency::free_balance(asset_id, &lp_provider), 999998791384905220210);
 	}
 
 	remove_liquidity_one_asset{
