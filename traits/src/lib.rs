@@ -250,3 +250,10 @@ pub trait AMMPosition<AssetId, Balance> {
 		shares_amount: Balance,
 	) -> Result<(Balance, Balance), Self::Error>;
 }
+
+
+pub trait FeePaymentCurrency<AccountId>{
+	type AssetId;
+	fn get(a: &AccountId) -> Option<Self::AssetId>;
+}
+

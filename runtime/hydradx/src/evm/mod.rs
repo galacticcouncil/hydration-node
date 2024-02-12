@@ -40,10 +40,14 @@ use polkadot_xcm::{
 };
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId};
 use sp_core::{Get, U256};
+use pallet_currencies::fungibles::FungibleCurrencies;
+use crate::evm::evm_currency::FeeAssetCurrencyAdapter;
+use crate::evm::evm_fee::{FromWethConversion, ToWethConversion};
 
 mod accounts_conversion;
 mod evm_fee;
 pub mod precompiles;
+mod evm_currency;
 
 // Current approximation of the gas per second consumption considering
 // EVM execution over compiled WASM (on 4.4Ghz CPU).
@@ -120,11 +124,11 @@ impl pallet_evm::Config for crate::Runtime {
 	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
 	type CallOrigin = EnsureAddressTruncated;
 	type ChainId = crate::EVMChainId;
-	type Currency = WethCurrency;
+	type Currency = FeeAssetCurrencyAdapter<WethCurrency,Self::AccountId, FungibleCurrencies<crate::Runtime>,crate::MultiTransactionPayment, WethAssetId, ToWethConversion> ;
 	type FeeCalculator = FixedGasPrice;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
-	type OnChargeTransaction = evm_fee::TransferEvmFees<evm_fee::DealWithFees>;
+	type OnChargeTransaction = evm_fee::TransferEvmFees<evm_fee::DealWithFees, crate::MultiTransactionPayment, WethAssetId, FromWethConversion, FungibleCurrencies<crate::Runtime>>;
 	type OnCreate = ();
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;

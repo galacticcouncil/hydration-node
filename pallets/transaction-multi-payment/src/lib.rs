@@ -45,7 +45,7 @@ use sp_std::marker::PhantomData;
 
 use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::sp_runtime::FixedPointOperand;
-use hydradx_traits::NativePriceOracle;
+use hydradx_traits::{FeePaymentCurrency, NativePriceOracle};
 use orml_traits::{GetByKey, Happened, MultiCurrency};
 
 pub use crate::traits::*;
@@ -513,5 +513,14 @@ impl<T: Config> Contains<AssetIdOf<T>> for Pallet<T> {
 impl<T: Config> GetByKey<AssetIdOf<T>, Option<FixedU128>> for Pallet<T> {
 	fn get(k: &AssetIdOf<T>) -> Option<FixedU128> {
 		AcceptedCurrencyPrice::<T>::get(k)
+	}
+}
+
+
+impl<T: Config> FeePaymentCurrency<T::AccountId> for Pallet<T>{
+	type AssetId = AssetIdOf<T>;
+
+	fn get(a: &T::AccountId) -> Option<Self::AssetId> {
+		Pallet::<T>::get_currency(a)
 	}
 }
