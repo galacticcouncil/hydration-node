@@ -33,7 +33,7 @@ use frame_support::{
 use hex_literal::hex;
 use orml_tokens::CurrencyAdapter;
 use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
-use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
+use pallet_transaction_multi_payment::{DepositAll, DepositFee};
 use polkadot_xcm::{
 	latest::MultiLocation,
 	prelude::{AccountKey20, PalletInstance, Parachain, X3},
@@ -42,6 +42,7 @@ use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId};
 use sp_core::{Get, U256};
 
 mod accounts_conversion;
+mod evm_fee;
 pub mod precompiles;
 
 // Current approximation of the gas per second consumption considering
@@ -92,21 +93,6 @@ impl Get<AssetId> for WethAssetId {
 }
 
 type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
-use frame_support::traits::Currency as PalletCurrency;
-
-type NegativeImbalance = <WethCurrency as PalletCurrency<AccountId>>::NegativeImbalance;
-
-pub struct DealWithFees;
-impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-	// this is called for substrate-based transactions
-	fn on_unbalanceds<B>(_: impl Iterator<Item = NegativeImbalance>) {}
-
-	// this is called from pallet_evm for Ethereum-based transactions
-	// (technically, it calls on_unbalanced, which calls this when non-zero)
-	fn on_nonzero_unbalanced(amount: NegativeImbalance) {
-		let _ = DepositAll::<crate::Runtime>::deposit_fee(&TreasuryAccount::get(), WethAssetId::get(), amount.peek());
-	}
-}
 
 pub struct FixedGasPrice;
 impl FeeCalculator for FixedGasPrice {
@@ -138,7 +124,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type FeeCalculator = FixedGasPrice;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
-	type OnChargeTransaction = TransferEvmFees<DealWithFees>;
+	type OnChargeTransaction = evm_fee::TransferEvmFees<evm_fee::DealWithFees>;
 	type OnCreate = ();
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
