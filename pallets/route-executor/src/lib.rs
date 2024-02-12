@@ -110,7 +110,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		///The route with trades has been successfully executed
-		RouteExecuted {
+		Executed {
 			asset_in: T::AssetId,
 			asset_out: T::AssetId,
 			amount_in: T::Balance,
@@ -233,7 +233,7 @@ pub mod pallet {
 				last_trade_amount.amount_out,
 			)?;
 
-			Self::deposit_event(Event::RouteExecuted {
+			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
 				amount_in,
@@ -312,7 +312,7 @@ pub mod pallet {
 				first_trade.amount_in,
 			)?;
 
-			Self::deposit_event(Event::RouteExecuted {
+			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
 				amount_in: first_trade.amount_in,

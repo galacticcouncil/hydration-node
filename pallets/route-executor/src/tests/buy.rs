@@ -44,7 +44,7 @@ fn buy_should_work_when_route_has_single_trade() {
 
 		//Assert
 		assert_executed_buy_trades(vec![(PoolType::XYK, amount_to_buy, HDX, AUSD)]);
-		expect_events(vec![Event::RouteExecuted {
+		expect_events(vec![Event::Executed {
 			asset_in: HDX,
 			asset_out: AUSD,
 			amount_in: XYK_BUY_CALCULATION_RESULT,
@@ -73,7 +73,7 @@ fn buy_should_work_with_omnipool_when_no_route_or_onchain_route_exist() {
 
 		//Assert
 		assert_executed_buy_trades(vec![(PoolType::Omnipool, amount_to_buy, HDX, DOT)]);
-		expect_events(vec![Event::RouteExecuted {
+		expect_events(vec![Event::Executed {
 			asset_in: HDX,
 			asset_out: DOT,
 			amount_in: OMNIPOOL_BUY_CALCULATION_RESULT,
@@ -132,7 +132,7 @@ fn buy_should_work_when_onchain_route_present_in_reverse_order() {
 				(PoolType::XYK, amount_to_buy, MOVR, HDX),
 			]);
 
-			expect_events(vec![Event::RouteExecuted {
+			expect_events(vec![Event::Executed {
 				asset_in: KSM,
 				asset_out: HDX,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
@@ -289,7 +289,7 @@ fn buy_should_when_route_has_multiple_trades_with_same_pool_type() {
 				(PoolType::XYK, amount_to_buy, MOVR, KSM),
 			]);
 
-			expect_events(vec![Event::RouteExecuted {
+			expect_events(vec![Event::Executed {
 				asset_in: HDX,
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
@@ -342,7 +342,7 @@ fn buy_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 				(PoolType::Omnipool, amount_to_buy, AUSD, KSM),
 			]);
 
-			expect_events(vec![Event::RouteExecuted {
+			expect_events(vec![Event::Executed {
 				asset_in: HDX,
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
@@ -401,7 +401,7 @@ fn buy_should_work_with_onchain_route_when_no_route_specified() {
 				(PoolType::XYK, amount_to_buy, AUSD, KSM),
 			]);
 
-			expect_events(vec![Event::RouteExecuted {
+			expect_events(vec![Event::Executed {
 				asset_in: HDX,
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
