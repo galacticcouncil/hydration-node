@@ -3373,7 +3373,7 @@ pub fn init_stableswap_with_liquidity(
 	let mut asset_ids: Vec<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
 	for idx in 0u32..MAX_ASSETS_IN_POOL {
 		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-		let asset_id = AssetRegistry::create_asset(&name, 1000u128)?;
+		let asset_id = AssetRegistry::create_asset(&name, 1u128)?;
 		AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), asset_id, b"xDUM".to_vec(), 18u8)?;
 		asset_ids.push(asset_id);
 
