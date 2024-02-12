@@ -181,7 +181,9 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let route = Self::get_route_or_default(route, AssetPair::new(asset_in, asset_out))?;
+			let asset_pair = AssetPair::new(asset_in, asset_out);
+			let route = Self::get_route_or_default(route, asset_pair)?;
+			Self::ensure_route_arguments(&asset_pair, &route)?;
 
 			let user_balance_of_asset_in_before_trade =
 				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
@@ -268,7 +270,9 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let route = Self::get_route_or_default(route, AssetPair::new(asset_in, asset_out))?;
+			let asset_pair = AssetPair::new(asset_in, asset_out);
+			let route = Self::get_route_or_default(route, asset_pair)?;
+			Self::ensure_route_arguments(&asset_pair, &route)?;
 
 			let user_balance_of_asset_in_before_trade =
 				T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
@@ -349,15 +353,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(new_route.len())?;
-
-			ensure!(
-				asset_pair.asset_in == new_route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
-				Error::<T>::InvalidRoute
-			);
-			ensure!(
-				asset_pair.asset_out == new_route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
-				Error::<T>::InvalidRoute
-			);
+			Self::ensure_route_arguments(&asset_pair, &new_route)?;
 
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();
@@ -412,6 +408,22 @@ impl<T: Config> Pallet<T> {
 		ensure!(
 			(route_length as u32) <= MAX_NUMBER_OF_TRADES,
 			Error::<T>::MaxTradesExceeded
+		);
+
+		Ok(())
+	}
+
+	fn ensure_route_arguments(
+		asset_pair: &AssetPair<T::AssetId>,
+		new_route: &Vec<Trade<T::AssetId>>,
+	) -> Result<(), DispatchError> {
+		ensure!(
+			asset_pair.asset_in == new_route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
+			Error::<T>::InvalidRoute
+		);
+		ensure!(
+			asset_pair.asset_out == new_route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
+			Error::<T>::InvalidRoute
 		);
 
 		Ok(())

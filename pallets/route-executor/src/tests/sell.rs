@@ -490,3 +490,34 @@ fn sell_should_fail_when_min_limit_to_receive_is_not_reached() {
 		);
 	});
 }
+
+#[test]
+fn sell_should_fail_when_assets_dont_correspond_to_route() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, AUSD, 1000)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let amount_to_sell = 10;
+			let limit = 5;
+
+			let trades = vec![
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: AUSD,
+					asset_out: HDX,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: HDX,
+					asset_out: MOVR,
+				},
+			];
+
+			//Act and assert
+			assert_noop!(
+				Router::sell(RuntimeOrigin::signed(ALICE), HDX, MOVR, amount_to_sell, limit, trades),
+				Error::<Test>::InvalidRoute
+			);
+		});
+}

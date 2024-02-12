@@ -489,3 +489,34 @@ fn buy_should_fail_when_max_limit_to_spend_is_reached() {
 			);
 		});
 }
+
+#[test]
+fn buy_should_fail_when_assets_dont_correspond_to_route() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, AUSD, 1000)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let amount_to_buy = 10;
+			let limit = 5;
+
+			let trades = vec![
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: AUSD,
+					asset_out: HDX,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: HDX,
+					asset_out: MOVR,
+				},
+			];
+
+			//Act
+			assert_noop!(
+				Router::buy(RuntimeOrigin::signed(ALICE), MOVR, AUSD, amount_to_buy, limit, trades),
+				Error::<Test>::InvalidRoute
+			);
+		});
+}
