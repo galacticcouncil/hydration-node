@@ -45,8 +45,6 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 #[cfg(test)]
 mod tests;
 
-mod benchmarking;
-
 mod impls;
 mod trade_execution;
 pub mod types;

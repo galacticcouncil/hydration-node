@@ -621,7 +621,6 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ema_oracle, EmaOracle);
 			list_benchmark!(list, extra, pallet_staking, Staking);
 			list_benchmark!(list, extra, pallet_lbp, LBP);
-			list_benchmark!(list, extra, pallet_xyk, XYK);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
@@ -637,6 +636,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_omnipool, benchmarking::omnipool);
 			orml_list_benchmark!(list, extra, pallet_route_executor, benchmarking::route_executor);
 			orml_list_benchmark!(list, extra, pallet_dca, benchmarking::dca);
+			orml_list_benchmark!(list, extra, pallet_xyk, benchmarking::xyk);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -700,7 +700,6 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_bonds, Bonds);
 			add_benchmark!(params, batches, pallet_staking, Staking);
 			add_benchmark!(params, batches, pallet_lbp, LBP);
-			add_benchmark!(params, batches, pallet_xyk, XYK);
 			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
 			add_benchmark!(params, batches, pallet_referrals, Referrals);
 
@@ -718,6 +717,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_omnipool, benchmarking::omnipool);
 			orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
 			orml_add_benchmark!(params, batches, pallet_dca, benchmarking::dca);
+			orml_add_benchmark!(params, batches, pallet_xyk, benchmarking::xyk);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

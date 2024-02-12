@@ -8,6 +8,7 @@ pub mod omnipool;
 pub mod route_executor;
 pub mod tokens;
 pub mod vesting;
+pub mod xyk;
 
 use crate::AssetRegistry;
 use frame_system::RawOrigin;
