@@ -275,11 +275,8 @@ pub mod pallet {
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
-			ensure!(
-				last_trade_amount.amount_in <= max_amount_in,
-				Error::<T>::TradingLimitReached
-			);
+			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
+			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
 			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
 				let user_balance_of_asset_out_before_trade =
@@ -308,13 +305,13 @@ pub mod pallet {
 				who,
 				asset_in,
 				user_balance_of_asset_in_before_trade,
-				last_trade_amount.amount_in,
+				first_trade.amount_in,
 			)?;
 
 			Self::deposit_event(Event::RouteExecuted {
 				asset_in,
 				asset_out,
-				amount_in: last_trade_amount.amount_in,
+				amount_in: first_trade.amount_in,
 				amount_out,
 			});
 
