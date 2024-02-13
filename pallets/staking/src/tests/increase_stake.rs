@@ -297,7 +297,7 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 				position_id: alice_position_id,
 				stake: 100_000 * ONE,
 				total_stake: 300_000 * ONE,
-				locked_rewards: 26_998_317_793_092_u128,
+				locked_rewards: 0_u128,
 				slashed_points: 3,
 				payable_percentage: FixedU128::from_inner(262_371_143_317_147_u128)
 			}
@@ -322,7 +322,7 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 				position_id: alice_position_id,
 				stake: 100_000 * ONE,
 				total_stake: 400_000 * ONE,
-				locked_rewards: 506_092_568_094_174_u128,
+				locked_rewards: 76_264_595_971_061_u128,
 				slashed_points: 4,
 				payable_percentage: FixedU128::from_inner(4_919_526_267_840_874_u128)
 			}
@@ -330,9 +330,9 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 			assert_staking_data!(
 				450_000 * ONE,
 				FixedU128::from_inner(1_033_333_333_333_333_333_u128),
-				104_034_822_662_406_905_u128 + NON_DUSTABLE_BALANCE
+				104_491_648_952_323_110_u128 + NON_DUSTABLE_BALANCE
 			);
-			assert_hdx_lock!(ALICE, 400_965_177_337_593_095_u128, STAKING_LOCK);
+			assert_hdx_lock!(ALICE, 400_508_351_047_676_890_u128, STAKING_LOCK);
 			assert_unlocked_balance!(ALICE, HDX, 100_000 * ONE);
 
 			assert_eq!(
@@ -341,10 +341,10 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 					stake: 400_000 * ONE,
 					reward_per_stake: FixedU128::from_inner(1_033_333_333_333_333_333_u128),
 					created_at: 1_452_987,
-					accumulated_unpaid_rewards: 102_368_155_995_740_238_u128,
+					accumulated_unpaid_rewards: 102_824_982_285_656_443_u128,
 					action_points: 0,
 					accumulated_slash_points: 19,
-					accumulated_locked_rewards: 965_177_337_593_095_u128,
+					accumulated_locked_rewards: 508_351_047_676_890_u128,
 				}
 			);
 		});
@@ -504,6 +504,57 @@ fn increase_stake_should_not_return_arithmetic_error_when_vested_and_locked_rewa
 					25_000 * ONE
 				),
 				Error::<Test>::InsufficientBalance
+			);
+		});
+}
+
+#[test]
+fn increase_stake_should_slash_min_slash_when_user_increase() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 250_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
+		.with_stakes(vec![
+			(ALICE, 100_000 * ONE, 1_452_987, 100_000 * ONE),
+			(BOB, 50_000 * ONE, 1_452_987, 0),
+		])
+		.start_at_block(1_452_987)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_pending_rewards(5_000 * ONE);
+			set_block_number(5_600_000);
+
+			let alice_position_id = 0;
+			//Act
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(ALICE),
+				alice_position_id,
+				10 * ONE
+			));
+
+			//Assert
+			assert_last_event!(Event::<Test>::StakeAdded {
+				who: ALICE,
+				position_id: alice_position_id,
+				stake: 10 * ONE,
+				total_stake: 100_010 * ONE,
+				locked_rewards: 103_291_349_065_169_157_u128,
+				slashed_points: 100,
+				payable_percentage: FixedU128::from_inner(999_593_700_630_669_270_u128)
+			}
+			.into());
+
+			assert_eq!(
+				Staking::positions(alice_position_id).unwrap(),
+				Position {
+					stake: 100_010 * ONE,
+					reward_per_stake: FixedU128::from_inner(1_033_333_333_333_333_333_u128),
+					created_at: 1_452_987,
+					accumulated_unpaid_rewards: 41_984_268_164_176_u128,
+					action_points: 0,
+					accumulated_slash_points: 100,
+					accumulated_locked_rewards: 103_291_349_065_169_157_u128,
+				}
 			);
 		});
 }
