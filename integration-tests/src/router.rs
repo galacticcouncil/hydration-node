@@ -908,7 +908,7 @@ mod omnipool_router_tests {
 				Router::buy(
 					RuntimeOrigin::signed(BOB.into()),
 					HDX,
-					DAI,
+					LRNA,
 					amount_to_buy,
 					limit,
 					trades
