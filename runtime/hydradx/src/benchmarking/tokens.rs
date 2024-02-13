@@ -50,7 +50,7 @@ runtime_benchmarks! {
 		pallet_transaction_multi_payment::pallet::AcceptedCurrencyPrice::<Runtime>::insert(fee_asset, Price::from(1));
 
 		MultiTransactionPayment::set_currency(
-			RawOrigin::Signed(from.clone().into()).into(),
+			RawOrigin::Signed(from.clone()).into(),
 			fee_asset
 		)?;
 
@@ -62,13 +62,13 @@ runtime_benchmarks! {
 		assert_eq!(frame_system::Pallet::<Runtime>::account(to).sufficients, 1);
 
 		//NOTE: make sure from was killed
-		assert_eq!(orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id), false);
+		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
 		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 1);
 		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
 	}
 
 	transfer_all {
-		let amount: Balance = 1 * UNIT;
+		let amount: Balance = UNIT;
 
 		let asset_id = register_external_asset(b"TST".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let fee_asset = register_asset(b"FEE".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -82,7 +82,7 @@ runtime_benchmarks! {
 		pallet_transaction_multi_payment::pallet::AcceptedCurrencyPrice::<Runtime>::insert(fee_asset, Price::from(1));
 
 		MultiTransactionPayment::set_currency(
-			RawOrigin::Signed(from.clone().into()).into(),
+			RawOrigin::Signed(from.clone()).into(),
 			fee_asset
 		)?;
 
@@ -93,7 +93,7 @@ runtime_benchmarks! {
 		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &from), 0);
 
 		//NOTE: make sure from was killed
-		assert_eq!(orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id), false);
+		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
 		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 1);
 		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
 	}
@@ -111,7 +111,7 @@ runtime_benchmarks! {
 		pallet_transaction_multi_payment::pallet::AcceptedCurrencyPrice::<Runtime>::insert(fee_asset, Price::from(1));
 
 		MultiTransactionPayment::set_currency(
-			RawOrigin::Signed(from.clone().into()).into(),
+			RawOrigin::Signed(from.clone()).into(),
 			fee_asset
 		)?;
 
@@ -141,7 +141,7 @@ runtime_benchmarks! {
 		pallet_transaction_multi_payment::pallet::AcceptedCurrencyPrice::<Runtime>::insert(fee_asset, Price::from(1));
 
 		MultiTransactionPayment::set_currency(
-			RawOrigin::Signed(from.clone().into()).into(),
+			RawOrigin::Signed(from.clone()).into(),
 			fee_asset
 		)?;
 
@@ -152,7 +152,7 @@ runtime_benchmarks! {
 		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &to), amount);
 
 		//NOTE: make sure from was killed
-		assert_eq!(orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id), false);
+		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
 		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 1);
 		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
 	}

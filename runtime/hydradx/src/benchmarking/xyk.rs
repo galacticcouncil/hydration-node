@@ -46,7 +46,7 @@ runtime_benchmarks! {
 		let caller = funded_account::<Runtime>("caller", 0, &[asset_a, asset_b, fee_asset]);
 
 		init_fee_asset(fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone().into()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone()).into(), fee_asset)?;
 
 		let amount_a : Balance = INITIAL_BALANCE;
 		let amount_b : Balance = INITIAL_BALANCE;
@@ -57,8 +57,8 @@ runtime_benchmarks! {
 		assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
 		assert_eq!(Currencies::free_balance(asset_b, &caller), 0);
 
-		assert_eq!(orml_tokens::Accounts::<Runtime>::contains_key(caller.clone(), asset_a), false);
-		assert_eq!(orml_tokens::Accounts::<Runtime>::contains_key(caller.clone(), asset_b), false);
+		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(caller.clone(), asset_a));
+		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(caller.clone(), asset_b));
 
 		//NOTE: xyk shares are insufficinet so that's why not 0.
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
@@ -73,8 +73,8 @@ runtime_benchmarks! {
 		let maker = funded_account::<Runtime>("maker", 1, &[asset_a, asset_b, fee_asset]);
 
 		init_fee_asset(fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone().into()).into(), fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone().into()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone()).into(), fee_asset)?;
 
 		let amount_a : Balance = INITIAL_BALANCE;
 		let amount_b : Balance = INITIAL_BALANCE;
@@ -94,7 +94,7 @@ runtime_benchmarks! {
 		assert_eq!(Currencies::free_balance(asset_b, &caller), 499_999_999_999_999_u128);// Due to rounding in favor of pool
 
 		//NOTE: xyk shares are insufficinet.
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 2);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 2);
 	}
 
 	remove_liquidity {
@@ -106,7 +106,7 @@ runtime_benchmarks! {
 
 
 		init_fee_asset(fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone().into()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone()).into(), fee_asset)?;
 
 		XYK::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, INITIAL_BALANCE, asset_b, INITIAL_BALANCE)?;
 
@@ -117,7 +117,7 @@ runtime_benchmarks! {
 		assert_eq!(Currencies::free_balance(asset_a, &maker), INITIAL_BALANCE);
 		assert_eq!(Currencies::free_balance(asset_b, &maker), INITIAL_BALANCE);
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(maker.clone()).sufficients, 2);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(maker).sufficients, 2);
 	}
 
 	sell {
@@ -130,8 +130,8 @@ runtime_benchmarks! {
 
 
 		init_fee_asset(fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone().into()).into(), fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone().into()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone()).into(), fee_asset)?;
 
 		let discount = false;
 		let amount: Balance = 250_000_000_000_000;
@@ -139,7 +139,7 @@ runtime_benchmarks! {
 
 		XYK::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, INITIAL_BALANCE, asset_b, INITIAL_BALANCE)?;
 
-		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker.clone(), INITIAL_BALANCE - amount)?;
+		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, INITIAL_BALANCE - amount)?;
 
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
 	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, min_bought, discount)
@@ -161,8 +161,8 @@ runtime_benchmarks! {
 
 
 		init_fee_asset(fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone().into()).into(), fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone().into()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone()).into(), fee_asset)?;
 
 		let discount = false;
 		let amount: Balance = 200_000_000_000_000;
@@ -170,7 +170,7 @@ runtime_benchmarks! {
 
 		XYK::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, INITIAL_BALANCE, asset_b, INITIAL_BALANCE)?;
 
-		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker.clone(), 749_249_999_999_999_u128)?;
+		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, 749_249_999_999_999_u128)?;
 
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
 	}: _(RawOrigin::Signed(caller.clone()), asset_b, asset_a, amount, max_sold, discount)
@@ -178,7 +178,7 @@ runtime_benchmarks! {
 		assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
 		assert_eq!(Currencies::free_balance(asset_b, &caller), amount);
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
 	}
 
 	router_execution_sell {
@@ -194,8 +194,8 @@ runtime_benchmarks! {
 
 
 		init_fee_asset(fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone().into()).into(), fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone().into()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone()).into(), fee_asset)?;
 
 		let discount = false;
 		let amount: Balance = 250_000_000_000_000;
@@ -203,7 +203,7 @@ runtime_benchmarks! {
 
 		XYK::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, INITIAL_BALANCE, asset_b, INITIAL_BALANCE)?;
 
-		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker.clone(), INITIAL_BALANCE - amount)?;
+		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, INITIAL_BALANCE - amount)?;
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
 	}: {
 		for _ in 1..c {
@@ -218,7 +218,7 @@ runtime_benchmarks! {
 			assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
 			assert_eq!(Currencies::free_balance(asset_b, &caller), 199400000000000);
 
-			assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
+			assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
 		}
 	}
 
@@ -235,8 +235,8 @@ runtime_benchmarks! {
 
 
 		init_fee_asset(fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone().into()).into(), fee_asset)?;
-		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone().into()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone()).into(), fee_asset)?;
 
 		let discount = false;
 		let amount: Balance = 200_000_000_000_000;
@@ -244,7 +244,7 @@ runtime_benchmarks! {
 
 		XYK::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, INITIAL_BALANCE, asset_b, INITIAL_BALANCE)?;
 
-		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker.clone(), 749_249_999_999_999_u128)?;
+		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, 749_249_999_999_999_u128)?;
 
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
 	}: {
@@ -260,7 +260,7 @@ runtime_benchmarks! {
 			assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
 			assert_eq!(Currencies::free_balance(asset_b, &caller), amount);
 
-			assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
+			assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
 		}
 	}
 }
