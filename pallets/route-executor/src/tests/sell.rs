@@ -516,7 +516,7 @@ fn sell_should_fail_when_assets_dont_correspond_to_route() {
 
 			//Act and assert
 			assert_noop!(
-				Router::sell(RuntimeOrigin::signed(ALICE), HDX, MOVR, amount_to_sell, limit, trades),
+				Router::sell(RuntimeOrigin::signed(ALICE), MOVR, AUSD, amount_to_sell, limit, trades),
 				Error::<Test>::InvalidRoute
 			);
 		});
