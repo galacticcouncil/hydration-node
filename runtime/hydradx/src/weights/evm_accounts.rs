@@ -37,9 +37,10 @@
 // --output=weights-1.1.0/evm-accounts.rs
 // --extrinsic=*
 
+#![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
-#![allow(clippy::unnecessary_cast)]
+#![allow(missing_docs)]
 
 use frame_support::{
 	traits::Get,
@@ -47,10 +48,9 @@ use frame_support::{
 };
 use sp_std::marker::PhantomData;
 
-pub trait WeightInfo {
-	fn bind_evm_address() -> Weight;
-}
+use pallet_evm_accounts::weights::WeightInfo;
 
+/// Weights for pallet_evm_accounts using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
@@ -72,28 +72,5 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::from_parts(35_955_000, 4087)
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(1))
-	}
-}
-
-// For backwards compatibility and tests
-impl WeightInfo for () {
-	/// Storage: `EVMAccounts::BoundAccount` (r:1 w:1)
-	/// Proof: `EVMAccounts::BoundAccount` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:0)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::NextAssetId` (r:1 w:0)
-	/// Proof: `AssetRegistry::NextAssetId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::LocationAssets` (r:1 w:0)
-	/// Proof: `AssetRegistry::LocationAssets` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Accounts` (r:1 w:0)
-	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	fn bind_evm_address() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `479`
-		//  Estimated: `4087`
-		// Minimum execution time: 35_419_000 picoseconds.
-		Weight::from_parts(35_955_000, 4087)
-			.saturating_add(RocksDbWeight::get().reads(5))
-			.saturating_add(RocksDbWeight::get().writes(1))
 	}
 }

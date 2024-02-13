@@ -177,5 +177,5 @@ impl pallet_evm_accounts::Config for crate::Runtime {
 	type AssetId = AssetId;
 	type FeeMultiplier = sp_core::ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProvider;
-	type WeightInfo = pallet_evm_accounts::weights::HydraWeight<crate::Runtime>;
+	type WeightInfo = crate::weights::evm_accounts::HydraWeight<crate::Runtime>;
 }
