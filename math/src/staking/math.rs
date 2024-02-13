@@ -30,16 +30,22 @@ pub fn calculate_accumulated_rps(
 /// - `current_stake`: staked amount before stake increase
 /// - `stake_increase`: amount added to stake
 /// - `stake_weight`: weight of `current_stake`. Bigger the weight lower the slashed points
+/// - `min_slash`: min. amount of points to slash if `points > min_slash`
 pub fn calculate_slashed_points(
 	points: Point,
 	current_stake: Balance,
 	stake_increase: Balance,
 	stake_weight: u8,
+	min_slash: Point,
 ) -> Option<Balance> {
 	let stake_weighted = current_stake.checked_mul(stake_weight.into())?;
 	let p = stake_increase.checked_mul(points)?;
 
-	p.checked_div(stake_weighted)?.min(points).into()
+	p.checked_div(stake_weighted)?
+		.min(points)
+		.max(min_slash)
+		.min(points)
+		.into()
 }
 
 /// Function calculates period number from block number and period size.

@@ -469,11 +469,14 @@ pub mod pallet {
 
 					let points =
 						Self::get_points(position, current_period, created_at).ok_or(Error::<T>::Arithmetic)?;
-					let slash_points =
-						math::calculate_slashed_points(points, position.stake, amount, T::CurrentStakeWeight::get())
-							.ok_or(Error::<T>::Arithmetic)?
-							.max(T::MinSlash::get(&payable_percentage))
-							.min(points);
+					let slash_points = math::calculate_slashed_points(
+						points,
+						position.stake,
+						amount,
+						T::CurrentStakeWeight::get(),
+						T::MinSlash::get(&payable_percentage),
+					)
+					.ok_or(Error::<T>::Arithmetic)?;
 
 					position.accumulated_slash_points = position
 						.accumulated_slash_points
@@ -869,7 +872,7 @@ impl<T: Config> Pallet<T> {
 	/// `accumulated_unpaid` - total amount of rewards which won't be paid to user.
 	/// `payable_percentage` - percentage of the rewards that is available to user.
 	///
-	/// Return `(claimable, claimable_unpaid, unpaid, payable_percentage)`
+	/// Return `(claimable_rewards, accumulated_unpaid_rewards, payable_percentage)`
 	fn calculate_rewards(
 		position: &Position<BlockNumberFor<T>>,
 		accumulated_reward_per_stake: FixedU128,
