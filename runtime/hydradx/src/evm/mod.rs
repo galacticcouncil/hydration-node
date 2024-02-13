@@ -19,12 +19,13 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::evm::evm_fee::{FromWethConversion, ToWethConversion};
-use crate::TreasuryAccount;
+use crate::evm::evm_fee::FromWethConversion;
+use crate::evm::runner::WrapRunner;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
+use crate::{TreasuryAccount, LRNA};
 use frame_support::{
 	parameter_types,
 	traits::{Defensive, FindAuthor, Imbalance, OnUnbalanced},
@@ -32,6 +33,7 @@ use frame_support::{
 	ConsensusEngineId,
 };
 use hex_literal::hex;
+use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
@@ -40,10 +42,8 @@ use polkadot_xcm::{
 	latest::MultiLocation,
 	prelude::{AccountKey20, PalletInstance, Parachain, X3},
 };
-use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId};
+use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
-use crate::evm::runner::WrapRunner;
-use hydradx_traits::oracle::OraclePeriod;
 
 mod accounts_conversion;
 mod evm_fee;
@@ -141,7 +141,17 @@ impl pallet_evm::Config for crate::Runtime {
 	type OnCreate = ();
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
-	type Runner = WrapRunner<Self, pallet_evm::runner::stack::Runner<Self>, hydradx_adapters::price::FeeAssetBalanceInCurrencyProvider<crate::Runtime, OracleEvmPeriod, crate::MultiTransactionPayment, FungibleCurrencies<crate::Runtime>>>;
+	type Runner = WrapRunner<
+		Self,
+		pallet_evm::runner::stack::Runner<Self>,
+		hydradx_adapters::price::FeeAssetBalanceInCurrencyProvider<
+			crate::Runtime,
+			hydradx_adapters::OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
+			OracleEvmPeriod,
+			crate::MultiTransactionPayment,
+			FungibleCurrencies<crate::Runtime>,
+		>,
+	>;
 	type RuntimeEvent = crate::RuntimeEvent;
 	type WeightPerGas = WeightPerGas;
 	type WithdrawOrigin = EnsureAddressTruncated;

@@ -1,14 +1,14 @@
+use crate::evm::WethAssetId;
 use fp_evm::{Account, InvalidEvmTransactionError};
 use frame_support::traits::Get;
+use hydradx_traits::FeePaymentCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
-use pallet_evm::{AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, Pallet, RunnerError};
+use pallet_evm::{AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
+use primitives::{AssetId, Balance};
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
-use hydradx_traits::FeePaymentCurrencyBalanceInCurrency;
-use primitives::{AssetId, Balance};
-use crate::evm::WethAssetId;
 
 pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
 
@@ -41,7 +41,7 @@ where
 		let evm_currency = WethAssetId::get();
 		let account_id = T::AddressMapping::into_account_id(source);
 		let account_nonce = frame_system::Pallet::<T>::account_nonce(&account_id);
-		let (balance, b_weight ) = B::get_balance_in_currency(evm_currency, &account_id);
+		let (balance, b_weight) = B::get_balance_in_currency(evm_currency, &account_id);
 
 		let (source_account, inner_weight) = (
 			Account {
@@ -75,29 +75,11 @@ where
 			weight_limit,
 			proof_size_base_cost,
 		)
-			.validate_in_block_for(&source_account)
-			.and_then(|v| v.with_base_fee())
-			.and_then(|v| v.with_balance_for(&source_account))
-			.map_err(|error| RunnerError { error, weight })?;
+		.validate_in_block_for(&source_account)
+		.and_then(|v| v.with_base_fee())
+		.and_then(|v| v.with_balance_for(&source_account))
+		.map_err(|error| RunnerError { error, weight })?;
 		Ok(())
-			/*
-		R::validate(
-			source,
-			target,
-			input,
-			value,
-			gas_limit,
-			max_fee_per_gas,
-			max_priority_fee_per_gas,
-			nonce,
-			access_list,
-			is_transactional,
-			weight_limit,
-			proof_size_base_cost,
-			evm_config,
-		)
-
-			 */
 	}
 
 	fn call(
@@ -148,7 +130,8 @@ where
 			false,
 			weight_limit,
 			proof_size_base_cost,
-			config)
+			config,
+		)
 	}
 
 	fn create(
@@ -249,6 +232,7 @@ where
 			false,
 			weight_limit,
 			proof_size_base_cost,
-			config)
+			config,
+		)
 	}
 }
