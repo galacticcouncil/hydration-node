@@ -415,14 +415,14 @@ impl<T: Config> Pallet<T> {
 
 	fn ensure_route_arguments(
 		asset_pair: &AssetPair<T::AssetId>,
-		new_route: &Vec<Trade<T::AssetId>>,
+		route: &[Trade<T::AssetId>],
 	) -> Result<(), DispatchError> {
 		ensure!(
-			asset_pair.asset_in == new_route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
+			asset_pair.asset_in == route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
 			Error::<T>::InvalidRoute
 		);
 		ensure!(
-			asset_pair.asset_out == new_route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
+			asset_pair.asset_out == route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
 			Error::<T>::InvalidRoute
 		);
 
