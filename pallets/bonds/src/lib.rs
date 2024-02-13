@@ -53,7 +53,7 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use sp_core::MaxEncodedLen;
-use sp_std::vec::Vec;
+use sp_std::{mem, vec::Vec};
 
 use hydradx_traits::{AssetKind, CreateRegistry, Registry};
 use orml_traits::{GetByKey, MultiCurrency};
@@ -179,6 +179,8 @@ pub mod pallet {
 		InvalidMaturity,
 		/// Asset type not allowed for underlying asset
 		DisallowedAsset,
+		/// Bond's name parsing was now successful
+		FailToParseName,
 	}
 
 	#[pallet::call]
@@ -312,5 +314,13 @@ impl<T: Config> Pallet<T> {
 		buf.extend_from_slice(&when.to_le_bytes());
 
 		buf
+	}
+
+	pub fn parse_bond_name(name: Vec<u8>) -> Result<AssetId, Error<T>> {
+		Ok(AssetId::from_le_bytes(
+			name[..mem::size_of::<AssetId>()]
+				.try_into()
+				.map_err(|_| Error::<T>::FailToParseName)?,
+		))
 	}
 }
