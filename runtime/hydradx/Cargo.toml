@@ -36,6 +36,8 @@ pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
+pallet-evm-accounts = { workspace = true }
+pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -192,6 +194,7 @@ runtime-benchmarks = [
     "pallet-xyk/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
+    "pallet-evm-accounts/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -286,6 +289,8 @@ std = [
     "pallet-evm-precompile-dispatch/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
+    "pallet-evm-accounts/std",
+    "pallet-evm-accounts-rpc-runtime-api/std",
 ]
 try-runtime= [
     "frame-try-runtime",

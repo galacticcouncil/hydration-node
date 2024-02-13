@@ -164,3 +164,18 @@ impl pallet_ethereum::Config for crate::Runtime {
 	type PostLogContent = PostLogContent;
 	type ExtraDataLength = sp_core::ConstU32<1>;
 }
+
+pub struct EvmNonceProvider;
+impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
+	fn get_nonce(evm_address: sp_core::H160) -> U256 {
+		crate::EVM::account_basic(&evm_address).0.nonce
+	}
+}
+
+impl pallet_evm_accounts::Config for crate::Runtime {
+	type RuntimeEvent = crate::RuntimeEvent;
+	type AssetId = AssetId;
+	type FeeMultiplier = sp_core::ConstU32<10>;
+	type EvmNonceProvider = EvmNonceProvider;
+	type WeightInfo = pallet_evm_accounts::weights::HydraWeight<crate::Runtime>;
+}

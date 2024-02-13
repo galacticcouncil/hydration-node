@@ -4673,6 +4673,8 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-ethereum",
  "pallet-evm",
+ "pallet-evm-accounts",
+ "pallet-evm-accounts-rpc-runtime-api",
  "pallet-evm-chain-id",
  "pallet-evm-precompile-dispatch",
  "pallet-genesis-history",
@@ -7607,6 +7609,33 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-evm-accounts"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex-literal 0.4.1",
+ "orml-tokens",
+ "orml-traits",
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
+name = "pallet-evm-accounts-rpc-runtime-api"
+version = "1.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "sp-api",
 ]
 
 [[package]]
@@ -11273,6 +11302,7 @@ dependencies = [
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
  "pallet-evm",
+ "pallet-evm-accounts",
  "pallet-im-online",
  "pallet-lbp",
  "pallet-liquidity-mining",
