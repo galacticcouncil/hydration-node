@@ -110,7 +110,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		///The route with trades has been successfully executed
-		RouteExecuted {
+		Executed {
 			asset_in: T::AssetId,
 			asset_out: T::AssetId,
 			amount_in: T::Balance,
@@ -181,7 +181,9 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let route = Self::get_route_or_default(route, AssetPair::new(asset_in, asset_out))?;
+			let asset_pair = AssetPair::new(asset_in, asset_out);
+			let route = Self::get_route_or_default(route, asset_pair)?;
+			Self::ensure_route_arguments(&asset_pair, &route)?;
 
 			let user_balance_of_asset_in_before_trade =
 				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
@@ -231,7 +233,7 @@ pub mod pallet {
 				last_trade_amount.amount_out,
 			)?;
 
-			Self::deposit_event(Event::RouteExecuted {
+			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
 				amount_in,
@@ -268,18 +270,17 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let route = Self::get_route_or_default(route, AssetPair::new(asset_in, asset_out))?;
+			let asset_pair = AssetPair::new(asset_in, asset_out);
+			let route = Self::get_route_or_default(route, asset_pair)?;
+			Self::ensure_route_arguments(&asset_pair, &route)?;
 
 			let user_balance_of_asset_in_before_trade =
 				T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
-			ensure!(
-				last_trade_amount.amount_in <= max_amount_in,
-				Error::<T>::TradingLimitReached
-			);
+			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
+			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
 			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
 				let user_balance_of_asset_out_before_trade =
@@ -308,13 +309,13 @@ pub mod pallet {
 				who,
 				asset_in,
 				user_balance_of_asset_in_before_trade,
-				last_trade_amount.amount_in,
+				first_trade.amount_in,
 			)?;
 
-			Self::deposit_event(Event::RouteExecuted {
+			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
-				amount_in: last_trade_amount.amount_in,
+				amount_in: first_trade.amount_in,
 				amount_out,
 			});
 
@@ -352,15 +353,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(new_route.len())?;
-
-			ensure!(
-				asset_pair.asset_in == new_route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
-				Error::<T>::InvalidRoute
-			);
-			ensure!(
-				asset_pair.asset_out == new_route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
-				Error::<T>::InvalidRoute
-			);
+			Self::ensure_route_arguments(&asset_pair, &new_route)?;
 
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();
@@ -415,6 +408,22 @@ impl<T: Config> Pallet<T> {
 		ensure!(
 			(route_length as u32) <= MAX_NUMBER_OF_TRADES,
 			Error::<T>::MaxTradesExceeded
+		);
+
+		Ok(())
+	}
+
+	fn ensure_route_arguments(
+		asset_pair: &AssetPair<T::AssetId>,
+		route: &[Trade<T::AssetId>],
+	) -> Result<(), DispatchError> {
+		ensure!(
+			asset_pair.asset_in == route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
+			Error::<T>::InvalidRoute
+		);
+		ensure!(
+			asset_pair.asset_out == route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
+			Error::<T>::InvalidRoute
 		);
 
 		Ok(())

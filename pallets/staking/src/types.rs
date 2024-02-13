@@ -27,7 +27,7 @@ pub struct Position<BlockNumber> {
 	/// Block number position was created at.
 	pub(crate) created_at: BlockNumber,
 	/// Total amount of points to slash.
-	pub(crate) accumulated_slash_points: Point,
+	pub accumulated_slash_points: Point,
 	/// Amount of rewards that wasn't paid yet.
 	pub(crate) accumulated_unpaid_rewards: Balance,
 	/// Rewards paid&locked rewards to user from increase stake.

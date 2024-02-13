@@ -451,7 +451,7 @@ pub fn expect_no_route_executed_event() {
 
 	for event in &last_events {
 		let e = event.clone();
-		if matches!(e, RuntimeEvent::Router(crate::Event::<Test>::RouteExecuted { .. })) {
+		if matches!(e, RuntimeEvent::Router(crate::Event::<Test>::Executed { .. })) {
 			events.push(e);
 		}
 	}
