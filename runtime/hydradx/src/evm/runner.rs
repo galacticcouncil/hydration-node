@@ -1,22 +1,23 @@
-use fp_evm::InvalidEvmTransactionError;
+use fp_evm::{Account, InvalidEvmTransactionError};
 use frame_support::traits::Get;
 use pallet_evm::runner::Runner;
-use pallet_evm::{CallInfo, Config, CreateInfo, FeeCalculator, Pallet, RunnerError};
+use pallet_evm::{AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, Pallet, RunnerError};
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
+use hydradx_traits::FeePaymentCurrencyBalanceInCurrency;
+use primitives::{AssetId, Balance};
+use crate::evm::WethAssetId;
 
-pub trait GetBalanceInEvmCurrency<AssetId, AccountId> {
-	fn get_balance_in_currency(evm_currency: AssetId, account: &AccountId) -> (U256, Weight);
-}
+pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
 
-pub struct WrapRunner<T, R>(sp_std::marker::PhantomData<(T, R)>);
-
-impl<T, R> Runner<T> for WrapRunner<T, R>
+impl<T, R, B> Runner<T> for WrapRunner<T, R, B>
 where
 	T: Config,
 	R: Runner<T>,
-	<R as pallet_evm::Runner<T>>::Error: core::convert::From<InvalidEvmTransactionError>
+	<R as pallet_evm::Runner<T>>::Error: core::convert::From<InvalidEvmTransactionError>,
+	B: FeePaymentCurrencyBalanceInCurrency<AssetId, T::AccountId, Output = (Balance, Weight)>,
 {
 	type Error = R::Error;
 
@@ -36,7 +37,19 @@ where
 		evm_config: &evm::Config,
 	) -> Result<(), RunnerError<Self::Error>> {
 		let (base_fee, mut weight) = T::FeeCalculator::min_gas_price();
-		let (source_account, inner_weight) = Pallet::<T>::account_basic(&source);
+
+		let evm_currency = WethAssetId::get();
+		let account_id = T::AddressMapping::into_account_id(source);
+		let account_nonce = frame_system::Pallet::<T>::account_nonce(&account_id);
+		let (balance, b_weight ) = B::get_balance_in_currency(evm_currency, &account_id);
+
+		let (source_account, inner_weight) = (
+			Account {
+				nonce: U256::from(UniqueSaturatedInto::<u128>::unique_saturated_into(account_nonce)),
+				balance: U256::from(UniqueSaturatedInto::<u128>::unique_saturated_into(balance)),
+			},
+			T::DbWeight::get().reads(1).saturating_add(b_weight),
+		);
 		weight = weight.saturating_add(inner_weight);
 
 		let _ = fp_evm::CheckEvmTransaction::<Self::Error>::new(

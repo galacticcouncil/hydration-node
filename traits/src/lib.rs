@@ -257,3 +257,8 @@ pub trait FeePaymentCurrency<AccountId>{
 	fn get(a: &AccountId) -> Option<Self::AssetId>;
 }
 
+
+pub trait FeePaymentCurrencyBalanceInCurrency<AssetId, AccountId> {
+	type Output;
+	fn get_balance_in_currency(to_currency: AssetId, account: &AccountId) -> Self::Output;
+}

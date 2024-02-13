@@ -19,7 +19,6 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::evm::evm_currency::FeeAssetCurrencyAdapter;
 use crate::evm::evm_fee::{FromWethConversion, ToWethConversion};
 use crate::TreasuryAccount;
 pub use crate::{
@@ -44,9 +43,9 @@ use polkadot_xcm::{
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId};
 use sp_core::{Get, U256};
 use crate::evm::runner::WrapRunner;
+use hydradx_traits::oracle::OraclePeriod;
 
 mod accounts_conversion;
-mod evm_currency;
 mod evm_fee;
 pub mod precompiles;
 mod runner;
@@ -118,6 +117,8 @@ parameter_types! {
 	/// The amount of gas per storage (in bytes): BLOCK_GAS_LIMIT / BLOCK_STORAGE_LIMIT
 	/// The current definition of BLOCK_STORAGE_LIMIT is 40 KB, resulting in a value of 366.
 	pub GasLimitStorageGrowthRatio: u64 = 366;
+
+	pub const OracleEvmPeriod: OraclePeriod = OraclePeriod::LastBlock;
 }
 
 impl pallet_evm::Config for crate::Runtime {
@@ -126,14 +127,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
 	type CallOrigin = EnsureAddressTruncated;
 	type ChainId = crate::EVMChainId;
-	type Currency = FeeAssetCurrencyAdapter<
-		WethCurrency,
-		Self::AccountId,
-		FungibleCurrencies<crate::Runtime>,
-		crate::MultiTransactionPayment,
-		WethAssetId,
-		ToWethConversion,
-	>;
+	type Currency = WethCurrency;
 	type FeeCalculator = FixedGasPrice;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
@@ -147,7 +141,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type OnCreate = ();
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
-	type Runner = WrapRunner<Self, pallet_evm::runner::stack::Runner<Self>>;
+	type Runner = WrapRunner<Self, pallet_evm::runner::stack::Runner<Self>, hydradx_adapters::price::FeeAssetBalanceInCurrencyProvider<crate::Runtime, OracleEvmPeriod, crate::MultiTransactionPayment, FungibleCurrencies<crate::Runtime>>>;
 	type RuntimeEvent = crate::RuntimeEvent;
 	type WeightPerGas = WeightPerGas;
 	type WithdrawOrigin = EnsureAddressTruncated;
