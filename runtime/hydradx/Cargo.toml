@@ -20,6 +20,7 @@ scale-info = { version = "2.3.1", default-features = false, features = ["derive"
 smallvec = "1.9.0"
 log = { workspace = true }
 num_enum = { version = "0.5.1", default-features = false }
+evm = { workspace = true, features = ["with-codec"] }
 
 # local dependencies
 primitives = { workspace = true }
@@ -136,6 +137,7 @@ primitive-types = {  workspace = true }
 
 # Frontier
 fp-rpc = { workspace = true }
+fp-evm = { workspace = true }
 fp-self-contained = { workspace = true, features = ["serde"] }
 pallet-ethereum = { workspace = true }
 pallet-evm = { workspace = true }

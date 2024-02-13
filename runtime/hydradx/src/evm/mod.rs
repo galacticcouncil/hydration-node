@@ -19,6 +19,8 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::evm::evm_currency::FeeAssetCurrencyAdapter;
+use crate::evm::evm_fee::{FromWethConversion, ToWethConversion};
 use crate::TreasuryAccount;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
@@ -32,6 +34,7 @@ use frame_support::{
 };
 use hex_literal::hex;
 use orml_tokens::CurrencyAdapter;
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee};
 use polkadot_xcm::{
@@ -40,14 +43,13 @@ use polkadot_xcm::{
 };
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId};
 use sp_core::{Get, U256};
-use pallet_currencies::fungibles::FungibleCurrencies;
-use crate::evm::evm_currency::FeeAssetCurrencyAdapter;
-use crate::evm::evm_fee::{FromWethConversion, ToWethConversion};
+use crate::evm::runner::WrapRunner;
 
 mod accounts_conversion;
+mod evm_currency;
 mod evm_fee;
 pub mod precompiles;
-mod evm_currency;
+mod runner;
 
 // Current approximation of the gas per second consumption considering
 // EVM execution over compiled WASM (on 4.4Ghz CPU).
@@ -124,15 +126,28 @@ impl pallet_evm::Config for crate::Runtime {
 	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
 	type CallOrigin = EnsureAddressTruncated;
 	type ChainId = crate::EVMChainId;
-	type Currency = FeeAssetCurrencyAdapter<WethCurrency,Self::AccountId, FungibleCurrencies<crate::Runtime>,crate::MultiTransactionPayment, WethAssetId, ToWethConversion> ;
+	type Currency = FeeAssetCurrencyAdapter<
+		WethCurrency,
+		Self::AccountId,
+		FungibleCurrencies<crate::Runtime>,
+		crate::MultiTransactionPayment,
+		WethAssetId,
+		ToWethConversion,
+	>;
 	type FeeCalculator = FixedGasPrice;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
-	type OnChargeTransaction = evm_fee::TransferEvmFees<evm_fee::DealWithFees, crate::MultiTransactionPayment, WethAssetId, FromWethConversion, FungibleCurrencies<crate::Runtime>>;
+	type OnChargeTransaction = evm_fee::TransferEvmFees<
+		evm_fee::DealWithFees,
+		crate::MultiTransactionPayment,
+		WethAssetId,
+		FromWethConversion,
+		FungibleCurrencies<crate::Runtime>,
+	>;
 	type OnCreate = ();
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
-	type Runner = pallet_evm::runner::stack::Runner<Self>;
+	type Runner = WrapRunner<Self, pallet_evm::runner::stack::Runner<Self>>;
 	type RuntimeEvent = crate::RuntimeEvent;
 	type WeightPerGas = WeightPerGas;
 	type WithdrawOrigin = EnsureAddressTruncated;

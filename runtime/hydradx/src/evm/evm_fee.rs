@@ -1,11 +1,12 @@
 use crate::evm::{WethAssetId, WethCurrency};
 use crate::TreasuryAccount;
-use frame_support::traits::{Currency, ExistenceRequirement, Get, WithdrawReasons};
 use frame_support::traits::tokens::{Fortitude, Precision};
+use frame_support::traits::{Currency, ExistenceRequirement, Get, WithdrawReasons};
+use hydradx_traits::FeePaymentCurrency;
 use pallet_evm::{AddressMapping, Error};
-use sp_runtime::traits::Convert;
 use pallet_transaction_multi_payment::{DepositAll, DepositFee};
 use primitives::{AccountId, AssetId, Balance};
+use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
 use {
 	frame_support::traits::{Currency as PalletCurrency, Imbalance, OnUnbalanced},
@@ -13,7 +14,6 @@ use {
 	sp_core::{H160, U256},
 	sp_runtime::traits::UniqueSaturatedInto,
 };
-use hydradx_traits::FeePaymentCurrency;
 
 type CurrencyAccountId<T> = <T as frame_system::Config>::AccountId;
 type BalanceFor<T> = <<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::Balance;
@@ -25,7 +25,7 @@ type NegativeImbalanceFor<T> =
 /// Implements the transaction payment for EVM transactions.
 pub struct TransferEvmFees<OU, AC, EC, C, MC>(PhantomData<(OU, AC, EC, C, MC)>);
 
-impl<T, OU, AC , EC, C, MC> OnChargeEVMTransaction<T> for TransferEvmFees<OU, AC, EC, C, MC>
+impl<T, OU, AC, EC, C, MC> OnChargeEVMTransaction<T> for TransferEvmFees<OU, AC, EC, C, MC>
 where
 	T: pallet_evm::Config,
 	PositiveImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = NegativeImbalanceFor<T>>,
@@ -37,7 +37,7 @@ where
 	C: Convert<(AssetId, Balance), Balance>,
 	BalanceFor<T>: From<Balance>,
 	U256: UniqueSaturatedInto<Balance>,
-	MC: frame_support::traits::tokens::fungibles::Mutate<T::AccountId, AssetId=  AssetId, Balance = Balance>,
+	MC: frame_support::traits::tokens::fungibles::Mutate<T::AccountId, AssetId = AssetId, Balance = Balance>,
 {
 	type LiquidityInfo = Option<NegativeImbalanceFor<T>>;
 
@@ -51,7 +51,14 @@ where
 
 		let converted = C::convert((fee_currency, fee.unique_saturated_into()));
 
-		let burned = MC::burn_from(fee_currency, &account_id, converted, Precision::Exact, Fortitude::Polite).map_err(|_| Error::<T>::BalanceLow)?;
+		let burned = MC::burn_from(
+			fee_currency,
+			&account_id,
+			converted,
+			Precision::Exact,
+			Fortitude::Polite,
+		)
+		.map_err(|_| Error::<T>::BalanceLow)?;
 
 		Ok(None)
 		/*
@@ -105,7 +112,7 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 
 pub struct ToWethConversion;
 
-impl Convert<(AssetId,Balance), Balance> for ToWethConversion{
+impl Convert<(AssetId, Balance), Balance> for ToWethConversion {
 	fn convert((asset_id, balance): (AssetId, Balance)) -> Balance {
 		//TODO: convert using oracle
 		balance
@@ -114,7 +121,7 @@ impl Convert<(AssetId,Balance), Balance> for ToWethConversion{
 
 pub struct FromWethConversion;
 
-impl Convert<(AssetId,Balance), Balance> for FromWethConversion{
+impl Convert<(AssetId, Balance), Balance> for FromWethConversion {
 	fn convert((asset_id, balance): (AssetId, Balance)) -> Balance {
 		//TODO: convert using oracle
 		balance
