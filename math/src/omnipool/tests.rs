@@ -1,9 +1,9 @@
 use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, TradeFee, I129};
 use crate::omnipool::{
 	calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
-	calculate_cap_difference, calculate_delta_imbalance, calculate_remove_liquidity_state_changes,
-	calculate_sell_hub_state_changes, calculate_sell_state_changes, calculate_tvl_cap_difference,
-	calculate_withdrawal_fee, verify_asset_cap,
+	calculate_cap_difference, calculate_delta_imbalance, calculate_fee_amount_for_buy,
+	calculate_remove_liquidity_state_changes, calculate_sell_hub_state_changes, calculate_sell_state_changes,
+	calculate_tvl_cap_difference, calculate_withdrawal_fee, verify_asset_cap,
 };
 use crate::types::Balance;
 use num_traits::{One, Zero};
@@ -380,13 +380,13 @@ fn calculate_buy_should_return_correct_fee_when_protocol_fee_is_zero() {
 
 	assert_eq!(
 		state_changes.asset_in.delta_reserve,
-		BalanceUpdate::Increase(666666666668u128 + state_changes.fee.asset_fee)
+		BalanceUpdate::Increase(675675675677)
 	);
 
 	assert_eq!(
 		state_changes.fee,
 		TradeFee {
-			asset_fee: 9009009009,
+			asset_fee: 10101010102,
 			protocol_fee: 0,
 		}
 	)
@@ -427,13 +427,13 @@ fn calculate_buy_should_return_correct_fee_when_protocol_fee_is_non_zero() {
 
 	assert_eq!(
 		state_changes.asset_in.delta_reserve,
-		BalanceUpdate::Increase(666666666668u128 + state_changes.fee.asset_fee)
+		BalanceUpdate::Increase(682966807814)
 	);
 
 	assert_eq!(
 		state_changes.fee,
 		TradeFee {
-			asset_fee: 16300141146,
+			asset_fee: 10101010102,
 			protocol_fee: 12786088735,
 		}
 	)
@@ -571,13 +571,13 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
 	assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Decrease(9332954060590));
 	assert_eq!(
 		state_changes.asset.delta_hub_reserve,
-		BalanceUpdate::Increase(5000000000001u128 + state_changes.fee.asset_fee)
+		BalanceUpdate::Increase(5063291139241)
 	);
 
 	assert_eq!(
 		state_changes.fee,
 		TradeFee {
-			asset_fee: 63291139240,
+			asset_fee: 20_202_020_203,
 			protocol_fee: 0,
 		}
 	);
@@ -1056,5 +1056,118 @@ fn calculate_withdrawal_fee_should_work_correctly() {
 	assert_eq!(
 		calculate_withdrawal_fee(FixedU128::from(0), FixedU128::from(0), Permill::from_percent(1)),
 		expected_fee
+	);
+}
+
+#[test]
+fn test_fee_amount() {
+	assert_eq!(calculate_fee_amount_for_buy(Permill::from_float(0.01), 99), 2);
+	assert_eq!(
+		calculate_fee_amount_for_buy(Permill::from_percent(10), 50_000_000_000_000),
+		5555555555556
+	);
+	assert_eq!(calculate_fee_amount_for_buy(Permill::from_percent(100), 99), 99);
+	assert_eq!(calculate_fee_amount_for_buy(Permill::from_percent(0), 99), 0);
+}
+
+#[test]
+fn calculate_buy_should_charge_less_when_fee_is_zero() {
+	let asset_in_state = AssetReserveState {
+		reserve: 10 * UNIT,
+		hub_reserve: 20 * UNIT,
+		shares: 10 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 5 * UNIT,
+		hub_reserve: 5 * UNIT,
+		shares: 20 * UNIT,
+		protocol_shares: 0u128,
+	};
+
+	let amount_to_buy = UNIT;
+	let asset_fee = Permill::from_percent(0);
+	let protocol_fee = Permill::from_percent(0);
+	let imbalance = 2 * UNIT;
+
+	let state_changes = calculate_buy_state_changes(
+		&asset_in_state,
+		&asset_out_state,
+		amount_to_buy,
+		asset_fee,
+		protocol_fee,
+		imbalance,
+	);
+
+	assert!(state_changes.is_some());
+
+	let state_changes = state_changes.unwrap();
+
+	assert_eq!(
+		state_changes.asset_in.delta_reserve,
+		BalanceUpdate::Increase(666_666_666_668)
+	);
+	assert_eq!(
+		state_changes.asset_out.delta_reserve,
+		BalanceUpdate::Decrease(amount_to_buy)
+	);
+
+	assert_eq!(
+		state_changes.fee,
+		TradeFee {
+			asset_fee: 0,
+			protocol_fee: 0,
+		}
+	);
+}
+
+#[test]
+fn calculate_buy_should_charge_more_when_fee_is_not_zero() {
+	let asset_in_state = AssetReserveState {
+		reserve: 10 * UNIT,
+		hub_reserve: 20 * UNIT,
+		shares: 10 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 5 * UNIT,
+		hub_reserve: 5 * UNIT,
+		shares: 20 * UNIT,
+		protocol_shares: 0u128,
+	};
+
+	let amount_to_buy = UNIT;
+	let asset_fee = Permill::from_percent(10);
+	let protocol_fee = Permill::from_percent(5);
+	let imbalance = 2 * UNIT;
+
+	let state_changes = calculate_buy_state_changes(
+		&asset_in_state,
+		&asset_out_state,
+		amount_to_buy,
+		asset_fee,
+		protocol_fee,
+		imbalance,
+	);
+
+	assert!(state_changes.is_some());
+
+	let state_changes = state_changes.unwrap();
+
+	assert_eq!(
+		state_changes.asset_in.delta_reserve,
+		BalanceUpdate::Increase(813_008_130_082) // compared to previous testcase (calculate_buy_should_charge_less_when_fee_is_zero)
+	);
+	assert_eq!(
+		state_changes.asset_out.delta_reserve,
+		BalanceUpdate::Decrease(amount_to_buy)
+	);
+
+	assert_eq!(
+		state_changes.fee,
+		TradeFee {
+			asset_fee: 111_111_111_112,
+			protocol_fee: 75_187_969_924,
+		}
 	);
 }

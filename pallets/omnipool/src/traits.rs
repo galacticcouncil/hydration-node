@@ -1,5 +1,4 @@
 use crate::types::AssetReserveState;
-use frame_support::dispatch::fmt::Debug;
 use frame_support::ensure;
 use frame_support::traits::Contains;
 use frame_support::weights::Weight;
@@ -7,7 +6,9 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::AssetStateChange;
 use sp_runtime::traits::{CheckedAdd, CheckedMul, Get, Saturating, Zero};
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128, Permill};
+use sp_std::fmt::Debug;
 
+/// Asset In/Out information used in hooks.
 pub struct AssetInfo<AssetId, Balance>
 where
 	Balance: Default + Clone,
@@ -66,6 +67,7 @@ where
 	) -> Result<Balance, Self::Error>;
 }
 
+// Default implementation for no-op hooks.
 impl<Origin, AccountId, AssetId, Balance> OmnipoolHooks<Origin, AccountId, AssetId, Balance> for ()
 where
 	Balance: Default + Clone + Zero,
@@ -147,6 +149,7 @@ where
 	}
 }
 
+/// Ensures that the price is within the bounds of the current spot price and the external oracle price.
 pub struct EnsurePriceWithin<AccountId, AssetId, ExternalOracle, MaxAllowed, WhitelistedAccounts>(
 	sp_std::marker::PhantomData<(AccountId, AssetId, ExternalOracle, MaxAllowed, WhitelistedAccounts)>,
 );

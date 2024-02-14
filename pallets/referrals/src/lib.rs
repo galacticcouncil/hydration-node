@@ -43,15 +43,20 @@ pub mod weights;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarking;
+pub mod migration;
 #[cfg(test)]
 mod tests;
 pub mod traits;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::traits::fungibles::Transfer;
-use frame_support::{defensive, ensure, transactional, RuntimeDebug};
-use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use frame_support::traits::fungibles::Mutate;
+use frame_support::traits::tokens::Preservation;
+use frame_support::{defensive, ensure, transactional};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::{BlockNumberFor, OriginFor},
+};
 use hydradx_traits::price::PriceProvider;
 use orml_traits::GetByKey;
 use scale_info::TypeInfo;
@@ -62,7 +67,7 @@ use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Rounding;
 use sp_runtime::{
 	traits::{CheckedAdd, Zero},
-	ArithmeticError, DispatchError, Permill,
+	ArithmeticError, DispatchError, Permill, RuntimeDebug,
 };
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -74,8 +79,6 @@ use weights::WeightInfo;
 
 pub type Balance = u128;
 pub type ReferralCode<S> = BoundedVec<u8, S>;
-
-const MIN_CODE_LENGTH: usize = 5;
 
 /// Referrer level.
 /// Indicates current level of the referrer to determine which reward percentages are used.
@@ -148,13 +151,12 @@ pub mod pallet {
 	use crate::traits::Convert;
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::ArithmeticError;
-	use frame_support::traits::fungibles::{Inspect, Transfer};
+	use frame_support::traits::fungibles::{Inspect, Mutate};
 	use frame_support::PalletId;
 	use hydra_dx_math::ema::EmaPrice;
 	use sp_runtime::traits::Zero;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -169,7 +171,7 @@ pub mod pallet {
 		type AssetId: frame_support::traits::tokens::AssetId + MaybeSerializeDeserialize;
 
 		/// Support for transfers.
-		type Currency: Transfer<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>;
+		type Currency: Mutate<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>;
 
 		/// Support for asset conversion.
 		type Convert: Convert<Self::AccountId, Self::AssetId, Balance, Error = DispatchError>;
@@ -194,6 +196,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type CodeLength: Get<u32>;
 
+		/// Minimum referral code length.
+		#[pallet::constant]
+		type MinCodeLength: Get<u32>;
+
 		/// Volume and Global reward percentages for all assets if not specified explicitly for the asset.
 		type LevelVolumeAndRewardPercentages: GetByKey<Level, (Balance, FeeDistribution)>;
 
@@ -212,13 +218,14 @@ pub mod pallet {
 	}
 
 	/// Referral codes
-	/// Maps an account to a referral code.
+	/// Maps a referral code to an account.
 	#[pallet::storage]
 	#[pallet::getter(fn referral_account)]
 	pub(super) type ReferralCodes<T: Config> =
 		StorageMap<_, Blake2_128Concat, ReferralCode<T::CodeLength>, T::AccountId>;
 
 	/// Referral accounts
+	/// Maps an account to a referral code.
 	#[pallet::storage]
 	#[pallet::getter(fn referral_code)]
 	pub(super) type ReferralAccounts<T: Config> =
@@ -230,10 +237,15 @@ pub mod pallet {
 	#[pallet::getter(fn linked_referral_account)]
 	pub(super) type LinkedAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId>;
 
-	/// Shares per account.
+	/// Shares of a referral account
 	#[pallet::storage]
-	#[pallet::getter(fn account_shares)]
-	pub(super) type Shares<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+	#[pallet::getter(fn referrer_shares)]
+	pub(super) type ReferrerShares<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+
+	/// Shares of a trader account
+	#[pallet::storage]
+	#[pallet::getter(fn trader_shares)]
+	pub(super) type TraderShares<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
 
 	/// Total share issuance.
 	#[pallet::storage]
@@ -258,7 +270,7 @@ pub mod pallet {
 	/// Used to easily determine list of assets that need to be converted.
 	#[pallet::storage]
 	#[pallet::getter(fn pending_conversions)]
-	pub(super) type PendingConversions<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, ()>;
+	pub(super) type PendingConversions<T: Config> = CountedStorageMap<_, Blake2_128Concat, T::AssetId, ()>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -280,7 +292,11 @@ pub mod pallet {
 			to: AssetAmount<T::AssetId>,
 		},
 		/// Rewards claimed.
-		Claimed { who: T::AccountId, rewards: Balance },
+		Claimed {
+			who: T::AccountId,
+			referrer_rewards: Balance,
+			trade_rewards: Balance,
+		},
 		/// New asset rewards has been set.
 		AssetRewardsUpdated {
 			asset_id: T::AssetId,
@@ -331,7 +347,7 @@ pub mod pallet {
 		/// `origin` pays the registration fee.
 		/// `code` is assigned to the given `account`.
 		///
-		/// Length of the `code` must be at least `MIN_CODE_LENGTH`.
+		/// Length of the `code` must be at least `T::MinCodeLength`.
 		/// Maximum length is limited to `T::CodeLength`.
 		/// `code` must contain only alfa-numeric characters and all characters will be converted to upper case.
 		///
@@ -348,7 +364,7 @@ pub mod pallet {
 				Error::<T>::AlreadyRegistered
 			);
 
-			ensure!(code.len() >= MIN_CODE_LENGTH, Error::<T>::TooShort);
+			ensure!(code.len() >= T::MinCodeLength::get() as usize, Error::<T>::TooShort);
 
 			ensure!(
 				code.clone()
@@ -364,7 +380,7 @@ pub mod pallet {
 				ensure!(v.is_none(), Error::<T>::AlreadyExists);
 
 				let (fee_asset, fee_amount, beneficiary) = T::RegistrationFee::get();
-				T::Currency::transfer(fee_asset, &who, &beneficiary, fee_amount, true)?;
+				T::Currency::transfer(fee_asset, &who, &beneficiary, fee_amount, Preservation::Preserve)?;
 
 				*v = Some(who.clone());
 				Referrer::<T>::insert(&who, (Level::default(), Balance::zero()));
@@ -418,13 +434,17 @@ pub mod pallet {
 		pub fn convert(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			ensure_signed(origin)?;
 
-			let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
+			let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
 			ensure!(asset_balance > 0, Error::<T>::ZeroAmount);
 
-			let total_reward_asset =
-				T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance)?;
+			let total_reward_asset = T::Convert::convert(
+				Self::pot_account_id(),
+				asset_id.clone(),
+				T::RewardAsset::get(),
+				asset_balance,
+			)?;
 
-			PendingConversions::<T>::remove(asset_id);
+			PendingConversions::<T>::remove(asset_id.clone());
 
 			Self::deposit_event(Event::Converted {
 				from: AssetAmount::new(asset_id, asset_balance),
@@ -445,7 +465,7 @@ pub mod pallet {
 		/// Emits `Claimed` event when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight( {
-			let c = PendingConversions::<T>::iter().count() as u64;
+			let c = PendingConversions::<T>::count() as u64;
 			let convert_weight = (<T as Config>::WeightInfo::convert()).saturating_mul(c);
 			let w  = <T as Config>::WeightInfo::claim_rewards();
 			let one_read = T::DbWeight::get().reads(1_u64);
@@ -454,23 +474,28 @@ pub mod pallet {
 		pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			for (asset_id, _) in PendingConversions::<T>::iter() {
-				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
-				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
+				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
+				let r = T::Convert::convert(
+					Self::pot_account_id(),
+					asset_id.clone(),
+					T::RewardAsset::get(),
+					asset_balance,
+				);
 				if let Err(error) = r {
-					if error == Error::<T>::ConversionMinTradingAmountNotReached.into()
-						|| error == Error::<T>::ConversionZeroAmountReceived.into()
+					// We allow these errors to continue claiming as the current amount of asset that needed to be converted
+					// has very low impact on the rewards.
+					if error != Error::<T>::ConversionMinTradingAmountNotReached.into()
+						&& error != Error::<T>::ConversionZeroAmountReceived.into()
 					{
-						// We allow these errors to continue claiming as the current amount of asset that needed to be converted
-						// has very low impact on the rewards.
-					} else {
 						return Err(error);
 					}
-				} else {
-					PendingConversions::<T>::remove(asset_id);
 				}
+				PendingConversions::<T>::remove(asset_id);
 			}
-			let shares = Shares::<T>::take(&who);
-			if shares == Balance::zero() {
+			let referrer_shares = ReferrerShares::<T>::take(&who);
+			let trader_shares = TraderShares::<T>::take(&who);
+			let total_shares = referrer_shares.saturating_add(trader_shares);
+			if total_shares == Balance::zero() {
 				return Ok(());
 			}
 
@@ -478,33 +503,42 @@ pub mod pallet {
 			let reward_reserve = reward_reserve.saturating_sub(T::SeedNativeAmount::get());
 			let share_issuance = TotalShares::<T>::get();
 
-			let rewards = || -> Option<Balance> {
-				let shares_hp = U256::from(shares);
+			let convert_shares = |to_convert: Balance| -> Option<Balance> {
+				let shares_hp = U256::from(to_convert);
 				let reward_reserve_hp = U256::from(reward_reserve);
 				let share_issuance_hp = U256::from(share_issuance);
 				let r = shares_hp
 					.checked_mul(reward_reserve_hp)?
 					.checked_div(share_issuance_hp)?;
 				Balance::try_from(r).ok()
-			}()
-			.ok_or(ArithmeticError::Overflow)?;
+			};
+
+			let referrer_rewards = convert_shares(referrer_shares).ok_or(ArithmeticError::Overflow)?;
+			let trader_rewards = convert_shares(trader_shares).ok_or(ArithmeticError::Overflow)?;
+			let total_rewards = referrer_rewards
+				.checked_add(trader_rewards)
+				.ok_or(ArithmeticError::Overflow)?;
+			ensure!(total_rewards <= reward_reserve, Error::<T>::IncorrectRewardCalculation);
 
 			// Make sure that we can transfer all the rewards if all shares withdrawn.
-			let keep_pot_alive = shares != share_issuance;
+			let keep_pot_alive = match total_shares != share_issuance {
+				true => Preservation::Preserve,
+				false => Preservation::Expendable,
+			};
 
 			T::Currency::transfer(
 				T::RewardAsset::get(),
 				&Self::pot_account_id(),
 				&who,
-				rewards,
+				total_rewards,
 				keep_pot_alive,
 			)?;
 			TotalShares::<T>::mutate(|v| {
-				*v = v.saturating_sub(shares);
+				*v = v.saturating_sub(total_shares);
 			});
 			Referrer::<T>::mutate(who.clone(), |v| {
 				if let Some((level, total)) = v {
-					*total = total.saturating_add(rewards);
+					*total = total.saturating_add(referrer_rewards);
 					let new_level = level.increase::<T>(*total);
 					if *level != new_level {
 						*level = new_level;
@@ -516,7 +550,11 @@ pub mod pallet {
 				}
 			});
 
-			Self::deposit_event(Event::Claimed { who, rewards });
+			Self::deposit_event(Event::Claimed {
+				who,
+				referrer_rewards,
+				trade_rewards: trader_rewards,
+			});
 			Ok(())
 		}
 
@@ -549,7 +587,7 @@ pub mod pallet {
 				Error::<T>::IncorrectRewardPercentage
 			);
 
-			AssetRewards::<T>::mutate(asset_id, level, |v| {
+			AssetRewards::<T>::mutate(asset_id.clone(), level, |v| {
 				*v = Some(rewards);
 			});
 			Self::deposit_event(Event::AssetRewardsUpdated {
@@ -562,8 +600,8 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_idle(_n: T::BlockNumber, remaining_weight: Weight) -> Weight {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
 			let convert_weight = T::WeightInfo::convert();
 			if convert_weight.is_zero() {
 				return Weight::zero();
@@ -572,11 +610,15 @@ pub mod pallet {
 			let max_converts = remaining_weight.saturating_sub(one_read).ref_time() / convert_weight.ref_time();
 
 			for asset_id in PendingConversions::<T>::iter_keys().take(max_converts as usize) {
-				let asset_balance = T::Currency::balance(asset_id, &Self::pot_account_id());
-				let r = T::Convert::convert(Self::pot_account_id(), asset_id, T::RewardAsset::get(), asset_balance);
-				if r.is_ok() {
-					PendingConversions::<T>::remove(asset_id);
-				}
+				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
+				// remove the asset_id from PendingConversions even when the conversion fails
+				let _ = T::Convert::convert(
+					Self::pot_account_id(),
+					asset_id.clone(),
+					T::RewardAsset::get(),
+					asset_balance,
+				);
+				PendingConversions::<T>::remove(asset_id);
 			}
 			convert_weight.saturating_mul(max_converts).saturating_add(one_read)
 		}
@@ -597,7 +639,7 @@ impl<T: Config> Pallet<T> {
 	/// `source`: account to take the fee from
 	/// `trader`: account that does the trade
 	///
-	/// Returns unused amount on success.
+	/// Returns used amount on success.
 	#[transactional]
 	pub fn process_trade_fee(
 		source: T::AccountId,
@@ -605,7 +647,7 @@ impl<T: Config> Pallet<T> {
 		asset_id: T::AssetId,
 		amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		let Some(price) = T::PriceProvider::get_price(T::RewardAsset::get(), asset_id) else {
+		let Some(price) = T::PriceProvider::get_price(T::RewardAsset::get(), asset_id.clone()) else {
 			// no price, no fun.
 			return Ok(Balance::zero());
 		};
@@ -623,8 +665,8 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// What is asset fee for this level? if not explicitly set, use global parameter.
-		let rewards =
-			Self::asset_rewards(asset_id, level).unwrap_or_else(|| T::LevelVolumeAndRewardPercentages::get(&level).1);
+		let rewards = Self::asset_rewards(asset_id.clone(), level)
+			.unwrap_or_else(|| T::LevelVolumeAndRewardPercentages::get(&level).1);
 
 		// Rewards
 		let external_account = T::ExternalAccount::get();
@@ -643,7 +685,13 @@ impl<T: Config> Pallet<T> {
 			.saturating_add(trader_reward)
 			.saturating_add(external_reward);
 		ensure!(total_taken <= amount, Error::<T>::IncorrectRewardCalculation);
-		T::Currency::transfer(asset_id, &source, &Self::pot_account_id(), total_taken, true)?;
+		T::Currency::transfer(
+			asset_id.clone(),
+			&source,
+			&Self::pot_account_id(),
+			total_taken,
+			Preservation::Preserve,
+		)?;
 
 		let referrer_shares = if ref_account.is_some() {
 			multiply_by_rational_with_rounding(referrer_reward, price.n, price.d, Rounding::Down)
@@ -667,22 +715,30 @@ impl<T: Config> Pallet<T> {
 					.saturating_add(external_shares),
 			);
 		});
+
 		if let Some(acc) = ref_account {
-			Shares::<T>::mutate(acc, |v| {
+			ReferrerShares::<T>::mutate(acc, |v| {
 				*v = v.saturating_add(referrer_shares);
 			});
 		}
-		Shares::<T>::mutate(trader, |v| {
-			*v = v.saturating_add(trader_shares);
-		});
+
+		// don't store zero values
+		if !trader_shares.is_zero() {
+			TraderShares::<T>::mutate(trader, |v| {
+				*v = v.saturating_add(trader_shares);
+			});
+		}
+
 		if let Some(acc) = external_account {
-			Shares::<T>::mutate(acc, |v| {
+			TraderShares::<T>::mutate(acc, |v| {
 				*v = v.saturating_add(external_shares);
 			});
 		}
+
 		if asset_id != T::RewardAsset::get() {
 			PendingConversions::<T>::insert(asset_id, ());
 		}
+
 		Ok(total_taken)
 	}
 }

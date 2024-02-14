@@ -24,8 +24,8 @@ use std::collections::HashMap;
 use crate as pallet_omnipool;
 
 use crate::traits::ExternalPriceProvider;
-use frame_support::dispatch::Weight;
-use frame_support::traits::{ConstU128, Everything, GenesisBuild};
+use frame_support::traits::{ConstU128, Everything};
+use frame_support::weights::Weight;
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -36,11 +36,10 @@ use orml_traits::parameter_type_with_key;
 use primitive_types::{U128, U256};
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	BuildStorage,
 };
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
@@ -77,13 +76,11 @@ thread_local! {
 	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 	pub static WITHDRAWAL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static ON_TRADE_WITHDRAWAL: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 }
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
 		System: frame_system,
 		Balances: pallet_balances,
@@ -98,13 +95,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -129,6 +125,10 @@ impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type MaxReserves = ConstU32<50>;
 	type ReserveIdentifier = [u8; 8];
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 parameter_type_with_key! {
@@ -192,7 +192,7 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
-	type OmnipoolHooks = ();
+	type OmnipoolHooks = MockHooks;
 	type PriceBarrier = (
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff, ()>,
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, ()>,
@@ -353,6 +353,11 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_on_trade_withdrawal(self, p: Permill) -> Self {
+		ON_TRADE_WITHDRAWAL.with(|v| *v.borrow_mut() = p);
+		self
+	}
+
 	pub fn with_token(
 		mut self,
 		asset_id: AssetId,
@@ -365,7 +370,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		// Add DAi and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {
@@ -448,6 +453,10 @@ impl ExtBuilder {
 				}
 			});
 		}
+
+		r.execute_with(|| {
+			System::set_block_number(1);
+		});
 
 		r
 	}
@@ -644,5 +653,54 @@ pub struct FeeProvider;
 impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
 	fn get(_: &AssetId) -> (Permill, Permill) {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
+}
+
+pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
+	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
+
+pub struct MockHooks;
+
+impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
+	type Error = DispatchError;
+
+	fn on_liquidity_changed(
+		_origin: RuntimeOrigin,
+		_asset: AssetInfo<AssetId, Balance>,
+	) -> Result<Weight, Self::Error> {
+		Ok(Weight::zero())
+	}
+
+	fn on_trade(
+		_origin: RuntimeOrigin,
+		_asset_in: AssetInfo<AssetId, Balance>,
+		_asset_out: AssetInfo<AssetId, Balance>,
+	) -> Result<Weight, Self::Error> {
+		Ok(Weight::zero())
+	}
+
+	fn on_hub_asset_trade(_origin: RuntimeOrigin, _asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		Ok(Weight::zero())
+	}
+
+	fn on_liquidity_changed_weight() -> Weight {
+		Weight::zero()
+	}
+
+	fn on_trade_weight() -> Weight {
+		Weight::zero()
+	}
+
+	fn on_trade_fee(
+		fee_account: AccountId,
+		_trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Balance, Self::Error> {
+		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
+		let to_take = percentage.mul_floor(amount);
+		Tokens::withdraw(asset, &fee_account, to_take)?;
+		Ok(to_take)
 	}
 }

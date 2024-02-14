@@ -60,11 +60,13 @@ benchmarks! {
 	convert{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let (asset_id, amount) = T::BenchmarkHelper::prepare_convertible_asset_and_amount();
-		T::Currency::mint_into(asset_id, &Pallet::<T>::pot_account_id(), amount)?;
-		PendingConversions::<T>::insert(asset_id,());
-	}: _(RawOrigin::Signed(caller), asset_id)
+		T::Currency::mint_into(asset_id.clone(), &Pallet::<T>::pot_account_id(), amount)?;
+		PendingConversions::<T>::insert(asset_id.clone(),());
+		let count = PendingConversions::<T>::count();
+		assert_eq!(count , 1);
+	}: _(RawOrigin::Signed(caller), asset_id.clone())
 	verify {
-		let count = PendingConversions::<T>::iter().count();
+		let count = PendingConversions::<T>::count();
 		assert_eq!(count , 0);
 		let balance = T::Currency::balance(asset_id, &Pallet::<T>::pot_account_id());
 		assert_eq!(balance, 0);
@@ -81,12 +83,13 @@ benchmarks! {
 		// The worst case is when referrer account is updated to the top tier in one call
 		// So we need to have enough RewardAsset in the pot. And give all the shares to the caller.
 		let top_tier_volume = T::LevelVolumeAndRewardPercentages::get(&Level::Tier4).0;
-		T::Currency::mint_into(T::RewardAsset::get(), &Pallet::<T>::pot_account_id(), top_tier_volume + T::SeedNativeAmount::get())?;
-		Shares::<T>::insert(caller.clone(), 1_000_000_000_000);
-		TotalShares::<T>::put(1_000_000_000_000);
+		T::Currency::mint_into(T::RewardAsset::get(), &Pallet::<T>::pot_account_id(), 2 * top_tier_volume + T::SeedNativeAmount::get())?;
+		ReferrerShares::<T>::insert(caller.clone(), 1_000_000_000_000);
+		TraderShares::<T>::insert(caller.clone(), 1_000_000_000_000);
+		TotalShares::<T>::put(2_000_000_000_000);
 	}: _(RawOrigin::Signed(caller.clone()))
 	verify {
-		let count = PendingConversions::<T>::iter().count();
+		let count = PendingConversions::<T>::count();
 		assert_eq!(count , 0);
 		let balance = T::Currency::balance(T::RewardAsset::get(), &caller);
 		assert!(balance > caller_balance);

@@ -1,10 +1,10 @@
 use crate::traits::ActionData;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::RuntimeDebug;
 use pallet_democracy::ReferendumIndex;
 use scale_info::TypeInfo;
 use sp_core::bounded::BoundedVec;
 use sp_core::Get;
+use sp_runtime::RuntimeDebug;
 use sp_runtime::{traits::Zero, ArithmeticError, FixedU128};
 
 pub type Balance = u128;
@@ -27,7 +27,7 @@ pub struct Position<BlockNumber> {
 	/// Block number position was created at.
 	pub(crate) created_at: BlockNumber,
 	/// Total amount of points to slash.
-	pub(crate) accumulated_slash_points: Point,
+	pub accumulated_slash_points: Point,
 	/// Amount of rewards that wasn't paid yet.
 	pub(crate) accumulated_unpaid_rewards: Balance,
 	/// Rewards paid&locked rewards to user from increase stake.

@@ -177,14 +177,14 @@ fn test_share_price_in_add_remove_liquidity() {
 			let pool_account = pool_account(pool_id);
 			let amount = 1_000_000_000_000_000_000;
 			let share_price_initial = get_share_price(pool_id, 0);
-			let initial_shares = Tokens::total_issuance(&pool_id);
+			let initial_shares = Tokens::total_issuance(pool_id);
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				vec![AssetAmount::new(asset_a, amount)],
 			));
 
-			let final_shares = Tokens::total_issuance(&pool_id);
+			let final_shares = Tokens::total_issuance(pool_id);
 			let delta_s = final_shares - initial_shares;
 			let exec_price = FixedU128::from_rational(amount, delta_s);
 
@@ -249,7 +249,7 @@ fn test_share_price_in_add_shares_remove_liquidity() {
 
 			let pool_account = pool_account(pool_id);
 			let share_price_initial = get_share_price(pool_id, 0);
-			let initial_shares = Tokens::total_issuance(&pool_id);
+			let initial_shares = Tokens::total_issuance(pool_id);
 			let desired_shares = 973798810707557758;
 			let intial_a = Tokens::free_balance(asset_a, &BOB);
 			assert_ok!(Stableswap::add_liquidity_shares(
@@ -262,7 +262,7 @@ fn test_share_price_in_add_shares_remove_liquidity() {
 
 			let final_a = Tokens::free_balance(asset_a, &BOB);
 			let delta_a = intial_a - final_a;
-			let final_shares = Tokens::total_issuance(&pool_id);
+			let final_shares = Tokens::total_issuance(pool_id);
 			let delta_s = final_shares - initial_shares;
 			assert_eq!(delta_s, desired_shares);
 			let exec_price = FixedU128::from_rational(delta_a, delta_s);
@@ -322,14 +322,14 @@ fn test_share_price_case() {
 			let pool_account = pool_account(pool_id);
 			let amount = 1_000_000_000_000_000_000;
 			let share_price_initial = get_share_price(pool_id, 0);
-			let initial_shares = Tokens::total_issuance(&pool_id);
+			let initial_shares = Tokens::total_issuance(pool_id);
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				vec![AssetAmount::new(asset_a, amount)],
 			));
 
-			let final_shares = Tokens::total_issuance(&pool_id);
+			let final_shares = Tokens::total_issuance(pool_id);
 			let delta_s = final_shares - initial_shares;
 			let exec_price = FixedU128::from_rational(amount, delta_s);
 			assert!(share_price_initial <= exec_price);

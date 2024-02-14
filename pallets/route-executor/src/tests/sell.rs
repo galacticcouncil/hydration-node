@@ -45,7 +45,7 @@ fn sell_should_work_when_route_has_single_trade() {
 
 		//Assert
 		assert_executed_sell_trades(vec![(PoolType::XYK, amount_to_sell, HDX, AUSD)]);
-		expect_events(vec![Event::RouteExecuted {
+		expect_events(vec![Event::Executed {
 			asset_in: HDX,
 			asset_out: AUSD,
 			amount_in: amount_to_sell,
@@ -74,7 +74,7 @@ fn sell_should_work_with_omnipool_when_no_specified_or_onchain_route_exist() {
 
 		//Assert
 		assert_executed_sell_trades(vec![(PoolType::Omnipool, amount_to_sell, HDX, AUSD)]);
-		expect_events(vec![Event::RouteExecuted {
+		expect_events(vec![Event::Executed {
 			asset_in: HDX,
 			asset_out: AUSD,
 			amount_in: amount_to_sell,
@@ -180,7 +180,7 @@ fn sell_should_work_when_route_has_multiple_trades_with_same_pooltype() {
 			(PoolType::XYK, XYK_SELL_CALCULATION_RESULT, AUSD, MOVR),
 			(PoolType::XYK, XYK_SELL_CALCULATION_RESULT, MOVR, KSM),
 		]);
-		expect_events(vec![Event::RouteExecuted {
+		expect_events(vec![Event::Executed {
 			asset_in: HDX,
 			asset_out: KSM,
 			amount_in: amount_to_sell,
@@ -230,7 +230,7 @@ fn sell_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 			(PoolType::Omnipool, STABLESWAP_SELL_CALCULATION_RESULT, AUSD, KSM),
 		]);
 
-		expect_events(vec![Event::RouteExecuted {
+		expect_events(vec![Event::Executed {
 			asset_in: HDX,
 			asset_out: KSM,
 			amount_in: amount_to_sell,
@@ -288,7 +288,7 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 			],
 		);
 
-		expect_events(vec![Event::RouteExecuted {
+		expect_events(vec![Event::Executed {
 			asset_in: HDX,
 			asset_out: KSM,
 			amount_in: amount_to_sell,
@@ -350,7 +350,7 @@ fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_ord
 				],
 			);
 
-			expect_events(vec![Event::RouteExecuted {
+			expect_events(vec![Event::Executed {
 				asset_in: KSM,
 				asset_out: HDX,
 				amount_in: amount_to_sell,
@@ -489,4 +489,35 @@ fn sell_should_fail_when_min_limit_to_receive_is_not_reached() {
 			Error::<Test>::TradingLimitReached
 		);
 	});
+}
+
+#[test]
+fn sell_should_fail_when_assets_dont_correspond_to_route() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, AUSD, 1000)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let amount_to_sell = 10;
+			let limit = 5;
+
+			let trades = vec![
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: AUSD,
+					asset_out: HDX,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: HDX,
+					asset_out: MOVR,
+				},
+			];
+
+			//Act and assert
+			assert_noop!(
+				Router::sell(RuntimeOrigin::signed(ALICE), MOVR, AUSD, amount_to_sell, limit, trades),
+				Error::<Test>::InvalidRoute
+			);
+		});
 }

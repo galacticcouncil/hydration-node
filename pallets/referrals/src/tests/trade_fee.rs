@@ -24,7 +24,7 @@ fn process_trade_fee_should_increased_referrer_shares() {
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,));
 			// Assert
-			let shares = Shares::<Test>::get(ALICE);
+			let shares = ReferrerShares::<Test>::get(ALICE);
 			assert_eq!(shares, 5_000_000_000);
 		});
 }
@@ -52,7 +52,7 @@ fn process_trade_fee_should_increased_trader_shares() {
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000,));
 			// Assert
-			let shares = Shares::<Test>::get(BOB);
+			let shares = TraderShares::<Test>::get(BOB);
 			assert_eq!(shares, 2_000_000_000);
 		});
 }
@@ -117,7 +117,7 @@ fn process_trade_fee_should_fail_when_taken_amount_is_greater_than_fee_amount() 
 fn process_trade_should_not_increase_shares_when_trader_does_not_have_linked_account() {
 	ExtBuilder::default()
 		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
-		.with_shares(vec![(BOB, 1_000_000_000_000)])
+		.with_trader_shares(vec![(BOB, 1_000_000_000_000)])
 		.build()
 		.execute_with(|| {
 			// ARRANGE
@@ -130,7 +130,7 @@ fn process_trade_should_not_increase_shares_when_trader_does_not_have_linked_acc
 				DAI,
 				1_000_000_000_000,
 			));
-			let shares = Shares::<Test>::get(ALICE);
+			let shares = ReferrerShares::<Test>::get(ALICE);
 			assert_eq!(shares, 0);
 		});
 }
@@ -213,10 +213,35 @@ fn process_trade_fee_should_increase_external_account_shares_when_trader_has_no_
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000));
 			// Assert
-			let shares = Shares::<Test>::get(12345);
+			let shares = TraderShares::<Test>::get(12345);
 			assert_eq!(shares, 5_000_000_000);
 			let shares = TotalShares::<Test>::get();
 			assert_eq!(shares, 5_000_000_000);
+		});
+}
+
+#[test]
+fn process_trade_fee_should_not_store_zero_trader_reward_in_storage() {
+	let mut none_rewards = HashMap::new();
+	none_rewards.insert(
+		Level::None,
+		FeeDistribution {
+			referrer: Default::default(),
+			trader: Default::default(),
+			external: Permill::from_percent(50),
+		},
+	);
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, DAI, 2_000_000_000_000_000_000)])
+		.with_conversion_price((HDX, DAI), EmaPrice::new(1_000_000_000_000, 1_000_000_000_000_000_000))
+		.with_global_tier_rewards(none_rewards)
+		.build()
+		.execute_with(|| {
+			// Act
+			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000));
+			// Assert
+			assert_eq!(TraderShares::<Test>::try_get(BOB), Err(()));
 		});
 }
 
@@ -285,11 +310,11 @@ fn process_trade_fee_should_reward_all_parties_based_on_global_config_when_asset
 				1_000_000_000_000_000_000
 			));
 			// Assert
-			let referrer_shares = Shares::<Test>::get(ALICE);
+			let referrer_shares = ReferrerShares::<Test>::get(ALICE);
 			assert_eq!(referrer_shares, 500_000_000);
-			let trader_shares = Shares::<Test>::get(BOB);
+			let trader_shares = TraderShares::<Test>::get(BOB);
 			assert_eq!(trader_shares, 500_000_000);
-			let external_shares = Shares::<Test>::get(12345);
+			let external_shares = TraderShares::<Test>::get(12345);
 			assert_eq!(external_shares, 4_000_000_000);
 			let shares = TotalShares::<Test>::get();
 			assert_eq!(shares, 5_000_000_000);
@@ -338,11 +363,11 @@ fn process_trade_fee_should_use_configured_asset_instead_of_global_when_set() {
 			// Act
 			assert_ok!(MockAmm::trade(RuntimeOrigin::signed(BOB), HDX, DAI, 1_000_000_000_000));
 			// Assert
-			let referrer_shares = Shares::<Test>::get(ALICE);
+			let referrer_shares = ReferrerShares::<Test>::get(ALICE);
 			assert_eq!(referrer_shares, 1_000_000_000);
-			let trader_shares = Shares::<Test>::get(BOB);
+			let trader_shares = TraderShares::<Test>::get(BOB);
 			assert_eq!(trader_shares, 500_000_000);
-			let external_shares = Shares::<Test>::get(12345);
+			let external_shares = TraderShares::<Test>::get(12345);
 			assert_eq!(external_shares, 3_000_000_000);
 			let shares = TotalShares::<Test>::get();
 			assert_eq!(shares, 3_000_000_000 + 1_000_000_000 + 500_000_000);

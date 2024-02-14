@@ -19,43 +19,35 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use std::marker::PhantomData;
-use std::{
-	collections::{BTreeMap, HashMap},
-	path::PathBuf,
-	sync::Arc,
-	time::Duration,
-};
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc, time::Duration};
 
 use crate::service::{
 	rpc::{RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override, SchemaV3Override, StorageOverride},
-	FullClient,
+	ParachainClient,
 };
 use cumulus_client_consensus_common::ParachainBlockImportMarker;
 use fc_consensus::Error;
-use fc_db::Backend as FrontierBackend;
-use fc_mapping_sync::{MappingSyncWorker, SyncStrategy};
+use fc_db::kv::Backend as FrontierBackend;
+use fc_mapping_sync::{kv::MappingSyncWorker, SyncStrategy};
 use fc_rpc::{EthTask, OverrideHandle};
 use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_consensus::ensure_log;
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_storage::EthereumStorageSchema;
 use futures::{future, StreamExt};
-use polkadot_cli::Cli;
 use primitives::Block;
-use sc_cli::SubstrateCli;
 use sc_client_api::{backend::AuxStore, Backend, BlockOf, BlockchainEvents, StateBackend, StorageProvider};
 use sc_consensus::{BlockCheckParams, BlockImport as BlockImportT, BlockImportParams, ImportResult};
-use sc_service::{BasePath, Configuration, TFullBackend, TaskManager};
-use sp_api::{ConstructRuntimeApi, ProvideRuntimeApi};
+use sc_network_sync::SyncingService;
+use sc_service::{Configuration, TFullBackend, TaskManager};
+use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
-use sp_blockchain::{well_known_cache_keys::Id as CacheKeyId, Error as BlockchainError, HeaderBackend, HeaderMetadata};
+use sp_blockchain::{Error as BlockchainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::Error as ConsensusError;
 use sp_core::H256;
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Header as HeaderT};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Header as HeaderT, PhantomData};
 
 /// The ethereum-compatibility configuration used to run a node.
-/// evmTODO: revise settings, these are by Centrifuge
 #[derive(Clone, Copy, Debug, clap::Parser)]
 pub struct EthereumConfig {
 	/// Maximum number of logs in a query.
@@ -83,29 +75,38 @@ pub struct EthereumConfig {
 	pub eth_statuses_cache: usize,
 }
 
-pub type Hash = sp_core::H256;
 type BlockNumberOf<B> = <<B as BlockT>::Header as HeaderT>::Number;
 
-#[allow(dead_code)]
-#[derive(Clone)]
 pub struct BlockImport<B: BlockT, I: BlockImportT<B>, C> {
 	inner: I,
 	client: Arc<C>,
-	backend: Arc<fc_db::Backend<B>>,
+	backend: Arc<fc_db::kv::Backend<B>>,
 	evm_since: BlockNumberOf<B>,
 	_marker: PhantomData<B>,
+}
+
+impl<Block: BlockT, I: Clone + BlockImportT<Block>, C> Clone for BlockImport<Block, I, C> {
+	fn clone(&self) -> Self {
+		BlockImport {
+			inner: self.inner.clone(),
+			client: self.client.clone(),
+			backend: self.backend.clone(),
+			evm_since: self.evm_since.clone(),
+			_marker: PhantomData,
+		}
+	}
 }
 
 impl<B, I, C> BlockImport<B, I, C>
 where
 	B: BlockT,
-	I: BlockImportT<B, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync,
+	I: BlockImportT<B> + Send + Sync,
 	I::Error: Into<ConsensusError>,
 	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + BlockOf,
 	C::Api: EthereumRuntimeRPCApi<B>,
 	C::Api: BlockBuilderApi<B>,
 {
-	pub fn new(inner: I, client: Arc<C>, backend: Arc<fc_db::Backend<B>>, evm_since: BlockNumberOf<B>) -> Self {
+	pub fn new(inner: I, client: Arc<C>, backend: Arc<fc_db::kv::Backend<B>>, evm_since: BlockNumberOf<B>) -> Self {
 		Self {
 			inner,
 			client,
@@ -121,62 +122,46 @@ impl<B, I, C> BlockImportT<B> for BlockImport<B, I, C>
 where
 	B: BlockT,
 	<B::Header as HeaderT>::Number: PartialOrd,
-	I: BlockImportT<B, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync,
+	I: BlockImportT<B> + Send + Sync,
 	I::Error: Into<ConsensusError>,
 	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + BlockOf,
 	C::Api: EthereumRuntimeRPCApi<B>,
 	C::Api: BlockBuilderApi<B>,
 {
 	type Error = ConsensusError;
-	type Transaction = sp_api::TransactionFor<C, B>;
 
 	async fn check_block(&mut self, block: BlockCheckParams<B>) -> Result<ImportResult, Self::Error> {
 		self.inner.check_block(block).await.map_err(Into::into)
 	}
 
-	async fn import_block(
-		&mut self,
-		block: BlockImportParams<B, Self::Transaction>,
-		new_cache: HashMap<CacheKeyId, Vec<u8>>,
-	) -> Result<ImportResult, Self::Error> {
+	async fn import_block(&mut self, block: BlockImportParams<B>) -> Result<ImportResult, Self::Error> {
 		if *block.header.number() >= self.evm_since {
 			ensure_log(block.header.digest()).map_err(Error::from)?;
 		}
-		self.inner.import_block(block, new_cache).await.map_err(Into::into)
+		self.inner.import_block(block).await.map_err(Into::into)
 	}
 }
 
 impl<B: BlockT, I: BlockImportT<B>, C> ParachainBlockImportMarker for BlockImport<B, I, C> {}
 
 pub fn db_config_dir(config: &Configuration) -> PathBuf {
-	config
-		.base_path
-		.as_ref()
-		.map(|base_path| base_path.config_dir(config.chain_spec.id()))
-		.unwrap_or_else(|| BasePath::from_project("", "", &Cli::executable_name()).config_dir(config.chain_spec.id()))
+	config.base_path.config_dir(config.chain_spec.id())
 }
 
-pub fn spawn_frontier_tasks<RuntimeApi, Executor>(
+pub fn spawn_frontier_tasks(
 	task_manager: &TaskManager,
-	client: Arc<FullClient<RuntimeApi>>,
+	client: Arc<ParachainClient>,
 	backend: Arc<TFullBackend<Block>>,
 	frontier_backend: Arc<FrontierBackend<Block>>,
 	filter_pool: FilterPool,
 	overrides: Arc<OverrideHandle<Block>>,
 	fee_history_cache: FeeHistoryCache,
 	fee_history_cache_limit: FeeHistoryCacheLimit,
-) where
-	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi>> + Send + Sync + 'static,
-	RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
-		+ sp_api::Metadata<Block>
-		+ sp_session::SessionKeys<Block>
-		+ sp_api::ApiExt<Block, StateBackend = sc_client_api::StateBackendFor<TFullBackend<Block>, Block>>
-		+ sp_offchain::OffchainWorkerApi<Block>
-		+ sp_block_builder::BlockBuilder<Block>
-		+ cumulus_primitives_core::CollectCollationInfo<Block>
-		+ fp_rpc::EthereumRuntimeRPCApi<Block>,
-	Executor: sc_executor::NativeExecutionDispatch + 'static,
-{
+	sync: Arc<SyncingService<Block>>,
+	pubsub_notification_sinks: Arc<
+		fc_mapping_sync::EthereumBlockNotificationSinks<fc_mapping_sync::EthereumBlockNotification<Block>>,
+	>,
+) {
 	task_manager.spawn_essential_handle().spawn(
 		"frontier-mapping-sync-worker",
 		None,
@@ -185,10 +170,13 @@ pub fn spawn_frontier_tasks<RuntimeApi, Executor>(
 			Duration::new(6, 0),
 			client.clone(),
 			backend,
+			overrides.clone(),
 			frontier_backend,
 			3,
 			0,
 			SyncStrategy::Parachain,
+			sync,
+			pubsub_notification_sinks,
 		)
 		.for_each(|()| future::ready(())),
 	);

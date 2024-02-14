@@ -17,9 +17,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 use codec::{Decode, Encode};
-#[cfg(feature = "std")]
-use frame_support::traits::GenesisBuild;
-#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_core::RuntimeDebug;
 
@@ -34,8 +31,9 @@ mod tests;
 
 pub mod migration;
 
-#[derive(Encode, Decode, Clone, Default, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(
+	Encode, Decode, Serialize, Deserialize, Clone, Default, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub struct Chain {
 	pub genesis_hash: H256,
 	pub last_block_hash: H256,
@@ -50,46 +48,32 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	#[pallet::config]
-	pub trait Config: frame_system::Config {}
+	/// The current storage version.
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
+
+	#[pallet::config]
+	pub trait Config: frame_system::Config {}
 
 	#[pallet::storage]
 	#[pallet::getter(fn previous_chain)]
 	pub type PreviousChain<T: Config> = StorageValue<_, Chain, ValueQuery>;
 
 	#[pallet::genesis_config]
-	pub struct GenesisConfig {
+	#[derive(frame_support::DefaultNoBound)]
+	pub struct GenesisConfig<T: Config> {
 		pub previous_chain: Chain,
+		#[serde(skip)]
+		pub _phantom: PhantomData<T>,
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			PreviousChain::<T>::put(self.previous_chain.clone());
-		}
-	}
-
-	#[cfg(feature = "std")]
-	impl Default for GenesisConfig {
-		fn default() -> Self {
-			GenesisConfig {
-				previous_chain: { Chain::default() },
-			}
-		}
-	}
-
-	#[cfg(feature = "std")]
-	impl GenesisConfig {
-		pub fn build_storage<T: Config>(&self) -> Result<sp_runtime::Storage, String> {
-			<Self as GenesisBuild<T>>::build_storage(self)
-		}
-
-		pub fn assimilate_storage<T: Config>(&self, storage: &mut sp_runtime::Storage) -> Result<(), String> {
-			<Self as GenesisBuild<T>>::assimilate_storage(self, storage)
 		}
 	}
 

@@ -20,6 +20,8 @@
 use sp_std::prelude::*;
 use std::cell::RefCell;
 
+use crate::tests::oracle::Oracle;
+use crate::types::{FeeEntry, FeeParams};
 use crate::{Config, UpdateAndRetrieveFees, Volume, VolumeProvider};
 
 use frame_support::{
@@ -30,17 +32,11 @@ use orml_traits::GetByKey;
 pub use orml_traits::MultiCurrency;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
-	FixedU128, Perquintill,
+	traits::{BlakeTwo256, IdentityLookup, One, Zero},
+	BuildStorage, FixedU128, Perquintill,
 };
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
-use crate::tests::oracle::Oracle;
-use crate::types::{FeeEntry, FeeParams};
-use sp_runtime::traits::{One, Zero};
-
 pub type Balance = u128;
 pub type AssetId = u32;
 pub type AccountId = u64;
@@ -68,13 +64,10 @@ fn fee_params_default() -> FeeParams<Fee> {
 }
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		DynamicFees: crate::{Pallet, Call, Storage, Event<T>},
+		System: frame_system,
+		DynamicFees: crate,
 	}
 );
 
@@ -84,13 +77,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -180,8 +172,8 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut r: sp_io::TestExternalities = frame_system::GenesisConfig::default()
-			.build_storage::<Test>()
+		let mut r: sp_io::TestExternalities = frame_system::GenesisConfig::<Test>::default()
+			.build_storage()
 			.unwrap()
 			.into();
 		r.execute_with(|| {

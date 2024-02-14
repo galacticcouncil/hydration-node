@@ -37,27 +37,15 @@ cargo build --release
 
 ## Run
 
-### Local Testnet
+### Chopsticks
 
-Relay chain repository (polkadot) has to be built in `../polkadot`
-Install `polkadot-launch` utility used to start network.
+The easiest way to run and interact with HydraDX node is to use [Chopsticks](https://github.com/acalanetwork/chopsticks)
 
-```
-npm install -g polkadot-launch
-```
-
-Start local testnet with 4 relay chain validators and HydraDX as a parachain with 2 collators.
-
-```
-cd ./rococo-local
-polkadot-launch config.json
+```Bash
+npx @acala-network/chopsticks@latest --config=launch-configs/chopsticks/hydradx.yml 
 ```
 
-Observe HydraDX logs
-
-```
-multitail 99*.log
-```
+Now you have a test node running at [`ws://localhost:8000`](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2Flocalhost%3A8000#/explorer)
 
 ### Local Testnet with Zombienet
 
@@ -73,117 +61,32 @@ zombienet spawn config-zombienet.json
 
 ### Interaction with the node
 
-Go to the polkadot apps at https://dotapps.io
+Go to the polkadot apps at https://polkadot.js.org/apps
 
-Then open settings screen -> developer and paste
-
-*NOTE - FixedU128 type is not yet implemented for polkadot apps. Balance is a measure so price can be reasonably selected. If using polkadot apps to create pool:*
-- 1 Mega Units equals 1:1 price
-- 20 Mega Units equals 20:1 price
-- 50 Kilo Units equals 0.05:1 price
-
-```
-{
-  "types": [
-    {
-      "AssetPair": {
-        "asset_in": "AssetId",
-        "asset_out": "AssetId"
-      },
-      "Amount": "i128",
-      "AmountOf": "Amount",
-      "Address": "AccountId",
-      "OrmlAccountData": {
-        "free": "Balance",
-        "frozen": "Balance",
-        "reserved": "Balance"
-      },
-      "BlockNumber": "u32",
-      "BalanceInfo": {
-        "amount": "Balance",
-        "assetId": "AssetId"
-      },
-      "Chain": {
-        "genesisHash": "Vec<u8>",
-        "lastBlockHash": "Vec<u8>"
-      },
-      "CurrencyId": "AssetId",
-      "CurrencyIdOf": "AssetId",
-      "Intention": {
-        "who": "AccountId",
-        "asset_sell": "AssetId",
-        "asset_buy": "AssetId",
-        "amount": "Balance",
-        "discount": "bool",
-        "sell_or_buy": "IntentionType"
-      },
-      "IntentionId": "Hash",
-      "IntentionType": {
-        "_enum": [
-          "SELL",
-          "BUY"
-        ]
-      },
-      "LookupSource": "AccountId",
-      "OrderedSet": "Vec<AssetId>",
-      "Price": "Balance",
-      "Fee": {
-        "numerator": "u32",
-        "denominator": "u32"
-      },
-      "VestingScheduleOf": {
-        "start": "BlockNumber",
-        "period": "BlockNumber",
-        "period_count": "u32",
-        "per_period": "Balance"
-      }
-    }
-  ],
-  "alias": {
-    "tokens": {
-      "AccountData": "OrmlAccountData"
-    }
-  }
-}
-```
-
-Connect to the
-- Hacknet: `wss://hack.hydradx.io:9944`
-- [Stakenet](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc-01.snakenet.hydradx.io): `wss://rpc-01.snakenet.hydradx.io`
-- or local node – if you are on chromium based browser, set chrome://flags/#allow-insecure-localhost
-
-### Performance check
-
-Prerequisites: rust/cargo, python 3.8+
-
-With the following script it is possible to run a simple performance check. It might be useful
-to determine whether your machine is suitable to run HydraDX node.
-
-From the top-level node directory:
-
-```bash
-./scripts/check_performance.sh
-```
-
-This will run series of benchmarks ( which may take a while).
-The output will show benchmark results of HydraDX pallets and comparison against reference values.
-
-The most interesting information would be the difference between the HydraDx benchmark value and the local machine's benchmark.
-
-If the difference is >= 0, performance is similar or better.
-However, if the difference < 0 - your machine might not be suitable to run HydraDX node. Contact HydraDX devs to discuss the results.
+Connect to 
+- Mainnet: `wss://rpc.hydradx.cloud`
+- local node: `ws://localhost:8000` (if you are using chopsticks)
 
 ### Testing of storage migrations and runtime upgrades
 
 The `try-runtime` tool can be used to test storage migrations and runtime upgrades against state from a real chain.
-Run the following command to test against the state on HydraDX
+Run the following command to test against the state on HydraDX.
+Don't forget to use a runtime built with `try-runtime` feature.
 ```bash
-cargo run --release --features=try-runtime try-runtime --no-spec-name-check on-runtime-upgrade live --uri wss://rpc.hydradx.cloud:443
+try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks all live --uri wss://rpc.hydradx.cloud:443
 ```
-or against HydraDX testnet on Rococo
-```bash
-cargo run --release --features=try-runtime try-runtime --no-spec-name-check on-runtime-upgrade live --uri wss://rococo-hydradx-rpc.hydration.dev:443
-```
+or against HydraDX testnet on Rococo using `--uri wss://rococo-hydradx-rpc.hydration.dev:443`
 
-### Honorable contributions
-[@apopiak](https://github.com/apopiak) for great reviews [#87](https://github.com/galacticcouncil/HydraDX-node/pull/87) and support.
+
+## Security
+Useful resources:
+
+* https://github.com/galacticcouncil/HydraDX-security
+* https://apidocs.bsx.fi/HydraDX
+* https://docs.hydradx.io/
+* https://docs.hydradx.io/omnipool_design
+* https://docs.hydradx.io/fees
+
+Bug bounty: [https://immunefi.com/bounty/hydradx/](https://immunefi.com/bounty/hydradx/)
+
+Reponsible disclosure: security@hydradx.io

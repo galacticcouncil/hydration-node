@@ -151,7 +151,7 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 		//Arrange
 		init_omnipool();
 
-		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let hdx_balance_in_omnipool = Balances::free_balance(Omnipool::protocol_account());
 		let trade_volume_limit = CircuitBreaker::trade_volume_limit_per_asset(CORE_ASSET_ID);
 		// make multiple buys to avoid hitting MaxInRatio
 		let num_of_buys = 4;
@@ -261,15 +261,14 @@ fn add_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exce
 
 		init_omnipool();
 
-		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let hdx_balance_in_omnipool = Balances::free_balance(Omnipool::protocol_account());
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			added_liquidity,
-			0,
 		));
 
 		set_relaychain_block_number(300);
@@ -289,18 +288,17 @@ fn add_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded
 		//Arrange
 		init_omnipool();
 
-		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let hdx_balance_in_omnipool = Balances::free_balance(Omnipool::protocol_account());
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit)
 			.unwrap()
 			.checked_add(1)
 			.unwrap();
 
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			added_liquidity,
-			0,
 		));
 
 		set_relaychain_block_number(300);
@@ -323,18 +321,17 @@ fn add_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_exce
 		//Arrange
 		init_omnipool();
 
-		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let hdx_balance_in_omnipool = Balances::free_balance(Omnipool::protocol_account());
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit)
 			.unwrap()
 			.checked_add(1)
 			.unwrap();
 
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			Treasury::account_id(),
 			added_liquidity,
-			0,
 		));
 
 		set_relaychain_block_number(300);
@@ -354,15 +351,14 @@ fn remove_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_e
 		//Arrange
 		init_omnipool();
 
-		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let hdx_balance_in_omnipool = Balances::free_balance(Omnipool::protocol_account());
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			added_liquidity,
-			0,
 		));
 
 		set_relaychain_block_number(300);
@@ -388,15 +384,14 @@ fn remove_liquidity_from_omnipool_should_fail_when_large_legacy_position_removed
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool();
-		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let hdx_balance_in_omnipool = Balances::free_balance(Omnipool::protocol_account());
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let max_removed_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 		let bag = max_removed_liquidity * 2;
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			Treasury::account_id(),
 			bag,
-			0,
 		));
 
 		set_relaychain_block_number(300);
@@ -427,15 +422,14 @@ fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool();
-		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let hdx_balance_in_omnipool = Balances::free_balance(Omnipool::protocol_account());
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let max_removed_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 		let bag = max_removed_liquidity * 2;
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			Treasury::account_id(),
 			bag,
-			0,
 		));
 
 		set_relaychain_block_number(300);
@@ -476,17 +470,16 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 		//Arrange
 		init_omnipool();
 
-		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let hdx_balance_in_omnipool = Balances::free_balance(Omnipool::protocol_account());
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 
 		set_relaychain_block_number(200);
 
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			added_liquidity * 10,
-			0,
 		));
 
 		let position_id_1 = Omnipool::next_position_id();
@@ -531,15 +524,14 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 		//Arrange
 		init_omnipool();
 
-		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let hdx_balance_in_omnipool = Balances::free_balance(Omnipool::protocol_account());
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 
-		assert_ok!(Balances::set_balance(
+		assert_ok!(Balances::force_set_balance(
 			RawOrigin::Root.into(),
 			Treasury::account_id(),
 			added_liquidity * 10,
-			0,
 		));
 
 		set_relaychain_block_number(200);

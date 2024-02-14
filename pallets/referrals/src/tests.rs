@@ -31,29 +31,22 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use frame_support::{
-	construct_runtime, parameter_types,
-	sp_runtime::traits::Zero,
-	sp_runtime::{
-		testing::Header,
-		traits::{BlakeTwo256, IdentityLookup},
-	},
-	traits::{ConstU32, ConstU64, Everything, GenesisBuild},
+	assert_noop, assert_ok, construct_runtime, parameter_types,
+	sp_runtime::traits::{BlakeTwo256, ConstU32, ConstU64, IdentityLookup, Zero},
+	traits::Everything,
 	PalletId,
 };
 use sp_core::H256;
 
 use crate::tests::mock_amm::{Hooks, TradeResult};
 use crate::traits::Convert;
-use frame_support::{assert_noop, assert_ok};
 use frame_system::EnsureRoot;
 use hydra_dx_math::ema::EmaPrice;
 use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::DispatchError;
-use sp_runtime::Rounding;
+use sp_runtime::{BuildStorage, DispatchError, Rounding};
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub(crate) type AccountId = u64;
@@ -81,10 +74,7 @@ thread_local! {
 }
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
 		System: frame_system,
 		Referrals: pallet_referrals,
@@ -95,7 +85,8 @@ construct_runtime!(
 
 parameter_types! {
 	pub const RefarralPalletId: PalletId = PalletId(*b"test_ref");
-	pub const CodeLength: u32 = 7;
+	pub const CodeLength: u32 = 10;
+	pub const MinCodeLength: u32 = 4;
 	pub const RegistrationFee: (AssetId,Balance, AccountId) = (HDX, 222 * 1_000_000_000_000, TREASURY) ;
 	pub const RewardAsset: AssetId = HDX;
 }
@@ -147,6 +138,7 @@ impl Config for Test {
 	type PalletId = RefarralPalletId;
 	type RegistrationFee = RegistrationFee;
 	type CodeLength = CodeLength;
+	type MinCodeLength = MinCodeLength;
 	type LevelVolumeAndRewardPercentages = LevelVolumeAndRewards;
 	type ExternalAccount = ExtAccount;
 	type SeedNativeAmount = SeedAmount;
@@ -162,13 +154,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -211,7 +202,8 @@ impl mock_amm::pallet::Config for Test {
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
-	shares: Vec<(AccountId, Balance)>,
+	referrer_shares: Vec<(AccountId, Balance)>,
+	trader_shares: Vec<(AccountId, Balance)>,
 	tiers: Vec<(AssetId, Level, FeeDistribution)>,
 	assets: Vec<AssetId>,
 }
@@ -238,7 +230,8 @@ impl Default for ExtBuilder {
 
 		Self {
 			endowed_accounts: vec![(ALICE, HDX, INITIAL_ALICE_BALANCE)],
-			shares: vec![],
+			referrer_shares: vec![],
+			trader_shares: vec![],
 			tiers: vec![],
 			assets: vec![],
 		}
@@ -251,8 +244,13 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_shares(mut self, shares: Vec<(AccountId, Balance)>) -> Self {
-		self.shares.extend(shares);
+	pub fn with_referrer_shares(mut self, shares: Vec<(AccountId, Balance)>) -> Self {
+		self.referrer_shares.extend(shares);
+		self
+	}
+
+	pub fn with_trader_shares(mut self, shares: Vec<(AccountId, Balance)>) -> Self {
+		self.trader_shares.extend(shares);
 		self
 	}
 
@@ -317,7 +315,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self
@@ -332,8 +330,14 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
-			for (acc, amount) in self.shares.iter() {
-				Shares::<Test>::insert(acc, amount);
+			for (acc, amount) in self.referrer_shares.iter() {
+				ReferrerShares::<Test>::insert(acc, amount);
+				TotalShares::<Test>::mutate(|v| {
+					*v = v.saturating_add(*amount);
+				});
+			}
+			for (acc, amount) in self.trader_shares.iter() {
+				TraderShares::<Test>::insert(acc, amount);
 				TotalShares::<Test>::mutate(|v| {
 					*v = v.saturating_add(*amount);
 				});
@@ -380,7 +384,7 @@ impl Convert<AccountId, AssetId, Balance> for AssetConvert {
 	) -> Result<Balance, Self::Error> {
 		let price = CONVERSION_RATE
 			.with(|v| v.borrow().get(&(asset_to, asset_from)).copied())
-			.ok_or(Error::<Test>::InvalidCode)?;
+			.ok_or(Error::<Test>::ConversionMinTradingAmountNotReached)?;
 		let result = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down).unwrap();
 		Tokens::update_balance(asset_from, &who, -(amount as i128)).unwrap();
 		Tokens::update_balance(asset_to, &who, result as i128).unwrap();

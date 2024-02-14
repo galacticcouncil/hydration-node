@@ -74,7 +74,7 @@ fn xcm_exchanger_allows_selling_supported_assets() {
 			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
 			assert!(received_amount >= wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
-			assert_eq!(Balances::free_balance(&ExchangeTempAccount::get()), 0);
+			assert_eq!(Balances::free_balance(ExchangeTempAccount::get()), 0);
 		});
 }
 
@@ -123,7 +123,7 @@ fn xcm_exchanger_should_work_with_onchain_route() {
 			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
 			assert!(received_amount >= wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
-			assert_eq!(Balances::free_balance(&ExchangeTempAccount::get()), 0);
+			assert_eq!(Balances::free_balance(ExchangeTempAccount::get()), 0);
 		});
 }
 
@@ -160,7 +160,7 @@ fn xcm_exchanger_allows_buying_supported_assets() {
 			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
 			assert!(received_amount == wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
-			assert_eq!(Balances::free_balance(&ExchangeTempAccount::get()), 0);
+			assert_eq!(Balances::free_balance(ExchangeTempAccount::get()), 0);
 		});
 }
 

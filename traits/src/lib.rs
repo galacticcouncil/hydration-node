@@ -31,12 +31,10 @@ pub mod price;
 pub use oracle::*;
 
 use codec::{Decode, Encode};
-use frame_support::dispatch::{self, DispatchError};
-use frame_support::sp_runtime::traits::Zero;
-use frame_support::sp_runtime::RuntimeDebug;
+use frame_support::dispatch::{self};
+use frame_support::sp_runtime::{traits::Zero, DispatchError, RuntimeDebug};
 use frame_support::traits::LockIdentifier;
 use frame_support::weights::Weight;
-#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_std::vec::Vec;
 
@@ -196,6 +194,12 @@ impl<AssetId, Balance, Price> OnTradeHandler<AssetId, Balance, Price> for () {
 
 pub trait CanCreatePool<AssetId> {
 	fn can_create(asset_a: AssetId, asset_b: AssetId) -> bool;
+}
+
+impl<AssetId> CanCreatePool<AssetId> for () {
+	fn can_create(_asset_a: AssetId, _asset_b: AssetId) -> bool {
+		true
+	}
 }
 
 pub trait LockedBalance<AssetId, AccountId, Balance> {
