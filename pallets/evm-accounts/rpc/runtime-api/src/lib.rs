@@ -28,9 +28,6 @@ sp_api::decl_runtime_apis! {
 		/// get the EVM address from the substrate address.
 		fn get_evm_address(account_id: AccountId) -> EvmAddress;
 
-		/// Get the truncated address from the EVM address.
-		fn get_truncated_account_id(evm_address: EvmAddress) -> AccountId;
-
 		/// Return the Substrate address bound to the EVM account. If not bound, returns `None`.
 		fn query_bound_account_id(evm_address: EvmAddress) -> Option<AccountId>;
 

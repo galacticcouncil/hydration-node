@@ -43,8 +43,6 @@
 
 use frame_support::ensure;
 use frame_support::pallet_prelude::{DispatchResult, Get};
-
-use scale_info::TypeInfo;
 use sp_core::{crypto::AccountId32, H160, U256};
 
 #[cfg(test)]
@@ -69,7 +67,6 @@ pub trait EvmNonceProvider {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
@@ -80,16 +77,6 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
-		/// Asset type.
-		type AssetId: Member
-			+ Parameter
-			+ Default
-			+ Copy
-			+ HasCompact
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
-			+ TypeInfo;
 
 		/// EVM nonce provider.
 		type EvmNonceProvider: EvmNonceProvider;
@@ -198,16 +185,13 @@ where
 
 	/// Return the Substrate address bound to the EVM account. If not bound, returns `None`.
 	pub fn bound_account_id(evm_address: EvmAddress) -> Option<T::AccountId> {
-		let maybe_last_12_bytes = BoundAccount::<T>::get(evm_address);
-		match maybe_last_12_bytes {
-			Some(last_12_bytes) => {
-				let mut data: [u8; 32] = [0u8; 32];
-				data[..20].copy_from_slice(evm_address.0.as_ref());
-				data[20..32].copy_from_slice(&last_12_bytes[..]);
-				Some(AccountId32::from(data).into())
-			}
-			_ => None,
-		}
+		let Some(last_12_bytes) = BoundAccount::<T>::get(evm_address) else {
+			return None;
+		};
+		let mut data: [u8; 32] = [0u8; 32];
+		data[..20].copy_from_slice(evm_address.0.as_ref());
+		data[20..32].copy_from_slice(&last_12_bytes);
+		Some(AccountId32::from(data).into())
 	}
 
 	/// Get the Substrate address from the EVM address.

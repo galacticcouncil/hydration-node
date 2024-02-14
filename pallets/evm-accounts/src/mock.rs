@@ -57,7 +57,6 @@ impl EvmNonceProvider for EvmNonceProviderMock {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type AssetId = AssetId;
 	type FeeMultiplier = sp_core::ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProviderMock;
 	type WeightInfo = ();

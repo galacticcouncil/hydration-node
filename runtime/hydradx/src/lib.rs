@@ -588,9 +588,6 @@ impl_runtime_apis! {
 		fn get_evm_address(account_id: AccountId) -> H160 {
 			EVMAccounts::evm_address(&account_id)
 		}
-		fn get_truncated_account_id(evm_address: H160) -> AccountId {
-			EVMAccounts::get_truncated_account_id(evm_address)
-		}
 		fn query_bound_account_id(evm_address: H160) -> Option<AccountId> {
 			EVMAccounts::bound_account_id(evm_address)
 		}
