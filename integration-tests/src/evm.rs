@@ -222,6 +222,31 @@ mod account_conversion {
 			);
 		});
 	}
+
+	#[test]
+	fn bind_evm_address_tx_cost_should_be_increased_by_fee_multiplier() {
+		// the fee multiplier is in the pallet evm accounts config and the desired fee is 10 HDX
+		use primitives::constants::currency::UNITS;
+		use pallet_transaction_payment::{Multiplier, NextFeeMultiplier};
+		use sp_runtime::FixedPointNumber;
+
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let call = pallet_evm_accounts::Call::<hydradx_runtime::Runtime>::bind_evm_address {};
+			let info = call.get_dispatch_info();
+			// convert to outer call
+			let call = hydradx_runtime::RuntimeCall::EVMAccounts(call);
+			let len = call.using_encoded(|e| e.len()) as u32;
+
+			NextFeeMultiplier::<hydradx_runtime::Runtime>::put(Multiplier::saturating_from_integer(1));
+			let fee_raw = hydradx_runtime::TransactionPayment::compute_fee_details(len, &info, 0);
+			let fee = fee_raw.final_fee();
+
+			// simple test that the fee is approximately 10 HDX
+			assert!(fee / UNITS == 10);
+		});
+	}
 }
 
 mod currency_precompile {
