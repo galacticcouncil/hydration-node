@@ -769,29 +769,12 @@ fn fee_should_be_paid_in_accounts_fee_currency() {
 
 	Hydra::execute_with(|| {
 		//Set alice with as fee currency and fund it
-		/*
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			WETH,
-		));
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ALICE.into(),
-			WETH,
-			(100 * UNITS * 1_000_000) as i128,
-		));
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			currency_precompile::alice_substrate_evm_addr().into(),
-			WETH,
-			(100 * UNITS * 1_000_000) as i128,
-		));
-		 */
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			currency_precompile::alice_substrate_evm_addr().into(),
 			DAI,
 			(100 * UNITS * 1_000_000) as i128,
+			//(100 * UNITS ) as i128,
 		));
 		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
 			hydradx_runtime::RuntimeOrigin::signed(currency_precompile::alice_substrate_evm_addr().into()),
@@ -811,7 +794,6 @@ fn fee_should_be_paid_in_accounts_fee_currency() {
 			});
 
 		let gas_limit = 1000000;
-		//Execute omnipool via EVM
 		assert_ok!(EVM::call(
 			evm_signed_origin(currency_precompile::alice_evm_addr()),
 			currency_precompile::alice_evm_addr(),
@@ -824,7 +806,6 @@ fn fee_should_be_paid_in_accounts_fee_currency() {
 			Some(U256::zero()),
 			[].into(),
 		));
-		//let alice_new_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
 		let alice_new_dai_balance = Tokens::free_balance(DAI, &currency_precompile::alice_substrate_evm_addr());
 		let fee_amount = alice_dai_balance - alice_new_dai_balance;
 
@@ -881,6 +862,7 @@ pub fn init_omnipol() {
 	let stable_amount: Balance = 5_000_000_000_000_000_000_000u128;
 	let native_amount: Balance = 5_000_000_000_000_000_000_000u128;
 	let weth_amount: Balance = 10_000_000_000_000_000_000_000_000u128;
+	let weth_price = FixedU128::from_rational(67852651072676287, 1074271742496220564487);
 	assert_ok!(Tokens::set_balance(
 		RawOrigin::Root.into(),
 		acc.clone(),
@@ -919,7 +901,7 @@ pub fn init_omnipol() {
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
 		WETH,
-		FixedU128::from_rational(1, 2),
+		weth_price,
 		Permill::from_percent(60),
 		AccountId::from(ALICE),
 	));

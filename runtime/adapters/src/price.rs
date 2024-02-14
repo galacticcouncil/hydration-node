@@ -50,16 +50,19 @@ where
 		if from_currency == to_currency {
 			return (account_balance, T::DbWeight::get().reads(2));
 		}
+		// We get the weight from the ema-oracle weights to get price
+		// Weight * 2 because we are reading from the storage twice ( from_currency/lrna and lrna/to_currency)
+		// TODO: it could really be a part of the PriceOracle trait?!
 		let price_weight =
-			pallet_ema_oracle::Pallet::<T>::get_price_weight().saturating_add(T::DbWeight::get().reads(2));
+			pallet_ema_oracle::Pallet::<T>::get_price_weight().saturating_mul(2).saturating_add(T::DbWeight::get().reads(2));
 		let Some(price) = P::price(&[Trade {
 			pool: PoolType::Omnipool,
-			asset_in: to_currency,
-			asset_out: from_currency,
+			asset_in: from_currency,
+			asset_out: to_currency,
 		}], Period::get()) else{
 			return (0,price_weight);
 		};
-		let Some(converted) = multiply_by_rational_with_rounding(account_balance, price.n, price.d, Rounding::Up) else{
+		let Some(converted) = multiply_by_rational_with_rounding(account_balance, price.n, price.d, Rounding::Down) else{
 			return (0,price_weight);
 		};
 		(converted, price_weight)
