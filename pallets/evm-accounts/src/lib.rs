@@ -213,10 +213,6 @@ where
 	/// Get the Substrate address from the EVM address.
 	/// Returns the truncated version of the address if the address wasn't bind.
 	pub fn get_account_id(evm_address: EvmAddress) -> T::AccountId {
-		let maybe_bound_address = Self::bound_account_id(evm_address);
-		match maybe_bound_address {
-			Some(full_address) => full_address,
-			None => Self::get_truncated_account_id(evm_address),
-		}
+    Self::bound_account_id(evm_address).unwrap_or_else(|| Self::get_truncated_account_id(evm_address))
 	}
 }
