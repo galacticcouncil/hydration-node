@@ -449,7 +449,7 @@ fn polkadot_xcm_execute_extrinsic_should_be_allowed() {
 			hydradx_runtime::PolkadotXcm::execute(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				Box::new(message),
-				Weight::from_ref_time(400_000_000_000)
+				Weight::from_parts(400_000_000_000, 0)
 			),
 			pallet_xcm::Error::<hydradx_runtime::Runtime>::Filtered
 		);
