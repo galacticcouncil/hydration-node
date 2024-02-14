@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::fungibles::FungibleCurrencies;
+use frame_support::traits::tokens::Precision;
 use frame_support::{assert_noop, assert_ok, sp_runtime::TokenError, traits::tokens::fungibles::*};
 use mock::*;
 

@@ -196,6 +196,12 @@ pub trait CanCreatePool<AssetId> {
 	fn can_create(asset_a: AssetId, asset_b: AssetId) -> bool;
 }
 
+impl<AssetId> CanCreatePool<AssetId> for () {
+	fn can_create(_asset_a: AssetId, _asset_b: AssetId) -> bool {
+		true
+	}
+}
+
 pub trait LockedBalance<AssetId, AccountId, Balance> {
 	fn get_by_lock(lock_id: LockIdentifier, currency_id: AssetId, who: AccountId) -> Balance;
 }
