@@ -728,6 +728,91 @@ mod omnipool_router_tests {
 	}
 
 	#[test]
+	fn sell_should_work_when_user_has_left_less_than_existential_in_nonnative() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+
+			init_omnipool();
+
+			let init_balance = 3000 * UNITS + 1;
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ALICE.into(),
+				stable_asset_1,
+				init_balance as i128,
+			));
+
+			let trades = vec![Trade {
+				pool: PoolType::Stableswap(pool_id),
+				asset_in: stable_asset_1,
+				asset_out: pool_id,
+			}];
+
+			assert_balance!(ALICE.into(), pool_id, 0);
+
+			//Act
+			let amount_to_sell = 3000 * UNITS;
+			assert_ok!(Router::sell(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				stable_asset_1,
+				pool_id,
+				amount_to_sell,
+				0,
+				trades
+			));
+
+			//Assert
+			assert_eq!(
+				hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)),
+				0
+			);
+		});
+	}
+
+	#[test]
+	fn sell_should_work_when_user_has_left_less_than_existential_in_native() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool();
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ALICE.into(),
+				HDX,
+				1 as i128,
+			));
+
+			let trades = vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: DAI,
+			}];
+
+			//Act and assert
+			let amount_to_sell = ALICE_INITIAL_NATIVE_BALANCE;
+			assert_ok!(Router::sell(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				DAI,
+				amount_to_sell,
+				0,
+				trades
+			));
+
+			//Assert
+			assert_eq!(
+				hydradx_runtime::Currencies::free_balance(HDX, &AccountId::from(ALICE)),
+				0
+			);
+		});
+	}
+
+	#[test]
 	fn sell_hub_asset_should_work_when_route_contains_single_trade() {
 		TestNet::reset();
 
@@ -3373,7 +3458,7 @@ pub fn init_stableswap_with_liquidity(
 	let mut asset_ids: Vec<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
 	for idx in 0u32..MAX_ASSETS_IN_POOL {
 		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-		let asset_id = AssetRegistry::create_asset(&name, 1u128)?;
+		let asset_id = AssetRegistry::create_asset(&name, 1000u128)?;
 		AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), asset_id, b"xDUM".to_vec(), 18u8)?;
 		asset_ids.push(asset_id);
 

@@ -37,7 +37,7 @@ pub use hydradx_traits::router::{
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, TransactionOutcome};
+use sp_runtime::{ArithmeticError, DispatchError, Saturating, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -59,6 +59,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv};
+	use sp_runtime::Saturating;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -80,7 +81,8 @@ pub mod pallet {
 			+ Default
 			+ CheckedSub
 			+ CheckedAdd
-			+ CheckedDiv;
+			+ CheckedDiv
+			+ Saturating;
 
 		/// Native Asset Id
 		#[pallet::constant]
@@ -204,6 +206,10 @@ pub mod pallet {
 			for (trade_amount, trade) in trade_amounts.iter().zip(route) {
 				let user_balance_of_asset_in_before_trade =
 					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Preserve, Fortitude::Polite);
+				let user_balance_of_asset_in_before_trade_with_protecting =
+					T::Currency::reducible_balance(asset_in, &who, Preservation::Protect, Fortitude::Polite);
+				let ed = user_balance_of_asset_in_before_trade
+					.saturating_sub(user_balance_of_asset_in_before_trade_with_protecting);
 
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
@@ -221,6 +227,7 @@ pub mod pallet {
 					trade.asset_in,
 					user_balance_of_asset_in_before_trade,
 					trade_amount.amount_in,
+					ed,
 				)?;
 			}
 
@@ -309,6 +316,7 @@ pub mod pallet {
 				asset_in,
 				user_balance_of_asset_in_before_trade,
 				last_trade_amount.amount_in,
+				u128::MIN.into(), //TODO: add test for buy then fix it,
 			)?;
 
 			Self::deposit_event(Event::RouteExecuted {
@@ -445,10 +453,17 @@ impl<T: Config> Pallet<T> {
 		asset_in: T::AssetId,
 		user_balance_of_asset_in_before_trade: T::Balance,
 		spent_amount: T::Balance,
+		ed: T::Balance,
 	) -> Result<(), DispatchError> {
+		//TODO: we might not need this check anymore, verify it with test sell_should_work_when_user_has_left_less_than_existential_in_native and also other DCA test
 		if spent_amount < user_balance_of_asset_in_before_trade {
 			let user_balance_of_asset_in_after_trade =
 				T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
+
+			let expected_user_balance = user_balance_of_asset_in_before_trade.saturating_sub(spent_amount);
+			if expected_user_balance < ed {
+				return Ok(()); //The user had leftotver less than ED so wiped out, hence we can't check the balance precisely
+			}
 
 			ensure!(
 				user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
