@@ -2250,7 +2250,7 @@ mod xyk {
 			set_relaychain_block_number(10);
 
 			let dca_budget = 1100 * UNITS;
-			let amount_to_buy = 100 * UNITS;
+			let amount_to_buy = 150 * UNITS;
 			let schedule1 = schedule_fake_with_buy_order(PoolType::XYK, HDX, DAI, amount_to_buy, dca_budget);
 			create_schedule(ALICE, schedule1);
 
