@@ -226,8 +226,8 @@ mod account_conversion {
 	#[test]
 	fn bind_evm_address_tx_cost_should_be_increased_by_fee_multiplier() {
 		// the fee multiplier is in the pallet evm accounts config and the desired fee is 10 HDX
-		use primitives::constants::currency::UNITS;
 		use pallet_transaction_payment::{Multiplier, NextFeeMultiplier};
+		use primitives::constants::currency::UNITS;
 		use sp_runtime::FixedPointNumber;
 
 		TestNet::reset();

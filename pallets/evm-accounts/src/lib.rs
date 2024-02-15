@@ -43,7 +43,10 @@
 
 use frame_support::ensure;
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use sp_core::{crypto::AccountId32, H160, U256};
+use sp_core::{
+	crypto::{AccountId32, ByteArray},
+	H160, U256,
+};
 
 #[cfg(test)]
 mod mock;
@@ -112,6 +115,23 @@ pub mod pallet {
 		AccountConversionFailed,
 	}
 
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
+	where
+		T::AccountId: frame_support::traits::IsType<AccountId32>,
+	{
+		fn integrity_test() {
+			// implementation of this pallet expects that EvmAddress is 20 bytes and AccountId is 32 bytes long.
+			// If this is not true, `copy_from_slice` might panic.
+			assert_eq!(
+				EvmAddress::len_bytes(),
+				20,
+				"EVM Address is expected to be 20 bytes long."
+			);
+			assert_eq!(AccountId32::LEN, 32, "AccountId is expected to be 32 bytes long.");
+		}
+	}
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
 	where
@@ -147,14 +167,8 @@ pub mod pallet {
 			let nonce = T::EvmNonceProvider::get_nonce(evm_address);
 			ensure!(nonce.is_zero(), Error::<T>::NonZeroNonce);
 
-			let maybe_last_12_bytes: Result<AccountIdLast12Bytes, <[u8; 12] as TryFrom<&[u8]>>::Error> =
-				who.as_ref()[20..32].try_into();
-			let last_12_bytes = if let Ok(bytes) = maybe_last_12_bytes {
-				bytes
-			} else {
-				// this should never happen, but we can't get rid of try_into() when converting a slice to an array
-				return Err(Error::<T>::AccountConversionFailed.into());
-			};
+			let mut last_12_bytes: [u8; 12] = [0; 12];
+			last_12_bytes.copy_from_slice(&who.as_ref()[20..32]);
 
 			<BoundAccount<T>>::insert(evm_address, last_12_bytes);
 
