@@ -73,7 +73,7 @@ where
 
 		// Ensure that converted fee is not zero
 		if converted == 0 {
-			return Err(Error::<T>::WithdrawFailed.into());
+			return Err(Error::<T>::WithdrawFailed);
 		}
 
 		let burned = MC::burn_from(
@@ -99,7 +99,7 @@ where
 
 		// Ensure that converted amount is not zero
 		if converted == 0 {
-			return Err(Error::<T>::BalanceLow.into());
+			return Err(Error::<T>::BalanceLow);
 		}
 		MC::can_withdraw(fee_currency, &account_id, converted)
 			.into_result(false)

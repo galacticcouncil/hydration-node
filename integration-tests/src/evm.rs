@@ -2,7 +2,13 @@
 
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
-use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
+use frame_support::{
+	assert_ok,
+	dispatch::GetDispatchInfo,
+	dispatch::{DispatchResult, Pays, PostDispatchInfo},
+	sp_runtime::codec::Encode,
+	traits::Contains,
+};
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{
@@ -630,19 +636,12 @@ fn dispatch_should_respect_call_filter() {
 	});
 }
 
-/*
 #[test]
 fn compare_fee_between_evm_and_native_omnipool_calls() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		//Set alice with as fee currency and fund it
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ALICE.into(),
-			WETH,
-			100 * UNITS as i128,
-		));
+		init_omnipool_with_oracle_for_block_10();
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -650,30 +649,36 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			HDX,
 			(100 * UNITS) as i128,
 		));
-
 		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::RuntimeOrigin::signed(currency_precompile::alice_substrate_evm_addr().into()),
+			hydradx_runtime::RuntimeOrigin::signed(currency_precompile::alice_substrate_evm_addr()),
 			HDX,
 		));
-		init_omnipool_with_oracle_for_block_10();
+		// give alice evm addr seom weth to sell in omnipool
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			currency_precompile::alice_substrate_evm_addr(),
+			HDX,
+			(10 * UNITS * 1_000_000) as i128,
+		));
 
-		let treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
-		let alice_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
+		let treasury_hdx_balance = Balances::free_balance(Treasury::account_id());
+		let alice_hdx_balance =
+			Balances::free_balance(AccountId::from(currency_precompile::alice_substrate_evm_addr()));
 
 		//Act
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: HDX,
+				asset_in: WETH,
 				asset_out: DAI,
-				amount: UNITS,
+				amount: UNITS * 1_000_000,
 				min_buy_amount: 0,
 			});
 
 		let gas_limit = 1000000;
 		//Execute omnipool via EVM
 		assert_ok!(EVM::call(
-			evm_signed_origin(evm_address()),
-			evm_address(),
+			evm_signed_origin(currency_precompile::alice_evm_addr()),
+			currency_precompile::alice_evm_addr(),
 			DISPATCH_ADDR,
 			omni_sell.encode(),
 			U256::from(0),
@@ -684,38 +689,50 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			[].into(),
 		));
 
-		//Pre dispatch the native omnipool call - so withdrawring only the fees for the execution
+		let new_treasury_hdx_balance = Balances::free_balance(Treasury::account_id());
+		let new_alice_hdx_balance =
+			Balances::free_balance(AccountId::from(currency_precompile::alice_substrate_evm_addr()));
+		let evm_fee = alice_hdx_balance - new_alice_hdx_balance;
+		let treasury_evm_fee = new_treasury_hdx_balance - treasury_hdx_balance;
+		assert_eq!(treasury_evm_fee, evm_fee);
+
+		//Pre dispatch the native omnipool call - so withdrawing only the fees for the execution
 		let info = omni_sell.get_dispatch_info();
-		let len: usize = 1;
-		assert_ok!(
-			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
-				&AccountId::from(ALICE),
-				&omni_sell,
-				&info,
-				len,
-			)
-		);
+		let len: usize = 146;
+		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+			.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, len);
+		assert_ok!(&pre);
+		assert_ok!(pallet_transaction_payment::ChargeTransactionPayment::<
+			hydradx_runtime::Runtime,
+		>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&PostDispatchInfo {
+				actual_weight: Some(info.weight),
+				pays_fee: Pays::Yes,
+			},
+			len,
+			&DispatchResult::from(Ok(())),
+		));
 
 		//Determine fees and compare
-		let alice_new_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
-		let fee_weth_native = alice_weth_balance - alice_new_weth_balance;
+		let post_dispatch_treasury_balance = Balances::free_balance(Treasury::account_id());
+		let post_dispatch_fee = post_dispatch_treasury_balance - new_treasury_hdx_balance;
+		assert!(post_dispatch_fee > 0);
+		dbg!(evm_fee, post_dispatch_fee);
 
-		let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
-		let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
+		assert!(evm_fee > post_dispatch_fee);
 
-		let fee_difference = fee_weth_evm - fee_weth_native;
-
-		let relative_fee_difference = FixedU128::from_rational(fee_difference, fee_weth_native);
-		let tolerated_fee_difference = FixedU128::from_rational(20, 100);
-
-		// EVM fees should be higher
+		let fee_difference = evm_fee - post_dispatch_fee;
 		assert!(fee_difference > 0);
 
+		// Calculate percentage difference
+		let d = FixedU128::from_rational(fee_difference, (post_dispatch_fee + evm_fee) / 2);
+		let tolerated_fee_difference = FixedU128::from_rational(20, 100);
 		// EVM fees should be not higher than 20%
-		assert!(relative_fee_difference < tolerated_fee_difference);
+		assert!(d < tolerated_fee_difference);
 	})
 }
- */
 
 #[test]
 fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
@@ -730,7 +747,7 @@ fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
 		));
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			currency_precompile::alice_substrate_evm_addr().into(),
+			currency_precompile::alice_substrate_evm_addr(),
 			WETH,
 			(1000 * UNITS * 1_000_000) as i128,
 		));
@@ -787,13 +804,13 @@ fn fee_should_be_paid_in_accounts_fee_currency() {
 		//Set alice with as fee currency and fund it
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			currency_precompile::alice_substrate_evm_addr().into(),
+			currency_precompile::alice_substrate_evm_addr(),
 			DAI,
 			(100 * UNITS * 1_000_000) as i128,
 			//(100 * UNITS ) as i128,
 		));
 		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::RuntimeOrigin::signed(currency_precompile::alice_substrate_evm_addr().into()),
+			hydradx_runtime::RuntimeOrigin::signed(currency_precompile::alice_substrate_evm_addr()),
 			DAI,
 		));
 
