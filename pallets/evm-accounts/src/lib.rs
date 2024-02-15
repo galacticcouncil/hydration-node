@@ -111,8 +111,6 @@ pub mod pallet {
 		NonZeroNonce,
 		/// Address is already bound
 		AddressAlreadyBound,
-		/// Error occurred while converting AccountId to a different type
-		AccountConversionFailed,
 	}
 
 	#[pallet::hooks]
