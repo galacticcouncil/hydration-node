@@ -1031,6 +1031,8 @@ use pallet_currencies::fungibles::FungibleCurrencies;
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
+use frame_support::storage::with_transaction;
+#[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
@@ -1039,6 +1041,7 @@ use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::TransactionOutcome;
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
 
@@ -1050,16 +1053,19 @@ impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsse
 			.to_vec()
 			.try_into()
 			.map_err(|_| "BoundedConversionFailed")?;
-		AssetRegistry::register_sufficient_asset(
-			Some(asset_id),
-			Some(asset_name.clone()),
-			AssetKind::Token,
-			1,
-			Some(asset_name),
-			Some(decimals),
-			None,
-			None,
-		)?;
+
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(asset_id),
+				Some(asset_name.clone()),
+				AssetKind::Token,
+				1,
+				Some(asset_name),
+				Some(decimals),
+				None,
+				None,
+			))
+		})?;
 
 		Ok(())
 	}
@@ -1359,17 +1365,19 @@ impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
 		let asset_id: u32 = 1234u32;
 		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id.to_le_bytes().to_vec().try_into().unwrap();
 
-		AssetRegistry::register_asset(
-			Some(asset_id),
-			Some(asset_name.clone()),
-			AssetKind::Token,
-			Some(1_000_000),
-			Some(asset_name),
-			Some(18),
-			None,
-			None,
-			true,
-		)
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_asset(
+				Some(asset_id),
+				Some(asset_name.clone()),
+				AssetKind::Token,
+				Some(1_000_000),
+				Some(asset_name),
+				Some(18),
+				None,
+				None,
+				true,
+			))
+		})
 		.unwrap();
 
 		let native_price = FixedU128::from_inner(1201500000000000);

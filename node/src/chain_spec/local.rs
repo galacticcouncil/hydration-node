@@ -88,7 +88,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 						None,
 						None,
 						None,
-						false,
+						true,
 					),
 					(
 						Some(2),
@@ -97,7 +97,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 						None,
 						None,
 						None,
-						false,
+						true,
 					),
 				],
 				// accepted assets

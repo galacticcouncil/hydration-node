@@ -621,6 +621,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ema_oracle, EmaOracle);
 			list_benchmark!(list, extra, pallet_staking, Staking);
 			list_benchmark!(list, extra, pallet_lbp, LBP);
+			list_benchmark!(list, extra, pallet_referrals, Referrals);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
