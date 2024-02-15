@@ -12,16 +12,17 @@ use hydradx_runtime::{
 		multicurrency::{Action, MultiCurrencyPrecompile},
 		Address, Bytes, EvmAddress, HydraDXPrecompiles,
 	},
-	AssetRegistry, Balances, CallFilter, Currencies, Omnipool, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM,
+	AssetRegistry, Balances, CallFilter, Currencies, Omnipool, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause,
+	EVM,
 };
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
+use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, H160, H256, U256};
 use sp_runtime::{traits::SignedExtension, FixedU128, Permill};
 use std::borrow::Cow;
 use xcm_emulator::TestExt;
-use primitives::{AssetId, Balance};
 
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
@@ -697,15 +698,10 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 }
 
 #[test]
-fn fee_should_be_paid_in_weth() {
+fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		//Set alice with as fee currency and fund it
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			WETH,
-		));
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
@@ -820,8 +816,8 @@ fn init_omnipool_with_oracle_for_block_10() {
 	hydradx_run_to_next_block();
 	do_trade_to_populate_oracle(WETH, DAI, 1_000_000_000_000_000_000);
 	let to = 40;
-	let from= 11;
-	for b in from..=to {
+	let from = 11;
+	for _ in from..=to {
 		hydradx_run_to_next_block();
 		do_trade_to_populate_oracle(WETH, DAI, 1_000_000_000_000_000_000);
 	}
@@ -852,7 +848,6 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 		Balance::MIN
 	));
 }
-
 
 pub fn init_omnipol() {
 	let native_price = FixedU128::from_float(0.5);

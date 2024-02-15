@@ -9,6 +9,7 @@ use hydradx_traits::{
 use primitives::{AssetId, Balance};
 use sp_core::Get;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
+use sp_runtime::traits::Convert;
 use sp_runtime::Rounding;
 use sp_std::marker::PhantomData;
 
@@ -28,10 +29,10 @@ where
 	}
 }
 
-pub struct FeeAssetBalanceInCurrencyProvider<T, P, Period, AC, I>(sp_std::marker::PhantomData<(T, P, Period, AC, I)>);
+pub struct FeeAssetBalanceInCurrencyConvertor<T, P, Period, AC, I>(sp_std::marker::PhantomData<(T, P, Period, AC, I)>);
 
 impl<T, P, Period, AC, I> FeePaymentCurrencyBalanceInCurrency<AssetId, T::AccountId>
-	for FeeAssetBalanceInCurrencyProvider<T, P, Period, AC, I>
+	for FeeAssetBalanceInCurrencyConvertor<T, P, Period, AC, I>
 where
 	T: pallet_ema_oracle::Config + frame_system::Config,
 	P: PriceOracle<AssetId, Price = EmaPrice>,
@@ -53,8 +54,10 @@ where
 		// We get the weight from the ema-oracle weights to get price
 		// Weight * 2 because we are reading from the storage twice ( from_currency/lrna and lrna/to_currency)
 		// TODO: it could really be a part of the PriceOracle trait?!
-		let price_weight =
-			pallet_ema_oracle::Pallet::<T>::get_price_weight().saturating_mul(2).saturating_add(T::DbWeight::get().reads(2));
+		// if this gets removed, the constraint on T and ema-oracle is not necessary
+		let price_weight = pallet_ema_oracle::Pallet::<T>::get_price_weight()
+			.saturating_mul(2)
+			.saturating_add(T::DbWeight::get().reads(2));
 		let Some(price) = P::price(&[Trade {
 			pool: PoolType::Omnipool,
 			asset_in: from_currency,
@@ -66,5 +69,35 @@ where
 			return (0,price_weight);
 		};
 		(converted, price_weight)
+	}
+}
+
+pub struct ConvertToCurrencyUsingOracle<T, P, Period>(sp_std::marker::PhantomData<(T, P, Period)>);
+
+// Converts `amount` of `from_currency` to `to_currency` using given oracle
+// Input: (from_currency, to_currency, amount)
+// Output: (converted_amount, price)
+impl<T, P, Period> Convert<(AssetId, AssetId, Balance), (Balance, EmaPrice)>
+	for ConvertToCurrencyUsingOracle<T, P, Period>
+where
+	T: pallet_ema_oracle::Config + frame_system::Config,
+	P: PriceOracle<AssetId, Price = EmaPrice>,
+	Period: Get<OraclePeriod>,
+{
+	fn convert((from_currency, to_currency, amount): (AssetId, AssetId, Balance)) -> (Balance, EmaPrice) {
+		if from_currency == to_currency {
+			return (amount, EmaPrice::one());
+		}
+		let Some(price) = P::price(&[Trade {
+			pool: PoolType::Omnipool,
+			asset_in: from_currency,
+			asset_out: to_currency,
+		}], Period::get()) else{
+			return (0, EmaPrice::zero());
+		};
+		let Some(converted) = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Up) else{
+			return (0,EmaPrice::zero());
+		};
+		(converted, price)
 	}
 }

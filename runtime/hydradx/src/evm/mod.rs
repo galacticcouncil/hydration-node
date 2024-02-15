@@ -19,25 +19,24 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::evm::evm_fee::FromWethConversion;
 use crate::evm::runner::WrapRunner;
+use crate::LRNA;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{TreasuryAccount, LRNA};
 use frame_support::{
 	parameter_types,
-	traits::{Defensive, FindAuthor, Imbalance, OnUnbalanced},
+	traits::{Defensive, FindAuthor},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 	ConsensusEngineId,
 };
 use hex_literal::hex;
+use hydradx_adapters::price::ConvertToCurrencyUsingOracle;
 use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
-use pallet_transaction_multi_payment::{DepositAll, DepositFee};
 use polkadot_xcm::{
 	latest::MultiLocation,
 	prelude::{AccountKey20, PalletInstance, Parachain, X3},
@@ -132,24 +131,28 @@ impl pallet_evm::Config for crate::Runtime {
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type OnChargeTransaction = evm_fee::TransferEvmFees<
-		evm_fee::DealWithFees,
-		crate::MultiTransactionPayment,
+		evm_fee::DepositEvmFeeToTreasury,
+		crate::MultiTransactionPayment, // Get account's fee payment asset
 		WethAssetId,
-		FromWethConversion,
-		FungibleCurrencies<crate::Runtime>,
+		ConvertToCurrencyUsingOracle<
+			crate::Runtime,
+			hydradx_adapters::OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
+			OracleEvmPeriod,
+		>, // Conversions between assets
+		FungibleCurrencies<crate::Runtime>, // Multi currency support
 	>;
 	type OnCreate = ();
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
 	type Runner = WrapRunner<
 		Self,
-		pallet_evm::runner::stack::Runner<Self>,
-		hydradx_adapters::price::FeeAssetBalanceInCurrencyProvider<
+		pallet_evm::runner::stack::Runner<Self>, // Evm runner that we wrap
+		hydradx_adapters::price::FeeAssetBalanceInCurrencyConvertor<
 			crate::Runtime,
 			hydradx_adapters::OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
 			OracleEvmPeriod,
-			crate::MultiTransactionPayment,
-			FungibleCurrencies<crate::Runtime>,
+			crate::MultiTransactionPayment,     // Get account's fee payment asset
+			FungibleCurrencies<crate::Runtime>, // Account balance inspector
 		>,
 	>;
 	type RuntimeEvent = crate::RuntimeEvent;
