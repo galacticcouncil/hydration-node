@@ -516,8 +516,7 @@ impl<T: Config> GetByKey<AssetIdOf<T>, Option<FixedU128>> for Pallet<T> {
 	}
 }
 
-
-impl<T: Config> FeePaymentCurrency<T::AccountId> for Pallet<T>{
+impl<T: Config> FeePaymentCurrency<T::AccountId> for Pallet<T> {
 	type AssetId = AssetIdOf<T>;
 
 	fn get(a: &T::AccountId) -> Option<Self::AssetId> {
