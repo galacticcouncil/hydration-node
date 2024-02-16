@@ -3378,6 +3378,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "fee-fuzzer"
+version = "0.2.0"
+dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-primitives-core",
+ "cumulus-primitives-parachain-inherent",
+ "cumulus-test-relay-sproof-builder",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-adapters",
+ "hydradx-runtime",
+ "hydradx-traits",
+ "orml-tokens",
+ "pallet-asset-registry",
+ "pallet-aura",
+ "pallet-balances",
+ "pallet-collective",
+ "pallet-currencies",
+ "pallet-multisig",
+ "pallet-omnipool",
+ "pallet-proxy",
+ "pallet-stableswap",
+ "pallet-staking 2.1.2",
+ "pallet-timestamp",
+ "pallet-transaction-multi-payment",
+ "pallet-transaction-payment",
+ "pallet-treasury",
+ "pallet-utility",
+ "parity-scale-codec",
+ "primitives",
+ "runtime-mock",
+ "scraper",
+ "serde",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-state-machine 0.28.0 (git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901)",
+ "stats_alloc",
+ "toml 0.5.11",
+ "ziggy",
+]
+
+[[package]]
 name = "ff"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

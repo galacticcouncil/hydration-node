@@ -40,6 +40,7 @@ members = [
   'pallets/referrals',
   'runtime-fuzzer',
   'runtime-mock',
+  'fee-fuzzer',
 ]
 
 [workspace.dependencies]

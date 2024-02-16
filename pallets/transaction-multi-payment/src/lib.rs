@@ -484,8 +484,9 @@ where
 
 		if let Some(paid) = already_withdrawn {
 			// Calculate how much refund we should return
-			let (currency, refund, fee, tip) = match paid {
+			let (full_amount, currency, refund, fee, tip) = match paid {
 				PaymentInfo::Native(paid_fee) => (
+					paid_fee,
 					T::NativeAssetId::get().into(),
 					paid_fee.saturating_sub(corrected_fee),
 					corrected_fee.saturating_sub(tip),
@@ -500,6 +501,7 @@ where
 						.checked_mul_int(tip)
 						.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 					(
+						paid_fee,
 						currency.into(),
 						refund,
 						converted_corrected_fee.saturating_sub(converted_tip),
@@ -507,6 +509,8 @@ where
 					)
 				}
 			};
+
+			debug_assert_eq!(refund+fee+tip, full_amount);
 
 			// refund to the account that paid the fees
 			MC::deposit(currency, who, refund)

@@ -1,0 +1,63 @@
+[package]
+name = "fee-fuzzer"
+version = "0.2.0"
+description = "Fuzzer for the HydraDX Runtime"
+authors = ["GalacticCouncil"]
+edition = "2021"
+homepage = "https://github.com/galacticcouncil/HydraDX-node"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/HydraDX-node"
+
+[dependencies]
+ziggy = { version = "0.8.1", default-features = false }
+stats_alloc = "0.1.1"
+serde = { version = "1.0.193", features = ["derive"] }
+toml = "0.5"
+
+hydradx-runtime = { workspace = true }
+primitives = { workspace = true }
+
+codec = { workspace = true }
+
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+frame-benchmarking = { workspace = true }
+
+sp-core = { workspace = true }
+sp-consensus-aura = { workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
+sp-state-machine = { workspace = true }
+
+pallet-transaction-multi-payment = { workspace = true }
+pallet-aura = { workspace = true }
+pallet-balances = { workspace = true }
+pallet-timestamp = { workspace = true }
+pallet-transaction-payment = { workspace = true }
+pallet-omnipool = { workspace = true }
+pallet-currencies = { workspace = true }
+pallet-treasury=  {  workspace = true }
+pallet-stableswap = { workspace = true }
+pallet-asset-registry = { workspace = true }
+pallet-staking = { workspace = true }
+pallet-utility = { workspace = true }
+pallet-multisig = { workspace = true }
+pallet-proxy = { workspace = true }
+pallet-collective = { workspace = true }
+
+scraper = { workspace = true }
+runtime-mock = { workspace = true }
+
+orml-tokens = { workspace = true }
+hydradx-traits = {workspace = true}
+hydradx-adapters = {workspace = true}
+
+cumulus-pallet-parachain-system = { workspace = true }
+cumulus-primitives-core = { workspace = true }
+cumulus-primitives-parachain-inherent = { workspace = true }
+cumulus-test-relay-sproof-builder = { workspace = true }
+
+[features]
+default = ["std", "try-runtime"]
+std = ["hydradx-runtime/std", "codec/std", "sp-runtime/std", "frame-support/std", "pallet-timestamp/std", "sp-state-machine/std", "sp-consensus-aura/std"]
+try-runtime = ["hydradx-runtime/try-runtime", "frame-support/try-runtime", "pallet-timestamp/try-runtime"]

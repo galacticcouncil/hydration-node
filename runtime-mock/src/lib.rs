@@ -64,6 +64,57 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 	non_native_endowed_accounts.push((omnipool_account.clone(), omnipool_balances));
 	non_native_endowed_accounts.extend(stable_account_balacnes);
 
+	let accepted_assets: Vec<(AssetId, Price)> = vec![
+		(20,
+		Price::from_float(0.00000001)),
+		(13,
+		Price::from_float(0.00000001)),
+      (26,
+		Price::from_float(0.00000001)),
+      (5,
+		Price::from_float(0.00000001)),
+      (8,
+	   Price::from_float(0.00000001)),
+		(19,
+	   Price::from_float(0.00000001)),
+      (9,
+	   Price::from_float(0.00000001)),
+      (16,
+	   Price::from_float(0.00000001)),
+      (14,
+	   Price::from_float(0.00000001)),
+      (21,
+	   Price::from_float(0.00000001)),
+      (15,
+	   Price::from_float(0.00000001)),
+      (24,
+	   Price::from_float(0.00000001)),
+      (22,
+	   Price::from_float(0.00000001)),
+      (2,
+	   Price::from_float(0.00000001)),
+      (10,
+	   Price::from_float(0.00000001)),
+      (27,
+	   Price::from_float(0.00000001)),
+     (11,
+	   Price::from_float(0.00000001)),
+      (3,
+	   Price::from_float(0.00000001)),
+      (17,
+	   Price::from_float(0.00000001)),
+      (18,
+	   Price::from_float(0.00000001)),
+      (23,
+	   Price::from_float(0.00000001)),
+      (4,
+	   Price::from_float(0.00000001)),
+      (25,
+	   Price::from_float(0.00000001)),
+      (12,
+	   Price::from_float(0.00000001)),
+];
+
 	let mut storage: Storage = {
 		use sp_runtime::app_crypto::ByteArray;
 		use sp_runtime::BuildStorage;
@@ -74,8 +125,8 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 		];
 
 		//TODO: dump from HydraDX production too
-		let accepted_assets: Vec<(AssetId, Price)> =
-			vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))];
+		//let accepted_assets: Vec<(AssetId, Price)> =
+	//vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))];
 
 		let token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)> = non_native_endowed_accounts;
 
