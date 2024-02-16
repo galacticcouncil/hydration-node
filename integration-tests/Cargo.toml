@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.17.3"
+version = "1.17.4"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -9,6 +9,7 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
+hex-literal = { workspace = true }
 frame-remote-externalities = { workspace = true }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 scraper = { workspace = true }
@@ -63,6 +64,7 @@ orml-unknown-tokens = { workspace = true }
 # Evm
 pallet-evm = { workspace = true }
 fp-evm = { workspace = true }
+fp-rpc = { workspace = true }
 # Cumulus dependencies
 cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
@@ -125,7 +127,6 @@ polkadot-runtime-parachains = { workspace = true }
 polkadot-runtime = { workspace = true }
 
 [dev-dependencies]
-hex-literal = "0.4.1"
 pretty_assertions = "1.2.1"
 xcm-emulator = { workspace = true }
 
