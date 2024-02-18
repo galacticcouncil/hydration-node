@@ -44,6 +44,7 @@ members = [
 log = "0.4.20"
 async-trait = "0.1"
 futures = "0.3.25"
+hex-literal = "0.4.1"
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
 hydradx-traits = { path = "traits", default-features = false }
@@ -237,6 +238,10 @@ pallet-ethereum = { git = "https://github.com/moonbeam-foundation/frontier", rev
 pallet-evm = { git = "https://github.com/moonbeam-foundation/frontier", rev = "bf5885a982041cc744ecbb62a2afc13d56d464dc", default-features = false }
 pallet-evm-chain-id = { git = "https://github.com/moonbeam-foundation/frontier", rev = "bf5885a982041cc744ecbb62a2afc13d56d464dc", default-features = false }
 pallet-evm-precompile-dispatch = { git = "https://github.com/moonbeam-foundation/frontier", rev = "bf5885a982041cc744ecbb62a2afc13d56d464dc", default-features = false }
+pallet-evm-precompile-simple = { git = "https://github.com/moonbeam-foundation/frontier", rev = "bf5885a982041cc744ecbb62a2afc13d56d464dc", default-features = false }
+pallet-evm-precompile-modexp = { git = "https://github.com/moonbeam-foundation/frontier", rev = "bf5885a982041cc744ecbb62a2afc13d56d464dc", default-features = false }
+pallet-evm-precompile-bn128 = { git = "https://github.com/moonbeam-foundation/frontier", rev = "bf5885a982041cc744ecbb62a2afc13d56d464dc", default-features = false }
+pallet-evm-precompile-blake2 = { git = "https://github.com/moonbeam-foundation/frontier", rev = "bf5885a982041cc744ecbb62a2afc13d56d464dc", default-features = false }
 
 # EVM from acala
 module-evm-utility-macro = { path = "runtime/hydradx/src/evm/evm-utility/macro", default-features = false}
