@@ -12,8 +12,7 @@ use hydradx_runtime::{
 		multicurrency::{Action, MultiCurrencyPrecompile},
 		Address, Bytes, EvmAddress, HydraDXPrecompiles,
 	},
-	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause,
-	EVM,
+	AssetRegistry, Balances, CallFilter, Currencies, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM, EVMAccounts,
 };
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
@@ -249,6 +248,212 @@ mod account_conversion {
 	}
 }
 
+mod standard_precompiles {
+	use super::*;
+	use pretty_assertions::assert_eq;
+	use sp_runtime::traits::UniqueSaturatedInto;
+
+	fn evm_runner_call(
+		to: EvmAddress,
+		data: Vec<u8>,
+	) -> Result<CallInfo, RunnerError<pallet_evm::Error<hydradx_runtime::Runtime>>> {
+		<hydradx_runtime::Runtime as pallet_evm::Config>::Runner::call(
+			evm_address(),
+			to,
+			data,
+			U256::from(1000u64),
+			U256::from(1000000u64).unique_saturated_into(),
+			None,
+			None,
+			None,
+			Default::default(),
+			false,
+			true,
+			None,
+			None,
+			<hydradx_runtime::Runtime as pallet_evm::Config>::config(),
+		)
+	}
+
+	#[test]
+	fn ecrecover_precompile() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let input = hex! {"
+			18c547e4f7b0f325ad1e56f57e26c745b09a3e503d86e00e5255ff7f715d3d1c
+			000000000000000000000000000000000000000000000000000000000000001c
+			73b1693892219d736caba55bdb67216e485557ea6b6af75f37096c9aa6a5a75f
+			eeb940b1d03b21e36b0e47e79769f095fe2ab855bd91e3a38756b7d75a9c4549
+		"}
+			.to_vec();
+			let expected_output = hex!("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b").to_vec();
+
+			//Act
+			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::ECRECOVER, input).unwrap();
+
+			//Assert
+			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
+			assert_eq!(execution_result.value, expected_output);
+		});
+	}
+
+	#[test]
+	fn sha256_precompile() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let input = "HydraDX".as_bytes().to_vec();
+			let expected_output = hex!("61e6380e10376b3479838d623b2b1faeaa2afafcfaff2840a6df2f41161488da").to_vec();
+
+			//Act
+			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::SHA256, input).unwrap();
+
+			//Assert
+			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
+			assert_eq!(execution_result.value, expected_output);
+		});
+	}
+
+	#[test]
+	fn ripemd160_precompile() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let input = "HydraDX".as_bytes().to_vec();
+			let mut expected_output = [0u8; 32];
+			expected_output[12..32].copy_from_slice(&hex!("8883ba5c203439408542b87526c113426ce94742"));
+
+			//Act
+			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::RIPEMD, input).unwrap();
+
+			//Assert
+			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
+			assert_eq!(execution_result.value, expected_output);
+		});
+	}
+
+	#[test]
+	fn identity_precompile() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let input = "HydraDX".as_bytes().to_vec();
+
+			//Act
+			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::IDENTITY, input.clone()).unwrap();
+
+			//Assert
+			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
+			assert_eq!(execution_result.value, input);
+		});
+	}
+
+	#[test]
+	fn modexp_precompile() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let input = hex!(
+				"
+				0000000000000000000000000000000000000000000000000000000000000001
+				0000000000000000000000000000000000000000000000000000000000000001
+				0000000000000000000000000000000000000000000000000000000000000001
+				03
+				05
+				07
+				"
+			)
+			.to_vec();
+			let expected_output = vec![5];
+
+			//Act
+			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::MODEXP, input).unwrap();
+
+			//Assert
+			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
+			assert_eq!(execution_result.value, expected_output);
+		});
+	}
+
+	#[test]
+	fn bn128add_precompile() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let input = hex!("089142debb13c461f61523586a60732d8b69c5b38a3380a74da7b2961d867dbf2d5fc7bbc013c16d7945f190b232eacc25da675c0eb093fe6b9f1b4b4e107b3625f8c89ea3437f44f8fc8b6bfbb6312074dc6f983809a5e809ff4e1d076dd5850b38c7ced6e4daef9c4347f370d6d8b58f4b1d8dc61a3c59d651a0644a2a27cf").to_vec();
+			let expected_output = hex!("0a6678fd675aa4d8f0d03a1feb921a27f38ebdcb860cc083653519655acd6d79172fd5b3b2bfdd44e43bcec3eace9347608f9f0a16f1e184cb3f52e6f259cbeb").to_vec();
+
+			//Act
+			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::BN_ADD, input).unwrap();
+
+			//Assert
+			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
+			assert_eq!(execution_result.value, expected_output);
+		});
+	}
+
+	#[test]
+	fn bn128mul_precompile() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let input = hex!("089142debb13c461f61523586a60732d8b69c5b38a3380a74da7b2961d867dbf2d5fc7bbc013c16d7945f190b232eacc25da675c0eb093fe6b9f1b4b4e107b36ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").to_vec();
+			let expected_output = hex!("0bf982b98a2757878c051bfe7eee228b12bc69274b918f08d9fcb21e9184ddc10b17c77cbf3c19d5d27e18cbd4a8c336afb488d0e92c18d56e64dd4ea5c437e6").to_vec();
+
+			//Act
+			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::BN_MUL, input).unwrap();
+
+			//Assert
+			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
+			assert_eq!(execution_result.value, expected_output);
+		});
+	}
+
+	#[test]
+	fn bn128pairing_precompile() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let input = hex!("089142debb13c461f61523586a60732d8b69c5b38a3380a74da7b2961d867dbf2d5fc7bbc013c16d7945f190b232eacc25da675c0eb093fe6b9f1b4b4e107b3629f2c1dbcc614745f242077001ec9edd475acdab9ab435770d456bd22bbd2abf268683f9b1be0bde4508e2e25e51f6b44da3546e87524337d506fd03c4ff7ce01851abe58ef4e08916bec8034ca62c04cd08340ab6cc525e61706340926221651b71422869c92e49465200ca19033a8aa425f955be3d8329c4475503e45c00e1").to_vec();
+			let expected_output = hex!("0000000000000000000000000000000000000000000000000000000000000000").to_vec();
+
+			//Act
+			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::BN_PAIRING, input).unwrap();
+
+			//Assert
+			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
+			assert_eq!(execution_result.value, expected_output);
+		});
+	}
+
+	#[test]
+	fn blake2f_precompile() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let input = hex!("0000000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001").to_vec();
+			let expected_output = hex!("ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923").to_vec();
+
+			//Act
+			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::BLAKE2F, input).unwrap();
+
+			//Assert
+			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
+			assert_eq!(execution_result.value, expected_output);
+		});
+	}
+}
+
 mod currency_precompile {
 	use super::*;
 	use pretty_assertions::assert_eq;
@@ -267,8 +472,8 @@ mod currency_precompile {
 			let mut handle = MockHandle {
 				input: data,
 				context: Context {
-					address: evm_address(),
-					caller: native_asset_ethereum_address(),
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
 				core_address: native_asset_ethereum_address(),
@@ -303,8 +508,8 @@ mod currency_precompile {
 			let mut handle = MockHandle {
 				input: data,
 				context: Context {
-					address: evm_address(),
-					caller: native_asset_ethereum_address(),
+					address: H160::from(hex!("00000000000000000000000000000001ffffffff")),
+					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
 				core_address: H160::from(hex!("00000000000000000000000000000001ffffffff")),
@@ -462,7 +667,7 @@ mod currency_precompile {
 
 			// 950331588000000000
 			let expected_output = hex! {"
-				00000000000000000000000000000000 00000000000000000D30418B5192A800								  
+				00000000000000000000000000000000 00000000000000000D30418B5192A800
 			"};
 
 			assert_eq!(
