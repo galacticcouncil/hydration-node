@@ -484,6 +484,10 @@ impl_runtime_apis! {
 							_ => (None, None),
 						};
 
+			if EVMAccounts::bound_account_id(from).is_some() {
+				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
+			};
+
 			<Runtime as pallet_evm::Config>::Runner::call(
 				from,
 				to,

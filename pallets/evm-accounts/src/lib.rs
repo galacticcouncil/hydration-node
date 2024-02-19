@@ -111,6 +111,8 @@ pub mod pallet {
 		TruncatedAccountAlreadyUsed,
 		/// Address is already bound
 		AddressAlreadyBound,
+		/// Bound address cannot be used
+		BoundAddressCannotBeUsed,
 	}
 
 	#[pallet::hooks]

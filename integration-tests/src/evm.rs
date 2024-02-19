@@ -2,6 +2,7 @@
 
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
+use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
@@ -245,6 +246,67 @@ mod account_conversion {
 
 			// simple test that the fee is approximately 10 HDX
 			assert!(fee / UNITS == 10);
+		});
+	}
+
+	#[test]
+	fn evm_call_from_runtime_rpc_should_be_accepted_from_bound_addresses() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			//Act & Assert
+			assert_ok!(hydradx_runtime::Runtime::call(
+				evm_address(), // from
+				DISPATCH_ADDR, // to
+				data,          // data
+				U256::from(1000u64),
+				U256::from(100000u64),
+				None,
+				None,
+				None,
+				false,
+				None,
+			));
+		});
+	}
+
+	#[test]
+	fn evm_call_from_runtime_rpc_should_not_be_accepted_from_bound_addresses() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)),);
+
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+
+			//Act & Assert
+			assert_noop!(
+				hydradx_runtime::Runtime::call(
+					evm_address,   // from
+					DISPATCH_ADDR, // to
+					data,          // data
+					U256::from(1000u64),
+					U256::from(100000u64),
+					None,
+					None,
+					None,
+					false,
+					None,
+				),
+				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::BoundAddressCannotBeUsed
+			);
 		});
 	}
 }
