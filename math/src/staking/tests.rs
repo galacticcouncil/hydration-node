@@ -40,32 +40,45 @@ fn calculate_slashed_points_should_work_when_pramas_stake_weight_is_not_zero() {
 
 	//weight is one so it should be slashed 1:1 => 100% slash
 	assert_eq!(
-		calculate_slashed_points(points, 1_000 * ONE, 1_000 * ONE, 1_u8).unwrap(),
+		calculate_slashed_points(points, 1_000 * ONE, 1_000 * ONE, 1_u8, 0).unwrap(),
 		points
 	);
 
 	//weight is 2 so it should be slashed 1:2  => 50% slash
 	assert_eq!(
-		calculate_slashed_points(points, 1_000 * ONE, 1_000 * ONE, 2_u8).unwrap(),
+		calculate_slashed_points(points, 1_000 * ONE, 1_000 * ONE, 2_u8, 0).unwrap(),
 		points / 2
 	);
 
 	//100% slash becasue big stake increase
 	assert_eq!(
-		calculate_slashed_points(points, 1_000 * ONE, 1_000_000 * ONE, 2_u8).unwrap(),
+		calculate_slashed_points(points, 1_000 * ONE, 1_000_000 * ONE, 2_u8, 0).unwrap(),
 		points
 	);
 
 	//small slash because of big current stake and small increase
 	assert_eq!(
-		calculate_slashed_points(points, 10_000_000 * ONE, ONE, 1_u8).unwrap(),
+		calculate_slashed_points(points, 10_000_000 * ONE, ONE, 1_u8, 0).unwrap(),
 		1
 	);
 
 	//no points in the first place so nothing to slash
 	assert_eq!(
-		calculate_slashed_points(0, 1_000 * ONE, 1_000_000_000 * ONE, 1_u8).unwrap(),
+		calculate_slashed_points(0, 1_000 * ONE, 1_000_000_000 * ONE, 1_u8, 0).unwrap(),
 		0
+	);
+
+	//weight is 2 so it should be slashed 1:2  => 50% slash and min. slash is bigger than
+	//calculated slash
+	assert_eq!(
+		calculate_slashed_points(points, 1_000 * ONE, 1_000 * ONE, 2_u8, points / 2 + 10).unwrap(),
+		points / 2 + 10
+	);
+
+	//amount of points is less then min. slash so all the points should be slashed
+	assert_eq!(
+		calculate_slashed_points(points, 1_000 * ONE, 1_000 * ONE, 2_u8, points * 10).unwrap(),
+		points
 	);
 }
 

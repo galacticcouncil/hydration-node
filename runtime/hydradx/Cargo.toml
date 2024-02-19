@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "206.0.0"
+version = "208.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -13,7 +13,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 substrate-wasm-builder = { workspace = true }
 
 [dependencies]
-hex-literal = "0.4.1"
+hex-literal = { workspace = true }
 serde = { features = ["derive"], optional = true, version = "1.0.136" }
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
@@ -141,6 +141,10 @@ pallet-ethereum = { workspace = true }
 pallet-evm = { workspace = true }
 pallet-evm-chain-id = { workspace = true }
 pallet-evm-precompile-dispatch = { workspace = true }
+pallet-evm-precompile-simple = { workspace = true }
+pallet-evm-precompile-modexp = { workspace = true }
+pallet-evm-precompile-bn128 = { workspace = true }
+pallet-evm-precompile-blake2 = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { version = "18.0.0", default-features = false }
 
@@ -284,6 +288,10 @@ std = [
     "pallet-evm/std",
     "pallet-evm-chain-id/std",
     "pallet-evm-precompile-dispatch/std",
+    "pallet-evm-precompile-simple/std",
+    "pallet-evm-precompile-modexp/std",
+    "pallet-evm-precompile-bn128/std",
+    "pallet-evm-precompile-blake2/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
 ]
