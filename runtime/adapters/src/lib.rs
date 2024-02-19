@@ -640,11 +640,11 @@ where
 	fn get(global_farm: &GlobalFarmData<Runtime, LMInstance>) -> Result<Self::PriceAdjustment, Self::Error> {
 		use pallet_asset_registry::AssetType;
 
-		let rew_curr = pallet_asset_registry::Assets::<Runtime>::get(global_farm.reward_currency.into())
+		let asset_detail = pallet_asset_registry::Assets::<Runtime>::get(global_farm.reward_currency.into())
 			.ok_or(pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
 
-		let reward_currency_id = if rew_curr.asset_type == AssetType::Bond {
-			pallet_bonds::Pallet::<Runtime>::parse_bond_name(rew_curr.name.into())?
+		let reward_currency_id = if asset_detail.asset_type == AssetType::Bond {
+			pallet_bonds::Pallet::<Runtime>::parse_bond_name(asset_detail.name.into())?
 		} else {
 			global_farm.reward_currency.into()
 		};
