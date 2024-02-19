@@ -35,7 +35,7 @@ pub struct ExtendedAddressMapping;
 
 impl AddressMapping<AccountId> for ExtendedAddressMapping {
 	fn into_account_id(address: H160) -> AccountId {
-		EVMAccounts::get_account_id(address)
+		EVMAccounts::account_id(address)
 	}
 }
 

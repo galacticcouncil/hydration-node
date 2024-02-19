@@ -26,13 +26,13 @@ sp_api::decl_runtime_apis! {
 		EvmAddress: Codec,
 	{
 		/// get the EVM address from the substrate address.
-		fn get_evm_address(account_id: AccountId) -> EvmAddress;
+		fn evm_address(account_id: AccountId) -> EvmAddress;
 
 		/// Return the Substrate address bound to the EVM account. If not bound, returns `None`.
-		fn query_bound_account_id(evm_address: EvmAddress) -> Option<AccountId>;
+		fn bound_account_id(evm_address: EvmAddress) -> Option<AccountId>;
 
 		/// Get the Substrate address from the EVM address.
 		/// Returns the truncated version of the address if the address wasn't bind.
-		fn query_account_id(evm_address: EvmAddress) -> AccountId;
+		fn account_id(evm_address: EvmAddress) -> AccountId;
 	}
 }

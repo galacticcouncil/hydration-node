@@ -37,11 +37,11 @@ mod account_conversion {
 		Hydra::execute_with(|| {
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 			// truncated address
-			let substrate_address: AccountId = EVMAccounts::get_truncated_account_id(evm_address);
+			let substrate_address: AccountId = EVMAccounts::truncated_account_id(evm_address);
 
 			assert_eq!(ExtendedAddressMapping::into_account_id(evm_address), substrate_address);
 
-			assert_eq!(EVMAccounts::get_account_id(evm_address), substrate_address);
+			assert_eq!(EVMAccounts::account_id(evm_address), substrate_address);
 			assert_eq!(EVMAccounts::bound_account_id(evm_address), None);
 		});
 	}
@@ -60,7 +60,7 @@ mod account_conversion {
 
 			assert_eq!(ExtendedAddressMapping::into_account_id(evm_address), substrate_address);
 
-			assert_eq!(EVMAccounts::get_account_id(evm_address), substrate_address);
+			assert_eq!(EVMAccounts::account_id(evm_address), substrate_address);
 			assert_eq!(EVMAccounts::bound_account_id(evm_address), Some(substrate_address));
 		});
 	}
@@ -89,7 +89,7 @@ mod account_conversion {
 		Hydra::execute_with(|| {
 			// Arrange
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-			let truncated_address = EVMAccounts::get_truncated_account_id(evm_address);
+			let truncated_address = EVMAccounts::truncated_account_id(evm_address);
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -121,7 +121,7 @@ mod account_conversion {
 
 			assert_noop!(
 				EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
-				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::NonZeroNonce,
+				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::TruncatedAccountAlreadyUsed,
 			);
 		});
 	}
@@ -133,7 +133,7 @@ mod account_conversion {
 		Hydra::execute_with(|| {
 			//Arrange
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-			let truncated_address = EVMAccounts::get_truncated_account_id(evm_address);
+			let truncated_address = EVMAccounts::truncated_account_id(evm_address);
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),

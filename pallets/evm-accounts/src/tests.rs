@@ -29,11 +29,11 @@ fn eth_address_should_convert_to_truncated_address_when_not_bound() {
 		let truncated_address =
 			AccountId::from(hex!["45544800222222ff7be76052e023ec1a306fcca8f9659d800000000000000000"]);
 
-		assert_eq!(EVMAccounts::get_truncated_account_id(evm_address), truncated_address);
+		assert_eq!(EVMAccounts::truncated_account_id(evm_address), truncated_address);
 
 		// Act & Assert
 		assert_eq!(EVMAccounts::bound_account_id(evm_address), None);
-		assert_eq!(EVMAccounts::get_account_id(evm_address), truncated_address);
+		assert_eq!(EVMAccounts::account_id(evm_address), truncated_address);
 	});
 }
 
@@ -48,11 +48,11 @@ fn eth_address_should_convert_to_full_address_when_bound() {
 
 		assert_eq!(EVMAccounts::bound_account_id(evm_address), Some(ALICE));
 
-		assert_eq!(EVMAccounts::get_account_id(evm_address), ALICE);
+		assert_eq!(EVMAccounts::account_id(evm_address), ALICE);
 
-		expect_events(vec![Event::EvmAccountBounded {
-			who: ALICE,
-			evm_address,
+		expect_events(vec![Event::Bound {
+			account: ALICE,
+			address: evm_address,
 		}
 		.into()]);
 	});
@@ -66,7 +66,7 @@ fn bind_address_should_fail_when_nonce_is_not_zero() {
 		.execute_with(|| {
 			assert_noop!(
 				EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE)),
-				Error::<Test>::NonZeroNonce
+				Error::<Test>::TruncatedAccountAlreadyUsed
 			);
 		});
 }

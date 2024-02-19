@@ -40,14 +40,14 @@ pub fn evm_address() -> H160 {
 	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"].into()
 }
 pub fn evm_account() -> AccountId {
-	hydradx_runtime::EVMAccounts::get_truncated_account_id(evm_address())
+	hydradx_runtime::EVMAccounts::truncated_account_id(evm_address())
 }
 
 pub fn evm_address2() -> H160 {
 	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D81"].into()
 }
 pub fn evm_account2() -> AccountId {
-	hydradx_runtime::EVMAccounts::get_truncated_account_id(evm_address2())
+	hydradx_runtime::EVMAccounts::truncated_account_id(evm_address2())
 }
 pub fn evm_signed_origin(address: H160) -> RuntimeOrigin {
 	// account has to be truncated to spoof it as an origin

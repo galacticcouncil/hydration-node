@@ -95,20 +95,20 @@ pub mod pallet {
 	/// Maps an EVM address to the last 12 bytes of a substrate account.
 	#[pallet::storage]
 	#[pallet::getter(fn account)]
-	pub(super) type BoundAccount<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, AccountIdLast12Bytes>;
+	pub(super) type AccountExtension<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, AccountIdLast12Bytes>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Binding was created.
-		EvmAccountBounded { who: T::AccountId, evm_address: EvmAddress },
+		Bound { account: T::AccountId, address: EvmAddress },
 	}
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
-		/// Nonce is not zero
-		NonZeroNonce,
+		/// EVM Account's nonce is not zero
+		TruncatedAccountAlreadyUsed,
 		/// Address is already bound
 		AddressAlreadyBound,
 	}
@@ -158,19 +158,22 @@ pub mod pallet {
 			// on the nonce. So it's better to prevent any confusion and throw an error when address is
 			// already bound.
 			ensure!(
-				!BoundAccount::<T>::contains_key(evm_address),
+				!AccountExtension::<T>::contains_key(evm_address),
 				Error::<T>::AddressAlreadyBound
 			);
 
 			let nonce = T::EvmNonceProvider::get_nonce(evm_address);
-			ensure!(nonce.is_zero(), Error::<T>::NonZeroNonce);
+			ensure!(nonce.is_zero(), Error::<T>::TruncatedAccountAlreadyUsed);
 
 			let mut last_12_bytes: [u8; 12] = [0; 12];
 			last_12_bytes.copy_from_slice(&who.as_ref()[20..32]);
 
-			<BoundAccount<T>>::insert(evm_address, last_12_bytes);
+			<AccountExtension<T>>::insert(evm_address, last_12_bytes);
 
-			Self::deposit_event(Event::EvmAccountBounded { who, evm_address });
+			Self::deposit_event(Event::Bound {
+				account: who,
+				address: evm_address,
+			});
 
 			Ok(())
 		}
@@ -188,7 +191,7 @@ where
 	}
 
 	/// Get the truncated address from the EVM address.
-	pub fn get_truncated_account_id(evm_address: EvmAddress) -> T::AccountId {
+	pub fn truncated_account_id(evm_address: EvmAddress) -> T::AccountId {
 		let mut data: [u8; 32] = [0u8; 32];
 		data[0..4].copy_from_slice(b"ETH\0");
 		data[4..24].copy_from_slice(&evm_address[..]);
@@ -197,7 +200,7 @@ where
 
 	/// Return the Substrate address bound to the EVM account. If not bound, returns `None`.
 	pub fn bound_account_id(evm_address: EvmAddress) -> Option<T::AccountId> {
-		let Some(last_12_bytes) = BoundAccount::<T>::get(evm_address) else {
+		let Some(last_12_bytes) = AccountExtension::<T>::get(evm_address) else {
 			return None;
 		};
 		let mut data: [u8; 32] = [0u8; 32];
@@ -208,7 +211,7 @@ where
 
 	/// Get the Substrate address from the EVM address.
 	/// Returns the truncated version of the address if the address wasn't bind.
-	pub fn get_account_id(evm_address: EvmAddress) -> T::AccountId {
-		Self::bound_account_id(evm_address).unwrap_or_else(|| Self::get_truncated_account_id(evm_address))
+	pub fn account_id(evm_address: EvmAddress) -> T::AccountId {
+		Self::bound_account_id(evm_address).unwrap_or_else(|| Self::truncated_account_id(evm_address))
 	}
 }

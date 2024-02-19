@@ -29,12 +29,12 @@ benchmarks! {
 	bind_evm_address {
 		let user: T::AccountId = account("user", 0, 1);
 		let evm_address = Pallet::<T>::evm_address(&user);
-		assert!(!BoundAccount::<T>::contains_key(evm_address));
+		assert!(!AccountExtension::<T>::contains_key(evm_address));
 
 	}: _(RawOrigin::Signed(user.clone()))
 	verify {
 		let evm_address = Pallet::<T>::evm_address(&user);
-		assert!(BoundAccount::<T>::contains_key(evm_address));
+		assert!(AccountExtension::<T>::contains_key(evm_address));
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);

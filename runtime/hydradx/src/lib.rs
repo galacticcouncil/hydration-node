@@ -585,14 +585,14 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_evm_accounts_rpc_runtime_api::EvmAccountsApi<Block, AccountId, H160> for Runtime {
-		fn get_evm_address(account_id: AccountId) -> H160 {
+		fn evm_address(account_id: AccountId) -> H160 {
 			EVMAccounts::evm_address(&account_id)
 		}
-		fn query_bound_account_id(evm_address: H160) -> Option<AccountId> {
+		fn bound_account_id(evm_address: H160) -> Option<AccountId> {
 			EVMAccounts::bound_account_id(evm_address)
 		}
-		fn query_account_id(evm_address: H160) -> AccountId {
-			EVMAccounts::get_account_id(evm_address)
+		fn account_id(evm_address: H160) -> AccountId {
+			EVMAccounts::account_id(evm_address)
 		}
 	}
 
