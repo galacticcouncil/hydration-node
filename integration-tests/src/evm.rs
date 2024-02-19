@@ -12,7 +12,8 @@ use hydradx_runtime::{
 		multicurrency::{Action, MultiCurrencyPrecompile},
 		Address, Bytes, EvmAddress, HydraDXPrecompiles,
 	},
-	AssetRegistry, Balances, CallFilter, Currencies, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause, EVM, EVMAccounts,
+	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause,
+	EVM,
 };
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
