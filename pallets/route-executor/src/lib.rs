@@ -208,8 +208,13 @@ pub mod pallet {
 					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 				let user_balance_of_asset_in_before_trade_with_protecting =
 					T::Currency::reducible_balance(asset_in, &who, Preservation::Protect, Fortitude::Polite);
-				let ed = user_balance_of_asset_in_before_trade
-					.saturating_sub(user_balance_of_asset_in_before_trade_with_protecting);
+				let ed = if trade.asset_in == T::NativeAssetId::get() {
+					user_balance_of_asset_in_before_trade_with_protecting
+						.saturating_sub(user_balance_of_asset_in_before_trade)
+				} else {
+					user_balance_of_asset_in_before_trade
+						.saturating_sub(user_balance_of_asset_in_before_trade_with_protecting)
+				};
 
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
@@ -456,20 +461,20 @@ impl<T: Config> Pallet<T> {
 		ed: T::Balance,
 	) -> Result<(), DispatchError> {
 		//TODO: we might not need this check anymore, verify it with test sell_should_work_when_user_has_left_less_than_existential_in_native and also other DCA test
-		if spent_amount < user_balance_of_asset_in_before_trade {
-			let user_balance_of_asset_in_after_trade =
-				T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
+		//if spent_amount < user_balance_of_asset_in_before_trade {
+		let user_balance_of_asset_in_after_trade =
+			T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
-			let expected_user_balance = user_balance_of_asset_in_before_trade.saturating_sub(spent_amount);
-			if expected_user_balance < ed {
-				return Ok(()); //The user had leftotver less than ED so wiped out, hence we can't check the balance precisely
-			}
-
-			ensure!(
-				user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
-				Error::<T>::InvalidRouteExecution
-			);
+		let expected_user_balance = user_balance_of_asset_in_before_trade.saturating_sub(spent_amount);
+		if expected_user_balance < ed {
+			return Ok(()); //The user had leftover less than ED so wiped out, hence we can't check the balance precisely
 		}
+
+		ensure!(
+			user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
+			Error::<T>::InvalidRouteExecution
+		);
+		//}
 		Ok(())
 	}
 
