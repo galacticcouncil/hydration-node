@@ -534,11 +534,7 @@ impl<T: Config> Pallet<T> {
 
 		with_transaction(|| {
 			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
-			let ps1 = frame_system::Pallet::<T>::providers(&Self::router_account());
-
 			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
-			//TODO: remove - tge ref count increases by 1 as we do try_mutate_account from pallet balances
-			let ps2 = frame_system::Pallet::<T>::providers(&Self::router_account());
 
 			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());
 
