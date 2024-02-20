@@ -16,16 +16,18 @@
 // limitations under the License.
 #![allow(clippy::result_large_err)]
 
-use crate::{AccountId, AssetId, AssetRegistry, Balance, Currencies, Router, Runtime, RuntimeOrigin, System, LBP, XYK};
+use crate::{
+	AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System, LBP, XYK,
+};
 
-use frame_benchmarking::account;
+use super::*;
+
+use frame_benchmarking::{account, BenchmarkError};
 use frame_support::dispatch::DispatchResult;
-use frame_support::sp_runtime::traits::One;
 use frame_support::{assert_ok, ensure};
 use frame_system::RawOrigin;
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::{PoolType, RouterT, Trade};
-use hydradx_traits::Registry;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::constants::currency::UNITS;
@@ -35,6 +37,9 @@ pub const INITIAL_BALANCE: Balance = 10_000_000 * UNITS;
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
 	let account: AccountId = account(name, index, 0);
+	//Necessary to pay ED for insufficient assets.
+	<Currencies as MultiCurrencyExtended<_>>::update_balance(0, &account, INITIAL_BALANCE as i128).unwrap();
+
 	for asset in assets {
 		assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
 			*asset,
@@ -96,7 +101,14 @@ fn setup_lbp(caller: AccountId, asset_in: AssetId, asset_out: AssetId) -> Dispat
 }
 
 fn create_xyk_pool(asset_a: u32, asset_b: u32) {
-	let caller: AccountId = funded_account("caller", 0, &[asset_a, asset_b]);
+	let caller: AccountId = funded_account("caller", 3, &[asset_a, asset_b]);
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		caller.clone(),
+		0_u32,
+		InsufficientEDinHDX::get() as i128,
+	));
 
 	let amount = 100000 * UNITS;
 	assert_ok!(Currencies::update_balance(
@@ -129,8 +141,8 @@ runtime_benchmarks! {
 	calculate_and_execute_sell_in_lbp {
 		let c in 0..1;	// if c == 1, calculate_sell_trade_amounts is executed
 
-		let asset_in = 1u32;
-		let asset_out = 2u32;
+		let asset_in = register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_out = register_external_asset(b"FCB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let caller: AccountId = funded_account("caller", 7, &[asset_in, asset_out]);
 		let seller: AccountId = funded_account("seller", 8, &[asset_in, asset_out]);
 
@@ -162,8 +174,8 @@ runtime_benchmarks! {
 		let c in 1..2;	// number of times `calculate_buy_trade_amounts` is executed
 		let b in 0..1;	// if e == 1, buy is executed
 
-		let asset_in = 1u32;
-		let asset_out = 2u32;
+		let asset_in = register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_out = register_external_asset(b"FCB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let caller: AccountId = funded_account("caller", 0, &[asset_in, asset_out]);
 		let buyer: AccountId = funded_account("buyer", 1, &[asset_in, asset_out]);
 
@@ -196,12 +208,13 @@ runtime_benchmarks! {
 
 	// Calculates the weight of xyk set route. Used in the calculation to determine the weight of the overhead.
 	set_route_for_xyk {
-		let asset_1 = 1u32;
-		let asset_2 = AssetRegistry::create_asset(&b"FCA".to_vec(), Balance::one())?;
-		let asset_3 = AssetRegistry::create_asset(&b"FCB".to_vec(), Balance::one())?;
+		let asset_1 = register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_2 = register_external_asset(b"FCB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_3 = register_external_asset(b"FCC".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
-		let caller: AccountId = funded_account("caller", 0, &[asset_1, asset_2,asset_3]);
-		let buyer: AccountId = funded_account("buyer", 1, &[asset_1, asset_2,asset_3]);
+		let caller: AccountId = funded_account("caller", 0, &[asset_1, asset_2, asset_3]);
+		let buyer: AccountId = funded_account("buyer", 1, &[asset_1, asset_2, asset_3]);
+
 		create_xyk_pool(asset_1, asset_2);
 		create_xyk_pool(asset_1, asset_3);
 		create_xyk_pool(asset_2, asset_3);
@@ -244,27 +257,14 @@ runtime_benchmarks! {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::NativeExistentialDeposit;
 	use orml_benchmarking::impl_benchmark_test_suite;
 	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+		frame_system::GenesisConfig::<Runtime>::default()
 			.build_storage()
-			.unwrap();
-
-		pallet_asset_registry::GenesisConfig::<Runtime> {
-			registered_assets: vec![
-				(b"LRNA".to_vec(), 1_000u128, Some(1)),
-				(b"DAI".to_vec(), 1_000u128, Some(2)),
-			],
-			native_asset_name: b"HDX".to_vec(),
-			native_existential_deposit: NativeExistentialDeposit::get(),
-		}
-		.assimilate_storage(&mut t)
-		.unwrap();
-
-		sp_io::TestExternalities::new(t)
+			.unwrap()
+			.into()
 	}
 
 	impl_benchmark_test_suite!(new_test_ext(),);

@@ -1,7 +1,6 @@
 pub use super::mock::*;
 use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
-use hydradx_traits::Registry;
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
@@ -44,8 +43,13 @@ fn create_pool_should_work() {
 		expect_events(vec![
 			pallet_asset_registry::Event::Registered {
 				asset_id: share_token,
-				asset_name: bounded_name,
-				asset_type: AssetType::PoolShare(HDX, ACA),
+				asset_name: Some(bounded_name),
+				asset_type: AssetType::XYK,
+				existential_deposit: pallet_asset_registry::DEFAULT_ED,
+				xcm_rate_limit: None,
+				symbol: None,
+				decimals: None,
+				is_sufficient: false,
 			}
 			.into(),
 			Event::PoolCreated {
@@ -374,13 +378,15 @@ fn share_asset_id_should_be_offset() {
 		// This is how share tokens were registered before the offset was introduced.
 		assert_ok!(AssetRegistry::register(
 			RuntimeOrigin::signed(ALICE),
-			asset_pair.name(),
-			AssetType::PoolShare(HDX, ACA),
-			<Test as crate::Config>::MinPoolLiquidity::get(),
 			Some(next_asset_id),
+			Some(asset_pair.name().try_into().unwrap()),
+			AssetType::XYK,
+			Some(<Test as crate::Config>::MinPoolLiquidity::get()),
 			None,
 			None,
 			None,
+			None,
+			false
 		));
 
 		// Create_pool doesn't register new share token if it already exists
@@ -396,7 +402,11 @@ fn share_asset_id_should_be_offset() {
 		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(share_token, next_asset_id);
-		assert_eq!(AssetRegistry::retrieve_asset(&asset_pair.name()).unwrap(), share_token);
+		assert_eq!(
+			AssetRegistry::asset_ids::<BoundedVec<u8, RegistryStringLimit>>(asset_pair.name().try_into().unwrap())
+				.unwrap(),
+			share_token
+		);
 
 		// Act
 		let next_asset_id = AssetRegistry::next_asset_id().unwrap();
@@ -420,6 +430,10 @@ fn share_asset_id_should_be_offset() {
 
 		// Assert
 		assert_eq!(share_token, next_asset_id);
-		assert_eq!(AssetRegistry::retrieve_asset(&asset_pair.name()).unwrap(), share_token);
+		assert_eq!(
+			AssetRegistry::asset_ids::<BoundedVec<u8, RegistryStringLimit>>(asset_pair.name().try_into().unwrap())
+				.unwrap(),
+			share_token
+		);
 	});
 }
