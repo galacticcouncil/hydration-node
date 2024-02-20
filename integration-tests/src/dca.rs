@@ -2382,7 +2382,6 @@ fn crate_xyk_pool(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_
 mod with_onchain_route {
 	use super::*;
 	use hydradx_traits::router::PoolType;
-	use sp_core::crypto::AccountId32;
 
 	#[test]
 	fn buy_should_work_with_omnipool_and_stable_with_onchain_routes() {

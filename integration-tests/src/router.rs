@@ -726,7 +726,6 @@ mod omnipool_router_tests {
 			.into()]);
 		});
 	}
-	use sp_runtime::AccountId32;
 	#[test]
 	fn sell_should_work_when_user_has_left_less_than_existential_in_nonnative() {
 		TestNet::reset();
@@ -784,7 +783,7 @@ mod omnipool_router_tests {
 				hydradx_runtime::RuntimeOrigin::root(),
 				ALICE.into(),
 				HDX,
-				1 as i128,
+				1_i128,
 			));
 
 			let trades = vec![Trade {
@@ -980,7 +979,6 @@ mod omnipool_router_tests {
 			//Arrange
 			init_omnipool();
 
-			let amount_to_buy = 26579363534770086553u128;
 			let amount_to_buy = 26559360000000000000u128;
 
 			let limit = ALICE_INITIAL_NATIVE_BALANCE;

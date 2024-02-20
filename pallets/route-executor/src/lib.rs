@@ -28,7 +28,6 @@ use frame_support::{
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
-use sp_runtime::traits::Zero;
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
@@ -614,17 +613,15 @@ impl<T: Config> Pallet<T> {
 
 	fn get_existential_deposit(who: &T::AccountId, asset: T::AssetId) -> T::Balance {
 		let user_balance_of_asset_in_before_trade2 =
-			T::Currency::reducible_balance(asset, &who, Preservation::Preserve, Fortitude::Polite);
+			T::Currency::reducible_balance(asset, who, Preservation::Preserve, Fortitude::Polite);
 		let user_balance_of_asset_in_before_trade_with_protecting =
-			T::Currency::reducible_balance(asset, &who, Preservation::Protect, Fortitude::Polite);
+			T::Currency::reducible_balance(asset, who, Preservation::Protect, Fortitude::Polite);
 
-		let ed = if asset == T::NativeAssetId::get() {
+		if asset == T::NativeAssetId::get() {
 			user_balance_of_asset_in_before_trade_with_protecting.saturating_sub(user_balance_of_asset_in_before_trade2)
 		} else {
 			user_balance_of_asset_in_before_trade2.saturating_sub(user_balance_of_asset_in_before_trade_with_protecting)
-		};
-
-		ed
+		}
 	}
 }
 
