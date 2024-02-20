@@ -28,6 +28,7 @@ use frame_support::{
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
+use sp_runtime::traits::Zero;
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
@@ -42,7 +43,6 @@ use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
 mod tests;
-
 pub mod weights;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -58,7 +58,7 @@ pub mod pallet {
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
-	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv};
+	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
 
 	#[pallet::pallet]
@@ -82,7 +82,8 @@ pub mod pallet {
 			+ CheckedSub
 			+ CheckedAdd
 			+ CheckedDiv
-			+ Saturating;
+			+ Saturating
+			+ Zero;
 
 		/// Native Asset Id
 		#[pallet::constant]
@@ -207,16 +208,8 @@ pub mod pallet {
 
 			for (trade_amount, trade) in trade_amounts.iter().zip(route) {
 				let user_balance_of_asset_in_before_trade =
-					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Preserve, Fortitude::Polite);
-				let user_balance_of_asset_in_before_trade_with_protecting =
-					T::Currency::reducible_balance(asset_in, &who, Preservation::Protect, Fortitude::Polite);
-				let ed = if trade.asset_in == T::NativeAssetId::get() {
-					user_balance_of_asset_in_before_trade_with_protecting
-						.saturating_sub(user_balance_of_asset_in_before_trade)
-				} else {
-					user_balance_of_asset_in_before_trade
-						.saturating_sub(user_balance_of_asset_in_before_trade_with_protecting)
-				};
+					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+				let existential_deposit = Self::get_existential_deposit(&who, asset_in);
 
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
@@ -234,7 +227,7 @@ pub mod pallet {
 					trade.asset_in,
 					user_balance_of_asset_in_before_trade,
 					trade_amount.amount_in,
-					ed,
+					existential_deposit,
 				)?;
 			}
 
@@ -287,7 +280,8 @@ pub mod pallet {
 			Self::ensure_route_arguments(&asset_pair, &route)?;
 
 			let user_balance_of_asset_in_before_trade =
-				T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
+				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+			let existential_deposit = Self::get_existential_deposit(&who, asset_in);
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
@@ -322,7 +316,7 @@ pub mod pallet {
 				asset_in,
 				user_balance_of_asset_in_before_trade,
 				first_trade.amount_in,
-				u128::MIN.into(), //TODO: add test for buy then fix it,
+				existential_deposit, //TODO: add test for buy then fix it,
 			)?;
 
 			Self::deposit_event(Event::Executed {
@@ -467,23 +461,23 @@ impl<T: Config> Pallet<T> {
 		asset_in: T::AssetId,
 		user_balance_of_asset_in_before_trade: T::Balance,
 		spent_amount: T::Balance,
-		ed: T::Balance,
+		existential_deposit: T::Balance,
 	) -> Result<(), DispatchError> {
-		//TODO: we might not need this check anymore, verify it with test sell_should_work_when_user_has_left_less_than_existential_in_native and also other DCA test
-		//if spent_amount < user_balance_of_asset_in_before_trade {
 		let user_balance_of_asset_in_after_trade =
-			T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
+			T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
 
-		let expected_user_balance = user_balance_of_asset_in_before_trade.saturating_sub(spent_amount);
-		if expected_user_balance < ed {
+		let expected_user_balance_of_asset_in_after_trade = user_balance_of_asset_in_before_trade
+			.checked_sub(&spent_amount)
+			.ok_or(Error::<T>::InvalidRouteExecution)?;
+
+		if expected_user_balance_of_asset_in_after_trade < existential_deposit {
 			return Ok(()); //The user had leftover less than ED so wiped out, hence we can't check the balance precisely
 		}
 
 		ensure!(
-			user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
+			expected_user_balance_of_asset_in_after_trade == user_balance_of_asset_in_after_trade,
 			Error::<T>::InvalidRouteExecution
 		);
-		//}
 		Ok(())
 	}
 
@@ -540,7 +534,11 @@ impl<T: Config> Pallet<T> {
 
 		with_transaction(|| {
 			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
+			let ps1 = frame_system::Pallet::<T>::providers(&Self::router_account());
+
 			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
+			//TODO: remove - tge ref count increases by 1 as we do try_mutate_account from pallet balances
+			let ps2 = frame_system::Pallet::<T>::providers(&Self::router_account());
 
 			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());
 
@@ -618,6 +616,21 @@ impl<T: Config> Pallet<T> {
 		});
 
 		Ok(Pays::No.into())
+	}
+
+	fn get_existential_deposit(who: &T::AccountId, asset: T::AssetId) -> T::Balance {
+		let user_balance_of_asset_in_before_trade2 =
+			T::Currency::reducible_balance(asset, &who, Preservation::Preserve, Fortitude::Polite);
+		let user_balance_of_asset_in_before_trade_with_protecting =
+			T::Currency::reducible_balance(asset, &who, Preservation::Protect, Fortitude::Polite);
+
+		let ed = if asset == T::NativeAssetId::get() {
+			user_balance_of_asset_in_before_trade_with_protecting.saturating_sub(user_balance_of_asset_in_before_trade2)
+		} else {
+			user_balance_of_asset_in_before_trade2.saturating_sub(user_balance_of_asset_in_before_trade_with_protecting)
+		};
+
+		ed
 	}
 }
 

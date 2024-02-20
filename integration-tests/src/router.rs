@@ -726,14 +726,17 @@ mod omnipool_router_tests {
 			.into()]);
 		});
 	}
-
+	use sp_runtime::AccountId32;
 	#[test]
 	fn sell_should_work_when_user_has_left_less_than_existential_in_nonnative() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
 			//Arrange
+			let ps = frame_system::Pallet::<Runtime>::providers(&AccountId32::from(ALICE));
+
 			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+			let ps2 = frame_system::Pallet::<Runtime>::providers(&AccountId32::from(ALICE));
 
 			init_omnipool();
 
