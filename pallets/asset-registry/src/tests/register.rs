@@ -549,12 +549,6 @@ fn register_external_asset_should_work_when_location_is_provided() {
 			}
 			.into()
 		));
-
-		assert_eq!(
-			Tokens::balance(NativeAssetId::get(), &ALICE),
-			alice_balance - StoreFees::get()
-		);
-		assert_eq!(Tokens::balance(NativeAssetId::get(), &TREASURY), StoreFees::get());
 	});
 }
 
@@ -594,30 +588,6 @@ fn register_external_asset_should_not_work_when_location_is_already_used() {
 		assert_noop!(
 			Registry::register_external(RuntimeOrigin::signed(ALICE), asset_location),
 			Error::<Test>::LocationAlreadyRegistered
-		);
-	});
-}
-
-#[test]
-fn register_external_asset_should_not_work_when_user_cant_pay_storage_fees() {
-	ExtBuilder::default().build().execute_with(|| {
-		let key = Junction::from(BoundedVec::try_from(528.encode()).unwrap());
-		let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
-
-		let alice_balance = 10_000 * UNIT;
-		Tokens::set_balance(
-			RuntimeOrigin::root(),
-			ALICE,
-			NativeAssetId::get(),
-			StoreFees::get() - 1,
-			alice_balance,
-		)
-		.unwrap();
-
-		//Act
-		assert_noop!(
-			Registry::register_external(RuntimeOrigin::signed(ALICE), asset_location),
-			Error::<Test>::InsufficientBalance
 		);
 	});
 }
@@ -835,4 +805,22 @@ fn register_should_not_work_when_symbol_is_too_short() {
 				Error::<Test>::TooShort
 			);
 		});
+}
+
+#[test]
+fn register_externa_should_not_work_when_origin_is_none() {
+	ExtBuilder::default().build().execute_with(|| {
+		let key = Junction::from(BoundedVec::try_from(528.encode()).unwrap());
+		let asset_location = AssetLocation(MultiLocation::new(0, X2(Parachain(200), key)));
+
+		let alice_balance = 10_000 * UNIT;
+		Tokens::mint_into(NativeAssetId::get(), &ALICE, alice_balance).unwrap();
+		assert_eq!(Tokens::balance(NativeAssetId::get(), &TREASURY), 0);
+
+		//Act
+		assert_noop!(
+			Registry::register_external(RuntimeOrigin::none(), asset_location.clone()),
+			BadOrigin
+		);
+	});
 }

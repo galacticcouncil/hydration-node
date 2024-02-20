@@ -20,13 +20,10 @@
 use frame_support::pallet_prelude::*;
 use frame_support::require_transactional;
 use frame_support::sp_runtime::traits::CheckedAdd;
-use frame_support::traits::tokens::{
-	fungibles::{Inspect as FungiblesInspect, Mutate as FungiblesMutate},
-	Preservation,
-};
+use frame_support::traits::tokens::fungibles::{Inspect as FungiblesInspect, Mutate as FungiblesMutate};
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
-use sp_arithmetic::traits::{BaseArithmetic, Zero};
+use sp_arithmetic::traits::BaseArithmetic;
 use sp_runtime::DispatchError;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
@@ -100,18 +97,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type SequentialIdStartAt: Get<Self::AssetId>;
 
-		/// Id of the asset that is used to pay storage fees.
-		#[pallet::constant]
-		type StorageFeesAssetId: Get<Self::AssetId>;
-
-		/// Storage fees for external asset creation.
-		#[pallet::constant]
-		type StorageFees: Get<Balance>;
-
-		/// Beneficiary account of storage fees for external asset creation.
-		#[pallet::constant]
-		type StorageFeesBeneficiary: Get<Self::AccountId>;
-
 		/// The maximum length of a name or symbol stored on-chain.
 		#[pallet::constant]
 		type StringLimit: Get<u32> + Debug + PartialEq;
@@ -119,6 +104,10 @@ pub mod pallet {
 		/// The min length of a name or symbol stored on-chain.
 		#[pallet::constant]
 		type MinStringLimit: Get<u32> + Debug + PartialEq;
+
+		/// Weight multiplier for `register_external` extrinsic
+		#[pallet::constant]
+		type RegExternalWeightMultiplier: Get<u64>;
 
 		/// Weight information for the extrinsics
 		type WeightInfo: WeightInfo;
@@ -129,7 +118,14 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn integrity_test() {
+			assert!(
+				T::RegExternalWeightMultiplier::get().ge(&1_u64),
+				"`T::RegExternalWeightMultiplier` must be greater than zero."
+			);
+		}
+	}
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -488,26 +484,9 @@ pub mod pallet {
 
 		//NOTE: call indices 2 and 3 were used by removed extrinsics.
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::register_external())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_external().saturating_mul(<T as Config>::RegExternalWeightMultiplier::get()))]
 		pub fn register_external(origin: OriginFor<T>, location: T::AssetNativeLocation) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			if !T::StorageFees::get().is_zero() {
-				ensure!(
-					T::Currency::can_withdraw(T::StorageFeesAssetId::get(), &who, T::StorageFees::get())
-						.into_result(false)
-						.is_ok(),
-					Error::<T>::InsufficientBalance
-				);
-
-				T::Currency::transfer(
-					T::StorageFeesAssetId::get(),
-					&who,
-					&T::StorageFeesBeneficiary::get(),
-					T::StorageFees::get(),
-					Preservation::Expendable,
-				)?;
-			}
+			let _ = ensure_signed(origin)?;
 
 			Self::do_register_asset(
 				None,

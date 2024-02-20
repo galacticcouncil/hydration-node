@@ -88,7 +88,6 @@ benchmarks! {
 
 	register_external {
 		let caller: T::AccountId = account("caller", 0, 1);
-		T::Currency::mint_into(T::StorageFeesAssetId::get(), &caller, 101_000 * UNIT)?;
 
 		let expected_asset_id = Pallet::<T>::next_asset_id().unwrap();
 		let location: T::AssetNativeLocation = Default::default();

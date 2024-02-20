@@ -363,7 +363,7 @@ parameter_types! {
 	#[derive(PartialEq, Debug)]
 	pub const MinRegistryStrLimit: u32 = 3;
 	pub const SequentialIdOffset: u32 = 1_000_000;
-	pub const StoreFees: Balance = 100 * UNITS; //TODO:
+	pub const RegExternalWeightMultiplier: u64 = 10;
 }
 
 impl pallet_asset_registry::Config for Runtime {
@@ -376,9 +376,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type StringLimit = RegistryStrLimit;
 	type MinStringLimit = MinRegistryStrLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
-	type StorageFeesAssetId = NativeAssetId;
-	type StorageFees = StoreFees;
-	type StorageFeesBeneficiary = TreasuryAccount;
+	type RegExternalWeightMultiplier = RegExternalWeightMultiplier;
 	type WeightInfo = weights::registry::HydraWeight<Runtime>;
 }
 

@@ -95,11 +95,6 @@ use scale_info::TypeInfo;
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub MultiLocation);
 
-parameter_types! {
-	pub const StoreFees: Balance = 10 * UNIT;
-	pub const FeesBeneficiarry: u64 = TREASURY;
-}
-
 impl pallet_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Tokens;
@@ -110,9 +105,7 @@ impl pallet_asset_registry::Config for Test {
 	type StringLimit = RegistryStringLimit;
 	type MinStringLimit = RegistryMinStringLimit;
 	type SequentialIdStartAt = SequentialIdStart;
-	type StorageFeesAssetId = NativeAssetId;
-	type StorageFees = StoreFees;
-	type StorageFeesBeneficiary = FeesBeneficiarry;
+	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
 	type WeightInfo = ();
 }
 
