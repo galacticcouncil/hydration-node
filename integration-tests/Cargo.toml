@@ -22,8 +22,6 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-stableswap = { workspace = true }
 pallet-referrals = { workspace = true }
-
-# Warehouse dependencies
 pallet-asset-registry = { workspace = true }
 hydradx-traits = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
@@ -39,6 +37,7 @@ pallet-dynamic-fees = { workspace = true }
 pallet-staking = { workspace = true}
 pallet-lbp = { workspace = true}
 pallet-xyk = { workspace = true}
+pallet-evm-accounts = { workspace = true}
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }

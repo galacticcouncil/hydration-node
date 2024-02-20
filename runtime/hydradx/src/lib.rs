@@ -181,10 +181,11 @@ construct_runtime!(
 		Currencies: pallet_currencies = 79,
 		Vesting: orml_vesting = 81,
 
-		// Frontier
+		// Frontier and EVM pallets
 		EVM: pallet_evm = 90,
 		EVMChainId: pallet_evm_chain_id = 91,
 		Ethereum: pallet_ethereum = 92,
+		EVMAccounts: pallet_evm_accounts = 93,
 
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
@@ -483,6 +484,11 @@ impl_runtime_apis! {
 							_ => (None, None),
 						};
 
+			// don't allow calling EVM RPC or Runtime API from a bound address
+			if EVMAccounts::bound_account_id(from).is_some() {
+				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
+			};
+
 			<Runtime as pallet_evm::Config>::Runner::call(
 				from,
 				to,
@@ -583,6 +589,18 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_evm_accounts_rpc_runtime_api::EvmAccountsApi<Block, AccountId, H160> for Runtime {
+		fn evm_address(account_id: AccountId) -> H160 {
+			EVMAccounts::evm_address(&account_id)
+		}
+		fn bound_account_id(evm_address: H160) -> Option<AccountId> {
+			EVMAccounts::bound_account_id(evm_address)
+		}
+		fn account_id(evm_address: H160) -> AccountId {
+			EVMAccounts::account_id(evm_address)
+		}
+	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn benchmark_metadata(extra: bool) -> (
@@ -622,6 +640,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_lbp, LBP);
 			list_benchmark!(list, extra, pallet_xyk, XYK);
 			list_benchmark!(list, extra, pallet_referrals, Referrals);
+			list_benchmark!(list, extra, pallet_evm_accounts, EVMAccounts);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
@@ -703,6 +722,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_xyk, XYK);
 			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
 			add_benchmark!(params, batches, pallet_referrals, Referrals);
+			add_benchmark!(params, batches, pallet_evm_accounts, EVMAccounts);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
