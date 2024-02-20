@@ -2854,8 +2854,6 @@ mod with_onchain_route {
 
 		TestNet::reset();
 		Hydra::execute_with(|| {
-			let ps = frame_system::Pallet::<Runtime>::providers(&AccountId32::from(ALICE));
-
 			//Arrange
 			init_omnipol();
 
@@ -2867,8 +2865,6 @@ mod with_onchain_route {
 				DOT,
 				FixedU128::from_rational(50, 100),
 			));
-
-			let ps = frame_system::Pallet::<Runtime>::providers(&AccountId32::from(ALICE));
 
 			//Populate xyk
 			assert_ok!(Currencies::update_balance(
@@ -2907,8 +2903,6 @@ mod with_onchain_route {
 					asset_out: DOT,
 				},
 			];
-
-			let ps2 = frame_system::Pallet::<Runtime>::providers(&AccountId32::from(ALICE));
 
 			let asset_pair = AssetPair::new(HDX, DOT);
 			assert_ok!(Router::set_route(
@@ -2955,10 +2949,8 @@ mod with_onchain_route {
 				TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_dot))
 			})
 			.unwrap();
-			let ps3 = frame_system::Pallet::<Runtime>::providers(&AccountId32::from(ALICE));
 
 			create_schedule(ALICE, schedule);
-			let p4 = frame_system::Pallet::<Runtime>::providers(&AccountId32::from(ALICE));
 
 			//Act
 			set_relaychain_block_number(11);
