@@ -733,10 +733,7 @@ mod omnipool_router_tests {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let ps = frame_system::Pallet::<Runtime>::providers(&AccountId32::from(ALICE));
-
 			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
-			let ps2 = frame_system::Pallet::<Runtime>::providers(&AccountId32::from(ALICE));
 
 			init_omnipool();
 
