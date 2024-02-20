@@ -4619,7 +4619,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "208.0.0"
+version = "209.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4674,6 +4674,8 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-ethereum",
  "pallet-evm",
+ "pallet-evm-accounts",
+ "pallet-evm-accounts-rpc-runtime-api",
  "pallet-evm-chain-id",
  "pallet-evm-precompile-blake2",
  "pallet-evm-precompile-bn128",
@@ -7637,6 +7639,32 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-evm-accounts"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex-literal 0.4.1",
+ "orml-tokens",
+ "orml-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
+name = "pallet-evm-accounts-rpc-runtime-api"
+version = "1.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "sp-api",
 ]
 
 [[package]]
@@ -11302,7 +11330,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.17.4"
+version = "1.17.5"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -11350,6 +11378,7 @@ dependencies = [
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
  "pallet-evm",
+ "pallet-evm-accounts",
  "pallet-im-online",
  "pallet-lbp",
  "pallet-liquidity-mining",

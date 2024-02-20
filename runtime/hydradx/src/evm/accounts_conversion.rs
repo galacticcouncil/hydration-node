@@ -21,27 +21,21 @@
 #![allow(unused_imports)]
 use crate::{
 	evm::{ConsensusEngineId, FindAuthor},
-	AccountId, Aura,
+	AccountId, Aura, EVMAccounts,
 };
 use codec::{Decode, Encode};
 use core::marker::PhantomData;
+use frame_support::traits::IsType;
 use hex_literal::hex;
 use pallet_evm::AddressMapping;
 use sp_core::{crypto::ByteArray, H160};
 use sp_runtime::traits::AccountIdConversion;
 
-#[derive(Encode, Decode, Default)]
-struct EthereumAccount(H160);
-
-impl sp_runtime::TypeId for EthereumAccount {
-	const TYPE_ID: [u8; 4] = *b"ETH\0";
-}
-
 pub struct ExtendedAddressMapping;
 
 impl AddressMapping<AccountId> for ExtendedAddressMapping {
 	fn into_account_id(address: H160) -> AccountId {
-		EthereumAccount(address).into_account_truncating()
+		EVMAccounts::account_id(address)
 	}
 }
 
@@ -59,17 +53,4 @@ impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
 		}
 		None
 	}
-}
-
-#[cfg(test)]
-#[test]
-fn eth_address_should_convert_to_account_id() {
-	// Private key: 42d8d953e4f9246093a33e9ca6daa078501012f784adfe4bbed57918ff13be14
-	// Address: 	0x222222ff7Be76052e023Ec1a306fCca8F9659D80
-	// Account Id: 	45544800222222ff7be76052e023ec1a306fcca8f9659d800000000000000000
-	// SS58(63): 	7KATdGakyhfBGnAt3XVgXTL7cYjzRXeSZHezKNtENcbwWibb
-	assert_eq!(
-		ExtendedAddressMapping::into_account_id(H160::from(hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"])),
-		AccountId::from(hex!["45544800222222ff7be76052e023ec1a306fcca8f9659d800000000000000000"])
-	);
 }
