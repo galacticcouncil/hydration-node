@@ -973,6 +973,39 @@ mod omnipool_router_tests {
 	}
 
 	#[test]
+	fn buy_should_work_when_after_trade_reamining_balance_is_less_than_existential_deposit() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool();
+
+			let amount_to_buy = 26579363534770086553u128;
+			let amount_to_buy = 26559360000000000000u128;
+
+			let limit = ALICE_INITIAL_NATIVE_BALANCE;
+			let trades = vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: DAI,
+			}];
+
+			//Act
+			assert_ok!(Router::buy(
+				RuntimeOrigin::signed(BOB.into()),
+				HDX,
+				DAI,
+				amount_to_buy,
+				limit,
+				trades
+			));
+
+			//Assert
+			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
+		});
+	}
+
+	#[test]
 	fn buy_hub_asset_should_not_work() {
 		TestNet::reset();
 

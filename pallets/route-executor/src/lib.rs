@@ -316,7 +316,7 @@ pub mod pallet {
 				asset_in,
 				user_balance_of_asset_in_before_trade,
 				first_trade.amount_in,
-				existential_deposit, //TODO: add test for buy then fix it,
+				existential_deposit,
 			)?;
 
 			Self::deposit_event(Event::Executed {
