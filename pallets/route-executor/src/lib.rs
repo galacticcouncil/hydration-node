@@ -470,12 +470,10 @@ impl<T: Config> Pallet<T> {
 			.checked_sub(&spent_amount)
 			.ok_or(Error::<T>::InvalidRouteExecution)?;
 
-		if expected_user_balance_of_asset_in_after_trade < existential_deposit {
-			return Ok(()); //The user had leftover less than ED so wiped out, hence we can't check the balance precisely
-		}
-
+		//If the user had leftover less than ED then it is wiped out, hence we can't check the balance precisely
 		ensure!(
-			expected_user_balance_of_asset_in_after_trade == user_balance_of_asset_in_after_trade,
+			expected_user_balance_of_asset_in_after_trade < existential_deposit
+				|| expected_user_balance_of_asset_in_after_trade == user_balance_of_asset_in_after_trade,
 			Error::<T>::InvalidRouteExecution
 		);
 		Ok(())
