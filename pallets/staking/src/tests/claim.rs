@@ -322,18 +322,19 @@ fn claim_should_work_when_claiming_after_unclaimable_periods() {
 			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			let slashed_unpaid_rewards = 65_631_977_451_377_840_u128;
 			assert_last_event!(Event::<Test>::RewardsClaimed {
 				who: BOB,
 				position_id: bob_position_id,
-				paid_rewards: 587_506_297_210_440_u128,
+				paid_rewards: 587_506_297_210_441_u128,
 				unlocked_rewards: 0,
 				slashed_points: 29,
-				slashed_unpaid_rewards: 65_631_977_451_377_841_u128,
+				slashed_unpaid_rewards,
 				payable_percentage: FixedU128::from_inner(8_872_106_273_751_589_u128),
 			}
 			.into());
 
-			assert_unlocked_balance!(&BOB, HDX, 80_587_506_297_210_440_u128);
+			assert_unlocked_balance!(&BOB, HDX, 80_587_506_297_210_441_u128);
 			assert_hdx_lock!(BOB, 420_000 * ONE, STAKING_LOCK);
 			assert_eq!(
 				Staking::positions(bob_position_id).unwrap(),
@@ -353,6 +354,11 @@ fn claim_should_work_when_claiming_after_unclaimable_periods() {
 				FixedU128::from_inner(2_502_134_933_892_361_376_u128),
 				254_780_516_251_411_720_u128 + NON_DUSTABLE_BALANCE
 			);
+
+			//NOTE: `slashed_unpaid_rewards` will become new rewards for all staker after claim so this must hold.
+			let pot_balance = Tokens::free_balance(HDX, &Staking::pot_account_id());
+			let staking = Staking::staking();
+			assert_eq!(pot_balance - staking.pot_reserved_balance, slashed_unpaid_rewards)
 		});
 }
 
@@ -409,15 +415,15 @@ fn claim_should_work_when_staked_was_increased() {
 			assert_last_event!(Event::<Test>::RewardsClaimed {
 				who: BOB,
 				position_id: bob_position_id,
-				paid_rewards: 17_792_982_258_382_321_u128,
-				unlocked_rewards: 46_073_370_138_355_002_u128,
+				paid_rewards: 0_u128,
+				unlocked_rewards: 44_814_327_733_445_670_u128,
 				slashed_points: 77,
-				slashed_unpaid_rewards: 39_992_706_885_866_227_u128,
+				slashed_unpaid_rewards: 59_044_731_549_157_880_u128,
 				payable_percentage: FixedU128::from_inner(307_913_300_366_917_409_u128),
 			}
 			.into());
 
-			assert_unlocked_balance!(&BOB, HDX, 313_866_352_396_737_323_u128);
+			assert_unlocked_balance!(&BOB, HDX, 294_814_327_733_445_670_u128);
 			assert_hdx_lock!(BOB, 250_000 * ONE, STAKING_LOCK);
 			assert_eq!(
 				Staking::positions(bob_position_id).unwrap(),
@@ -492,18 +498,21 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 			assert_ok!(Staking::claim(RuntimeOrigin::signed(BOB), bob_position_id));
 
 			//Assert
+			//NOTE: these unpaid rewards exists because portion of user's unpaid rewards that
+			//were returned to the pot from previous claim were distributed to his as a new rewards.
+			let slashed_unpaid_rewards = 41_002_146_849_502_708_u128;
 			assert_last_event!(Event::<Test>::RewardsClaimed {
 				who: BOB,
 				position_id: bob_position_id,
 				paid_rewards: 0,
 				unlocked_rewards: 0,
 				slashed_points: 0,
-				slashed_unpaid_rewards: 27_771_941_672_360_647_u128,
+				slashed_unpaid_rewards,
 				payable_percentage: FixedU128::from_inner(0_u128),
 			}
 			.into());
 
-			assert_unlocked_balance!(&BOB, HDX, 313_866_352_396_737_323_u128);
+			assert_unlocked_balance!(&BOB, HDX, 294_814_327_733_445_670_u128);
 			assert_hdx_lock!(BOB, 250_000 * ONE, STAKING_LOCK);
 			assert_eq!(
 				Staking::positions(1).unwrap(),
@@ -511,7 +520,7 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 					stake: 250_000 * ONE,
 					action_points: Zero::zero(),
 					created_at: 1_452_987,
-					reward_per_stake: FixedU128::from_inner(3_172_941_453_179_123_366_u128),
+					reward_per_stake: FixedU128::from_inner(3_225_862_273_887_691_609_u128),
 					accumulated_slash_points: 104,
 					accumulated_locked_rewards: Zero::zero(),
 					accumulated_unpaid_rewards: Zero::zero(),
@@ -520,9 +529,14 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 
 			assert_staking_data!(
 				360_010 * ONE,
-				FixedU128::from_inner(3_172_941_453_179_123_366_u128),
-				328_361_705_930_902_031_u128 + NON_DUSTABLE_BALANCE
+				FixedU128::from_inner(3_225_862_273_887_691_609_u128),
+				334_183_525_417_051_623_u128 + NON_DUSTABLE_BALANCE
 			);
+
+			let staking = Staking::staking();
+			let pot_balance = Tokens::free_balance(HDX, &Staking::pot_account_id());
+			//NOTE: `slashed_unpaid_rewards` will become new rewards for all staker after claim so this must hold.
+			assert_eq!(pot_balance - staking.pot_reserved_balance, slashed_unpaid_rewards)
 		});
 }
 

@@ -819,7 +819,7 @@ fn register_externa_should_not_work_when_origin_is_none() {
 
 		//Act
 		assert_noop!(
-			Registry::register_external(RuntimeOrigin::none(), asset_location.clone()),
+			Registry::register_external(RuntimeOrigin::none(), asset_location),
 			BadOrigin
 		);
 	});

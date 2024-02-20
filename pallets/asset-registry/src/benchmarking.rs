@@ -25,8 +25,6 @@ use frame_support::traits::tokens::fungibles::Mutate as FungiblesMutate;
 use frame_system::RawOrigin;
 use sp_std::vec;
 
-const UNIT: u128 = 1_000_000_000_000;
-
 benchmarks! {
 	 where_clause { where
 		T::Currency: FungiblesMutate<T::AccountId>,

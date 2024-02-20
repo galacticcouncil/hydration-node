@@ -64,7 +64,7 @@ use orml_traits::{GetByKey, Happened};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES};
-use pallet_staking::types::Action;
+use pallet_staking::types::{Action, Point};
 use pallet_staking::SigmoidPercentage;
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use sp_std::num::NonZeroU16;
@@ -1138,6 +1138,14 @@ impl GetByKey<Action, u32> for PointsPerAction {
 	}
 }
 
+pub struct StakingMinSlash;
+
+impl GetByKey<FixedU128, Point> for StakingMinSlash {
+	fn get(_k: &FixedU128) -> Point {
+		50_u128
+	}
+}
+
 impl pallet_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = MajorityOfCouncil;
@@ -1164,6 +1172,7 @@ impl pallet_staking::Config for Runtime {
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
 	type WeightInfo = weights::staking::HydraWeight<Runtime>;
+	type MinSlash = StakingMinSlash;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;
@@ -1222,7 +1231,7 @@ impl pallet_xyk::Config for Runtime {
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
-	type CanCreatePool = pallet_lbp::DisallowWhenLBPPoolRunning<Runtime>;
+	type CanCreatePool = hydradx_adapters::xyk::AllowPoolCreation<Runtime, AssetRegistry>;
 	type AMMHandler = pallet_ema_oracle::OnActivityHandler<Runtime>;
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;

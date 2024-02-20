@@ -9,6 +9,7 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
+hex-literal = { workspace = true }
 frame-remote-externalities = { workspace = true }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 scraper = { workspace = true }
@@ -21,8 +22,6 @@ pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-stableswap = { workspace = true }
 pallet-referrals = { workspace = true }
-
-# Warehouse dependencies
 pallet-asset-registry = { workspace = true }
 hydradx-traits = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
@@ -38,6 +37,7 @@ pallet-dynamic-fees = { workspace = true }
 pallet-staking = { workspace = true}
 pallet-lbp = { workspace = true}
 pallet-xyk = { workspace = true}
+pallet-evm-accounts = { workspace = true}
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -63,6 +63,7 @@ orml-unknown-tokens = { workspace = true }
 # Evm
 pallet-evm = { workspace = true }
 fp-evm = { workspace = true }
+fp-rpc = { workspace = true }
 # Cumulus dependencies
 cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
@@ -125,7 +126,6 @@ polkadot-runtime-parachains = { workspace = true }
 polkadot-runtime = { workspace = true }
 
 [dev-dependencies]
-hex-literal = "0.4.1"
 pretty_assertions = "1.2.1"
 xcm-emulator = { workspace = true }
 
