@@ -67,6 +67,7 @@ use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::Saturating;
 
+//TODO: consider moving to a config
 pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(16420844565569051996); //Current onchain ETH price on at block 4418935
 pub const MAX_BASE_FEE_PER_GAS: u128 = 17304992000u128;
 
@@ -89,6 +90,7 @@ pub mod pallet {
 		/// Default base fee per gas value. Used in genesis if no other value specified explicitly.
 		type DefaultBaseFeePerGas: Get<u128>;
 
+		//TODO: jus use Get<>
 		/// Transaction fee multiplier provider
 		type Multiplier: MultiplierProvider;
 
@@ -129,9 +131,9 @@ pub mod pallet {
 				let multiplier = T::Multiplier::next();
 
 				let mut new_base_fee_per_gas = T::DefaultBaseFeePerGas::get()
-					+ multiplier
+					.saturating_add(multiplier
 						.saturating_mul_int(T::DefaultBaseFeePerGas::get())
-						.saturating_mul(3);
+						.saturating_mul(3));
 
 				let Some(eth_hdx_price) = T::NativePriceOracle::price(T::WethAssetId::get()) else {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX price from oracle");
@@ -139,39 +141,43 @@ pub mod pallet {
 				};
 				let eth_hdx_price = FixedU128::from_rational(eth_hdx_price.n, eth_hdx_price.d);
 
-				let (price_diff, hdx_pumps_against_eth) = if eth_hdx_price > ETH_HDX_REFERENCE_PRICE {
-					(eth_hdx_price.saturating_sub(ETH_HDX_REFERENCE_PRICE), false)
-				} else {
-					(ETH_HDX_REFERENCE_PRICE.saturating_sub(eth_hdx_price), true)
+				// | P1 - P2 | (P1 + P2) / 2  * 100
+
+				let sum = eth_hdx_price.saturating_add(ETH_HDX_REFERENCE_PRICE);
+
+				let diff  = if eth_hdx_price > ETH_HDX_REFERENCE_PRICE {
+					eth_hdx_price.saturating_sub(ETH_HDX_REFERENCE_PRICE)
+				}else{
+					ETH_HDX_REFERENCE_PRICE.saturating_sub(eth_hdx_price)
 				};
 
-				let Some(percentage_change) = price_diff
-					.saturating_mul(FixedU128::saturating_from_integer(100))
-					.const_checked_div(ETH_HDX_REFERENCE_PRICE) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Unexpected error: Could not calculate percentage change");
-					return;
-				};
+				// TODO: ensure that sum > 1, just to be safe
+				// or use checked div
+				let pdiff = diff / (sum / FixedU128::from(2));
 
-				let percentage_change_permill =
-					Permill::from_rational(percentage_change.into_inner(), FixedU128::DIV * 100);
+				let evm_fee_change = pdiff.saturating_mul_int(new_base_fee_per_gas);
 
-				let evm_fee_change = percentage_change_permill.mul_floor(new_base_fee_per_gas);
-
-				if hdx_pumps_against_eth {
+				if eth_hdx_price < crate::ETH_HDX_REFERENCE_PRICE {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_sub(evm_fee_change);
 				} else {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_add(evm_fee_change);
 				}
 
+				// Note that clamp panics!! if min > max
+				if min_base_fee_per_gas > MAX_BASE_FEE_PER_GAS {
+					// safe safe safe
+					//TODO: add integrity test for this
+					return;
+				}
 				new_base_fee_per_gas = new_base_fee_per_gas.clamp(min_base_fee_per_gas, MAX_BASE_FEE_PER_GAS);
 
 				*old_base_fee_per_gas = U256::from(new_base_fee_per_gas);
 			});
 
-			let mut weight = Weight::default();
-			weight.saturating_accrue(T::WeightInfo::on_initialize());
-			weight
+			T::WeightInfo::on_initialize()
 		}
+
+
 	}
 }
 impl<T: Config> pallet_evm::FeeCalculator for Pallet<T> {
