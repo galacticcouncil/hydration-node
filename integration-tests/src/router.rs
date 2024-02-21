@@ -707,6 +707,9 @@ mod router_different_pools_tests {
 
 mod omnipool_router_tests {
 	use super::*;
+	use frame_support::assert_noop;
+	use hydradx_traits::router::PoolType;
+	use hydradx_traits::AssetKind;
 
 	#[test]
 	fn sell_should_work_when_route_contains_single_trade() {
@@ -793,6 +796,124 @@ mod omnipool_router_tests {
 					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)),
 					0
 				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn sell_should_fail_when_all_asset_in_spent_for_shitcoin() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let name = b"SHITCO".to_vec();
+				let shitcoin = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+				assert_ok!(Currencies::deposit(shitcoin, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DAVE.into(),
+					HDX,
+					100000 * UNITS as i128,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					HDX,
+					100000 * UNITS,
+					shitcoin,
+					100000 * UNITS,
+				));
+
+				let trades = vec![Trade {
+					pool: PoolType::XYK,
+					asset_in: HDX,
+					asset_out: shitcoin,
+				}];
+
+				//Act
+				let amount_to_sell = ALICE_INITIAL_NATIVE_BALANCE;
+				assert_noop!(
+					Router::sell(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						HDX,
+						shitcoin,
+						amount_to_sell,
+						0,
+						trades
+					),
+					orml_tokens::Error::<Runtime>::ExistentialDeposit
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn sell_should_pass_when_user_has_asset_in_covering_the_fee_for_shitcoin() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let name = b"SHITCO".to_vec();
+				let shitcoin = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				assert_ok!(Currencies::deposit(shitcoin, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DAVE.into(),
+					HDX,
+					100000 * UNITS as i128,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					HDX,
+					100000 * UNITS,
+					shitcoin,
+					100000 * UNITS,
+				));
+
+				let trades = vec![Trade {
+					pool: PoolType::XYK,
+					asset_in: HDX,
+					asset_out: shitcoin,
+				}];
+
+				//Act
+				let amount_to_sell = ALICE_INITIAL_NATIVE_BALANCE - 20 * UNITS;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					shitcoin,
+					amount_to_sell,
+					0,
+					trades
+				));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
