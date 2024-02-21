@@ -48,14 +48,12 @@
 #[cfg(test)]
 mod tests;
 
-pub mod types;
 pub mod weights;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-use crate::types::MultiplierProvider;
 use codec::HasCompact;
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -92,7 +90,7 @@ pub mod pallet {
 
 		//TODO: jus use Get<>
 		/// Transaction fee multiplier provider
-		type Multiplier: MultiplierProvider;
+		type Multiplier: Get<FixedU128>;
 
 		/// Native price oracle
 		type NativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
@@ -128,7 +126,7 @@ pub mod pallet {
 			//TODO: add a integration test with price change from trades so oracle price changes
 			BaseFeePerGas::<T>::mutate(|old_base_fee_per_gas| {
 				let min_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_div(10);
-				let multiplier = T::Multiplier::next();
+				let multiplier = T::Multiplier::get();
 
 				let mut new_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_add(
 					multiplier

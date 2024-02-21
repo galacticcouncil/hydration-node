@@ -33,7 +33,6 @@ use frame_support::{
 use hex_literal::hex;
 use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
 use orml_tokens::CurrencyAdapter;
-use pallet_dynamic_evm_fee::types::MultiplierProvider;
 use pallet_evm::EnsureAddressTruncated;
 use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
 use pallet_transaction_payment::Multiplier;
@@ -115,8 +114,8 @@ parameter_types! {
 
 pub struct TransactionPaymentMultiplier;
 
-impl MultiplierProvider for TransactionPaymentMultiplier {
-	fn next() -> Multiplier {
+impl Get<Multiplier> for TransactionPaymentMultiplier {
+	fn get() -> Multiplier {
 		crate::TransactionPayment::next_fee_multiplier()
 	}
 }

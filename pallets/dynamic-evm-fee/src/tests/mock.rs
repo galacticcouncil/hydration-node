@@ -20,7 +20,6 @@ use crate::Config;
 use hydra_dx_math::types::Ratio;
 
 use crate as dynamic_evm_fee;
-use crate::types::MultiplierProvider;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Get, Nothing},
@@ -123,8 +122,8 @@ impl system::Config for Test {
 
 pub struct MultiplierProviderMock;
 
-impl MultiplierProvider for MultiplierProviderMock {
-	fn next() -> Multiplier {
+impl Get<FixedU128> for MultiplierProviderMock {
+	fn get() -> Multiplier {
 		MULTIPLIER.with(|v| *v.borrow())
 	}
 }
