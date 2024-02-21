@@ -749,48 +749,53 @@ mod omnipool_router_tests {
 			.into()]);
 		});
 	}
+
 	#[test]
 	fn sell_should_work_when_user_has_left_less_than_existential_in_nonnative() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
-			//Arrange
-			let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
 
-			init_omnipool();
+				init_omnipool();
 
-			let init_balance = 3000 * UNITS + 1;
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				ALICE.into(),
-				stable_asset_1,
-				init_balance as i128,
-			));
+				let init_balance = 3000 * UNITS + 1;
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ALICE.into(),
+					stable_asset_1,
+					init_balance as i128,
+				));
 
-			let trades = vec![Trade {
-				pool: PoolType::Stableswap(pool_id),
-				asset_in: stable_asset_1,
-				asset_out: pool_id,
-			}];
+				let trades = vec![Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: stable_asset_1,
+					asset_out: pool_id,
+				}];
 
-			assert_balance!(ALICE.into(), pool_id, 0);
+				assert_balance!(ALICE.into(), pool_id, 0);
 
-			//Act
-			let amount_to_sell = 3000 * UNITS;
-			assert_ok!(Router::sell(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				stable_asset_1,
-				pool_id,
-				amount_to_sell,
-				0,
-				trades
-			));
+				//Act
+				let amount_to_sell = 3000 * UNITS;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					stable_asset_1,
+					pool_id,
+					amount_to_sell,
+					0,
+					trades
+				));
 
-			//Assert
-			assert_eq!(
-				hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)),
-				0
-			);
+				//Assert
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)),
+					0
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
 		});
 	}
 
