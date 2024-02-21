@@ -16,6 +16,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
+use crate::Pallet as EVMAccounts;
 
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
@@ -33,8 +34,44 @@ benchmarks! {
 
 	}: _(RawOrigin::Signed(user.clone()))
 	verify {
-		let evm_address = Pallet::<T>::evm_address(&user);
 		assert!(AccountExtension::<T>::contains_key(evm_address));
+	}
+
+	add_contract_deployer {
+		let user: T::AccountId = account("user", 0, 1);
+		let evm_address = Pallet::<T>::evm_address(&user);
+		assert!(!ContractDeployer::<T>::contains_key(evm_address));
+
+	}: _(RawOrigin::Root, evm_address)
+	verify {
+		assert!(ContractDeployer::<T>::contains_key(evm_address));
+	}
+
+	remove_contract_deployer {
+		let user: T::AccountId = account("user", 0, 1);
+		let evm_address = Pallet::<T>::evm_address(&user);
+
+		EVMAccounts::<T>::add_contract_deployer(RawOrigin::Root.into(), evm_address)?;
+
+		assert!(ContractDeployer::<T>::contains_key(evm_address));
+
+	}: _(RawOrigin::Root, evm_address)
+	verify {
+		assert!(!ContractDeployer::<T>::contains_key(evm_address));
+	}
+
+	renounce_contract_deployer {
+		let user: T::AccountId = account("user", 0, 1);
+		let evm_address = Pallet::<T>::evm_address(&user);
+
+		EVMAccounts::<T>::add_contract_deployer(RawOrigin::Root.into(), evm_address)?;
+		EVMAccounts::<T>::bind_evm_address(RawOrigin::Signed(user.clone()).into())?;
+
+		assert!(ContractDeployer::<T>::contains_key(evm_address));
+
+	}: _(RawOrigin::Signed(user))
+	verify {
+		assert!(!ContractDeployer::<T>::contains_key(evm_address));
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);

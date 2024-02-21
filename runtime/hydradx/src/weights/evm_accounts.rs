@@ -73,4 +73,13 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
+	fn add_contract_deployer() -> Weight {
+		Weight::zero()
+	}
+	fn remove_contract_deployer() -> Weight {
+		Weight::zero()
+	}
+	fn renounce_contract_deployer() -> Weight {
+		Weight::zero()
+	}
 }

@@ -81,3 +81,68 @@ fn bind_address_should_fail_when_already_bound() {
 		);
 	});
 }
+
+#[test]
+fn add_contract_deployer_should_store_address_in_the_storage() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let evm_address = EVMAccounts::evm_address(&ALICE);
+		assert!(!EVMAccounts::can_deploy_contracts(evm_address));
+
+		// Act
+		assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), evm_address));
+
+		// Assert
+		assert!(EVMAccounts::can_deploy_contracts(evm_address));
+		expect_events(vec![Event::DeployerAdded { who: evm_address }.into()]);
+
+		// adding the address again should be ok
+		assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), evm_address));
+	});
+}
+
+#[test]
+fn remove_contract_deployer_should_remove_address_from_the_storage() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let evm_address = EVMAccounts::evm_address(&ALICE);
+		assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), evm_address));
+		assert!(EVMAccounts::can_deploy_contracts(evm_address));
+
+		// Act
+		assert_ok!(EVMAccounts::remove_contract_deployer(
+			RuntimeOrigin::root(),
+			evm_address
+		));
+
+		// Assert
+		assert!(!EVMAccounts::can_deploy_contracts(evm_address));
+		expect_events(vec![Event::DeployerRemoved { who: evm_address }.into()]);
+
+		// removing the address again should be ok
+		assert_ok!(EVMAccounts::remove_contract_deployer(
+			RuntimeOrigin::root(),
+			evm_address
+		));
+	});
+}
+
+#[test]
+fn renounce_contract_deployer_should_remove_address_from_the_storage() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let evm_address = EVMAccounts::evm_address(&ALICE);
+		assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), evm_address));
+		assert!(EVMAccounts::can_deploy_contracts(evm_address));
+
+		// Act
+		assert_ok!(EVMAccounts::renounce_contract_deployer(RuntimeOrigin::signed(ALICE)));
+
+		// Assert
+		assert!(!EVMAccounts::can_deploy_contracts(evm_address));
+		expect_events(vec![Event::DeployerRemoved { who: evm_address }.into()]);
+
+		// ronouncing the address again should be ok
+		assert_ok!(EVMAccounts::renounce_contract_deployer(RuntimeOrigin::signed(ALICE)));
+	});
+}

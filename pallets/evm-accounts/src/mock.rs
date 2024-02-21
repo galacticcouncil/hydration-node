@@ -9,6 +9,7 @@ use frame_support::sp_runtime::{
 	BuildStorage, MultiSignature,
 };
 use frame_support::traits::Everything;
+use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
 pub use sp_core::{H160, H256};
 use std::cell::RefCell;
@@ -59,6 +60,7 @@ impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type FeeMultiplier = sp_core::ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProviderMock;
+	type ControllerOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
 }
 

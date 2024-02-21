@@ -49,6 +49,9 @@ use sp_std::marker::PhantomData;
 
 pub trait WeightInfo {
 	fn bind_evm_address() -> Weight;
+	fn add_contract_deployer() -> Weight;
+	fn remove_contract_deployer() -> Weight;
+	fn renounce_contract_deployer() -> Weight;
 }
 
 pub struct HydraWeight<T>(PhantomData<T>);
@@ -73,6 +76,15 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
+	fn add_contract_deployer() -> Weight {
+		Weight::zero()
+	}
+	fn remove_contract_deployer() -> Weight {
+		Weight::zero()
+	}
+	fn renounce_contract_deployer() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
@@ -95,5 +107,14 @@ impl WeightInfo for () {
 		Weight::from_parts(35_955_000, 4087)
 			.saturating_add(RocksDbWeight::get().reads(5))
 			.saturating_add(RocksDbWeight::get().writes(1))
+	}
+	fn add_contract_deployer() -> Weight {
+		Weight::zero()
+	}
+	fn remove_contract_deployer() -> Weight {
+		Weight::zero()
+	}
+	fn renounce_contract_deployer() -> Weight {
+		Weight::zero()
 	}
 }

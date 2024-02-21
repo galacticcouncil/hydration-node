@@ -107,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 209,
+	spec_version: 210,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -509,19 +509,91 @@ impl_runtime_apis! {
 		}
 
 		fn create(
-			_from: H160,
-			_data: Vec<u8>,
-			_value: U256,
-			_gas_limit: U256,
-			_max_fee_per_gas: Option<U256>,
-			_max_priority_fee_per_gas: Option<U256>,
-			_nonce: Option<U256>,
-			_estimate: bool,
-			_access_list: Option<Vec<(H160, Vec<H256>)>>,
+			from: H160,
+			data: Vec<u8>,
+			value: U256,
+			gas_limit: U256,
+			max_fee_per_gas: Option<U256>,
+			max_priority_fee_per_gas: Option<U256>,
+			nonce: Option<U256>,
+			estimate: bool,
+			access_list: Option<Vec<(H160, Vec<H256>)>>,
 		) -> Result<pallet_evm::CreateInfo, sp_runtime::DispatchError> {
-			Err(sp_runtime::DispatchError::Other(
-				"Creating contracts is not currently supported",
-			))
+			let config = if estimate {
+				let mut config = <Runtime as pallet_evm::Config>::config().clone();
+				config.estimate = true;
+				Some(config)
+			} else {
+				None
+			};
+
+			let is_transactional = false;
+			let validate = true;
+
+			// Reused approach from Moonbeam since Frontier implementation doesn't support this
+			let mut estimated_transaction_len = data.len() +
+				// to: 20
+				// from: 20
+				// value: 32
+				// gas_limit: 32
+				// nonce: 32
+				// 1 byte transaction action variant
+				// chain id 8 bytes
+				// 65 bytes signature
+				210;
+			if max_fee_per_gas.is_some() {
+				estimated_transaction_len += 32;
+			}
+			if max_priority_fee_per_gas.is_some() {
+				estimated_transaction_len += 32;
+			}
+			if access_list.is_some() {
+				estimated_transaction_len += access_list.encoded_size();
+			}
+
+			let gas_limit = gas_limit.min(u64::MAX.into()).low_u64();
+			let without_base_extrinsic_weight = true;
+
+			let (weight_limit, proof_size_base_cost) =
+				match <Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
+					gas_limit,
+					without_base_extrinsic_weight
+				) {
+					weight_limit if weight_limit.proof_size() > 0 => {
+						(Some(weight_limit), Some(estimated_transaction_len as u64))
+					}
+					_ => (None, None),
+				};
+
+			// don't allow calling EVM RPC or Runtime API from a bound address
+			if EVMAccounts::bound_account_id(from).is_some() {
+				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
+				};
+
+			// the address needs to have a permission to deploy smart contract
+			if !EVMAccounts::can_deploy_contracts(from) {
+				return Err(pallet_evm_accounts::Error::<Runtime>::AddressNotWhitelisted.into())
+			};
+
+			#[allow(clippy::or_fun_call)] // suggestion not helpful here
+			<Runtime as pallet_evm::Config>::Runner::create(
+				from,
+				data,
+				value,
+				gas_limit.unique_saturated_into(),
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				Vec::new(),
+				is_transactional,
+				validate,
+				weight_limit,
+				proof_size_base_cost,
+				config
+					.as_ref()
+					.unwrap_or(<Runtime as pallet_evm::Config>::config()),
+				)
+				.map_err(|err| err.error.into())
 		}
 
 		fn current_transaction_statuses() -> Option<Vec<TransactionStatus>> {
