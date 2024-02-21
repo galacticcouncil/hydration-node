@@ -57,6 +57,7 @@ pub mod pallet {
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
+	use orml_traits::GetByKey;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
 
@@ -91,6 +92,8 @@ pub mod pallet {
 		/// Currency for checking balances and temporarily minting tokens
 		type Currency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
 			+ Mutate<Self::AccountId>;
+
+		type ExistentialDepositGetter: GetByKey<Self::AssetId, Option<Self::Balance>>;
 
 		/// Handlers for AMM pools to calculate and execute trades
 		type AMM: TradeExecution<
@@ -142,6 +145,8 @@ pub mod pallet {
 		InvalidRoute,
 		///The route update was not successful
 		RouteUpdateIsNotSuccessful,
+		///No existential deposit found for asset
+		NoExistentialDeposit,
 	}
 
 	/// Storing routes for asset pairs
@@ -208,7 +213,13 @@ pub mod pallet {
 			for (trade_amount, trade) in trade_amounts.iter().zip(route) {
 				let user_balance_of_asset_in_before_trade =
 					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
-				let existential_deposit = Self::get_existential_deposit(&who, asset_in);
+				let existential_deposit =
+					T::ExistentialDepositGetter::get(&trade.asset_in).ok_or(Error::<T>::NoExistentialDeposit)?;
+
+				ensure!(
+					user_balance_of_asset_in_before_trade >= trade_amount.amount_in,
+					Error::<T>::InsufficientBalance
+				);
 
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
@@ -280,8 +291,8 @@ pub mod pallet {
 
 			let user_balance_of_asset_in_before_trade =
 				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
-			let existential_deposit = Self::get_existential_deposit(&who, asset_in);
-
+			let existential_deposit =
+				T::ExistentialDepositGetter::get(&asset_in).ok_or(Error::<T>::NoExistentialDeposit)?;
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
 			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
@@ -609,19 +620,6 @@ impl<T: Config> Pallet<T> {
 		});
 
 		Ok(Pays::No.into())
-	}
-
-	fn get_existential_deposit(who: &T::AccountId, asset: T::AssetId) -> T::Balance {
-		let user_balance_of_asset_in_before_trade2 =
-			T::Currency::reducible_balance(asset, who, Preservation::Preserve, Fortitude::Polite);
-		let user_balance_of_asset_in_before_trade_with_protecting =
-			T::Currency::reducible_balance(asset, who, Preservation::Protect, Fortitude::Polite);
-
-		if asset == T::NativeAssetId::get() {
-			user_balance_of_asset_in_before_trade_with_protecting.saturating_sub(user_balance_of_asset_in_before_trade2)
-		} else {
-			user_balance_of_asset_in_before_trade2.saturating_sub(user_balance_of_asset_in_before_trade_with_protecting)
-		}
 	}
 }
 

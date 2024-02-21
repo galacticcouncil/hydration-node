@@ -315,12 +315,20 @@ parameter_types! {
 
 type Pools = (Omnipool, XYK);
 
+pub struct MockedExistentialDepositGetter;
+
+impl GetByKey<AssetId, Option<Balance>> for MockedExistentialDepositGetter {
+	fn get(_: &AssetId) -> Option<Balance> {
+		Some(1000)
+	}
+}
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
+	type ExistentialDepositGetter = MockedExistentialDepositGetter;
 	type AMM = Pools;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();

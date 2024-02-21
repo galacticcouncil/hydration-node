@@ -24,6 +24,7 @@ use frame_support::{
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::parameter_type_with_key;
+use orml_traits::GetByKey;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pretty_assertions::assert_eq;
 use sp_core::H256;
@@ -31,7 +32,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError,
 };
-
 use std::cell::RefCell;
 use std::ops::Deref;
 
@@ -146,9 +146,18 @@ impl Config for Test {
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
+	type ExistentialDepositGetter = MockedExistentialDepositGetter;
 	type AMM = Pools;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
+}
+
+pub struct MockedExistentialDepositGetter;
+
+impl GetByKey<AssetId, Option<Balance>> for MockedExistentialDepositGetter {
+	fn get(_: &AssetId) -> Option<Balance> {
+		Some(1000)
+	}
 }
 
 pub type AccountId = u64;
