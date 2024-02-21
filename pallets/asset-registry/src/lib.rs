@@ -642,8 +642,8 @@ impl<T: Config> GetByKey<T::AssetId, Balance> for Pallet<T> {
 pub struct ExistentialDepositGetter<T>(PhantomData<T>);
 /// Allows querying the ED for an asset by its id.
 /// An unknown asset will return `None`.
-impl<T: Config> GetByKey<T::AssetId, Option<T::Balance>> for ExistentialDepositGetter<T> {
-	fn get(k: &T::AssetId) -> Option<T::Balance> {
+impl<T: Config> GetByKey<T::AssetId, Option<Balance>> for ExistentialDepositGetter<T> {
+	fn get(k: &T::AssetId) -> Option<Balance> {
 		Pallet::<T>::assets(k).and_then(|details| Some(details.existential_deposit))
 	}
 }
