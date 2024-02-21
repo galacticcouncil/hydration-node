@@ -985,6 +985,59 @@ mod currency_precompile {
 	}
 }
 
+mod contract_deployment {
+	use super::*;
+	use frame_support::assert_noop;
+	use pretty_assertions::assert_eq;
+
+	#[test]
+	fn create_contract_from_runtime_rpc_should_be_rejected_if_address_is_not_whitelisted() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			assert_noop!(
+				hydradx_runtime::Runtime::create(
+					evm_address(),
+					vec![0, 1, 1, 0],
+					U256::zero(),
+					U256::from(100000u64),
+					None,
+					None,
+					None,
+					false,
+					None,
+				),
+				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::AddressNotWhitelisted
+			);
+		});
+	}
+
+	#[test]
+	fn create_contract_from_runtime_rpc_should_be_accepted_if_address_is_whitelisted() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+			assert_ok!(EVMAccounts::add_contract_deployer(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_address
+			));
+
+			assert_ok!(hydradx_runtime::Runtime::create(
+				evm_address,
+				vec![0, 1, 1, 0],
+				U256::zero(),
+				U256::from(100000u64),
+				None,
+				None,
+				None,
+				false,
+				None,
+			));
+		});
+	}
+}
+
 #[test]
 fn dispatch_should_work_with_remark() {
 	TestNet::reset();
