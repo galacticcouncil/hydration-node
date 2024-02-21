@@ -644,7 +644,11 @@ where
 			.ok_or(pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
 
 		let reward_currency_id = if asset_detail.asset_type == AssetType::Bond {
-			pallet_bonds::Pallet::<Runtime>::parse_bond_name(asset_detail.name.into())?
+			let name = asset_detail
+				.name
+				.ok_or(pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
+
+			pallet_bonds::Pallet::<Runtime>::parse_bond_name(name.into())?
 		} else {
 			global_farm.reward_currency.into()
 		};

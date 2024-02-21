@@ -18,7 +18,7 @@ use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 pub use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use hex_literal::hex;
 use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeOrigin};
-use pallet_evm::AddressMapping;
+use hydradx_traits::registry::Mutate;
 use pallet_referrals::{FeeDistribution, Level};
 pub use polkadot_primitives::v5::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
@@ -33,18 +33,22 @@ pub const CHARLIE: [u8; 32] = [6u8; 32];
 pub const DAVE: [u8; 32] = [7u8; 32];
 pub const UNKNOWN: [u8; 32] = [8u8; 32];
 
+// Private key: 42d8d953e4f9246093a33e9ca6daa078501012f784adfe4bbed57918ff13be14
+// Address: 	0x222222ff7Be76052e023Ec1a306fCca8F9659D80
+// Account Id: 	45544800222222ff7be76052e023ec1a306fcca8f9659d800000000000000000
+// SS58(63): 	7KATdGakyhfBGnAt3XVgXTL7cYjzRXeSZHezKNtENcbwWibb
 pub fn evm_address() -> H160 {
 	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"].into()
 }
 pub fn evm_account() -> AccountId {
-	ExtendedAddressMapping::into_account_id(evm_address())
+	hydradx_runtime::EVMAccounts::truncated_account_id(evm_address())
 }
 
 pub fn evm_address2() -> H160 {
 	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D81"].into()
 }
 pub fn evm_account2() -> AccountId {
-	ExtendedAddressMapping::into_account_id(evm_address2())
+	hydradx_runtime::EVMAccounts::truncated_account_id(evm_address2())
 }
 pub fn evm_signed_origin(address: H160) -> RuntimeOrigin {
 	// account has to be truncated to spoof it as an origin
@@ -116,7 +120,7 @@ decl_test_parachains! {
 			hydradx_runtime::Timestamp::set_timestamp(NOW);
 			// Make sure the prices are up-to-date.
 			hydradx_runtime::MultiTransactionPayment::on_initialize(1);
-			hydradx_runtime::AssetRegistry::set_location(RuntimeOrigin::root(), WETH, WETH_ASSET_LOCATION).unwrap();
+			hydradx_runtime::AssetRegistry::set_location(WETH, WETH_ASSET_LOCATION).unwrap();
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -403,19 +407,93 @@ pub mod hydra {
 			},
 			asset_registry: hydradx_runtime::AssetRegistryConfig {
 				registered_assets: vec![
-					(b"LRNA".to_vec(), 1_000u128, Some(LRNA)),
-					(b"DAI".to_vec(), 1_000u128, Some(DAI)),
-					(b"DOT".to_vec(), 1_000u128, Some(DOT)),
-					(b"ETH".to_vec(), 1_000u128, Some(ETH)),
-					(b"BTC".to_vec(), 1_000u128, Some(BTC)),
-					(b"ACA".to_vec(), 1_000u128, Some(ACA)),
-					(b"WETH".to_vec(), 1_000u128, Some(WETH)),
-					(b"PEPE".to_vec(), 1_000u128, Some(PEPE)),
+					(
+						Some(LRNA),
+						Some(b"LRNA".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(DAI),
+						Some(b"DAI".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(DOT),
+						Some(b"DOT".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(ETH),
+						Some(b"ETH".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(BTC),
+						Some(b"BTC".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(ACA),
+						Some(b"ACA".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(WETH),
+						Some(b"WETH".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(PEPE),
+						Some(b"PEPE".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
 					// workaround for next_asset_id() to return correct values
-					(b"DUMMY".to_vec(), 1_000u128, None),
+					(
+						None,
+						Some(b"DUMMY".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						false,
+					),
 				],
-				native_asset_name: b"HDX".to_vec(),
+				native_asset_name: b"HDX".to_vec().try_into().unwrap(),
 				native_existential_deposit: existential_deposit,
+				native_symbol: b"HDX".to_vec().try_into().unwrap(),
+				native_decimals: 12,
 			},
 			parachain_info: hydradx_runtime::ParachainInfoConfig {
 				parachain_id: HYDRA_PARA_ID.into(),

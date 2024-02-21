@@ -818,7 +818,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 }
 
 #[test]
-fn liquidity_mining_should_work_when_farm_distributes_bonds() {
+fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -847,8 +847,22 @@ fn liquidity_mining_should_work_when_farm_distributes_bonds() {
 			maturity
 		));
 		assert_eq!(AssetRegistry::assets(bond_id).unwrap().asset_type, AssetType::Bond);
+		//NOTE: make bond sufficient because treasury account is whitelisted. In this case farm
+		//would have to pay ED for receiving insufficicient bods and farm's account has no balance.
+		assert_ok!(AssetRegistry::update(
+			hydradx_runtime::RuntimeOrigin::root(),
+			bond_id,
+			None,
+			None,
+			None,
+			None,
+			Some(true),
+			None,
+			None,
+			None,
+		));
 
-		//farm's rewards in test are less than ED.
+		// farm's rewards in test are less than ED.
 		assert_ok!(hydradx_runtime::Currencies::transfer(
 			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
 			CHARLIE.into(),

@@ -664,6 +664,7 @@ fn democracy_vote_should_work_correctly_when_account_has_no_stake() {
 fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		System::set_block_number(0);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -698,6 +699,7 @@ fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
 fn staking_position_transfer_should_fail_when_origin_is_owner() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		System::set_block_number(1);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -743,6 +745,7 @@ fn staking_position_transfer_should_fail_when_origin_is_owner() {
 fn thaw_staking_position_should_fail_when_origin_is_position_owner() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		System::set_block_number(1);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -787,6 +790,7 @@ fn thaw_staking_position_should_fail_when_origin_is_position_owner() {
 fn thaw_staking_collection_should_fail_when_origin_is_not_pallet_account() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		System::set_block_number(1);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -824,6 +828,7 @@ fn thaw_staking_collection_should_fail_when_origin_is_not_pallet_account() {
 fn stake_should_fail_when_tokens_are_vested() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		System::set_block_number(1);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
@@ -860,6 +865,7 @@ fn stake_should_fail_when_tokens_are_vested() {
 fn stake_should_fail_when_tokens_are_already_staked() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		System::set_block_number(1);
 		init_omnipool();
 		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
 
