@@ -142,16 +142,15 @@ pub mod pallet {
 				};
 				let eth_hdx_price = FixedU128::from_rational(eth_hdx_price.n, eth_hdx_price.d);
 
-				// | P1 - P2 | (P1 + P2) / 2  * 100
-
-				let sum = eth_hdx_price.saturating_add(ETH_HDX_REFERENCE_PRICE);
-
-				let diff = if eth_hdx_price > ETH_HDX_REFERENCE_PRICE {
-					eth_hdx_price.saturating_sub(ETH_HDX_REFERENCE_PRICE)
-				} else {
+				//Price difference: |P1 - P2| / ((P1 + P2) / 2)
+				let is_hdx_pumping = eth_hdx_price < ETH_HDX_REFERENCE_PRICE;
+				let diff = if is_hdx_pumping {
 					ETH_HDX_REFERENCE_PRICE.saturating_sub(eth_hdx_price)
+				} else {
+					eth_hdx_price.saturating_sub(ETH_HDX_REFERENCE_PRICE)
 				};
 
+				let sum = eth_hdx_price.saturating_add(ETH_HDX_REFERENCE_PRICE);
 				let Some(denominator) = sum.checked_div(&FixedU128::from(2)) else {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating denominator for price difference, sum: {:?}", sum);
 					return;
@@ -164,7 +163,7 @@ pub mod pallet {
 
 				let evm_fee_change = price_difference.saturating_mul_int(new_base_fee_per_gas);
 
-				if eth_hdx_price < ETH_HDX_REFERENCE_PRICE {
+				if is_hdx_pumping {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_sub(evm_fee_change);
 				} else {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_add(evm_fee_change);
