@@ -18,6 +18,7 @@ use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 pub use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use hex_literal::hex;
 use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeOrigin};
+use hydradx_traits::registry::Mutate;
 use pallet_referrals::{FeeDistribution, Level};
 pub use polkadot_primitives::v5::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
@@ -119,7 +120,7 @@ decl_test_parachains! {
 			hydradx_runtime::Timestamp::set_timestamp(NOW);
 			// Make sure the prices are up-to-date.
 			hydradx_runtime::MultiTransactionPayment::on_initialize(1);
-			hydradx_runtime::AssetRegistry::set_location(RuntimeOrigin::root(), WETH, WETH_ASSET_LOCATION).unwrap();
+			hydradx_runtime::AssetRegistry::set_location(WETH, WETH_ASSET_LOCATION).unwrap();
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -406,19 +407,93 @@ pub mod hydra {
 			},
 			asset_registry: hydradx_runtime::AssetRegistryConfig {
 				registered_assets: vec![
-					(b"LRNA".to_vec(), 1_000u128, Some(LRNA)),
-					(b"DAI".to_vec(), 1_000u128, Some(DAI)),
-					(b"DOT".to_vec(), 1_000u128, Some(DOT)),
-					(b"ETH".to_vec(), 1_000u128, Some(ETH)),
-					(b"BTC".to_vec(), 1_000u128, Some(BTC)),
-					(b"ACA".to_vec(), 1_000u128, Some(ACA)),
-					(b"WETH".to_vec(), 1_000u128, Some(WETH)),
-					(b"PEPE".to_vec(), 1_000u128, Some(PEPE)),
+					(
+						Some(LRNA),
+						Some(b"LRNA".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(DAI),
+						Some(b"DAI".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(DOT),
+						Some(b"DOT".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(ETH),
+						Some(b"ETH".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(BTC),
+						Some(b"BTC".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(ACA),
+						Some(b"ACA".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(WETH),
+						Some(b"WETH".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
+						Some(PEPE),
+						Some(b"PEPE".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
 					// workaround for next_asset_id() to return correct values
-					(b"DUMMY".to_vec(), 1_000u128, None),
+					(
+						None,
+						Some(b"DUMMY".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						false,
+					),
 				],
-				native_asset_name: b"HDX".to_vec(),
+				native_asset_name: b"HDX".to_vec().try_into().unwrap(),
 				native_existential_deposit: existential_deposit,
+				native_symbol: b"HDX".to_vec().try_into().unwrap(),
+				native_decimals: 12,
 			},
 			parachain_info: hydradx_runtime::ParachainInfoConfig {
 				parachain_id: HYDRA_PARA_ID.into(),

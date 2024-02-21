@@ -312,12 +312,15 @@ impl ExtBuilder {
 use crate::types::BenchmarkHelper;
 use crate::types::{AssetAmount, PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::{AccountIdFor, InspectRegistry};
+use hydradx_traits::{AccountIdFor, Inspect};
 use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;
 
-impl InspectRegistry<AssetId> for DummyRegistry {
+impl Inspect for DummyRegistry {
+	type AssetId = AssetId;
+	type Location = u8;
+
 	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied());
 		matches!(asset, Some(_))
@@ -328,11 +331,23 @@ impl InspectRegistry<AssetId> for DummyRegistry {
 		Some(asset.1)
 	}
 
-	fn asset_name(_asset_id: AssetId) -> Option<Vec<u8>> {
+	fn is_sufficient(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
-	fn asset_symbol(_asset_id: AssetId) -> Option<Vec<u8>> {
+	fn asset_type(_id: Self::AssetId) -> Option<hydradx_traits::AssetKind> {
+		unimplemented!()
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
 	}
 }

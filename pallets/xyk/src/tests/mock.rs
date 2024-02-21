@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use crate as xyk;
-use crate::Config;
 use crate::*;
 use frame_support::parameter_types;
 use frame_system as system;
@@ -41,6 +40,7 @@ pub type AccountId = u64;
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 pub const CHARLIE: AccountId = 3;
+pub const TREASURY: AccountId = 4;
 
 pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
@@ -51,6 +51,8 @@ pub const HDX_DOT_POOL_ID: AccountId = 1_002_000;
 pub const ONE: Balance = 1_000_000_000_000;
 
 type Block = frame_system::mocking::MockBlock<Test>;
+
+type AssetLocation = u8;
 
 frame_support::construct_runtime!(
 	pub enum Test
@@ -94,19 +96,26 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 63;
 	pub const NativeAssetId: AssetId = HDX;
+	#[derive(PartialEq, Debug)]
 	pub RegistryStringLimit: u32 = 100;
+	#[derive(PartialEq, Debug)]
+	pub MinRegistryStringLimit: u32 = 2;
 	pub const SequentialIdOffset: u32 = 1_000_000;
+	pub const StoreFees: Balance = 10 * ONE;
+	pub const FeesBeneficiarry: u64 = TREASURY;
 }
 
 impl pallet_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureSigned<AccountId>;
+	type Currency = Currency;
+	type UpdateOrigin = EnsureSigned<u64>;
 	type AssetId = AssetId;
-	type Balance = Balance;
-	type AssetNativeLocation = u8;
+	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStringLimit;
+	type MinStringLimit = MinRegistryStringLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
-	type NativeAssetId = NativeAssetId;
+	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
 	type WeightInfo = ();
 }
 
@@ -187,7 +196,7 @@ impl CanCreatePool<AssetId> for Disallow10_10Pool {
 	}
 }
 
-impl Config for Test {
+impl xyk::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetRegistry = AssetRegistry;
 	type AssetPairAccountId = AssetPairAccountIdTest;

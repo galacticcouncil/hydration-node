@@ -633,7 +633,19 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), HDX, b"xHDX".to_vec(), 12u8).unwrap();
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX,
+				Some(b"xHDX".to_vec().try_into().unwrap()),
+				None,
+				None,
+				None,
+				None,
+				Some(b"xHDX".to_vec().try_into().unwrap()),
+				Some(12u8),
+				None,
+			)
+			.unwrap();
 
 			let data = EvmDataWriter::new_with_selector(Action::Symbol).build();
 
@@ -669,7 +681,19 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), HDX, b"xHDX".to_vec(), 12u8).unwrap();
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX,
+				Some(b"xHDX".to_vec().try_into().unwrap()),
+				None,
+				None,
+				None,
+				None,
+				None,
+				Some(12u8),
+				None,
+			)
+			.unwrap();
 
 			let data = EvmDataWriter::new_with_selector(Action::Decimals).build();
 
