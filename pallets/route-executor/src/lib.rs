@@ -216,11 +216,6 @@ pub mod pallet {
 				let existential_deposit =
 					T::ExistentialDepositGetter::get(&trade.asset_in).ok_or(Error::<T>::NoExistentialDeposit)?;
 
-				ensure!(
-					user_balance_of_asset_in_before_trade >= trade_amount.amount_in,
-					Error::<T>::InsufficientBalance
-				);
-
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
 					trade.pool,
