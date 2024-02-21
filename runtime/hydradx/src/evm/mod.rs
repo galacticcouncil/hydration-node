@@ -176,5 +176,6 @@ impl pallet_evm_accounts::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
 	type FeeMultiplier = sp_core::ConstU32<50>;
 	type EvmNonceProvider = EvmNonceProvider;
+	type ControllerOrigin = crate::SuperMajorityTechCommittee;
 	type WeightInfo = crate::weights::evm_accounts::HydraWeight<crate::Runtime>;
 }

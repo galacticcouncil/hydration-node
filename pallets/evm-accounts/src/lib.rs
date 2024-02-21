@@ -23,10 +23,11 @@
 //!
 //! ## Overview
 //!
-//! The pallet allows users to bind their Substrate account to the EVM address.
+//! The pallet allows users to bind their Substrate account to the EVM address and to grant a permission to deploy smart contracts.
 //! The purpose of this pallet is to make interaction with the EVM easier.
 //! Binding an address is not necessary for interacting with the EVM.
 //!
+//! ### Binding
 //! Without binding, we are unable to get the original Substrate address from the EVM address inside
 //! of the EVM. Inside of the EVM, we have access only to the EVM address (first 20 bytes of a Substrate account).
 //! In this case we create and use a truncated version of the original Substrate address that called the EVM.
@@ -35,9 +36,17 @@
 //! With binding, we store the last 12 bytes of the Substrate address. Then we can get the original
 //! Substrate address by concatenating these 12 bytes stored in the storage to the EVM address.
 //!
+//! ### Smart contract deployment
+//! This pallet also allows granting a permission to deploy smart contracts.
+//! `ControllerOrigin` can add this permission to EVM addresses.
+//! The list of whitelisted accounts is stored in the storage of this pallet.
+//!
 //! ### Dispatchable Functions
 //!
 //! * `bind_evm_address` - Binds a Substrate address to EVM address.
+//! * `add_contract_deployer` - Adds a permission to deploy smart contracts.
+//! * `remove_contract_deployer` - Removes a permission of whitelisted address to deploy smart contracts.
+//! * `renounce_contract_deployer` - Renounce caller's permission to deploy smart contracts.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -88,6 +97,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type FeeMultiplier: Get<u32>;
 
+		/// Origin that can whitelist addresses for smart contract deployment.
+		type ControllerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Weight information for extrinsic in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -97,11 +109,19 @@ pub mod pallet {
 	#[pallet::getter(fn account)]
 	pub(super) type AccountExtension<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, AccountIdLast12Bytes>;
 
+	/// Whitelisted addresses that are allowed to deploy smart contracts.
+	#[pallet::storage]
+	pub(super) type ContractDeployer<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Binding was created.
 		Bound { account: T::AccountId, address: EvmAddress },
+		/// Deployer was added.
+		DeployerAdded { who: EvmAddress },
+		/// Deployer was removed.
+		DeployerRemoved { who: EvmAddress },
 	}
 
 	#[pallet::error]
@@ -113,6 +133,8 @@ pub mod pallet {
 		AddressAlreadyBound,
 		/// Bound address cannot be used
 		BoundAddressCannotBeUsed,
+		/// Address not whitelisted
+		AddressNotWhitelisted,
 	}
 
 	#[pallet::hooks]
@@ -179,6 +201,64 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Adds an EVM address to the list of addresses that are allowed to deploy smart contracts.
+		///
+		/// Parameters:
+		/// - `origin`: Substrate account whitelisting an address. Must be `ControllerOrigin`.
+		/// - `address`: EVM address that is whitelisted
+		///
+		/// Emits `DeployerAdded` event when successful.
+		#[pallet::call_index(1)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_contract_deployer())]
+		pub fn add_contract_deployer(origin: OriginFor<T>, address: EvmAddress) -> DispatchResult {
+			T::ControllerOrigin::ensure_origin(origin.clone())?;
+
+			<ContractDeployer<T>>::insert(address, ());
+
+			Self::deposit_event(Event::DeployerAdded { who: address });
+
+			Ok(())
+		}
+
+		/// Removes an EVM address from the list of addresses that are allowed to deploy smart contracts.
+		///
+		/// Parameters:
+		/// - `origin`: Substrate account removing the EVM address from the whitelist. Must be `ControllerOrigin`.
+		/// - `address`: EVM address that is removed from the whitelist
+		///
+		/// Emits `DeployerRemoved` event when successful.
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_contract_deployer())]
+		pub fn remove_contract_deployer(origin: OriginFor<T>, address: EvmAddress) -> DispatchResult {
+			T::ControllerOrigin::ensure_origin(origin.clone())?;
+
+			<ContractDeployer<T>>::remove(address);
+
+			Self::deposit_event(Event::DeployerRemoved { who: address });
+
+			Ok(())
+		}
+
+		/// Removes the account's EVM address from the list of addresses that are allowed to deploy smart contracts.
+		/// Based on the best practices, this extrinsic can be called by any whitelisted account to renounce their own permission.
+		///
+		/// Parameters:
+		/// - `origin`: Substrate account removing their EVM address from the whitelist.
+		///
+		/// Emits `DeployerRemoved` event when successful.
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::renounce_contract_deployer())]
+		pub fn renounce_contract_deployer(origin: OriginFor<T>) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+			let address = Self::evm_address(&who);
+
+			<ContractDeployer<T>>::remove(address);
+
+			Self::deposit_event(Event::DeployerRemoved { who: address });
+
+			Ok(())
+		}
 	}
 }
 
@@ -215,5 +295,9 @@ where
 	/// Returns the truncated version of the address if the address wasn't bind.
 	pub fn account_id(evm_address: EvmAddress) -> T::AccountId {
 		Self::bound_account_id(evm_address).unwrap_or_else(|| Self::truncated_account_id(evm_address))
+	}
+
+	pub fn can_deploy_contracts(evm_address: EvmAddress) -> bool {
+		ContractDeployer::<T>::contains_key(evm_address)
 	}
 }
