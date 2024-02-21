@@ -638,16 +638,6 @@ impl<T: Config> GetByKey<T::AssetId, Balance> for Pallet<T> {
 	}
 }
 
-/// Allows querying the ED for an asset by its id.
-pub struct ExistentialDepositGetter<T>(PhantomData<T>);
-/// Allows querying the ED for an asset by its id.
-/// An unknown asset will return `None`.
-impl<T: Config> GetByKey<T::AssetId, Option<Balance>> for ExistentialDepositGetter<T> {
-	fn get(k: &T::AssetId) -> Option<Balance> {
-		Pallet::<T>::assets(k).and_then(|details| Some(details.existential_deposit))
-	}
-}
-
 /// Allows querying the XCM rate limit for an asset by its id.
 pub struct XcmRateLimitsInRegistry<T>(PhantomData<T>);
 /// Allows querying the XCM rate limit for an asset by its id.

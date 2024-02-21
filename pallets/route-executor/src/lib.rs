@@ -31,6 +31,7 @@ use frame_support::{
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
+use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
@@ -60,6 +61,7 @@ pub mod pallet {
 	use orml_traits::GetByKey;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
+	use sp_std::collections::btree_set::BTreeSet;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -93,7 +95,7 @@ pub mod pallet {
 		type Currency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
 			+ Mutate<Self::AccountId>;
 
-		type ExistentialDepositGetter: GetByKey<Self::AssetId, Option<Self::Balance>>;
+		type InspectRegistry: hydradx_traits::registry::Inspect<AssetId = Self::AssetId>;
 
 		/// Handlers for AMM pools to calculate and execute trades
 		type AMM: TradeExecution<
@@ -141,6 +143,8 @@ pub mod pallet {
 		InvalidRoute,
 		///The route update was not successful
 		RouteUpdateIsNotSuccessful,
+		///Insufficient asset is not supported for on chain routing
+		InsufficientAssetNotSupported,
 		///No existential deposit found for asset
 		NoExistentialDeposit,
 	}
@@ -317,6 +321,7 @@ pub mod pallet {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(new_route.len())?;
 			Self::ensure_route_arguments(&asset_pair, &new_route)?;
+			Self::ensure_route_has_no_insufficient_asset(&new_route)?;
 
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();
@@ -392,6 +397,23 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	fn ensure_route_has_no_insufficient_asset(new_route: &Vec<Trade<T::AssetId>>) -> DispatchResult {
+		let mut unique_assets = sp_std::collections::btree_set::BTreeSet::new();
+
+		for trade in new_route.iter() {
+			unique_assets.insert(trade.asset_in.clone());
+			unique_assets.insert(trade.asset_out.clone());
+		}
+		for asset in unique_assets.iter() {
+			ensure!(
+				T::InspectRegistry::is_sufficient(*asset),
+				Error::<T>::InsufficientAssetNotSupported
+			);
+		}
+
+		Ok(())
+	}
+
 	fn get_route_or_default(
 		route: Vec<Trade<T::AssetId>>,
 		asset_pair: AssetPair<T::AssetId>,
@@ -445,13 +467,6 @@ impl<T: Config> Pallet<T> {
 
 		with_transaction(|| {
 			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
-			//NOTE: This is necessary so router's account can pay ED for insufficient assets in the
-			//route. Value is 10K to make sure we can pay ED for really long routes.
-			let _ = T::Currency::mint_into(
-				T::NativeAssetId::get(),
-				&Self::router_account(),
-				10_000_000_000_000_000_u128.into(),
-			);
 			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
 
 			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());

@@ -349,11 +349,38 @@ parameter_types! {
 
 type Pools = (OmniPool, Xyk);
 
-pub struct MockedExistentialDepositGetter;
+pub struct MockedAssetRegistry;
 
-impl GetByKey<AssetId, Option<Balance>> for MockedExistentialDepositGetter {
-	fn get(_: &AssetId) -> Option<Balance> {
-		Some(1000)
+impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
+	type AssetId = AssetId;
+	type Location = ();
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn exists(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
 	}
 }
 
@@ -364,7 +391,7 @@ impl pallet_route_executor::Config for Test {
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
-	type ExistentialDepositGetter = MockedExistentialDepositGetter;
+	type InspectRegistry = MockedAssetRegistry;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 }
