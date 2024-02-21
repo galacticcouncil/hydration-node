@@ -143,8 +143,6 @@ pub mod pallet {
 		RouteUpdateIsNotSuccessful,
 		///Insufficient asset is not supported for on chain routing
 		InsufficientAssetNotSupported,
-		///No existential deposit found for asset
-		NoExistentialDeposit,
 	}
 
 	/// Storing routes for asset pairs
