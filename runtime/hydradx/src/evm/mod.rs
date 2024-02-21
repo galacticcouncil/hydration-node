@@ -172,7 +172,7 @@ parameter_types! {
 impl pallet_dynamic_evm_fee::Config for crate::Runtime {
 	type AssetId = AssetId;
 	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
-	type Multiplier = TransactionPaymentMultiplier;
+	type FeeMultiplier = TransactionPaymentMultiplier;
 	type NativePriceOracle = AssetFeeOraclePriceProvider<
 		NativeAssetId,
 		crate::MultiTransactionPayment,

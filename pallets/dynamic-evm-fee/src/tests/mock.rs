@@ -147,7 +147,7 @@ impl Get<u128> for DefaultBaseDFeePerGas {
 impl Config for Test {
 	type AssetId = AssetId;
 	type DefaultBaseFeePerGas = DefaultBaseDFeePerGas;
-	type Multiplier = MultiplierProviderMock;
+	type FeeMultiplier = MultiplierProviderMock;
 	type NativePriceOracle = NativePriceOracleMock;
 	type WethAssetId = HdxAssetId;
 	type WeightInfo = ();

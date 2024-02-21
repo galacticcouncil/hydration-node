@@ -88,9 +88,8 @@ pub mod pallet {
 		/// Default base fee per gas value. Used in genesis if no other value specified explicitly.
 		type DefaultBaseFeePerGas: Get<u128>;
 
-		//TODO: jus use Get<>
 		/// Transaction fee multiplier provider
-		type Multiplier: Get<FixedU128>;
+		type FeeMultiplier: Get<FixedU128>;
 
 		/// Native price oracle
 		type NativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
@@ -126,7 +125,7 @@ pub mod pallet {
 			//TODO: add a integration test with price change from trades so oracle price changes
 			BaseFeePerGas::<T>::mutate(|old_base_fee_per_gas| {
 				let min_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_div(10);
-				let multiplier = T::Multiplier::get();
+				let multiplier = T::FeeMultiplier::get();
 
 				let mut new_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_add(
 					multiplier
