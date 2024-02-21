@@ -19,6 +19,7 @@
 
 use frame_support::parameter_types;
 use frame_system as system;
+use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
@@ -29,12 +30,15 @@ use frame_support::traits::Everything;
 
 use polkadot_xcm::v3::MultiLocation;
 
-use crate::{self as asset_registry, Config};
+use crate as pallet_asset_registry;
+use crate::types::{Name, Symbol};
 
 pub type AssetId = u32;
 pub type Balance = u128;
 
 pub const UNIT: Balance = 1_000_000_000_000;
+pub const ALICE: u64 = 1_000;
+pub const TREASURY: u64 = 2_222;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -42,7 +46,8 @@ frame_support::construct_runtime!(
 	pub enum Test
 	 {
 		 System: frame_system,
-		 Registry: asset_registry,
+		 Tokens: orml_tokens,
+		 Registry: pallet_asset_registry,
 	 }
 
 );
@@ -51,7 +56,10 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 63;
 	pub const NativeAssetId: AssetId = 0;
+	#[derive(PartialEq, Debug)]
 	pub const RegistryStringLimit: u32 = 10;
+	#[derive(PartialEq, Debug)]
+	pub const RegistryMinStringLimit: u32 = 2;
 	pub const SequentialIdStart: u32 = 1_000_000;
 }
 
@@ -87,63 +95,87 @@ use scale_info::TypeInfo;
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub MultiLocation);
 
-impl Config for Test {
+impl pallet_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Tokens;
 	type RegistryOrigin = frame_system::EnsureRoot<u64>;
+	type UpdateOrigin = frame_system::EnsureSigned<u64>;
 	type AssetId = u32;
-	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStringLimit;
+	type MinStringLimit = RegistryMinStringLimit;
 	type SequentialIdStartAt = SequentialIdStart;
-	type NativeAssetId = NativeAssetId;
+	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
 	type WeightInfo = ();
 }
-pub type AssetRegistryPallet = crate::Pallet<Test>;
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+		0
+	};
+}
+
+impl orml_tokens::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type Amount = i128;
+	type CurrencyId = AssetId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type MaxLocks = ();
+	type DustRemovalWhitelist = Everything;
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
+	type CurrencyHooks = ();
+}
 
 #[derive(Default)]
+#[allow(clippy::type_complexity)]
 pub struct ExtBuilder {
-	registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)>,
-	native_asset_name: Option<Vec<u8>>,
+	registered_assets: Vec<(
+		Option<AssetId>,
+		Option<Name<RegistryStringLimit>>,
+		Balance,
+		Option<Symbol<RegistryStringLimit>>,
+		Option<u8>,
+		Option<Balance>,
+		bool,
+	)>,
 }
 
 impl ExtBuilder {
-	pub fn with_assets(mut self, asset_ids: Vec<(Vec<u8>, Balance, Option<AssetId>)>) -> Self {
-		self.registered_assets = asset_ids;
-		self
-	}
-
-	pub fn with_native_asset_name(mut self, name: Vec<u8>) -> Self {
-		self.native_asset_name = Some(name);
+	#[allow(clippy::type_complexity)]
+	pub fn with_assets(
+		mut self,
+		assets: Vec<(
+			Option<AssetId>,
+			Option<Name<RegistryStringLimit>>,
+			Balance,
+			Option<Symbol<RegistryStringLimit>>,
+			Option<u8>,
+			Option<Balance>,
+			bool,
+		)>,
+	) -> Self {
+		self.registered_assets = assets;
 		self
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
-		if let Some(name) = self.native_asset_name {
-			crate::GenesisConfig::<Test> {
-				registered_assets: self.registered_assets,
-				native_asset_name: name,
-				native_existential_deposit: 1_000_000u128,
-			}
-		} else {
-			crate::GenesisConfig::<Test> {
-				registered_assets: self.registered_assets,
-				..Default::default()
-			}
+		crate::GenesisConfig::<Test> {
+			registered_assets: self.registered_assets,
+			..Default::default()
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
-		t.into()
+
+		let mut r: sp_io::TestExternalities = t.into();
+		r.execute_with(|| {
+			System::set_block_number(1);
+		});
+
+		r
 	}
-}
-
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut ext = ExtBuilder::default().build();
-	ext.execute_with(|| System::set_block_number(1));
-	ext
-}
-
-pub fn expect_events(e: Vec<RuntimeEvent>) {
-	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }

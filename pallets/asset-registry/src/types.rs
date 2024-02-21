@@ -17,69 +17,94 @@
 
 use frame_support::pallet_prelude::*;
 use scale_info::TypeInfo;
-use sp_std::vec::Vec;
+
+pub type Balance = u128;
 
 use hydradx_traits::AssetKind;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
+pub type Name<L> = BoundedVec<u8, L>;
+pub type Symbol<L> = BoundedVec<u8, L>;
+
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum AssetType<AssetId> {
+pub enum AssetType {
 	Token,
-	PoolShare(AssetId, AssetId), // Use XYX instead
 	XYK,
 	StableSwap,
 	Bond,
+	External,
 }
 
-impl<AssetId> From<AssetKind> for AssetType<AssetId> {
+impl From<AssetKind> for AssetType {
 	fn from(value: AssetKind) -> Self {
 		match value {
 			AssetKind::Token => Self::Token,
 			AssetKind::XYK => Self::XYK,
 			AssetKind::StableSwap => Self::StableSwap,
 			AssetKind::Bond => Self::Bond,
+			AssetKind::External => Self::External,
 		}
 	}
 }
 
-impl<AssetId> From<AssetType<AssetId>> for AssetKind {
-	fn from(value: AssetType<AssetId>) -> Self {
+impl From<AssetType> for AssetKind {
+	fn from(value: AssetType) -> Self {
 		match value {
 			AssetType::Token => Self::Token,
-			AssetType::PoolShare(_, _) => Self::XYK,
 			AssetType::XYK => Self::XYK,
 			AssetType::StableSwap => Self::StableSwap,
 			AssetType::Bond => Self::Bond,
+			AssetType::External => Self::External,
 		}
 	}
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(StringLimit))]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AssetDetails<AssetId, Balance, BoundedString> {
+pub struct AssetDetails<StringLimit: Get<u32>> {
 	/// The name of this asset. Limited in length by `StringLimit`.
-	pub name: BoundedString,
+	pub name: Option<Name<StringLimit>>,
 
-	pub asset_type: AssetType<AssetId>,
+	/// Asset type
+	pub asset_type: AssetType,
 
+	/// Existential deposit
 	pub existential_deposit: Balance,
 
-	pub xcm_rate_limit: Option<Balance>,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct AssetMetadata<BoundedString> {
 	/// The ticker symbol for this asset. Limited in length by `StringLimit`.
-	pub(super) symbol: BoundedString,
+	pub symbol: Option<Symbol<StringLimit>>,
+
 	/// The number of decimals this asset uses to represent one unit.
-	pub(super) decimals: u8,
+	pub decimals: Option<u8>,
+
+	/// XCM rate limit.
+	pub xcm_rate_limit: Option<Balance>,
+
+	/// Asset sufficiency.
+	pub is_sufficient: bool,
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct Metadata {
-	pub(super) symbol: Vec<u8>,
-	pub(super) decimals: u8,
+impl<StringLimit: Get<u32>> AssetDetails<StringLimit> {
+	pub fn new(
+		name: Option<BoundedVec<u8, StringLimit>>,
+		asset_type: AssetType,
+		existential_deposit: Balance,
+		symbol: Option<BoundedVec<u8, StringLimit>>,
+		decimals: Option<u8>,
+		xcm_rate_limit: Option<Balance>,
+		is_sufficient: bool,
+	) -> Self {
+		Self {
+			name,
+			asset_type,
+			existential_deposit,
+			symbol,
+			decimals,
+			xcm_rate_limit,
+			is_sufficient,
+		}
+	}
 }
