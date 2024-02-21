@@ -22,7 +22,7 @@ use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError;
-use sp_runtime::DispatchError::BadOrigin;
+
 #[test]
 fn buy_should_work_when_route_has_single_trade() {
 	ExtBuilder::default().build().execute_with(|| {

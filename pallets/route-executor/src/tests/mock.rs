@@ -24,7 +24,6 @@ use frame_support::{
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::parameter_type_with_key;
-use orml_traits::GetByKey;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pretty_assertions::assert_eq;
 use sp_core::H256;

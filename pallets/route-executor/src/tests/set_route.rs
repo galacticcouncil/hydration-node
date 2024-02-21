@@ -449,7 +449,7 @@ fn set_route_should_fail_with_insufficient_asset() {
 
 		//Act
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			Error::<Test>::InsufficientAssetNotSupported
 		);
 	});
@@ -480,7 +480,7 @@ fn set_route_should_fail_with_insufficient_asset_as_intermediare() {
 
 		//Act
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			Error::<Test>::InsufficientAssetNotSupported
 		);
 	});

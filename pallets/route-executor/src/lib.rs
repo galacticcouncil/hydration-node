@@ -38,7 +38,7 @@ pub use hydradx_traits::router::{
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, Saturating, TransactionOutcome};
+use sp_runtime::{ArithmeticError, DispatchError, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -58,10 +58,8 @@ pub mod pallet {
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
-	use orml_traits::GetByKey;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
-	use sp_std::collections::btree_set::BTreeSet;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -397,12 +395,12 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn ensure_route_has_no_insufficient_asset(new_route: &Vec<Trade<T::AssetId>>) -> DispatchResult {
+	fn ensure_route_has_no_insufficient_asset(new_route: &[Trade<T::AssetId>]) -> DispatchResult {
 		let mut unique_assets = sp_std::collections::btree_set::BTreeSet::new();
 
 		for trade in new_route.iter() {
-			unique_assets.insert(trade.asset_in.clone());
-			unique_assets.insert(trade.asset_out.clone());
+			unique_assets.insert(trade.asset_in);
+			unique_assets.insert(trade.asset_out);
 		}
 		for asset in unique_assets.iter() {
 			ensure!(
