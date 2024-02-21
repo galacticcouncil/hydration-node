@@ -62,11 +62,11 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
 use sp_core::U256;
+use sp_runtime::traits::CheckedDiv;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::Saturating;
-
 //TODO: consider moving to a config
 pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(16420844565569051996); //Current onchain ETH price on at block 4418935
 pub const MAX_BASE_FEE_PER_GAS: u128 = 17304992000u128;
@@ -130,10 +130,11 @@ pub mod pallet {
 				let min_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_div(10);
 				let multiplier = T::Multiplier::next();
 
-				let mut new_base_fee_per_gas = T::DefaultBaseFeePerGas::get()
-					.saturating_add(multiplier
+				let mut new_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_add(
+					multiplier
 						.saturating_mul_int(T::DefaultBaseFeePerGas::get())
-						.saturating_mul(3));
+						.saturating_mul(3),
+				);
 
 				let Some(eth_hdx_price) = T::NativePriceOracle::price(T::WethAssetId::get()) else {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX price from oracle");
@@ -145,30 +146,30 @@ pub mod pallet {
 
 				let sum = eth_hdx_price.saturating_add(ETH_HDX_REFERENCE_PRICE);
 
-				let diff  = if eth_hdx_price > ETH_HDX_REFERENCE_PRICE {
+				let diff = if eth_hdx_price > ETH_HDX_REFERENCE_PRICE {
 					eth_hdx_price.saturating_sub(ETH_HDX_REFERENCE_PRICE)
-				}else{
+				} else {
 					ETH_HDX_REFERENCE_PRICE.saturating_sub(eth_hdx_price)
 				};
 
-				// TODO: ensure that sum > 1, just to be safe
-				// or use checked div
-				let pdiff = diff / (sum / FixedU128::from(2));
+				let Some(denominator) = sum.checked_div(&FixedU128::from(2)) else {
+					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating denominator for price difference, sum: {:?}", sum);
+					return;
+				};
 
-				let evm_fee_change = pdiff.saturating_mul_int(new_base_fee_per_gas);
+				let Some(price_difference) = diff.checked_div(&denominator) else {
+					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating price difference, diff: {:?}, denominator: {:?}", diff, denominator);
+					return;
+				};
 
-				if eth_hdx_price < crate::ETH_HDX_REFERENCE_PRICE {
+				let evm_fee_change = price_difference.saturating_mul_int(new_base_fee_per_gas);
+
+				if eth_hdx_price < ETH_HDX_REFERENCE_PRICE {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_sub(evm_fee_change);
 				} else {
 					new_base_fee_per_gas = new_base_fee_per_gas.saturating_add(evm_fee_change);
 				}
 
-				// Note that clamp panics!! if min > max
-				if min_base_fee_per_gas > MAX_BASE_FEE_PER_GAS {
-					// safe safe safe
-					//TODO: add integrity test for this
-					return;
-				}
 				new_base_fee_per_gas = new_base_fee_per_gas.clamp(min_base_fee_per_gas, MAX_BASE_FEE_PER_GAS);
 
 				*old_base_fee_per_gas = U256::from(new_base_fee_per_gas);
@@ -177,7 +178,12 @@ pub mod pallet {
 			T::WeightInfo::on_initialize()
 		}
 
-
+		fn integrity_test() {
+			assert!(
+				T::DefaultBaseFeePerGas::get() < MAX_BASE_FEE_PER_GAS,
+				"DefaultBaseFeePerGas should be less than MAX_BASE_FEE_PER_GAS, otherwise it fails when we clamp when we bound the value"
+			);
+		}
 	}
 }
 impl<T: Config> pallet_evm::FeeCalculator for Pallet<T> {
