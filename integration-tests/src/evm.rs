@@ -25,7 +25,7 @@ use sp_runtime::{traits::SignedExtension, FixedU128, Permill};
 use std::borrow::Cow;
 use xcm_emulator::TestExt;
 
-const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
+pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 mod account_conversion {
 	use super::*;
@@ -245,8 +245,8 @@ mod account_conversion {
 			let fee_raw = hydradx_runtime::TransactionPayment::compute_fee_details(len, &info, 0);
 			let fee = fee_raw.final_fee();
 
-			// simple test that the fee is approximately 10 HDX
-			assert!(fee / UNITS == 10);
+			// simple test that the fee is approximately 10/6 HDX (it was originally 10 HDX, but we divided the fee by 6 in the config)
+			assert_eq!(fee / UNITS, 10 / 6);
 		});
 	}
 
@@ -520,7 +520,6 @@ mod standard_precompiles {
 
 mod currency_precompile {
 	use super::*;
-	use hydradx_runtime::evm::ExtendedAddressMapping;
 	use pretty_assertions::assert_eq;
 
 	type AllHydraDXPrecompile = HydraDXPrecompiles<hydradx_runtime::Runtime>;
@@ -1204,6 +1203,12 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		//Set up to idle state where the chain is not utilized at all
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		//Set alice with as fee currency and fund it
 		init_omnipool_with_oracle_for_block_10();
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1336,6 +1341,8 @@ fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
 			});
 
 		let gas_limit = 1000000;
+		let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
 		//Execute omnipool via EVM
 		assert_ok!(EVM::call(
 			evm_signed_origin(currency_precompile::alice_evm_addr()),
@@ -1344,7 +1351,7 @@ fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
 			omni_sell.encode(),
 			U256::from(0),
 			gas_limit,
-			gas_price(),
+			gas_price.0 * 10,
 			None,
 			Some(U256::zero()),
 			[].into(),
@@ -1411,7 +1418,7 @@ fn fee_should_be_paid_in_accounts_fee_currency() {
 	})
 }
 
-fn init_omnipool_with_oracle_for_block_10() {
+pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	hydradx_run_to_next_block();
 	do_trade_to_populate_oracle(WETH, DAI, 1_000_000_000_000_000_000);
@@ -1510,10 +1517,10 @@ pub fn init_omnipol() {
 
 // TODO: test that we charge approximatelly same fee on evm as with extrinsics directly
 
-const DISPATCH_ADDR: H160 = addr(1025);
+pub const DISPATCH_ADDR: H160 = addr(1025);
 
-fn gas_price() -> U256 {
-	U256::from(8 * 10_u128.pow(7))
+pub fn gas_price() -> U256 {
+	U256::from(hydradx_runtime::evm::DEFAULT_BASE_FEE_PER_GAS)
 }
 
 fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {

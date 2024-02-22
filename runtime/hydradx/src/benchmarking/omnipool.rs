@@ -47,7 +47,7 @@ fn run_to_block(to: u32) {
 const HDX: AssetId = 0;
 const DAI: AssetId = 2;
 
-fn init() -> DispatchResult {
+pub fn init() -> DispatchResult {
 	let stable_amount: Balance = 1_000_000_000_000_000u128;
 	let native_amount: Balance = 1_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));

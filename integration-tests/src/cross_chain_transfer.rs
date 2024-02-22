@@ -53,15 +53,15 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		);
 	});
 
-	let fees = 401884032343;
+	let fees = 66980672057;
 	Hydra::execute_with(|| {
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS - fees
-		);
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
 			fees
+		);
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
+			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS - fees
 		);
 	});
 }
@@ -141,7 +141,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 		);
 	});
 
-	let fee = 321507225875;
+	let fee = 53584537646;
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
@@ -331,7 +331,7 @@ fn claim_trapped_asset_should_work() {
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			1000 * UNITS + 29_758_869_580_594
+			1_029_959_811_596_766 //1000 * UNITS + 30 * UNITS - fee
 		);
 
 		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));

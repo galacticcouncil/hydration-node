@@ -3,6 +3,7 @@
 pub mod currencies;
 pub mod dca;
 pub mod duster;
+pub mod dynamic_evm_fee;
 pub mod multi_payment;
 pub mod omnipool;
 pub mod route_executor;
@@ -10,10 +11,11 @@ pub mod tokens;
 pub mod vesting;
 pub mod xyk;
 
-use crate::AssetRegistry;
+use crate::{AssetLocation, AssetRegistry, MultiTransactionPayment};
 use frame_system::RawOrigin;
 
 use hydradx_traits::{registry::Create, AssetKind};
+use pallet_transaction_multi_payment::Price;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::One;
 use sp_std::vec;
@@ -56,6 +58,14 @@ pub fn register_external_asset(name: Vec<u8>) -> Result<AssetId, ()> {
 		))
 	})
 	.map_err(|_| ())
+}
+
+pub fn set_location(asset_id: AssetId, location: AssetLocation) -> Result<(), ()> {
+	AssetRegistry::set_location(RawOrigin::Root.into(), asset_id, location).map_err(|_| ())
+}
+
+pub fn add_as_accepted_currency(asset_id: AssetId, price: Price) -> Result<(), ()> {
+	MultiTransactionPayment::add_currency(RawOrigin::Root.into(), asset_id, price).map_err(|_| ())
 }
 
 #[allow(dead_code)]
