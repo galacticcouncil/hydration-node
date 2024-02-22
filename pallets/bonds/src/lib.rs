@@ -53,7 +53,7 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use sp_core::MaxEncodedLen;
-use sp_std::vec::Vec;
+use sp_std::{mem, vec::Vec};
 
 use hydradx_traits::{
 	registry::{Create, Inspect},
@@ -185,6 +185,8 @@ pub mod pallet {
 		AssetNotFound,
 		/// Generated name is not valid.
 		InvalidBondName,
+		/// Bond's name parsing was now successful
+		FailToParseName,
 	}
 
 	#[pallet::call]
@@ -325,5 +327,13 @@ impl<T: Config> Pallet<T> {
 		buf.extend_from_slice(&when.to_le_bytes());
 
 		buf
+	}
+
+	pub fn parse_bond_name(name: Vec<u8>) -> Result<AssetId, Error<T>> {
+		Ok(AssetId::from_le_bytes(
+			name[..mem::size_of::<AssetId>()]
+				.try_into()
+				.map_err(|_| Error::<T>::FailToParseName)?,
+		))
 	}
 }
