@@ -47,7 +47,7 @@ use core::marker::PhantomData;
 
 /// Weight functions for `pallet_route_executor`.
 pub struct HydraWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_route_executor::WeightInfo for HydraWeight<T> {
+impl<T: frame_system::Config> pallet_route_executor::weights::WeightInfo for HydraWeight<T> {
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:5 w:5)
