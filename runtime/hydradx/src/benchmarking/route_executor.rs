@@ -17,11 +17,13 @@
 #![allow(clippy::result_large_err)]
 
 use crate::{
-	AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System, LBP, XYK,
+	AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeOrigin, System,
+	LBP, XYK,
 };
 
 use super::*;
-
+use crate::benchmarking::dca::HDX;
+use crate::benchmarking::tokens::update_balance;
 use frame_benchmarking::{account, BenchmarkError};
 use frame_support::dispatch::DispatchResult;
 use frame_support::{assert_ok, ensure};
@@ -31,8 +33,9 @@ use hydradx_traits::router::{PoolType, RouterT, Trade};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::constants::currency::UNITS;
+use sp_runtime::FixedU128;
+use sp_runtime::Permill;
 use sp_std::vec;
-
 pub const INITIAL_BALANCE: Balance = 10_000_000 * UNITS;
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
@@ -134,6 +137,39 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 	));
 }
 
+fn create_xyk_pool_with_amounts(asset_a: u32, asset_b: u32, amount_a: u128, amount_b: u128) {
+	let caller: AccountId = funded_account("caller", 3, &[asset_a, asset_b]);
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		caller.clone(),
+		0_u32,
+		InsufficientEDinHDX::get() as i128,
+	));
+
+	assert_ok!(Currencies::update_balance(
+		RuntimeOrigin::root(),
+		caller.clone(),
+		asset_a,
+		amount_a as i128,
+	));
+
+	assert_ok!(Currencies::update_balance(
+		RuntimeOrigin::root(),
+		caller.clone(),
+		asset_b,
+		amount_b as i128,
+	));
+
+	assert_ok!(XYK::create_pool(
+		RuntimeOrigin::signed(caller),
+		asset_a,
+		amount_a,
+		asset_b,
+		amount_b,
+	));
+}
+
 runtime_benchmarks! {
 	{Runtime, pallet_route_executor}
 
@@ -208,48 +244,79 @@ runtime_benchmarks! {
 
 	// Calculates the weight of xyk set route. Used in the calculation to determine the weight of the overhead.
 	set_route_for_xyk {
-		let asset_1 = register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let asset_2 = register_external_asset(b"FCB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let asset_3 = register_external_asset(b"FCC".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
-		let caller: AccountId = funded_account("caller", 0, &[asset_1, asset_2, asset_3]);
-		let buyer: AccountId = funded_account("buyer", 1, &[asset_1, asset_2, asset_3]);
-
-		create_xyk_pool(asset_1, asset_2);
-		create_xyk_pool(asset_1, asset_3);
+		let caller: AccountId = funded_account("caller", 0, &[asset_1, asset_2,asset_3]);
+		create_xyk_pool(HDX, asset_2);
 		create_xyk_pool(asset_2, asset_3);
+		create_xyk_pool(asset_3, asset_4);
+		create_xyk_pool(asset_4, asset_5);
+		create_xyk_pool(asset_5, asset_6);
+
+		//INIT OMNIPOOL
+		let acc = Omnipool::protocol_account();
+		crate::benchmarking::omnipool::init()?;
+		// Create account for token provider and set balance
+		let owner: AccountId = account("owner", 0, 1);
+
+		let token_price = FixedU128::from((1,5));
+		let token_amount = 200_000_000_000_000_000_u128;
+		//1000000000000000
+
+		update_balance(asset_6, &acc, token_amount);
+
+		// Add the token to the pool
+		Omnipool::add_token(RawOrigin::Root.into(), asset_6, token_price, Permill::from_percent(100), owner)?;
 
 		let route = vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: asset_6
+		}];
+
+		Router::set_route(
+			RawOrigin::Signed(caller.clone()).into(),
+			AssetPair::new(HDX, asset_6),
+			route.clone(),
+		)?;
+
+		assert_eq!(3,4);
+
+		let better_route = vec![Trade {
 			pool: PoolType::XYK,
-			asset_in: asset_1,
+			asset_in: HDX,
 			asset_out: asset_2
 		},Trade {
 			pool: PoolType::XYK,
 			asset_in: asset_2,
 			asset_out: asset_3
-		}];
-
-		Router::set_route(
-			RawOrigin::Signed(caller.clone()).into(),
-			AssetPair::new(asset_1, asset_3),
-			route,
-		)?;
-
-		let better_route = vec![Trade {
+		},Trade {
 			pool: PoolType::XYK,
-			asset_in: asset_1,
-			asset_out: asset_3
+			asset_in: asset_3,
+			asset_out: asset_4
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_4,
+			asset_out: asset_5
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_5,
+			asset_out: asset_6
 		}];
-
 	}: {
 		Router::set_route(
 			RawOrigin::Signed(caller.clone()).into(),
-			AssetPair::new(asset_1, asset_3),
+			AssetPair::new(HDX, asset_6),
 			better_route.clone(),
 		)?;
 	}
 	verify {
-		let stored_route = Router::route(AssetPair::new(asset_1, asset_3)).unwrap();
+		let stored_route = Router::route(AssetPair::new(HDX, asset_6)).unwrap();
 		assert_eq!(stored_route, better_route);
 	}
 }
@@ -257,14 +324,45 @@ runtime_benchmarks! {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::NativeExistentialDeposit;
 	use orml_benchmarking::impl_benchmark_test_suite;
 	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::<Runtime>::default()
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
 			.build_storage()
-			.unwrap()
-			.into()
+			.unwrap();
+
+		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
+			registered_assets: vec![
+				(
+					Some(1),
+					Some(b"LRNA".to_vec().try_into().unwrap()),
+					1_000u128,
+					None,
+					None,
+					None,
+					true,
+				),
+				(
+					Some(2),
+					Some(b"DAI".to_vec().try_into().unwrap()),
+					1_000u128,
+					None,
+					None,
+					None,
+					true,
+				),
+			],
+			native_asset_name: b"HDX".to_vec().try_into().unwrap(),
+			native_existential_deposit: NativeExistentialDeposit::get(),
+			native_decimals: 12,
+			native_symbol: b"HDX".to_vec().try_into().unwrap(),
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		sp_io::TestExternalities::new(t)
 	}
 
 	impl_benchmark_test_suite!(new_test_ext(),);
