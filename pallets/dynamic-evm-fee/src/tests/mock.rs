@@ -140,7 +140,7 @@ pub struct DefaultBaseDFeePerGas;
 
 impl Get<u128> for DefaultBaseDFeePerGas {
 	fn get() -> u128 {
-		80_000_000 / 3
+		15_000_000
 	}
 }
 

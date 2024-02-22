@@ -67,7 +67,7 @@ use sp_runtime::Permill;
 use sp_runtime::Saturating;
 
 pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(8945857934143137845); //Current onchain ETH price on at block #4,534,103
-pub const MAX_BASE_FEE_PER_GAS: u128 = 17304992000u128;
+pub const MAX_BASE_FEE_PER_GAS: u128 = 14415000000u128;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -122,7 +122,6 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
-			//TODO: add a integration test with price change from trades so oracle price changes
 			BaseFeePerGas::<T>::mutate(|old_base_fee_per_gas| {
 				let min_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_div(10);
 				let multiplier = T::FeeMultiplier::get();
