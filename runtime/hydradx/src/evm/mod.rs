@@ -20,7 +20,6 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::evm::runner::WrapRunner;
-use crate::LRNA;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
@@ -38,6 +37,7 @@ use hydradx_traits::oracle::OraclePeriod;
 use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
+use pallet_transaction_payment::Multiplier;
 use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
 use polkadot_xcm::{
 	latest::MultiLocation,
