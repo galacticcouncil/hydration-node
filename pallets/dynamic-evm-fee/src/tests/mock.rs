@@ -57,7 +57,7 @@ pub const HIGH_VALUE_CURRENCY: AssetId = 7000;
 
 pub const HIGH_ED: Balance = 5;
 
-pub const DEFAULT_ETH_HDX_ORACLE_PRICE: Ratio = Ratio::new(16420844565569051996, FixedU128::DIV);
+pub const DEFAULT_ETH_HDX_ORACLE_PRICE: Ratio = Ratio::new(8945857934143137845, FixedU128::DIV);
 
 thread_local! {
 	static EXTRINSIC_BASE_WEIGHT: RefCell<Weight> = RefCell::new(Weight::zero());
