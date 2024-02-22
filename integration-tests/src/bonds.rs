@@ -3,18 +3,23 @@
 use crate::assert_balance;
 use crate::polkadot_test_net::*;
 
+use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
+use frame_system::RawOrigin;
+use hydradx_traits::registry::{AssetKind, Create};
 use orml_traits::MultiCurrency;
-use sp_runtime::BoundedVec;
+use sp_runtime::{DispatchResult, TransactionOutcome};
 use xcm_emulator::TestExt;
 
-use hydradx_runtime::{AssetRegistry, Bonds, Currencies, Runtime, RuntimeOrigin};
+use hydradx_runtime::{AssetRegistry, Bonds, Currencies, MultiTransactionPayment, Runtime, RuntimeOrigin, Tokens};
 use primitives::constants::time::unix_time::MONTH;
 
 #[test]
 fn issue_bonds_should_work_when_issued_for_native_asset() {
 	Hydra::execute_with(|| {
 		// Arrange
+		set_fee_asset_and_fund(ALICE.into(), BTC, 1_000_000);
+
 		let amount = 100 * UNITS;
 		let fee = <Runtime as pallet_bonds::Config>::ProtocolFee::get().mul_ceil(amount);
 		let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
@@ -33,7 +38,10 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
 
 		assert_eq!(bond_asset_details.asset_type, pallet_asset_registry::AssetType::Bond);
-		assert_eq!(bond_asset_details.name.into_inner(), Bonds::bond_name(HDX, maturity));
+		assert_eq!(
+			bond_asset_details.name.unwrap().into_inner(),
+			Bonds::bond_name(HDX, maturity)
+		);
 		assert_eq!(bond_asset_details.existential_deposit, NativeExistentialDeposit::get());
 
 		assert_balance!(&ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount);
@@ -52,82 +60,117 @@ fn issue_bonds_should_work_when_issued_for_native_asset() {
 #[test]
 fn issue_bonds_should_work_when_issued_for_share_asset() {
 	Hydra::execute_with(|| {
-		// Arrange
-		let amount = 100 * UNITS;
-		let fee = <Runtime as pallet_bonds::Config>::ProtocolFee::get().mul_ceil(amount);
-		let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
+		let _ = with_transaction(|| {
+			// Arrange
+			set_fee_asset_and_fund(ALICE.into(), BTC, 1_000_000);
 
-		let maturity = NOW + MONTH;
+			let amount = 100 * UNITS;
+			let fee = <Runtime as pallet_bonds::Config>::ProtocolFee::get().mul_ceil(amount);
+			let amount_without_fee: Balance = amount.checked_sub(fee).unwrap();
 
-		let bounded_name: BoundedVec<u8, <Runtime as pallet_asset_registry::Config>::StringLimit> =
-			"SHARED".as_bytes().to_vec().try_into().unwrap();
-		let share_asset_id = AssetRegistry::register_asset(
-			bounded_name,
-			pallet_asset_registry::AssetType::PoolShare(HDX, DOT),
-			1_000,
-			None,
-			None,
-		)
-		.unwrap();
-		assert_ok!(Currencies::deposit(share_asset_id, &ALICE.into(), amount,));
+			let maturity = NOW + MONTH;
 
-		// Act
-		let bond_id = AssetRegistry::next_asset_id().unwrap();
-		assert_ok!(Bonds::issue(
-			RuntimeOrigin::signed(ALICE.into()),
-			share_asset_id,
-			amount,
-			maturity
-		));
+			let name = b"SHARED".to_vec();
+			let share_asset_id = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(name.try_into().unwrap()),
+				AssetKind::XYK,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+			assert_ok!(Currencies::deposit(share_asset_id, &ALICE.into(), amount,));
 
-		// Assert
-		assert_eq!(Bonds::bond(bond_id).unwrap(), (share_asset_id, maturity));
+			// Act
+			let bond_id = AssetRegistry::next_asset_id().unwrap();
+			assert_ok!(Bonds::issue(
+				RuntimeOrigin::signed(ALICE.into()),
+				share_asset_id,
+				amount,
+				maturity
+			));
 
-		let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
+			// Assert
+			assert_eq!(Bonds::bond(bond_id).unwrap(), (share_asset_id, maturity));
 
-		assert_eq!(bond_asset_details.asset_type, pallet_asset_registry::AssetType::Bond);
-		assert_eq!(
-			bond_asset_details.name.into_inner(),
-			Bonds::bond_name(share_asset_id, maturity)
-		);
-		assert_eq!(bond_asset_details.existential_deposit, 1_000);
+			let bond_asset_details = AssetRegistry::assets(bond_id).unwrap();
 
-		assert_balance!(&ALICE.into(), share_asset_id, 0);
-		assert_balance!(&ALICE.into(), bond_id, amount_without_fee);
+			assert_eq!(bond_asset_details.asset_type, pallet_asset_registry::AssetType::Bond);
+			assert_eq!(
+				bond_asset_details.name.unwrap().into_inner(),
+				Bonds::bond_name(share_asset_id, maturity)
+			);
+			assert_eq!(bond_asset_details.existential_deposit, 1_000);
 
-		assert_balance!(
-			&<Runtime as pallet_bonds::Config>::FeeReceiver::get(),
-			share_asset_id,
-			fee
-		);
+			assert_balance!(&ALICE.into(), share_asset_id, 0);
+			assert_balance!(&ALICE.into(), bond_id, amount_without_fee);
 
-		assert_balance!(&Bonds::pallet_account_id(), share_asset_id, amount_without_fee);
+			assert_balance!(
+				&<Runtime as pallet_bonds::Config>::FeeReceiver::get(),
+				share_asset_id,
+				fee
+			);
+
+			assert_balance!(&Bonds::pallet_account_id(), share_asset_id, amount_without_fee);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
 	});
 }
 
 #[test]
 fn issue_bonds_should_not_work_when_issued_for_bond_asset() {
 	Hydra::execute_with(|| {
-		// Arrange
-		let amount = 100 * UNITS;
-		let maturity = NOW + MONTH;
+		let _ = with_transaction(|| {
+			// Arrange
+			let amount = 100 * UNITS;
+			let maturity = NOW + MONTH;
 
-		let bounded_name: BoundedVec<u8, <Runtime as pallet_asset_registry::Config>::StringLimit> =
-			"BOND".as_bytes().to_vec().try_into().unwrap();
-		let underlying_asset_id =
-			AssetRegistry::register_asset(bounded_name, pallet_asset_registry::AssetType::Bond, 1_000, None, None)
-				.unwrap();
-		assert_ok!(Currencies::deposit(underlying_asset_id, &ALICE.into(), amount,));
+			let name = b"BOND".to_vec();
+			let underlying_asset_id = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(name.try_into().unwrap()),
+				AssetKind::Bond,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
 
-		// Act & Assert
-		assert_noop!(
-			Bonds::issue(
-				RuntimeOrigin::signed(ALICE.into()),
-				underlying_asset_id,
-				amount,
-				maturity
-			),
-			pallet_bonds::Error::<hydradx_runtime::Runtime>::DisallowedAsset
-		);
+			assert_ok!(Currencies::deposit(underlying_asset_id, &ALICE.into(), amount,));
+
+			// Act & Assert
+			assert_noop!(
+				Bonds::issue(
+					RuntimeOrigin::signed(ALICE.into()),
+					underlying_asset_id,
+					amount,
+					maturity
+				),
+				pallet_bonds::Error::<hydradx_runtime::Runtime>::DisallowedAsset
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
 	});
+}
+
+fn set_fee_asset_and_fund(who: AccountId, fee_asset: AssetId, amount: Balance) {
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
+		who.clone(),
+		fee_asset,
+		amount,
+		0,
+	));
+
+	assert_ok!(MultiTransactionPayment::set_currency(
+		hydradx_runtime::RuntimeOrigin::signed(who),
+		fee_asset
+	));
 }

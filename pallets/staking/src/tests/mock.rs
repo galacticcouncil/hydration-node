@@ -224,9 +224,20 @@ impl pallet_staking::Config for Test {
 	type Vesting = DummyVesting;
 	type Collections = FreezableUniques;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type MinSlash = DummyMinSlash;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;
+}
+
+pub struct DummyMinSlash;
+impl GetByKey<FixedU128, Point> for DummyMinSlash {
+	fn get(k: &FixedU128) -> Point {
+		if k.ge(&FixedU128::from_float(0.5)) {
+			return 100_u128;
+		}
+		0_u128
+	}
 }
 
 pub struct DummyMaxPointsPerAction;

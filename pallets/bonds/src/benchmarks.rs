@@ -60,7 +60,8 @@ benchmarks! {
 		let origin = T::IssueOrigin::try_successful_origin().unwrap();
 		let issuer = T::IssueOrigin::ensure_origin(origin).unwrap();
 		let amount: T::Balance = (200 * ONE).into();
-		T::Currency::deposit(HDX, &issuer, amount)?;
+		//NOTE: bonds are insufficient so issuer must ED for it
+		T::Currency::deposit(HDX, &issuer, amount + (100 * ONE).into())?;
 
 		let maturity = NOW + MONTH;
 

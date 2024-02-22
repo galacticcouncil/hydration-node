@@ -10,6 +10,7 @@ pub mod democracy;
 pub mod duster;
 pub mod dynamic_evm_fee;
 pub mod ema_oracle;
+pub mod evm_accounts;
 pub mod identity;
 pub mod lbp;
 pub mod omnipool;

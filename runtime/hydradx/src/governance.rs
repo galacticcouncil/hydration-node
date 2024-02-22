@@ -268,9 +268,9 @@ parameter_types! {
 	pub const DesiredMembers: u32 = 13;
 	pub const DesiredRunnersUp: u32 = 15;
 	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
-	pub const MaxElectionCandidates: u32 = 1_000;
-	pub const MaxElectionVoters: u32 = 1_000;
-	pub const MaxVotesPerVoter: u32 = 5;
+	pub const MaxElectionCandidates: u32 = 100;
+	pub const MaxElectionVoters: u32 = 768;
+	pub const MaxVotesPerVoter: u32 = 10;
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
@@ -297,7 +297,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 
 parameter_types! {
 	pub const DataDepositPerByte: Balance = CENTS;
-	pub const TipCountdown: BlockNumber = 2 * HOURS;
+	pub const TipCountdown: BlockNumber = 24 * HOURS;
 	pub const TipFindersFee: Percent = Percent::from_percent(1);
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
