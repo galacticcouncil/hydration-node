@@ -953,6 +953,7 @@ impl pallet_route_executor::Config for Runtime {
 	type AMM = (Omnipool, Stableswap, XYK, LBP);
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
+	type InspectRegistry = AssetRegistry;
 }
 
 parameter_types! {
