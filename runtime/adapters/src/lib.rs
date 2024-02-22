@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::FullCodec;
+use codec::{EncodeLike, FullCodec};
 use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::{
 	sp_runtime::{
@@ -629,14 +629,32 @@ impl<Runtime, LMInstance> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
 where
 	Runtime: warehouse_liquidity_mining::Config<LMInstance>
 		+ pallet_ema_oracle::Config
-		+ pallet_omnipool_liquidity_mining::Config,
+		+ pallet_omnipool_liquidity_mining::Config
+		+ pallet_asset_registry::Config
+		+ pallet_bonds::Config,
+	u32: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 {
 	type Error = DispatchError;
 	type PriceAdjustment = FixedU128;
 
 	fn get(global_farm: &GlobalFarmData<Runtime, LMInstance>) -> Result<Self::PriceAdjustment, Self::Error> {
+		use pallet_asset_registry::AssetType;
+
+		let asset_detail = pallet_asset_registry::Assets::<Runtime>::get(global_farm.reward_currency.into())
+			.ok_or(pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
+
+		let reward_currency_id = if asset_detail.asset_type == AssetType::Bond {
+			let name = asset_detail
+				.name
+				.ok_or(pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
+
+			pallet_bonds::Pallet::<Runtime>::parse_bond_name(name.into())?
+		} else {
+			global_farm.reward_currency.into()
+		};
+
 		let (price, _) = pallet_ema_oracle::Pallet::<Runtime>::get_price(
-			global_farm.reward_currency.into(),
+			reward_currency_id,
 			global_farm.incentivized_asset.into(), //LRNA
 			OraclePeriod::TenMinutes,
 			OMNIPOOL_SOURCE,
