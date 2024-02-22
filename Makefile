@@ -1,10 +1,3 @@
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-	SHASUM = shasum -a 256
-else
-	SHASUM = sha256sum
-endif
-
 .PHONY: build
 build:
 	cargo build --release --locked
@@ -63,9 +56,9 @@ docker:
 	docker build -t hydra-dx .
 
 checksum:
-	$(SHASUM) target/release/hydradx > target/release/hydradx.sha256
+	sha256sum target/release/hydradx > target/release/hydradx.sha256
 	cp target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
-	$(SHASUM) target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
+	sha256sum target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
 
 release: build checksum
 
