@@ -2,13 +2,8 @@
 
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
-use frame_support::{
-	assert_ok,
-	dispatch::GetDispatchInfo,
-	dispatch::{DispatchResult, Pays, PostDispatchInfo},
-	sp_runtime::codec::Encode,
-	traits::Contains,
-};
+use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
+use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains, dispatch::{PostDispatchInfo, DispatchResult, Pays}};
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{
@@ -18,7 +13,7 @@ use hydradx_runtime::{
 		multicurrency::{Action, MultiCurrencyPrecompile},
 		Address, Bytes, EvmAddress, HydraDXPrecompiles,
 	},
-	AssetRegistry, Balances, CallFilter, Currencies, Omnipool, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause,
+	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall, RuntimeOrigin, Tokens, TransactionPause,
 	EVM,
 };
 use orml_traits::MultiCurrency;
@@ -31,6 +26,291 @@ use std::borrow::Cow;
 use xcm_emulator::TestExt;
 
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
+
+mod account_conversion {
+	use super::*;
+	use frame_support::{assert_noop, assert_ok};
+	use pretty_assertions::assert_eq;
+
+	#[test]
+	fn eth_address_should_convert_to_truncated_address_when_not_bound() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+			// truncated address
+			let substrate_address: AccountId = EVMAccounts::truncated_account_id(evm_address);
+
+			assert_eq!(ExtendedAddressMapping::into_account_id(evm_address), substrate_address);
+
+			assert_eq!(EVMAccounts::account_id(evm_address), substrate_address);
+			assert_eq!(EVMAccounts::bound_account_id(evm_address), None);
+		});
+	}
+
+	#[test]
+	fn eth_address_should_convert_to_full_address_when_bound() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let substrate_address: AccountId = Into::<AccountId>::into(ALICE);
+			let evm_address = EVMAccounts::evm_address(&substrate_address);
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				substrate_address.clone()
+			)));
+
+			assert_eq!(ExtendedAddressMapping::into_account_id(evm_address), substrate_address);
+
+			assert_eq!(EVMAccounts::account_id(evm_address), substrate_address);
+			assert_eq!(EVMAccounts::bound_account_id(evm_address), Some(substrate_address));
+		});
+	}
+
+	#[test]
+	fn bind_address_should_fail_when_already_bound() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)),);
+
+			assert_noop!(
+				EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
+				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::AddressAlreadyBound,
+			);
+		});
+	}
+
+	#[test]
+	fn bind_address_should_fail_when_nonce_is_not_zero() {
+		use pallet_evm_accounts::EvmNonceProvider;
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			// Arrange
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+			let truncated_address = EVMAccounts::truncated_account_id(evm_address);
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				truncated_address,
+				WETH,
+				100 * UNITS as i128,
+			));
+
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			// Act
+			assert_ok!(EVM::call(
+				evm_signed_origin(evm_address),
+				evm_address,
+				DISPATCH_ADDR,
+				data,
+				U256::from(0),
+				1000000,
+				gas_price(),
+				None,
+				Some(U256::zero()),
+				[].into()
+			));
+
+			// Assert
+			assert!(hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address) != U256::zero());
+
+			assert_noop!(
+				EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
+				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::TruncatedAccountAlreadyUsed,
+			);
+		});
+	}
+
+	#[test]
+	fn truncated_address_should_be_used_in_evm_precompile_when_not_bound() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+			let truncated_address = EVMAccounts::truncated_account_id(evm_address);
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				truncated_address,
+				HDX,
+				100 * UNITS as i128,
+			));
+
+			let data = EvmDataWriter::new_with_selector(Action::BalanceOf)
+				.write(Address::from(evm_address))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: evm_address,
+					caller: evm_address,
+					apparent_value: U256::from(0),
+				},
+				core_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			//Act
+			let result = MultiCurrencyPrecompile::<hydradx_runtime::Runtime>::execute(&mut handle);
+
+			//Assert
+
+			// 100 * UNITS, balance of truncated_address
+			let expected_output = hex! {"
+				00000000000000000000000000000000 000000000000000000005AF3107A4000
+			"};
+
+			assert_eq!(
+				result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: expected_output.to_vec()
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn full_address_should_be_used_in_evm_precompile_when_bound() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+
+			let data = EvmDataWriter::new_with_selector(Action::BalanceOf)
+				.write(Address::from(evm_address))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: evm_address,
+					caller: evm_address,
+					apparent_value: U256::from(0),
+				},
+				core_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			//Act
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)),);
+
+			let result = MultiCurrencyPrecompile::<hydradx_runtime::Runtime>::execute(&mut handle);
+
+			//Assert
+
+			// 1000 * UNITS, balance of ALICE
+			let expected_output = hex! {"
+				00000000000000000000000000000000 000000000000000000038D7EA4C68000
+			"};
+			assert_eq!(
+				result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: expected_output.to_vec()
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn bind_evm_address_tx_cost_should_be_increased_by_fee_multiplier() {
+		// the fee multiplier is in the pallet evm accounts config and the desired fee is 10 HDX
+		use pallet_transaction_payment::{Multiplier, NextFeeMultiplier};
+		use primitives::constants::currency::UNITS;
+		use sp_runtime::FixedPointNumber;
+
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let call = pallet_evm_accounts::Call::<hydradx_runtime::Runtime>::bind_evm_address {};
+			let info = call.get_dispatch_info();
+			// convert to outer call
+			let call = hydradx_runtime::RuntimeCall::EVMAccounts(call);
+			let len = call.using_encoded(|e| e.len()) as u32;
+
+			NextFeeMultiplier::<hydradx_runtime::Runtime>::put(Multiplier::saturating_from_integer(1));
+			let fee_raw = hydradx_runtime::TransactionPayment::compute_fee_details(len, &info, 0);
+			let fee = fee_raw.final_fee();
+
+			// simple test that the fee is approximately 10 HDX
+			assert!(fee / UNITS == 10);
+		});
+	}
+
+	#[test]
+	fn evm_call_from_runtime_rpc_should_be_accepted_from_bound_addresses() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			//Act & Assert
+			assert_ok!(hydradx_runtime::Runtime::call(
+				evm_address(), // from
+				DISPATCH_ADDR, // to
+				data,          // data
+				U256::from(1000u64),
+				U256::from(100000u64),
+				None,
+				None,
+				None,
+				false,
+				None,
+			));
+		});
+	}
+
+	#[test]
+	fn evm_call_from_runtime_rpc_should_not_be_accepted_from_bound_addresses() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)),);
+
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+
+			//Act & Assert
+			assert_noop!(
+				hydradx_runtime::Runtime::call(
+					evm_address,   // from
+					DISPATCH_ADDR, // to
+					data,          // data
+					U256::from(1000u64),
+					U256::from(100000u64),
+					None,
+					None,
+					None,
+					false,
+					None,
+				),
+				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::BoundAddressCannotBeUsed
+			);
+		});
+	}
+}
 
 mod standard_precompiles {
 	use super::*;
@@ -355,7 +635,19 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), HDX, b"xHDX".to_vec(), 12u8).unwrap();
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX,
+				Some(b"xHDX".to_vec().try_into().unwrap()),
+				None,
+				None,
+				None,
+				None,
+				Some(b"xHDX".to_vec().try_into().unwrap()),
+				Some(12u8),
+				None,
+			)
+			.unwrap();
 
 			let data = EvmDataWriter::new_with_selector(Action::Symbol).build();
 
@@ -391,7 +683,19 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			AssetRegistry::set_metadata(hydradx_runtime::RuntimeOrigin::root(), HDX, b"xHDX".to_vec(), 12u8).unwrap();
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX,
+				Some(b"xHDX".to_vec().try_into().unwrap()),
+				None,
+				None,
+				None,
+				None,
+				None,
+				Some(12u8),
+				None,
+			)
+			.unwrap();
 
 			let data = EvmDataWriter::new_with_selector(Action::Decimals).build();
 
@@ -452,7 +756,7 @@ mod currency_precompile {
 
 			// 950331588000000000
 			let expected_output = hex! {"
-				00000000000000000000000000000000 00000000000000000D30418B5192A800								  
+				00000000000000000000000000000000 00000000000000000D30418B5192A800
 			"};
 
 			assert_eq!(
@@ -684,6 +988,59 @@ mod currency_precompile {
 
 	pub fn alice_substrate_evm_addr() -> AccountId {
 		ExtendedAddressMapping::into_account_id(alice_evm_addr())
+	}
+}
+
+mod contract_deployment {
+	use super::*;
+	use frame_support::assert_noop;
+	use pretty_assertions::assert_eq;
+
+	#[test]
+	fn create_contract_from_runtime_rpc_should_be_rejected_if_address_is_not_whitelisted() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			assert_noop!(
+				hydradx_runtime::Runtime::create(
+					evm_address(),
+					vec![0, 1, 1, 0],
+					U256::zero(),
+					U256::from(100000u64),
+					None,
+					None,
+					None,
+					false,
+					None,
+				),
+				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::AddressNotWhitelisted
+			);
+		});
+	}
+
+	#[test]
+	fn create_contract_from_runtime_rpc_should_be_accepted_if_address_is_whitelisted() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+			assert_ok!(EVMAccounts::add_contract_deployer(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_address
+			));
+
+			assert_ok!(hydradx_runtime::Runtime::create(
+				evm_address,
+				vec![0, 1, 1, 0],
+				U256::zero(),
+				U256::from(100000u64),
+				None,
+				None,
+				None,
+				false,
+				None,
+			));
+		});
 	}
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "208.0.0"
+version = "212.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -13,7 +13,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 substrate-wasm-builder = { workspace = true }
 
 [dependencies]
-hex-literal = { workspace = true }
+hex-literal = "0.4.1"
 serde = { features = ["derive"], optional = true, version = "1.0.136" }
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
@@ -37,6 +37,8 @@ pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
+pallet-evm-accounts = { workspace = true }
+pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -198,6 +200,7 @@ runtime-benchmarks = [
     "pallet-xyk/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
+    "pallet-evm-accounts/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -296,6 +299,8 @@ std = [
     "pallet-evm-precompile-blake2/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
+    "pallet-evm-accounts/std",
+    "pallet-evm-accounts-rpc-runtime-api/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -362,4 +367,5 @@ try-runtime= [
     "pallet-evm-chain-id/try-runtime",
     "pallet-xyk/try-runtime",
     "pallet-referrals/try-runtime",
+    "pallet-evm-accounts/try-runtime",
 ]

@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use super::*;
-use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, Runtime, System};
+use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, System};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
@@ -160,6 +160,13 @@ where
 	<T as frame_system::Config>::RuntimeOrigin: core::convert::From<frame_system::RawOrigin<sp_runtime::AccountId32>>,
 {
 	let maker: AccountId = account("xyk-maker", 0, SEED);
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
+		0_u32,
+		InsufficientEDinHDX::get() as i128,
+	));
 
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),

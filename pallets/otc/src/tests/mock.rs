@@ -20,13 +20,13 @@ use frame_support::{
 	traits::{Everything, Nothing},
 };
 use frame_system as system;
-use hydradx_traits::{AssetKind, Registry};
+use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, DispatchError,
+	BuildStorage,
 };
 use std::{cell::RefCell, collections::HashMap};
 
@@ -74,7 +74,7 @@ parameter_type_with_key! {
 	};
 }
 
-impl Config for Test {
+impl otc::Config for Test {
 	type AssetId = AssetId;
 	type AssetRegistry = DummyRegistry<Test>;
 	type Currency = Tokens;
@@ -132,27 +132,88 @@ impl orml_tokens::Config for Test {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T> {
+impl<T: Config> Inspect for DummyRegistry<T> {
+	type AssetId = AssetId;
+	type Location = u8;
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
 	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
 		matches!(asset, Some(_))
 	}
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
-		Ok(0)
-	}
-
-	fn retrieve_asset_type(_asset_id: AssetId) -> Result<AssetKind, DispatchError> {
+	fn is_banned(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::Create as CreateRegistry;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::DispatchError;
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T>
+where
+	T::AssetId: Into<AssetId> + From<u32>,
+{
+	type Error = DispatchError;
+	type Name = sp_runtime::BoundedVec<u8, sp_core::ConstU32<100>>;
+	type Symbol = sp_runtime::BoundedVec<u8, sp_core::ConstU32<100>>;
+
+	fn register_asset(
+		_asset_id: Option<Self::AssetId>,
+		_name: Option<Self::Name>,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<Self::Symbol>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
-			let l = v.borrow().len();
+			//NOTE: This is to have same ids as real AssetRegistry which is used in the benchmarks.
+			//1_000_000 - offset of the reals AssetRegistry
+			// - 3 - remove assets reagistered by default for the vec.len()
+			// +1 - first reg asset start with 1 not 0
+			// => 1-th asset id == 1_000_001
+			let l = 1_000_000 - 3 + 1 + v.borrow().len();
 			v.borrow_mut().insert(l as u32, l as u32);
 			l as u32
 		});
 		Ok(assigned)
+	}
+
+	fn get_or_register_asset(
+		_name: Self::Name,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<Self::Symbol>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		unimplemented!()
 	}
 }
 

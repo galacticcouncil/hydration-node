@@ -301,7 +301,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn account_currency(who: &T::AccountId) -> AssetIdOf<T>
+	pub fn account_currency(who: &T::AccountId) -> AssetIdOf<T>
 	where
 		BalanceOf<T>: FixedPointOperand,
 	{
