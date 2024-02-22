@@ -52,6 +52,3 @@ fork-testing/local-raw.json
 SNAPSHOT*
 
 db.sqlite
-
-__pycache__/
-memory_map.output
