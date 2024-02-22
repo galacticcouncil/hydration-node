@@ -264,28 +264,14 @@ runtime_benchmarks! {
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
 
-		let token_price = FixedU128::from((1,5));
-		let token_amount = 200_000_000_000_000_000_u128;
+		let token_price = FixedU128::from((5,1));
+		let token_amount = 100000 * UNITS;
 		//1000000000000000
 
 		update_balance(asset_6, &acc, token_amount);
 
 		// Add the token to the pool
 		Omnipool::add_token(RawOrigin::Root.into(), asset_6, token_price, Permill::from_percent(100), owner)?;
-
-		let route = vec![Trade {
-			pool: PoolType::Omnipool,
-			asset_in: HDX,
-			asset_out: asset_6
-		}];
-
-		Router::set_route(
-			RawOrigin::Signed(caller.clone()).into(),
-			AssetPair::new(HDX, asset_6),
-			route.clone(),
-		)?;
-
-		assert_eq!(3,4);
 
 		let better_route = vec![Trade {
 			pool: PoolType::XYK,
