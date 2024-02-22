@@ -1,6 +1,6 @@
 [package]
 name = "pallet-asset-registry"
-version = "2.3.3"
+version = "3.1.0"
 description = "Pallet for asset registry management"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -39,9 +39,11 @@ frame-benchmarking = { workspace = true, optional = true }
 sp-api = { workspace = true, optional = true }
 
 [dev-dependencies]
+orml-tokens = { workspace = true }
 sp-io = { workspace = true }
 polkadot-xcm = { workspace = true }
 test-utils = { workspace = true }
+pretty_assertions = "1.2.1"
 
 [features]
 default = ["std"]
@@ -63,6 +65,7 @@ std = [
   "frame-benchmarking/std",
   "scale-info/std",
   "polkadot-xcm/std",
+  "orml-tokens/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
 

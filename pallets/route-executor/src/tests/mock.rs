@@ -31,7 +31,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError,
 };
-
 use std::cell::RefCell;
 use std::ops::Deref;
 
@@ -146,9 +145,46 @@ impl Config for Test {
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
+	type InspectRegistry = MockedAssetRegistry;
 	type AMM = Pools;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
+}
+
+use hydradx_traits::AssetKind;
+pub struct MockedAssetRegistry;
+
+impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
+	type AssetId = AssetId;
+	type Location = ();
+
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		id <= 2000
+	}
+
+	fn exists(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
 }
 
 pub type AccountId = u64;
@@ -164,6 +200,7 @@ pub const RMRK: AssetId = 1004;
 pub const SDN: AssetId = 1005;
 pub const STABLE_SHARE_ASSET: AssetId = 1006;
 pub const DOT: AssetId = 1007;
+pub const INSUFFICIENT_ASSET: AssetId = 50000001;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
 
@@ -227,6 +264,7 @@ impl ExtBuilder {
 		let mut initial_accounts = vec![
 			(ASSET_PAIR_ACCOUNT, STABLE_SHARE_ASSET, 1000u128),
 			(ASSET_PAIR_ACCOUNT, AUSD, 1000u128),
+			(ASSET_PAIR_ACCOUNT, INSUFFICIENT_ASSET, 1000u128),
 			(ASSET_PAIR_ACCOUNT, MOVR, 1000u128),
 			(ASSET_PAIR_ACCOUNT, KSM, 1000u128),
 			(ASSET_PAIR_ACCOUNT, RMRK, 1000u128),
@@ -451,7 +489,7 @@ pub fn expect_no_route_executed_event() {
 
 	for event in &last_events {
 		let e = event.clone();
-		if matches!(e, RuntimeEvent::Router(crate::Event::<Test>::RouteExecuted { .. })) {
+		if matches!(e, RuntimeEvent::Router(crate::Event::<Test>::Executed { .. })) {
 			events.push(e);
 		}
 	}

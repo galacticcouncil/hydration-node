@@ -8,6 +8,7 @@ use polkadot_xcm::{latest::prelude::*, v3::WeightLimit, VersionedMultiAssets, Ve
 use cumulus_primitives_core::ParaId;
 use frame_support::weights::Weight;
 use hex_literal::hex;
+use hydradx_traits::registry::Mutate;
 use orml_traits::currency::MultiCurrency;
 use pretty_assertions::assert_eq;
 use sp_core::H256;
@@ -28,7 +29,6 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 	//Arrange
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::parent())
 		));
@@ -75,7 +75,6 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::parent())
 		));
@@ -111,7 +110,6 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			ACA,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -162,7 +160,6 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -213,7 +210,6 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 		init_omnipool();
 
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			DAI, // we pretend that the incoming tokens are DAI
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -325,7 +321,6 @@ fn claim_trapped_asset_should_work() {
 	// register the asset
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));

@@ -3,8 +3,8 @@
 use crate::polkadot_test_net::*;
 
 use frame_support::{assert_ok, pallet_prelude::Weight};
+use hydradx_traits::registry::Mutate;
 use orml_traits::currency::MultiCurrency;
-use pallet_asset_registry::AssetType;
 use polkadot_xcm::prelude::*;
 use xcm_emulator::TestExt;
 
@@ -26,7 +26,6 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			ACA,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -35,10 +34,14 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 		assert_ok!(hydradx_runtime::AssetRegistry::update(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ACA,
-			b"ACA".to_vec(),
-			AssetType::Token,
+			None,
+			None,
 			None,
 			Some(50 * UNITS),
+			None,
+			None,
+			None,
+			None
 		));
 
 		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
@@ -109,7 +112,6 @@ fn xcm_rate_limiter_should_not_limit_aca_when_limit_is_not_exceeded() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			ACA,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -118,10 +120,14 @@ fn xcm_rate_limiter_should_not_limit_aca_when_limit_is_not_exceeded() {
 		assert_ok!(hydradx_runtime::AssetRegistry::update(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ACA,
-			b"ACA".to_vec(),
-			AssetType::Token,
+			None,
+			None,
 			None,
 			Some(101 * UNITS),
+			None,
+			None,
+			None,
+			None
 		));
 	});
 
@@ -168,7 +174,6 @@ fn deferred_messages_should_be_executable_by_root() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			ACA,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -177,10 +182,14 @@ fn deferred_messages_should_be_executable_by_root() {
 		assert_ok!(hydradx_runtime::AssetRegistry::update(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ACA,
-			b"ACA".to_vec(),
-			AssetType::Token,
+			None,
+			None,
 			None,
 			Some(50 * UNITS),
+			None,
+			None,
+			None,
+			None
 		));
 
 		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);

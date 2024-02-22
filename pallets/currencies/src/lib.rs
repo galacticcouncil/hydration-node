@@ -851,9 +851,7 @@ impl<T: Config> TransferAll<T::AccountId> for Pallet<T> {
 }
 
 use frame_support::traits::fungible::{Dust, Inspect, Mutate, Unbalanced};
-use frame_support::traits::tokens::{
-	DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
-};
+use frame_support::traits::tokens::{DepositConsequence, Fortitude, Preservation, Provenance, WithdrawConsequence};
 
 impl<T: Config, AccountId, Currency, Amount, Moment> Inspect<AccountId>
 	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
@@ -922,16 +920,23 @@ impl<T: Config, AccountId, Currency, Amount, Moment> Mutate<AccountId>
 where
 	Currency: Mutate<AccountId>,
 {
-	fn mint_into(who: &AccountId, amount: Self::Balance) -> Result<Self::Balance, DispatchError> {
-		<Currency as Mutate<AccountId>>::mint_into(who, amount)
+	fn done_mint_into(who: &AccountId, amount: Self::Balance) {
+		<Currency as Mutate<AccountId>>::done_mint_into(who, amount)
 	}
 
-	fn burn_from(
-		who: &AccountId,
-		amount: Self::Balance,
-		precision: Precision,
-		force: Fortitude,
-	) -> Result<Self::Balance, DispatchError> {
-		<Currency as Mutate<AccountId>>::burn_from(who, amount, precision, force)
+	fn done_burn_from(who: &AccountId, amount: Self::Balance) {
+		<Currency as Mutate<AccountId>>::done_burn_from(who, amount)
+	}
+
+	fn done_shelve(who: &AccountId, amount: Self::Balance) {
+		<Currency as Mutate<AccountId>>::done_shelve(who, amount)
+	}
+
+	fn done_restore(who: &AccountId, amount: Self::Balance) {
+		<Currency as Mutate<AccountId>>::done_restore(who, amount)
+	}
+
+	fn done_transfer(source: &AccountId, dest: &AccountId, amount: Self::Balance) {
+		<Currency as Mutate<AccountId>>::done_transfer(source, dest, amount)
 	}
 }

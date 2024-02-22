@@ -408,6 +408,13 @@ fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> Account
 fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 	let caller: AccountId = funded_account("caller", 0, &[asset_a, asset_b]);
 
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		caller.clone(),
+		0,
+		10 * ONE as i128,
+	));
+
 	let amount = 100000 * ONE;
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),
@@ -454,9 +461,19 @@ mod tests {
 			.unwrap();
 
 		pallet_asset_registry::GenesisConfig::<Runtime> {
-			registered_assets: vec![(b"DAI".to_vec(), 1_000u128, Some(DAI))],
-			native_asset_name: b"HDX".to_vec(),
+			registered_assets: vec![(
+				Some(DAI),
+				Some(b"DAI".to_vec().try_into().unwrap()),
+				1_000u128,
+				None,
+				None,
+				None,
+				false,
+			)],
+			native_asset_name: b"HDX".to_vec().try_into().unwrap(),
 			native_existential_deposit: NativeExistentialDeposit::get(),
+			native_decimals: 12,
+			native_symbol: b"HDX".to_vec().try_into().unwrap(),
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

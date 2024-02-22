@@ -18,6 +18,7 @@
 use super::*;
 use crate::system::NativeAssetId;
 
+use frame_support::traits::Defensive;
 use hydradx_adapters::{
 	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
 	OracleAssetVolumeProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
@@ -25,8 +26,9 @@ use hydradx_adapters::{
 
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{
+	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
-	AccountIdFor, AssetKind, AssetPairAccountIdFor, OnTradeHandler, OraclePeriod, Source,
+	AccountIdFor, AssetKind, AssetPairAccountIdFor, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
 };
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{
@@ -42,6 +44,7 @@ use primitives::constants::{
 	chain::OMNIPOOL_SOURCE,
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 };
+use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedPointNumber};
 
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -50,20 +53,20 @@ use frame_support::{
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, EnsureOrigin, Imbalance, NeverEnsureOrigin, OnUnbalanced,
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, EnsureOrigin, Imbalance, LockIdentifier,
+		NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use orml_traits::currency::MutationHooks;
-use orml_traits::{GetByKey, MultiCurrency};
+use orml_traits::currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer};
+use orml_traits::{GetByKey, Happened};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES};
-use pallet_staking::types::Action;
+use pallet_staking::types::{Action, Point};
 use pallet_staking::SigmoidPercentage;
 use pallet_xyk::weights::WeightInfo as XykWeights;
-use sp_runtime::{DispatchError, FixedPointNumber};
 use sp_std::num::NonZeroU16;
 
 parameter_types! {
@@ -108,12 +111,178 @@ pub struct CurrencyHooks;
 impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
 	type OnSlash = ();
-	type PreDeposit = ();
+	type PreDeposit = SufficiencyCheck;
 	type PostDeposit = ();
-	type PreTransfer = ();
+	type PreTransfer = SufficiencyCheck;
 	type PostTransfer = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
-	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Runtime>;
+	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
+}
+
+pub const SUFFICIENCY_LOCK: LockIdentifier = *b"insuffED";
+
+parameter_types! {
+	//NOTE: This should always be > 1 otherwise we will payout more than we collected as ED for
+	//insufficient assets.
+	pub InsufficientEDinHDX: Balance = FixedU128::from_rational(11, 10)
+		.saturating_mul_int(<Runtime as pallet_balances::Config>::ExistentialDeposit::get());
+}
+
+pub struct SufficiencyCheck;
+impl SufficiencyCheck {
+	/// This function is used by `orml-toknes::MutationHooks` before a transaction is executed.
+	/// It is called from `PreDeposit` and `PreTransfer`.
+	/// If transferred asset is not sufficient asset, it calculates ED amount in user's fee asset
+	/// and transfers it from user to treasury account.
+	/// Function also locks corresponding HDX amount in the treasury because returned ED to the users
+	/// when the account is killed is in the HDX. We are collecting little bit more (currencty 10%)than
+	/// we are paying back when account is killed.
+	///
+	/// We assume account already paid ED if it holds transferred insufficient asset so additional
+	/// ED payment is not necessary.
+	///
+	/// NOTE: `OnNewTokenAccount` mutation hooks is not used because it can't fail so we would not
+	/// be able to fail transactions e.g. if the user doesn't have enough funds to pay ED.
+	///
+	/// ED payment - transfer:
+	/// - if both sender and dest. accounts are regular accounts, sender pays ED for dest. account.
+	/// - if sender is whitelisted account, dest. accounts pays its own ED.
+	///
+	/// ED payment - deposit:
+	/// - dest. accounts always pays its own ED no matter if it's whitelisted or not.
+	///
+	/// ED release:
+	/// ED is always released on account kill to killed account, whitelisting doesn't matter.
+	/// Released ED amount is calculated from locked HDX divided by number of accounts that paid
+	/// ED.
+	///
+	/// WARN:
+	/// `set_balance` - bypass `MutationHooks` so no one pays ED for these account but ED is still released
+	/// when account is killed.
+	///
+	/// Emits `pallet_asset_registry::Event::ExistentialDepositPaid` when ED was paid.
+	fn on_funds(asset: AssetId, paying_account: &AccountId, to: &AccountId) -> DispatchResult {
+		if AssetRegistry::is_banned(asset) {
+			return Err(DispatchError::Other("BannedAssetTransfer"));
+		}
+
+		//NOTE: To prevent duplicate ED collection we assume account already paid ED
+		//if it has any amount of `asset`(exists in the storage).
+		if !orml_tokens::Accounts::<Runtime>::contains_key(to, asset) && !AssetRegistry::is_sufficient(asset) {
+			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);
+
+			let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)
+				.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
+				.saturating_mul_int(InsufficientEDinHDX::get())
+				.max(1);
+
+			//NOTE: Account doesn't have enough funds to pay ED if this fail.
+			<Currencies as MultiCurrency<AccountId>>::transfer(
+				fee_payment_asset,
+				paying_account,
+				&TreasuryAccount::get(),
+				ed_in_fee_asset,
+			)
+			.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
+
+			//NOTE: we are locking little bit less than charging.
+			let to_lock = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
+				.iter()
+				.find(|x| x.id == SUFFICIENCY_LOCK)
+				.map(|p| p.amount)
+				.unwrap_or_default()
+				.saturating_add(<Runtime as pallet_balances::Config>::ExistentialDeposit::get());
+
+			<Currencies as MultiLockableCurrency<AccountId>>::set_lock(
+				SUFFICIENCY_LOCK,
+				NativeAssetId::get(),
+				&TreasuryAccount::get(),
+				to_lock,
+			)?;
+
+			frame_system::Pallet::<Runtime>::inc_sufficients(to);
+
+			pallet_asset_registry::ExistentialDepositCounter::<Runtime>::mutate(|v| *v = v.saturating_add(1));
+
+			pallet_asset_registry::Pallet::<Runtime>::deposit_event(
+				pallet_asset_registry::Event::<Runtime>::ExistentialDepositPaid {
+					who: paying_account.clone(),
+					fee_asset: fee_payment_asset,
+					amount: ed_in_fee_asset,
+				},
+			);
+		}
+
+		Ok(())
+	}
+}
+
+impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
+	fn on_transfer(asset: AssetId, from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
+		//NOTE: `to` is paying ED if `from` is whitelisted.
+		//This can happen if pallet's account transfers insufficient tokens to another account.
+		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(from) {
+			Self::on_funds(asset, to, to)
+		} else {
+			Self::on_funds(asset, from, to)
+		}
+	}
+}
+
+impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
+	fn on_deposit(asset: AssetId, to: &AccountId, _amount: Balance) -> DispatchResult {
+		Self::on_funds(asset, to, to)
+	}
+}
+
+pub struct OnKilledTokenAccount;
+impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
+	fn happened((who, asset): &(AccountId, AssetId)) {
+		if AssetRegistry::is_sufficient(*asset) || frame_system::Pallet::<Runtime>::account(who).sufficients.is_zero() {
+			return;
+		}
+
+		let locked_ed = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
+			.iter()
+			.find(|x| x.id == SUFFICIENCY_LOCK)
+			.map(|p| p.amount)
+			.unwrap_or_default();
+
+		let paid_counts = pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get();
+		let ed_to_refund = if paid_counts != 0 {
+			locked_ed.saturating_div(paid_counts)
+		} else {
+			0
+		};
+		let to_lock = locked_ed.saturating_sub(ed_to_refund);
+
+		if to_lock.is_zero() {
+			let _ = <Currencies as MultiLockableCurrency<AccountId>>::remove_lock(
+				SUFFICIENCY_LOCK,
+				NativeAssetId::get(),
+				&TreasuryAccount::get(),
+			)
+			.defensive();
+		} else {
+			let _ = <Currencies as MultiLockableCurrency<AccountId>>::set_lock(
+				SUFFICIENCY_LOCK,
+				NativeAssetId::get(),
+				&TreasuryAccount::get(),
+				to_lock,
+			)
+			.defensive();
+		}
+
+		let _ = <Currencies as MultiCurrency<AccountId>>::transfer(
+			NativeAssetId::get(),
+			&TreasuryAccount::get(),
+			who,
+			ed_to_refund,
+		);
+
+		frame_system::Pallet::<Runtime>::dec_sufficients(who);
+		pallet_asset_registry::ExistentialDepositCounter::<Runtime>::set(paid_counts.saturating_sub(1));
+	}
 }
 
 impl orml_tokens::Config for Runtime {
@@ -189,19 +358,25 @@ impl pallet_claims::Config for Runtime {
 }
 
 parameter_types! {
+	#[derive(PartialEq, Debug)]
 	pub const RegistryStrLimit: u32 = 32;
+	#[derive(PartialEq, Debug)]
+	pub const MinRegistryStrLimit: u32 = 3;
 	pub const SequentialIdOffset: u32 = 1_000_000;
+	pub const RegExternalWeightMultiplier: u64 = 10;
 }
 
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type RegistryOrigin = SuperMajorityTechCommittee;
+	type RegistryOrigin = EnsureRoot<AccountId>;
+	type UpdateOrigin = SuperMajorityTechCommittee;
+	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
 	type AssetId = AssetId;
-	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
+	type MinStringLimit = MinRegistryStrLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
-	type NativeAssetId = NativeAssetId;
+	type RegExternalWeightMultiplier = RegExternalWeightMultiplier;
 	type WeightInfo = weights::registry::HydraWeight<Runtime>;
 }
 
@@ -778,6 +953,7 @@ impl pallet_route_executor::Config for Runtime {
 	type AMM = (Omnipool, Stableswap, XYK, LBP);
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
+	type InspectRegistry = AssetRegistry;
 }
 
 parameter_types! {
@@ -854,33 +1030,41 @@ use pallet_currencies::fungibles::FungibleCurrencies;
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
+use frame_support::storage::with_transaction;
+#[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::registry::Create;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::DispatchResult;
-
+use sp_runtime::TransactionOutcome;
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
 
 #[cfg(feature = "runtime-benchmarks")]
 impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsset<T> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
-		let asset_name = asset_id.to_le_bytes().to_vec();
-		let name: BoundedVec<u8, RegistryStrLimit> = asset_name
-			.clone()
+		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id
+			.to_le_bytes()
+			.to_vec()
 			.try_into()
-			.map_err(|_| pallet_asset_registry::Error::<T>::TooLong)?;
-		AssetRegistry::register_asset(
-			name,
-			pallet_asset_registry::AssetType::<AssetId>::Token,
-			1,
-			Some(asset_id),
-			None,
-		)?;
-		AssetRegistry::set_metadata(RuntimeOrigin::root(), asset_id, asset_name, decimals)?;
+			.map_err(|_| "BoundedConversionFailed")?;
+
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(asset_id),
+				Some(asset_name.clone()),
+				AssetKind::Token,
+				1,
+				Some(asset_name),
+				Some(decimals),
+				None,
+				None,
+			))
+		})?;
 
 		Ok(())
 	}
@@ -955,6 +1139,14 @@ impl GetByKey<Action, u32> for PointsPerAction {
 	}
 }
 
+pub struct StakingMinSlash;
+
+impl GetByKey<FixedU128, Point> for StakingMinSlash {
+	fn get(_k: &FixedU128) -> Point {
+		50_u128
+	}
+}
+
 impl pallet_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = MajorityOfCouncil;
@@ -981,6 +1173,7 @@ impl pallet_staking::Config for Runtime {
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
 	type WeightInfo = weights::staking::HydraWeight<Runtime>;
+	type MinSlash = StakingMinSlash;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;
@@ -1039,7 +1232,7 @@ impl pallet_xyk::Config for Runtime {
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
-	type CanCreatePool = pallet_lbp::DisallowWhenLBPPoolRunning<Runtime>;
+	type CanCreatePool = hydradx_adapters::xyk::AllowPoolCreation<Runtime, AssetRegistry>;
 	type AMMHandler = pallet_ema_oracle::OnActivityHandler<Runtime>;
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;
@@ -1178,18 +1371,22 @@ pub struct ReferralsBenchmarkHelper;
 impl RefBenchmarkHelper<AssetId, Balance> for ReferralsBenchmarkHelper {
 	fn prepare_convertible_asset_and_amount() -> (AssetId, Balance) {
 		let asset_id: u32 = 1234u32;
-		let asset_name = asset_id.to_le_bytes().to_vec();
-		let name: BoundedVec<u8, RegistryStrLimit> = asset_name.clone().try_into().unwrap();
+		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id.to_le_bytes().to_vec().try_into().unwrap();
 
-		AssetRegistry::register_asset(
-			name,
-			pallet_asset_registry::AssetType::<AssetId>::Token,
-			1_000_000,
-			Some(asset_id),
-			None,
-		)
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_asset(
+				Some(asset_id),
+				Some(asset_name.clone()),
+				AssetKind::Token,
+				Some(1_000_000),
+				Some(asset_name),
+				Some(18),
+				None,
+				None,
+				true,
+			))
+		})
 		.unwrap();
-		AssetRegistry::set_metadata(RuntimeOrigin::root(), asset_id, asset_name, 18).unwrap();
 
 		let native_price = FixedU128::from_inner(1201500000000000);
 		let asset_price = FixedU128::from_inner(45_000_000_000);
