@@ -17,7 +17,7 @@
 
 pub use crate as pallet_xcm_rate_limiter;
 
-use frame_support::traits::{Contains, GenesisBuild};
+use frame_support::traits::Contains;
 pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
 use frame_system::EnsureRoot;
@@ -32,16 +32,14 @@ use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	DispatchError,
+	BuildStorage, DispatchError,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
 
 use xcm::lts::prelude::*;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
@@ -77,10 +75,7 @@ thread_local! {
 }
 
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
 		System: frame_system,
 		Balances: pallet_balances,
@@ -102,13 +97,12 @@ impl frame_system::Config for Test {
 	type DbWeight = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type Version = ();
@@ -183,6 +177,10 @@ impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type MaxReserves = ConstU32<50>;
 	type ReserveIdentifier = [u8; 8];
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 parameter_type_with_key! {
@@ -307,35 +305,45 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 }
 
 use crate::Config;
-use hydradx_traits::{AssetKind, Registry};
+use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
 use pallet_omnipool::traits::ExternalPriceProvider;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
+	type AssetId = T::AssetId;
+	type Location = MultiLocation;
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
 	fn exists(asset_id: T::AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
 		matches!(asset, Some(_))
 	}
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
-	}
-
-	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+	fn is_banned(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
-		let assigned = REGISTERED_ASSETS.with(|v| {
-			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, l as u32);
-			l as u32
-		});
-		Ok(T::AssetId::from(assigned))
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
 	}
 }
 
@@ -409,7 +417,7 @@ impl Default for ExtBuilder {
 
 impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		// Add DAi and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {

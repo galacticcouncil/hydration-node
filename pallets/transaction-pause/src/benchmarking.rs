@@ -46,5 +46,5 @@ mod tests {
 	use crate::mock::*;
 	use frame_benchmarking::impl_benchmark_test_suite;
 
-	impl_benchmark_test_suite!(Pallet, super::ExtBuilder::default().build(), super::Runtime);
+	impl_benchmark_test_suite!(Pallet, super::ExtBuilder.build(), super::Runtime);
 }

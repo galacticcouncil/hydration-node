@@ -13,8 +13,8 @@ use pallet_session::SessionManager;
 
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	BuildStorage,
 };
 use sp_staking::SessionIndex;
 use sp_std::vec::Vec;
@@ -24,7 +24,6 @@ type Balance = u128;
 type Amount = i128;
 type AssetId = u32;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub const GC_COLL_1: AccountId = 1;
@@ -40,15 +39,12 @@ pub const NATIVE_TOKEN: AssetId = 0;
 pub const COLLATOR_REWARD: Balance = 10_000;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	Block = Block,
-	NodeBlock = Block,
-	UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		CollatorRewards: collator_rewards::{Pallet, Storage, Event<T>},
+		System: frame_system,
+		Tokens: orml_tokens,
+		Balances: pallet_balances,
+		CollatorRewards: collator_rewards,
 	}
 );
 
@@ -62,13 +58,12 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -118,6 +113,10 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 parameter_types! {
@@ -159,8 +158,8 @@ pub struct ExtBuilder {}
 
 impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::default()
-			.build_storage::<Test>()
+		frame_system::GenesisConfig::<Test>::default()
+			.build_storage()
 			.unwrap()
 			.into()
 	}

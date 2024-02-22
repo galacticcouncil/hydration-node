@@ -19,9 +19,9 @@
 
 use primitives::Amount;
 
-use frame_support::dispatch::Weight;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use frame_support::traits::{ConstU128, Contains, Everything, GenesisBuild};
+use frame_support::traits::{ConstU128, Contains, Everything};
+use frame_support::weights::Weight;
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -31,7 +31,10 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::{AssetKind, AssetPairAccountIdFor, CanCreatePool, Registry, ShareTokenRegistry};
+use hydradx_traits::{
+	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
+	Inspect as InspectRegistry,
+};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::BasicCurrencyAdapter;
@@ -41,15 +44,14 @@ use pallet_omnipool::traits::ExternalPriceProvider;
 use primitive_types::{U128, U256};
 use sp_core::H256;
 use sp_runtime::traits::Zero;
-use sp_runtime::Permill;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	DispatchError, DispatchResult, FixedU128,
+	BuildStorage, DispatchError, DispatchResult, FixedU128,
 };
+use sp_runtime::{BoundedVec, Permill};
 use std::cell::RefCell;
 use std::collections::HashMap;
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
@@ -88,10 +90,7 @@ thread_local! {
 }
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
 		System: frame_system,
 		Balances: pallet_balances,
@@ -109,13 +108,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -140,6 +138,10 @@ impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type MaxReserves = ConstU32<50>;
 	type ReserveIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 parameter_type_with_key! {
@@ -311,17 +313,54 @@ pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
+	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 }
 
 type Pools = (Omnipool, XYK);
 
+pub struct MockedAssetRegistry;
+
+impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
+	type AssetId = AssetId;
+	type Location = ();
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		true
+	}
+
+	fn exists(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+}
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
+	type InspectRegistry = MockedAssetRegistry;
 	type AMM = Pools;
+	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 }
 
@@ -416,7 +455,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		// Add DAi and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {
@@ -572,44 +611,88 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: pallet_omnipool::Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: pallet_omnipool::Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
-	fn exists(asset_id: T::AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
-		matches!(asset, Some(_))
-	}
+	type AssetId = AssetId;
+	type Location = u8;
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
-	}
-
-	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
-		let assigned = REGISTERED_ASSETS.with(|v| {
-			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, l as u32);
-			l as u32
-		});
-		Ok(T::AssetId::from(assigned))
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn exists(asset_id: AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
+		matches!(asset, Some(_))
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
 	}
 }
 
-impl<T: pallet_omnipool::Config> ShareTokenRegistry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: pallet_omnipool::Config> CreateRegistry<Balance> for DummyRegistry<T>
 where
-	u32: From<<T as pallet_omnipool::Config>::AssetId>,
-	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+	T::AssetId: Into<AssetId> + From<u32>,
 {
-	fn retrieve_shared_asset(_: &Vec<u8>, _: &[T::AssetId]) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
+	type Error = DispatchError;
+	type Name = BoundedVec<u8, ConstU32<50>>;
+	type Symbol = BoundedVec<u8, ConstU32<50>>;
+
+	fn register_asset(
+		_asset_id: Option<Self::AssetId>,
+		_name: Option<Self::Name>,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<Self::Symbol>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		unimplemented!()
 	}
 
-	fn create_shared_asset(_: &Vec<u8>, _: &[T::AssetId], _: Balance) -> Result<T::AssetId, DispatchError> {
-		unimplemented!("not implemented method: create_shared_asset")
+	fn register_insufficient_asset(
+		_asset_id: Option<Self::AssetId>,
+		_name: Option<Self::Name>,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<Self::Symbol>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+	) -> Result<Self::AssetId, Self::Error> {
+		unimplemented!()
+	}
+	fn get_or_register_asset(
+		_name: Self::Name,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<Self::Symbol>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		Ok(T::AssetId::default().into())
 	}
 }
 

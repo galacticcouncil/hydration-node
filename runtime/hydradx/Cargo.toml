@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "195.0.0"
+version = "214.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -10,7 +10,6 @@ repository = "https://github.com/galacticcouncil/HydraDX-node"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-build-script-utils = { workspace = true }
 substrate-wasm-builder = { workspace = true }
 
 [dependencies]
@@ -19,6 +18,7 @@ serde = { features = ["derive"], optional = true, version = "1.0.136" }
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 smallvec = "1.9.0"
+log = { workspace = true }
 num_enum = { version = "0.5.1", default-features = false }
 
 # local dependencies
@@ -35,6 +35,9 @@ pallet-stableswap = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
+pallet-referrals = { workspace = true }
+pallet-evm-accounts = { workspace = true }
+pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -61,7 +64,7 @@ pallet-xcm-rate-limiter = { workspace = true }
 hydradx-adapters = { workspace = true }
 hydradx-traits = { workspace = true }
 pallet-relaychain-info = { workspace = true }
-pallet-transaction-multi-payment = { workspace = true }
+pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-asset-registry = { workspace = true }
 pallet-collator-rewards = { workspace = true }
 pallet-currencies = { workspace = true }
@@ -127,6 +130,7 @@ sp-offchain = { workspace = true }
 sp-runtime = { workspace = true }
 sp-session = { workspace = true }
 sp-std = { workspace = true }
+sp-staking = { workspace = true }
 sp-transaction-pool = { workspace = true }
 sp-version = { workspace = true }
 sp-trie = { workspace = true }
@@ -135,11 +139,15 @@ primitive-types = {  workspace = true }
 
 # Frontier
 fp-rpc = { workspace = true }
-fp-self-contained = { workspace = true }
+fp-self-contained = { workspace = true, features = ["serde"] }
 pallet-ethereum = { workspace = true }
 pallet-evm = { workspace = true }
 pallet-evm-chain-id = { workspace = true }
 pallet-evm-precompile-dispatch = { workspace = true }
+pallet-evm-precompile-simple = { workspace = true }
+pallet-evm-precompile-modexp = { workspace = true }
+pallet-evm-precompile-bn128 = { workspace = true }
+pallet-evm-precompile-blake2 = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { version = "18.0.0", default-features = false }
 
@@ -170,8 +178,8 @@ runtime-benchmarks = [
     "pallet-utility/runtime-benchmarks",
     "pallet-democracy/runtime-benchmarks",
     "pallet-asset-registry/runtime-benchmarks",
-    "pallet-xcm/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
+    "cumulus-pallet-parachain-system/runtime-benchmarks",
     "cumulus-pallet-xcmp-queue/runtime-benchmarks",
     "pallet-uniques/runtime-benchmarks",
     "pallet-omnipool/runtime-benchmarks",
@@ -189,6 +197,9 @@ runtime-benchmarks = [
     "pallet-stableswap/runtime-benchmarks",
     "pallet-lbp/runtime-benchmarks",
     "pallet-xyk/runtime-benchmarks",
+    "pallet-elections-phragmen/runtime-benchmarks",
+    "pallet-referrals/runtime-benchmarks",
+    "pallet-evm-accounts/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -252,6 +263,15 @@ std = [
     "pallet-ema-oracle/std",
     "pallet-otc/std",
     "pallet-route-executor/std",
+    "pallet-omnipool-liquidity-mining/std",
+    "pallet-dynamic-fees/std",
+    "pallet-staking/std",
+    "pallet-bonds/std",
+    "pallet-stableswap/std",
+    "pallet-lbp/std",
+    "pallet-xyk/std",
+    "pallet-duster/std",
+    "warehouse-liquidity-mining/std",
     "sp-api/std",
     "sp-block-builder/std",
     "sp-consensus-aura/std",
@@ -266,21 +286,20 @@ std = [
     "sp-trie/std",
     "sp-transaction-pool/std",
     "sp-version/std",
-    "pallet-duster/std",
-    "warehouse-liquidity-mining/std",
-    "pallet-omnipool-liquidity-mining/std",
-    "pallet-dynamic-fees/std",
-    "pallet-staking/std",
-    "pallet-bonds/std",
-    "pallet-stableswap/std",
-    "pallet-lbp/std",
     "fp-rpc/std",
     "fp-self-contained/std",
     "pallet-ethereum/std",
     "pallet-evm/std",
     "pallet-evm-chain-id/std",
     "pallet-evm-precompile-dispatch/std",
+    "pallet-evm-precompile-simple/std",
+    "pallet-evm-precompile-modexp/std",
+    "pallet-evm-precompile-bn128/std",
+    "pallet-evm-precompile-blake2/std",
     "pallet-xyk/std",
+    "pallet-referrals/std",
+    "pallet-evm-accounts/std",
+    "pallet-evm-accounts-rpc-runtime-api/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -328,13 +347,11 @@ try-runtime= [
     "pallet-collator-rewards/try-runtime",
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",
-    "pallet-transaction-pause/try-runtime",
     "pallet-duster/try-runtime",
     "warehouse-liquidity-mining/try-runtime",
     "pallet-omnipool-liquidity-mining/try-runtime",
     "pallet-circuit-breaker/try-runtime",
     "pallet-xcm-rate-limiter/try-runtime",
-    "pallet-ema-oracle/try-runtime",
     "pallet-otc/try-runtime",
     "pallet-route-executor/try-runtime",
     "pallet-dynamic-fees/try-runtime",
@@ -342,9 +359,12 @@ try-runtime= [
     "pallet-bonds/try-runtime",
     "pallet-stableswap/try-runtime",
     "pallet-lbp/try-runtime",
+    "pallet-xyk/try-runtime",
     "fp-self-contained/try-runtime",
     "pallet-ethereum/try-runtime",
     "pallet-evm/try-runtime",
     "pallet-evm-chain-id/try-runtime",
     "pallet-xyk/try-runtime",
+    "pallet-referrals/try-runtime",
+    "pallet-evm-accounts/try-runtime",
 ]

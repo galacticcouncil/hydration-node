@@ -29,13 +29,16 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
-	sp_runtime::{traits::IdentityLookup, FixedPointNumber, Perbill, Perquintill},
-	traits::{Contains, InstanceFilter},
+	sp_runtime::{
+		traits::{ConstU32, IdentityLookup},
+		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
+	},
+	traits::{ConstBool, Contains, InstanceFilter},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
-	PalletId, RuntimeDebug,
+	PalletId,
 };
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use scale_info::TypeInfo;
@@ -92,6 +95,9 @@ impl Contains<RuntimeCall> for CallFilter {
 
 		match call {
 			RuntimeCall::PolkadotXcm(pallet_xcm::Call::send { .. }) => true,
+			// create and create2 are only allowed through RPC or Runtime API
+			RuntimeCall::EVM(pallet_evm::Call::create { .. }) => false,
+			RuntimeCall::EVM(pallet_evm::Call::create2 { .. }) => false,
 			RuntimeCall::PolkadotXcm(_) => false,
 			RuntimeCall::OrmlXcm(_) => false,
 			_ => true,
@@ -145,9 +151,9 @@ impl frame_system::Config for Runtime {
 	/// The aggregated dispatch type that is available for extrinsics.
 	type RuntimeCall = RuntimeCall;
 	/// The index type for storing how many extrinsics an account has signed.
-	type Index = Index;
+	type Nonce = Index;
 	/// The index type for blocks.
-	type BlockNumber = BlockNumber;
+	type Block = Block;
 	/// The type for hashing blocks and tries.
 	type Hash = Hash;
 	/// The hashing algorithm used.
@@ -156,8 +162,6 @@ impl frame_system::Config for Runtime {
 	type AccountId = AccountId;
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
 	type Lookup = IdentityLookup<AccountId>;
-	/// The header type.
-	type Header = generic::Header<BlockNumber, BlakeTwo256>;
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
@@ -222,6 +226,7 @@ impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type MaxAuthorities = MaxAuthorities;
 	type DisabledValidators = ();
+	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
 impl parachain_info::Config for Runtime {}
@@ -236,7 +241,6 @@ impl pallet_authorship::Config for Runtime {
 parameter_types! {
 	pub const PotId: PalletId = PalletId(*b"PotStake");
 	pub const MaxCandidates: u32 = 0;
-	pub const MinCandidates: u32 = 0;
 	pub const MaxInvulnerables: u32 = 50;
 }
 
@@ -246,7 +250,6 @@ impl pallet_collator_selection::Config for Runtime {
 	type UpdateOrigin = MoreThanHalfCouncil;
 	type PotId = PotId;
 	type MaxCandidates = MaxCandidates;
-	type MinCandidates = MinCandidates;
 	type MaxInvulnerables = MaxInvulnerables;
 	// should be a multiple of session or things will get inconsistent
 	type KickThreshold = Period;
@@ -254,6 +257,7 @@ impl pallet_collator_selection::Config for Runtime {
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
 	type ValidatorRegistration = Session;
 	type WeightInfo = weights::collator_selection::HydraWeight<Runtime>;
+	type MinEligibleCollators = ConstU32<4>;
 }
 
 parameter_types! {

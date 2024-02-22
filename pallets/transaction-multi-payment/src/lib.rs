@@ -29,9 +29,9 @@ mod mock;
 mod tests;
 mod traits;
 
-use frame_support::traits::Currency as PalletCurrency;
+use frame_support::traits::Contains;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
-use frame_system::ensure_signed;
+use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
 use sp_runtime::{
 	traits::{DispatchInfoOf, One, PostDispatchInfoOf, Saturating, Zero},
@@ -46,15 +46,12 @@ use sp_std::marker::PhantomData;
 use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::sp_runtime::FixedPointOperand;
 use hydradx_traits::NativePriceOracle;
-use orml_traits::{Happened, MultiCurrency};
+use orml_traits::{GetByKey, Happened, MultiCurrency};
 
 pub use crate::traits::*;
-use frame_support::traits::{Imbalance, IsSubType, OnUnbalanced};
+use frame_support::traits::IsSubType;
 use hydradx_traits::router::{AssetPair, RouteProvider};
 use hydradx_traits::{OraclePeriod, PriceOracle};
-use pallet_evm::{EVMCurrencyAdapter, OnChargeEVMTransaction};
-use sp_core::{H160, U256};
-use sp_runtime::traits::UniqueSaturatedInto;
 
 type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
 type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -73,12 +70,11 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_initialize(_n: T::BlockNumber) -> Weight {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			let native_asset = T::NativeAssetId::get();
 
 			let mut weight: u64 = 0;
@@ -93,10 +89,10 @@ pub mod pallet {
 				weight += T::WeightInfo::get_oracle_price().ref_time();
 			}
 
-			Weight::from_ref_time(weight)
+			Weight::from_parts(weight, 0)
 		}
 
-		fn on_finalize(_n: T::BlockNumber) {
+		fn on_finalize(_n: BlockNumberFor<T>) {
 			let _ = <AcceptedCurrencyPrice<T>>::clear(u32::MAX, None);
 		}
 	}
@@ -198,23 +194,14 @@ pub mod pallet {
 	pub type AcceptedCurrencyPrice<T: Config> = StorageMap<_, Twox64Concat, AssetIdOf<T>, Price, OptionQuery>;
 
 	#[pallet::genesis_config]
+	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		pub currencies: Vec<(AssetIdOf<T>, Price)>,
 		pub account_currencies: Vec<(T::AccountId, AssetIdOf<T>)>,
 	}
 
-	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			GenesisConfig {
-				currencies: vec![],
-				account_currencies: vec![],
-			}
-		}
-	}
-
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			for (asset, price) in &self.currencies {
 				AcceptedCurrencies::<T>::insert(asset, price);
@@ -314,7 +301,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn account_currency(who: &T::AccountId) -> AssetIdOf<T>
+	pub fn account_currency(who: &T::AccountId) -> AssetIdOf<T>
 	where
 		BalanceOf<T>: FixedPointOperand,
 	{
@@ -369,19 +356,32 @@ impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, BalanceOf<T>> for Deposit
 	}
 }
 
+#[cfg(feature = "evm")]
+use {
+	frame_support::traits::{Currency as PalletCurrency, Imbalance, OnUnbalanced},
+	pallet_evm::{EVMCurrencyAdapter, OnChargeEVMTransaction},
+	sp_core::{H160, U256},
+	sp_runtime::traits::UniqueSaturatedInto,
+};
+#[cfg(feature = "evm")]
 type CurrencyAccountId<T> = <T as frame_system::Config>::AccountId;
+#[cfg(feature = "evm")]
 type BalanceFor<T> = <<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::Balance;
+#[cfg(feature = "evm")]
 type PositiveImbalanceFor<T> =
 	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::PositiveImbalance;
+#[cfg(feature = "evm")]
 type NegativeImbalanceFor<T> =
 	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::NegativeImbalance;
 
+#[cfg(feature = "evm")]
 /// Implements the transaction payment for EVM transactions.
 pub struct TransferEvmFees<OU>(PhantomData<OU>);
 
+#[cfg(feature = "evm")]
 impl<T, OU> OnChargeEVMTransaction<T> for TransferEvmFees<OU>
 where
-	T: pallet_evm::Config,
+	T: Config + pallet_evm::Config,
 	PositiveImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = NegativeImbalanceFor<T>>,
 	NegativeImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = PositiveImbalanceFor<T>>,
 	OU: OnUnbalanced<NegativeImbalanceFor<T>>,
@@ -393,6 +393,9 @@ where
 		EVMCurrencyAdapter::<<T as pallet_evm::Config>::Currency, ()>::withdraw_fee(who, fee)
 	}
 
+	fn can_withdraw(who: &H160, amount: U256) -> Result<(), pallet_evm::Error<T>> {
+		EVMCurrencyAdapter::<<T as pallet_evm::Config>::Currency, ()>::can_withdraw(who, amount)
+	}
 	fn correct_and_deposit_fee(
 		who: &H160,
 		corrected_fee: U256,
@@ -556,5 +559,17 @@ impl<T: Config> Happened<(T::AccountId, AssetIdOf<T>)> for RemoveTxAssetOnKilled
 				AccountCurrencyMap::<T>::remove(who);
 			}
 		}
+	}
+}
+
+impl<T: Config> Contains<AssetIdOf<T>> for Pallet<T> {
+	fn contains(currency: &AssetIdOf<T>) -> bool {
+		AcceptedCurrencies::<T>::contains_key(currency)
+	}
+}
+
+impl<T: Config> GetByKey<AssetIdOf<T>, Option<FixedU128>> for Pallet<T> {
+	fn get(k: &AssetIdOf<T>) -> Option<FixedU128> {
+		AcceptedCurrencyPrice::<T>::get(k)
 	}
 }

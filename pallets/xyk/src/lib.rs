@@ -31,6 +31,7 @@
 use frame_support::sp_runtime::{traits::Zero, DispatchError};
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
 use frame_system::ensure_signed;
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
 	OnTradeHandler, AMM,
@@ -43,8 +44,6 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
 #[cfg(test)]
 mod tests;
-
-mod benchmarking;
 
 mod impls;
 mod trade_execution;
@@ -63,20 +62,24 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::ShareTokenRegistry, Source};
+	use hydradx_traits::{
+		pools::DustRemovalAccountWhitelist,
+		registry::{AssetKind, Create},
+		Source,
+	};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Registry support
-		type AssetRegistry: ShareTokenRegistry<AssetId, Vec<u8>, Balance, DispatchError>;
+		type AssetRegistry: Create<Balance, AssetId = AssetId, Error = DispatchError>;
 
 		/// Share token support
 		type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
@@ -343,10 +346,14 @@ pub mod pallet {
 
 			let token_name = asset_pair.name();
 
-			let share_token = T::AssetRegistry::get_or_create_shared_asset(
-				token_name,
-				vec![asset_a, asset_b],
-				T::MinPoolLiquidity::get(),
+			let share_token = T::AssetRegistry::get_or_register_insufficient_asset(
+				token_name.try_into().map_err(|_| Error::<T>::CannotCreatePool)?,
+				AssetKind::XYK,
+				None,
+				None,
+				None,
+				None,
+				None,
 			)?;
 
 			let _ = T::AMMHandler::on_create_pool(asset_pair.asset_in, asset_pair.asset_out);

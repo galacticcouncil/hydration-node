@@ -24,10 +24,11 @@ use primitives::constants::{
 use frame_support::{
 	parameter_types,
 	sp_runtime::{Perbill, Percent, Permill},
-	traits::{ConstU32, EitherOfDiverse, LockIdentifier, NeverEnsureOrigin, PrivilegeCmp, U128CurrencyToVote},
+	traits::{ConstU32, EitherOfDiverse, LockIdentifier, NeverEnsureOrigin, PrivilegeCmp},
 	PalletId,
 };
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, EnsureSigned};
+use sp_staking::currency_to_vote::U128CurrencyToVote;
 use sp_std::cmp::Ordering;
 
 parameter_types! {
@@ -118,6 +119,7 @@ parameter_types! {
 	pub const CouncilMaxProposals: u32 = 30;
 	pub const CouncilMaxMembers: u32 = 13;
 	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
+	pub MaxProposalWeight: Weight = Perbill::from_percent(50) * BlockWeights::get().max_block;
 }
 
 pub type CouncilCollective = pallet_collective::Instance1;
@@ -130,6 +132,8 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = weights::council::HydraWeight<Runtime>;
+	type MaxProposalWeight = MaxProposalWeight;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -147,7 +151,9 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxProposals = TechnicalMaxProposals;
 	type MaxMembers = TechnicalMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::technical_comittee::HydraWeight<Runtime>;
+	type WeightInfo = weights::technical_committee::HydraWeight<Runtime>;
+	type MaxProposalWeight = MaxProposalWeight;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
 
 #[cfg(test)]
@@ -234,6 +240,7 @@ impl pallet_democracy::Config for Runtime {
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
 	type ExternalDefaultOrigin = AllCouncilMembers;
+	type SubmitOrigin = EnsureSigned<AccountId>;
 	type FastTrackOrigin = MoreThanHalfTechCommittee;
 	type InstantOrigin = AllTechnicalCommitteeMembers;
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
@@ -261,8 +268,9 @@ parameter_types! {
 	pub const DesiredMembers: u32 = 13;
 	pub const DesiredRunnersUp: u32 = 15;
 	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
-	pub const MaxElectionCandidates: u32 = 1_000;
-	pub const MaxElectionVoters: u32 = 10_000;
+	pub const MaxElectionCandidates: u32 = 100;
+	pub const MaxElectionVoters: u32 = 768;
+	pub const MaxVotesPerVoter: u32 = 10;
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
@@ -284,11 +292,12 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type MaxCandidates = MaxElectionCandidates;
 	type MaxVoters = MaxElectionVoters;
 	type WeightInfo = ();
+	type MaxVotesPerVoter = MaxVotesPerVoter;
 }
 
 parameter_types! {
 	pub const DataDepositPerByte: Balance = CENTS;
-	pub const TipCountdown: BlockNumber = 2 * HOURS;
+	pub const TipCountdown: BlockNumber = 24 * HOURS;
 	pub const TipFindersFee: Percent = Percent::from_percent(1);
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;

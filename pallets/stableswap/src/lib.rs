@@ -17,6 +17,18 @@
 //!
 //! Curve/stableswap AMM implementation.
 //!
+//! ## Overview
+//!
+//! Curve style AMM at is designed to provide highly efficient and low-slippage trades for stablecoins.
+//!
+//! ### Stableswap Hooks
+//!
+//! Stableswap pallet supports multiple hooks which are triggerred on certain operations:
+//! - on_liquidity_changed - called when liquidity is added or removed from the pool
+//! - on_trade - called when trade is executed
+//!
+//! This is currently used to update on-chain oracle.
+//!
 //! ### Terminology
 //!
 //! * **LP** - liquidity provider
@@ -37,14 +49,14 @@
 //!
 //! When LP decides to withdraw liquidity, it receives selected asset.
 //!
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional};
-use hydradx_traits::{registry::InspectRegistry, AccountIdFor};
+use frame_system::pallet_prelude::BlockNumberFor;
+use hydradx_traits::{registry::Inspect, AccountIdFor};
 pub use pallet::*;
 use sp_runtime::traits::{BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
@@ -74,8 +86,8 @@ mod benchmarks;
 #[cfg(feature = "runtime-benchmarks")]
 pub use crate::types::BenchmarkHelper;
 
-/// Stableswap share token and account id identifier.
-/// Used as identifier to create share token unique names and account ids.
+/// Stableswap account id identifier.
+/// Used as identifier to create share token unique names and account id.
 pub const POOL_IDENTIFIER: &[u8] = b"sts";
 
 pub const MAX_ASSETS_IN_POOL: u32 = 5;
@@ -97,7 +109,6 @@ pub mod pallet {
 	use sp_std::num::NonZeroU16;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -106,7 +117,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Provider for the current block number.
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		/// Identifier for the class of asset.
 		type AssetId: Member
@@ -125,8 +136,8 @@ pub mod pallet {
 		/// Account ID constructor - pool account are derived from unique pool id
 		type ShareAccountId: AccountIdFor<Self::AssetId, AccountId = Self::AccountId>;
 
-		/// Asset registry mechanism
-		type AssetInspection: InspectRegistry<Self::AssetId>;
+		/// Asset registry mechanism to check if asset is registered and retrieve asset decimals.
+		type AssetInspection: Inspect<AssetId = Self::AssetId>;
 
 		/// The origin which can create a new pool
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -159,7 +170,7 @@ pub mod pallet {
 	/// Existing pools
 	#[pallet::storage]
 	#[pallet::getter(fn pools)]
-	pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolInfo<T::AssetId, T::BlockNumber>>;
+	pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolInfo<T::AssetId, BlockNumberFor<T>>>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -177,7 +188,7 @@ pub mod pallet {
 			amplification: NonZeroU16,
 			fee: Permill,
 		},
-		/// Pool parameters has been updated.
+		/// Pool fee has been updated.
 		FeeUpdated { pool_id: T::AssetId, fee: Permill },
 		/// Liquidity of an asset was added to a pool.
 		LiquidityAdded {
@@ -215,7 +226,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 
-		/// Aseet's tradable state has been updated.
+		/// Asset's tradable state has been updated.
 		TradableStateUpdated {
 			pool_id: T::AssetId,
 			asset_id: T::AssetId,
@@ -227,8 +238,8 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			current_amplification: NonZeroU16,
 			final_amplification: NonZeroU16,
-			start_block: T::BlockNumber,
-			end_block: T::BlockNumber,
+			start_block: BlockNumberFor<T>,
+			end_block: BlockNumberFor<T>,
 		},
 	}
 
@@ -249,9 +260,6 @@ pub mod pallet {
 
 		/// Asset is not in the pool.
 		AssetNotInPool,
-
-		/// Asset is already in the pool.
-		AssetInPool,
 
 		/// Share asset is not registered in Registry.
 		ShareAssetNotRegistered,
@@ -289,9 +297,6 @@ pub mod pallet {
 		/// Initial liquidity of asset must be > 0.
 		InvalidInitialLiquidity,
 
-		/// Account balance is too low.
-		BalanceTooLow,
-
 		/// Amplification is outside configured range.
 		InvalidAmplification,
 
@@ -307,10 +312,7 @@ pub mod pallet {
 		/// New amplification is equal to the previous value.
 		SameAmplification,
 
-		/// Desired amount not reached.
-		MinimumAmountNotReached,
-
-		/// Slippage
+		/// Slippage protection.
 		SlippageLimit,
 
 		/// Failed to retrieve asset decimals.
@@ -319,7 +321,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a stableswap pool with given list of asset
+		/// Create a stable pool with given list of assets.
 		///
 		/// All assets must be correctly registered in `T::AssetRegistry`.
 		/// Note that this does not seed the pool with liquidity. Use `add_liquidity` to provide
@@ -366,9 +368,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Update pool's fees.
-		///
-		/// Updates pool's trade fee and/or withdraw fee.
+		/// Update pool's fee.
 		///
 		/// if pool does not exist, `PoolNotFound` is returned.
 		///
@@ -385,7 +385,7 @@ pub mod pallet {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
-				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
+				let pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
 				pool.fee = fee;
 				Self::deposit_event(Event::FeeUpdated { pool_id, fee });
@@ -409,8 +409,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
 			final_amplification: u16,
-			start_block: T::BlockNumber,
-			end_block: T::BlockNumber,
+			start_block: BlockNumberFor<T>,
+			end_block: BlockNumberFor<T>,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -421,7 +421,7 @@ pub mod pallet {
 			);
 
 			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
-				let mut pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
+				let pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
 
 				let current_amplification = Self::get_amplification(pool);
 
@@ -454,11 +454,11 @@ pub mod pallet {
 
 		/// Add liquidity to selected pool.
 		///
-		/// First call of `add_liquidity` adds "initial liquidity" of all assets.
+		/// First call of `add_liquidity` must provide "initial liquidity" of all assets.
 		///
 		/// If there is liquidity already in the pool, LP can provide liquidity of any number of pool assets.
 		///
-		/// LP must have sufficient amount of each assets.
+		/// LP must have sufficient amount of each asset.
 		///
 		/// Origin is given corresponding amount of shares.
 		///
@@ -492,6 +492,10 @@ pub mod pallet {
 		}
 
 		/// Add liquidity to selected pool given exact amount of shares to receive.
+		///
+		/// Similar to `add_liquidity` but LP specifies exact amount of shares to receive.
+		///
+		/// This functionality is used mainly by on-chain routing when a swap between Omnipool asset and stable asset is performed.
 		///
 		/// Parameters:
 		/// - `origin`: liquidity provider
@@ -528,7 +532,7 @@ pub mod pallet {
 		///
 		/// Withdraws liquidity of selected asset from a pool.
 		///
-		/// Share amount is burn and LP receives corresponding amount of chosen asset.
+		/// Share amount is burned and LP receives corresponding amount of chosen asset.
 		///
 		/// Withdraw fee is applied to the asset amount.
 		///
@@ -557,23 +561,23 @@ pub mod pallet {
 				Self::is_asset_allowed(pool_id, asset_id, Tradability::REMOVE_LIQUIDITY),
 				Error::<T>::NotAllowed
 			);
-
 			ensure!(share_amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
 
 			let current_share_balance = T::Currency::free_balance(pool_id, &who);
-
 			ensure!(current_share_balance >= share_amount, Error::<T>::InsufficientShares);
-
 			ensure!(
 				current_share_balance == share_amount
 					|| current_share_balance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
 				Error::<T>::InsufficientShareBalance
 			);
 
+			// Retrive pool state.
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 			let pool_account = Self::pool_account(pool_id);
-			let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+			let initial_reserves = pool
+				.reserves_with_decimals::<T>(&pool_account)
+				.ok_or(Error::<T>::UnknownDecimals)?;
 			let share_issuance = T::Currency::total_issuance(pool_id);
 
 			ensure!(
@@ -583,8 +587,10 @@ pub mod pallet {
 			);
 
 			let amplification = Self::get_amplification(&pool);
+
+			//Calculate how much asset user will receive. Note that the fee is already subtracted from the amount.
 			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
-				&balances,
+				&initial_reserves,
 				share_amount,
 				asset_idx,
 				share_issuance,
@@ -593,37 +599,14 @@ pub mod pallet {
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
-			ensure!(amount >= min_amount_out, Error::<T>::MinimumAmountNotReached);
+			ensure!(amount >= min_amount_out, Error::<T>::SlippageLimit);
 
+			// Burn shares and transfer asset to user.
 			T::Currency::withdraw(pool_id, &who, share_amount)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
-			let updated_share_issuance = T::Currency::total_issuance(pool_id);
-			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
-
-			let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
-				&updated_balances,
-				amplification,
-				updated_share_issuance,
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-			let assets = pool.assets.clone();
-
-			let state = PoolState {
-				assets: pool.assets.into_inner(),
-				before: balances.into_iter().map(|v| v.into()).collect(),
-				after: updated_balances.into_iter().map(|v| v.into()).collect(),
-				delta: assets
-					.into_iter()
-					.map(|v| if v == asset_id { amount } else { 0 })
-					.collect(),
-				issuance_before: share_issuance,
-				issuance_after: updated_share_issuance,
-				share_prices,
-			};
-
-			T::Hooks::on_liquidity_changed(pool_id, state)?;
+			// All done and updated. let's call the on_liquidity_changed hook.
+			Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				pool_id,
@@ -637,6 +620,8 @@ pub mod pallet {
 		}
 
 		/// Remove liquidity from selected pool by specifying exact amount of asset to receive.
+		///
+		/// Similar to `remove_liquidity_one_asset` but LP specifies exact amount of asset to receive instead of share amount.
 		///
 		/// Parameters:
 		/// - `origin`: liquidity provider
@@ -663,17 +648,21 @@ pub mod pallet {
 				Self::is_asset_allowed(pool_id, asset_id, Tradability::REMOVE_LIQUIDITY),
 				Error::<T>::NotAllowed
 			);
-
 			ensure!(amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
+
+			// Retrieve pool state.
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 			let pool_account = Self::pool_account(pool_id);
-			let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+			let initial_reserves = pool
+				.reserves_with_decimals::<T>(&pool_account)
+				.ok_or(Error::<T>::UnknownDecimals)?;
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
 
+			// Calculate how much shares user needs to provide to receive `amount` of asset.
 			let shares = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
-				&balances,
+				&initial_reserves,
 				asset_idx,
 				amount,
 				amplification,
@@ -685,52 +674,31 @@ pub mod pallet {
 			ensure!(shares <= max_share_amount, Error::<T>::SlippageLimit);
 
 			let current_share_balance = T::Currency::free_balance(pool_id, &who);
-
 			ensure!(
 				current_share_balance == shares
 					|| current_share_balance.saturating_sub(shares) >= T::MinPoolLiquidity::get(),
 				Error::<T>::InsufficientShareBalance
 			);
+
+			// Burn shares and transfer asset to user.
 			T::Currency::withdraw(pool_id, &who, shares)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
-			let updated_share_issuance = T::Currency::total_issuance(pool_id);
-			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
-			let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
-				&updated_balances,
-				amplification,
-				updated_share_issuance,
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-			let assets = pool.assets.clone();
-			let state = PoolState {
-				assets: pool.assets.into_inner(),
-				before: balances.into_iter().map(|v| v.into()).collect(),
-				after: updated_balances.into_iter().map(|v| v.into()).collect(),
-				delta: assets
-					.into_iter()
-					.map(|v| if v == asset_id { amount } else { 0 })
-					.collect(),
-				issuance_before: share_issuance,
-				issuance_after: updated_share_issuance,
-				share_prices,
-			};
-
-			T::Hooks::on_liquidity_changed(pool_id, state)?;
+			// All done and updated. let's call the on_liquidity_changed hook.
+			Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				pool_id,
 				who,
 				shares,
 				amounts: vec![AssetAmount { asset_id, amount }],
-				fee: 0u128, // TODO: Fix
+				fee: 0u128, // dev note: figure out the actual fee amount in this case. For now, we dont need it.
 			});
 
 			Ok(())
 		}
 
-		/// Execute a swap of `asset_in` for `asset_out` by specifying how much to put in.
+		/// Execute a swap of `asset_in` for `asset_out`.
 		///
 		/// Parameters:
 		/// - `origin`: origin of the caller
@@ -774,8 +742,9 @@ pub mod pallet {
 
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let pool_account = Self::pool_account(pool_id);
-			let amplification = Self::get_amplification(&pool);
-			let initial_reserves = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+			let initial_reserves = pool
+				.reserves_with_decimals::<T>(&pool_account)
+				.ok_or(Error::<T>::UnknownDecimals)?;
 
 			let (amount_out, fee_amount) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in)?;
 			ensure!(amount_out >= min_buy_amount, Error::<T>::BuyLimitNotReached);
@@ -783,39 +752,8 @@ pub mod pallet {
 			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
 			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
 
-			let share_issuance = T::Currency::total_issuance(pool_id);
-			let assets = pool.assets.clone();
-
-			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
-			let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
-				&updated_balances,
-				amplification,
-				share_issuance,
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-			let state = PoolState {
-				assets: pool.assets.into_inner(),
-				before: initial_reserves.into_iter().map(|v| v.into()).collect(),
-				after: updated_balances.into_iter().map(|v| v.into()).collect(),
-				delta: assets
-					.into_iter()
-					.map(|v| {
-						if v == asset_in {
-							amount_in
-						} else if v == asset_out {
-							amount_out
-						} else {
-							0
-						}
-					})
-					.collect(),
-				issuance_before: share_issuance,
-				issuance_after: share_issuance,
-				share_prices,
-			};
-
-			T::Hooks::on_trade(pool_id, asset_in, asset_out, state)?;
+			//All done and updated. Let's call on_trade hook.
+			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who,
@@ -830,7 +768,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Execute a swap of `asset_in` for `asset_out` by specifying how much to get out.
+		/// Execute a swap of `asset_in` for `asset_out`.
 		///
 		/// Parameters:
 		/// - `origin`:
@@ -869,8 +807,9 @@ pub mod pallet {
 
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let pool_account = Self::pool_account(pool_id);
-			let amplification = Self::get_amplification(&pool);
-			let initial_reserves = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+			let initial_reserves = pool
+				.reserves_with_decimals::<T>(&pool_account)
+				.ok_or(Error::<T>::UnknownDecimals)?;
 
 			let (amount_in, fee_amount) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out)?;
 
@@ -886,39 +825,8 @@ pub mod pallet {
 			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
 			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
 
-			let share_issuance = T::Currency::total_issuance(pool_id);
-			let assets = pool.assets.clone();
-
-			let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
-			let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
-				&updated_balances,
-				amplification,
-				share_issuance,
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-			let state = PoolState {
-				assets: pool.assets.into_inner(),
-				before: initial_reserves.iter().map(|v| v.into()).collect(),
-				after: updated_balances.iter().map(|v| v.into()).collect(),
-				delta: assets
-					.into_iter()
-					.map(|v| {
-						if v == asset_in {
-							amount_in
-						} else if v == asset_out {
-							amount_out
-						} else {
-							0
-						}
-					})
-					.collect(),
-				issuance_before: share_issuance,
-				issuance_after: share_issuance,
-				share_prices,
-			};
-
-			T::Hooks::on_trade(pool_id, asset_in, asset_out, state)?;
+			//All done and updated. Let's call on_trade_hook.
+			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -966,6 +874,8 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Calculates out amount given in amount.
+	/// Returns (out_amount, fee_amount) on success. Note that fee amount is already subtracted from the out amount.
 	fn calculate_out_amount(
 		pool_id: T::AssetId,
 		asset_in: T::AssetId,
@@ -978,14 +888,19 @@ impl<T: Config> Pallet<T> {
 		let index_out = pool.find_asset(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
 
 		let pool_account = Self::pool_account(pool_id);
-		let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+		let initial_reserves = pool
+			.reserves_with_decimals::<T>(&pool_account)
+			.ok_or(Error::<T>::UnknownDecimals)?;
 
-		ensure!(!balances[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
-		ensure!(!balances[index_out].is_zero(), Error::<T>::InsufficientLiquidity);
+		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
+		ensure!(
+			!initial_reserves[index_out].is_zero(),
+			Error::<T>::InsufficientLiquidity
+		);
 
 		let amplification = Self::get_amplification(&pool);
 		hydra_dx_math::stableswap::calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
-			&balances,
+			&initial_reserves,
 			index_in,
 			index_out,
 			amount_in,
@@ -995,6 +910,8 @@ impl<T: Config> Pallet<T> {
 		.ok_or_else(|| ArithmeticError::Overflow.into())
 	}
 
+	/// Calculates in amount given out amount.
+	/// Returns (in_amount, fee_amount) on success. Note that fee amount is already added to the in amount.
 	fn calculate_in_amount(
 		pool_id: T::AssetId,
 		asset_in: T::AssetId,
@@ -1007,17 +924,19 @@ impl<T: Config> Pallet<T> {
 		let index_out = pool.find_asset(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
 
 		let pool_account = Self::pool_account(pool_id);
-		let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+		let initial_reserves = pool
+			.reserves_with_decimals::<T>(&pool_account)
+			.ok_or(Error::<T>::UnknownDecimals)?;
 
 		ensure!(
-			balances[index_out].amount > amount_out,
+			initial_reserves[index_out].amount > amount_out,
 			Error::<T>::InsufficientLiquidity
 		);
-		ensure!(!balances[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
+		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
 
 		let amplification = Self::get_amplification(&pool);
 		hydra_dx_math::stableswap::calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
-			&balances,
+			&initial_reserves,
 			index_in,
 			index_out,
 			amount_out,
@@ -1126,6 +1045,7 @@ impl<T: Config> Pallet<T> {
 				added_amounts.push(0);
 			}
 		}
+		// If something is left in added_assets, it means that user provided liquidity for asset that is not in the pool.
 		ensure!(added_assets.is_empty(), Error::<T>::AssetNotInPool);
 
 		let amplification = Self::get_amplification(&pool);
@@ -1153,25 +1073,8 @@ impl<T: Config> Pallet<T> {
 			T::Currency::transfer(asset.asset_id, who, &pool_account, asset.amount)?;
 		}
 
-		let updated_issuance = share_issuance.saturating_add(share_amount);
-		let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
-			&updated_reserves,
-			amplification,
-			updated_issuance,
-		)
-		.ok_or(ArithmeticError::Overflow)?;
-
-		let state = PoolState {
-			assets: pool.assets.into_inner(),
-			before: initial_reserves.into_iter().map(|v| v.into()).collect(),
-			after: updated_reserves.into_iter().map(|v| v.into()).collect(),
-			delta: added_amounts,
-			issuance_before: share_issuance,
-			issuance_after: updated_issuance,
-			share_prices,
-		};
-
-		T::Hooks::on_liquidity_changed(pool_id, state)?;
+		// All done and updated. let's call the on_liquidity_changed hook.
+		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
 		Ok(share_amount)
 	}
@@ -1184,20 +1087,26 @@ impl<T: Config> Pallet<T> {
 		asset_id: T::AssetId,
 		max_asset_amount: Balance,
 	) -> Result<Balance, DispatchError> {
+		ensure!(
+			Self::is_asset_allowed(pool_id, asset_id, Tradability::ADD_LIQUIDITY),
+			Error::<T>::NotAllowed
+		);
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 		let share_issuance = T::Currency::total_issuance(pool_id);
 		let amplification = Self::get_amplification(&pool);
 		let pool_account = Self::pool_account(pool_id);
-		let balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
+		let initial_reserves = pool
+			.reserves_with_decimals::<T>(&pool_account)
+			.ok_or(Error::<T>::UnknownDecimals)?;
 
 		// Ensure that initial liquidity has been already provided
-		for reserve in balances.iter() {
+		for reserve in initial_reserves.iter() {
 			ensure!(!reserve.amount.is_zero(), Error::<T>::InvalidInitialLiquidity);
 		}
 
 		let (amount_in, _) = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
-			&balances,
+			&initial_reserves,
 			shares,
 			asset_idx,
 			share_issuance,
@@ -1219,31 +1128,8 @@ impl<T: Config> Pallet<T> {
 		T::Currency::deposit(pool_id, who, shares)?;
 		T::Currency::transfer(asset_id, who, &pool_account, amount_in)?;
 
-		let updated_balances = pool.balances::<T>(&pool_account).ok_or(Error::<T>::UnknownDecimals)?;
-		let updated_issuance = share_issuance.saturating_add(shares);
-		let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
-			&updated_balances,
-			amplification,
-			updated_issuance,
-		)
-		.ok_or(ArithmeticError::Overflow)?;
-
-		let state = PoolState {
-			assets: pool.assets.clone().into(),
-			before: balances.into_iter().map(|v| v.into()).collect(),
-			after: updated_balances.into_iter().map(|v| v.into()).collect(),
-			delta: pool
-				.assets
-				.iter()
-				.enumerate()
-				.map(|(idx, _)| if idx == asset_idx { amount_in } else { 0 })
-				.collect(),
-			issuance_before: share_issuance,
-			issuance_after: updated_issuance,
-			share_prices,
-		};
-
-		T::Hooks::on_liquidity_changed(pool_id, state)?;
+		//All done and update. let's call the on_liquidity_changed hook.
+		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
 		Ok(amount_in)
 	}
@@ -1259,7 +1145,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[inline]
-	pub(crate) fn get_amplification(pool: &PoolInfo<T::AssetId, T::BlockNumber>) -> u128 {
+	pub(crate) fn get_amplification(pool: &PoolInfo<T::AssetId, BlockNumberFor<T>>) -> u128 {
 		hydra_dx_math::stableswap::calculate_amplification(
 			pool.initial_amplification.get().into(),
 			pool.final_amplification.get().into(),
@@ -1336,5 +1222,67 @@ impl<T: Config> Pallet<T> {
 		.ok_or(ArithmeticError::Overflow)?;
 
 		Ok(share_amount)
+	}
+
+	// Trigger on_liquidity_changed hook. Initial reserves and issuance are required to calculate delta.
+	// We need new updated reserves and new share price of each asset in pool, so for this, we can simply query the storage after the update.
+	fn call_on_liquidity_change_hook(
+		pool_id: T::AssetId,
+		initial_reserves: &[AssetReserve],
+		initial_issuance: Balance,
+	) -> DispatchResult {
+		let state = Self::get_pool_state(pool_id, initial_reserves, Some(initial_issuance))?;
+		T::Hooks::on_liquidity_changed(pool_id, state)
+	}
+
+	// Trigger on_trade hook. Initial reserves are required to calculate delta.
+	// We need new updated reserves and new share price of each asset in pool, so for this, we can simply query the storage after the update.
+	fn call_on_trade_hook(
+		pool_id: T::AssetId,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		initial_reserves: &[AssetReserve],
+	) -> DispatchResult {
+		let state = Self::get_pool_state(pool_id, initial_reserves, None)?;
+		T::Hooks::on_trade(pool_id, asset_in, asset_out, state)
+	}
+
+	// Get pool state info for on_liquidity_changed and on_trade hooks.
+	fn get_pool_state(
+		pool_id: T::AssetId,
+		initial_reserves: &[AssetReserve],
+		initial_issuance: Option<Balance>,
+	) -> Result<PoolState<T::AssetId>, DispatchError> {
+		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		let pool_account = Self::pool_account(pool_id);
+		let amplification = Self::get_amplification(&pool);
+		let share_issuance = T::Currency::total_issuance(pool_id);
+		let updated_reserves = pool
+			.reserves_with_decimals::<T>(&pool_account)
+			.ok_or(Error::<T>::UnknownDecimals)?;
+		let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
+			&updated_reserves,
+			amplification,
+			share_issuance,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		let deltas: Vec<Balance> = initial_reserves
+			.iter()
+			.zip(updated_reserves.iter())
+			.map(|(initial, updated)| initial.amount.abs_diff(updated.amount))
+			.collect();
+
+		let state = PoolState {
+			assets: pool.assets.into_inner(),
+			before: initial_reserves.iter().map(|v| v.into()).collect(),
+			after: updated_reserves.iter().map(|v| v.into()).collect(),
+			delta: deltas,
+			issuance_before: initial_issuance.unwrap_or(share_issuance),
+			issuance_after: share_issuance,
+			share_prices,
+		};
+
+		Ok(state)
 	}
 }

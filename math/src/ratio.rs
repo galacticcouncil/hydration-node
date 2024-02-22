@@ -2,13 +2,11 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use core::cmp::{Ord, Ordering, PartialOrd};
 use num_traits::Zero;
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::helpers_128bit;
 
 /// A rational number represented by a `n`umerator and `d`enominator.
-#[derive(Clone, Copy, Default, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Encode, Decode, Serialize, Deserialize, TypeInfo, MaxEncodedLen)]
 pub struct Ratio {
 	pub n: u128,
 	pub d: u128,

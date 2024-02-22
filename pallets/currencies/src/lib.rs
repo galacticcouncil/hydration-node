@@ -152,7 +152,7 @@ pub mod module {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -354,7 +354,7 @@ impl<T: Config> MultiCurrencyExtended<T::AccountId> for Pallet<T> {
 }
 
 impl<T: Config> MultiLockableCurrency<T::AccountId> for Pallet<T> {
-	type Moment = T::BlockNumber;
+	type Moment = BlockNumberFor<T>;
 
 	fn set_lock(
 		lock_id: LockIdentifier,
@@ -584,7 +584,7 @@ where
 	T: Config,
 	GetCurrencyId: Get<CurrencyIdOf<T>>,
 {
-	type Moment = T::BlockNumber;
+	type Moment = BlockNumberFor<T>;
 
 	fn set_lock(lock_id: LockIdentifier, who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
 		<Pallet<T> as MultiLockableCurrency<T::AccountId>>::set_lock(lock_id, GetCurrencyId::get(), who, amount)
@@ -850,8 +850,8 @@ impl<T: Config> TransferAll<T::AccountId> for Pallet<T> {
 	}
 }
 
-use frame_support::traits::fungible::{Inspect, Mutate, Transfer};
-use frame_support::traits::tokens::{DepositConsequence, WithdrawConsequence};
+use frame_support::traits::fungible::{Dust, Inspect, Mutate, Unbalanced};
+use frame_support::traits::tokens::{DepositConsequence, Fortitude, Preservation, Provenance, WithdrawConsequence};
 
 impl<T: Config, AccountId, Currency, Amount, Moment> Inspect<AccountId>
 	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
@@ -868,20 +868,50 @@ where
 		<Currency as Inspect<AccountId>>::minimum_balance()
 	}
 
+	fn total_balance(who: &AccountId) -> Self::Balance {
+		<Currency as Inspect<AccountId>>::total_balance(who)
+	}
+
 	fn balance(who: &AccountId) -> Self::Balance {
 		<Currency as Inspect<AccountId>>::balance(who)
 	}
 
-	fn reducible_balance(who: &AccountId, keep_alive: bool) -> Self::Balance {
-		<Currency as Inspect<AccountId>>::reducible_balance(who, keep_alive)
+	fn reducible_balance(who: &AccountId, preservation: Preservation, force: Fortitude) -> Self::Balance {
+		<Currency as Inspect<AccountId>>::reducible_balance(who, preservation, force)
 	}
 
-	fn can_deposit(who: &AccountId, amount: Self::Balance, mint: bool) -> DepositConsequence {
-		<Currency as Inspect<AccountId>>::can_deposit(who, amount, mint)
+	fn can_deposit(who: &AccountId, amount: Self::Balance, provenance: Provenance) -> DepositConsequence {
+		<Currency as Inspect<AccountId>>::can_deposit(who, amount, provenance)
 	}
 
 	fn can_withdraw(who: &AccountId, amount: Self::Balance) -> WithdrawConsequence<Self::Balance> {
 		<Currency as Inspect<AccountId>>::can_withdraw(who, amount)
+	}
+}
+
+impl<T: Config, AccountId, Currency, Amount, Moment> Unbalanced<AccountId>
+	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
+where
+	Currency: Mutate<AccountId>,
+{
+	fn handle_dust(dust: Dust<AccountId, Self>) {
+		<Currency as Unbalanced<AccountId>>::handle_dust(Dust(dust.0))
+	}
+
+	fn write_balance(who: &AccountId, amount: Self::Balance) -> Result<Option<Self::Balance>, DispatchError> {
+		<Currency as Unbalanced<AccountId>>::write_balance(who, amount)
+	}
+
+	fn set_total_issuance(amount: Self::Balance) {
+		<Currency as Unbalanced<AccountId>>::set_total_issuance(amount)
+	}
+
+	fn deactivate(amount: Self::Balance) {
+		<Currency as Unbalanced<AccountId>>::deactivate(amount)
+	}
+
+	fn reactivate(amount: Self::Balance) {
+		<Currency as Unbalanced<AccountId>>::reactivate(amount)
 	}
 }
 
@@ -890,26 +920,23 @@ impl<T: Config, AccountId, Currency, Amount, Moment> Mutate<AccountId>
 where
 	Currency: Mutate<AccountId>,
 {
-	fn mint_into(who: &AccountId, amount: Self::Balance) -> DispatchResult {
-		<Currency as Mutate<AccountId>>::mint_into(who, amount)
+	fn done_mint_into(who: &AccountId, amount: Self::Balance) {
+		<Currency as Mutate<AccountId>>::done_mint_into(who, amount)
 	}
 
-	fn burn_from(who: &AccountId, amount: Self::Balance) -> Result<Self::Balance, DispatchError> {
-		<Currency as Mutate<AccountId>>::burn_from(who, amount)
+	fn done_burn_from(who: &AccountId, amount: Self::Balance) {
+		<Currency as Mutate<AccountId>>::done_burn_from(who, amount)
 	}
-}
 
-impl<T: Config, AccountId, Currency, Amount, Moment> Transfer<AccountId>
-	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
-where
-	Currency: Transfer<AccountId>,
-{
-	fn transfer(
-		source: &AccountId,
-		dest: &AccountId,
-		amount: Self::Balance,
-		keep_alive: bool,
-	) -> Result<Self::Balance, DispatchError> {
-		<Currency as Transfer<AccountId>>::transfer(source, dest, amount, keep_alive)
+	fn done_shelve(who: &AccountId, amount: Self::Balance) {
+		<Currency as Mutate<AccountId>>::done_shelve(who, amount)
+	}
+
+	fn done_restore(who: &AccountId, amount: Self::Balance) {
+		<Currency as Mutate<AccountId>>::done_restore(who, amount)
+	}
+
+	fn done_transfer(source: &AccountId, dest: &AccountId, amount: Self::Balance) {
+		<Currency as Mutate<AccountId>>::done_transfer(source, dest, amount)
 	}
 }

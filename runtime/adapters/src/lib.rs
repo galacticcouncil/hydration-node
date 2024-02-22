@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::FullCodec;
+use codec::{EncodeLike, FullCodec};
 use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::{
 	sp_runtime::{
@@ -28,18 +28,18 @@ use frame_support::{
 	traits::{Contains, LockIdentifier, OriginTrait},
 	weights::{Weight, WeightToFee},
 };
-use hydra_dx_math::support::rational::round_u512_to_rational;
 use hydra_dx_math::{
 	ema::EmaPrice,
 	ensure,
 	omnipool::types::BalanceUpdate,
-	support::rational::{round_to_rational, Rounding},
+	support::rational::{round_to_rational, round_u512_to_rational, Rounding},
 };
-use hydradx_traits::router::{PoolType, Trade};
+use hydradx_traits::router::{AssetPair, PoolType, RouteProvider, Trade};
 use hydradx_traits::{
 	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
 	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
 };
+use orml_traits::GetByKey;
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
@@ -56,17 +56,19 @@ use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
 use warehouse_liquidity_mining::GlobalFarmData;
 use xcm_builder::TakeRevenue;
 use xcm_executor::{
-	traits::{Convert as MoreConvert, MatchesFungible, TransactAsset, WeightTrader},
+	traits::{ConvertLocation, MatchesFungible, TransactAsset, WeightTrader},
 	Assets,
 };
 
 pub mod inspect;
 pub mod xcm_account_derivation;
+pub mod price;
 pub mod xcm_exchange;
 pub mod xcm_execute_filter;
 
 #[cfg(test)]
 mod tests;
+pub mod xyk;
 
 /// Weight trader that accepts multiple assets as weight fee payment.
 ///
@@ -147,7 +149,7 @@ impl<
 	/// per buy.
 	/// The fee is determined by `ConvertWeightToFee` in combination with the price determined by
 	/// `AcceptedCurrencyPrices`.
-	fn buy_weight(&mut self, weight: Weight, payment: Assets) -> Result<Assets, XcmError> {
+	fn buy_weight(&mut self, weight: Weight, payment: Assets, _context: &XcmContext) -> Result<Assets, XcmError> {
 		log::trace!(
 			target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {:?}, payment: {:?}",
 			weight, payment
@@ -170,7 +172,7 @@ impl<
 	}
 
 	/// Will refund up to `weight` from the first asset tracked by the trader.
-	fn refund_weight(&mut self, weight: Weight) -> Option<MultiAsset> {
+	fn refund_weight(&mut self, weight: Weight, _context: &XcmContext) -> Option<MultiAsset> {
 		log::trace!(
 			target: "xcm::weight", "MultiCurrencyTrader::refund_weight weight: {:?}, paid_assets: {:?}",
 			weight, self.paid_assets
@@ -276,7 +278,7 @@ impl<T: cumulus_pallet_parachain_system::Config> BlockNumberProvider for RelayCh
 
 #[cfg(feature = "runtime-benchmarks")]
 impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
-	type BlockNumber = <T as frame_system::Config>::BlockNumber;
+	type BlockNumber = frame_system::pallet_prelude::BlockNumberFor<T>;
 
 	fn current_block_number() -> Self::BlockNumber {
 		frame_system::Pallet::<T>::current_block_number()
@@ -323,18 +325,21 @@ where
 }
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
-pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
+pub struct OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>(PhantomData<(Origin, NativeAsset, Lrna, Runtime)>);
 
-impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
-	for OmnipoolHookAdapter<Origin, Lrna, Runtime>
+impl<Origin, NativeAsset, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
+	for OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
+	NativeAsset: Get<AssetId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
 		+ frame_system::Config<RuntimeOrigin = Origin>
-		+ pallet_staking::Config,
+		+ pallet_staking::Config
+		+ pallet_referrals::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
+	<Runtime as pallet_referrals::Config>::AssetId: From<AssetId>,
 {
 	type Error = DispatchError;
 
@@ -461,8 +466,32 @@ where
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 
-	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
-		pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), amount)
+	fn on_trade_fee(
+		fee_account: AccountId,
+		trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Balance, Self::Error> {
+		if asset == Lrna::get() {
+			return Ok(Balance::zero());
+		}
+		let referrals_used = if asset == NativeAsset::get() {
+			Balance::zero()
+		} else {
+			pallet_referrals::Pallet::<Runtime>::process_trade_fee(
+				fee_account.clone().into(),
+				trader.into(),
+				asset.into(),
+				amount,
+			)?
+		};
+
+		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(
+			fee_account.into(),
+			asset.into(),
+			amount.saturating_sub(referrals_used),
+		)?;
+		Ok(staking_used.saturating_add(referrals_used))
 	}
 }
 
@@ -601,14 +630,32 @@ impl<Runtime, LMInstance> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
 where
 	Runtime: warehouse_liquidity_mining::Config<LMInstance>
 		+ pallet_ema_oracle::Config
-		+ pallet_omnipool_liquidity_mining::Config,
+		+ pallet_omnipool_liquidity_mining::Config
+		+ pallet_asset_registry::Config
+		+ pallet_bonds::Config,
+	u32: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 {
 	type Error = DispatchError;
 	type PriceAdjustment = FixedU128;
 
 	fn get(global_farm: &GlobalFarmData<Runtime, LMInstance>) -> Result<Self::PriceAdjustment, Self::Error> {
+		use pallet_asset_registry::AssetType;
+
+		let asset_detail = pallet_asset_registry::Assets::<Runtime>::get(global_farm.reward_currency.into())
+			.ok_or(pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
+
+		let reward_currency_id = if asset_detail.asset_type == AssetType::Bond {
+			let name = asset_detail
+				.name
+				.ok_or(pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
+
+			pallet_bonds::Pallet::<Runtime>::parse_bond_name(name.into())?
+		} else {
+			global_farm.reward_currency.into()
+		};
+
 		let (price, _) = pallet_ema_oracle::Pallet::<Runtime>::get_price(
-			global_farm.reward_currency.into(),
+			reward_currency_id,
 			global_farm.incentivized_asset.into(), //LRNA
 			OraclePeriod::TenMinutes,
 			OMNIPOOL_SOURCE,
@@ -684,7 +731,7 @@ impl<
 		UnknownAsset: UnknownAssetT,
 		Match: MatchesFungible<MultiCurrency::Balance>,
 		AccountId: sp_std::fmt::Debug + Clone,
-		AccountIdConvert: MoreConvert<MultiLocation, AccountId>,
+		AccountIdConvert: ConvertLocation<AccountId>,
 		CurrencyId: FullCodec + Eq + PartialEq + Copy + MaybeSerializeDeserialize + Debug,
 		CurrencyIdConvert: Convert<MultiAsset, Option<CurrencyId>>,
 		DepositFailureHandler: OnDepositFail<CurrencyId, AccountId, MultiCurrency::Balance>,
@@ -706,12 +753,12 @@ impl<
 {
 	fn deposit_asset(asset: &MultiAsset, location: &MultiLocation, _context: &XcmContext) -> Result<(), XcmError> {
 		match (
-			AccountIdConvert::convert_ref(location),
+			AccountIdConvert::convert_location(location),
 			CurrencyIdConvert::convert(asset.clone()),
 			Match::matches_fungible(asset),
 		) {
 			// known asset
-			(Ok(who), Some(currency_id), Some(amount)) => {
+			(Some(who), Some(currency_id), Some(amount)) => {
 				if RerouteFilter::contains(&(currency_id, who.clone())) {
 					MultiCurrency::deposit(currency_id, &RerouteDestination::get(), amount)
 						.or_else(|err| DepositFailureHandler::on_deposit_currency_fail(err, currency_id, &who, amount))
@@ -732,8 +779,8 @@ impl<
 		_maybe_context: Option<&XcmContext>,
 	) -> Result<Assets, XcmError> {
 		UnknownAsset::withdraw(asset, location).or_else(|_| {
-			let who = AccountIdConvert::convert_ref(location)
-				.map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
+			let who = AccountIdConvert::convert_location(location)
+				.ok_or_else(|| XcmError::from(Error::AccountIdConversionFailed))?;
 			let currency_id = CurrencyIdConvert::convert(asset.clone())
 				.ok_or_else(|| XcmError::from(Error::CurrencyIdConversionFailed))?;
 			let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
@@ -752,9 +799,9 @@ impl<
 		_context: &XcmContext,
 	) -> Result<Assets, XcmError> {
 		let from_account =
-			AccountIdConvert::convert_ref(from).map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
+			AccountIdConvert::convert_location(from).ok_or_else(|| XcmError::from(Error::AccountIdConversionFailed))?;
 		let to_account =
-			AccountIdConvert::convert_ref(to).map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
+			AccountIdConvert::convert_location(to).ok_or_else(|| XcmError::from(Error::AccountIdConversionFailed))?;
 		let currency_id = CurrencyIdConvert::convert(asset.clone())
 			.ok_or_else(|| XcmError::from(Error::CurrencyIdConversionFailed))?;
 		let to_account = if RerouteFilter::contains(&(currency_id, to_account.clone())) {
@@ -965,5 +1012,41 @@ where
 
 	fn on_trade_weight(n: usize) -> Weight {
 		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(n as u64)
+	}
+}
+
+/// Price provider that returns a price of an asset that can be used to pay tx fee.
+/// If an asset cannot be used as fee payment asset, None is returned.
+pub struct AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>(
+	PhantomData<(A, AC, RP, Oracle, FallbackPrice, Period)>,
+);
+
+impl<AssetId, A, RP, AC, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
+	for AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>
+where
+	RP: RouteProvider<AssetId>,
+	Oracle: PriceOracle<AssetId, Price = EmaPrice>,
+	FallbackPrice: GetByKey<AssetId, Option<FixedU128>>,
+	Period: Get<OraclePeriod>,
+	A: Get<AssetId>,
+	AssetId: Copy + PartialEq,
+	AC: Contains<AssetId>,
+{
+	fn price(currency: AssetId) -> Option<EmaPrice> {
+		if currency == A::get() {
+			return Some(EmaPrice::one());
+		}
+
+		if AC::contains(&currency) {
+			let route = RP::get_route(AssetPair::new(currency, A::get()));
+			if let Some(price) = Oracle::price(&route, Period::get()) {
+				Some(price)
+			} else {
+				let fp = FallbackPrice::get(&currency);
+				fp.map(|price| EmaPrice::new(price.into_inner(), FixedU128::DIV))
+			}
+		} else {
+			None
+		}
 	}
 }

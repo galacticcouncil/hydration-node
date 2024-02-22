@@ -440,7 +440,7 @@ fn remove_liquidity_fail_when_desired_min_limit_is_not_reached() {
 			let shares = Tokens::free_balance(pool_id, &BOB);
 			assert_noop!(
 				Stableswap::remove_liquidity_one_asset(RuntimeOrigin::signed(BOB), pool_id, asset_c, shares, 200 * ONE,),
-				Error::<Test>::MinimumAmountNotReached
+				Error::<Test>::SlippageLimit,
 			);
 		});
 }

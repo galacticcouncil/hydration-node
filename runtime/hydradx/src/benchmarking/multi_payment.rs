@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use super::*;
-use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, Runtime, System};
+use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, System};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
@@ -164,6 +164,13 @@ where
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),
 		maker.clone(),
+		0_u32,
+		InsufficientEDinHDX::get() as i128,
+	));
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
 		asset_a,
 		amount_a as i128,
 	));
@@ -223,10 +230,11 @@ fn set_period(to: u32) {
 mod tests {
 	use super::*;
 	use orml_benchmarking::impl_benchmark_test_suite;
+	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::default()
-			.build_storage::<crate::Runtime>()
+		frame_system::GenesisConfig::<crate::Runtime>::default()
+			.build_storage()
 			.unwrap()
 			.into()
 	}

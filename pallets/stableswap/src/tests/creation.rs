@@ -367,3 +367,33 @@ fn create_pool_should_add_account_to_whitelist() {
 			assert!(DUSTER_WHITELIST.with(|v| v.borrow().contains(&pool_account)));
 		});
 }
+
+#[test]
+fn create_pool_should_fail_when_number_of_assets_exceeds_maximum() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+	let asset_d: AssetId = 4;
+	let asset_e: AssetId = 5;
+	let asset_f: AssetId = 6;
+	let pool_id: AssetId = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Stableswap::create_pool(
+					RuntimeOrigin::root(),
+					pool_id,
+					vec![asset_a, asset_b, asset_c, asset_d, asset_e, asset_f],
+					100,
+					Permill::from_percent(0),
+				),
+				Error::<Test>::MaxAssetsExceeded
+			);
+		});
+}

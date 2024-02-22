@@ -17,11 +17,13 @@
 #![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the Act block
 
 use crate::{
-	AccountId, AssetId, Balance, BlockNumber, Currencies, EmaOracle, MaxSchedulesPerBlock, NamedReserveId, Runtime,
-	System, DCA,
+	AccountId, AssetId, Balance, BlockNumber, Currencies, EmaOracle, MaxSchedulesPerBlock, MultiTransactionPayment,
+	NamedReserveId, Router, Runtime, System, DCA, XYK,
 };
 
+use crate::benchmarking::register_asset;
 use frame_benchmarking::account;
+use frame_benchmarking::BenchmarkError;
 use frame_support::{
 	assert_ok,
 	traits::{Hooks, Len},
@@ -29,14 +31,17 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::RawOrigin;
+use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, NamedMultiReservableCurrency};
 use pallet_dca::types::{Order, Schedule, ScheduleId};
 use pallet_dca::{ScheduleIdsPerBlock, Schedules};
 use pallet_route_executor::Trade;
+use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
+use sp_runtime::FixedU128;
 use sp_runtime::{DispatchError, Permill};
 use sp_std::vec;
 
@@ -258,7 +263,7 @@ runtime_benchmarks! {
 		let execution_block = 100u32;
 		assert_eq!(DCA::schedules::<ScheduleId>(execution_block), None);
 		let r = DCA::schedules::<ScheduleId>(execution_block);
-		let mut weight = Weight::from_ref_time(0);
+		let mut weight = Weight::zero();
 	}: {
 		weight = DCA::on_initialize(execution_block);
 	}
@@ -270,16 +275,89 @@ runtime_benchmarks! {
 	schedule{
 		let caller: AccountId = create_account_with_native_balance()?;
 
-		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &caller, 100_000_000_000_000_000_000_000i128)?;
+		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		create_xyk_pool(asset_1, asset_2);
+		create_xyk_pool(asset_2, asset_3);
+		create_xyk_pool(asset_3, asset_4);
+		create_xyk_pool(asset_4, asset_5);
+		create_xyk_pool(asset_5, HDX);
 
+		set_period(10);
+
+		let route = vec![
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_1,
+				asset_out: asset_2,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_2,
+				asset_out: asset_3,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_3,
+				asset_out: asset_4,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_4,
+				asset_out: asset_5,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_5,
+				asset_out: HDX,
+			}
+		];
+
+		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
+
+		let maker: AccountId = account("maker", 0, 0);
+		Router::set_route(RawOrigin::Signed(maker).into(), AssetPair::new(asset_1, HDX), route)?;
+
+		assert_ok!(MultiTransactionPayment::add_currency(
+				RawOrigin::Root.into(),
+				asset_1,
+				FixedU128::from_rational(88, 100),
+			));
+
+		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &caller, 100_000_000_000_000_000_000_000i128)?;
+		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(asset_1, &caller, 100_000_000_000_000_000_000_000i128)?;
 		let amount_sell = 200 * ONE;
-		let schedule1 = schedule_fake(caller.clone(), HDX, DAI, amount_sell);
+
+		let schedule1: Schedule<AccountId, AssetId, BlockNumber> = Schedule {
+			owner:caller.clone() ,
+			period: 3u32,
+			total_amount: 1100 * ONE,
+			max_retries: None,
+			stability_threshold: None,
+			slippage: Some(Permill::from_percent(15)),
+			order: Order::Buy {
+				asset_in: asset_1,
+				asset_out: DAI,
+				amount_out: amount_sell,
+				max_amount_in: Balance::MAX,
+				route: create_bounded_vec(vec![Trade {
+					pool: PoolType::Omnipool,
+					asset_in: asset_1,
+					asset_out: DAI,
+				}]),
+			},
+		};
+
 		let execution_block = 100u32;
 
 		//We fill blocks with schedules leaving only one place
+		let schedule_2 = schedule_fake(caller.clone(), HDX, DAI, amount_sell);
 		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
 		for i in 0..number_of_all_schedules {
-			assert_ok!(DCA::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
+			assert_ok!(DCA::schedule(RawOrigin::Signed(caller.clone()).into(), schedule_2.clone(), Option::Some(execution_block)));
 		}
 
 		let schedule_id : ScheduleId = number_of_all_schedules;
@@ -313,22 +391,89 @@ runtime_benchmarks! {
 
 }
 
+pub const INITIAL_BALANCE: Balance = 10_000_000 * ONE;
+
+fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
+	let account: AccountId = account(name, index, 0);
+	for asset in assets {
+		assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
+			*asset,
+			&account,
+			INITIAL_BALANCE.try_into().unwrap(),
+		));
+	}
+	account
+}
+
+fn create_xyk_pool(asset_a: u32, asset_b: u32) {
+	let caller: AccountId = funded_account("caller", 0, &[asset_a, asset_b]);
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		caller.clone(),
+		0,
+		10 * ONE as i128,
+	));
+
+	let amount = 100000 * ONE;
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		caller.clone(),
+		asset_a,
+		amount as i128,
+	));
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		caller.clone(),
+		asset_b,
+		amount as i128,
+	));
+
+	assert_ok!(XYK::create_pool(
+		RawOrigin::Signed(caller.clone()).into(),
+		asset_a,
+		amount,
+		asset_b,
+		amount,
+	));
+
+	assert_ok!(XYK::sell(
+		RawOrigin::Signed(caller).into(),
+		asset_a,
+		asset_b,
+		10 * ONE,
+		0u128,
+		false,
+	));
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::NativeExistentialDeposit;
-	use frame_support::traits::GenesisBuild;
 	use orml_benchmarking::impl_benchmark_test_suite;
+	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default()
-			.build_storage::<Runtime>()
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
 			.unwrap();
 
 		pallet_asset_registry::GenesisConfig::<Runtime> {
-			registered_assets: vec![(b"DAI".to_vec(), 1_000u128, Some(DAI))],
-			native_asset_name: b"HDX".to_vec(),
+			registered_assets: vec![(
+				Some(DAI),
+				Some(b"DAI".to_vec().try_into().unwrap()),
+				1_000u128,
+				None,
+				None,
+				None,
+				false,
+			)],
+			native_asset_name: b"HDX".to_vec().try_into().unwrap(),
 			native_existential_deposit: NativeExistentialDeposit::get(),
+			native_decimals: 12,
+			native_symbol: b"HDX".to_vec().try_into().unwrap(),
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

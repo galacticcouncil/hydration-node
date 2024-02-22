@@ -22,7 +22,7 @@ use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError;
-use sp_runtime::DispatchError::BadOrigin;
+
 #[test]
 fn buy_should_work_when_route_has_single_trade() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -44,7 +44,7 @@ fn buy_should_work_when_route_has_single_trade() {
 
 		//Assert
 		assert_executed_buy_trades(vec![(PoolType::XYK, amount_to_buy, HDX, AUSD)]);
-		expect_events(vec![Event::RouteExecuted {
+		expect_events(vec![Event::Executed {
 			asset_in: HDX,
 			asset_out: AUSD,
 			amount_in: XYK_BUY_CALCULATION_RESULT,
@@ -73,7 +73,7 @@ fn buy_should_work_with_omnipool_when_no_route_or_onchain_route_exist() {
 
 		//Assert
 		assert_executed_buy_trades(vec![(PoolType::Omnipool, amount_to_buy, HDX, DOT)]);
-		expect_events(vec![Event::RouteExecuted {
+		expect_events(vec![Event::Executed {
 			asset_in: HDX,
 			asset_out: DOT,
 			amount_in: OMNIPOOL_BUY_CALCULATION_RESULT,
@@ -132,7 +132,7 @@ fn buy_should_work_when_onchain_route_present_in_reverse_order() {
 				(PoolType::XYK, amount_to_buy, MOVR, HDX),
 			]);
 
-			expect_events(vec![Event::RouteExecuted {
+			expect_events(vec![Event::Executed {
 				asset_in: KSM,
 				asset_out: HDX,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
@@ -289,7 +289,7 @@ fn buy_should_when_route_has_multiple_trades_with_same_pool_type() {
 				(PoolType::XYK, amount_to_buy, MOVR, KSM),
 			]);
 
-			expect_events(vec![Event::RouteExecuted {
+			expect_events(vec![Event::Executed {
 				asset_in: HDX,
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
@@ -342,7 +342,7 @@ fn buy_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 				(PoolType::Omnipool, amount_to_buy, AUSD, KSM),
 			]);
 
-			expect_events(vec![Event::RouteExecuted {
+			expect_events(vec![Event::Executed {
 				asset_in: HDX,
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
@@ -401,7 +401,7 @@ fn buy_should_work_with_onchain_route_when_no_route_specified() {
 				(PoolType::XYK, amount_to_buy, AUSD, KSM),
 			]);
 
-			expect_events(vec![Event::RouteExecuted {
+			expect_events(vec![Event::Executed {
 				asset_in: HDX,
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
@@ -465,7 +465,7 @@ fn buy_should_fail_when_called_with_non_signed_origin() {
 			//Act and Assert
 			assert_noop!(
 				Router::buy(RuntimeOrigin::none(), HDX, AUSD, amount_to_buy, limit, trades),
-				BadOrigin
+				DispatchError::Other("Wrong origin")
 			);
 		});
 }
@@ -486,6 +486,37 @@ fn buy_should_fail_when_max_limit_to_spend_is_reached() {
 			assert_noop!(
 				Router::buy(RuntimeOrigin::signed(ALICE), HDX, AUSD, amount_to_buy, limit, trades),
 				Error::<Test>::TradingLimitReached
+			);
+		});
+}
+
+#[test]
+fn buy_should_fail_when_assets_dont_correspond_to_route() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, AUSD, 1000)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let amount_to_buy = 10;
+			let limit = 5;
+
+			let trades = vec![
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: AUSD,
+					asset_out: HDX,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: HDX,
+					asset_out: MOVR,
+				},
+			];
+
+			//Act
+			assert_noop!(
+				Router::buy(RuntimeOrigin::signed(ALICE), MOVR, AUSD, amount_to_buy, limit, trades),
+				Error::<Test>::InvalidRoute
 			);
 		});
 }

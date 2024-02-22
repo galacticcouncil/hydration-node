@@ -17,38 +17,30 @@
 
 use crate as router;
 use crate::{Config, Trade};
-use frame_support::parameter_types;
-use frame_support::traits::{Everything, GenesisBuild, Nothing};
-use frame_system as system;
-use frame_system::ensure_signed;
-use frame_system::pallet_prelude::OriginFor;
+use frame_support::{
+	parameter_types,
+	traits::{Everything, Nothing},
+};
+use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	DispatchError,
+	BuildStorage, DispatchError,
 };
-
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ops::Deref;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AssetId = u32;
 pub type Balance = u128;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	 Block = Block,
-	 NodeBlock = Block,
-	 UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	 {
 		 System: frame_system,
 		 Router: router,
@@ -63,19 +55,18 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 63;
 }
 
-impl system::Config for Test {
+impl frame_system::Config for Test {
 	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -94,7 +85,7 @@ pub type Amount = i128;
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		1/2
+		1
 	};
 }
 
@@ -113,7 +104,7 @@ impl orml_tokens::Config for Test {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 1/2;
+	pub const ExistentialDeposit: u128 = 1;
 	pub const MaxReserves: u32 = 50;
 }
 
@@ -127,6 +118,10 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 impl pallet_currencies::Config for Test {
@@ -141,6 +136,7 @@ type Pools = (XYK, StableSwap, OmniPool, LBP);
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
+	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 }
 
 impl Config for Test {
@@ -149,8 +145,46 @@ impl Config for Test {
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
+	type InspectRegistry = MockedAssetRegistry;
 	type AMM = Pools;
+	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
+}
+
+use hydradx_traits::AssetKind;
+pub struct MockedAssetRegistry;
+
+impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
+	type AssetId = AssetId;
+	type Location = ();
+
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		id <= 2000
+	}
+
+	fn exists(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
 }
 
 pub type AccountId = u64;
@@ -166,6 +200,7 @@ pub const RMRK: AssetId = 1004;
 pub const SDN: AssetId = 1005;
 pub const STABLE_SHARE_ASSET: AssetId = 1006;
 pub const DOT: AssetId = 1007;
+pub const INSUFFICIENT_ASSET: AssetId = 50000001;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
 
@@ -215,7 +250,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: vec![
@@ -229,6 +264,7 @@ impl ExtBuilder {
 		let mut initial_accounts = vec![
 			(ASSET_PAIR_ACCOUNT, STABLE_SHARE_ASSET, 1000u128),
 			(ASSET_PAIR_ACCOUNT, AUSD, 1000u128),
+			(ASSET_PAIR_ACCOUNT, INSUFFICIENT_ASSET, 1000u128),
 			(ASSET_PAIR_ACCOUNT, MOVR, 1000u128),
 			(ASSET_PAIR_ACCOUNT, KSM, 1000u128),
 			(ASSET_PAIR_ACCOUNT, RMRK, 1000u128),
@@ -418,7 +454,7 @@ impl_fake_executor!(
 );
 
 pub fn assert_executed_sell_trades(expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>) {
-	EXECUTED_SELLS.borrow().with(|v| {
+	EXECUTED_SELLS.with(|v| {
 		let trades = v.borrow().deref().clone();
 		assert_eq!(trades, expected_trades);
 	});
@@ -428,7 +464,7 @@ pub fn assert_last_executed_sell_trades(
 	number_of_trades: usize,
 	expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>,
 ) {
-	EXECUTED_SELLS.borrow().with(|v| {
+	EXECUTED_SELLS.with(|v| {
 		let trades = v.borrow().deref().clone();
 		let last_trades = trades.as_slice()[trades.len() - number_of_trades..].to_vec();
 		assert_eq!(last_trades, expected_trades);
@@ -436,7 +472,7 @@ pub fn assert_last_executed_sell_trades(
 }
 
 pub fn assert_executed_buy_trades(expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>) {
-	EXECUTED_BUYS.borrow().with(|v| {
+	EXECUTED_BUYS.with(|v| {
 		let trades = v.borrow().deref().clone();
 		assert_eq!(trades, expected_trades);
 	});
@@ -453,7 +489,7 @@ pub fn expect_no_route_executed_event() {
 
 	for event in &last_events {
 		let e = event.clone();
-		if matches!(e, RuntimeEvent::Router(crate::Event::<Test>::RouteExecuted { .. })) {
+		if matches!(e, RuntimeEvent::Router(crate::Event::<Test>::Executed { .. })) {
 			events.push(e);
 		}
 	}

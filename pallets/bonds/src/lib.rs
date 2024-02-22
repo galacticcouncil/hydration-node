@@ -53,9 +53,12 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use sp_core::MaxEncodedLen;
-use sp_std::vec::Vec;
+use sp_std::{mem, vec::Vec};
 
-use hydradx_traits::{AssetKind, CreateRegistry, Registry};
+use hydradx_traits::{
+	registry::{Create, Inspect},
+	AssetKind,
+};
 use orml_traits::{GetByKey, MultiCurrency};
 use primitives::{AssetId, Moment};
 
@@ -76,7 +79,6 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -101,8 +103,7 @@ pub mod pallet {
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Self::Balance>;
 
 		/// Asset Registry mechanism - used to register bonds in the asset registry.
-		type AssetRegistry: Registry<AssetId, Vec<u8>, Self::Balance, DispatchError>
-			+ CreateRegistry<AssetId, Self::Balance, Error = DispatchError>;
+		type AssetRegistry: Inspect<AssetId = AssetId> + Create<Self::Balance, Error = DispatchError>;
 
 		/// Provider for existential deposits of assets.
 		type ExistentialDeposits: GetByKey<AssetId, Self::Balance>;
@@ -180,6 +181,12 @@ pub mod pallet {
 		InvalidMaturity,
 		/// Asset type not allowed for underlying asset
 		DisallowedAsset,
+		/// Asset is not registered in `AssetRegistry`
+		AssetNotFound,
+		/// Generated name is not valid.
+		InvalidBondName,
+		/// Bond's name parsing was now successful
+		FailToParseName,
 	}
 
 	#[pallet::call]
@@ -211,7 +218,9 @@ pub mod pallet {
 			let who = T::IssueOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				T::AssetTypeWhitelist::contains(&T::AssetRegistry::retrieve_asset_type(asset_id)?),
+				T::AssetTypeWhitelist::contains(
+					&T::AssetRegistry::asset_type(asset_id).ok_or(Error::<T>::AssetNotFound)?
+				),
 				Error::<T>::DisallowedAsset
 			);
 
@@ -226,11 +235,16 @@ pub mod pallet {
 					ensure!(maturity >= T::TimestampProvider::now(), Error::<T>::InvalidMaturity);
 
 					let ed = T::ExistentialDeposits::get(&asset_id);
-
-					let bond_id = <T::AssetRegistry as CreateRegistry<AssetId, T::Balance>>::create_asset(
-						&Self::bond_name(asset_id, maturity),
+					let b_name = Self::bond_name(asset_id, maturity);
+					let bond_id = T::AssetRegistry::register_insufficient_asset(
+						None,
+						Some(b_name.try_into().map_err(|_| Error::<T>::InvalidBondName)?),
 						AssetKind::Bond,
-						ed,
+						Some(ed),
+						None,
+						None,
+						None,
+						None,
 					)?;
 
 					Bonds::<T>::insert(bond_id, (asset_id, maturity));
@@ -313,5 +327,13 @@ impl<T: Config> Pallet<T> {
 		buf.extend_from_slice(&when.to_le_bytes());
 
 		buf
+	}
+
+	pub fn parse_bond_name(name: Vec<u8>) -> Result<AssetId, Error<T>> {
+		Ok(AssetId::from_le_bytes(
+			name[..mem::size_of::<AssetId>()]
+				.try_into()
+				.map_err(|_| Error::<T>::FailToParseName)?,
+		))
 	}
 }

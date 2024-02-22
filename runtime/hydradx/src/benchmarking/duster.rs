@@ -42,7 +42,7 @@ runtime_benchmarks! {
 
 		update_balance(asset_id, &to_dust_account, min_deposit);
 
-		update_asset(asset_id, b"TST".to_vec(), 110u128).map_err(|_| BenchmarkError::Stop("Failed to update asset"))?;
+		update_asset(asset_id, None, 110u128).map_err(|_| BenchmarkError::Stop("Failed to update asset"))?;
 		assert_eq!(Tokens::free_balance(asset_id, &to_dust_account), dust_amount);
 
 		let current_balance = Tokens::free_balance(asset_id, &dest_account.clone().unwrap());
@@ -78,10 +78,11 @@ runtime_benchmarks! {
 mod tests {
 	use super::*;
 	use orml_benchmarking::impl_benchmark_test_suite;
+	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::default()
-			.build_storage::<crate::Runtime>()
+		frame_system::GenesisConfig::<crate::Runtime>::default()
+			.build_storage()
 			.unwrap()
 			.into()
 	}

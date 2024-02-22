@@ -16,19 +16,18 @@
 // limitations under the License.
 
 use crate as xyk;
-use crate::Config;
 use crate::*;
 use frame_support::parameter_types;
 use frame_system as system;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
+	BuildStorage,
 };
 
 use crate::types::{AssetId, Balance};
-use frame_support::traits::{Everything, GenesisBuild, Get, Nothing};
+use frame_support::traits::{Everything, Get, Nothing};
 use hydradx_traits::{AssetPairAccountIdFor, CanCreatePool, Source};
 
 use frame_system::EnsureSigned;
@@ -41,6 +40,7 @@ pub type AccountId = u64;
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 pub const CHARLIE: AccountId = 3;
+pub const TREASURY: AccountId = 4;
 
 pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
@@ -50,14 +50,12 @@ pub const HDX_DOT_POOL_ID: AccountId = 1_002_000;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
+type AssetLocation = u8;
+
 frame_support::construct_runtime!(
-	pub enum Test where
-	 Block = Block,
-	 NodeBlock = Block,
-	 UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	 {
 		 System: frame_system,
 		 XYK: xyk,
@@ -98,19 +96,26 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 63;
 	pub const NativeAssetId: AssetId = HDX;
+	#[derive(PartialEq, Debug)]
 	pub RegistryStringLimit: u32 = 100;
+	#[derive(PartialEq, Debug)]
+	pub MinRegistryStringLimit: u32 = 2;
 	pub const SequentialIdOffset: u32 = 1_000_000;
+	pub const StoreFees: Balance = 10 * ONE;
+	pub const FeesBeneficiarry: u64 = TREASURY;
 }
 
 impl pallet_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EnsureSigned<AccountId>;
+	type Currency = Currency;
+	type UpdateOrigin = EnsureSigned<u64>;
 	type AssetId = AssetId;
-	type Balance = Balance;
-	type AssetNativeLocation = u8;
+	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStringLimit;
+	type MinStringLimit = MinRegistryStringLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
-	type NativeAssetId = NativeAssetId;
+	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
 	type WeightInfo = ();
 }
 
@@ -120,13 +125,12 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -192,7 +196,7 @@ impl CanCreatePool<AssetId> for Disallow10_10Pool {
 	}
 }
 
-impl Config for Test {
+impl xyk::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetRegistry = AssetRegistry;
 	type AssetPairAccountId = AssetPairAccountIdTest;
@@ -256,7 +260,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self.endowed_accounts,

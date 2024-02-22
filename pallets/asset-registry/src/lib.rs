@@ -17,17 +17,16 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::dispatch::DispatchError;
 use frame_support::pallet_prelude::*;
+use frame_support::require_transactional;
 use frame_support::sp_runtime::traits::CheckedAdd;
+use frame_support::traits::tokens::fungibles::{Inspect as FungiblesInspect, Mutate as FungiblesMutate};
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_arithmetic::traits::BaseArithmetic;
+use sp_runtime::DispatchError;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
-
-#[cfg(test)]
-mod mock;
 
 #[cfg(test)]
 mod tests;
@@ -44,18 +43,29 @@ pub use types::AssetType;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-pub use crate::types::{AssetDetails, AssetMetadata};
+pub use crate::types::{AssetDetails, Balance, Name, Symbol};
+use frame_support::storage::with_transaction;
 use frame_support::BoundedVec;
-use hydradx_traits::{AssetKind, CreateRegistry, InspectRegistry, Registry, ShareTokenRegistry};
+use hydradx_traits::{
+	registry::{Create, Inspect, Mutate},
+	AssetKind,
+};
+use sp_runtime::TransactionOutcome;
+
+/// Default value of existential deposit. This value is used if existential deposit wasn't
+/// provided.
+pub const DEFAULT_ED: Balance = 1;
 
 #[frame_support::pallet]
+#[allow(clippy::too_many_arguments)]
 pub mod pallet {
-	use super::*;
-	use crate::types::Metadata;
-	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+	use sp_std::fmt::Debug;
 
-	pub type AssetDetailsT<T> =
-		AssetDetails<<T as Config>::AssetId, <T as Config>::Balance, BoundedVec<u8, <T as Config>::StringLimit>>;
+	use super::*;
+
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+
+	pub type AssetDetailsT<T> = AssetDetails<<T as Config>::StringLimit>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -63,6 +73,9 @@ pub mod pallet {
 
 		/// The origin which can work with asset-registry.
 		type RegistryOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// The origin which can update assets' detail.
+		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Asset type
 		type AssetId: Parameter
@@ -74,37 +87,45 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
-		/// Balance type
-		type Balance: Parameter
-			+ Member
-			+ AtLeast32BitUnsigned
-			+ Default
-			+ Copy
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen;
-
 		/// Asset location type
 		type AssetNativeLocation: Parameter + Member + Default + MaxEncodedLen;
 
-		/// The maximum length of a name or symbol stored on-chain.
-		type StringLimit: Get<u32>;
+		/// Multi currency mechanism
+		type Currency: FungiblesInspect<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>
+			+ FungiblesMutate<Self::AccountId>;
 
 		#[pallet::constant]
 		type SequentialIdStartAt: Get<Self::AssetId>;
 
-		/// Native Asset Id
+		/// The maximum length of a name or symbol stored on-chain.
 		#[pallet::constant]
-		type NativeAssetId: Get<Self::AssetId>;
+		type StringLimit: Get<u32> + Debug + PartialEq;
+
+		/// The min length of a name or symbol stored on-chain.
+		#[pallet::constant]
+		type MinStringLimit: Get<u32> + Debug + PartialEq;
+
+		/// Weight multiplier for `register_external` extrinsic
+		#[pallet::constant]
+		type RegExternalWeightMultiplier: Get<u64>;
 
 		/// Weight information for the extrinsics
 		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn integrity_test() {
+			assert!(
+				T::RegExternalWeightMultiplier::get().ge(&1_u64),
+				"`T::RegExternalWeightMultiplier` must be greater than zero."
+			);
+		}
+	}
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -114,8 +135,11 @@ pub mod pallet {
 		/// Invalid asset name or symbol.
 		AssetNotFound,
 
-		/// Invalid asset name or symbol.
-		TooLong,
+		/// Length of name or symbol is less than min. length.
+		TooShort,
+
+		/// Asset's symbol can't contain whitespace characters .
+		InvalidSymbol,
 
 		/// Asset ID is not registered in the asset-registry.
 		AssetNotRegistered,
@@ -126,24 +150,46 @@ pub mod pallet {
 		/// Incorrect number of assets provided to create shared asset.
 		InvalidSharedAssetLen,
 
-		/// Cannot update asset location
+		/// Cannot update asset location.
 		CannotUpdateLocation,
 
 		/// Selected asset id is out of reserved range.
 		NotInReservedRange,
 
-		/// Location already registered with different asset
+		/// Location already registered with different asset.
 		LocationAlreadyRegistered,
+
+		/// Origin is forbidden to set/update value.
+		Forbidden,
+
+		/// Balance too low.
+		InsufficientBalance,
+
+		/// Sufficient assets can't be changed to insufficient.
+		ForbiddenSufficiencyChange,
+
+		/// Asset is already banned.
+		AssetAlreadyBanned,
+
+		/// Asset is not banned.
+		AssetNotBanned,
+	}
+
+	#[pallet::type_value]
+	/// Default value of NextAssetId if storage is empty.
+	/// 1 is used to offset the native asset with id 0.
+	pub fn DefaultNextAssetId<T: Config>() -> T::AssetId {
+		1.into()
 	}
 
 	#[pallet::storage]
 	#[pallet::getter(fn assets)]
 	/// Details of an asset.
-	pub type Assets<T: Config> = StorageMap<_, Twox64Concat, T::AssetId, AssetDetailsT<T>, OptionQuery>;
+	pub type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetDetailsT<T>, OptionQuery>;
 
 	#[pallet::storage]
 	/// Next available asset id. This is sequential id assigned for each new registered asset.
-	pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
+	pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery, DefaultNextAssetId<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn asset_ids)]
@@ -154,7 +200,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn locations)]
 	/// Native location of an asset.
-	pub type AssetLocations<T: Config> = StorageMap<_, Twox64Concat, T::AssetId, T::AssetNativeLocation, OptionQuery>;
+	pub type AssetLocations<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, T::AssetNativeLocation, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn banned_assets)]
+	/// Non-native assets which transfer is banned.
+	pub type BannedAssets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (), OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn location_assets)]
@@ -163,83 +215,114 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::AssetNativeLocation, T::AssetId, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn asset_metadata)]
-	/// Metadata of an asset.
-	pub type AssetMetadataMap<T: Config> =
-		StorageMap<_, Twox64Concat, T::AssetId, AssetMetadata<BoundedVec<u8, T::StringLimit>>, OptionQuery>;
+	/// Number of accounts that paid existential deposits for insufficient assets.
+	/// This storage is used by `SufficiencyCheck`.
+	pub type ExistentialDepositCounter<T: Config> = StorageValue<_, u128, ValueQuery>;
 
 	#[allow(clippy::type_complexity)]
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub registered_assets: Vec<(Vec<u8>, T::Balance, Option<T::AssetId>)>,
-		pub native_asset_name: Vec<u8>,
-		pub native_existential_deposit: T::Balance,
+		//asset_id, name, existential deposit, symbol, decimals, xcm_rate_limit, is_sufficient
+		pub registered_assets: Vec<(
+			Option<T::AssetId>,
+			Option<Name<T::StringLimit>>,
+			Balance,
+			Option<Symbol<T::StringLimit>>,
+			Option<u8>,
+			Option<Balance>,
+			bool,
+		)>,
+		pub native_asset_name: Name<T::StringLimit>,
+		pub native_existential_deposit: Balance,
+		pub native_symbol: Symbol<T::StringLimit>,
+		pub native_decimals: u8,
 	}
 
-	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
 			GenesisConfig::<T> {
-				registered_assets: vec![],
-				native_asset_name: b"BSX".to_vec(),
-				native_existential_deposit: Default::default(),
+				registered_assets: sp_std::vec![],
+				native_asset_name: b"HDX".to_vec().try_into().expect("Invalid native asset name!"),
+				native_existential_deposit: DEFAULT_ED,
+				native_symbol: b"HDX".to_vec().try_into().expect("Invalid native asset symbol!"),
+				native_decimals: 12,
 			}
 		}
 	}
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			// Register native asset first
-			// It is to make sure that native is registered as any other asset
-			let native_asset_name = Pallet::<T>::to_bounded_name(self.native_asset_name.to_vec())
-				.map_err(|_| panic!("Invalid native asset name!"))
-				.unwrap();
+			with_transaction(|| {
+				// Register native asset first
+				// It is to make sure that native is registered as any other asset
+				let native_asset_id = T::AssetId::from(0);
+				AssetIds::<T>::insert(&self.native_asset_name, native_asset_id);
+				let details = AssetDetails {
+					name: Some(self.native_asset_name.clone()),
+					asset_type: AssetType::Token,
+					existential_deposit: self.native_existential_deposit,
+					xcm_rate_limit: None,
+					symbol: Some(self.native_symbol.clone()),
+					decimals: Some(self.native_decimals),
+					is_sufficient: true,
+				};
 
-			AssetIds::<T>::insert(&native_asset_name, T::NativeAssetId::get());
-			let details = AssetDetails {
-				name: native_asset_name,
-				asset_type: AssetType::Token,
-				existential_deposit: self.native_existential_deposit,
+				Assets::<T>::insert(native_asset_id, details);
 
-				xcm_rate_limit: None,
-			};
+				self.registered_assets.iter().for_each(
+					|(id, name, ed, symbol, decimals, xcm_rate_limit, is_sufficient)| {
+						let details = AssetDetails {
+							name: name.clone(),
+							asset_type: AssetType::Token,
+							existential_deposit: *ed,
+							xcm_rate_limit: *xcm_rate_limit,
+							symbol: symbol.clone(),
+							decimals: *decimals,
+							is_sufficient: *is_sufficient,
+						};
+						let _ = Pallet::<T>::do_register_asset(*id, &details, None).expect("Failed to register asset");
+					},
+				);
 
-			Assets::<T>::insert(T::NativeAssetId::get(), details);
-
-			self.registered_assets.iter().for_each(|(name, ed, id)| {
-				let bounded_name = Pallet::<T>::to_bounded_name(name.to_vec())
-					.map_err(|_| panic!("Invalid asset name!"))
-					.unwrap();
-				let _ = Pallet::<T>::register_asset(bounded_name, AssetType::Token, *ed, *id, None)
-					.map_err(|_| panic!("Failed to register asset"));
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			})
+			.expect("Genesis build failed.")
 		}
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	#[pallet::generate_deposit(pub fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// Existential deposit for insufficinet asset was paid.
+		/// `SufficiencyCheck` triggers this event.
+		ExistentialDepositPaid {
+			who: T::AccountId,
+			fee_asset: T::AssetId,
+			amount: Balance,
+		},
+
 		/// Asset was registered.
 		Registered {
 			asset_id: T::AssetId,
-			asset_name: BoundedVec<u8, T::StringLimit>,
-			asset_type: AssetType<T::AssetId>,
+			asset_name: Option<BoundedVec<u8, T::StringLimit>>,
+			asset_type: AssetType,
+			existential_deposit: Balance,
+			xcm_rate_limit: Option<Balance>,
+			symbol: Option<BoundedVec<u8, T::StringLimit>>,
+			decimals: Option<u8>,
+			is_sufficient: bool,
 		},
 
 		/// Asset was updated.
 		Updated {
 			asset_id: T::AssetId,
-			asset_name: BoundedVec<u8, T::StringLimit>,
-			asset_type: AssetType<T::AssetId>,
-			existential_deposit: T::Balance,
-			xcm_rate_limit: Option<T::Balance>,
-		},
-
-		/// Metadata set for an asset.
-		MetadataSet {
-			asset_id: T::AssetId,
-			symbol: BoundedVec<u8, T::StringLimit>,
-			decimals: u8,
+			asset_name: Option<BoundedVec<u8, T::StringLimit>>,
+			asset_type: AssetType,
+			existential_deposit: Balance,
+			xcm_rate_limit: Option<Balance>,
+			symbol: Option<BoundedVec<u8, T::StringLimit>>,
+			decimals: Option<u8>,
+			is_sufficient: bool,
 		},
 
 		/// Native location set for an asset.
@@ -247,16 +330,25 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			location: T::AssetNativeLocation,
 		},
+
+		/// Asset was banned.
+		AssetBanned { asset_id: T::AssetId },
+
+		/// Asset's ban was removed.
+		AssetUnbanned { asset_id: T::AssetId },
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Register a new asset.
 		///
-		/// Asset is identified by `name` and the name must not be used to register another asset.
-		///
 		/// New asset is given `NextAssetId` - sequential asset id
 		///
+		/// Asset's id is optional and it can't be used by another asset if it's provided.
+		/// Provided `asset_id` must be from within reserved range.
+		/// If `asset_id` is `None`, new asset is given id for sequential ids.
+		///
+		/// Asset's name is optional and it can't be used by another asset if it's provided.
 		/// Adds mapping between `name` and assigned `asset_id` so asset id can be retrieved by name too (Note: this approach is used in AMM implementation (xyk))
 		///
 		/// Emits 'Registered` event when successful.
@@ -265,232 +357,227 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::register())]
 		pub fn register(
 			origin: OriginFor<T>,
-			name: Vec<u8>,
-			asset_type: AssetType<T::AssetId>,
-			existential_deposit: T::Balance,
 			asset_id: Option<T::AssetId>,
-			metadata: Option<Metadata>,
+			name: Option<Name<T::StringLimit>>,
+			asset_type: AssetType,
+			existential_deposit: Option<Balance>,
+			symbol: Option<Symbol<T::StringLimit>>,
+			decimals: Option<u8>,
 			location: Option<T::AssetNativeLocation>,
-			xcm_rate_limit: Option<T::Balance>,
+			xcm_rate_limit: Option<Balance>,
+			is_sufficient: bool,
 		) -> DispatchResult {
 			T::RegistryOrigin::ensure_origin(origin)?;
 
-			let bounded_name = Self::to_bounded_name(name)?;
-
-			ensure!(
-				Self::asset_ids(&bounded_name).is_none(),
-				Error::<T>::AssetAlreadyRegistered
+			let details = AssetDetails::new(
+				name,
+				asset_type,
+				existential_deposit.unwrap_or(DEFAULT_ED),
+				symbol,
+				decimals,
+				xcm_rate_limit,
+				is_sufficient,
 			);
 
-			let asset_id =
-				Self::register_asset(bounded_name, asset_type, existential_deposit, asset_id, xcm_rate_limit)?;
-
-			if let Some(meta) = metadata {
-				let symbol = Self::to_bounded_name(meta.symbol)?;
-				AssetMetadataMap::<T>::insert(
-					asset_id,
-					AssetMetadata {
-						symbol: symbol.clone(),
-						decimals: meta.decimals,
-					},
-				);
-
-				Self::deposit_event(Event::MetadataSet {
-					asset_id,
-					symbol,
-					decimals: meta.decimals,
-				});
-			}
-
-			if let Some(loc) = location {
-				ensure!(asset_id != T::NativeAssetId::get(), Error::<T>::CannotUpdateLocation);
-				ensure!(
-					Self::location_assets(&loc).is_none(),
-					Error::<T>::LocationAlreadyRegistered
-				);
-				AssetLocations::<T>::insert(asset_id, &loc);
-				LocationAssets::<T>::insert(&loc, asset_id);
-
-				Self::deposit_event(Event::LocationSet {
-					asset_id,
-					location: loc,
-				});
-			}
-
+			Self::do_register_asset(asset_id, &details, location)?;
 			Ok(())
 		}
 
 		/// Update registered asset.
 		///
-		/// Updates also mapping between name and asset id if provided name is different than currently registered.
+		/// All parameteres are optional and value is not updated if param is `None`.
+		///
+		/// `decimals` - can be update by `UpdateOrigin` only if it wasn't set yet. Only
+		/// `RegistryOrigin` can update `decimals` if it was previously set.
+		///
+		/// `location` - can be updated only by `RegistryOrigin`.
 		///
 		/// Emits `Updated` event when successful.
-
-		// TODO: No tests
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::update())]
 		pub fn update(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
-			name: Vec<u8>,
-			asset_type: AssetType<T::AssetId>,
-			existential_deposit: Option<T::Balance>,
-			xcm_rate_limit: Option<T::Balance>,
+			name: Option<Name<T::StringLimit>>,
+			asset_type: Option<AssetType>,
+			existential_deposit: Option<Balance>,
+			xcm_rate_limit: Option<Balance>,
+			is_sufficient: Option<bool>,
+			symbol: Option<Symbol<T::StringLimit>>,
+			decimals: Option<u8>,
+			location: Option<T::AssetNativeLocation>,
 		) -> DispatchResult {
-			T::RegistryOrigin::ensure_origin(origin)?;
+			let is_registry_origin = T::RegistryOrigin::ensure_origin(origin.clone()).is_ok();
+			if !is_registry_origin {
+				T::UpdateOrigin::ensure_origin(origin)?;
+			}
+
+			if let Some(n) = name.as_ref() {
+				ensure!(n.len() >= T::MinStringLimit::get() as usize, Error::<T>::TooShort);
+			}
+
+			Self::validate_symbol(&symbol)?;
 
 			Assets::<T>::try_mutate(asset_id, |maybe_detail| -> DispatchResult {
-				let mut detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+				let detail = maybe_detail.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-				let bounded_name = Self::to_bounded_name(name)?;
+				if let Some(new_name) = name.as_ref() {
+					ensure!(Self::asset_ids(new_name).is_none(), Error::<T>::AssetAlreadyRegistered);
 
-				if bounded_name != detail.name {
-					// Make sure that there is no such name already registered
-					ensure!(
-						Self::asset_ids(&bounded_name).is_none(),
-						Error::<T>::AssetAlreadyRegistered
-					);
+					if let Some(old_name) = &detail.name {
+						AssetIds::<T>::remove(old_name);
+					}
 
-					// update also name map - remove old one first
-					AssetIds::<T>::remove(&detail.name);
-					AssetIds::<T>::insert(&bounded_name, asset_id);
+					if Some(new_name.clone()) != detail.name {
+						AssetIds::<T>::insert(new_name, asset_id);
+					}
+				};
+
+				detail.name = name.or_else(|| detail.name.clone());
+				detail.asset_type = asset_type.unwrap_or(detail.asset_type);
+				detail.existential_deposit = existential_deposit.unwrap_or(detail.existential_deposit);
+				detail.xcm_rate_limit = xcm_rate_limit.or(detail.xcm_rate_limit);
+				detail.symbol = symbol.or_else(|| detail.symbol.clone());
+
+				let suff = is_sufficient.unwrap_or(detail.is_sufficient);
+				if detail.is_sufficient != suff {
+					//NOTE: Change sufficient -> insufficient require storage migration and is not
+					//allowed by extrinsic.
+					ensure!(!detail.is_sufficient, Error::<T>::ForbiddenSufficiencyChange);
+					detail.is_sufficient = suff;
 				}
 
-				detail.name = bounded_name.clone();
-				detail.asset_type = asset_type;
-				detail.existential_deposit = existential_deposit.unwrap_or(detail.existential_deposit);
-				detail.xcm_rate_limit = xcm_rate_limit;
+				if decimals.is_some() {
+					if detail.decimals.is_none() {
+						detail.decimals = decimals;
+					} else {
+						//Only highest origin can change decimal if it was set previously.
+						ensure!(is_registry_origin, Error::<T>::Forbidden);
+						detail.decimals = decimals;
+					};
+				}
+
+				if let Some(loc) = location {
+					//Only highest origin can update location.
+					ensure!(is_registry_origin, Error::<T>::Forbidden);
+
+					if let Some(old_location) = AssetLocations::<T>::take(asset_id) {
+						LocationAssets::<T>::remove(&old_location);
+					}
+					Self::do_set_location(asset_id, loc)?;
+				}
 
 				Self::deposit_event(Event::Updated {
 					asset_id,
-					asset_name: bounded_name,
-					asset_type,
+					asset_name: detail.name.clone(),
+					asset_type: detail.asset_type,
 					existential_deposit: detail.existential_deposit,
 					xcm_rate_limit: detail.xcm_rate_limit,
+					symbol: detail.symbol.clone(),
+					decimals: detail.decimals,
+					is_sufficient: detail.is_sufficient,
 				});
 
 				Ok(())
 			})
 		}
 
-		/// Set metadata for an asset.
-		///
-		/// - `asset_id`: Asset identifier.
-		/// - `symbol`: The exchange symbol for this asset. Limited in length by `StringLimit`.
-		/// - `decimals`: The number of decimals this asset uses to represent one unit.
-		///
-		/// Emits `MetadataSet` event when successful.
-		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_metadata())]
-		pub fn set_metadata(
-			origin: OriginFor<T>,
-			asset_id: T::AssetId,
-			symbol: Vec<u8>,
-			decimals: u8,
-		) -> DispatchResult {
-			T::RegistryOrigin::ensure_origin(origin)?;
+		//NOTE: call indices 2 and 3 were used by removed extrinsics.
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::register_external().saturating_mul(<T as Config>::RegExternalWeightMultiplier::get()))]
+		pub fn register_external(origin: OriginFor<T>, location: T::AssetNativeLocation) -> DispatchResult {
+			let _ = ensure_signed(origin)?;
 
-			ensure!(Self::assets(asset_id).is_some(), Error::<T>::AssetNotFound);
-
-			let b_symbol = Self::to_bounded_name(symbol)?;
-
-			let metadata = AssetMetadata::<BoundedVec<u8, T::StringLimit>> {
-				symbol: b_symbol.clone(),
-				decimals,
-			};
-
-			AssetMetadataMap::<T>::insert(asset_id, metadata);
-
-			Self::deposit_event(Event::MetadataSet {
-				asset_id,
-				symbol: b_symbol,
-				decimals,
-			});
+			Self::do_register_asset(
+				None,
+				&AssetDetails::new(None, AssetType::External, DEFAULT_ED, None, None, None, false),
+				Some(location),
+			)?;
 
 			Ok(())
 		}
 
-		/// Set asset native location.
-		///
-		/// Adds mapping between native location and local asset id and vice versa.
-		///
-		/// Mainly used in XCM.
-		///
-		/// Emits `LocationSet` event when successful.
-		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_location())]
-		pub fn set_location(
-			origin: OriginFor<T>,
-			asset_id: T::AssetId,
-			location: T::AssetNativeLocation,
-		) -> DispatchResult {
-			T::RegistryOrigin::ensure_origin(origin)?;
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::ban_asset())]
+		pub fn ban_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+			T::UpdateOrigin::ensure_origin(origin)?;
 
-			ensure!(asset_id != T::NativeAssetId::get(), Error::<T>::CannotUpdateLocation);
-			ensure!(Self::assets(asset_id).is_some(), Error::<T>::AssetNotRegistered);
+			ensure!(Assets::<T>::contains_key(asset_id), Error::<T>::AssetNotFound);
+
 			ensure!(
-				Self::location_assets(&location).is_none(),
-				Error::<T>::LocationAlreadyRegistered
+				!BannedAssets::<T>::contains_key(asset_id),
+				Error::<T>::AssetAlreadyBanned
 			);
 
-			if let Some(old_location) = AssetLocations::<T>::take(asset_id) {
-				LocationAssets::<T>::remove(&old_location);
-			}
-			AssetLocations::<T>::insert(asset_id, &location);
-			LocationAssets::<T>::insert(&location, asset_id);
+			BannedAssets::<T>::insert(asset_id, ());
 
-			Self::deposit_event(Event::LocationSet { asset_id, location });
+			Self::deposit_event(Event::AssetBanned { asset_id });
+			Ok(())
+		}
 
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::unban_asset())]
+		pub fn unban_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+			T::UpdateOrigin::ensure_origin(origin)?;
+
+			ensure!(BannedAssets::<T>::contains_key(asset_id), Error::<T>::AssetNotBanned);
+
+			BannedAssets::<T>::remove(asset_id);
+
+			Self::deposit_event(Event::AssetUnbanned { asset_id });
 			Ok(())
 		}
 	}
 }
 
 impl<T: Config> Pallet<T> {
+	fn validate_symbol(symbol: &Option<Symbol<T::StringLimit>>) -> Result<(), DispatchError> {
+		if let Some(s) = symbol.clone() {
+			ensure!(s.len() >= T::MinStringLimit::get() as usize, Error::<T>::TooShort);
+
+			ensure!(
+				s.into_inner().iter().all(|c| !char::is_whitespace(*c as char)),
+				Error::<T>::InvalidSymbol
+			);
+		}
+		Ok(())
+	}
+
 	pub fn next_asset_id() -> Option<T::AssetId> {
 		NextAssetId::<T>::get().checked_add(&T::SequentialIdStartAt::get())
 	}
 
-	/// Convert Vec<u8> to BoundedVec so it respects the max set limit, otherwise return TooLong error
-	pub fn to_bounded_name(name: Vec<u8>) -> Result<BoundedVec<u8, T::StringLimit>, Error<T>> {
-		name.try_into().map_err(|_| Error::<T>::TooLong)
+	fn do_set_location(asset_id: T::AssetId, location: T::AssetNativeLocation) -> Result<(), DispatchError> {
+		ensure!(
+			Self::location_assets(&location).is_none(),
+			Error::<T>::LocationAlreadyRegistered
+		);
+
+		AssetLocations::<T>::insert(asset_id, &location);
+		LocationAssets::<T>::insert(&location, asset_id);
+
+		Self::deposit_event(Event::LocationSet { asset_id, location });
+
+		Ok(())
 	}
 
-	/// Register new asset.
-	///
-	/// Does not perform any  check whether an asset for given name already exists. This has to be prior to calling this function.
-	pub fn register_asset(
-		name: BoundedVec<u8, T::StringLimit>,
-		asset_type: AssetType<T::AssetId>,
-		existential_deposit: T::Balance,
+	#[require_transactional]
+	fn do_register_asset(
 		selected_asset_id: Option<T::AssetId>,
-		xcm_rate_limit: Option<T::Balance>,
+		details: &AssetDetails<T::StringLimit>,
+		location: Option<T::AssetNativeLocation>,
 	) -> Result<T::AssetId, DispatchError> {
-		let asset_id = if let Some(selected_id) = selected_asset_id {
-			ensure!(
-				selected_id < T::SequentialIdStartAt::get(),
-				Error::<T>::NotInReservedRange
-			);
+		Self::validate_symbol(&details.symbol)?;
 
-			ensure!(
-				!Assets::<T>::contains_key(selected_id),
-				Error::<T>::AssetAlreadyRegistered
-			);
+		let asset_id = if let Some(id) = selected_asset_id {
+			ensure!(id < T::SequentialIdStartAt::get(), Error::<T>::NotInReservedRange);
 
-			selected_id
+			ensure!(!Assets::<T>::contains_key(id), Error::<T>::AssetAlreadyRegistered);
+
+			id
 		} else {
 			NextAssetId::<T>::mutate(|value| -> Result<T::AssetId, DispatchError> {
-				// Check if current id does not clash with CORE ASSET ID.
-				// If yes, just skip it and use next one, otherwise use it.
-				// Note: this way we prevent accidental clashes with native asset id, so no need to set next asset id to be > next asset id
-				let next_asset_id = if *value == T::NativeAssetId::get() {
-					value
-						.checked_add(&T::AssetId::from(1))
-						.ok_or(Error::<T>::NoIdAvailable)?
-				} else {
-					*value
-				};
-
+				let next_asset_id = *value;
 				*value = next_asset_id
 					.checked_add(&T::AssetId::from(1))
 					.ok_or(Error::<T>::NoIdAvailable)?;
@@ -501,43 +588,29 @@ impl<T: Config> Pallet<T> {
 			})?
 		};
 
-		AssetIds::<T>::insert(&name, asset_id);
-
-		let details = AssetDetails {
-			name: name.clone(),
-			asset_type,
-			existential_deposit,
-			xcm_rate_limit,
-		};
-
-		// Store the details
 		Assets::<T>::insert(asset_id, details);
+		if let Some(name) = details.name.as_ref() {
+			ensure!(name.len() >= T::MinStringLimit::get() as usize, Error::<T>::TooShort);
+			ensure!(!AssetIds::<T>::contains_key(name), Error::<T>::AssetAlreadyRegistered);
+			AssetIds::<T>::insert(name, asset_id);
+		}
 
-		// Increase asset id to be assigned for following asset.
+		if let Some(loc) = location {
+			Self::do_set_location(asset_id, loc)?;
+		}
 
 		Self::deposit_event(Event::Registered {
 			asset_id,
-			asset_name: name,
-			asset_type,
+			asset_name: details.name.clone(),
+			asset_type: details.asset_type,
+			existential_deposit: details.existential_deposit,
+			xcm_rate_limit: details.xcm_rate_limit,
+			symbol: details.symbol.clone(),
+			decimals: details.decimals,
+			is_sufficient: details.is_sufficient,
 		});
 
 		Ok(asset_id)
-	}
-
-	/// Create asset for given name or return existing AssetId if such asset already exists.
-	pub fn get_or_create_asset(
-		name: Vec<u8>,
-		asset_type: AssetType<T::AssetId>,
-		existential_deposit: T::Balance,
-		asset_id: Option<T::AssetId>,
-	) -> Result<T::AssetId, DispatchError> {
-		let bounded_name: BoundedVec<u8, T::StringLimit> = Self::to_bounded_name(name)?;
-
-		if let Some(asset_id) = AssetIds::<T>::get(&bounded_name) {
-			Ok(asset_id)
-		} else {
-			Self::register_asset(bounded_name, asset_type, existential_deposit, asset_id, None)
-		}
 	}
 
 	/// Return location for given asset.
@@ -551,62 +624,16 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for Pallet<T> {
-	fn exists(asset_id: T::AssetId) -> bool {
-		Assets::<T>::contains_key(asset_id)
-	}
-
-	fn retrieve_asset(name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		let bounded_name = Self::to_bounded_name(name.clone())?;
-		if let Some(asset_id) = AssetIds::<T>::get(bounded_name) {
-			Ok(asset_id)
-		} else {
-			Err(Error::<T>::AssetNotFound.into())
-		}
-	}
-
-	fn retrieve_asset_type(asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
-		let asset_details =
-			Assets::<T>::get(asset_id).ok_or_else(|| Into::<DispatchError>::into(Error::<T>::AssetNotFound))?;
-		Ok(asset_details.asset_type.into())
-	}
-
-	fn create_asset(name: &Vec<u8>, existential_deposit: T::Balance) -> Result<T::AssetId, DispatchError> {
-		Self::get_or_create_asset(name.clone(), AssetType::Token, existential_deposit, None)
-	}
-}
-
-impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for Pallet<T> {
-	fn retrieve_shared_asset(name: &Vec<u8>, _assets: &[T::AssetId]) -> Result<T::AssetId, DispatchError> {
-		Self::retrieve_asset(name)
-	}
-
-	fn create_shared_asset(
-		name: &Vec<u8>,
-		assets: &[T::AssetId],
-		existential_deposit: T::Balance,
-	) -> Result<T::AssetId, DispatchError> {
-		ensure!(assets.len() == 2, Error::<T>::InvalidSharedAssetLen);
-		Self::get_or_create_asset(
-			name.clone(),
-			AssetType::PoolShare(assets[0], assets[1]),
-			existential_deposit,
-			None,
-		)
-	}
-}
-
 use orml_traits::GetByKey;
-use sp_arithmetic::traits::Bounded;
 
 // Return Existential deposit of an asset
-impl<T: Config> GetByKey<T::AssetId, T::Balance> for Pallet<T> {
-	fn get(k: &T::AssetId) -> T::Balance {
+impl<T: Config> GetByKey<T::AssetId, Balance> for Pallet<T> {
+	fn get(k: &T::AssetId) -> Balance {
 		if let Some(details) = Self::assets(k) {
 			details.existential_deposit
 		} else {
 			// Asset does not exist - not supported
-			T::Balance::max_value()
+			Balance::max_value()
 		}
 	}
 }
@@ -615,37 +642,113 @@ impl<T: Config> GetByKey<T::AssetId, T::Balance> for Pallet<T> {
 pub struct XcmRateLimitsInRegistry<T>(PhantomData<T>);
 /// Allows querying the XCM rate limit for an asset by its id.
 /// Both a unknown asset and an unset rate limit will return `None`.
-impl<T: Config> GetByKey<T::AssetId, Option<T::Balance>> for XcmRateLimitsInRegistry<T> {
-	fn get(k: &T::AssetId) -> Option<T::Balance> {
+impl<T: Config> GetByKey<T::AssetId, Option<Balance>> for XcmRateLimitsInRegistry<T> {
+	fn get(k: &T::AssetId) -> Option<Balance> {
 		Pallet::<T>::assets(k).and_then(|details| details.xcm_rate_limit)
 	}
 }
 
-impl<T: Config> CreateRegistry<T::AssetId, T::Balance> for Pallet<T> {
-	type Error = DispatchError;
+impl<T: Config> Inspect for Pallet<T> {
+	type AssetId = T::AssetId;
+	type Location = T::AssetNativeLocation;
 
-	fn create_asset(name: &[u8], kind: AssetKind, existential_deposit: T::Balance) -> Result<T::AssetId, Self::Error> {
-		let bounded_name: BoundedVec<u8, T::StringLimit> = Self::to_bounded_name(name.to_vec())?;
-		Pallet::<T>::register_asset(bounded_name, kind.into(), existential_deposit, None, None)
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		match Self::assets(id) {
+			Some(a) => a.is_sufficient,
+			None => false,
+		}
+	}
+
+	fn exists(id: Self::AssetId) -> bool {
+		Assets::<T>::contains_key(id)
+	}
+
+	fn decimals(id: Self::AssetId) -> Option<u8> {
+		Self::assets(id).and_then(|a| a.decimals)
+	}
+
+	fn asset_type(id: Self::AssetId) -> Option<AssetKind> {
+		Self::assets(id).map(|a| a.asset_type.into())
+	}
+
+	fn is_banned(id: Self::AssetId) -> bool {
+		BannedAssets::<T>::contains_key(id)
+	}
+
+	fn asset_name(id: Self::AssetId) -> Option<Vec<u8>> {
+		Self::assets(id).and_then(|a| a.name.map(|v| v.into()))
+	}
+
+	fn asset_symbol(id: Self::AssetId) -> Option<Vec<u8>> {
+		Self::assets(id).and_then(|a| a.symbol.map(|v| v.into()))
 	}
 }
 
-impl<T: Config> InspectRegistry<T::AssetId> for Pallet<T> {
-	fn exists(asset_id: T::AssetId) -> bool {
-		Assets::<T>::contains_key(asset_id)
+impl<T: Config> Mutate for Pallet<T> {
+	type Error = DispatchError;
+
+	fn set_location(asset_id: Self::AssetId, location: T::AssetNativeLocation) -> Result<(), Self::Error> {
+		ensure!(Self::exists(asset_id), Error::<T>::AssetNotFound);
+
+		Self::do_set_location(asset_id, location)
+	}
+}
+
+impl<T: Config> Create<Balance> for Pallet<T> {
+	type Error = DispatchError;
+	type Name = Name<T::StringLimit>;
+	type Symbol = Symbol<T::StringLimit>;
+
+	fn register_asset(
+		asset_id: Option<Self::AssetId>,
+		name: Option<Self::Name>,
+		kind: AssetKind,
+		existential_deposit: Option<Balance>,
+		symbol: Option<Self::Symbol>,
+		decimals: Option<u8>,
+		location: Option<Self::Location>,
+		xcm_rate_limit: Option<Balance>,
+		is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		let details = AssetDetails::new(
+			name,
+			kind.into(),
+			existential_deposit.unwrap_or(DEFAULT_ED),
+			symbol,
+			decimals,
+			xcm_rate_limit,
+			is_sufficient,
+		);
+
+		Self::do_register_asset(asset_id, &details, location)
 	}
 
-	fn decimals(asset_id: T::AssetId) -> Option<u8> {
-		Some(AssetMetadataMap::<T>::get(asset_id)?.decimals)
-	}
+	fn get_or_register_asset(
+		name: Self::Name,
+		kind: AssetKind,
+		existential_deposit: Option<Balance>,
+		symbol: Option<Self::Symbol>,
+		decimals: Option<u8>,
+		location: Option<Self::Location>,
+		xcm_rate_limit: Option<Balance>,
+		is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		//NOTE: in this case `try_into_bounded()` should never return None.
+		match Self::asset_ids(&name) {
+			Some(id) => Ok(id),
+			None => {
+				let details = AssetDetails::new(
+					Some(name),
+					kind.into(),
+					existential_deposit.unwrap_or(DEFAULT_ED),
+					symbol,
+					decimals,
+					xcm_rate_limit,
+					is_sufficient,
+				);
 
-	fn asset_name(asset_id: T::AssetId) -> Option<Vec<u8>> {
-		let asset = Assets::<T>::get(asset_id)?;
-		Some(asset.name.into_inner())
-	}
-
-	fn asset_symbol(asset_id: T::AssetId) -> Option<Vec<u8>> {
-		let asset_metadata = AssetMetadataMap::<T>::get(asset_id)?;
-		Some(asset_metadata.symbol.into_inner())
+				Self::do_register_asset(None, &details, location)
+			}
+		}
 	}
 }

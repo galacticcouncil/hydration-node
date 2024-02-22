@@ -1,6 +1,6 @@
 [package]
 name = "pallet-xcm-rate-limiter"
-version = "0.1.2"
+version = "0.1.5"
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -44,9 +44,7 @@ orml-traits = { workspace = true }
 pallet-balances = { workspace = true, features = ["std"] }
 pallet-omnipool = { workspace = true, features = ["std"] }
 orml-tokens = { workspace = true, features = ["std"] }
-test-utils = { workspace = true }
 pretty_assertions = "1.2.1"
-test-case = "3.0.0"
 
 [features]
 default = ['std']

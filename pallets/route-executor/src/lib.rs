@@ -20,6 +20,7 @@
 use codec::MaxEncodedLen;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungibles::Mutate;
+use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::PalletId;
 use frame_support::{
 	ensure,
@@ -30,6 +31,7 @@ use frame_support::{
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
+use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
@@ -41,7 +43,6 @@ use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
 mod tests;
-
 pub mod weights;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -57,7 +58,8 @@ pub mod pallet {
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
-	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv};
+	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
+	use sp_runtime::Saturating;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -79,7 +81,9 @@ pub mod pallet {
 			+ Default
 			+ CheckedSub
 			+ CheckedAdd
-			+ CheckedDiv;
+			+ CheckedDiv
+			+ Saturating
+			+ Zero;
 
 		/// Native Asset Id
 		#[pallet::constant]
@@ -88,6 +92,8 @@ pub mod pallet {
 		/// Currency for checking balances and temporarily minting tokens
 		type Currency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
 			+ Mutate<Self::AccountId>;
+
+		type InspectRegistry: hydradx_traits::registry::Inspect<AssetId = Self::AssetId>;
 
 		/// Handlers for AMM pools to calculate and execute trades
 		type AMM: TradeExecution<
@@ -98,6 +104,9 @@ pub mod pallet {
 			Error = DispatchError,
 		>;
 
+		/// Pool type used in the default route
+		type DefaultRoutePoolType: Get<PoolType<Self::AssetId>>;
+
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
 	}
@@ -106,7 +115,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		///The route with trades has been successfully executed
-		RouteExecuted {
+		Executed {
 			asset_in: T::AssetId,
 			asset_out: T::AssetId,
 			amount_in: T::Balance,
@@ -124,18 +133,16 @@ pub mod pallet {
 		MaxTradesExceeded,
 		///The AMM pool is not supported for executing trades
 		PoolNotSupported,
-		/// Route has not trades to be executed
-		RouteHasNoTrades,
 		///The user has not enough balance to execute the trade
 		InsufficientBalance,
-		///The route execution failed in the underlying AMM
-		InvalidRouteExecution,
 		///The calculation of route trade amounts failed in the underlying AMM
 		RouteCalculationFailed,
 		///The route is invalid
 		InvalidRoute,
 		///The route update was not successful
 		RouteUpdateIsNotSuccessful,
+		///Insufficient asset is not supported for on chain routing
+		InsufficientAssetNotSupported,
 	}
 
 	/// Storing routes for asset pairs
@@ -177,10 +184,13 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let route = Self::get_route_or_default(route, AssetPair::new(asset_in, asset_out))?;
+			let asset_pair = AssetPair::new(asset_in, asset_out);
+			let route = Self::get_route_or_default(route, asset_pair)?;
+			Self::ensure_route_arguments(&asset_pair, &route)?;
 
-			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, false);
-			let user_balance_of_asset_out_before_trade = T::Currency::reducible_balance(asset_out, &who, false);
+			let user_balance_of_asset_in_before_trade =
+				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+
 			ensure!(
 				user_balance_of_asset_in_before_trade >= amount_in,
 				Error::<T>::InsufficientBalance
@@ -195,8 +205,6 @@ pub mod pallet {
 			);
 
 			for (trade_amount, trade) in trade_amounts.iter().zip(route) {
-				let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(trade.asset_in, &who, true);
-
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
 					trade.pool,
@@ -207,23 +215,9 @@ pub mod pallet {
 				);
 
 				handle_execution_error!(execution_result);
-
-				Self::ensure_that_user_spent_asset_in(
-					who.clone(),
-					trade.asset_in,
-					user_balance_of_asset_in_before_trade,
-					trade_amount.amount_in,
-				)?;
 			}
 
-			Self::ensure_that_user_received_asset_out(
-				who,
-				asset_out,
-				user_balance_of_asset_out_before_trade,
-				last_trade_amount.amount_out,
-			)?;
-
-			Self::deposit_event(Event::RouteExecuted {
+			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
 				amount_in,
@@ -257,25 +251,18 @@ pub mod pallet {
 			max_amount_in: T::Balance,
 			route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResult {
-			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let route = Self::get_route_or_default(route, AssetPair::new(asset_in, asset_out))?;
-
-			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, true);
+			let asset_pair = AssetPair::new(asset_in, asset_out);
+			let route = Self::get_route_or_default(route, asset_pair)?;
+			Self::ensure_route_arguments(&asset_pair, &route)?;
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
-			ensure!(
-				last_trade_amount.amount_in <= max_amount_in,
-				Error::<T>::TradingLimitReached
-			);
+			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
+			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
 			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
-				let user_balance_of_asset_out_before_trade =
-					T::Currency::reducible_balance(trade.asset_out, &who, false);
-
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
 					trade.pool,
@@ -286,26 +273,12 @@ pub mod pallet {
 				);
 
 				handle_execution_error!(execution_result);
-
-				Self::ensure_that_user_received_asset_out(
-					who.clone(),
-					trade.asset_out,
-					user_balance_of_asset_out_before_trade,
-					trade_amount.amount_out,
-				)?;
 			}
 
-			Self::ensure_that_user_spent_asset_in(
-				who,
-				asset_in,
-				user_balance_of_asset_in_before_trade,
-				last_trade_amount.amount_in,
-			)?;
-
-			Self::deposit_event(Event::RouteExecuted {
+			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
-				amount_in: last_trade_amount.amount_in,
+				amount_in: first_trade.amount_in,
 				amount_out,
 			});
 
@@ -343,15 +316,8 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(new_route.len())?;
-
-			ensure!(
-				asset_pair.asset_in == new_route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
-				Error::<T>::InvalidRoute
-			);
-			ensure!(
-				asset_pair.asset_out == new_route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
-				Error::<T>::InvalidRoute
-			);
+			Self::ensure_route_arguments(&asset_pair, &new_route)?;
+			Self::ensure_route_has_no_insufficient_asset(&new_route)?;
 
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();
@@ -411,39 +377,36 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn ensure_that_user_received_asset_out(
-		who: T::AccountId,
-		asset_out: T::AssetId,
-		user_balance_of_asset_out_before_trade: T::Balance,
-		received_amount: T::Balance,
+	fn ensure_route_arguments(
+		asset_pair: &AssetPair<T::AssetId>,
+		route: &[Trade<T::AssetId>],
 	) -> Result<(), DispatchError> {
-		let user_balance_of_asset_out_after_trade = T::Currency::reducible_balance(asset_out, &who, false);
-		let user_expected_balance_of_asset_out_after_trade = user_balance_of_asset_out_before_trade
-			.checked_add(&received_amount)
-			.ok_or(ArithmeticError::Overflow)?;
-
 		ensure!(
-			user_balance_of_asset_out_after_trade == user_expected_balance_of_asset_out_after_trade,
-			Error::<T>::InvalidRouteExecution
+			asset_pair.asset_in == route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in,
+			Error::<T>::InvalidRoute
+		);
+		ensure!(
+			asset_pair.asset_out == route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out,
+			Error::<T>::InvalidRoute
 		);
 
 		Ok(())
 	}
 
-	fn ensure_that_user_spent_asset_in(
-		who: T::AccountId,
-		asset_in: T::AssetId,
-		user_balance_of_asset_in_before_trade: T::Balance,
-		spent_amount: T::Balance,
-	) -> Result<(), DispatchError> {
-		if spent_amount < user_balance_of_asset_in_before_trade {
-			let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, true);
+	fn ensure_route_has_no_insufficient_asset(new_route: &[Trade<T::AssetId>]) -> DispatchResult {
+		let mut unique_assets = sp_std::collections::btree_set::BTreeSet::new();
 
+		for trade in new_route.iter() {
+			unique_assets.insert(trade.asset_in);
+			unique_assets.insert(trade.asset_out);
+		}
+		for asset in unique_assets.iter() {
 			ensure!(
-				user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
-				Error::<T>::InvalidRouteExecution
+				T::InspectRegistry::is_sufficient(*asset),
+				Error::<T>::InsufficientAssetNotSupported
 			);
 		}
+
 		Ok(())
 	}
 
@@ -701,7 +664,7 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 		let onchain_route = Routes::<T>::get(asset_pair.ordered_pair());
 
 		let default_route = vec![Trade {
-			pool: PoolType::Omnipool,
+			pool: T::DefaultRoutePoolType::get(),
 			asset_in: asset_pair.asset_in,
 			asset_out: asset_pair.asset_out,
 		}];

@@ -21,7 +21,7 @@ use frame_support::traits::Everything;
 use frame_support::{assert_ok, PalletId};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, ConstU64, GenesisBuild, NeverEnsureOrigin},
+	traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, ConstU64, NeverEnsureOrigin},
 	weights::RuntimeDbWeight,
 };
 use frame_system::{EnsureRoot, RawOrigin};
@@ -29,13 +29,12 @@ use orml_traits::{parameter_type_with_key, LockIdentifier, MultiCurrencyExtended
 use pallet_democracy::ReferendumIndex;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
+	BuildStorage,
 };
 
 use crate as pallet_staking;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 type AccountId = u64;
@@ -59,10 +58,7 @@ pub const NON_DUSTABLE_BALANCE: Balance = 1_000 * ONE;
 pub type PositionId = u128;
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
 		System: frame_system,
 		Balances: pallet_balances,
@@ -95,13 +91,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = BlockNumber;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -129,6 +124,10 @@ impl pallet_balances::Config for Test {
 	type MaxLocks = MaxLocks;
 	type MaxReserves = ConstU32<50>;
 	type ReserveIdentifier = [u8; 8];
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 parameter_types! {
@@ -225,9 +224,20 @@ impl pallet_staking::Config for Test {
 	type Vesting = DummyVesting;
 	type Collections = FreezableUniques;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type MinSlash = DummyMinSlash;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;
+}
+
+pub struct DummyMinSlash;
+impl GetByKey<FixedU128, Point> for DummyMinSlash {
+	fn get(k: &FixedU128) -> Point {
+		if k.ge(&FixedU128::from_float(0.5)) {
+			return 100_u128;
+		}
+		0_u128
+	}
 }
 
 pub struct DummyMaxPointsPerAction;
@@ -312,7 +322,7 @@ impl ExtBuilder {
 
 impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self

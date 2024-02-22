@@ -5,7 +5,8 @@ use sp_std::prelude::*;
 
 use frame_benchmarking::{account, whitelisted_caller};
 use frame_system::RawOrigin;
-use sp_runtime::traits::UniqueSaturatedInto;
+use sp_runtime::traits::{StaticLookup, UniqueSaturatedInto};
+use sp_runtime::SaturatedConversion;
 
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
@@ -15,8 +16,6 @@ use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 
 use super::*;
-
-use sp_runtime::traits::{SaturatedConversion, StaticLookup};
 
 const SEED: u32 = 0;
 
@@ -126,10 +125,11 @@ runtime_benchmarks! {
 mod tests {
 	use super::*;
 	use orml_benchmarking::impl_benchmark_test_suite;
+	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::default()
-			.build_storage::<crate::Runtime>()
+		frame_system::GenesisConfig::<crate::Runtime>::default()
+			.build_storage()
 			.unwrap()
 			.into()
 	}

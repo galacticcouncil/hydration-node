@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-xyk'
-version = "6.3.3"
+version = "6.4.0"
 description = 'XYK automated market maker'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -12,7 +12,7 @@ repository = 'https://github.com/galacticcouncil/hydradx-node'
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+substrate-wasm-builder = { workspace = true }
 
 [dependencies]
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.1.5" }
@@ -26,7 +26,6 @@ hydra-dx-math = { workspace = true }
 # ORML dependencies
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
-orml-utilities = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
@@ -35,7 +34,6 @@ hydradx-traits = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-frame-system-benchmarking = { workspace = true, optional = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }

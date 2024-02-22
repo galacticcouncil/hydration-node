@@ -30,8 +30,8 @@ use crate as pallet_stableswap;
 use crate::Config;
 
 use frame_support::assert_ok;
-use frame_support::dispatch::Weight;
-use frame_support::traits::{Contains, Everything, GenesisBuild};
+use frame_support::traits::{Contains, Everything};
+use frame_support::weights::Weight;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -41,12 +41,10 @@ use orml_traits::parameter_type_with_key;
 pub use orml_traits::MultiCurrency;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	DispatchError,
+	BuildStorage, DispatchError,
 };
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type Balance = u128;
@@ -78,14 +76,11 @@ thread_local! {
 }
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Event<T>},
-		Stableswap: pallet_stableswap::{Pallet, Call, Storage, Event<T>},
+		System: frame_system,
+		Tokens: orml_tokens,
+		Stableswap: pallet_stableswap,
 	}
 );
 
@@ -95,13 +90,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -234,6 +228,13 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_registered_assets(mut self, assets: Vec<(Vec<u8>, AssetId, u8)>) -> Self {
+		for (name, asset, decimals) in assets.into_iter() {
+			self.registered_assets.push((name, asset, decimals));
+		}
+		self
+	}
+
 	pub fn with_pool(
 		mut self,
 		who: AccountId,
@@ -245,7 +246,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		let mut all_assets: Vec<(Vec<u8>, AssetId, u8)> =
 			vec![(b"DAI".to_vec(), DAI, 12u8), (b"HDX".to_vec(), HDX, 12u8)];
@@ -311,12 +312,15 @@ impl ExtBuilder {
 use crate::types::BenchmarkHelper;
 use crate::types::{AssetAmount, PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::{AccountIdFor, InspectRegistry};
+use hydradx_traits::{AccountIdFor, Inspect};
 use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;
 
-impl InspectRegistry<AssetId> for DummyRegistry {
+impl Inspect for DummyRegistry {
+	type AssetId = AssetId;
+	type Location = u8;
+
 	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&asset_id).copied());
 		matches!(asset, Some(_))
@@ -327,11 +331,23 @@ impl InspectRegistry<AssetId> for DummyRegistry {
 		Some(asset.1)
 	}
 
-	fn asset_name(_asset_id: AssetId) -> Option<Vec<u8>> {
+	fn is_sufficient(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
-	fn asset_symbol(_asset_id: AssetId) -> Option<Vec<u8>> {
+	fn asset_type(_id: Self::AssetId) -> Option<hydradx_traits::AssetKind> {
+		unimplemented!()
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
 	}
 }

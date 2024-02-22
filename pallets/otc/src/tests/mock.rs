@@ -17,21 +17,19 @@ use crate as otc;
 use crate::Config;
 use frame_support::{
 	parameter_types,
-	traits::{Everything, GenesisBuild, Nothing},
+	traits::{Everything, Nothing},
 };
 use frame_system as system;
-use hydradx_traits::{AssetKind, Registry};
+use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	DispatchError,
+	BuildStorage,
 };
 use std::{cell::RefCell, collections::HashMap};
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
@@ -51,10 +49,7 @@ pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	 Block = Block,
-	 NodeBlock = Block,
-	 UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	 {
 		 System: frame_system,
 		 OTC: otc,
@@ -79,7 +74,7 @@ parameter_type_with_key! {
 	};
 }
 
-impl Config for Test {
+impl otc::Config for Test {
 	type AssetId = AssetId;
 	type AssetRegistry = DummyRegistry<Test>;
 	type Currency = Tokens;
@@ -101,13 +96,12 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -138,27 +132,88 @@ impl orml_tokens::Config for Test {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T> {
+impl<T: Config> Inspect for DummyRegistry<T> {
+	type AssetId = AssetId;
+	type Location = u8;
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
 	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
 		matches!(asset, Some(_))
 	}
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
-		Ok(0)
-	}
-
-	fn retrieve_asset_type(_asset_id: AssetId) -> Result<AssetKind, DispatchError> {
+	fn is_banned(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::Create as CreateRegistry;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::DispatchError;
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T>
+where
+	T::AssetId: Into<AssetId> + From<u32>,
+{
+	type Error = DispatchError;
+	type Name = sp_runtime::BoundedVec<u8, sp_core::ConstU32<100>>;
+	type Symbol = sp_runtime::BoundedVec<u8, sp_core::ConstU32<100>>;
+
+	fn register_asset(
+		_asset_id: Option<Self::AssetId>,
+		_name: Option<Self::Name>,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<Self::Symbol>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
-			let l = v.borrow().len();
+			//NOTE: This is to have same ids as real AssetRegistry which is used in the benchmarks.
+			//1_000_000 - offset of the reals AssetRegistry
+			// - 3 - remove assets reagistered by default for the vec.len()
+			// +1 - first reg asset start with 1 not 0
+			// => 1-th asset id == 1_000_001
+			let l = 1_000_000 - 3 + 1 + v.borrow().len();
 			v.borrow_mut().insert(l as u32, l as u32);
 			l as u32
 		});
 		Ok(assigned)
+	}
+
+	fn get_or_register_asset(
+		_name: Self::Name,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<Self::Symbol>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		unimplemented!()
 	}
 }
 
@@ -203,7 +258,7 @@ impl ExtBuilder {
 		self
 	}
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		// Add DAI and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {

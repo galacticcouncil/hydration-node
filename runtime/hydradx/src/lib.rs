@@ -19,6 +19,7 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "512"]
 #![allow(clippy::match_like_matches_macro)]
+#![allow(clippy::items_after_test_module)]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -35,21 +36,22 @@ mod assets;
 pub mod evm;
 mod governance;
 mod system;
-mod xcm;
+pub mod xcm;
 
 pub use assets::*;
 pub use governance::*;
 pub use system::*;
 pub use xcm::*;
 
-use crate::sp_api_hidden_includes_construct_runtime::hidden_include::dispatch::Dispatchable;
+use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::Hooks;
 use codec::{Decode, Encode};
 use sp_api::impl_runtime_apis;
 use sp_core::{ConstU128, Get, OpaqueMetadata, H160, H256, U256};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, PostDispatchInfoOf, UniqueSaturatedInto,
+		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
+		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
 	ApplyExtrinsicResult, Permill,
@@ -66,7 +68,7 @@ pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
-use pallet_evm::{Account as EVMAccount, FeeCalculator, Runner};
+use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
 pub use primitives::{
 	AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index, ItemId, Price, Signature,
 };
@@ -78,6 +80,10 @@ pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 /// to even the core data structures.
 pub mod opaque {
 	use super::*;
+	use sp_runtime::{
+		generic,
+		traits::{BlakeTwo256, Hash as HashT},
+	};
 
 	pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
@@ -87,6 +93,8 @@ pub mod opaque {
 	pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 	/// Opaque block identifier type.
 	pub type BlockId = generic::BlockId<Block>;
+	/// Opaque block hash type.
+	pub type Hash = <BlakeTwo256 as HashT>::Output;
 	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub aura: Aura,
@@ -99,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 195,
+	spec_version: 214,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -119,15 +127,14 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 	vec![
 		TreasuryPalletId::get().into_account_truncating(),
 		VestingPalletId::get().into_account_truncating(),
+		ReferralsPalletId::get().into_account_truncating(),
+		BondsPalletId::get().into_account_truncating(),
 	]
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = opaque::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
+	pub enum Runtime
 	{
 		System: frame_system exclude_parts { Origin } = 1,
 		Timestamp: pallet_timestamp = 3,
@@ -167,16 +174,19 @@ construct_runtime!(
 		Bonds: pallet_bonds = 71,
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
+		Referrals: pallet_referrals = 75,
+		XcmRateLimiter: pallet_xcm_rate_limiter = 76,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
 		Currencies: pallet_currencies = 79,
 		Vesting: orml_vesting = 81,
 
-		// Frontier
+		// Frontier and EVM pallets
 		EVM: pallet_evm = 90,
 		EVMChainId: pallet_evm_chain_id = 91,
 		Ethereum: pallet_ethereum = 92,
+		EVMAccounts: pallet_evm_accounts = 93,
 
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
@@ -269,6 +279,14 @@ impl_runtime_apis! {
 		fn metadata() -> OpaqueMetadata {
 			OpaqueMetadata::new(Runtime::metadata().into())
 		}
+
+		fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+			Runtime::metadata_at_version(version)
+		}
+
+		fn metadata_versions() -> sp_std::vec::Vec<u32> {
+			Runtime::metadata_versions()
+		}
 	}
 
 	impl sp_block_builder::BlockBuilder<Block> for Runtime {
@@ -339,7 +357,7 @@ impl_runtime_apis! {
 	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {
 		fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
-			//log::info!("try-runtime::on_runtime_upgrade.");
+			log::info!("try-runtime::on_runtime_upgrade.");
 			let weight = Executive::try_runtime_upgrade(checks).unwrap();
 			(weight, BlockWeights::get().max_block)
 		}
@@ -401,7 +419,7 @@ impl_runtime_apis! {
 		}
 
 		fn account_code_at(address: H160) -> Vec<u8> {
-			EVM::account_codes(address)
+			pallet_evm::AccountCodes::<Runtime>::get(address)
 		}
 
 		fn author() -> H160 {
@@ -411,7 +429,7 @@ impl_runtime_apis! {
 		fn storage_at(address: H160, index: U256) -> H256 {
 			let mut tmp = [0u8; 32];
 			index.to_big_endian(&mut tmp);
-			EVM::account_storages(address, H256::from_slice(&tmp[..]))
+			pallet_evm::AccountStorages::<Runtime>::get(address, H256::from_slice(&tmp[..]))
 		}
 
 		fn call(
@@ -431,6 +449,47 @@ impl_runtime_apis! {
 
 			let is_transactional = false;
 			let validate = true;
+
+			// Estimated encoded transaction size must be based on the heaviest transaction
+			// type (EIP1559Transaction) to be compatible with all transaction types.
+			let mut estimated_transaction_len = data.len() +
+				// pallet ethereum index: 1
+				// transact call index: 1
+				// Transaction enum variant: 1
+				// chain_id 8 bytes
+				// nonce: 32
+				// max_priority_fee_per_gas: 32
+				// max_fee_per_gas: 32
+				// gas_limit: 32
+				// action: 21 (enum varianrt + call address)
+				// value: 32
+				// access_list: 1 (empty vec size)
+				// 65 bytes signature
+				258;
+
+			if access_list.is_some() {
+				estimated_transaction_len += access_list.encoded_size();
+			}
+
+			let gas_limit = gas_limit.min(u64::MAX.into()).low_u64();
+			let without_base_extrinsic_weight = true;
+
+			let (weight_limit, proof_size_base_cost) =
+						match <Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
+							gas_limit,
+							without_base_extrinsic_weight
+						) {
+							weight_limit if weight_limit.proof_size() > 0 => {
+								(Some(weight_limit), Some(estimated_transaction_len as u64))
+							}
+							_ => (None, None),
+						};
+
+			// don't allow calling EVM RPC or Runtime API from a bound address
+			if EVMAccounts::bound_account_id(from).is_some() {
+				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
+			};
+
 			<Runtime as pallet_evm::Config>::Runner::call(
 				from,
 				to,
@@ -443,37 +502,111 @@ impl_runtime_apis! {
 				access_list.unwrap_or_default(),
 				is_transactional,
 				validate,
+				weight_limit,
+				proof_size_base_cost,
 				&config,
 			)
 			.map_err(|err| err.error.into())
 		}
 
 		fn create(
-			_from: H160,
-			_data: Vec<u8>,
-			_value: U256,
-			_gas_limit: U256,
-			_max_fee_per_gas: Option<U256>,
-			_max_priority_fee_per_gas: Option<U256>,
-			_nonce: Option<U256>,
-			_estimate: bool,
-			_access_list: Option<Vec<(H160, Vec<H256>)>>,
+			from: H160,
+			data: Vec<u8>,
+			value: U256,
+			gas_limit: U256,
+			max_fee_per_gas: Option<U256>,
+			max_priority_fee_per_gas: Option<U256>,
+			nonce: Option<U256>,
+			estimate: bool,
+			access_list: Option<Vec<(H160, Vec<H256>)>>,
 		) -> Result<pallet_evm::CreateInfo, sp_runtime::DispatchError> {
-			Err(sp_runtime::DispatchError::Other(
-				"Creating contracts is not currently supported",
-			))
+			let config = if estimate {
+				let mut config = <Runtime as pallet_evm::Config>::config().clone();
+				config.estimate = true;
+				Some(config)
+			} else {
+				None
+			};
+
+			let is_transactional = false;
+			let validate = true;
+
+			// Reused approach from Moonbeam since Frontier implementation doesn't support this
+			let mut estimated_transaction_len = data.len() +
+				// to: 20
+				// from: 20
+				// value: 32
+				// gas_limit: 32
+				// nonce: 32
+				// 1 byte transaction action variant
+				// chain id 8 bytes
+				// 65 bytes signature
+				210;
+			if max_fee_per_gas.is_some() {
+				estimated_transaction_len += 32;
+			}
+			if max_priority_fee_per_gas.is_some() {
+				estimated_transaction_len += 32;
+			}
+			if access_list.is_some() {
+				estimated_transaction_len += access_list.encoded_size();
+			}
+
+			let gas_limit = gas_limit.min(u64::MAX.into()).low_u64();
+			let without_base_extrinsic_weight = true;
+
+			let (weight_limit, proof_size_base_cost) =
+				match <Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
+					gas_limit,
+					without_base_extrinsic_weight
+				) {
+					weight_limit if weight_limit.proof_size() > 0 => {
+						(Some(weight_limit), Some(estimated_transaction_len as u64))
+					}
+					_ => (None, None),
+				};
+
+			// don't allow calling EVM RPC or Runtime API from a bound address
+			if EVMAccounts::bound_account_id(from).is_some() {
+				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
+				};
+
+			// the address needs to have a permission to deploy smart contract
+			if !EVMAccounts::can_deploy_contracts(from) {
+				return Err(pallet_evm_accounts::Error::<Runtime>::AddressNotWhitelisted.into())
+			};
+
+			#[allow(clippy::or_fun_call)] // suggestion not helpful here
+			<Runtime as pallet_evm::Config>::Runner::create(
+				from,
+				data,
+				value,
+				gas_limit.unique_saturated_into(),
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				Vec::new(),
+				is_transactional,
+				validate,
+				weight_limit,
+				proof_size_base_cost,
+				config
+					.as_ref()
+					.unwrap_or(<Runtime as pallet_evm::Config>::config()),
+				)
+				.map_err(|err| err.error.into())
 		}
 
 		fn current_transaction_statuses() -> Option<Vec<TransactionStatus>> {
-			Ethereum::current_transaction_statuses()
+			pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get()
 		}
 
 		fn current_block() -> Option<pallet_ethereum::Block> {
-			Ethereum::current_block()
+			pallet_ethereum::CurrentBlock::<Runtime>::get()
 		}
 
 		fn current_receipts() -> Option<Vec<pallet_ethereum::Receipt>> {
-			Ethereum::current_receipts()
+			pallet_ethereum::CurrentReceipts::<Runtime>::get()
 		}
 
 		fn current_all() -> (
@@ -482,9 +615,9 @@ impl_runtime_apis! {
 			Option<Vec<TransactionStatus>>,
 		) {
 			(
-				Ethereum::current_block(),
-				Ethereum::current_receipts(),
-				Ethereum::current_transaction_statuses(),
+				pallet_ethereum::CurrentBlock::<Runtime>::get(),
+				pallet_ethereum::CurrentReceipts::<Runtime>::get(),
+				pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get(),
 			)
 		}
 
@@ -502,11 +635,42 @@ impl_runtime_apis! {
 		}
 
 		fn gas_limit_multiplier_support() {}
+
+		fn pending_block(
+			xts: Vec<<Block as BlockT>::Extrinsic>,
+		) -> (Option<pallet_ethereum::Block>, Option<Vec<TransactionStatus>>) {
+			for ext in xts.into_iter() {
+				let _ = Executive::apply_extrinsic(ext);
+			}
+
+			Ethereum::on_finalize(System::block_number() + 1);
+
+			(
+				pallet_ethereum::CurrentBlock::<Runtime>::get(),
+				pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get()
+			)
+		}
+
+		fn initialize_pending_block(header: &<Block as BlockT>::Header) {
+			Executive::initialize_block(header)
+		}
 	}
 
 	impl fp_rpc::ConvertTransactionRuntimeApi<Block> for Runtime {
 		fn convert_transaction(transaction: EthereumTransaction) -> <Block as BlockT>::Extrinsic {
 			UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
+		}
+	}
+
+	impl pallet_evm_accounts_rpc_runtime_api::EvmAccountsApi<Block, AccountId, H160> for Runtime {
+		fn evm_address(account_id: AccountId) -> H160 {
+			EVMAccounts::evm_address(&account_id)
+		}
+		fn bound_account_id(evm_address: H160) -> Option<AccountId> {
+			EVMAccounts::bound_account_id(evm_address)
+		}
+		fn account_id(evm_address: H160) -> AccountId {
+			EVMAccounts::account_id(evm_address)
 		}
 	}
 
@@ -547,7 +711,8 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ema_oracle, EmaOracle);
 			list_benchmark!(list, extra, pallet_staking, Staking);
 			list_benchmark!(list, extra, pallet_lbp, LBP);
-			list_benchmark!(list, extra, pallet_xyk, XYK);
+			list_benchmark!(list, extra, pallet_referrals, Referrals);
+			list_benchmark!(list, extra, pallet_evm_accounts, EVMAccounts);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
@@ -563,6 +728,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_omnipool, benchmarking::omnipool);
 			orml_list_benchmark!(list, extra, pallet_route_executor, benchmarking::route_executor);
 			orml_list_benchmark!(list, extra, pallet_dca, benchmarking::dca);
+			orml_list_benchmark!(list, extra, pallet_xyk, benchmarking::xyk);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -572,10 +738,20 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
+			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch, add_benchmark};
+			use frame_support::traits::TrackedStorageKey;
 			use orml_benchmarking::add_benchmark as orml_add_benchmark;
 			use frame_system_benchmarking::Pallet as SystemBench;
-			impl frame_system_benchmarking::Config for Runtime {}
+			impl frame_system_benchmarking::Config for Runtime {
+				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
+					ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
+					Ok(())
+				}
+
+				fn verify_set_code() {
+					System::assert_last_event(cumulus_pallet_parachain_system::Event::<Runtime>::ValidationFunctionStored.into());
+				}
+			}
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -616,8 +792,9 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_bonds, Bonds);
 			add_benchmark!(params, batches, pallet_staking, Staking);
 			add_benchmark!(params, batches, pallet_lbp, LBP);
-			add_benchmark!(params, batches, pallet_xyk, XYK);
 			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
+			add_benchmark!(params, batches, pallet_referrals, Referrals);
+			add_benchmark!(params, batches, pallet_evm_accounts, EVMAccounts);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
@@ -633,6 +810,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_omnipool, benchmarking::omnipool);
 			orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
 			orml_add_benchmark!(params, batches, pallet_dca, benchmarking::dca);
+			orml_add_benchmark!(params, batches, pallet_xyk, benchmarking::xyk);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

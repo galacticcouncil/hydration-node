@@ -26,7 +26,7 @@ use frame_support::BoundedVec;
 use hydradx_traits::liquidity_mining::PriceAdjustment;
 use pallet_omnipool;
 
-use frame_support::traits::{ConstU128, Contains, Everything, GenesisBuild};
+use frame_support::traits::{ConstU128, Contains, Everything};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -39,9 +39,8 @@ use pallet_liquidity_mining as warehouse_liquidity_mining;
 use sp_core::H256;
 use sp_runtime::FixedU128;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
-	Permill,
+	BuildStorage, Permill,
 };
 
 use warehouse_liquidity_mining::{GlobalFarmData, Instance1};
@@ -52,7 +51,6 @@ use hydradx_traits::{
 	AssetKind,
 };
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u128;
@@ -103,10 +101,7 @@ thread_local! {
 }
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
 		System: frame_system,
 		Balances: pallet_balances,
@@ -141,13 +136,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = BlockNumber;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -169,7 +163,7 @@ parameter_types! {
 	pub const OracleSource: Source = *b"omnipool";
 }
 
-impl Config for Test {
+impl omnipool_liquidity_mining::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Tokens;
 	type CreateOrigin = frame_system::EnsureRoot<AccountId>;
@@ -218,6 +212,10 @@ impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type MaxReserves = ConstU32<50>;
 	type ReserveIdentifier = [u8; 8];
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 parameter_type_with_key! {
@@ -449,7 +447,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		// Add DAI and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {
@@ -634,28 +632,69 @@ impl Transfer<AccountId> for DummyNFT {
 	}
 }
 
-use hydradx_traits::Registry;
+use hydradx_traits::Inspect as InspectRegistry;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
+	type AssetId = T::AssetId;
+	type Location = u8;
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
 	fn exists(asset_id: T::AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
 		matches!(asset, Some(_))
 	}
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
-	}
-
-	fn retrieve_asset_type(_asset_id: T::AssetId) -> Result<AssetKind, DispatchError> {
+	fn is_banned(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::Create as CreateRegistry;
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T>
+where
+	T::AssetId: Into<AssetId> + From<u32>,
+{
+	type Error = DispatchError;
+	type Name = BoundedVec<u8, ConstU32<100>>;
+	type Symbol = BoundedVec<u8, ConstU32<100>>;
+
+	fn register_asset(
+		_asset_id: Option<Self::AssetId>,
+		_name: Option<Self::Name>,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<Self::Symbol>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			//NOTE: This is to have same ids as real AssetRegistry which is used in the benchmarks.
 			//1_000_000 - offset of the reals AssetRegistry
@@ -667,6 +706,19 @@ where
 			l as u32
 		});
 		Ok(T::AssetId::from(assigned))
+	}
+
+	fn get_or_register_asset(
+		_name: Self::Name,
+		_kind: AssetKind,
+		_existential_deposit: Option<Balance>,
+		_symbol: Option<Self::Symbol>,
+		_decimals: Option<u8>,
+		_location: Option<Self::Location>,
+		_xcm_rate_limit: Option<Balance>,
+		_is_sufficient: bool,
+	) -> Result<Self::AssetId, Self::Error> {
+		unimplemented!()
 	}
 }
 

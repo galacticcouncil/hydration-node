@@ -19,8 +19,6 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use frame_support::log;
-
 use crate::{
 	evm::{
 		precompiles::{
@@ -35,7 +33,7 @@ use crate::{
 };
 use codec::EncodeLike;
 use frame_support::traits::OriginTrait;
-use hydradx_traits::InspectRegistry;
+use hydradx_traits::registry::Inspect as InspectRegistry;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};

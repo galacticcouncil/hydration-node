@@ -714,7 +714,7 @@ fn calculate_exact_amount_of_shares() {
 		amp,
 		Permill::zero(),
 	);
-	assert_eq!(result, Some((1_000_000_000_000_000, 0)));
+	assert_eq!(result, Some((1_000_000_000_000_001, 0)));
 }
 
 #[test]
@@ -745,7 +745,7 @@ fn calculate_exact_amount_of_shares_with_fee() {
 		amp,
 		Permill::from_percent(1),
 	);
-	assert_eq!(result, Some((1005001605353593, 2501371204363)));
+	assert_eq!(result, Some((1005001605353594, 2501371204363)));
 }
 
 #[test]

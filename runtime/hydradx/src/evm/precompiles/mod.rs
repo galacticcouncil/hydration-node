@@ -23,14 +23,20 @@ use core::marker::PhantomData;
 
 use crate::evm::precompiles::{erc20_mapping::is_asset_address, multicurrency::MultiCurrencyPrecompile};
 use codec::Decode;
-use frame_support::dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo};
+use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
 use pallet_evm::{
-	ExitError, ExitRevert, ExitSucceed, Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput,
-	PrecompileResult, PrecompileSet,
+	ExitError, ExitRevert, ExitSucceed, IsPrecompileResult, Precompile, PrecompileFailure, PrecompileHandle,
+	PrecompileOutput, PrecompileResult, PrecompileSet,
 };
+use pallet_evm_precompile_blake2::Blake2F;
+use pallet_evm_precompile_bn128::{Bn128Add, Bn128Mul, Bn128Pairing};
+use pallet_evm_precompile_modexp::Modexp;
+use pallet_evm_precompile_simple::{ECRecover, Identity, Ripemd160, Sha256};
+use sp_runtime::traits::Dispatchable;
 
 use codec::alloc;
 use ethabi::Token;
+use hex_literal::hex;
 use primitive_types::{H160, U256};
 use sp_std::{borrow::ToOwned, vec::Vec};
 
@@ -79,6 +85,22 @@ impl<R> HydraDXPrecompiles<R> {
 // https://docs.moonbeam.network/builders/pallets-precompiles/precompiles/overview/#precompiled-contract-addresses
 const DISPATCH_ADDR: H160 = addr(1025);
 
+pub const ECRECOVER: H160 = H160(hex!("0000000000000000000000000000000000000001"));
+pub const SHA256: H160 = H160(hex!("0000000000000000000000000000000000000002"));
+pub const RIPEMD: H160 = H160(hex!("0000000000000000000000000000000000000003"));
+pub const IDENTITY: H160 = H160(hex!("0000000000000000000000000000000000000004"));
+pub const MODEXP: H160 = H160(hex!("0000000000000000000000000000000000000005"));
+pub const BN_ADD: H160 = H160(hex!("0000000000000000000000000000000000000006"));
+pub const BN_MUL: H160 = H160(hex!("0000000000000000000000000000000000000007"));
+pub const BN_PAIRING: H160 = H160(hex!("0000000000000000000000000000000000000008"));
+pub const BLAKE2F: H160 = H160(hex!("0000000000000000000000000000000000000009"));
+
+pub const ETH_PRECOMPILE_END: H160 = BLAKE2F;
+
+fn is_standard_precompile(address: H160) -> bool {
+	!address.is_zero() && address <= ETH_PRECOMPILE_END
+}
+
 impl<R> PrecompileSet for HydraDXPrecompiles<R>
 where
 	R: pallet_evm::Config + pallet_currencies::Config,
@@ -87,9 +109,36 @@ where
 	MultiCurrencyPrecompile<R>: Precompile,
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
+		let context = handle.context();
 		let address = handle.code_address();
 
-		if address == DISPATCH_ADDR {
+		// Filter known precompile addresses except Ethereum officials
+		if address > ETH_PRECOMPILE_END && context.address != address {
+			return Some(Err(PrecompileFailure::Revert {
+				exit_status: ExitRevert::Reverted,
+				output: "cannot be called with DELEGATECALL or CALLCODE".into(),
+			}));
+		}
+
+		if address == ECRECOVER {
+			Some(ECRecover::execute(handle))
+		} else if address == SHA256 {
+			Some(Sha256::execute(handle))
+		} else if address == RIPEMD {
+			Some(Ripemd160::execute(handle))
+		} else if address == IDENTITY {
+			Some(Identity::execute(handle))
+		} else if address == MODEXP {
+			Some(Modexp::execute(handle))
+		} else if address == BN_ADD {
+			Some(Bn128Add::execute(handle))
+		} else if address == BN_MUL {
+			Some(Bn128Mul::execute(handle))
+		} else if address == BN_PAIRING {
+			Some(Bn128Pairing::execute(handle))
+		} else if address == BLAKE2F {
+			Some(Blake2F::execute(handle))
+		} else if address == DISPATCH_ADDR {
 			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
 		} else if is_asset_address(address) {
 			Some(MultiCurrencyPrecompile::<R>::execute(handle))
@@ -98,8 +147,12 @@ where
 		}
 	}
 
-	fn is_precompile(&self, address: H160) -> bool {
-		address == DISPATCH_ADDR || is_asset_address(address)
+	fn is_precompile(&self, address: H160, _remaining_gas: u64) -> IsPrecompileResult {
+		let is_precompile = address == DISPATCH_ADDR || is_asset_address(address) || is_standard_precompile(address);
+		IsPrecompileResult::Answer {
+			is_precompile,
+			extra_cost: 0,
+		}
 	}
 }
 

@@ -29,9 +29,9 @@ use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use hydradx_runtime::{
 	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
-	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
-	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SystemConfig,
-	TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
+	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisHistoryConfig,
+	MultiTransactionPaymentConfig, ParachainInfoConfig, RegistryStrLimit, RuntimeGenesisConfig, SessionConfig,
+	Signature, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
 };
 use primitives::{
 	constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
@@ -42,7 +42,10 @@ use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use serde_json::map::Map;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sp_runtime::{
+	traits::{IdentifyAccount, Verify},
+	BoundedVec,
+};
 
 const PARA_ID: u32 = 2034;
 const TOKEN_DECIMALS: u8 = 12;
@@ -70,7 +73,7 @@ impl Extensions {
 }
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
 /// Generate a crypto pair from seed.
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -89,6 +92,7 @@ where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
+#[allow(clippy::type_complexity)]
 pub fn parachain_genesis(
 	wasm_binary: &[u8],
 	_root_key: AccountId,
@@ -97,18 +101,27 @@ pub fn parachain_genesis(
 	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
 	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
-	registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)>, // (Asset name, Existential deposit, Chosen asset id)
+	registered_assets: Vec<(
+		Option<AssetId>,
+		Option<BoundedVec<u8, RegistryStrLimit>>,
+		Balance,
+		Option<BoundedVec<u8, RegistryStrLimit>>,
+		Option<u8>,
+		Option<Balance>,
+		bool,
+	)>, // (asset_id, name, existential deposit, symbol, decimals, xcm_rate_limit, is_sufficient)
 	accepted_assets: Vec<(AssetId, Price)>, // (Asset id, Fallback price) - asset which fee can be paid with
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
 	elections: Vec<(AccountId, Balance)>,
 	parachain_id: ParaId,
 	duster: DusterConfig,
-) -> GenesisConfig {
-	GenesisConfig {
+) -> RuntimeGenesisConfig {
+	RuntimeGenesisConfig {
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
+			..Default::default()
 		},
 		session: SessionConfig {
 			keys: initial_authorities
@@ -148,8 +161,18 @@ pub fn parachain_genesis(
 		vesting: VestingConfig { vesting: vesting_list },
 		asset_registry: AssetRegistryConfig {
 			registered_assets: registered_assets.clone(),
-			native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
+			native_asset_name: TOKEN_SYMBOL
+				.as_bytes()
+				.to_vec()
+				.try_into()
+				.expect("Native asset name is too long."),
 			native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
+			native_symbol: TOKEN_SYMBOL
+				.as_bytes()
+				.to_vec()
+				.try_into()
+				.expect("Native symbol is too long."),
+			native_decimals: TOKEN_DECIMALS,
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: accepted_assets,
@@ -177,7 +200,10 @@ pub fn parachain_genesis(
 
 		genesis_history: GenesisHistoryConfig::default(),
 		claims: ClaimsConfig { claims: claims_data },
-		parachain_info: ParachainInfoConfig { parachain_id },
+		parachain_info: ParachainInfoConfig {
+			parachain_id,
+			..Default::default()
+		},
 		aura_ext: Default::default(),
 		polkadot_xcm: Default::default(),
 		ema_oracle: Default::default(),
@@ -186,6 +212,7 @@ pub fn parachain_genesis(
 		omnipool_liquidity_mining: Default::default(),
 		evm_chain_id: hydradx_runtime::EVMChainIdConfig {
 			chain_id: 2_222_222u32.into(),
+			..Default::default()
 		},
 		ethereum: Default::default(),
 		evm: Default::default(),

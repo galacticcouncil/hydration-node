@@ -435,3 +435,53 @@ fn set_route_should_not_work_when_readded_the_same() {
 		);
 	});
 }
+
+#[test]
+fn set_route_should_fail_with_insufficient_asset() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = AssetPair::new(HDX, INSUFFICIENT_ASSET);
+		let route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: INSUFFICIENT_ASSET,
+		}];
+
+		//Act
+		assert_noop!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
+			Error::<Test>::InsufficientAssetNotSupported
+		);
+	});
+}
+
+#[test]
+fn set_route_should_fail_with_insufficient_asset_as_intermediare() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let asset_pair = AssetPair::new(HDX, DOT);
+		let route = vec![
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: AUSD,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: AUSD,
+				asset_out: INSUFFICIENT_ASSET,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: INSUFFICIENT_ASSET,
+				asset_out: DOT,
+			},
+		];
+
+		//Act
+		assert_noop!(
+			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
+			Error::<Test>::InsufficientAssetNotSupported
+		);
+	});
+}

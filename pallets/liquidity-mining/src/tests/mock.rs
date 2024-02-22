@@ -20,19 +20,14 @@ use super::*;
 
 use crate::Config;
 use crate::{self as liq_mining, types::DefaultPriceAdjustment};
-use frame_support::{
-	parameter_types,
-	traits::Contains,
-	traits::{Everything, GenesisBuild},
-	PalletId,
-};
+use frame_support::{parameter_types, traits::Contains, traits::Everything, PalletId};
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Registry, AssetKind, AMM};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Inspect, AssetKind, AMM};
 use orml_traits::GetByKey;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
+	BuildStorage,
 };
 
 pub use frame_support::storage::with_transaction;
@@ -109,7 +104,6 @@ pub const ACA_FARM: FarmId = 4;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 #[derive(Clone)]
@@ -119,18 +113,15 @@ pub struct AssetPair {
 }
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	Block = Block,
-	NodeBlock = Block,
-	UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		LiquidityMining: liq_mining::<Instance1>::{Pallet, Storage, Event<T>},
-		LiquidityMining2: liq_mining::<Instance2>::{Pallet, Storage, Event<T>},
+		System: frame_system,
+		LiquidityMining: liq_mining::<Instance1>,
+		LiquidityMining2: liq_mining::<Instance2>,
 		//This LM instance is using dummy oracle for price_adjustment
-		LiquidityMining3: liq_mining::<Instance3>::{Pallet, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		LiquidityMining3: liq_mining::<Instance3>,
+		Tokens: orml_tokens,
+		Balances: pallet_balances,
 	}
 );
 
@@ -154,13 +145,12 @@ impl system::Config for Test {
 	type DbWeight = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = BlockNumber;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type Version = ();
@@ -293,7 +283,7 @@ impl Config<Instance1> for Test {
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type NonDustableWhitelistHandler = Whitelist;
-	type AssetRegistry = AssetRegistry;
+	type AssetRegistry = DummyRegistry;
 	type PriceAdjustment = DefaultPriceAdjustment;
 }
 
@@ -317,7 +307,7 @@ impl Config<Instance2> for Test {
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit2;
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type NonDustableWhitelistHandler = Whitelist;
-	type AssetRegistry = AssetRegistry;
+	type AssetRegistry = DummyRegistry;
 	type PriceAdjustment = DefaultPriceAdjustment;
 }
 
@@ -337,7 +327,7 @@ impl Config<Instance3> for Test {
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type NonDustableWhitelistHandler = Whitelist;
-	type AssetRegistry = AssetRegistry;
+	type AssetRegistry = DummyRegistry;
 	type PriceAdjustment = DummyOraclePriceAdjustment;
 }
 
@@ -357,6 +347,10 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = ReserveIdentifier;
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 impl orml_tokens::Config for Test {
@@ -365,7 +359,7 @@ impl orml_tokens::Config for Test {
 	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
-	type ExistentialDeposits = AssetRegistry;
+	type ExistentialDeposits = DummyRegistry;
 	type MaxLocks = MaxLocks;
 	type DustRemovalWhitelist = Whitelist;
 	type MaxReserves = ConstU32<100_000>;
@@ -429,31 +423,42 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	}
 }
 
-pub struct AssetRegistry;
+pub struct DummyRegistry;
 
-impl Registry<AssetId, Vec<u8>, Balance, DispatchError> for AssetRegistry {
+impl Inspect for DummyRegistry {
+	type AssetId = AssetId;
+	type Location = u8;
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
 	fn exists(name: AssetId) -> bool {
 		name != UNKNOWN_ASSET
 	}
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<AssetId, DispatchError> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn retrieve_asset_type(_asset_id: AssetId) -> Result<AssetKind, DispatchError> {
+	fn is_banned(_id: Self::AssetId) -> bool {
 		unimplemented!()
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
 	}
 
-	fn get_or_create_asset(_name: Vec<u8>, _existential_deposit: Balance) -> Result<AssetId, DispatchError> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
 	}
 }
 
-impl GetByKey<AssetId, Balance> for AssetRegistry {
+impl GetByKey<AssetId, Balance> for DummyRegistry {
 	fn get(_key: &AssetId) -> Balance {
 		1_000_u128
 	}
@@ -524,7 +529,7 @@ impl ExtBuilder {
 		AMM_POOLS.with(|v| v.borrow_mut().clear());
 		DUSTER_WHITELIST.with(|v| v.borrow_mut().clear());
 
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self.endowed_accounts,

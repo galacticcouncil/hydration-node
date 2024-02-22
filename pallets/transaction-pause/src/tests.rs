@@ -36,7 +36,7 @@ const TOKENS_TRANSFER: &<Runtime as frame_system::Config>::RuntimeCall =
 
 #[test]
 fn pause_transaction_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let balances_b_str = BoundedName::try_from(b"Balances".to_vec()).unwrap();
 		let transfer_b_str = BoundedName::try_from(b"transfer".to_vec()).unwrap();
 
@@ -109,7 +109,7 @@ fn pause_transaction_work() {
 
 #[test]
 fn unpause_transaction_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		let balances_b_str = BoundedName::try_from(b"Balances".to_vec()).unwrap();
 		let transfer_b_str = BoundedName::try_from(b"transfer".to_vec()).unwrap();
 
@@ -166,7 +166,7 @@ fn unpause_transaction_work() {
 
 #[test]
 fn paused_transaction_filter_work() {
-	ExtBuilder::default().build().execute_with(|| {
+	ExtBuilder.build().execute_with(|| {
 		assert!(!PausedTransactionFilter::<Runtime>::contains(BALANCE_TRANSFER));
 		assert!(!PausedTransactionFilter::<Runtime>::contains(TOKENS_TRANSFER));
 		assert_ok!(TransactionPause::pause_transaction(

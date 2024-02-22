@@ -23,7 +23,7 @@ use hydra_dx_math::types::Ratio;
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
-	traits::{Everything, GenesisBuild, Get, Nothing},
+	traits::{Everything, Get, Nothing},
 	weights::{IdentityFee, Weight},
 };
 use frame_system as system;
@@ -34,9 +34,8 @@ use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	Perbill,
+	BuildStorage, Perbill,
 };
 use sp_std::cell::RefCell;
 
@@ -62,7 +61,7 @@ pub const HIGH_VALUE_CURRENCY: AssetId = 7000;
 pub const HIGH_ED: Balance = 5;
 
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-const MAX_BLOCK_WEIGHT: Weight = Weight::from_ref_time(1024);
+const MAX_BLOCK_WEIGHT: Weight = Weight::from_parts(1024, 0);
 
 thread_local! {
 	static EXTRINSIC_BASE_WEIGHT: RefCell<Weight> = RefCell::new(Weight::zero());
@@ -75,21 +74,17 @@ impl Get<Weight> for ExtrinsicBaseWeight {
 	}
 }
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-	 Block = Block,
-	 NodeBlock = Block,
-	 UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Test
 	 {
-		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		 PaymentPallet: multi_payment::{Pallet, Call, Storage, Event<T>},
-		 TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>},
-		 Balances: pallet_balances::{Pallet,Call, Storage,Config<T>, Event<T>},
-		 Currencies: pallet_currencies::{Pallet, Event<T>},
-		 Tokens: orml_tokens::{Pallet, Event<T>},
+		 System: frame_system,
+		 PaymentPallet: multi_payment,
+		 TransactionPayment: pallet_transaction_payment,
+		 Balances: pallet_balances,
+		 Currencies: pallet_currencies,
+		 Tokens: orml_tokens,
 	 }
 
 );
@@ -105,7 +100,7 @@ parameter_types! {
 	pub const FeeReceiver: AccountId = FEE_RECEIVER;
 
 	pub RuntimeBlockWeights: system::limits::BlockWeights = system::limits::BlockWeights::builder()
-		.base_block(Weight::from_ref_time(0))
+		.base_block(Weight::zero())
 		.for_class(DispatchClass::all(), |weights| {
 			weights.base_extrinsic = ExtrinsicBaseWeight::get();
 		})
@@ -130,13 +125,12 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -192,6 +186,10 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type MaxHolds = ();
+	type RuntimeHoldReason = ();
 }
 
 impl pallet_transaction_payment::Config for Test {
@@ -288,7 +286,7 @@ impl Default for ExtBuilder {
 
 impl ExtBuilder {
 	pub fn base_weight(mut self, base_weight: u64) -> Self {
-		self.base_weight = Weight::from_ref_time(base_weight);
+		self.base_weight = Weight::from_parts(base_weight, 0);
 		self
 	}
 	pub fn account_native_balance(mut self, account: AccountId, balance: Balance) -> Self {
@@ -310,7 +308,7 @@ impl ExtBuilder {
 		use frame_support::traits::OnInitialize;
 
 		self.set_constants();
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: self.native_balances,
