@@ -4757,46 +4757,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hydradx-runtime-fuzzer"
-version = "0.2.0"
-dependencies = [
- "cumulus-pallet-parachain-system",
- "cumulus-primitives-core",
- "cumulus-primitives-parachain-inherent",
- "cumulus-test-relay-sproof-builder",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hydradx-runtime",
- "hydradx-traits",
- "orml-tokens",
- "pallet-asset-registry",
- "pallet-aura",
- "pallet-balances",
- "pallet-collective",
- "pallet-multisig",
- "pallet-omnipool",
- "pallet-proxy",
- "pallet-stableswap",
- "pallet-staking 2.1.2",
- "pallet-timestamp",
- "pallet-transaction-payment",
- "pallet-utility",
- "parity-scale-codec",
- "primitives",
- "runtime-mock",
- "scraper",
- "serde",
- "sp-consensus-aura",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "stats_alloc",
- "toml 0.5.11",
- "ziggy",
-]
-
-[[package]]
 name = "hydradx-traits"
 version = "2.8.3"
 dependencies = [
@@ -14254,12 +14214,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "stats_alloc"
-version = "0.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c0e04424e733e69714ca1bbb9204c1a57f09f5493439520f9f68c132ad25eec"
-
-[[package]]
 name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -16377,12 +16331,6 @@ dependencies = [
  "quote",
  "syn 2.0.48",
 ]
-
-[[package]]
-name = "ziggy"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b87eb3e4f63e984ca43eadbc74fc951ee556596ddd738874165409e835bef1f"
 
 [[package]]
 name = "zstd"

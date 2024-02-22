@@ -53,6 +53,5 @@ SNAPSHOT*
 
 db.sqlite
 
-runtime-fuzzer/output/*
 __pycache__/
 memory_map.output

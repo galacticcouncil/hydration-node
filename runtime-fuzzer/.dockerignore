@@ -1,5 +1,0 @@
-target/
-!target/release/hydradx
-Dockerfile
-.git/
-runtime-fuzzer/target/
