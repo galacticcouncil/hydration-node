@@ -55,7 +55,7 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
 // Fixed gas price of 0.019 gwei per gas
-pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 19_000_000;
+pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 15_000_000;
 
 parameter_types! {
 	// We allow for a 75% fullness of a 0.5s block
