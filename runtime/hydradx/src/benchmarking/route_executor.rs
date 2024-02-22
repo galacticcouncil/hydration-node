@@ -137,39 +137,6 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 	));
 }
 
-fn create_xyk_pool_with_amounts(asset_a: u32, asset_b: u32, amount_a: u128, amount_b: u128) {
-	let caller: AccountId = funded_account("caller", 3, &[asset_a, asset_b]);
-
-	assert_ok!(Currencies::update_balance(
-		RawOrigin::Root.into(),
-		caller.clone(),
-		0_u32,
-		InsufficientEDinHDX::get() as i128,
-	));
-
-	assert_ok!(Currencies::update_balance(
-		RuntimeOrigin::root(),
-		caller.clone(),
-		asset_a,
-		amount_a as i128,
-	));
-
-	assert_ok!(Currencies::update_balance(
-		RuntimeOrigin::root(),
-		caller.clone(),
-		asset_b,
-		amount_b as i128,
-	));
-
-	assert_ok!(XYK::create_pool(
-		RuntimeOrigin::signed(caller),
-		asset_a,
-		amount_a,
-		asset_b,
-		amount_b,
-	));
-}
-
 runtime_benchmarks! {
 	{Runtime, pallet_route_executor}
 
