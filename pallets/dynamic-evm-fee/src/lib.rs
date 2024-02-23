@@ -137,38 +137,10 @@ pub mod pallet {
 					return;
 				};
 				let eth_hdx_price = FixedU128::from_rational(eth_hdx_price.n, eth_hdx_price.d);
+				let price_diff =
+					FixedU128::from_rational(eth_hdx_price.into_inner(), ETH_HDX_REFERENCE_PRICE.into_inner());
 
-				//Percentage difference: |P1 - P2| / ((P1 + P2) / 2)
-				if eth_hdx_price == 0.into() || ETH_HDX_REFERENCE_PRICE == 0.into() {
-					log::warn!(target: "runtime::dynamic-evm-fee", "ETH-HDX price is zero, could not calculate price percentage difference");
-					return;
-				}
-
-				let is_hdx_pumping = eth_hdx_price < ETH_HDX_REFERENCE_PRICE;
-				let diff = if is_hdx_pumping {
-					ETH_HDX_REFERENCE_PRICE.saturating_sub(eth_hdx_price)
-				} else {
-					eth_hdx_price.saturating_sub(ETH_HDX_REFERENCE_PRICE)
-				};
-
-				let sum = eth_hdx_price.saturating_add(ETH_HDX_REFERENCE_PRICE);
-				let Some(denominator) = sum.checked_div(&FixedU128::from(2)) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating denominator for price percentage difference, sum: {:?}", sum);
-					return;
-				};
-
-				let Some(price_difference) = diff.checked_div(&denominator) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating price percentage difference, diff: {:?}, denominator: {:?}", diff, denominator);
-					return;
-				};
-
-				let evm_fee_change = price_difference.saturating_mul_int(new_base_fee_per_gas);
-
-				if is_hdx_pumping {
-					new_base_fee_per_gas = new_base_fee_per_gas.saturating_sub(evm_fee_change);
-				} else {
-					new_base_fee_per_gas = new_base_fee_per_gas.saturating_add(evm_fee_change);
-				}
+				new_base_fee_per_gas = price_diff.saturating_mul_int(new_base_fee_per_gas);
 
 				new_base_fee_per_gas = new_base_fee_per_gas.clamp(min_base_fee_per_gas, MAX_BASE_FEE_PER_GAS);
 

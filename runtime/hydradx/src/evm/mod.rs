@@ -54,7 +54,7 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
-// Fixed gas price of 0.019 gwei per gas
+// Fixed gas price of 0.015 gwei per gas
 pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 15_000_000;
 
 parameter_types! {
