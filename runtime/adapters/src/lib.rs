@@ -1037,7 +1037,7 @@ where
 		}
 
 		if AC::contains(&currency) {
-			let route = RP::get_route(AssetPair::new(currency, A::get()));
+			let route = RP::get_route(AssetPair::new(A::get(), currency));
 			if let Some(price) = Oracle::price(&route, Period::get()) {
 				Some(price)
 			} else {

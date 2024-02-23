@@ -90,8 +90,8 @@ where
 		}
 		let Some(price) = P::price(&[Trade {
 			pool: PoolType::Omnipool,
-			asset_in: from_currency,
-			asset_out: to_currency,
+			asset_in: to_currency,
+			asset_out: from_currency,
 		}], Period::get()) else{
 			return (0, EmaPrice::zero());
 		};
