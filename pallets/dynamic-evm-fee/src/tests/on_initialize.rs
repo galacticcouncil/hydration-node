@@ -97,7 +97,7 @@ fn should_decrease_evm_fee_when_hdx_dumping_10percent_against_eth() {
 fn evm_fee_should_go_to_minimum_when_hdx_dumps_a_alot() {
 	ExtBuilder::default().build().execute_with(|| {
 		set_oracle_price(Ratio::new(
-			DEFAULT_ETH_HDX_ORACLE_PRICE.n * 1 / 100,
+			DEFAULT_ETH_HDX_ORACLE_PRICE.n / 100,
 			DEFAULT_ETH_HDX_ORACLE_PRICE.d,
 		));
 		DynamicEvmFee::on_initialize(1);
