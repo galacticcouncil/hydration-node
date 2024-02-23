@@ -67,7 +67,6 @@ use sp_runtime::Permill;
 use sp_runtime::Saturating;
 
 pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(8945857934143137845); //Current onchain ETH price on at block #4,534,103
-pub const MAX_BASE_FEE_PER_GAS: u128 = 14415000000u128;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -84,6 +83,12 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
 			+ TypeInfo;
+
+		/// Minimum base fee per gas value. Used to bound  the base fee per gas in min direction.
+		type MinBaseFeePerGas: Get<u128>;
+
+		/// Maximum base fee per gas value. Used to bound the base fee per gas in max direction.
+		type MaxBaseFeePerGas: Get<u128>;
 
 		/// Default base fee per gas value. Used in genesis if no other value specified explicitly.
 		type DefaultBaseFeePerGas: Get<u128>;
@@ -123,7 +128,6 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
 			BaseFeePerGas::<T>::mutate(|old_base_fee_per_gas| {
-				let min_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_div(10);
 				let multiplier = T::FeeMultiplier::get();
 
 				let mut new_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_add(
@@ -142,7 +146,8 @@ pub mod pallet {
 
 				new_base_fee_per_gas = price_diff.saturating_mul_int(new_base_fee_per_gas);
 
-				new_base_fee_per_gas = new_base_fee_per_gas.clamp(min_base_fee_per_gas, MAX_BASE_FEE_PER_GAS);
+				new_base_fee_per_gas =
+					new_base_fee_per_gas.clamp(T::MinBaseFeePerGas::get(), T::MaxBaseFeePerGas::get());
 
 				*old_base_fee_per_gas = U256::from(new_base_fee_per_gas);
 			});
@@ -152,7 +157,7 @@ pub mod pallet {
 
 		fn integrity_test() {
 			assert!(
-				T::DefaultBaseFeePerGas::get() < MAX_BASE_FEE_PER_GAS,
+				T::MinBaseFeePerGas::get() < T::MaxBaseFeePerGas::get(),
 				"DefaultBaseFeePerGas should be less than MAX_BASE_FEE_PER_GAS, otherwise it fails when we clamp when we bound the value"
 			);
 		}

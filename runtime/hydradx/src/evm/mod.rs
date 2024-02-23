@@ -182,11 +182,15 @@ impl pallet_evm_accounts::Config for crate::Runtime {
 
 parameter_types! {
 	pub const DefaultBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS;
+	pub const MinBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS.saturating_div(10);
+	pub const MaxBaseFeePerGas: u128 = 14415000000; //To reach 10 dollar per omnipool trade
 }
 
 impl pallet_dynamic_evm_fee::Config for crate::Runtime {
 	type AssetId = AssetId;
 	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
+	type MinBaseFeePerGas = MinBaseFeePerGas;
+	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type FeeMultiplier = TransactionPaymentMultiplier;
 	type NativePriceOracle = AssetFeeOraclePriceProvider<
 		NativeAssetId,
