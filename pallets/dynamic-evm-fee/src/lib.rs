@@ -38,8 +38,8 @@
 //! ### Fee Adjustment Based on ETH-HDX Price Fluctuations
 //!
 //! The transaction fee is also adjusted in accordance with in ETH-HDX oracle price change:
-//! - When HDX increases in value against ETH, the fee is reduced accordingly.
-//! - When HDX decreases in value against ETH, the fee is increased accordingly.
+//! - When HDX increases in value against ETH, the evm fee is increased accordingly.
+//! - When HDX decreases in value against ETH, the evm fee is decreased accordingly.
 //!
 //! This dual-criteria approach ensures that transaction fees remain fair and reflective of both market conditions and network demand.
 
