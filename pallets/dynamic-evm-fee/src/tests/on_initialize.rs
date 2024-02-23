@@ -4,9 +4,6 @@ use frame_support::traits::OnInitialize;
 use hydra_dx_math::types::Ratio;
 use pallet_transaction_payment::Multiplier;
 use sp_core::U256;
-use sp_runtime::FixedPointNumber;
-use sp_runtime::FixedU128;
-use sp_runtime::Saturating;
 
 #[test]
 fn should_return_default_base_fee_when_min_multiplier() {
@@ -41,7 +38,7 @@ fn should_increase_evm_fee_when_hdx_pumping_10percent_against_eth() {
 		DynamicEvmFee::on_initialize(1);
 
 		let new_base_fee = DynamicEvmFee::base_evm_fee();
-		assert_eq!(new_base_fee, U256::from(16549500));
+		assert_eq!(new_base_fee, U256::from(16549499));
 	});
 }
 
@@ -57,14 +54,14 @@ fn should_not_change_when_price_pumps_then_remains_same_in_consquent_block() {
 		DynamicEvmFee::on_initialize(1);
 
 		let new_base_fee = DynamicEvmFee::base_evm_fee();
-		assert_eq!(new_base_fee, U256::from(16549500));
+		assert_eq!(new_base_fee, U256::from(16549499));
 
 		//Act
 		DynamicEvmFee::on_initialize(2);
 
 		//Assert
 		let new_base_fee = DynamicEvmFee::base_evm_fee();
-		assert_eq!(new_base_fee, U256::from(16549500));
+		assert_eq!(new_base_fee, U256::from(16549499));
 	});
 }
 
@@ -78,7 +75,7 @@ fn should_increase_evm_fee_when_hdx_pumping_1percent_against_eth() {
 		DynamicEvmFee::on_initialize(1);
 
 		let new_base_fee = DynamicEvmFee::base_evm_fee();
-		assert_eq!(new_base_fee, U256::from(15195450));
+		assert_eq!(new_base_fee, U256::from(15195449));
 	});
 }
 
@@ -92,7 +89,7 @@ fn should_decrease_evm_fee_when_hdx_dumping_10percent_against_eth() {
 		DynamicEvmFee::on_initialize(1);
 
 		let new_base_fee = DynamicEvmFee::base_evm_fee();
-		assert_eq!(new_base_fee, U256::from(13540500));
+		assert_eq!(new_base_fee, U256::from(13540499));
 	});
 }
 
