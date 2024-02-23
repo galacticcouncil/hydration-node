@@ -21,7 +21,7 @@ use pallet_evm::*;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, H160, H256, U256};
-use sp_runtime::{traits::SignedExtension, FixedU128, Permill};
+use sp_runtime::{traits::SignedExtension, FixedU128, Permill, FixedPointNumber};
 use std::borrow::Cow;
 use xcm_emulator::TestExt;
 use hydradx_runtime::evm::ExtendedAddressMapping;
@@ -1200,20 +1200,17 @@ fn dispatch_should_respect_call_filter() {
 }
 
 use sp_core::crypto::AccountId32;
-pub fn evm_substrate_address(account_id: &impl AsRef<[u8; 32]>) -> AccountId {
-	let acc = account_id.as_ref().clone();
-	AccountId32::from(acc).into()
-}
+use hydradx_adapters::OraclePriceProvider;
+use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::router::Trade;
+
 #[test]
 fn compare_fee_between_evm_and_native_omnipool_calls() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-
 		let fee_currency= HDX;
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-		let s_evm_address = evm_substrate_address(&Into::<AccountId>::into(ALICE));
-
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
 				ALICE.into()
 			)));
@@ -1257,9 +1254,8 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 				min_buy_amount: 0,
 			});
 
-
-
 		let gas_limit = 1000000;
+		let (gas_price,_) = hydradx_runtime::DynamicEvmFee::min_gas_price();
 		//Execute omnipool via EVM
 		assert_ok!(EVM::call(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -1268,7 +1264,7 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			omni_sell.encode(),
 			U256::from(0),
 			gas_limit,
-			gas_price(),
+			gas_price,
 			None,
 			Some(U256::zero()),
 			[].into(),
@@ -1326,6 +1322,60 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 		assert!(d < tolerated_fee_difference);
 	})
 }
+
+#[test]
+fn compare2() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			WETH,
+			2_000_000_000_000_000_000i128,
+		));
+
+		let alice_hdx_balance =
+			Currencies::free_balance(HDX, &AccountId::from(ALICE));
+
+			assert_ok!(Omnipool::sell (
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				WETH,
+				HDX,
+				1_000_000_000_000_000_000,
+				0,
+			));
+
+		let new_alice_hdx_balance =
+			Currencies::free_balance(HDX, &AccountId::from(ALICE));
+
+		let diff = new_alice_hdx_balance - alice_hdx_balance;
+
+		dbg!(diff);
+
+		let fee_amount = 1_000_000_000_000_000_000u128;
+
+		let p = <Omnipool as SpotPriceProvider<u32>>::spot_price(HDX, WETH);
+		dbg!(p);
+		let in_hdx  = p.unwrap().checked_mul_int(fee_amount);
+		dbg!(in_hdx);
+
+		let p1 = <hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::OraclePriceProvider::price(&[Trade{
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: WETH,
+		}], OraclePeriod::Short);
+		let p1 = FixedU128::from_rational(p1.unwrap().n, p1.unwrap().d);
+		dbg!(p1);
+
+		let in_hdx = p1.checked_mul_int(fee_amount);
+		dbg!(in_hdx);
+	})
+}
+use hydradx_traits::PriceOracle;
+use hydradx_traits::OraclePeriod;
+use hydradx_traits::router::PoolType;
 
 #[test]
 fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
@@ -1451,6 +1501,7 @@ pub fn init_omnipool_with_oracle_for_block_10() {
 	let from = 11;
 	for _ in from..=to {
 		hydradx_run_to_next_block();
+		do_trade_to_populate_oracle(DAI, HDX, 1_000_000_000_000_000_000);
 		do_trade_to_populate_oracle(WETH, DAI, 1_000_000_000_000_000_000);
 	}
 }
@@ -1482,7 +1533,7 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 }
 
 pub fn init_omnipol() {
-	let native_price = FixedU128::from_float(0.5);
+	let native_price = FixedU128::from_rational(67852651072676287, 67852651072676287);
 	let stable_price = FixedU128::from_float(0.7);
 	let acc = hydradx_runtime::Omnipool::protocol_account();
 
