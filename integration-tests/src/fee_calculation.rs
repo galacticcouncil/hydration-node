@@ -19,8 +19,8 @@ use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;
 
 pub const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
-const HDX_USD_SPOT_PRICE: f64 = 0.038; //Current HDX price in USD on CoinGecko on 6th Feb, 2024
-pub const ETH_USD_SPOT_PRICE: f64 = 2337.92; //Current HDX price in USD on CoinGecko on 6th Feb, 2024
+const HDX_USD_SPOT_PRICE: f64 = 0.0266; //Current HDX price in USD on CoinGecko on 22th Feb, 2024
+pub const ETH_USD_SPOT_PRICE: f64 = 2907.92; //Current HDX price in USD on CoinGecko on 22th Feb, 2024
 
 #[ignore]
 #[test]

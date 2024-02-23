@@ -65,9 +65,9 @@ use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::Saturating;
-//TODO: consider moving to a config
-pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(16420844565569051996); //Current onchain ETH price on at block 4418935
-pub const MAX_BASE_FEE_PER_GAS: u128 = 17304992000u128;
+
+pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(8945857934143137845); //Current onchain ETH price on at block #4,534,103
+pub const MAX_BASE_FEE_PER_GAS: u128 = 14415000000u128;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -122,7 +122,6 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
-			//TODO: add a integration test with price change from trades so oracle price changes
 			BaseFeePerGas::<T>::mutate(|old_base_fee_per_gas| {
 				let min_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_div(10);
 				let multiplier = T::FeeMultiplier::get();
@@ -139,7 +138,12 @@ pub mod pallet {
 				};
 				let eth_hdx_price = FixedU128::from_rational(eth_hdx_price.n, eth_hdx_price.d);
 
-				//Price difference: |P1 - P2| / ((P1 + P2) / 2)
+				//Percentage difference: |P1 - P2| / ((P1 + P2) / 2)
+				if eth_hdx_price == 0.into() || ETH_HDX_REFERENCE_PRICE == 0.into() {
+					log::warn!(target: "runtime::dynamic-evm-fee", "ETH-HDX price is zero, could not calculate price percentage difference");
+					return;
+				}
+
 				let is_hdx_pumping = eth_hdx_price < ETH_HDX_REFERENCE_PRICE;
 				let diff = if is_hdx_pumping {
 					ETH_HDX_REFERENCE_PRICE.saturating_sub(eth_hdx_price)
@@ -149,12 +153,12 @@ pub mod pallet {
 
 				let sum = eth_hdx_price.saturating_add(ETH_HDX_REFERENCE_PRICE);
 				let Some(denominator) = sum.checked_div(&FixedU128::from(2)) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating denominator for price difference, sum: {:?}", sum);
+					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating denominator for price percentage difference, sum: {:?}", sum);
 					return;
 				};
 
 				let Some(price_difference) = diff.checked_div(&denominator) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating price difference, diff: {:?}, denominator: {:?}", diff, denominator);
+					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating price percentage difference, diff: {:?}, denominator: {:?}", diff, denominator);
 					return;
 				};
 

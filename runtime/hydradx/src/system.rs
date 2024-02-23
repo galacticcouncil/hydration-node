@@ -423,7 +423,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 
 pub struct WeightToFee;
 
-pub const SUBSTRATE_FEE_DIVIDER: u128 = 6; // We use this to divide fee related constant as HDX price is high (~0.04$), but we want to reduce the fee price
+pub const SUBSTRATE_FEE_DIVIDER: u128 = 4; // We use this to divide fee related constant as HDX price is high (~0.26$), but we want to reduce the fee price
 
 impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
@@ -463,7 +463,7 @@ parameter_types! {
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1000u128);
 	/// The maximum amount of the multiplier.
-	pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_integer(335);
+	pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_integer(320);
 }
 
 impl pallet_transaction_payment::Config for Runtime {

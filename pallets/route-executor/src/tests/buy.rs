@@ -22,7 +22,7 @@ use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError;
-use sp_runtime::DispatchError::BadOrigin;
+
 #[test]
 fn buy_should_work_when_route_has_single_trade() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -465,7 +465,7 @@ fn buy_should_fail_when_called_with_non_signed_origin() {
 			//Act and Assert
 			assert_noop!(
 				Router::buy(RuntimeOrigin::none(), HDX, AUSD, amount_to_buy, limit, trades),
-				BadOrigin
+				DispatchError::Other("Wrong origin")
 			);
 		});
 }
