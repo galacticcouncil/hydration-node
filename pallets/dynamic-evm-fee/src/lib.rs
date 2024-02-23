@@ -60,11 +60,8 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
 use sp_core::U256;
-use sp_runtime::traits::CheckedDiv;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
-use sp_runtime::Permill;
-use sp_runtime::Saturating;
 
 pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(8945857934143137845); //Current onchain ETH price on at block #4,534,103
 
@@ -140,9 +137,15 @@ pub mod pallet {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX price from oracle");
 					return;
 				};
-				let eth_hdx_price = FixedU128::from_rational(eth_hdx_price.n, eth_hdx_price.d);
-				let price_diff =
-					FixedU128::from_rational(eth_hdx_price.into_inner(), ETH_HDX_REFERENCE_PRICE.into_inner());
+				let Some(eth_hdx_price) = FixedU128::checked_from_rational(eth_hdx_price.n, eth_hdx_price.d) else {
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, n: {}, d: {}", eth_hdx_price.n, eth_hdx_price.d);
+					return;
+				};
+
+				let Some(price_diff) = FixedU128::checked_from_rational(eth_hdx_price.into_inner(), ETH_HDX_REFERENCE_PRICE.into_inner())  else {
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, current price: {}, reference price: {}", eth_hdx_price, ETH_HDX_REFERENCE_PRICE);
+					return;
+				};
 
 				new_base_fee_per_gas = price_diff.saturating_mul_int(new_base_fee_per_gas);
 
