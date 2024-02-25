@@ -1496,13 +1496,13 @@ fn fee_should_be_paid_in_accounts_fee_currency() {
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	hydradx_run_to_next_block();
-	do_trade_to_populate_oracle(WETH, DAI, 1_000_000_000_000_000_000);
+	do_trade_to_populate_oracle(WETH, DAI, 1_000_000_000_000);
 	let to = 40;
 	let from = 11;
 	for _ in from..=to {
 		hydradx_run_to_next_block();
-		do_trade_to_populate_oracle(DAI, HDX, 1_000_000_000_000_000_000);
-		do_trade_to_populate_oracle(WETH, DAI, 1_000_000_000_000_000_000);
+		do_trade_to_populate_oracle(DAI, HDX, 1_000_000_000_000);
+		do_trade_to_populate_oracle(WETH, DAI, 1_000_000_000_000);
 	}
 }
 
@@ -1532,14 +1532,15 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 	));
 }
 
+use frame_support::traits::fungible::Mutate;
 pub fn init_omnipol() {
-	let native_price = FixedU128::from_rational(67852651072676287, 67852651072676287);
+	let native_price = FixedU128::from_rational(29903049701668757, 73927734532192294158);
 	let stable_price = FixedU128::from_float(0.7);
 	let acc = hydradx_runtime::Omnipool::protocol_account();
 
 	let stable_amount: Balance = 5_000_000_000_000_000_000_000u128;
-	let native_amount: Balance = 5_000_000_000_000_000_000_000u128;
-	let weth_amount: Balance = 10_000_000_000_000_000_000_000_000u128;
+	let native_amount: Balance = 73927734532192294158u128;
+	let weth_amount: Balance = 1074271742496220564487u128;
 	let weth_price = FixedU128::from_rational(67852651072676287, 1074271742496220564487);
 	assert_ok!(Tokens::set_balance(
 		RawOrigin::Root.into(),
@@ -1548,19 +1549,17 @@ pub fn init_omnipol() {
 		stable_amount,
 		0
 	));
-	assert_ok!(Currencies::update_balance(
-		hydradx_runtime::RuntimeOrigin::root(),
+	Balances::set_balance(
+		&acc,
+		native_amount,
+	);
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
 		acc.clone(),
-		HDX,
-		native_amount as i128,
-	));
-	assert_ok!(Currencies::update_balance(
-		hydradx_runtime::RuntimeOrigin::root(),
-		acc,
 		WETH,
-		weth_amount as i128,
+		weth_amount,
+		0
 	));
-
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
 		HDX,
