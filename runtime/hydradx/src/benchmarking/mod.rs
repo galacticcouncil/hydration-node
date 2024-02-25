@@ -24,8 +24,8 @@ use sp_std::vec::Vec;
 pub const BSX: Balance = primitives::constants::currency::UNITS;
 
 use frame_support::storage::with_transaction;
+use hydradx_traits::Mutate;
 use sp_runtime::TransactionOutcome;
-
 pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 	let n = name.try_into().map_err(|_| ())?;
 	with_transaction(|| {
@@ -61,7 +61,7 @@ pub fn register_external_asset(name: Vec<u8>) -> Result<AssetId, ()> {
 }
 
 pub fn set_location(asset_id: AssetId, location: AssetLocation) -> Result<(), ()> {
-	AssetRegistry::set_location(RawOrigin::Root.into(), asset_id, location).map_err(|_| ())
+	AssetRegistry::set_location(asset_id, location).map_err(|_| ())
 }
 
 pub fn add_as_accepted_currency(asset_id: AssetId, price: Price) -> Result<(), ()> {

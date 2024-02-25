@@ -111,11 +111,29 @@ mod tests {
 
 		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
 			registered_assets: vec![
-				(b"LRNA".to_vec(), 1_000u128, Some(1)),
-				(b"DAI".to_vec(), 1_000u128, Some(2)),
+				(
+					Some(1),
+					Some(b"LRNA".to_vec().try_into().unwrap()),
+					1_000u128,
+					None,
+					None,
+					None,
+					true,
+				),
+				(
+					Some(2),
+					Some(b"DAI".to_vec().try_into().unwrap()),
+					1_000u128,
+					None,
+					None,
+					None,
+					true,
+				),
 			],
-			native_asset_name: b"HDX".to_vec(),
+			native_asset_name: b"HDX".to_vec().try_into().unwrap(),
 			native_existential_deposit: NativeExistentialDeposit::get(),
+			native_decimals: 12,
+			native_symbol: b"HDX".to_vec().try_into().unwrap(),
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

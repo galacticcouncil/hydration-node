@@ -144,8 +144,24 @@ impl Get<u128> for DefaultBaseDFeePerGas {
 	}
 }
 
+pub struct MinBaseFeePerGas;
+impl Get<u128> for MinBaseFeePerGas {
+	fn get() -> u128 {
+		15_000_000 / 10
+	}
+}
+
+pub struct MaxBaseFeePerGas;
+impl Get<u128> for MaxBaseFeePerGas {
+	fn get() -> u128 {
+		14415000000
+	}
+}
+
 impl Config for Test {
 	type AssetId = AssetId;
+	type MinBaseFeePerGas = MinBaseFeePerGas;
+	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type DefaultBaseFeePerGas = DefaultBaseDFeePerGas;
 	type FeeMultiplier = MultiplierProviderMock;
 	type NativePriceOracle = NativePriceOracleMock;

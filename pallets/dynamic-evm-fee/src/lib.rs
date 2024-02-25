@@ -38,8 +38,8 @@
 //! ### Fee Adjustment Based on ETH-HDX Price Fluctuations
 //!
 //! The transaction fee is also adjusted in accordance with in ETH-HDX oracle price change:
-//! - When HDX increases in value against ETH, the fee is reduced accordingly.
-//! - When HDX decreases in value against ETH, the fee is increased accordingly.
+//! - When HDX increases in value against ETH, the evm fee is increased accordingly.
+//! - When HDX decreases in value against ETH, the evm fee is decreased accordingly.
 //!
 //! This dual-criteria approach ensures that transaction fees remain fair and reflective of both market conditions and network demand.
 
@@ -60,14 +60,10 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
 use sp_core::U256;
-use sp_runtime::traits::CheckedDiv;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
-use sp_runtime::Permill;
-use sp_runtime::Saturating;
 
 pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(8945857934143137845); //Current onchain ETH price on at block #4,534,103
-pub const MAX_BASE_FEE_PER_GAS: u128 = 14415000000u128;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -84,6 +80,12 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
 			+ TypeInfo;
+
+		/// Minimum base fee per gas value. Used to bound  the base fee per gas in min direction.
+		type MinBaseFeePerGas: Get<u128>;
+
+		/// Maximum base fee per gas value. Used to bound the base fee per gas in max direction.
+		type MaxBaseFeePerGas: Get<u128>;
 
 		/// Default base fee per gas value. Used in genesis if no other value specified explicitly.
 		type DefaultBaseFeePerGas: Get<u128>;
@@ -123,7 +125,6 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
 			BaseFeePerGas::<T>::mutate(|old_base_fee_per_gas| {
-				let min_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_div(10);
 				let multiplier = T::FeeMultiplier::get();
 
 				let mut new_base_fee_per_gas = T::DefaultBaseFeePerGas::get().saturating_add(
@@ -136,41 +137,20 @@ pub mod pallet {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX price from oracle");
 					return;
 				};
-				let eth_hdx_price = FixedU128::from_rational(eth_hdx_price.n, eth_hdx_price.d);
-
-				//Percentage difference: |P1 - P2| / ((P1 + P2) / 2)
-				if eth_hdx_price == 0.into() || ETH_HDX_REFERENCE_PRICE == 0.into() {
-					log::warn!(target: "runtime::dynamic-evm-fee", "ETH-HDX price is zero, could not calculate price percentage difference");
-					return;
-				}
-
-				let is_hdx_pumping = eth_hdx_price < ETH_HDX_REFERENCE_PRICE;
-				let diff = if is_hdx_pumping {
-					ETH_HDX_REFERENCE_PRICE.saturating_sub(eth_hdx_price)
-				} else {
-					eth_hdx_price.saturating_sub(ETH_HDX_REFERENCE_PRICE)
-				};
-
-				let sum = eth_hdx_price.saturating_add(ETH_HDX_REFERENCE_PRICE);
-				let Some(denominator) = sum.checked_div(&FixedU128::from(2)) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating denominator for price percentage difference, sum: {:?}", sum);
+				let Some(eth_hdx_price) = FixedU128::checked_from_rational(eth_hdx_price.n, eth_hdx_price.d) else {
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, n: {}, d: {}", eth_hdx_price.n, eth_hdx_price.d);
 					return;
 				};
 
-				let Some(price_difference) = diff.checked_div(&denominator) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Error calculating price percentage difference, diff: {:?}, denominator: {:?}", diff, denominator);
+				let Some(price_diff) = FixedU128::checked_from_rational(eth_hdx_price.into_inner(), ETH_HDX_REFERENCE_PRICE.into_inner())  else {
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, current price: {}, reference price: {}", eth_hdx_price, ETH_HDX_REFERENCE_PRICE);
 					return;
 				};
 
-				let evm_fee_change = price_difference.saturating_mul_int(new_base_fee_per_gas);
+				new_base_fee_per_gas = price_diff.saturating_mul_int(new_base_fee_per_gas);
 
-				if is_hdx_pumping {
-					new_base_fee_per_gas = new_base_fee_per_gas.saturating_sub(evm_fee_change);
-				} else {
-					new_base_fee_per_gas = new_base_fee_per_gas.saturating_add(evm_fee_change);
-				}
-
-				new_base_fee_per_gas = new_base_fee_per_gas.clamp(min_base_fee_per_gas, MAX_BASE_FEE_PER_GAS);
+				new_base_fee_per_gas =
+					new_base_fee_per_gas.clamp(T::MinBaseFeePerGas::get(), T::MaxBaseFeePerGas::get());
 
 				*old_base_fee_per_gas = U256::from(new_base_fee_per_gas);
 			});
@@ -180,7 +160,7 @@ pub mod pallet {
 
 		fn integrity_test() {
 			assert!(
-				T::DefaultBaseFeePerGas::get() < MAX_BASE_FEE_PER_GAS,
+				T::MinBaseFeePerGas::get() < T::MaxBaseFeePerGas::get(),
 				"DefaultBaseFeePerGas should be less than MAX_BASE_FEE_PER_GAS, otherwise it fails when we clamp when we bound the value"
 			);
 		}

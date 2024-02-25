@@ -60,7 +60,7 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
-// Fixed gas price of 0.019 gwei per gas
+// Fixed gas price of 0.015 gwei per gas
 pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 15_000_000;
 
 parameter_types! {
@@ -195,11 +195,15 @@ impl pallet_evm_accounts::Config for crate::Runtime {
 
 parameter_types! {
 	pub const DefaultBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS;
+	pub const MinBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS.saturating_div(10);
+	pub const MaxBaseFeePerGas: u128 = 14415000000; //To reach 10 dollar per omnipool trade
 }
 
 impl pallet_dynamic_evm_fee::Config for crate::Runtime {
 	type AssetId = AssetId;
 	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
+	type MinBaseFeePerGas = MinBaseFeePerGas;
+	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type FeeMultiplier = TransactionPaymentMultiplier;
 	type NativePriceOracle = AssetFeeOraclePriceProvider<
 		NativeAssetId,
