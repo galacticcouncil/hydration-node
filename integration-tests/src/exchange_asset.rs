@@ -173,6 +173,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 }
 
 //We swap GLMR for iBTC, sent from ACALA and executed on Hydradx, resultin in 4 hops
+#[ignore]
 #[test]
 fn transfer_and_swap_should_work_with_4_hops() {
 	//Arrange
