@@ -291,7 +291,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type TermDuration = TermDuration;
 	type MaxCandidates = MaxElectionCandidates;
 	type MaxVoters = MaxElectionVoters;
-	type WeightInfo = ();
+	type WeightInfo = weights::elections::HydraWeight<Runtime>;
 	type MaxVotesPerVoter = MaxVotesPerVoter;
 }
 
@@ -312,5 +312,5 @@ impl pallet_tips::Config for Runtime {
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
 	type Tippers = Elections;
-	type WeightInfo = ();
+	type WeightInfo = weights::tips::HydraWeight<Runtime>;
 }

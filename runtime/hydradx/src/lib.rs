@@ -107,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 215,
+	spec_version: 216,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -700,6 +700,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_proxy, Proxy);
 			list_benchmark!(list, extra, pallet_utility, Utility);
 			list_benchmark!(list, extra, pallet_democracy, Democracy);
+			list_benchmark!(list, extra, pallet_elections_phragmen, Elections);
 			list_benchmark!(list, extra, council, Council);
 			list_benchmark!(list, extra, tech, TechnicalCommittee);
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
@@ -784,6 +785,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_proxy, Proxy);
 			add_benchmark!(params, batches, pallet_utility, Utility);
 			add_benchmark!(params, batches, pallet_democracy, Democracy);
+			add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
 			add_benchmark!(params, batches, council, Council);
 			add_benchmark!(params, batches, tech, TechnicalCommittee);
 			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
