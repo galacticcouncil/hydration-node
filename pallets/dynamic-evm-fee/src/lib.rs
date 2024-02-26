@@ -161,7 +161,7 @@ pub mod pallet {
 		fn integrity_test() {
 			assert!(
 				T::MinBaseFeePerGas::get() < T::MaxBaseFeePerGas::get(),
-				"DefaultBaseFeePerGas should be less than MAX_BASE_FEE_PER_GAS, otherwise it fails when we clamp when we bound the value"
+				"MinBaseFeePerGas should be less than MaxBaseFeePerGas, otherwise it fails when we clamp when we bound the value"
 			);
 		}
 	}
