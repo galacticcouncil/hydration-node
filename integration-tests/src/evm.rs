@@ -1215,7 +1215,7 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		let fee_currency = HDX;
+		let fee_currency = WETH;
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
 			ALICE.into()
@@ -1231,12 +1231,12 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
-			HDX,
-			(1_000_000 * UNITS) as i128,
+			WETH,
+			(10_000_000 * UNITS) as i128,
 		));
 		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			HDX,
+			fee_currency,
 		));
 
 		// give alice evm addr seom weth to sell in omnipool
@@ -1254,12 +1254,12 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
 				asset_in: DOT,
-				asset_out: WETH,
+				asset_out: HDX,
 				amount: 10_000_000_000,
 				min_buy_amount: 0,
 			});
 
-		let gas_limit = 1000000;
+		let gas_limit = 1_000_000;
 		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
 		//Execute omnipool via EVM
 		assert_ok!(EVM::call(
@@ -1269,7 +1269,7 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			omni_sell.encode(),
 			U256::from(0),
 			gas_limit,
-			gas_price,
+			gas_price * 10,
 			None,
 			Some(U256::zero()),
 			[].into(),
@@ -1280,6 +1280,7 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 		let evm_fee = alice_hdx_balance - new_alice_hdx_balance;
 		let treasury_evm_fee = new_treasury_hdx_balance - treasury_hdx_balance;
 		assert_eq!(treasury_evm_fee, evm_fee);
+		dbg!(evm_fee);
 
 		//Pre dispatch the native omnipool call - so withdrawing only the fees for the execution
 		let info = omni_sell.get_dispatch_info();
@@ -1288,34 +1289,115 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 			.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, len);
 		assert_ok!(&pre);
 
-		let alice_hdx_balance_pre_dispatch = Balances::free_balance(AccountId::from(ALICE));
+		let alice_hdx_balance_pre_dispatch = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
 
-		let charged = new_alice_hdx_balance - alice_hdx_balance_pre_dispatch;
-		dbg!(charged);
+		let native_fee = new_alice_hdx_balance - alice_hdx_balance_pre_dispatch;
+		dbg!(native_fee);
+		dbg!(evm_fee, native_fee);
 
-		assert_ok!(pallet_transaction_payment::ChargeTransactionPayment::<
-			hydradx_runtime::Runtime,
-		>::post_dispatch(
-			Some(pre.unwrap()),
-			&info,
-			&PostDispatchInfo {
-				actual_weight: Some(info.weight),
-				pays_fee: Pays::Yes,
-			},
-			len,
-			&DispatchResult::from(Ok(())),
+		assert!(evm_fee > native_fee);
+
+		let fee_difference = evm_fee - native_fee;
+		assert!(fee_difference > 0);
+	})
+}
+
+#[test]
+fn compare3() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+		//Set up to idle state where the chain is not utilized at all
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		)));
+
+		//Set alice with as fee currency and fund it
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			WETH,
+		));
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			WETH,
+			1_000_000_000 * UNITS as i128,
 		));
 
+		//Fund evm account with HDX to dispatch omnipool sell
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			HDX,
+			100 * UNITS as i128,
+		));
+
+		init_omnipool_with_oracle_for_block_10();
+		let treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
+		let alice_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
+
+		//Act
+		let omni_sell =
+			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DOT,
+				amount: UNITS,
+				min_buy_amount: 0,
+			});
+
+		let gas_limit = 1000000;
+		let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+		//Execute omnipool via EVM
+		assert_ok!(EVM::call(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			evm_address,
+			DISPATCH_ADDR,
+			omni_sell.encode(),
+			U256::from(0),
+			gas_limit,
+			gas_price.0 * 10,
+			None,
+			Some(U256::zero()),
+			[].into(),
+		));
+
+		let alice_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
+
+		//Pre dispatch the native omnipool call - so withdrawring only the fees for the execution
+		let info = omni_sell.get_dispatch_info();
+		assert_ok!(
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
+				&AccountId::from(ALICE),
+				&omni_sell,
+				&info,
+				crate::fee_calculation::SWAP_ENCODED_LEN as usize,
+			)
+		);
+		let alice_new_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
 		//Determine fees and compare
-		let post_dispatch_treasury_balance = Currencies::free_balance(fee_currency, &Treasury::account_id());
-		let post_dispatch_fee = post_dispatch_treasury_balance - new_treasury_hdx_balance;
-		assert!(post_dispatch_fee > 0);
-		dbg!(evm_fee, post_dispatch_fee);
+		let fee_weth_native = alice_weth_balance - alice_new_weth_balance;
 
-		assert!(evm_fee > post_dispatch_fee);
+		let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
+		let fee_weth_evm = new_treasury_eth_balance - treasury_eth_balance;
+		dbg!(fee_weth_native, fee_weth_evm);
 
-		let fee_difference = evm_fee - post_dispatch_fee;
+		let fee_difference = fee_weth_evm - fee_weth_native;
+
+		let relative_fee_difference = FixedU128::from_rational(fee_difference, fee_weth_native);
+		let tolerated_fee_difference = FixedU128::from_rational(20, 100);
+		dbg!(relative_fee_difference);
+		dbg!(tolerated_fee_difference);
+
+		// EVM fees should be higher
 		assert!(fee_difference > 0);
+
+		// EVM fees should be not higher than 20%
+		assert!(relative_fee_difference < tolerated_fee_difference);
 	})
 }
 
