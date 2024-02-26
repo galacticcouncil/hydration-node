@@ -494,7 +494,7 @@ fn issue_bonds_should_fail_when_underlying_asset_not_registered() {
 		let asset_id = next_asset_id();
 		assert_noop!(
 			Bonds::issue(RuntimeOrigin::signed(ALICE), asset_id, ONE, NOW + MONTH),
-			DispatchError::Other("AssetNotFound")
+			Error::<Test>::AssetNotFound
 		);
 	});
 }
