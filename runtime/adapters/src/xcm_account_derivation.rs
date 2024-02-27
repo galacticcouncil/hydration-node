@@ -2,8 +2,6 @@ use super::*;
 use codec::{Compact, Encode};
 use sp_io::hashing::blake2_256;
 use sp_std::{borrow::Borrow, marker::PhantomData, vec::Vec};
-use xcm_executor::traits::Convert;
-
 /// NOTE: Copied from <https://github.com/moonbeam-foundation/polkadot/blob/d83bb6cc7d7c93ead2fd3cafce0e268fd3f6b9bc/xcm/xcm-builder/src/location_conversion.rs#L25C1-L68C2>
 ///
 /// temporary struct that mimics the behavior of the upstream type that we
@@ -21,33 +19,29 @@ impl<AccountId: From<[u8; 32]> + Clone> HashedDescriptionDescribeFamilyAllTermin
 	}
 }
 
-impl<AccountId: From<[u8; 32]> + Clone> Convert<MultiLocation, AccountId>
+impl<AccountId: From<[u8; 32]> + Clone> ConvertLocation<AccountId>
 	for HashedDescriptionDescribeFamilyAllTerminal<AccountId>
 {
-	fn convert_ref(location: impl Borrow<MultiLocation>) -> Result<AccountId, ()> {
+	fn convert_location(location: &MultiLocation) -> Option<AccountId> {
 		let l = location.borrow();
 		let to_hash = match (l.parents, l.interior.first()) {
 			(0, Some(Parachain(index))) => {
 				let tail = l.interior.split_first().0;
-				let interior = Self::describe_location_suffix(&tail.into())?;
+				let interior = Self::describe_location_suffix(&tail.into()).ok()?;
 				(b"ChildChain", Compact::<u32>::from(*index), interior).encode()
 			}
 			(1, Some(Parachain(index))) => {
 				let tail = l.interior.split_first().0;
-				let interior = Self::describe_location_suffix(&tail.into())?;
+				let interior = Self::describe_location_suffix(&tail.into()).ok()?;
 				(b"SiblingChain", Compact::<u32>::from(*index), interior).encode()
 			}
 			(1, _) => {
 				let tail = l.interior.into();
-				let interior = Self::describe_location_suffix(&tail)?;
+				let interior = Self::describe_location_suffix(&tail).ok()?;
 				(b"ParentChain", interior).encode()
 			}
-			_ => return Err(()),
+			_ => return None,
 		};
-		Ok(blake2_256(&to_hash).into())
-	}
-
-	fn reverse_ref(_: impl Borrow<AccountId>) -> Result<MultiLocation, ()> {
-		Err(())
+		Some(blake2_256(&to_hash).into())
 	}
 }

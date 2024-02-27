@@ -162,7 +162,6 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			ACA,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -217,7 +216,6 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::RuntimeOrigin::root(),
 			ACA,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -264,7 +262,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
 
 		// Assert

@@ -8,8 +8,7 @@ use hydradx_adapters::xcm_account_derivation::HashedDescriptionDescribeFamilyAll
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use xcm_emulator::TestExt;
-use xcm_executor::traits::Convert;
-
+use xcm_emulator::ConvertLocation;
 #[test]
 fn other_chain_remote_account_should_work_on_hydra() {
 	// Arrange
@@ -32,7 +31,7 @@ fn other_chain_remote_account_should_work_on_hydra() {
 	};
 
 	let acala_account_id_at_hydra: AccountId =
-		HashedDescriptionDescribeFamilyAllTerminal::convert_ref(xcm_origin_at_hydra).unwrap();
+		HashedDescriptionDescribeFamilyAllTerminal::convert_location(&xcm_origin_at_hydra).unwrap();
 
 	Hydra::execute_with(|| {
 		init_omnipool();
@@ -86,6 +85,8 @@ fn other_chain_remote_account_should_work_on_hydra() {
 				origin_kind: OriginKind::SovereignAccount,
 				call: omni_sell.encode().into(),
 			},
+			ExpectTransactStatus(MaybeErrorCode::Success),
+			RefundSurplus,
 			DepositAsset {
 				assets: All.into(),
 				beneficiary: Junction::AccountId32 {

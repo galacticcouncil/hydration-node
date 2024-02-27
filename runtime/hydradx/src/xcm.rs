@@ -362,33 +362,22 @@ pub type LocationToAccountId = (
 	// Convert ETH to local substrate account
 	EvmAddressConversion<RelayNetwork>,
 );
+use xcm_executor::traits::ConvertLocation;
 
-//	,
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);
-impl<Network: Get<Option<NetworkId>>> xcm_executor::traits::Convert<MultiLocation, AccountId>
-	for EvmAddressConversion<Network>
-{
-	fn convert(location: MultiLocation) -> Result<AccountId, MultiLocation> {
+impl<Network: Get<Option<NetworkId>>> ConvertLocation<AccountId> for EvmAddressConversion<Network> {
+	fn convert_location(location: &MultiLocation) -> Option<AccountId> {
 		match location {
 			MultiLocation {
 				parents: 0,
 				interior: X1(AccountKey20 { network: _, key }),
 			} => {
 				let account_32 = ExtendedAddressMapping::into_account_id(H160::from(key));
-				Ok(account_32)
+				Some(account_32)
 			}
-			_ => Err(location),
+			_ => None,
 		}
-	}
-
-	//TODO: fix this reverse
-	fn reverse(who: AccountId) -> Result<MultiLocation, AccountId> {
-		Ok(AccountId32 {
-			id: who.into(),
-			network: Network::get(),
-		}
-		.into())
 	}
 }
 
@@ -440,7 +429,7 @@ impl Contains<RuntimeCall> for SafeCallFilter {
 			return false;
 		}
 
-		matches!(
+		let s = matches!(
 			call,
 			RuntimeCall::System(frame_system::Call::kill_prefix { .. } | frame_system::Call::set_heap_pages { .. })
 				| RuntimeCall::Timestamp(..)
@@ -504,6 +493,9 @@ impl Contains<RuntimeCall> for SafeCallFilter {
 				| RuntimeCall::Currencies(..)
 				| RuntimeCall::Tokens(..)
 				| RuntimeCall::OrmlXcm(..)
-		)
+		);
+		let d = 3;
+		let k = s;
+		s
 	}
 }
