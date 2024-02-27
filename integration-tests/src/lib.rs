@@ -11,6 +11,8 @@ mod dust_removal_whitelist;
 mod dynamic_fees;
 mod evm;
 mod exchange_asset;
+mod fee_calculation;
+mod global_account_derivation;
 mod insufficient_assets_ed;
 mod non_native_fee;
 mod omnipool_init;

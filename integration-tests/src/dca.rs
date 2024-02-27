@@ -442,7 +442,7 @@ mod omnipool {
 			run_to_block(11, 40);
 
 			//Assert
-			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 600 * UNITS);
+			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 700 * UNITS);
 
 			//Because the last trade is not enough for a whole trade, it is returned to the user
 			let amount_in = 140_421_094_431_120;

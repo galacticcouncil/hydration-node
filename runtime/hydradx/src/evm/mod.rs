@@ -19,11 +19,11 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::TreasuryAccount;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
+use crate::{DCAOraclePeriod, NativeAssetId, TreasuryAccount, LRNA};
 use frame_support::{
 	parameter_types,
 	traits::{Defensive, FindAuthor, Imbalance, OnUnbalanced},
@@ -31,16 +31,17 @@ use frame_support::{
 	ConsensusEngineId,
 };
 use hex_literal::hex;
+use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
 use orml_tokens::CurrencyAdapter;
-use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
+use pallet_evm::EnsureAddressTruncated;
 use pallet_transaction_multi_payment::{DepositAll, DepositFee, TransferEvmFees};
+use pallet_transaction_payment::Multiplier;
 use polkadot_xcm::{
 	latest::MultiLocation,
 	prelude::{AccountKey20, PalletInstance, Parachain, X3},
 };
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AccountId, AssetId};
 use sp_core::{Get, U256};
-
 mod accounts_conversion;
 pub mod precompiles;
 
@@ -53,9 +54,8 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
-// Fixed gas price of 0.08 gwei per gas
-// pallet-base-fee to be implemented after migration to polkadot-v1.1.0
-const DEFAULT_BASE_FEE_PER_GAS: u128 = 80_000_000;
+// Fixed gas price of 0.015 gwei per gas
+pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 15_000_000;
 
 parameter_types! {
 	// We allow for a 75% fullness of a 0.5s block
@@ -108,11 +108,15 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 	}
 }
 
-pub struct FixedGasPrice;
-impl FeeCalculator for FixedGasPrice {
-	fn min_gas_price() -> (U256, Weight) {
-		// Return some meaningful gas price and weight
-		(DEFAULT_BASE_FEE_PER_GAS.into(), Weight::from_parts(7u64, 0))
+parameter_types! {
+	pub PostLogContent: pallet_ethereum::PostLogContent = pallet_ethereum::PostLogContent::BlockAndTxnHashes;
+}
+
+pub struct TransactionPaymentMultiplier;
+
+impl Get<Multiplier> for TransactionPaymentMultiplier {
+	fn get() -> Multiplier {
+		crate::TransactionPayment::next_fee_multiplier()
 	}
 }
 
@@ -135,7 +139,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type CallOrigin = EnsureAddressTruncated;
 	type ChainId = crate::EVMChainId;
 	type Currency = WethCurrency;
-	type FeeCalculator = FixedGasPrice;
+	type FeeCalculator = crate::DynamicEvmFee;
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type OnChargeTransaction = TransferEvmFees<DealWithFees>;
@@ -153,10 +157,6 @@ impl pallet_evm::Config for crate::Runtime {
 }
 
 impl pallet_evm_chain_id::Config for crate::Runtime {}
-
-parameter_types! {
-	pub PostLogContent: pallet_ethereum::PostLogContent = pallet_ethereum::PostLogContent::BlockAndTxnHashes;
-}
 
 impl pallet_ethereum::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
@@ -178,4 +178,28 @@ impl pallet_evm_accounts::Config for crate::Runtime {
 	type EvmNonceProvider = EvmNonceProvider;
 	type ControllerOrigin = crate::SuperMajorityTechCommittee;
 	type WeightInfo = crate::weights::evm_accounts::HydraWeight<crate::Runtime>;
+}
+
+parameter_types! {
+	pub const DefaultBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS;
+	pub const MinBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS.saturating_div(10);
+	pub const MaxBaseFeePerGas: u128 = 14415000000; //To reach 10 dollar per omnipool trade
+}
+
+impl pallet_dynamic_evm_fee::Config for crate::Runtime {
+	type AssetId = AssetId;
+	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
+	type MinBaseFeePerGas = MinBaseFeePerGas;
+	type MaxBaseFeePerGas = MaxBaseFeePerGas;
+	type FeeMultiplier = TransactionPaymentMultiplier;
+	type NativePriceOracle = AssetFeeOraclePriceProvider<
+		NativeAssetId,
+		crate::MultiTransactionPayment,
+		crate::Router,
+		OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
+		crate::MultiTransactionPayment,
+		DCAOraclePeriod,
+	>;
+	type WethAssetId = WethAssetId;
+	type WeightInfo = crate::weights::dynamic_evm_fee::HydraWeight<crate::Runtime>;
 }
