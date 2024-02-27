@@ -423,7 +423,7 @@ fn claim_asset(asset: MultiAsset, recipient: [u8; 32]) {
 }
 
 #[test]
-fn polkadot_xcm_execute_extrinsic_should_not_be_allowed() {
+fn polkadot_xcm_execute_extrinsic_should_be_allowed() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -435,13 +435,10 @@ fn polkadot_xcm_execute_extrinsic_should_not_be_allowed() {
 			},
 		]));
 
-		assert_noop!(
-			hydradx_runtime::PolkadotXcm::execute(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				Box::new(message),
-				Weight::from_parts(400_000_000_000, 0)
-			),
-			pallet_xcm::Error::<hydradx_runtime::Runtime>::Filtered
-		);
+		assert_ok!(hydradx_runtime::PolkadotXcm::execute(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			Box::new(message),
+			Weight::from_parts(400_000_000_000, 0)
+		),);
 	});
 }
