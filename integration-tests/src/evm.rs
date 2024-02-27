@@ -1303,6 +1303,99 @@ fn compare_fee_between_evm_and_native_omnipool_calls() {
 }
 
 #[test]
+fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let fee_currency = HDX;
+		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		)));
+
+		//Set up to idle state where the chain is not utilized at all
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		init_omnipool_with_oracle_for_block_10();
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			HDX,
+			(10_000 * UNITS) as i128,
+		));
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			fee_currency,
+		));
+
+		// give alice evm addr seom weth to sell in omnipool
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			DOT,
+			(10 * UNITS) as i128,
+		));
+
+		let treasury_hdx_balance = Currencies::free_balance(fee_currency, &Treasury::account_id());
+		let alice_hdx_balance = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
+
+		//Act
+		let omni_sell =
+			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+				asset_in: DOT,
+				asset_out: WETH,
+				amount: 10_000_000_000,
+				min_buy_amount: 0,
+			});
+
+		let gas_limit = 1_000_000;
+		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+		//Execute omnipool via EVM
+		assert_ok!(EVM::call(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			evm_address,
+			DISPATCH_ADDR,
+			omni_sell.encode(),
+			U256::from(0),
+			gas_limit,
+			gas_price * 10,
+			None,
+			Some(U256::zero()),
+			[].into(),
+		));
+
+		let new_treasury_hdx_balance = Currencies::free_balance(fee_currency, &Treasury::account_id());
+		let new_alice_hdx_balance = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
+		let evm_fee = alice_hdx_balance - new_alice_hdx_balance;
+		let treasury_evm_fee = new_treasury_hdx_balance - treasury_hdx_balance;
+		assert_eq!(treasury_evm_fee, evm_fee);
+		dbg!(evm_fee);
+
+		//Pre dispatch the native omnipool call - so withdrawing only the fees for the execution
+		let info = omni_sell.get_dispatch_info();
+		let len: usize = 146;
+		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+			.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, len);
+		assert_ok!(&pre);
+
+		let alice_hdx_balance_pre_dispatch = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
+
+		let native_fee = new_alice_hdx_balance - alice_hdx_balance_pre_dispatch;
+		dbg!(native_fee);
+		dbg!(evm_fee, native_fee);
+
+		assert!(evm_fee > native_fee);
+
+		let fee_difference = evm_fee - native_fee;
+		assert!(fee_difference > 0);
+	})
+}
+
+
+#[test]
 fn compare3() {
 	TestNet::reset();
 
