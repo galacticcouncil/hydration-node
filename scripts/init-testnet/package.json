@@ -12,6 +12,7 @@
   "dependencies": {
     "@polkadot/api": "^9.3.3",
     "@polkadot/keyring": "^12.3.2",
-    "@acala-network/chopsticks-utils": "^0.9.8"
+    "@acala-network/chopsticks-utils": "^0.9.8",
+    "ethers": "^6.10.0"
   }
 }

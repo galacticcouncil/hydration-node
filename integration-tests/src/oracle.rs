@@ -2,6 +2,8 @@
 
 use crate::polkadot_test_net::*;
 
+use frame_support::traits::OnFinalize;
+use frame_support::traits::OnInitialize;
 use frame_support::{
 	assert_ok,
 	sp_runtime::{FixedU128, Permill},
@@ -12,9 +14,26 @@ use hydradx_traits::{
 	AggregatedPriceOracle,
 	OraclePeriod::{self, *},
 };
+
 use pallet_ema_oracle::OracleError;
 use primitives::constants::chain::OMNIPOOL_SOURCE;
 use xcm_emulator::TestExt;
+
+pub fn hydradx_run_to_block(to: BlockNumber) {
+	while hydradx_runtime::System::block_number() < to {
+		let b = hydradx_runtime::System::block_number();
+
+		hydradx_runtime::System::on_finalize(b);
+		hydradx_runtime::EmaOracle::on_finalize(b);
+		hydradx_runtime::TransactionPayment::on_finalize(b);
+
+		hydradx_runtime::System::on_initialize(b + 1);
+		hydradx_runtime::EmaOracle::on_initialize(b + 1);
+		hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
+
+		hydradx_runtime::System::set_block_number(b + 1);
+	}
+}
 
 const HDX: AssetId = CORE_ASSET_ID;
 

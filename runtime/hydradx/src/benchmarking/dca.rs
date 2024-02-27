@@ -41,8 +41,8 @@ use pallet_route_executor::Trade;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::FixedU128;
 use sp_runtime::{DispatchError, Permill};
+use sp_runtime::{DispatchResult, FixedU128};
 use sp_std::vec;
 
 pub const HDX: AssetId = 0;
@@ -172,6 +172,13 @@ fn create_account_with_native_balance() -> Result<AccountId, DispatchError> {
 	Ok(caller)
 }
 
+fn fund_treasury() -> DispatchResult {
+	let treasury = <Runtime as pallet_dca::Config>::FeeReceiver::get();
+	<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &treasury, 500_000_000_000_000i128)?;
+
+	Ok(())
+}
+
 runtime_benchmarks! {
 	{Runtime, pallet_dca}
 
@@ -184,8 +191,10 @@ runtime_benchmarks! {
 		let amount_buy = 200 * ONE;
 
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &seller, 500_000_000_000_000i128)?;
-
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &other_seller, 20_000_000_000_000_000_000_000i128)?;
+
+		//Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
+		fund_treasury()?;
 
 		let schedule1 = schedule_buy_fake(seller.clone(), HDX, DAI, amount_buy);
 		let execution_block = 1001u32;
@@ -225,9 +234,10 @@ runtime_benchmarks! {
 		let amount_sell = 100 * ONE;
 
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &seller, 20_000_000_000_000_000i128)?;
-
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &other_seller, 20_000_000_000_000_000_000_000i128)?;
+		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 
+		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 		let schedule1 = schedule_sell_fake(seller.clone(), HDX, DAI, amount_sell);
 		let execution_block = 1001u32;
 
@@ -259,6 +269,7 @@ runtime_benchmarks! {
 
 	on_initialize_with_empty_block{
 		let seller: AccountId = account("seller", 3, 1);
+		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 
 		let execution_block = 100u32;
 		assert_eq!(DCA::schedules::<ScheduleId>(execution_block), None);
@@ -274,6 +285,7 @@ runtime_benchmarks! {
 
 	schedule{
 		let caller: AccountId = create_account_with_native_balance()?;
+		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 
 		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -373,6 +385,7 @@ runtime_benchmarks! {
 
 	terminate {
 		let caller: AccountId = create_account_with_native_balance()?;
+		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &caller, 100_000_000_000_000_000i128)?;
 

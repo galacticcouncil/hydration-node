@@ -423,6 +423,8 @@ pub type SlowAdjustingFeeUpdate<R> =
 
 pub struct WeightToFee;
 
+pub const SUBSTRATE_FEE_DIVIDER: u128 = 4; // We use this to divide fee related constant as HDX price is high (~0.26$), but we want to reduce the fee price
+
 impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
 
@@ -438,7 +440,7 @@ impl WeightToFeePolynomial for WeightToFee {
 	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
-		let p = CENTS; // 1_000_000_000_000
+		let p = CENTS / SUBSTRATE_FEE_DIVIDER; // 1_000_000_000_000 / SUBSTRATE_FEE_DIVIDER
 		let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time()); // 7_919_840_000
 		smallvec::smallvec![WeightToFeeCoefficient {
 			degree: 1,
@@ -450,18 +452,18 @@ impl WeightToFeePolynomial for WeightToFee {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
+	pub const TransactionByteFee: Balance = 10 * MILLICENTS / SUBSTRATE_FEE_DIVIDER;
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
 	/// change the fees more rapidly.
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(6, 100_000);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(10, 113);
 	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
-	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1000u128);
 	/// The maximum amount of the multiplier.
-	pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_integer(4);
+	pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_integer(320);
 }
 
 impl pallet_transaction_payment::Config for Runtime {
