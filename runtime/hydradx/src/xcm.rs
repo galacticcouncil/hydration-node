@@ -429,7 +429,7 @@ impl Contains<RuntimeCall> for SafeCallFilter {
 			return false;
 		}
 
-		let s = matches!(
+		matches!(
 			call,
 			RuntimeCall::System(frame_system::Call::kill_prefix { .. } | frame_system::Call::set_heap_pages { .. })
 				| RuntimeCall::Timestamp(..)
@@ -493,9 +493,6 @@ impl Contains<RuntimeCall> for SafeCallFilter {
 				| RuntimeCall::Currencies(..)
 				| RuntimeCall::Tokens(..)
 				| RuntimeCall::OrmlXcm(..)
-		);
-		let d = 3;
-		let k = s;
-		s
+		)
 	}
 }

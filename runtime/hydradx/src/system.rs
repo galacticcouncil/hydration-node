@@ -93,7 +93,7 @@ impl Contains<RuntimeCall> for CallFilter {
 			}
 		}
 
-		let m = match call {
+		match call {
 			RuntimeCall::PolkadotXcm(pallet_xcm::Call::send { .. }) => true,
 			// create and create2 are only allowed through RPC or Runtime API
 			RuntimeCall::EVM(pallet_evm::Call::create { .. }) => false,
@@ -101,9 +101,8 @@ impl Contains<RuntimeCall> for CallFilter {
 			RuntimeCall::PolkadotXcm(_) => false,
 			RuntimeCall::OrmlXcm(_) => false,
 			_ => true,
-		};
-		let d = m.clone();
-		m
+		}
+
 	}
 }
 
