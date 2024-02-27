@@ -1163,8 +1163,13 @@ fn dispatch_should_respect_call_filter() {
 			WETH,
 			(100 * UNITS * 1_000_000) as i128,
 		));
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			evm_signed_origin(currency_precompile::alice_evm_addr()),
+			WETH,
+		));
 		let balance = Tokens::free_balance(WETH, &currency_precompile::alice_substrate_evm_addr());
 
+		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
 		//Act
 		assert_ok!(EVM::call(
 			evm_signed_origin(currency_precompile::alice_evm_addr()),
@@ -1173,7 +1178,7 @@ fn dispatch_should_respect_call_filter() {
 			transfer_call.encode(),
 			U256::from(0),
 			gas_limit,
-			gas_price(),
+			gas_price * 10,
 			None,
 			Some(U256::zero()),
 			[].into(),
@@ -1185,7 +1190,7 @@ fn dispatch_should_respect_call_filter() {
 		assert!(new_balance > balance - amount, "more than fee was taken from account");
 		assert_eq!(
 			new_balance,
-			balance - (U256::from(gas_limit) * gas_price()).as_u128(),
+			balance - (U256::from(gas_limit) * gas_price).as_u128(),
 			"gas limit was not charged"
 		);
 		assert_eq!(
@@ -1388,35 +1393,30 @@ fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		)));
+
+		//Set up to idle state where the chain is not utilized at all
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			WETH,
-			(100 * UNITS * 1_000_000) as i128,
-		));
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			currency_precompile::alice_substrate_evm_addr(),
-			WETH,
-			(1000 * UNITS * 1_000_000) as i128,
-		));
-
-		//Fund evm account with HDX to dispatch omnipool sell
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			evm_account(),
-			HDX,
-			100 * UNITS as i128,
+			2_000_000_000_000_000_000 as i128,
 		));
 
 		init_omnipool_with_oracle_for_block_10();
 		let treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
-		let alice_weth_balance = Tokens::free_balance(WETH, &currency_precompile::alice_substrate_evm_addr());
+		let alice_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
 		//Act
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
 				asset_in: HDX,
-				asset_out: DAI,
+				asset_out: DOT,
 				amount: UNITS,
 				min_buy_amount: 0,
 			});
@@ -1426,8 +1426,8 @@ fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
 
 		//Execute omnipool via EVM
 		assert_ok!(EVM::call(
-			evm_signed_origin(currency_precompile::alice_evm_addr()),
-			currency_precompile::alice_evm_addr(),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			evm_address,
 			DISPATCH_ADDR,
 			omni_sell.encode(),
 			U256::from(0),
@@ -1438,7 +1438,7 @@ fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
 			[].into(),
 		));
 		//let alice_new_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
-		let alice_new_weth_balance = Tokens::free_balance(WETH, &currency_precompile::alice_substrate_evm_addr());
+		let alice_new_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
 		let fee_amount = alice_weth_balance - alice_new_weth_balance;
 
 		let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
