@@ -30,7 +30,7 @@ use pretty_assertions::assert_eq;
 
 use crate::Pallet as EmaOracle;
 // type alias to simplify usage of the handler
-type OnActivityHandler<Test> = super::OnActivityHandler<Test, SufficientAssetsFilter<Test>>;
+type OnActivityHandler<Test> = super::OnActivityHandler<Test, AllowAll<Test>>;
 
 /// Default oracle source.
 const SOURCE: Source = *b"dummysrc";

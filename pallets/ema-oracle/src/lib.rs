@@ -381,6 +381,18 @@ impl<T: Config> EntryFilter<AssetId> for SufficientAssetsFilter<T> {
 	}
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+// used in the benchmarks
+pub struct AllowAll<T>(PhantomData<T>);
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: Config> EntryFilter<AssetId> for AllowAll<T> {
+	fn is_allowed(asset_a: AssetId, asset_b: AssetId) -> bool {
+		// perform the same checks but ignore the result and continue in execution
+		let _ = SufficientAssetsFilter::<T>::is_allowed(asset_a, asset_b);
+		true
+	}
+}
+
 /// A callback handler for trading and liquidity activity that schedules oracle updates.
 pub struct OnActivityHandler<T, EF>(PhantomData<(T, EF)>);
 
