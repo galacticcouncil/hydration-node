@@ -1072,6 +1072,14 @@ fn dispatch_should_work_with_transfer() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		//Set up to idle state where the chain is not utilized at all
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		)));
+
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 		init_omnipool_with_oracle_for_block_10();
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
