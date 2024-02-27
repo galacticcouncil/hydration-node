@@ -42,7 +42,9 @@ use hydradx_traits::{
 use orml_traits::GetByKey;
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
-use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
+use pallet_ema_oracle::{OracleError, Price, SufficientAssetsFilter};
+// type alias to simplify usage of the handler
+type OnActivityHandler<Test> = pallet_ema_oracle::OnActivityHandler<Test, SufficientAssetsFilter<Test>>;
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use pallet_stableswap::types::{PoolState, StableswapHooks};
 use pallet_transaction_multi_payment::DepositFee;

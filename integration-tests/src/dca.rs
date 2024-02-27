@@ -3398,11 +3398,11 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 		initial.push(AssetAmount::new(asset_id, initial_liquidity));
 		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
 	}
-	let pool_id = AssetRegistry::register_insufficient_asset(
+	let pool_id = AssetRegistry::register_sufficient_asset(
 		None,
 		Some(b"pool".to_vec().try_into().unwrap()),
 		AssetKind::Token,
-		Some(1u128),
+		1u128,
 		None,
 		None,
 		None,

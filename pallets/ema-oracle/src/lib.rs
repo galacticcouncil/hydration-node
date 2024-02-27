@@ -70,6 +70,7 @@ use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::{BlockNumberProvider, One, Zero};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
+	registry::Inspect,
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
 	OnLiquidityChangedHandler, OnTradeHandler,
 	OraclePeriod::{self, *},
@@ -121,6 +122,9 @@ pub mod pallet {
 
 		/// The periods supported by the pallet. I.e. which oracles to track.
 		type SupportedPeriods: Get<BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>>>;
+
+		/// Provides info about sufficiency of registered assets.
+		type AssetInspect: Inspect<AssetId = AssetId>;
 
 		/// Maximum number of unique oracle entries expected in one block.
 		#[pallet::constant]
@@ -245,7 +249,7 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<Weight, (Weight, DispatchError)> {
-		let weight = OnActivityHandler::<T>::on_trade_weight();
+		let weight = OnActivityHandler::<T, SufficientAssetsFilter<T>>::on_trade_weight();
 		Self::on_entry(src, assets, oracle_entry)
 			.map(|_| weight)
 			.map_err(|_| (weight, Error::<T>::TooManyUniqueEntries.into()))
@@ -258,7 +262,7 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<Weight, (Weight, DispatchError)> {
-		let weight = OnActivityHandler::<T>::on_liquidity_changed_weight();
+		let weight = OnActivityHandler::<T, SufficientAssetsFilter<T>>::on_liquidity_changed_weight();
 		Self::on_entry(src, assets, oracle_entry)
 			.map(|_| weight)
 			.map_err(|_| (weight, Error::<T>::TooManyUniqueEntries.into()))
@@ -364,10 +368,27 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-/// A callback handler for trading and liquidity activity that schedules oracle updates.
-pub struct OnActivityHandler<T>(PhantomData<T>);
+/// Filter for assets that we don't want to have oracles for.
+pub trait EntryFilter<AssetId> {
+	fn is_allowed(asset_a: AssetId, asset_b: AssetId) -> bool;
+}
 
-impl<T: Config> OnCreatePoolHandler<AssetId> for OnActivityHandler<T> {
+/// Fails if at least one of the assets is not sufficient.
+pub struct SufficientAssetsFilter<T>(PhantomData<T>);
+impl<T: Config> EntryFilter<AssetId> for SufficientAssetsFilter<T> {
+	fn is_allowed(asset_a: AssetId, asset_b: AssetId) -> bool {
+		T::AssetInspect::is_sufficient(asset_a) && T::AssetInspect::is_sufficient(asset_b)
+	}
+}
+
+/// A callback handler for trading and liquidity activity that schedules oracle updates.
+pub struct OnActivityHandler<T, EF>(PhantomData<(T, EF)>);
+
+impl<T, EF> OnCreatePoolHandler<AssetId> for OnActivityHandler<T, EF>
+where
+	T: Config,
+	EF: EntryFilter<AssetId>,
+{
 	// Nothing to do on pool creation. Oracles are created lazily.
 	fn on_create_pool(_asset_a: AssetId, _asset_b: AssetId) -> DispatchResult {
 		Ok(())
@@ -382,7 +403,11 @@ pub(crate) fn fractional_on_finalize_weight<T: Config>(max_entries: u32) -> Weig
 		.saturating_div(max_entries.into())
 }
 
-impl<T: Config> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T> {
+impl<T, EF> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T, EF>
+where
+	T: Config,
+	EF: EntryFilter<AssetId>,
+{
 	fn on_trade(
 		source: Source,
 		asset_a: AssetId,
@@ -400,6 +425,11 @@ impl<T: Config> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T>
 				"Liquidity amounts should not be zero. Source: {source:?}, liquidity: ({liquidity_a},{liquidity_b})"
 			);
 			return Err((Self::on_trade_weight(), Error::<T>::OnTradeValueZero.into()));
+		}
+
+		// if the asset is not sufficient, we don't consider this as an error, so we return Ok
+		if !EF::is_allowed(asset_a, asset_b) {
+			return Ok(Self::on_trade_weight());
 		}
 
 		let price = determine_normalized_price(asset_a, asset_b, price);
@@ -424,7 +454,11 @@ impl<T: Config> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T>
 	}
 }
 
-impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivityHandler<T> {
+impl<T, EF> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivityHandler<T, EF>
+where
+	T: Config,
+	EF: EntryFilter<AssetId>,
+{
 	fn on_liquidity_changed(
 		source: Source,
 		asset_a: AssetId,
@@ -441,6 +475,12 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivit
 				"Liquidity is zero. Source: {source:?}, liquidity: ({liquidity_a},{liquidity_a})"
 			);
 		}
+
+		// if the asset is not sufficient, we don't consider this as an error, so we return Ok
+		if !EF::is_allowed(asset_a, asset_b) {
+			return Ok(Self::on_trade_weight());
+		}
+
 		let price = determine_normalized_price(asset_a, asset_b, price);
 		let liquidity = determine_normalized_liquidity(asset_a, asset_b, liquidity_a, liquidity_b);
 		let updated_at = T::BlockNumberProvider::current_block_number();

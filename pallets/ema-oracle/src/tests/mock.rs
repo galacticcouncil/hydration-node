@@ -28,10 +28,9 @@ use frame_support::sp_runtime::{
 use frame_support::traits::Everything;
 use frame_support::BoundedVec;
 use hydradx_traits::OraclePeriod::{self, *};
-use hydradx_traits::{AssetPairAccountIdFor, Liquidity, Volume};
+use hydradx_traits::Source;
+use hydradx_traits::{registry::Inspect, AssetKind, AssetPairAccountIdFor, Liquidity, Volume};
 use sp_core::H256;
-
-pub use hydradx_traits::Source;
 
 use crate::types::{AssetId, Balance, Price};
 pub type BlockNumber = u64;
@@ -43,6 +42,7 @@ use crate::MAX_PERIODS;
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
 pub const ACA: AssetId = 3_000;
+pub const INSUFFICIENT_ASSET: AssetId = 4_000;
 
 pub const ORACLE_ENTRY_1: OracleEntry<BlockNumber> = OracleEntry {
 	price: Price::new(2_000, 1_000),
@@ -103,7 +103,7 @@ impl frame_system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 	type OnSetCode = ();
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<16>;
 }
 
 pub struct AssetPairAccountIdTest();
@@ -123,11 +123,41 @@ parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = bounded_vec![LastBlock, TenMinutes, Day, Week];
 }
 
+pub struct AssetInspectMock;
+
+impl Inspect for AssetInspectMock {
+	type AssetId = AssetId;
+	type Location = ();
+
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		id != INSUFFICIENT_ASSET
+	}
+	fn exists(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
+	type AssetInspect = AssetInspectMock;
 	type MaxUniqueEntries = ConstU32<45>;
 }
 

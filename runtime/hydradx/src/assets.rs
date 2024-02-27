@@ -505,9 +505,9 @@ impl pallet_ema_oracle::Config for Runtime {
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
+	type AssetInspect = AssetRegistry;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
-	/// 40 seems a decent upper bound for the forseeable future.
-	///
+	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;
 }
 
@@ -1233,7 +1233,7 @@ impl pallet_xyk::Config for Runtime {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CanCreatePool = hydradx_adapters::xyk::AllowPoolCreation<Runtime, AssetRegistry>;
-	type AMMHandler = pallet_ema_oracle::OnActivityHandler<Runtime>;
+	type AMMHandler = pallet_ema_oracle::OnActivityHandler<Runtime, pallet_ema_oracle::SufficientAssetsFilter<Runtime>>;
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = Duster;
 	type OracleSource = XYKOracleSourceIdentifier;
