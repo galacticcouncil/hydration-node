@@ -8,6 +8,7 @@ pub mod currencies;
 pub mod dca;
 pub mod democracy;
 pub mod duster;
+pub mod dynamic_evm_fee;
 pub mod elections;
 pub mod ema_oracle;
 pub mod evm_accounts;

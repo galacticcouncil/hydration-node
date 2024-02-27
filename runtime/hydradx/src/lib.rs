@@ -107,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 215,
+	spec_version: 216,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -187,6 +187,7 @@ construct_runtime!(
 		EVMChainId: pallet_evm_chain_id = 91,
 		Ethereum: pallet_ethereum = 92,
 		EVMAccounts: pallet_evm_accounts = 93,
+		DynamicEvmFee: pallet_dynamic_evm_fee = 94,
 
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
@@ -730,6 +731,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_route_executor, benchmarking::route_executor);
 			orml_list_benchmark!(list, extra, pallet_dca, benchmarking::dca);
 			orml_list_benchmark!(list, extra, pallet_xyk, benchmarking::xyk);
+			orml_list_benchmark!(list, extra, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -813,6 +815,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
 			orml_add_benchmark!(params, batches, pallet_dca, benchmarking::dca);
 			orml_add_benchmark!(params, batches, pallet_xyk, benchmarking::xyk);
+			orml_add_benchmark!(params, batches, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
