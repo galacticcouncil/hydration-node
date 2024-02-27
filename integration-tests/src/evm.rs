@@ -1205,7 +1205,7 @@ fn dispatch_should_respect_call_filter() {
 	});
 }
 
-use hydradx_adapters::OraclePriceProvider;
+use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::Trade;
 use sp_core::crypto::AccountId32;
@@ -1452,6 +1452,106 @@ fn compare2() {
 		dbg!(in_hdx);
 	})
 }
+
+#[test]
+fn compare4() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			WETH,
+			2_000_000_000_000_000_000i128,
+		));
+
+		let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+
+		assert_ok!(Omnipool::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			WETH,
+			HDX,
+			1_000_000_000_000_000_000,
+			0,
+		));
+
+		let new_alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+
+		let diff = new_alice_hdx_balance - alice_hdx_balance;
+
+		dbg!(diff);
+
+		let fee_amount = 1_000_000_000_000_000_000u128;
+
+		let p = <Omnipool as SpotPriceProvider<u32>>::spot_price(HDX, WETH);
+		dbg!(p);
+		let in_hdx = p.unwrap().checked_mul_int(fee_amount);
+		dbg!(in_hdx);
+
+		let p1 = <hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::OraclePriceProvider::price(
+			&[Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: WETH,
+			}],
+			OraclePeriod::Short,
+		);
+		let p1 = FixedU128::from_rational(p1.unwrap().n, p1.unwrap().d);
+		dbg!(p1);
+
+		let in_hdx = p1.checked_mul_int(fee_amount);
+		dbg!(in_hdx);
+
+		let p3 = <hydradx_runtime::Runtime as pallet_dca::Config>::NativePriceOracle::price(WETH);
+		let p3 = FixedU128::from_rational(p3.unwrap().n, p3.unwrap().d);
+		dbg!(p3);
+
+		let in_hdx = p3.checked_mul_int(fee_amount);
+		dbg!(in_hdx);
+
+	})
+}
+#[test]
+fn compare5() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			HDX,
+			2_000_000_000_000_i128,
+		));
+
+		let alice_hdx_balance = Currencies::free_balance(WETH, &AccountId::from(ALICE));
+
+		assert_ok!(Omnipool::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			WETH,
+			1_000_000_000_000,
+			0,
+		));
+
+		let new_alice_hdx_balance = Currencies::free_balance(WETH, &AccountId::from(ALICE));
+		let diff = new_alice_hdx_balance - alice_hdx_balance;
+
+		let p1 = <hydradx_runtime::Runtime as pallet_dca::Config>::NativePriceOracle::price(WETH);
+		let p1 = FixedU128::from_rational(p1.unwrap().n, p1.unwrap().d);
+		dbg!(p1);
+
+		let in_weth = p1.checked_mul_int(1_000_000_000_000u128);
+		dbg!(in_weth);
+
+		let p2 = pallet_dynamic_evm_fee::ETH_HDX_REFERENCE_PRICE;
+		let in_weth = p2.checked_mul_int(1_000_000_000_000u128);
+		dbg!(in_weth);
+
+	})
+}
+use hydradx_traits::NativePriceOracle;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
