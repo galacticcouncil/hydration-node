@@ -4671,6 +4671,7 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy 4.1.0",
  "pallet-duster",
+ "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
@@ -7496,6 +7497,33 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-dynamic-evm-fee"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
+ "pallet-evm",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-api",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -11377,6 +11405,7 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy 4.1.0",
  "pallet-duster",
+ "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
@@ -11435,6 +11464,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
+ "test-utils",
  "tokio",
  "xcm-emulator",
 ]

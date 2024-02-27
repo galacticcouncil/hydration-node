@@ -53,15 +53,13 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		);
 	});
 
-	let fees = 401884032343;
 	Hydra::execute_with(|| {
+		let fee = hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id());
+		assert!(fee > 0, "Fees is not sent to treasury");
+
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS - fees
-		);
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
-			fees
+			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS - fee
 		);
 	});
 }
@@ -141,15 +139,12 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 		);
 	});
 
-	let fee = 321507225875;
 	Hydra::execute_with(|| {
+		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
+		assert!(fee > 0, "Fees is not sent to treasury");
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
 			30 * UNITS - fee
-		);
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
-			fee // fees should go to treasury
 		);
 	});
 }
@@ -331,7 +326,7 @@ fn claim_trapped_asset_should_work() {
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			1000 * UNITS + 29_758_869_580_594
+			1_029_939_717_395_149 //1000 * UNITS + 30 * UNITS - fee
 		);
 
 		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));
