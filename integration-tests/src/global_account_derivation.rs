@@ -1,7 +1,7 @@
 #![cfg(test)]
 use crate::polkadot_test_net::*;
 
-use frame_support::{assert_ok};
+use frame_support::assert_ok;
 use sp_runtime::codec::Encode;
 
 use frame_support::dispatch::GetDispatchInfo;

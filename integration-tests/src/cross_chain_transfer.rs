@@ -201,7 +201,8 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 		assert!(fee > 0, "fee should be greater than 0");
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(evm_account())),
-			amount - fee);
+			amount - fee
+		);
 	});
 }
 
