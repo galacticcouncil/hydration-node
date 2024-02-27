@@ -17,8 +17,6 @@ use {
 	sp_runtime::traits::UniqueSaturatedInto,
 };
 
-//TODO: consider to implement frame_support_::traits::Imbalance for EvmPaymentInfo??!!
-// Might be useful to keep consistency with other OnChargeTransaction implementations
 #[derive(Copy, Clone, Default)]
 pub struct EvmPaymentInfo<Price> {
 	amount: Balance,
@@ -175,7 +173,7 @@ impl OnUnbalanced<EvmPaymentInfo<EmaPrice>> for DepositEvmFeeToTreasury {
 	// (technically, it calls on_unbalanced, which calls this when non-zero)
 	fn on_nonzero_unbalanced(payment_info: EvmPaymentInfo<EmaPrice>) {
 		//TODO: perhaps better to avoid using something multi payment pallet - it is fine for now
-		// consider creating general purpose adapter or something, or simple move the DepositAll to adapters - it has nothing to do with multi payment pallet
+		//consider creating general purpose adapter or something, or simple move the DepositAll to adapters - it has nothing to do with multi payment pallet
 		let result = DepositAll::<crate::Runtime>::deposit_fee(
 			&TreasuryAccount::get(),
 			payment_info.asset_id,
