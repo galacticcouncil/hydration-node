@@ -103,6 +103,8 @@ parameter_types! {
   pub AssetHubLocation: MultiLocation = (Parent, Parachain(1000)).into();
 }
 
+/// Matches foreign assets from a given origin.
+/// Foreign assets are assets bridged from other consensus systems. i.e parents > 1.
 pub struct IsForeignNativeAsset<Origin>(PhantomData<Origin>);
 impl<Origin> ContainsPair<MultiAsset, MultiLocation> for IsForeignNativeAsset<Origin>
 where
