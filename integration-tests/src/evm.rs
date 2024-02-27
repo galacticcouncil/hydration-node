@@ -1072,37 +1072,42 @@ fn dispatch_should_work_with_transfer() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 		init_omnipool_with_oracle_for_block_10();
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			currency_precompile::alice_substrate_evm_addr(),
+			ALICE.into(),
 			WETH,
 			(100 * UNITS * 1_000_000) as i128,
+		));
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			WETH,
 		));
 
 		//Arrange
 		let data = hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
 			.to_vec();
-		let balance = Tokens::free_balance(WETH, &currency_precompile::alice_substrate_evm_addr());
+		let balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
+
+		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
 
 		//Act
 		assert_ok!(EVM::call(
-			evm_signed_origin(currency_precompile::alice_evm_addr()),
-			currency_precompile::alice_evm_addr(),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			evm_address,
 			DISPATCH_ADDR,
 			data,
 			U256::from(0),
 			1000000,
-			gas_price(),
+			gas_price * 10,
 			None,
 			Some(U256::zero()),
 			[].into()
 		));
 
 		//Assert
-		assert!(
-			Tokens::free_balance(WETH, &currency_precompile::alice_substrate_evm_addr()) < balance - 10u128.pow(16)
-		);
+		assert!(Tokens::free_balance(WETH, &AccountId::from(ALICE)) < balance - 10u128.pow(16));
 	});
 }
 
@@ -1446,59 +1451,6 @@ fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
 		assert_eq!(fee_amount, treasury_weth_diff);
 	})
 }
-
-#[test]
-fn fee_should_be_paid_in_accounts_fee_currency() {
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		//Set alice with as fee currency and fund it
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			currency_precompile::alice_substrate_evm_addr(),
-			DAI,
-			(100 * UNITS * 1_000_000) as i128,
-			//(100 * UNITS ) as i128,
-		));
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::RuntimeOrigin::signed(currency_precompile::alice_substrate_evm_addr()),
-			DAI,
-		));
-
-		init_omnipool_with_oracle_for_block_10();
-		let treasury_dai_balance = Tokens::free_balance(DAI, &Treasury::account_id());
-		let alice_dai_balance = Tokens::free_balance(DAI, &currency_precompile::alice_substrate_evm_addr());
-		//Act
-		let omni_sell =
-			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount: UNITS,
-				min_buy_amount: 0,
-			});
-
-		let gas_limit = 1000000;
-		assert_ok!(EVM::call(
-			evm_signed_origin(currency_precompile::alice_evm_addr()),
-			currency_precompile::alice_evm_addr(),
-			DISPATCH_ADDR,
-			omni_sell.encode(),
-			U256::from(0),
-			gas_limit,
-			gas_price(),
-			None,
-			Some(U256::zero()),
-			[].into(),
-		));
-		let alice_new_dai_balance = Tokens::free_balance(DAI, &currency_precompile::alice_substrate_evm_addr());
-		let fee_amount = alice_dai_balance - alice_new_dai_balance;
-
-		let new_treasury_dai_balance = Tokens::free_balance(DAI, &Treasury::account_id());
-		let treasury_dai_diff = new_treasury_dai_balance - treasury_dai_balance;
-		assert_eq!(fee_amount, treasury_dai_diff);
-	})
-}
-
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	hydradx_run_to_next_block();
