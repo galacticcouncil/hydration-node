@@ -9,6 +9,8 @@ use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use xcm_emulator::TestExt;
 use xcm_emulator::ConvertLocation;
+use frame_support::dispatch::GetDispatchInfo;
+
 #[test]
 fn other_chain_remote_account_should_work_on_hydra() {
 	// Arrange
@@ -81,7 +83,7 @@ fn other_chain_remote_account_should_work_on_hydra() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: Weight::from_parts(10_000_000_000, 0u64),
+				require_weight_at_most:  omni_sell.get_dispatch_info().weight,
 				origin_kind: OriginKind::SovereignAccount,
 				call: omni_sell.encode().into(),
 			},
