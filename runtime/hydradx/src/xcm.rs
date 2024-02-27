@@ -3,8 +3,7 @@ use sp_std::marker::PhantomData;
 
 use codec::MaxEncodedLen;
 use hydradx_adapters::{
-	xcm_account_derivation, MultiCurrencyTrader, RelayChainBlockNumberProvider, ReroutingMultiCurrencyAdapter,
-	ToFeeReceiver,
+	MultiCurrencyTrader, RelayChainBlockNumberProvider, ReroutingMultiCurrencyAdapter, ToFeeReceiver,
 };
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
@@ -27,9 +26,9 @@ use primitives::Price;
 use scale_info::TypeInfo;
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
-	TakeWeightCredit, WithComputedOrigin,
+	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset,
+	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, WithComputedOrigin,
 };
 use xcm_executor::{Config, XcmExecutor};
 
@@ -358,7 +357,7 @@ pub type LocationToAccountId = (
 	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
 	AccountId32Aliases<RelayNetwork, AccountId>,
 	// Generate remote accounts according to polkadot standards
-	xcm_account_derivation::HashedDescriptionDescribeFamilyAllTerminal<AccountId>,
+	HashedDescription<AccountId, DescribeFamily<DescribeAllTerminal>>,
 	// Convert ETH to local substrate account
 	EvmAddressConversion<RelayNetwork>,
 );

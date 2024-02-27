@@ -102,7 +102,6 @@ impl Contains<RuntimeCall> for CallFilter {
 			RuntimeCall::OrmlXcm(_) => false,
 			_ => true,
 		}
-
 	}
 }
 

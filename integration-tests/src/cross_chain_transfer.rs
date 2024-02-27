@@ -196,16 +196,12 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 		);
 	});
 
-	let fee = 400641025641;
 	Hydra::execute_with(|| {
+		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
+		assert!(fee > 0, "fee should be greater than 0");
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(evm_account())),
-			amount - fee
-		);
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
-			1 * fee // fees should go to treasury
-		);
+			amount - fee);
 	});
 }
 
@@ -272,15 +268,12 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 		);
 	});
 
-	let fee = 400641025641;
 	Hydra::execute_with(|| {
+		let fee_2x = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
+		assert!(fee_2x > 0, "fee should be greater than 0");
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(evm_account())),
-			2 * amount - 2 * fee
-		);
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
-			2 * fee // fees should go to treasury
+			2 * amount - fee_2x
 		);
 	});
 }

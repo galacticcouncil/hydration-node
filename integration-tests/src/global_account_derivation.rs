@@ -1,16 +1,17 @@
 #![cfg(test)]
 use crate::polkadot_test_net::*;
 
-use frame_support::{assert_ok, weights::Weight};
+use frame_support::{assert_ok};
 use sp_runtime::codec::Encode;
 
-use hydradx_adapters::xcm_account_derivation::HashedDescriptionDescribeFamilyAllTerminal;
+use frame_support::dispatch::GetDispatchInfo;
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
-use xcm_emulator::TestExt;
+use xcm_builder::DescribeAllTerminal;
+use xcm_builder::DescribeFamily;
+use xcm_builder::HashedDescription;
 use xcm_emulator::ConvertLocation;
-use frame_support::dispatch::GetDispatchInfo;
-
+use xcm_emulator::TestExt;
 #[test]
 fn other_chain_remote_account_should_work_on_hydra() {
 	// Arrange
@@ -33,7 +34,8 @@ fn other_chain_remote_account_should_work_on_hydra() {
 	};
 
 	let acala_account_id_at_hydra: AccountId =
-		HashedDescriptionDescribeFamilyAllTerminal::convert_location(&xcm_origin_at_hydra).unwrap();
+		HashedDescription::<AccountId, DescribeFamily<DescribeAllTerminal>>::convert_location(&xcm_origin_at_hydra)
+			.unwrap();
 
 	Hydra::execute_with(|| {
 		init_omnipool();
@@ -83,7 +85,7 @@ fn other_chain_remote_account_should_work_on_hydra() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most:  omni_sell.get_dispatch_info().weight,
+				require_weight_at_most: omni_sell.get_dispatch_info().weight,
 				origin_kind: OriginKind::SovereignAccount,
 				call: omni_sell.encode().into(),
 			},
