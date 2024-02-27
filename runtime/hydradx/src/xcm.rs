@@ -16,6 +16,8 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::EnsureRoot;
+use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
+use hydradx_adapters::xcm_execute_filter::AllowTransferAndSwap;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
@@ -92,6 +94,10 @@ parameter_types! {
 	pub const MaxInstructions: u32 = 100;
 	pub const MaxAssetsForTransfer: usize = 2;
 
+	pub TempAccountForXcmAssetExchange: AccountId = [42; 32].into();
+	pub const MaxXcmDepth: u16 = 5;
+	pub const MaxNumberOfInstructions: u16 = 100;
+
 	pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
 }
 
@@ -125,7 +131,7 @@ impl Config for XcmConfig {
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetLocker = ();
-	type AssetExchanger = ();
+	type AssetExchanger = XcmAssetExchanger<Runtime, TempAccountForXcmAssetExchange, CurrencyIdConvert, Currencies>;
 	type AssetClaims = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type PalletInstancesInfo = AllPalletsWithSystem;
@@ -223,7 +229,7 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = Nothing;
+	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
