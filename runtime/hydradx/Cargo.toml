@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "217.0.0"
+version = "218.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -111,6 +111,7 @@ pallet-xcm = { workspace = true }
 polkadot-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
+
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }

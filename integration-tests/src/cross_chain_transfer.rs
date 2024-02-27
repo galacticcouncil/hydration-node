@@ -11,6 +11,7 @@ use hex_literal::hex;
 use hydradx_traits::registry::Mutate;
 use orml_traits::currency::MultiCurrency;
 use pretty_assertions::assert_eq;
+use primitives::AccountId;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};
 use xcm_emulator::TestExt;
@@ -145,6 +146,130 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
 			30 * UNITS - fee
+		);
+	});
+}
+
+#[test]
+fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
+	// Arrange
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			ACA,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+		));
+	});
+
+	let amount = 30 * UNITS;
+	Acala::execute_with(|| {
+		//We send to ethereum address with Account20
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			0,
+			amount,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountKey20 {
+							network: None,
+							key: evm_address().into(),
+						}
+					)
+				)
+				.into()
+			),
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
+		));
+		// Assert
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			ALICE_INITIAL_NATIVE_BALANCE - amount
+		);
+	});
+
+	Hydra::execute_with(|| {
+		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
+		assert!(fee > 0, "fee should be greater than 0");
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(evm_account())),
+			amount - fee
+		);
+	});
+}
+
+#[test]
+fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_represented_as_both_account32_and_20() {
+	// Arrange
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			ACA,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+		));
+	});
+
+	let amount = 30 * UNITS;
+	Acala::execute_with(|| {
+		//We send to ethereum address with Account20
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			0,
+			amount,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountKey20 {
+							network: None,
+							key: evm_address().into(),
+						}
+					)
+				)
+				.into()
+			),
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
+		));
+
+		//We send it again to the same address, but to normal Account32
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			0,
+			amount,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountId32 {
+							id: evm_account().into(),
+							network: None
+						}
+					)
+				)
+				.into()
+			),
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
+		));
+
+		// Assert
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			ALICE_INITIAL_NATIVE_BALANCE - 2 * amount
+		);
+	});
+
+	Hydra::execute_with(|| {
+		let fee_2x = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
+		assert!(fee_2x > 0, "fee should be greater than 0");
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(evm_account())),
+			2 * amount - fee_2x
 		);
 	});
 }
