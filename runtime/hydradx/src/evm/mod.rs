@@ -24,7 +24,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{DCAOraclePeriod, NativeAssetId, TreasuryAccount, LRNA};
+use crate::{NativeAssetId, LRNA};
 use frame_support::{
 	parameter_types,
 	traits::{Defensive, FindAuthor},
@@ -33,12 +33,12 @@ use frame_support::{
 };
 use hex_literal::hex;
 use hydradx_adapters::price::ConvertToCurrencyUsingOracle;
-use hydradx_traits::oracle::OraclePeriod;
 use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
+use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
+use pallet_evm::EnsureAddressTruncated;
 use pallet_transaction_payment::Multiplier;
-use pallet_evm::{EnsureAddressTruncated, FeeCalculator};
 use polkadot_xcm::{
 	latest::MultiLocation,
 	prelude::{AccountKey20, PalletInstance, Parachain, X3},
@@ -211,7 +211,7 @@ impl pallet_dynamic_evm_fee::Config for crate::Runtime {
 		crate::Router,
 		OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
 		crate::MultiTransactionPayment,
-		DCAOraclePeriod,
+		OracleEvmPeriod,
 	>;
 	type WethAssetId = WethAssetId;
 	type WeightInfo = crate::weights::dynamic_evm_fee::HydraWeight<crate::Runtime>;
