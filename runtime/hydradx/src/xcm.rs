@@ -1,4 +1,5 @@
 use super::*;
+use sp_std::marker::PhantomData;
 
 use codec::MaxEncodedLen;
 use hydradx_adapters::{
@@ -15,8 +16,11 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::EnsureRoot;
+use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
+use hydradx_adapters::xcm_execute_filter::AllowTransferAndSwap;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
+use pallet_evm::AddressMapping;
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::{RelayChainBlockNumber, Sibling};
 use polkadot_xcm::v3::{prelude::*, Weight as XcmWeight};
@@ -24,9 +28,9 @@ use primitives::Price;
 use scale_info::TypeInfo;
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	EnsureXcmOrigin, FixedWeightBounds, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
-	TakeWeightCredit, WithComputedOrigin,
+	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset,
+	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, WithComputedOrigin,
 };
 use xcm_executor::{Config, XcmExecutor};
 
@@ -90,6 +94,10 @@ parameter_types! {
 	pub const MaxInstructions: u32 = 100;
 	pub const MaxAssetsForTransfer: usize = 2;
 
+	pub TempAccountForXcmAssetExchange: AccountId = [42; 32].into();
+	pub const MaxXcmDepth: u16 = 5;
+	pub const MaxNumberOfInstructions: u16 = 100;
+
 	pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
 }
 
@@ -123,7 +131,7 @@ impl Config for XcmConfig {
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetLocker = ();
-	type AssetExchanger = ();
+	type AssetExchanger = XcmAssetExchanger<Runtime, TempAccountForXcmAssetExchange, CurrencyIdConvert, Currencies>;
 	type AssetClaims = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type PalletInstancesInfo = AllPalletsWithSystem;
@@ -221,7 +229,7 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = Nothing;
+	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
@@ -275,6 +283,7 @@ impl pallet_xcm_rate_limiter::Config for Runtime {
 }
 
 pub struct CurrencyIdConvert;
+use crate::evm::ExtendedAddressMapping;
 use primitives::constants::chain::CORE_ASSET_ID;
 
 impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
@@ -353,7 +362,29 @@ pub type LocationToAccountId = (
 	SiblingParachainConvertsVia<Sibling, AccountId>,
 	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
 	AccountId32Aliases<RelayNetwork, AccountId>,
+	// Generate remote accounts according to polkadot standards
+	HashedDescription<AccountId, DescribeFamily<DescribeAllTerminal>>,
+	// Convert ETH to local substrate account
+	EvmAddressConversion<RelayNetwork>,
 );
+use xcm_executor::traits::ConvertLocation;
+
+/// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
+pub struct EvmAddressConversion<Network>(PhantomData<Network>);
+impl<Network: Get<Option<NetworkId>>> ConvertLocation<AccountId> for EvmAddressConversion<Network> {
+	fn convert_location(location: &MultiLocation) -> Option<AccountId> {
+		match location {
+			MultiLocation {
+				parents: 0,
+				interior: X1(AccountKey20 { network: _, key }),
+			} => {
+				let account_32 = ExtendedAddressMapping::into_account_id(H160::from(key));
+				Some(account_32)
+			}
+			_ => None,
+		}
+	}
+}
 
 parameter_types! {
 	// The account which receives multi-currency tokens from failed attempts to deposit them
