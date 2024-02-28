@@ -2,7 +2,7 @@ use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::weights::Weight;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::price::PriceProvider;
-use hydradx_traits::router::{AssetPair, PoolType, RouteProvider, Trade};
+use hydradx_traits::router::{AssetPair, RouteProvider};
 use hydradx_traits::{
 	AccountFeeCurrency, AccountFeeCurrencyBalanceInCurrency, AggregatedPriceOracle, OraclePeriod, PriceOracle,
 };
