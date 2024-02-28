@@ -2,7 +2,7 @@ use crate::TreasuryAccount;
 use frame_support::traits::tokens::{Fortitude, Precision};
 use frame_support::traits::{Get, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::FeePaymentCurrency;
+use hydradx_traits::AccountFeeCurrency;
 use pallet_evm::{AddressMapping, Error};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee};
 use primitives::{AssetId, Balance};
@@ -52,7 +52,7 @@ where
 	T: pallet_evm::Config,
 	OU: OnUnbalanced<EvmPaymentInfo<EmaPrice>>,
 	U256: UniqueSaturatedInto<Balance>,
-	AC: FeePaymentCurrency<T::AccountId, AssetId = AssetId>,
+	AC: AccountFeeCurrency<T::AccountId, AssetId = AssetId>,
 	EC: Get<AssetId>,
 	C: Convert<(AssetId, AssetId, Balance), Option<(Balance, EmaPrice)>>,
 	U256: UniqueSaturatedInto<Balance>,
@@ -66,7 +66,7 @@ where
 			return Ok(None);
 		}
 		let account_id = T::AddressMapping::into_account_id(*who);
-		let fee_currency = AC::get(&account_id).unwrap_or(EC::get());
+		let fee_currency = AC::get(&account_id);
 		let Some((converted, price)) = C::convert((EC::get(), fee_currency, fee.unique_saturated_into())) else{
 			return Err(Error::<T>::WithdrawFailed);
 		};
@@ -94,7 +94,7 @@ where
 
 	fn can_withdraw(who: &H160, amount: U256) -> Result<(), pallet_evm::Error<T>> {
 		let account_id = T::AddressMapping::into_account_id(*who);
-		let fee_currency = AC::get(&account_id).unwrap_or(EC::get());
+		let fee_currency = AC::get(&account_id);
 		let Some((converted, _)) = C::convert((EC::get(), fee_currency, amount.unique_saturated_into())) else{
 			return Err(Error::<T>::BalanceLow);
 		};

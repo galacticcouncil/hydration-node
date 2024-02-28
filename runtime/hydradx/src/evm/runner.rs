@@ -1,7 +1,7 @@
 use crate::evm::WethAssetId;
 use fp_evm::{Account, InvalidEvmTransactionError};
 use frame_support::traits::Get;
-use hydradx_traits::FeePaymentCurrencyBalanceInCurrency;
+use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
 use pallet_evm::{AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
 use pallet_genesis_history::migration::Weight;
@@ -17,7 +17,7 @@ where
 	T: Config,
 	R: Runner<T>,
 	<R as pallet_evm::Runner<T>>::Error: core::convert::From<InvalidEvmTransactionError>,
-	B: FeePaymentCurrencyBalanceInCurrency<AssetId, T::AccountId, Output = (Balance, Weight)>,
+	B: AccountFeeCurrencyBalanceInCurrency<AssetId, T::AccountId, Output = (Balance, Weight)>,
 {
 	type Error = R::Error;
 

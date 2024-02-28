@@ -1402,7 +1402,7 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls() {
 }
 
 #[test]
-fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
+fn fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -1418,19 +1418,19 @@ fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
-			WETH,
-			2_000_000_000_000_000_000 as i128,
+			HDX,
+			100_000_000_000_000 as i128,
 		));
 
 		init_omnipool_with_oracle_for_block_10();
-		let treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
-		let alice_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
+		let treasury_hdx_balance = Currencies::free_balance(HDX, &Treasury::account_id());
+		let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
 		//Act
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: HDX,
-				asset_out: DOT,
-				amount: UNITS,
+				asset_in: DOT,
+				asset_out: WETH,
+				amount: 10_000_000,
 				min_buy_amount: 0,
 			});
 
@@ -1451,12 +1451,13 @@ fn fee_should_be_paid_in_weth_when_no_currency_is_set() {
 			[].into(),
 		));
 		//let alice_new_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
-		let alice_new_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
-		let fee_amount = alice_weth_balance - alice_new_weth_balance;
+		let alice_new_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+		let fee_amount = alice_hdx_balance - alice_new_hdx_balance;
+		assert!(fee_amount > 0);
 
-		let new_treasury_eth_balance = Tokens::free_balance(WETH, &Treasury::account_id());
-		let treasury_weth_diff = new_treasury_eth_balance - treasury_eth_balance;
-		assert_eq!(fee_amount, treasury_weth_diff);
+		let new_treasury_hdx_balance = Currencies::free_balance(HDX, &Treasury::account_id());
+		let treasury_hdx_diff = new_treasury_hdx_balance - treasury_hdx_balance;
+		assert_eq!(fee_amount, treasury_hdx_diff);
 	})
 }
 pub fn init_omnipool_with_oracle_for_block_10() {

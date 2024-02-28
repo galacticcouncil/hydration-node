@@ -4,7 +4,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AssetPair, PoolType, RouteProvider, Trade};
 use hydradx_traits::{
-	AggregatedPriceOracle, FeePaymentCurrency, FeePaymentCurrencyBalanceInCurrency, OraclePeriod, PriceOracle,
+	AccountFeeCurrency, AccountFeeCurrencyBalanceInCurrency, AggregatedPriceOracle, OraclePeriod, PriceOracle,
 };
 use primitives::{AssetId, Balance};
 use sp_core::Get;
@@ -31,30 +31,29 @@ where
 
 pub struct FeeAssetBalanceInCurrency<T, C, AC, I>(sp_std::marker::PhantomData<(T, C, AC, I)>);
 
-impl<T, C, AC, I> FeePaymentCurrencyBalanceInCurrency<AssetId, T::AccountId> for FeeAssetBalanceInCurrency<T, C, AC, I>
+impl<T, C, AC, I> AccountFeeCurrencyBalanceInCurrency<AssetId, T::AccountId> for FeeAssetBalanceInCurrency<T, C, AC, I>
 where
 	T: pallet_ema_oracle::Config + frame_system::Config,
 	C: Convert<(AssetId, AssetId, Balance), Option<(Balance, EmaPrice)>>,
-	AC: FeePaymentCurrency<T::AccountId, AssetId = AssetId>,
+	AC: AccountFeeCurrency<T::AccountId, AssetId = AssetId>,
 	I: frame_support::traits::fungibles::Inspect<T::AccountId, AssetId = AssetId, Balance = Balance>,
 {
 	type Output = (Balance, Weight);
 
 	fn get_balance_in_currency(to_currency: AssetId, account: &T::AccountId) -> Self::Output {
-		let Some(from_currency) = AC::get(account) else {
-			return (0,Weight::zero());
-		};
+		let from_currency = AC::get(account);
 		let account_balance = I::reducible_balance(from_currency, account, Preservation::Preserve, Fortitude::Polite);
+		let mut price_weight = T::DbWeight::get().reads(2); // 1 read to get currency and 1 read to get balance
 
 		if from_currency == to_currency {
-			return (account_balance, T::DbWeight::get().reads(2));
+			return (account_balance, price_weight);
 		}
+
+		// This is a workaround, as there is no other way to get weight of price retrieval,
 		// We get the weight from the ema-oracle weights to get price
 		// Weight * 2 because we are reading from the storage twice ( from_currency/lrna and lrna/to_currency)
-		// if this gets removed, the constraint on T and ema-oracle is not necessary
-		let price_weight = pallet_ema_oracle::Pallet::<T>::get_price_weight()
-			.saturating_mul(2)
-			.saturating_add(T::DbWeight::get().reads(2));
+		// if this gets removed (eg. Convert returns weight), the constraint on T and ema-oracle is not necessary
+		price_weight.saturating_accrue(pallet_ema_oracle::Pallet::<T>::get_price_weight().saturating_mul(2));
 
 		let Some((converted, _ )) = C::convert((from_currency, to_currency, account_balance)) else{
 			return (0,price_weight);
