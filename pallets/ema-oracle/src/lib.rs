@@ -68,9 +68,9 @@
 
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::{BlockNumberProvider, One, Zero};
+use frame_support::traits::Contains;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
-	registry::Inspect,
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
 	OnLiquidityChangedHandler, OnTradeHandler,
 	OraclePeriod::{self, *},
@@ -100,6 +100,17 @@ const LOG_TARGET: &str = "runtime::ema-oracle";
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
+#[cfg(feature = "runtime-benchmarks")]
+pub trait BenchmarkHelper<AssetId> {
+	fn register_asset(asset_id: AssetId) -> DispatchResult;
+}
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<AssetId> for () {
+	fn register_asset(_asset_id: AssetId) -> DispatchResult {
+		Ok(())
+	}
+}
+
 #[allow(clippy::type_complexity)]
 #[frame_support::pallet]
 pub mod pallet {
@@ -123,12 +134,15 @@ pub mod pallet {
 		/// The periods supported by the pallet. I.e. which oracles to track.
 		type SupportedPeriods: Get<BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>>>;
 
-		/// Provides info about sufficiency of registered assets.
-		type AssetInspect: Inspect<AssetId = AssetId>;
+		/// Filter determining what oracles are tracked by the pallet.
+		type OracleFilter: Contains<(Source, AssetId, AssetId)>;
 
 		/// Maximum number of unique oracle entries expected in one block.
 		#[pallet::constant]
 		type MaxUniqueEntries: Get<u32>;
+
+		#[cfg(feature = "runtime-benchmarks")]
+		type BenchmarkHelper: BenchmarkHelper<AssetId>;
 	}
 
 	#[pallet::error]
@@ -229,6 +243,10 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), ()> {
+		if !T::OracleFilter::contains(&(src, assets.0, assets.1)) {
+			return Ok(());
+		}
+
 		Accumulator::<T>::mutate(|accumulator| {
 			if let Some(entry) = accumulator.get_mut(&(src, assets)) {
 				entry.accumulate_volume_and_update_from(&oracle_entry);
@@ -249,7 +267,7 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<Weight, (Weight, DispatchError)> {
-		let weight = OnActivityHandler::<T, SufficientAssetsFilter<T>>::on_trade_weight();
+		let weight = OnActivityHandler::<T>::on_trade_weight();
 		Self::on_entry(src, assets, oracle_entry)
 			.map(|_| weight)
 			.map_err(|_| (weight, Error::<T>::TooManyUniqueEntries.into()))
@@ -262,7 +280,7 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<Weight, (Weight, DispatchError)> {
-		let weight = OnActivityHandler::<T, SufficientAssetsFilter<T>>::on_liquidity_changed_weight();
+		let weight = OnActivityHandler::<T>::on_liquidity_changed_weight();
 		Self::on_entry(src, assets, oracle_entry)
 			.map(|_| weight)
 			.map_err(|_| (weight, Error::<T>::TooManyUniqueEntries.into()))
@@ -368,39 +386,10 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-/// Filter for assets that we don't want to have oracles for.
-pub trait EntryFilter<AssetId> {
-	fn is_allowed(asset_a: AssetId, asset_b: AssetId) -> bool;
-}
-
-/// Fails if at least one of the assets is not sufficient.
-pub struct SufficientAssetsFilter<T>(PhantomData<T>);
-impl<T: Config> EntryFilter<AssetId> for SufficientAssetsFilter<T> {
-	fn is_allowed(asset_a: AssetId, asset_b: AssetId) -> bool {
-		T::AssetInspect::is_sufficient(asset_a) && T::AssetInspect::is_sufficient(asset_b)
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-// used in the benchmarks
-pub struct AllowAll<T>(PhantomData<T>);
-#[cfg(feature = "runtime-benchmarks")]
-impl<T: Config> EntryFilter<AssetId> for AllowAll<T> {
-	fn is_allowed(asset_a: AssetId, asset_b: AssetId) -> bool {
-		// perform the same checks but ignore the result and continue in execution
-		let _ = SufficientAssetsFilter::<T>::is_allowed(asset_a, asset_b);
-		true
-	}
-}
-
 /// A callback handler for trading and liquidity activity that schedules oracle updates.
-pub struct OnActivityHandler<T, EF>(PhantomData<(T, EF)>);
+pub struct OnActivityHandler<T>(PhantomData<T>);
 
-impl<T, EF> OnCreatePoolHandler<AssetId> for OnActivityHandler<T, EF>
-where
-	T: Config,
-	EF: EntryFilter<AssetId>,
-{
+impl<T: Config> OnCreatePoolHandler<AssetId> for OnActivityHandler<T> {
 	// Nothing to do on pool creation. Oracles are created lazily.
 	fn on_create_pool(_asset_a: AssetId, _asset_b: AssetId) -> DispatchResult {
 		Ok(())
@@ -415,11 +404,7 @@ pub(crate) fn fractional_on_finalize_weight<T: Config>(max_entries: u32) -> Weig
 		.saturating_div(max_entries.into())
 }
 
-impl<T, EF> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T, EF>
-where
-	T: Config,
-	EF: EntryFilter<AssetId>,
-{
+impl<T: Config> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T> {
 	fn on_trade(
 		source: Source,
 		asset_a: AssetId,
@@ -437,11 +422,6 @@ where
 				"Liquidity amounts should not be zero. Source: {source:?}, liquidity: ({liquidity_a},{liquidity_b})"
 			);
 			return Err((Self::on_trade_weight(), Error::<T>::OnTradeValueZero.into()));
-		}
-
-		// if the asset is not sufficient, we don't consider this as an error, so we return Ok
-		if !EF::is_allowed(asset_a, asset_b) {
-			return Ok(Self::on_trade_weight());
 		}
 
 		let price = determine_normalized_price(asset_a, asset_b, price);
@@ -466,11 +446,7 @@ where
 	}
 }
 
-impl<T, EF> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivityHandler<T, EF>
-where
-	T: Config,
-	EF: EntryFilter<AssetId>,
-{
+impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivityHandler<T> {
 	fn on_liquidity_changed(
 		source: Source,
 		asset_a: AssetId,
@@ -486,11 +462,6 @@ where
 				target: LOG_TARGET,
 				"Liquidity is zero. Source: {source:?}, liquidity: ({liquidity_a},{liquidity_a})"
 			);
-		}
-
-		// if the asset is not sufficient, we don't consider this as an error, so we return Ok
-		if !EF::is_allowed(asset_a, asset_b) {
-			return Ok(Self::on_trade_weight());
 		}
 
 		let price = determine_normalized_price(asset_a, asset_b, price);

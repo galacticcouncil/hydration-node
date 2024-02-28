@@ -245,42 +245,15 @@ parameter_types! {
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 
-pub struct AssetInspectMock;
-
-impl hydradx_traits::registry::Inspect for AssetInspectMock {
-	type AssetId = AssetId;
-	type Location = ();
-
-	fn is_sufficient(_id: Self::AssetId) -> bool {
-		true
-	}
-	fn exists(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-	fn decimals(_id: Self::AssetId) -> Option<u8> {
-		unimplemented!()
-	}
-	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
-		unimplemented!()
-	}
-	fn is_banned(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-}
-
 impl pallet_ema_oracle::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
-	type AssetInspect = AssetInspectMock;
+	type OracleFilter = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 parameter_types! {

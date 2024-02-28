@@ -28,8 +28,6 @@ use frame_support::{assert_noop, assert_ok, assert_storage_noop};
 use pretty_assertions::assert_eq;
 use rug::Rational;
 
-type OnActivityHandler<Test> = crate::OnActivityHandler<Test, SufficientAssetsFilter<Test>>;
-
 /// Default oracle source for tests.
 pub(crate) const SOURCE: Source = *b"dummysrc";
 

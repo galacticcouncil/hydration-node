@@ -29,8 +29,6 @@ use frame_support::{assert_ok, traits::Hooks};
 use pretty_assertions::assert_eq;
 
 use crate::Pallet as EmaOracle;
-// type alias to simplify usage of the handler
-type OnActivityHandler<Test> = super::OnActivityHandler<Test, AllowAll<Test>>;
 
 /// Default oracle source.
 const SOURCE: Source = *b"dummysrc";
@@ -56,6 +54,10 @@ benchmarks! {
 
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
+
+		T::BenchmarkHelper::register_asset(HDX)?;
+		T::BenchmarkHelper::register_asset(DOT)?;
+
 		assert_ok!(OnActivityHandler::<T>::on_trade(
 			SOURCE, HDX, DOT, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
 			Price::new(liquidity_asset_in, liquidity_asset_out)));
@@ -84,6 +86,10 @@ benchmarks! {
 		EmaOracle::<T>::on_initialize(initial_data_block);
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
+
+		T::BenchmarkHelper::register_asset(HDX)?;
+		T::BenchmarkHelper::register_asset(DOT)?;
+
 		assert_ok!(OnActivityHandler::<T>::on_trade(
 			SOURCE, HDX, DOT, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
 			Price::new(liquidity_asset_in, liquidity_asset_out)));
@@ -123,6 +129,10 @@ benchmarks! {
 		for i in 0 .. b {
 			let asset_a = i * 1_000;
 			let asset_b = asset_a + 500;
+
+			T::BenchmarkHelper::register_asset(asset_a)?;
+			T::BenchmarkHelper::register_asset(asset_b)?;
+
 			assert_ok!(OnActivityHandler::<T>::on_trade(
 				SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
 				Price::new(liquidity_asset_in, liquidity_asset_out)));
@@ -169,6 +179,10 @@ benchmarks! {
 		for i in 0 .. b {
 			let asset_a = i * 1_000;
 			let asset_b = asset_a + 500;
+
+			T::BenchmarkHelper::register_asset(asset_a)?;
+			T::BenchmarkHelper::register_asset(asset_b)?;
+
 			assert_ok!(OnActivityHandler::<T>::on_trade(
 				SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
 				Price::new(liquidity_asset_in, liquidity_asset_out)));
@@ -225,6 +239,10 @@ benchmarks! {
 		for i in 0 .. b {
 			let asset_a = i * 1_000;
 			let asset_b = asset_a + 500;
+
+			T::BenchmarkHelper::register_asset(asset_a)?;
+			T::BenchmarkHelper::register_asset(asset_b)?;
+
 			assert_ok!(OnActivityHandler::<T>::on_trade(
 				SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_asset_a, liquidity_asset_b,
 				Price::new(liquidity_asset_a, liquidity_asset_b)));
@@ -283,6 +301,10 @@ benchmarks! {
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
 		let asset_a = 1_000;
 		let asset_b = asset_a + 500;
+
+			T::BenchmarkHelper::register_asset(asset_a)?;
+			T::BenchmarkHelper::register_asset(asset_b)?;
+
 		assert_ok!(OnActivityHandler::<T>::on_trade(
 			SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
 			Price::new(liquidity_asset_in, liquidity_asset_out)));
