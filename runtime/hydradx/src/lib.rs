@@ -36,6 +36,7 @@ mod assets;
 pub mod evm;
 mod governance;
 mod system;
+mod types;
 pub mod xcm;
 
 pub use assets::*;

@@ -20,11 +20,12 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::evm::runner::WrapRunner;
+use crate::types::ShortOraclePrice;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{NativeAssetId, LRNA};
+use crate::{EmaOracle, NativeAssetId, ReferralsOraclePeriod, Router, LRNA};
 use frame_support::{
 	parameter_types,
 	traits::{Defensive, FindAuthor},
@@ -32,7 +33,7 @@ use frame_support::{
 	ConsensusEngineId,
 };
 use hex_literal::hex;
-use hydradx_adapters::price::ConvertToCurrencyUsingOracle;
+use hydradx_adapters::price::ConvertAmount;
 use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
 use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
@@ -139,11 +140,7 @@ impl pallet_evm::Config for crate::Runtime {
 		evm_fee::DepositEvmFeeToTreasury,
 		crate::MultiTransactionPayment, // Get account's fee payment asset
 		WethAssetId,
-		ConvertToCurrencyUsingOracle<
-			crate::Runtime,
-			hydradx_adapters::OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
-			OracleEvmPeriod,
-		>, // Conversions between assets
+		ConvertAmount<ShortOraclePrice>,
 		FungibleCurrencies<crate::Runtime>, // Multi currency support
 	>;
 	type OnCreate = ();
@@ -152,10 +149,9 @@ impl pallet_evm::Config for crate::Runtime {
 	type Runner = WrapRunner<
 		Self,
 		pallet_evm::runner::stack::Runner<Self>, // Evm runner that we wrap
-		hydradx_adapters::price::FeeAssetBalanceInCurrencyConvertor<
+		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			crate::Runtime,
-			hydradx_adapters::OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
-			OracleEvmPeriod,
+			ConvertAmount<ShortOraclePrice>,
 			crate::MultiTransactionPayment,     // Get account's fee payment asset
 			FungibleCurrencies<crate::Runtime>, // Account balance inspector
 		>,

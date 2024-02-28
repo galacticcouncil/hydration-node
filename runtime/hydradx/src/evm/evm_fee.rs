@@ -54,7 +54,7 @@ where
 	U256: UniqueSaturatedInto<Balance>,
 	AC: FeePaymentCurrency<T::AccountId, AssetId = AssetId>,
 	EC: Get<AssetId>,
-	C: Convert<(AssetId, AssetId, Balance), (Balance, EmaPrice)>,
+	C: Convert<(AssetId, AssetId, Balance), Option<(Balance, EmaPrice)>>,
 	U256: UniqueSaturatedInto<Balance>,
 	MC: frame_support::traits::tokens::fungibles::Mutate<T::AccountId, AssetId = AssetId, Balance = Balance>
 		+ frame_support::traits::tokens::fungibles::Inspect<T::AccountId, AssetId = AssetId, Balance = Balance>,
@@ -67,7 +67,9 @@ where
 		}
 		let account_id = T::AddressMapping::into_account_id(*who);
 		let fee_currency = AC::get(&account_id).unwrap_or(EC::get());
-		let (converted, price) = C::convert((EC::get(), fee_currency, fee.unique_saturated_into()));
+		let Some((converted, price)) = C::convert((EC::get(), fee_currency, fee.unique_saturated_into())) else{
+			return Err(Error::<T>::WithdrawFailed);
+		};
 
 		// Ensure that converted fee is not zero
 		if converted == 0 {
@@ -93,7 +95,9 @@ where
 	fn can_withdraw(who: &H160, amount: U256) -> Result<(), pallet_evm::Error<T>> {
 		let account_id = T::AddressMapping::into_account_id(*who);
 		let fee_currency = AC::get(&account_id).unwrap_or(EC::get());
-		let (converted, _) = C::convert((EC::get(), fee_currency, amount.unique_saturated_into()));
+		let Some((converted, _)) = C::convert((EC::get(), fee_currency, amount.unique_saturated_into())) else{
+			return Err(Error::<T>::BalanceLow);
+		};
 
 		// Ensure that converted amount is not zero
 		if converted == 0 {
