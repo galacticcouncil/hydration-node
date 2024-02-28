@@ -11,6 +11,7 @@ parameter_types! {
 	pub const ShortPeriod: OraclePeriod = OraclePeriod::Short;
 }
 
+// Helper aliases for the OraclePriceProvider using the Router and EmaOracle
 pub type LastBlockOraclePrice =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, LastBlockPeriod>;
 pub type ShortOraclePrice =
