@@ -22,7 +22,6 @@ use xcm_emulator::TestExt;
 pub const SELL: bool = true;
 pub const BUY: bool = false;
 
-pub const HDX: u32 = CORE_ASSET_ID;
 pub const ACA: u32 = 1234;
 pub const GLMR: u32 = 4567;
 pub const IBTC: u32 = 7890;

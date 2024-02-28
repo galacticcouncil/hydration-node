@@ -1419,7 +1419,7 @@ fn fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			HDX,
-			100_000_000_000_000 as i128,
+			100_000_000_000_000i128,
 		));
 
 		init_omnipool_with_oracle_for_block_10();

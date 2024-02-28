@@ -186,7 +186,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 		));
 		// Assert
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE - amount
 		);
 	});
@@ -259,7 +259,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 
 		// Assert
 		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE - 2 * amount
 		);
 	});
