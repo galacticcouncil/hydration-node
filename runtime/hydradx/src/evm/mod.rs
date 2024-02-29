@@ -123,7 +123,7 @@ parameter_types! {
 	/// The current definition of BLOCK_STORAGE_LIMIT is 40 KB, resulting in a value of 366.
 	pub GasLimitStorageGrowthRatio: u64 = 366;
 
-	pub const OracleEvmPeriod: OraclePeriod = OraclePeriod::LastBlock;
+	pub const OracleEvmPeriod: OraclePeriod = OraclePeriod::Short;
 }
 
 impl pallet_evm::Config for crate::Runtime {
