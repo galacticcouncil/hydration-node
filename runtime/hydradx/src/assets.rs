@@ -1098,7 +1098,7 @@ impl<T: pallet_ema_oracle::Config> pallet_ema_oracle::BenchmarkHelper<AssetId> f
 
 		// don't throw error if the asset is already registered
 		if result.is_err_and(|e| e == pallet_asset_registry::Error::<Runtime>::AssetAlreadyRegistered.into()) {
-			return Ok(())
+			return Ok(());
 		};
 
 		let _ = result?;
