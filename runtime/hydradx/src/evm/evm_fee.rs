@@ -1,3 +1,23 @@
+//                    :                     $$\   $$\                 $$\                    $$$$$$$\  $$\   $$\
+//                  !YJJ^                   $$ |  $$ |                $$ |                   $$  __$$\ $$ |  $$ |
+//                7B5. ~B5^                 $$ |  $$ |$$\   $$\  $$$$$$$ | $$$$$$\  $$$$$$\  $$ |  $$ |\$$\ $$  |
+//             .?B@G    ~@@P~               $$$$$$$$ |$$ |  $$ |$$  __$$ |$$  __$$\ \____$$\ $$ |  $$ | \$$$$  /
+//           :?#@@@Y    .&@@@P!.            $$  __$$ |$$ |  $$ |$$ /  $$ |$$ |  \__|$$$$$$$ |$$ |  $$ | $$  $$<
+//         ^?J^7P&@@!  .5@@#Y~!J!.          $$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |     $$  __$$ |$$ |  $$ |$$  /\$$\
+//       ^JJ!.   :!J5^ ?5?^    ^?Y7.        $$ |  $$ |\$$$$$$$ |\$$$$$$$ |$$ |     \$$$$$$$ |$$$$$$$  |$$ /  $$ |
+//     ~PP: 7#B5!.         :?P#G: 7G?.      \__|  \__| \____$$ | \_______|\__|      \_______|\_______/ \__|  \__|
+//  .!P@G    7@@@#Y^    .!P@@@#.   ~@&J:              $$\   $$ |
+//  !&@@J    :&@@@@P.   !&@@@@5     #@@P.             \$$$$$$  |
+//   :J##:   Y@@&P!      :JB@@&~   ?@G!                \______/
+//     .?P!.?GY7:   .. .    ^?PP^:JP~
+//       .7Y7.  .!YGP^ ?BP?^   ^JJ^         This file is part of https://github.com/galacticcouncil/HydraDX-node
+//         .!Y7Y#@@#:   ?@@@G?JJ^           Built with <3 for decentralisation.
+//            !G@@@Y    .&@@&J:
+//              ^5@#.   7@#?.               Copyright (C) 2021-2023  Intergalactic, Limited (GIB).
+//                :5P^.?G7.                 SPDX-License-Identifier: Apache-2.0
+//                  :?Y!                    Licensed under the Apache License, Version 2.0 (the "License");
+//                                          you may not use this file except in compliance with the License.
+//                                          http://www.apache.org/licenses/LICENSE-2.0
 use crate::TreasuryAccount;
 use frame_support::traits::tokens::{Fortitude, Precision};
 use frame_support::traits::{Get, TryDrop};
@@ -45,6 +65,7 @@ impl<Price> TryDrop for EvmPaymentInfo<Price> {
 }
 
 /// Implements the transaction payment for EVM transactions.
+/// Supports multi-currency fees based on what is provided by AC - account currency.
 pub struct TransferEvmFees<OU, AC, EC, C, MC>(PhantomData<(OU, AC, EC, C, MC)>);
 
 impl<T, OU, AC, EC, C, MC> OnChargeEVMTransaction<T> for TransferEvmFees<OU, AC, EC, C, MC>
@@ -52,9 +73,9 @@ where
 	T: pallet_evm::Config,
 	OU: OnUnbalanced<EvmPaymentInfo<EmaPrice>>,
 	U256: UniqueSaturatedInto<Balance>,
-	AC: AccountFeeCurrency<T::AccountId, AssetId = AssetId>,
-	EC: Get<AssetId>,
-	C: Convert<(AssetId, AssetId, Balance), Option<(Balance, EmaPrice)>>,
+	AC: AccountFeeCurrency<T::AccountId, AssetId = AssetId>, // AccountCurrency
+	EC: Get<AssetId>,                                        // Evm default fee asset
+	C: Convert<(AssetId, AssetId, Balance), Option<(Balance, EmaPrice)>>, // Conversion from default fee asset to account currency
 	U256: UniqueSaturatedInto<Balance>,
 	MC: frame_support::traits::tokens::fungibles::Mutate<T::AccountId, AssetId = AssetId, Balance = Balance>
 		+ frame_support::traits::tokens::fungibles::Inspect<T::AccountId, AssetId = AssetId, Balance = Balance>,
@@ -133,13 +154,15 @@ where
 
 				let refund_imbalance = if let Ok(amount) = result {
 					// just in case of partial refund
+					// we are not expecting any imbalance, let's try to catch it in debug
+					debug_assert_eq!(amount, 0);
 					refund_amount.saturating_sub(amount)
 				} else {
 					// If error, we refund the whole amount back to treasury
 					refund_amount
 				};
-				// figure out how much is left to mint
-				// refund_amount already minted back to account, imbalance what is left to mint if any
+				// figure out how much is left to mint back
+				// refund_amount already minted back to account, imbalance is what is left to mint if any
 				paid.amount
 					.saturating_sub(refund_amount)
 					.saturating_add(refund_imbalance)
@@ -176,8 +199,6 @@ impl OnUnbalanced<EvmPaymentInfo<EmaPrice>> for DepositEvmFeeToTreasury {
 	// this is called from pallet_evm for Ethereum-based transactions
 	// (technically, it calls on_unbalanced, which calls this when non-zero)
 	fn on_nonzero_unbalanced(payment_info: EvmPaymentInfo<EmaPrice>) {
-		//TODO: perhaps better to avoid using something multi payment pallet - it is fine for now
-		//consider creating general purpose adapter or something, or simple move the DepositAll to adapters - it has nothing to do with multi payment pallet
 		let result = DepositAll::<crate::Runtime>::deposit_fee(
 			&TreasuryAccount::get(),
 			payment_info.asset_id,
