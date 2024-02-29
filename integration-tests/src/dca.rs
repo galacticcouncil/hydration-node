@@ -567,6 +567,7 @@ mod omnipool {
 			));
 			polkadot_run_to_block(12);
 
+			//Assert
 			let schedule_id = 0;
 			let schedule = DCA::schedules(schedule_id);
 			assert!(schedule.is_some());
