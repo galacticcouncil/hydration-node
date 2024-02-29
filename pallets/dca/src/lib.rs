@@ -185,7 +185,7 @@ pub mod pallet {
 
 						if error != Error::<T>::TradeLimitReached.into()
 							&& error != Error::<T>::SlippageLimitReached.into()
-							&& !T::RetryOnError::contains(&error.into())
+							&& !T::RetryOnError::contains(&error)
 						{
 							Self::terminate_schedule(schedule_id, &schedule, error);
 						} else if let Err(retry_error) =
