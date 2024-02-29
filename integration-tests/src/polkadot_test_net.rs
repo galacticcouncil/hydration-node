@@ -89,6 +89,7 @@ pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
 pub const WETH: AssetId = 20;
 pub const PEPE: AssetId = 420;
+pub const INSUFFICIENT_ASSET: AssetId = 500;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
@@ -479,6 +480,7 @@ pub mod hydra {
 						None,
 						true,
 					),
+					(Some(INSUFFICIENT_ASSET), None, 1_000u128, None, None, None, false),
 					// workaround for next_asset_id() to return correct values
 					(
 						None,

@@ -16,7 +16,7 @@ use hydradx_traits::{
 };
 
 use pallet_ema_oracle::OracleError;
-use primitives::constants::chain::OMNIPOOL_SOURCE;
+use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
 use xcm_emulator::TestExt;
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
@@ -136,6 +136,57 @@ fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
 		for unsupported_period in UNSUPPORTED_PERIODS {
 			assert_eq!(
 				EmaOracle::get_price(HDX, LRNA, *unsupported_period, OMNIPOOL_SOURCE),
+				Err(OracleError::NotPresent)
+			);
+		}
+	});
+}
+
+#[test]
+fn xyk_trades_with_insufficient_asset_are_not_tracked_by_oracle() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// arrange
+		hydradx_run_to_next_block();
+
+		assert_ok!(hydradx_runtime::Tokens::mint_into(
+			INSUFFICIENT_ASSET,
+			&ALICE.into(),
+			200 * UNITS,
+		));
+
+		assert_ok!(hydradx_runtime::XYK::create_pool(
+			RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			100 * UNITS,
+			INSUFFICIENT_ASSET,
+			100 * UNITS,
+		));
+
+		assert_ok!(hydradx_runtime::XYK::buy(
+			RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			INSUFFICIENT_ASSET,
+			2 * UNITS,
+			200 * UNITS,
+			false,
+		));
+
+		// act
+		// will store the data received in the sell as oracle values
+		hydradx_run_to_next_block();
+
+		// assert
+		for supported_period in SUPPORTED_PERIODS {
+			assert_eq!(
+				EmaOracle::get_price(HDX, INSUFFICIENT_ASSET, *supported_period, XYK_SOURCE),
+				Err(OracleError::NotPresent)
+			);
+		}
+		for unsupported_period in UNSUPPORTED_PERIODS {
+			assert_eq!(
+				EmaOracle::get_price(HDX, INSUFFICIENT_ASSET, *unsupported_period, XYK_SOURCE),
 				Err(OracleError::NotPresent)
 			);
 		}
