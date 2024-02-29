@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "1.2.2"
+version = "1.2.3"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"

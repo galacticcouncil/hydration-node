@@ -497,6 +497,13 @@ parameter_types! {
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 
+pub struct SufficientAssetsFilter;
+impl Contains<(Source, AssetId, AssetId)> for SufficientAssetsFilter {
+	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
+		AssetRegistry::is_sufficient(t.1) && AssetRegistry::is_sufficient(t.2)
+	}
+}
+
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
@@ -505,10 +512,12 @@ impl pallet_ema_oracle::Config for Runtime {
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
+	type OracleFilter = SufficientAssetsFilter;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
-	/// 40 seems a decent upper bound for the forseeable future.
-	///
+	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = RegisterAsset<Runtime>;
 }
 
 pub struct DustRemovalWhitelist;
@@ -1061,6 +1070,32 @@ impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsse
 				1,
 				Some(asset_name),
 				Some(decimals),
+				None,
+				None,
+			))
+		})?;
+
+		Ok(())
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: pallet_ema_oracle::Config> pallet_ema_oracle::BenchmarkHelper<AssetId> for RegisterAsset<T> {
+	fn register_asset(asset_id: AssetId) -> DispatchResult {
+		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id
+			.to_le_bytes()
+			.to_vec()
+			.try_into()
+			.map_err(|_| "BoundedConversionFailed")?;
+
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(asset_id),
+				Some(asset_name.clone()),
+				AssetKind::Token,
+				1,
+				Some(asset_name),
+				Some(12),
 				None,
 				None,
 			))
