@@ -244,6 +244,7 @@ pub mod pallet {
 		///Spot price provider to get the current price between two asset
 		type RouteProvider: RouteProvider<Self::AssetId>;
 
+		///Errors we want to explicitly retry on, in case of failing DCA
 		type RetryOnError: Contains<DispatchError>;
 
 		///Max price difference allowed between blocks
