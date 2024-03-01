@@ -1300,9 +1300,6 @@ pub mod pallet {
 			);
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
-
-			assert!(asset_in_state.reserve < new_asset_in_state.reserve);
-
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
 
