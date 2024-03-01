@@ -39,8 +39,8 @@ members = [
   'runtime/hydradx/src/evm/evm-utility/macro',
   'pallets/referrals',
   'pallets/evm-accounts',
-  'pallets/dynamic-evm-fee'
-  'runtime-mock',
+  'pallets/dynamic-evm-fee',
+  'runtime-mock'
 ]
 
 [workspace.dependencies]
