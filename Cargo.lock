@@ -7259,7 +7259,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.20"
+version = "1.1.21"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7402,7 +7402,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.3.6"
+version = "1.3.7"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7529,7 +7529,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-fees"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7604,7 +7604,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7876,7 +7876,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.7.4"
+version = "4.7.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7901,7 +7901,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.3.0"
+version = "4.3.1"
 dependencies = [
  "fixed",
  "frame-support",
@@ -8123,7 +8123,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.1.4"
+version = "4.1.5"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8177,7 +8177,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8418,7 +8418,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.4.4"
+version = "3.4.5"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
