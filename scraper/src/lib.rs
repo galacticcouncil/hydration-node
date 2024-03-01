@@ -3,7 +3,7 @@
 
 use codec::{Compact, Decode, Encode};
 use frame_support::sp_runtime::{
-	traits::{Block as BlockT, HashingFor},
+	traits::Block as BlockT,
 	StateVersion,
 };
 use sp_core::H256;

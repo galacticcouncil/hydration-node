@@ -624,7 +624,6 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let new_asset_state = asset_state
-				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -790,7 +789,6 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let new_asset_state = asset_state
-				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1023,11 +1021,9 @@ pub mod pallet {
 			);
 
 			let new_asset_in_state = asset_in_state
-				.clone()
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
 			let new_asset_out_state = asset_out_state
-				.clone()
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1230,11 +1226,9 @@ pub mod pallet {
 			);
 
 			let new_asset_in_state = asset_in_state
-				.clone()
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
 			let new_asset_out_state = asset_out_state
-				.clone()
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1499,7 +1493,6 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let mut new_asset_state = asset_state
-				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1802,7 +1795,6 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let new_asset_out_state = asset_state
-			.clone()
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1911,7 +1903,6 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let new_asset_out_state = asset_state
-			.clone()
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 

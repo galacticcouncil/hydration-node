@@ -44,7 +44,3 @@ pub fn get_duster_dest_account() -> AccountId {
 pub fn get_omnipool_position_owner() -> AccountId {
 	[0; 32].into()
 }
-
-pub fn get_accounts_as_potential_origins() -> Vec<AccountId> {
-	(0..ACCOUNT_COUNT).map(|i| [i; 32].into()).collect()
-}

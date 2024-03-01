@@ -3,8 +3,7 @@ use pallet_asset_registry::{Name, Symbol};
 use primitives::constants::currency::NATIVE_EXISTENTIAL_DEPOSIT;
 use serde::Deserialize;
 use sp_runtime::BoundedVec;
-use std::{any::Any, fs};
-use toml;
+use std::fs;
 
 const TOKEN_SYMBOL: &str = "HDX";
 const NATIVE_DECIMALS: u8 = 12;
@@ -43,7 +42,6 @@ impl AssetRegistrySetup {
 
 	pub fn registered_assets(self) -> Vec<RegisteredAsset> {
 		self.assets
-			.clone()
 			.iter()
 			.filter(|asset| asset.asset_id != Some(0))
 			.map(|asset| asset.clone().into())
@@ -52,7 +50,7 @@ impl AssetRegistrySetup {
 
 	pub fn config(self) -> AssetRegistryConfig {
 		AssetRegistryConfig {
-			registered_assets: self.registered_assets().clone(),
+			registered_assets: self.registered_assets(),
 			native_asset_name: TOKEN_SYMBOL
 				.as_bytes()
 				.to_vec()

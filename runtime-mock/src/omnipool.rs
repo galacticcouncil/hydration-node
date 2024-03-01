@@ -1,12 +1,10 @@
 use crate::traits::{Balance, TryExtrinsic};
 use crate::AccountId;
-use frame_support::traits::Len;
 use hydradx_runtime::RuntimeCall;
 use serde::Deserialize;
 use serde::Deserializer;
 use sp_runtime::{FixedU128, Permill};
 use std::fs;
-use toml;
 
 #[derive(Debug, Deserialize)]
 struct AssetConfig {
@@ -18,16 +16,8 @@ struct AssetConfig {
 }
 
 #[derive(Debug, Deserialize)]
-struct Position {
-	asset_id: String,
-	#[serde(deserialize_with = "from_u128_str")]
-	amount: u128,
-}
-
-#[derive(Debug, Deserialize)]
 struct OmnipoolState {
 	asset: Vec<AssetConfig>,
-	position: Option<Vec<Position>>,
 }
 
 pub fn from_u128_str<'de, D>(deserializer: D) -> Result<u128, D::Error>
@@ -35,7 +25,7 @@ where
 	D: Deserializer<'de>,
 {
 	let s: String = Deserialize::deserialize(deserializer)?;
-	Ok(u128::from_str_radix(&s, 10).unwrap())
+	Ok(s.parse::<u128>().unwrap())
 }
 
 fn load_setup(filename: &str) -> OmnipoolState {
@@ -104,7 +94,7 @@ impl crate::traits::FuzzedPallet<RuntimeCall, u32, AccountId> for OmnipoolPallet
 }
 
 impl crate::traits::Loader for OmnipoolPallet {
-	fn load_setup(filename: &str) -> Self {
+	fn load_setup(_filename: &str) -> Self {
 		todo!()
 	}
 }

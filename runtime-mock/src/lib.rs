@@ -6,7 +6,7 @@ mod staking;
 pub mod traits;
 
 use crate::omnipool::OmnipoolHandler;
-use crate::traits::{FuzzedPallet, TryExtrinsic};
+use crate::traits::TryExtrinsic;
 use accounts::{
 	get_council_members, get_duster_dest_account, get_duster_reward_account, get_native_endowed_accounts,
 	get_nonnative_endowed_accounts, get_omnipool_position_owner, get_technical_committee,
@@ -14,8 +14,8 @@ use accounts::{
 use hydradx_runtime::Runtime as MockedRuntime;
 use hydradx_runtime::*;
 use omnipool::omnipool_initial_state;
-use primitives::constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS};
-use registry::{AssetRegistrySetup, RegisteredAsset};
+use primitives::constants::currency::UNITS;
+use registry::AssetRegistrySetup;
 use sp_io::TestExternalities;
 use sp_runtime::{traits::Dispatchable, Storage};
 use stableswap::stablepools;
@@ -24,10 +24,6 @@ use stableswap::stablepools;
 mod tests;
 
 const PARA_ID: u32 = 2034;
-
-fn fuzzed_pallets() -> Vec<Box<dyn FuzzedPallet<RuntimeCall, u32, AccountId>>> {
-	vec![]
-}
 
 pub fn extrinsics_handlers() -> Vec<Box<dyn TryExtrinsic<RuntimeCall, u32>>> {
 	vec![Box::new(OmnipoolHandler {}), Box::new(stableswap::StableswapHandler {})]
@@ -56,10 +52,10 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 
 	let mut non_native_endowed_accounts = get_nonnative_endowed_accounts(asset_registry_setup.assets.clone());
 	// Extend with omnipool initial state of each asset in omnipool
-	non_native_endowed_accounts.push((omnipool_account.clone(), omnipool_balances));
+	non_native_endowed_accounts.push((omnipool_account, omnipool_balances));
 	non_native_endowed_accounts.extend(stable_account_balacnes);
 
-	let mut storage: Storage = {
+	let storage: Storage = {
 		use sp_runtime::app_crypto::ByteArray;
 		use sp_runtime::BuildStorage;
 
@@ -74,7 +70,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 
 		let token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)> = non_native_endowed_accounts;
 
-		GenesisConfig {
+		RuntimeGenesisConfig {
 			system: Default::default(),
 			session: SessionConfig {
 				keys: initial_authorities

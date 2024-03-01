@@ -6,7 +6,6 @@ use serde::Deserialize;
 use serde::Deserializer;
 use sp_runtime::{FixedPointNumber, FixedU128, Permill};
 use std::fs;
-use toml;
 
 #[derive(Debug, Deserialize)]
 pub struct AssetReserve {
@@ -15,6 +14,7 @@ pub struct AssetReserve {
 	reserve: u128,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Pool {
 	pool_id: u32,
@@ -121,7 +121,7 @@ where
 	D: Deserializer<'de>,
 {
 	let s: String = Deserialize::deserialize(deserializer)?;
-	Ok(u128::from_str_radix(&s, 10).unwrap())
+	Ok(s.parse::<u128>().unwrap())
 }
 
 pub fn from_f64_to_permill<'de, D>(deserializer: D) -> Result<Permill, D::Error>
