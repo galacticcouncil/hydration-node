@@ -15,12 +15,14 @@ use hydradx_runtime::Runtime as MockedRuntime;
 use hydradx_runtime::*;
 use omnipool::omnipool_initial_state;
 use primitives::constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS};
-use registry::registry_state;
+use registry::{AssetRegistrySetup, RegisteredAsset};
 use sp_io::TestExternalities;
 use sp_runtime::{traits::Dispatchable, Storage};
 use stableswap::stablepools;
 
-const TOKEN_SYMBOL: &str = "HDX";
+#[cfg(test)]
+mod tests;
+
 const PARA_ID: u32 = 2034;
 
 fn fuzzed_pallets() -> Vec<Box<dyn FuzzedPallet<RuntimeCall, u32, AccountId>>> {
@@ -32,14 +34,7 @@ pub fn extrinsics_handlers() -> Vec<Box<dyn TryExtrinsic<RuntimeCall, u32>>> {
 }
 
 pub fn hydradx_mocked_runtime() -> TestExternalities {
-	// Assets to register
-	let registry_setup = registry_state();
-	let registered_assets: Vec<(Vec<u8>, u128, Option<u32>)> = registry_setup
-		.assets()
-		.into_iter()
-		.filter(|(_, asset_id)| *asset_id != 0) // Exclude HDX as it is registed in genesis of registry pallet
-		.map(|(symbol, asset_id)| (symbol, 1000u128, Some(asset_id)))
-		.collect();
+	let asset_registry_setup = AssetRegistrySetup::new();
 
 	// Omnipool state
 	let omnipool_account = pallet_omnipool::Pallet::<MockedRuntime>::protocol_account();
@@ -59,7 +54,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 	native_endowed_accounts.push((omnipool_account.clone(), omnipool_native_balance));
 	native_endowed_accounts.extend(staking_initial.get_native_endowed_accounts());
 
-	let mut non_native_endowed_accounts = get_nonnative_endowed_accounts(registry_setup.asset_decimals());
+	let mut non_native_endowed_accounts = get_nonnative_endowed_accounts(asset_registry_setup.assets.clone());
 	// Extend with omnipool initial state of each asset in omnipool
 	non_native_endowed_accounts.push((omnipool_account.clone(), omnipool_balances));
 	non_native_endowed_accounts.extend(stable_account_balacnes);
@@ -111,11 +106,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 				phantom: Default::default(),
 			},
 			vesting: VestingConfig { vesting: vec![] },
-			asset_registry: AssetRegistryConfig {
-				registered_assets: registered_assets,
-				native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
-				native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
-			},
+			asset_registry: asset_registry_setup.config(),
 			multi_transaction_payment: MultiTransactionPaymentConfig {
 				currencies: accepted_assets,
 				account_currencies: vec![],
@@ -164,13 +155,11 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 	let mut externalities = TestExternalities::new(storage);
 
 	externalities.execute_with(|| {
-		let registry_calls = registry_setup.calls();
 		let staking_calls = staking_initial.calls();
 		let stableswap_calls = stableswap_pool.calls();
 		let omnipool_calls = omnipool_setup.calls(&get_omnipool_position_owner());
-		for call in registry_calls
+		for call in staking_calls
 			.into_iter()
-			.chain(staking_calls.into_iter())
 			.chain(stableswap_calls.into_iter())
 			.chain(omnipool_calls.into_iter())
 		{
