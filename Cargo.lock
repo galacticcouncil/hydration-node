@@ -4571,7 +4571,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.2.3"
+version = "1.2.4"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4621,7 +4621,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "219.0.0"
+version = "220.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -8796,7 +8796,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm-rate-limiter"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-benchmarking",
@@ -12866,7 +12866,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scraper"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "clap 3.2.25",
  "frame-remote-externalities",
