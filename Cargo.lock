@@ -4571,7 +4571,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.2.1"
+version = "1.2.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4621,7 +4621,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "214.0.0"
+version = "219.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4672,6 +4672,7 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy 4.1.0",
  "pallet-duster",
+ "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
@@ -7401,7 +7402,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.3.5"
+version = "1.3.6"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7500,6 +7501,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-dynamic-evm-fee"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
+ "pallet-evm",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-api",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-dynamic-fees"
 version = "1.0.2"
 dependencies = [
@@ -7576,7 +7604,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8095,7 +8123,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.1.3"
+version = "4.1.4"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8122,7 +8150,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11334,7 +11362,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.19.1"
+version = "1.19.5"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -11378,6 +11406,7 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy 4.1.0",
  "pallet-duster",
+ "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
@@ -11436,6 +11465,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
+ "test-utils",
  "tokio",
  "xcm-emulator",
 ]

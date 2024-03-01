@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.19.1"
+version = "1.19.5"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -34,6 +34,7 @@ pallet-relaychain-info = { workspace = true }
 pallet-route-executor = { workspace = true}
 pallet-dca = { workspace = true}
 pallet-dynamic-fees = { workspace = true }
+pallet-dynamic-evm-fee = { workspace = true }
 pallet-staking = { workspace = true}
 pallet-lbp = { workspace = true}
 pallet-xyk = { workspace = true}
@@ -127,8 +128,9 @@ polkadot-runtime = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
+pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
-
+test-utils = { workspace = true }
 [features]
 default = ["std"]
 std = [
@@ -194,6 +196,7 @@ std = [
     "hydradx-runtime/std",
     "pallet-staking/std",
     "scraper/std",
+    "pallet-dynamic-evm-fee/std"
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

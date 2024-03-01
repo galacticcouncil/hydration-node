@@ -68,6 +68,7 @@
 
 use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::{BlockNumberProvider, One, Zero};
+use frame_support::traits::Contains;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
@@ -97,6 +98,17 @@ const LOG_TARGET: &str = "runtime::ema-oracle";
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
+#[cfg(feature = "runtime-benchmarks")]
+pub trait BenchmarkHelper<AssetId> {
+	fn register_asset(asset_id: AssetId) -> DispatchResult;
+}
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<AssetId> for () {
+	fn register_asset(_asset_id: AssetId) -> DispatchResult {
+		Ok(())
+	}
+}
+
 #[allow(clippy::type_complexity)]
 #[frame_support::pallet]
 pub mod pallet {
@@ -120,9 +132,15 @@ pub mod pallet {
 		/// The periods supported by the pallet. I.e. which oracles to track.
 		type SupportedPeriods: Get<BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>>>;
 
+		/// Filter determining what oracles are tracked by the pallet.
+		type OracleFilter: Contains<(Source, AssetId, AssetId)>;
+
 		/// Maximum number of unique oracle entries expected in one block.
 		#[pallet::constant]
 		type MaxUniqueEntries: Get<u32>;
+
+		#[cfg(feature = "runtime-benchmarks")]
+		type BenchmarkHelper: BenchmarkHelper<AssetId>;
 	}
 
 	#[pallet::error]
@@ -223,6 +241,10 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), ()> {
+		if !T::OracleFilter::contains(&(src, assets.0, assets.1)) {
+			return Ok(());
+		}
+
 		Accumulator::<T>::mutate(|accumulator| {
 			if let Some(entry) = accumulator.get_mut(&(src, assets)) {
 				entry.accumulate_volume_and_update_from(&oracle_entry);
@@ -439,6 +461,7 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivit
 				"Liquidity is zero. Source: {source:?}, liquidity: ({liquidity_a},{liquidity_a})"
 			);
 		}
+
 		let price = determine_normalized_price(asset_a, asset_b, price);
 		let liquidity = determine_normalized_liquidity(asset_a, asset_b, liquidity_a, liquidity_b);
 		let updated_at = T::BlockNumberProvider::current_block_number();

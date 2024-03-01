@@ -442,7 +442,7 @@ mod omnipool {
 			run_to_block(11, 40);
 
 			//Assert
-			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 600 * UNITS);
+			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 700 * UNITS);
 
 			//Because the last trade is not enough for a whole trade, it is returned to the user
 			let amount_in = 140_421_094_431_120;
@@ -3398,11 +3398,11 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 		initial.push(AssetAmount::new(asset_id, initial_liquidity));
 		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
 	}
-	let pool_id = AssetRegistry::register_insufficient_asset(
+	let pool_id = AssetRegistry::register_sufficient_asset(
 		None,
 		Some(b"pool".to_vec().try_into().unwrap()),
 		AssetKind::Token,
-		Some(1u128),
+		1u128,
 		None,
 		None,
 		None,

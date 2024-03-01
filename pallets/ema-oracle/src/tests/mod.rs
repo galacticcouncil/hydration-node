@@ -21,10 +21,10 @@ mod mock;
 use super::*;
 pub use mock::{
 	BlockNumber, EmaOracle, ExtBuilder, RuntimeEvent as TestEvent, RuntimeOrigin, System, Test, ACA, DOT, HDX,
-	ORACLE_ENTRY_1, ORACLE_ENTRY_2,
+	INSUFFICIENT_ASSET, ORACLE_ENTRY_1, ORACLE_ENTRY_2,
 };
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, assert_storage_noop};
 use pretty_assertions::assert_eq;
 use rug::Rational;
 
@@ -283,6 +283,54 @@ fn on_liquidity_changed_should_allow_zero_values() {
 }
 
 #[test]
+fn on_liquidity_changed_should_exclude_insufficient_assets() {
+	new_test_ext().execute_with(|| {
+		// first asset is insufficient
+		assert_storage_noop!(OnActivityHandler::<Test>::on_liquidity_changed(
+			SOURCE,
+			INSUFFICIENT_ASSET,
+			DOT,
+			1_000,
+			500,
+			2_000,
+			1_000,
+			Price::new(2_000, 1_000),
+		)
+		.unwrap());
+	});
+
+	// second asset is insufficient
+	new_test_ext().execute_with(|| {
+		assert_storage_noop!(OnActivityHandler::<Test>::on_liquidity_changed(
+			SOURCE,
+			HDX,
+			INSUFFICIENT_ASSET,
+			1_000,
+			500,
+			2_000,
+			1_000,
+			Price::new(2_000, 1_000),
+		)
+		.unwrap());
+	});
+
+	// both assets are insufficient
+	new_test_ext().execute_with(|| {
+		assert_storage_noop!(OnActivityHandler::<Test>::on_liquidity_changed(
+			SOURCE,
+			INSUFFICIENT_ASSET,
+			INSUFFICIENT_ASSET,
+			1_000,
+			500,
+			2_000,
+			1_000,
+			Price::new(2_000, 1_000),
+		)
+		.unwrap());
+	});
+}
+
+#[test]
 fn on_trade_should_exclude_zero_values() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
@@ -296,6 +344,50 @@ fn on_trade_should_exclude_zero_values() {
 				.map_err(|(_w, e)| e),
 			Error::<Test>::OnTradeValueZero
 		);
+	});
+}
+
+#[test]
+fn on_trade_should_exclude_insufficient_assets() {
+	new_test_ext().execute_with(|| {
+		// first asset is insufficient
+		assert_storage_noop!(OnActivityHandler::<Test>::on_trade(
+			SOURCE,
+			INSUFFICIENT_ASSET,
+			DOT,
+			1_000,
+			500,
+			2_000,
+			1_000,
+			Price::new(2_000, 1_000)
+		)
+		.unwrap());
+
+		// second asset is insufficient
+		assert_storage_noop!(OnActivityHandler::<Test>::on_trade(
+			SOURCE,
+			HDX,
+			INSUFFICIENT_ASSET,
+			1_000,
+			500,
+			2_000,
+			1_000,
+			Price::new(2_000, 1_000)
+		)
+		.unwrap());
+
+		// both assets are insufficient
+		assert_storage_noop!(OnActivityHandler::<Test>::on_trade(
+			SOURCE,
+			INSUFFICIENT_ASSET,
+			INSUFFICIENT_ASSET,
+			1_000,
+			500,
+			2_000,
+			1_0000,
+			Price::new(2_000, 1_000)
+		)
+		.unwrap());
 	});
 }
 

@@ -89,6 +89,7 @@ pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
 pub const WETH: AssetId = 20;
 pub const PEPE: AssetId = 420;
+pub const INSUFFICIENT_ASSET: AssetId = 500;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
@@ -479,6 +480,7 @@ pub mod hydra {
 						None,
 						true,
 					),
+					(Some(INSUFFICIENT_ASSET), None, 1_000u128, None, None, None, false),
 					// workaround for next_asset_id() to return correct values
 					(
 						None,
@@ -529,7 +531,7 @@ pub mod hydra {
 					(DAI, Price::from(1)),
 					(ACA, Price::from(1)),
 					(BTC, Price::from_inner(134_000_000)),
-					(WETH, Price::from_inner(3_666_754_716_981_130_000)),
+					(WETH, pallet_dynamic_evm_fee::ETH_HDX_REFERENCE_PRICE),
 				],
 				account_currencies: vec![],
 			},
@@ -676,6 +678,7 @@ pub fn polkadot_run_to_block(to: BlockNumber) {
 		hydradx_runtime::EmaOracle::on_initialize(b + 1);
 		hydradx_runtime::DCA::on_initialize(b + 1);
 		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
+		hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
 
 		hydradx_runtime::System::set_block_number(b + 1);
 	}

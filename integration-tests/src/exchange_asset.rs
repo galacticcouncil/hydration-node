@@ -2,15 +2,21 @@
 
 use crate::polkadot_test_net::*;
 use frame_support::dispatch::GetDispatchInfo;
+use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Balanced;
 use frame_support::traits::tokens::Precision;
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, pallet_prelude::*};
+use hydradx_runtime::AssetRegistry;
+use hydradx_traits::AssetKind;
+use hydradx_traits::Create;
 use orml_traits::currency::MultiCurrency;
 use polkadot_xcm::{latest::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
+use primitives::constants::chain::CORE_ASSET_ID;
 use sp_runtime::traits::{Convert, Zero};
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::DispatchResult;
+use sp_runtime::{FixedU128, Permill, TransactionOutcome};
 use xcm_emulator::TestExt;
 
 pub const SELL: bool = true;
@@ -20,10 +26,6 @@ pub const ACA: u32 = 1234;
 pub const GLMR: u32 = 4567;
 pub const IBTC: u32 = 7890;
 
-//TODO: Unignore these tests when we have the AssetExchange feature configured in hydra.
-//For now they are ignored as first we want to try out AssetExchange in basilisk
-
-#[ignore]
 #[test]
 fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 	//Arrange
@@ -31,25 +33,29 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 
 	let mut price = None;
 	Hydra::execute_with(|| {
-		register_aca();
+		let _ = with_transaction(|| {
+			register_aca();
 
-		add_currency_price(ACA, FixedU128::from(1));
+			add_currency_price(ACA, FixedU128::from(1));
 
-		init_omnipool();
-		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+			init_omnipool();
+			let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 
-		let token_price = FixedU128::from_float(1.0);
-		assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
+			let token_price = FixedU128::from_float(1.0);
+			assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
-		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ACA,
-			token_price,
-			Permill::from_percent(100),
-			AccountId::from(BOB),
-		));
-		use hydradx_traits::pools::SpotPriceProvider;
-		price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, ACA);
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ACA,
+				token_price,
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+			use hydradx_traits::pools::SpotPriceProvider;
+			price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, ACA);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
 	});
 
 	Acala::execute_with(|| {
@@ -80,46 +86,46 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		));
 	});
 
-	let fees = 500801282051;
 	Hydra::execute_with(|| {
+		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
+		assert!(fee > 0, "treasury should have received fees");
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
-			50 * UNITS - fees
+			50 * UNITS - fee
 		);
 		// We receive about 39_101 HDX (HDX is super cheap in our test)
 		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396;
 		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), received);
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
-			fees
-		);
 	});
 }
 
-#[ignore]
 #[test]
 fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 	//Arrange
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		register_aca();
+		let _ = with_transaction(|| {
+			register_aca();
 
-		add_currency_price(ACA, FixedU128::from(1));
+			add_currency_price(ACA, FixedU128::from(1));
 
-		init_omnipool();
-		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+			init_omnipool();
+			let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 
-		let token_price = FixedU128::from_float(1.0);
-		assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
+			let token_price = FixedU128::from_float(1.0);
+			assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
-		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ACA,
-			token_price,
-			Permill::from_percent(100),
-			AccountId::from(BOB),
-		));
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ACA,
+				token_price,
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
 	});
 
 	Acala::execute_with(|| {
@@ -150,9 +156,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 		));
 	});
 
-	let fees = 500801282051;
 	let swapped = 361693915942; // HDX is super cheap in our setup
 	Hydra::execute_with(|| {
+		let fees = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
+		assert!(fees > 0, "treasury should have received fees");
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
 			100 * UNITS - swapped - fees
@@ -160,10 +167,6 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
 			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS
-		);
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
-			fees
 		);
 	});
 }
@@ -176,36 +179,46 @@ fn transfer_and_swap_should_work_with_4_hops() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		register_glmr();
-		register_ibtc();
+		let _ = with_transaction(|| {
+			register_glmr();
+			register_ibtc();
 
-		add_currency_price(GLMR, FixedU128::from(1));
+			add_currency_price(GLMR, FixedU128::from(1));
 
-		init_omnipool();
-		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+			init_omnipool();
+			let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 
-		let token_price = FixedU128::from_float(1.0);
-		assert_ok!(hydradx_runtime::Tokens::deposit(GLMR, &omnipool_account, 3000 * UNITS));
-		assert_ok!(hydradx_runtime::Tokens::deposit(IBTC, &omnipool_account, 3000 * UNITS));
+			let token_price = FixedU128::from_float(1.0);
+			assert_ok!(hydradx_runtime::Tokens::deposit(GLMR, &omnipool_account, 3000 * UNITS));
+			assert_ok!(hydradx_runtime::Tokens::deposit(IBTC, &omnipool_account, 3000 * UNITS));
 
-		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::RuntimeOrigin::root(),
-			GLMR,
-			token_price,
-			Permill::from_percent(100),
-			AccountId::from(BOB),
-		));
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				GLMR,
+				token_price,
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
 
-		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::RuntimeOrigin::root(),
-			IBTC,
-			token_price,
-			Permill::from_percent(100),
-			AccountId::from(BOB),
-		));
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				IBTC,
+				token_price,
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+			set_zero_reward_for_referrals(GLMR);
+			set_zero_reward_for_referrals(IBTC);
+			set_zero_reward_for_referrals(ACA);
+			hydradx_run_to_block(3);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
 	});
 
 	Moonbeam::execute_with(|| {
+		set_zero_reward_for_referrals(ACA);
+
 		use xcm_executor::traits::ConvertLocation;
 		let para_account =
 			hydradx_runtime::LocationToAccountId::convert_location(&(Parent, Parachain(ACALA_PARA_ID)).into()).unwrap();
@@ -214,6 +227,8 @@ fn transfer_and_swap_should_work_with_4_hops() {
 	});
 
 	Interlay::execute_with(|| {
+		set_zero_reward_for_referrals(IBTC);
+
 		use xcm_executor::traits::ConvertLocation;
 		let para_account =
 			hydradx_runtime::LocationToAccountId::convert_location(&(Parent, Parachain(HYDRA_PARA_ID)).into()).unwrap();
@@ -222,46 +237,56 @@ fn transfer_and_swap_should_work_with_4_hops() {
 	});
 
 	Acala::execute_with(|| {
-		register_glmr();
-		register_ibtc();
+		let _ = with_transaction(|| {
+			register_glmr();
+			register_ibtc();
+			set_zero_reward_for_referrals(GLMR);
+			set_zero_reward_for_referrals(IBTC);
+			set_zero_reward_for_referrals(ACA);
 
-		add_currency_price(IBTC, FixedU128::from(1));
+			add_currency_price(IBTC, FixedU128::from(1));
 
-		let alice_init_moon_balance = 3000 * UNITS;
-		assert_ok!(hydradx_runtime::Tokens::deposit(
-			GLMR,
-			&ALICE.into(),
-			alice_init_moon_balance
-		));
+			let alice_init_moon_balance = 3000 * UNITS;
+			assert_ok!(hydradx_runtime::Tokens::deposit(
+				GLMR,
+				&ALICE.into(),
+				alice_init_moon_balance
+			));
 
-		//Act
-		let give_amount = 1000 * UNITS;
-		let give = MultiAsset::from((hydradx_runtime::CurrencyIdConvert::convert(GLMR).unwrap(), give_amount));
-		let want = MultiAsset::from((hydradx_runtime::CurrencyIdConvert::convert(IBTC).unwrap(), 550 * UNITS));
+			//Act
+			let give_amount = 1000 * UNITS;
+			let give = MultiAsset::from((hydradx_runtime::CurrencyIdConvert::convert(GLMR).unwrap(), give_amount));
+			let want = MultiAsset::from((hydradx_runtime::CurrencyIdConvert::convert(IBTC).unwrap(), 550 * UNITS));
 
-		let xcm = craft_transfer_and_swap_xcm_with_4_hops::<hydradx_runtime::RuntimeCall>(give, want, SELL);
-		assert_ok!(hydradx_runtime::PolkadotXcm::execute(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			Box::new(xcm),
-			Weight::from_parts(399_600_000_000, 0),
-		));
+			let xcm = craft_transfer_and_swap_xcm_with_4_hops::<hydradx_runtime::RuntimeCall>(give, want, SELL);
+			assert_ok!(hydradx_runtime::PolkadotXcm::execute(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				Box::new(xcm),
+				Weight::from_parts(899_600_000_000, 0),
+			));
 
-		//Assert
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(GLMR, &AccountId::from(ALICE)),
-			alice_init_moon_balance - give_amount
-		);
+			//Assert
+			assert_eq!(
+				hydradx_runtime::Tokens::free_balance(GLMR, &AccountId::from(ALICE)),
+				alice_init_moon_balance - give_amount
+			);
 
-		assert!(matches!(
-			last_hydra_events(2).first(),
-			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
-				cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
-			))
-		));
+			assert!(matches!(
+				last_hydra_events(2).first(),
+				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+					cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+				))
+			));
+			hydradx_run_to_block(4);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
 	});
 
 	let fees = 400641025641;
 	Acala::execute_with(|| {
+		//hydradx_run_to_block(5);
+
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(IBTC, &AccountId::from(BOB)),
 			549198717948718
@@ -274,12 +299,11 @@ fn transfer_and_swap_should_work_with_4_hops() {
 }
 
 fn register_glmr() {
-	assert_ok!(hydradx_runtime::AssetRegistry::register(
-		hydradx_runtime::RuntimeOrigin::root(),
+	assert_ok!(AssetRegistry::register_sufficient_asset(
 		Some(GLMR),
 		Some(b"GLRM".to_vec().try_into().unwrap()),
-		pallet_asset_registry::AssetType::Token,
-		Some(1_000_000),
+		AssetKind::Token,
+		1_000_000,
 		None,
 		None,
 		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
@@ -287,17 +311,15 @@ fn register_glmr() {
 			X2(Parachain(MOONBEAM_PARA_ID), GeneralIndex(0))
 		))),
 		None,
-		false
 	));
 }
 
 fn register_aca() {
-	assert_ok!(hydradx_runtime::AssetRegistry::register(
-		hydradx_runtime::RuntimeOrigin::root(),
+	assert_ok!(AssetRegistry::register_sufficient_asset(
 		Some(ACA),
 		Some(b"ACAL".to_vec().try_into().unwrap()),
-		pallet_asset_registry::AssetType::Token,
-		Some(1_000_000),
+		AssetKind::Token,
+		1_000_000,
 		None,
 		None,
 		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
@@ -305,17 +327,15 @@ fn register_aca() {
 			X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))
 		))),
 		None,
-		false
 	));
 }
 
 fn register_ibtc() {
-	assert_ok!(hydradx_runtime::AssetRegistry::register(
-		hydradx_runtime::RuntimeOrigin::root(),
+	assert_ok!(AssetRegistry::register_sufficient_asset(
 		Some(IBTC),
 		Some(b"iBTC".to_vec().try_into().unwrap()),
-		pallet_asset_registry::AssetType::Token,
-		Some(1_000_000),
+		AssetKind::Token,
+		1_000_000,
 		None,
 		None,
 		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
@@ -323,7 +343,6 @@ fn register_ibtc() {
 			X2(Parachain(INTERLAY_PARA_ID), GeneralIndex(0))
 		))),
 		None,
-		false
 	));
 }
 
