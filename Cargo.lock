@@ -4571,7 +4571,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.2.3"
+version = "1.2.4"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4633,6 +4633,8 @@ dependencies = [
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
  "ethabi",
+ "evm 0.39.1",
+ "fp-evm",
  "fp-rpc",
  "fp-self-contained",
  "frame-benchmarking",
@@ -4745,7 +4747,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8587,7 +8589,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "9.3.0"
+version = "9.3.1"
 dependencies = [
  "frame-support",
  "frame-system",
