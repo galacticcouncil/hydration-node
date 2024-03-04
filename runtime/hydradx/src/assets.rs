@@ -668,6 +668,18 @@ parameter_types! {
 
 }
 
+pub struct RetryOnErrorForDca;
+
+impl Contains<DispatchError> for RetryOnErrorForDca {
+	fn contains(t: &DispatchError) -> bool {
+		let errors: Vec<DispatchError> = vec![
+			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
+			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
+		];
+		errors.contains(t)
+	}
+}
+
 impl pallet_dca::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -713,6 +725,7 @@ impl pallet_dca::Config for Runtime {
 		MultiTransactionPayment,
 		DCAOraclePeriod,
 	>;
+	type RetryOnError = RetryOnErrorForDca;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
