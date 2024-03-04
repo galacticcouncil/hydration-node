@@ -690,6 +690,7 @@ impl Config for Test {
 	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
 	type NativePriceOracle = NativePriceOracleMock;
+	type RetryOnError = ();
 }
 
 pub struct NativePriceOracleMock;

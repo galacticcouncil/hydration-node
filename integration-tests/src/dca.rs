@@ -19,6 +19,7 @@ use hydradx_traits::router::Trade;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pallet_dca::types::{Order, Schedule};
+use pallet_omnipool::types::Tradability;
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::{AssetId, Balance};
@@ -492,6 +493,85 @@ mod omnipool {
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - fee);
+		});
+	}
+
+	#[test]
+	fn sell_schedule_be_retried_when_route_is_invalid() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				BOB.into(),
+				ETH,
+				1_000 * UNITS as i128,
+			));
+			let position_id = hydradx_runtime::Omnipool::next_position_id();
+
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ETH,
+				FixedU128::from_rational(3, 10),
+				Permill::from_percent(60),
+				BOB.into(),
+			));
+
+			polkadot_run_to_block(11);
+
+			let alice_init_hdx_balance = 5000 * UNITS;
+			assert_ok!(Balances::force_set_balance(
+				RuntimeOrigin::root(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+			));
+
+			let dca_budget = 1100 * UNITS;
+			let amount_to_sell = 100 * UNITS;
+			let schedule1 =
+				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget, HDX, ETH, amount_to_sell);
+			create_schedule(ALICE, schedule1);
+
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
+
+			//Act
+			//Remove ETH token resulting invalid route
+
+			assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ETH,
+				Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
+			));
+			let position =
+				pallet_omnipool::Pallet::<hydradx_runtime::Runtime>::load_position(position_id, BOB.into()).unwrap();
+			assert_ok!(hydradx_runtime::Omnipool::remove_liquidity(
+				hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+				position_id,
+				position.shares,
+			));
+
+			assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ETH,
+				Tradability::FROZEN
+			));
+			assert_ok!(hydradx_runtime::Omnipool::remove_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ETH,
+				BOB.into(),
+			));
+			polkadot_run_to_block(12);
+
+			//Assert
+			let schedule_id = 0;
+			let schedule = DCA::schedules(schedule_id);
+			assert!(schedule.is_some());
+			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 		});
 	}
 
