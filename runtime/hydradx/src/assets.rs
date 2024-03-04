@@ -671,7 +671,10 @@ pub struct RetryOnErrorForDca;
 
 impl Contains<DispatchError> for RetryOnErrorForDca {
 	fn contains(t: &DispatchError) -> bool {
-		let errors: Vec<DispatchError> = vec![pallet_omnipool::Error::<Runtime>::AssetNotFound.into()];
+		let errors: Vec<DispatchError> = vec![
+			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
+			pallet_omnipool::Error::<Runtime>::AssetNotAllowed.into(),
+		];
 		errors.contains(t)
 	}
 }
