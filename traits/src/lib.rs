@@ -256,3 +256,15 @@ pub trait AMMPosition<AssetId, Balance> {
 		shares_amount: Balance,
 	) -> Result<(Balance, Balance), Self::Error>;
 }
+
+/// Provides account's fee payment asset
+pub trait AccountFeeCurrency<AccountId> {
+	type AssetId;
+	fn get(a: &AccountId) -> Self::AssetId;
+}
+
+/// Provides account's balance of fee asset currency in a given currency
+pub trait AccountFeeCurrencyBalanceInCurrency<AssetId, AccountId> {
+	type Output;
+	fn get_balance_in_currency(to_currency: AssetId, account: &AccountId) -> Self::Output;
+}

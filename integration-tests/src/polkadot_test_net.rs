@@ -648,6 +648,7 @@ pub fn hydradx_run_to_next_block() {
 	hydradx_runtime::System::on_initialize(b + 1);
 	hydradx_runtime::EmaOracle::on_initialize(b + 1);
 	hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
+	hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
 
 	hydradx_runtime::System::set_block_number(b + 1);
 }
