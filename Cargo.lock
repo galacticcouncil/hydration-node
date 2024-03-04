@@ -7605,7 +7605,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8151,7 +8151,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.1.1"
+version = "2.1.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
