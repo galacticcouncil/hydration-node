@@ -36,6 +36,7 @@ mod assets;
 pub mod evm;
 mod governance;
 mod system;
+pub mod types;
 pub mod xcm;
 
 pub use assets::*;
@@ -107,7 +108,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 219,
+	spec_version: 221,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,

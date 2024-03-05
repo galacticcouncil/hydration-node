@@ -115,6 +115,7 @@ pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::traits::Contains;
 
 	use frame_support::weights::WeightToFee;
 
@@ -184,6 +185,7 @@ pub mod pallet {
 
 						if error != Error::<T>::TradeLimitReached.into()
 							&& error != Error::<T>::SlippageLimitReached.into()
+							&& !T::RetryOnError::contains(&error)
 						{
 							Self::terminate_schedule(schedule_id, &schedule, error);
 						} else if let Err(retry_error) =
@@ -241,6 +243,9 @@ pub mod pallet {
 
 		///Spot price provider to get the current price between two asset
 		type RouteProvider: RouteProvider<Self::AssetId>;
+
+		///Errors we want to explicitly retry on, in case of failing DCA
+		type RetryOnError: Contains<DispatchError>;
 
 		///Max price difference allowed between blocks
 		#[pallet::constant]

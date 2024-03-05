@@ -137,8 +137,8 @@ pub mod pallet {
 		/// The periods supported by the pallet. I.e. which oracles to track.
 		type SupportedPeriods: Get<BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>>>;
 
-		/// Filter determining what oracles are tracked by the pallet.
-		type OracleFilter: Contains<(Source, AssetId, AssetId)>;
+		/// Whitelist determining what oracles are tracked by the pallet.
+		type OracleWhitelist: Contains<(Source, AssetId, AssetId)>;
 
 		/// Maximum number of unique oracle entries expected in one block.
 		#[pallet::constant]

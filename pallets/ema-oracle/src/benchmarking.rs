@@ -248,6 +248,8 @@ benchmarks! {
 		}
 		let asset_a = b * 1_000;
 		let asset_b = asset_a + 500;
+		T::BenchmarkHelper::register_asset(asset_a)?;
+		T::BenchmarkHelper::register_asset(asset_b)?;
 
 		let res = core::cell::RefCell::new(Err(DispatchError::Other("Not initialized")));
 	}: {
@@ -311,6 +313,8 @@ benchmarks! {
 		}
 		let asset_a = b * 1_000;
 		let asset_b = asset_a + 500;
+		T::BenchmarkHelper::register_asset(asset_a)?;
+		T::BenchmarkHelper::register_asset(asset_b)?;
 
 		let res = core::cell::RefCell::new(Err(DispatchError::Other("Not initialized")));
 	}: {
@@ -349,8 +353,8 @@ benchmarks! {
 		let asset_a = 1_000;
 		let asset_b = asset_a + 500;
 
-			T::BenchmarkHelper::register_asset(asset_a)?;
-			T::BenchmarkHelper::register_asset(asset_b)?;
+		T::BenchmarkHelper::register_asset(asset_a)?;
+		T::BenchmarkHelper::register_asset(asset_b)?;
 
 		assert_ok!(OnActivityHandler::<T>::on_trade(
 			SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,

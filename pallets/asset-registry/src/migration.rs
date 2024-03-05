@@ -109,6 +109,14 @@ pub mod v2 {
 	}
 
 	pub fn migrate<T: Config<AssetId = u32>>() -> Weight {
+		if StorageVersion::get::<Pallet<T>>() != 1 {
+			log::info!(
+				target: "runtime::asset-registry",
+				"Nothing to migratte, pallet's version is not 1."
+			);
+			return T::DbWeight::get().reads_writes(1, 0);
+		}
+
 		log::info!(
 			target: "runtime::asset-registry",
 			"Running migration to v2 for Asset Registry"

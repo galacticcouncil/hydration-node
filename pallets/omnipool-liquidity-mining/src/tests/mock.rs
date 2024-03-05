@@ -250,7 +250,7 @@ impl pallet_ema_oracle::Config for Test {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
-	type OracleFilter = Everything;
+	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
