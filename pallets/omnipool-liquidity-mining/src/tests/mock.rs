@@ -247,13 +247,14 @@ parameter_types! {
 
 impl pallet_ema_oracle::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleFilter = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type WeightInfo = ();
 }
 
 parameter_types! {

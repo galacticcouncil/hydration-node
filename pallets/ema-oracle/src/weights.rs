@@ -51,6 +51,8 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_ema_oracle.
 pub trait WeightInfo {
+	fn add_oracle() -> Weight;
+	fn remove_oracle() -> Weight;
 	fn on_finalize_no_entry() -> Weight;
 	fn on_finalize_multiple_tokens(b: u32) -> Weight;
 	fn on_trade_multiple_tokens(b: u32) -> Weight;
@@ -61,6 +63,12 @@ pub trait WeightInfo {
 pub struct BasiliskWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
+	fn add_oracle() -> Weight {
+		Weight::zero()
+	}
+	fn remove_oracle() -> Weight {
+		Weight::zero()
+	}
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:0)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
 	fn on_finalize_no_entry() -> Weight {
@@ -130,6 +138,12 @@ impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
+	fn add_oracle() -> Weight {
+		Weight::zero()
+	}
+	fn remove_oracle() -> Weight {
+		Weight::zero()
+	}
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:0)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
 	fn on_finalize_no_entry() -> Weight {

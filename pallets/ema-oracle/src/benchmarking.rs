@@ -23,7 +23,7 @@ pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
 
 use frame_benchmarking::benchmarks;
-use frame_support::{assert_ok, traits::Hooks};
+use frame_support::{assert_ok, dispatch::RawOrigin, traits::Hooks};
 
 #[cfg(test)]
 use pretty_assertions::assert_eq;
@@ -33,7 +33,36 @@ use crate::Pallet as EmaOracle;
 /// Default oracle source.
 const SOURCE: Source = *b"dummysrc";
 
+fn fill_whitelist_storage<T: Config>(n: u32) {
+	for i in 0..n {
+		assert_ok!(EmaOracle::<T>::add_oracle(RawOrigin::Root.into(), SOURCE, (HDX, i)));
+	}
+}
 benchmarks! {
+	add_oracle {
+		let max_entries = <<T as Config>::MaxUniqueEntries as Get<u32>>::get();
+		fill_whitelist_storage::<T>(max_entries - 1);
+
+		assert_eq!(WhitelistedAssets::<T>::get().len(), (max_entries - 1) as usize);
+
+	}: _(RawOrigin::Root, SOURCE, (HDX, DOT))
+	verify {
+		assert!(WhitelistedAssets::<T>::get().contains(&(SOURCE, (HDX, DOT))));
+	}
+
+	remove_oracle {
+		let max_entries = <<T as Config>::MaxUniqueEntries as Get<u32>>::get();
+		fill_whitelist_storage::<T>(max_entries - 1);
+
+		assert_ok!(EmaOracle::<T>::add_oracle(RawOrigin::Root.into(), SOURCE, (HDX, DOT)));
+
+		assert_eq!(WhitelistedAssets::<T>::get().len(), max_entries as usize);
+
+	}: _(RawOrigin::Root, SOURCE, (HDX, DOT))
+	verify {
+		assert!(!WhitelistedAssets::<T>::get().contains(&(SOURCE, (HDX, DOT))));
+	}
+
 	on_finalize_no_entry {
 		let block_num: u32 = 5;
 	}: { EmaOracle::<T>::on_finalize(block_num.into()); }
@@ -42,6 +71,9 @@ benchmarks! {
 
 	#[extra]
 	on_finalize_insert_one_token {
+		let max_entries = <<T as Config>::MaxUniqueEntries as Get<u32>>::get();
+		fill_whitelist_storage::<T>(max_entries);
+
 		let block_num: BlockNumberFor<T> = 5u32.into();
 		let prev_block = block_num.saturating_sub(One::one());
 
@@ -78,6 +110,9 @@ benchmarks! {
 
 	#[extra]
 	on_finalize_update_one_token {
+		let max_entries = <<T as Config>::MaxUniqueEntries as Get<u32>>::get();
+		fill_whitelist_storage::<T>(max_entries);
+
 		let initial_data_block: BlockNumberFor<T> = 5u32.into();
 		// higher update time difference might make exponentiation more expensive
 		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
@@ -118,6 +153,9 @@ benchmarks! {
 
 	on_finalize_multiple_tokens {
 		let b in 1 .. (T::MaxUniqueEntries::get() - 1);
+
+		let max_entries = <<T as Config>::MaxUniqueEntries as Get<u32>>::get();
+		fill_whitelist_storage::<T>(max_entries);
 
 		let initial_data_block: BlockNumberFor<T> = 5u32.into();
 		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
@@ -166,6 +204,9 @@ benchmarks! {
 
 	on_trade_multiple_tokens {
 		let b in 1 .. (T::MaxUniqueEntries::get() - 1);
+
+		let max_entries = <<T as Config>::MaxUniqueEntries as Get<u32>>::get();
+		fill_whitelist_storage::<T>(max_entries);
 
 		let initial_data_block: BlockNumberFor<T> = 5u32.into();
 		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
@@ -226,6 +267,9 @@ benchmarks! {
 
 	on_liquidity_changed_multiple_tokens {
 		let b in 1 .. (T::MaxUniqueEntries::get() - 1);
+
+		let max_entries = <<T as Config>::MaxUniqueEntries as Get<u32>>::get();
+		fill_whitelist_storage::<T>(max_entries);
 
 		let initial_data_block: BlockNumberFor<T> = 5u32.into();
 		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
@@ -291,6 +335,9 @@ benchmarks! {
 	}
 
 	get_entry {
+		let max_entries = <<T as Config>::MaxUniqueEntries as Get<u32>>::get();
+		fill_whitelist_storage::<T>(max_entries);
+
 		let initial_data_block: BlockNumberFor<T> = 5u32.into();
 		let oracle_age: BlockNumberFor<T> = 999_999u32.into();
 		let block_num = initial_data_block.saturating_add(oracle_age.saturating_add(One::one()));

@@ -506,7 +506,7 @@ impl Contains<(Source, AssetId, AssetId)> for SufficientAssetsFilter {
 
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
+	type AuthorityOrigin = SuperMajorityTechCommittee;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
@@ -516,6 +516,7 @@ impl pallet_ema_oracle::Config for Runtime {
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;
+	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = RegisterAsset<Runtime>;
 }

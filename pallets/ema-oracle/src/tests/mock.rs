@@ -27,6 +27,7 @@ use frame_support::sp_runtime::{
 };
 use frame_support::traits::{Contains, Everything};
 use frame_support::BoundedVec;
+use frame_system::EnsureRoot;
 use hydradx_traits::OraclePeriod::{self, *};
 use hydradx_traits::Source;
 use hydradx_traits::{AssetPairAccountIdFor, Liquidity, Volume};
@@ -34,6 +35,7 @@ use sp_core::H256;
 
 use crate::types::{AssetId, Balance, Price};
 pub type BlockNumber = u64;
+pub type AccountId = u64;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -134,13 +136,14 @@ impl Contains<(Source, AssetId, AssetId)> for OracleFilter {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleFilter = OracleFilter;
 	type MaxUniqueEntries = ConstU32<45>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type WeightInfo = ();
 }
 
 pub type InitialDataEntry = (Source, (AssetId, AssetId), Price, Liquidity<Balance>);
@@ -167,8 +170,12 @@ impl ExtBuilder {
 
 		let mut ext: sp_io::TestExternalities = t.into();
 		ext.execute_with(|| {
-			System::set_block_number(0);
+			System::set_block_number(1);
 		});
 		ext
 	}
+}
+
+pub fn expect_events(e: Vec<RuntimeEvent>) {
+	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
