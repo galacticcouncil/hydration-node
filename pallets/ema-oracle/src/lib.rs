@@ -294,7 +294,7 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), ()> {
-		if !(T::OracleFilter::contains(&(src, assets.0, assets.1))
+		if !(T::OracleWhitelist::contains(&(src, assets.0, assets.1))
 			|| WhitelistedAssets::<T>::get().contains(&(src, (assets.0, assets.1))))
 		{
 			// if we don't track oracle for given asset pair, don't throw error
