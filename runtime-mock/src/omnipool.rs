@@ -1,4 +1,4 @@
-use crate::traits::{Balance, TryExtrinsic};
+use crate::traits::Balance;
 use crate::AccountId;
 use hydradx_runtime::RuntimeCall;
 use serde::Deserialize;
@@ -99,42 +99,3 @@ impl crate::traits::Loader for OmnipoolPallet {
 	}
 }
 
-pub struct OmnipoolHandler;
-
-impl TryExtrinsic<RuntimeCall, u32> for OmnipoolHandler {
-	fn try_extrinsic(&self, identifier: u8, data: &[u8], assets: &[u32]) -> Option<RuntimeCall> {
-		match identifier {
-			0 if data.len() > 18 => {
-				let asset_in = assets[data[0] as usize % assets.len()];
-				let asset_out = assets[data[1] as usize % assets.len()];
-				let amount = u128::from_ne_bytes(data[2..18].try_into().ok()?);
-				Some(RuntimeCall::Omnipool(pallet_omnipool::Call::sell {
-					asset_in,
-					asset_out,
-					amount,
-					min_buy_amount: 0,
-				}))
-			}
-			1 if data.len() > 18 => {
-				let asset_in = assets[data[0] as usize % assets.len()];
-				let asset_out = assets[data[1] as usize % assets.len()];
-				let amount = u128::from_ne_bytes(data[2..18].try_into().ok()?);
-				Some(RuntimeCall::Omnipool(pallet_omnipool::Call::buy {
-					asset_in,
-					asset_out,
-					amount,
-					max_sell_amount: u128::MAX,
-				}))
-			}
-			2 if data.len() > 17 => {
-				let asset = assets[data[0] as usize % assets.len()];
-				let amount = u128::from_ne_bytes(data[1..17].try_into().ok()?);
-				Some(RuntimeCall::Omnipool(pallet_omnipool::Call::add_liquidity {
-					asset,
-					amount,
-				}))
-			}
-			_ => None,
-		}
-	}
-}

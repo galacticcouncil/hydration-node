@@ -9,7 +9,3 @@ pub trait FuzzedPallet<Call, AssetId, AccountId> {
 pub trait Loader {
 	fn load_setup(filename: &str) -> Self;
 }
-
-pub trait TryExtrinsic<Call, AssetId> {
-	fn try_extrinsic(&self, identifier: u8, data: &[u8], assets: &[AssetId]) -> Option<Call>;
-}

@@ -1,4 +1,3 @@
-use crate::traits::TryExtrinsic;
 use crate::{AccountId, MockedRuntime};
 use hydradx_runtime::RuntimeCall;
 use pallet_stableswap::types::AssetAmount;
@@ -139,40 +138,4 @@ fn load_setup(filename: &str) -> Stablepools {
 
 pub fn stablepools() -> Stablepools {
 	load_setup("data/stableswap.toml")
-}
-
-pub struct StableswapHandler;
-
-impl TryExtrinsic<RuntimeCall, u32> for StableswapHandler {
-	fn try_extrinsic(&self, identifier: u8, data: &[u8], assets: &[u32]) -> Option<RuntimeCall> {
-		match identifier {
-			10 if data.len() > 19 => {
-				let pool_id = 100 + data[0] as u32 % 3; //TODO: make as parameter, currently ids of pools are 100,101,102
-				let asset_in = assets[data[1] as usize % assets.len()];
-				let asset_out = assets[data[2] as usize % assets.len()];
-				let amount_in = u128::from_ne_bytes(data[3..19].try_into().ok()?);
-				Some(RuntimeCall::Stableswap(pallet_stableswap::Call::sell {
-					pool_id,
-					asset_in,
-					asset_out,
-					amount_in,
-					min_buy_amount: 0,
-				}))
-			}
-			11 if data.len() > 19 => {
-				let pool_id = data[0] as u32 % 3; //TODO: make as parameter
-				let asset_in = assets[data[1] as usize % assets.len()];
-				let asset_out = assets[data[2] as usize % assets.len()];
-				let amount_out = u128::from_ne_bytes(data[3..19].try_into().ok()?);
-				Some(RuntimeCall::Stableswap(pallet_stableswap::Call::buy {
-					pool_id,
-					asset_in,
-					asset_out,
-					amount_out,
-					max_sell_amount: u128::MAX,
-				}))
-			}
-			_ => None,
-		}
-	}
 }

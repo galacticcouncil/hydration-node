@@ -5,8 +5,6 @@ mod stableswap;
 mod staking;
 pub mod traits;
 
-use crate::omnipool::OmnipoolHandler;
-use crate::traits::TryExtrinsic;
 use accounts::{
 	get_council_members, get_duster_dest_account, get_duster_reward_account, get_native_endowed_accounts,
 	get_nonnative_endowed_accounts, get_omnipool_position_owner, get_technical_committee,
@@ -24,10 +22,6 @@ use stableswap::stablepools;
 mod tests;
 
 const PARA_ID: u32 = 2034;
-
-pub fn extrinsics_handlers() -> Vec<Box<dyn TryExtrinsic<RuntimeCall, u32>>> {
-	vec![Box::new(OmnipoolHandler {}), Box::new(stableswap::StableswapHandler {})]
-}
 
 pub fn hydradx_mocked_runtime() -> TestExternalities {
 	let asset_registry_setup = AssetRegistrySetup::new();
