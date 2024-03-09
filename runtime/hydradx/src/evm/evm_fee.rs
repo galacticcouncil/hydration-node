@@ -153,9 +153,9 @@ where
 				let result = MC::mint_into(paid.asset_id, &account_id, refund_amount);
 
 				let refund_imbalance = if let Ok(amount) = result {
-					// just in case of partial refund
-					// we are not expecting any imbalance, let's try to catch it in debug
-					debug_assert_eq!(amount, 0);
+					// Ensure that we minted all amount, in case of partial refund for some reason,
+					// refund the difference back to treasury
+					debug_assert_eq!(amount, refund_amount);
 					refund_amount.saturating_sub(amount)
 				} else {
 					// If error, we refund the whole amount back to treasury
