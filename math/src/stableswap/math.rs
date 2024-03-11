@@ -27,6 +27,9 @@ pub fn calculate_out_given_in<const D: u8, const Y: u8>(
 	amount_in: Balance,
 	amplification: Balance,
 ) -> Option<Balance> {
+	if idx_in == idx_out {
+		return None;
+	}
 	if idx_in >= initial_reserves.len() || idx_out >= initial_reserves.len() {
 		return None;
 	}
@@ -58,6 +61,9 @@ pub fn calculate_in_given_out<const D: u8, const Y: u8>(
 	amount_out: Balance,
 	amplification: Balance,
 ) -> Option<Balance> {
+	if idx_in == idx_out {
+		return None;
+	}
 	if idx_in >= initial_reserves.len() || idx_out >= initial_reserves.len() {
 		return None;
 	}
@@ -88,6 +94,9 @@ pub fn calculate_out_given_in_with_fee<const D: u8, const Y: u8>(
 	amplification: Balance,
 	fee: Permill,
 ) -> Option<(Balance, Balance)> {
+	if idx_in == idx_out {
+		return None;
+	}
 	let amount_out = calculate_out_given_in::<D, Y>(initial_reserves, idx_in, idx_out, amount_in, amplification)?;
 	let fee_amount = calculate_fee_amount(amount_out, fee, Rounding::Down);
 	let amount_out = amount_out.checked_sub(fee_amount)?;
@@ -103,6 +112,9 @@ pub fn calculate_in_given_out_with_fee<const D: u8, const Y: u8>(
 	amplification: Balance,
 	fee: Permill,
 ) -> Option<(Balance, Balance)> {
+	if idx_in == idx_out {
+		return None;
+	}
 	let amount_in = calculate_in_given_out::<D, Y>(initial_reserves, idx_in, idx_out, amount_out, amplification)?;
 	let fee_amount = calculate_fee_amount(amount_in, fee, Rounding::Up);
 	let amount_in = amount_in.checked_add(fee_amount)?;
