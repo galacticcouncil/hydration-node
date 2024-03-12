@@ -25,13 +25,12 @@ use frame_support::sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
-use frame_support::traits::Everything;
+use frame_support::traits::{Contains, Everything};
 use frame_support::BoundedVec;
 use hydradx_traits::OraclePeriod::{self, *};
+use hydradx_traits::Source;
 use hydradx_traits::{AssetPairAccountIdFor, Liquidity, Volume};
 use sp_core::H256;
-
-pub use hydradx_traits::Source;
 
 use crate::types::{AssetId, Balance, Price};
 pub type BlockNumber = u64;
@@ -43,6 +42,8 @@ use crate::MAX_PERIODS;
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
 pub const ACA: AssetId = 3_000;
+// ensure this asset id is not used in the benchmarks, otherwise the benchmarking tests fail
+pub const INSUFFICIENT_ASSET: AssetId = 123_456;
 
 pub const ORACLE_ENTRY_1: OracleEntry<BlockNumber> = OracleEntry {
 	price: Price::new(2_000, 1_000),
@@ -103,7 +104,7 @@ impl frame_system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 	type OnSetCode = ();
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<16>;
 }
 
 pub struct AssetPairAccountIdTest();
@@ -123,12 +124,22 @@ parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = bounded_vec![LastBlock, TenMinutes, Day, Week];
 }
 
+pub struct SufficientAssetsFilter;
+impl Contains<(Source, AssetId, AssetId)> for SufficientAssetsFilter {
+	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
+		t.1 != INSUFFICIENT_ASSET && t.2 != INSUFFICIENT_ASSET
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
+	type OracleWhitelist = SufficientAssetsFilter;
 	type MaxUniqueEntries = ConstU32<45>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 pub type InitialDataEntry = (Source, (AssetId, AssetId), Price, Liquidity<Balance>);

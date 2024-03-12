@@ -244,12 +244,16 @@ parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
+
 impl pallet_ema_oracle::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
+	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 parameter_types! {

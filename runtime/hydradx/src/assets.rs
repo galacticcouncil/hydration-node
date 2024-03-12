@@ -497,6 +497,13 @@ parameter_types! {
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 
+pub struct SufficientAssetsFilter;
+impl Contains<(Source, AssetId, AssetId)> for SufficientAssetsFilter {
+	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
+		AssetRegistry::is_sufficient(t.1) && AssetRegistry::is_sufficient(t.2)
+	}
+}
+
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
@@ -505,10 +512,13 @@ impl pallet_ema_oracle::Config for Runtime {
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
+	type OracleWhitelist = SufficientAssetsFilter;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
-	/// 40 seems a decent upper bound for the forseeable future.
-	///
+	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;
+	#[cfg(feature = "runtime-benchmarks")]
+	/// Should take care of the overhead introduced by `OracleWhitelist`.
+	type BenchmarkHelper = RegisterAsset<Runtime>;
 }
 
 pub struct DustRemovalWhitelist;
@@ -658,6 +668,18 @@ parameter_types! {
 
 }
 
+pub struct RetryOnErrorForDca;
+
+impl Contains<DispatchError> for RetryOnErrorForDca {
+	fn contains(t: &DispatchError) -> bool {
+		let errors: Vec<DispatchError> = vec![
+			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
+			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
+		];
+		errors.contains(t)
+	}
+}
+
 impl pallet_dca::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -703,6 +725,7 @@ impl pallet_dca::Config for Runtime {
 		MultiTransactionPayment,
 		DCAOraclePeriod,
 	>;
+	type RetryOnError = RetryOnErrorForDca;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -1066,6 +1089,32 @@ impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsse
 			))
 		})?;
 
+		Ok(())
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: pallet_ema_oracle::Config> pallet_ema_oracle::BenchmarkHelper<AssetId> for RegisterAsset<T> {
+	fn register_asset(asset_id: AssetId) -> DispatchResult {
+		let result = with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(asset_id),
+				None,
+				AssetKind::Token,
+				1,
+				None,
+				Some(12),
+				None,
+				None,
+			))
+		});
+
+		// don't throw error if the asset is already registered
+		if result.is_err_and(|e| e == pallet_asset_registry::Error::<Runtime>::AssetAlreadyRegistered.into()) {
+			return Ok(());
+		};
+
+		let _ = result?;
 		Ok(())
 	}
 }

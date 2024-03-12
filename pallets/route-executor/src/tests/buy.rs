@@ -465,7 +465,7 @@ fn buy_should_fail_when_called_with_non_signed_origin() {
 			//Act and Assert
 			assert_noop!(
 				Router::buy(RuntimeOrigin::none(), HDX, AUSD, amount_to_buy, limit, trades),
-				DispatchError::Other("Wrong origin")
+				sp_runtime::DispatchError::BadOrigin
 			);
 		});
 }

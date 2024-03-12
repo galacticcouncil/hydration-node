@@ -149,7 +149,10 @@ impl pallet_ema_oracle::Config for Test {
 	type WeightInfo = ();
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
+	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 impl BlockNumberProvider for MockBlockNumberProvider {
@@ -687,6 +690,7 @@ impl Config for Test {
 	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
 	type NativePriceOracle = NativePriceOracleMock;
+	type RetryOnError = ();
 }
 
 pub struct NativePriceOracleMock;

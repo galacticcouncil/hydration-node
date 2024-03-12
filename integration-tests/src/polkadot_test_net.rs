@@ -91,6 +91,7 @@ pub const ACA: AssetId = 6;
 pub const WETH: AssetId = 20;
 pub const FOREIGN_ASSET: AssetId = 21;
 pub const PEPE: AssetId = 420;
+pub const INSUFFICIENT_ASSET: AssetId = 500;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
@@ -499,6 +500,7 @@ pub mod hydra {
 						None,
 						true,
 					),
+					(Some(INSUFFICIENT_ASSET), None, 1_000u128, None, None, None, false),
 					// workaround for next_asset_id() to return correct values
 					(
 						None,
@@ -666,6 +668,7 @@ pub fn hydradx_run_to_next_block() {
 	hydradx_runtime::System::on_initialize(b + 1);
 	hydradx_runtime::EmaOracle::on_initialize(b + 1);
 	hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
+	hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
 
 	hydradx_runtime::System::set_block_number(b + 1);
 }

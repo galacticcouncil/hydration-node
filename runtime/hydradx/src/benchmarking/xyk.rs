@@ -26,6 +26,7 @@ fn funded_account<T: pallet_xyk::Config>(name: &'static str, index: u32, assets:
 	caller
 }
 
+#[allow(clippy::result_large_err)]
 fn init_fee_asset(fee_asset: AssetId) -> Result<(), BenchmarkError> {
 	MultiTransactionPayment::add_currency(RawOrigin::Root.into(), fee_asset, Price::from(1))
 		.map_err(|_| BenchmarkError::Stop("Failed to add fee asset as supported currency"))?;
