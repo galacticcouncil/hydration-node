@@ -8321,7 +8321,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.0.2"
+version = "2.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
