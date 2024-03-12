@@ -629,12 +629,7 @@ use orml_traits::GetByKey;
 // Return Existential deposit of an asset
 impl<T: Config> GetByKey<T::AssetId, Balance> for Pallet<T> {
 	fn get(k: &T::AssetId) -> Balance {
-		if let Some(details) = Self::assets(k) {
-			details.existential_deposit
-		} else {
-			// Asset does not exist - not supported
-			Balance::max_value()
-		}
+		<Self as Inspect<Balance>>::existential_deposit(*k)
 	}
 }
 
@@ -648,7 +643,7 @@ impl<T: Config> GetByKey<T::AssetId, Option<Balance>> for XcmRateLimitsInRegistr
 	}
 }
 
-impl<T: Config> Inspect for Pallet<T> {
+impl<T: Config> Inspect<Balance> for Pallet<T> {
 	type AssetId = T::AssetId;
 	type Location = T::AssetNativeLocation;
 
@@ -682,9 +677,18 @@ impl<T: Config> Inspect for Pallet<T> {
 	fn asset_symbol(id: Self::AssetId) -> Option<Vec<u8>> {
 		Self::assets(id).and_then(|a| a.symbol.map(|v| v.into()))
 	}
+
+	fn existential_deposit(id: Self::AssetId) -> Balance {
+		if let Some(details) = Self::assets(id) {
+			details.existential_deposit
+		} else {
+			// Asset does not exist - not supported
+			Balance::MAX
+		}
+	}
 }
 
-impl<T: Config> Mutate for Pallet<T> {
+impl<T: Config> Mutate<Balance> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn set_location(asset_id: Self::AssetId, location: T::AssetNativeLocation) -> Result<(), Self::Error> {

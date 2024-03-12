@@ -316,6 +316,58 @@ fn add_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded
 }
 
 #[test]
+fn add_token_with_minimum_liquidity_to_omnipool_can_disable_adding_liquidity() {
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+
+		let ed = <pallet_asset_registry::Pallet<hydradx_runtime::Runtime> as hydradx_traits::registry::Inspect<
+			Balance,
+		>>::existential_deposit(BTC);
+		let minimum_initial_liquidity = 20 * ed;
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			hydradx_runtime::Omnipool::protocol_account(),
+			BTC,
+			minimum_initial_liquidity,
+			0,
+		));
+
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			BTC,
+			FixedU128::from(1),
+			Permill::from_percent(100),
+			hydradx_runtime::Omnipool::protocol_account(),
+		));
+
+		let min_added_liquidity = <hydradx_runtime::Runtime as pallet_omnipool::Config>::MinimumPoolLiquidity::get();
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			BTC,
+			min_added_liquidity,
+			0,
+		));
+
+		set_relaychain_block_number(300);
+
+		//Act and assert
+		// adding MinimumPoolLiquidity should not trigger the circuit breaker
+		assert_noop!(
+			Omnipool::add_liquidity(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BTC,
+				min_added_liquidity,
+			),
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxLiquidityLimitPerBlockReached
+		);
+	});
+}
+
+#[test]
 fn add_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_exceeded_but_called_by_whitelisted() {
 	Hydra::execute_with(|| {
 		//Arrange

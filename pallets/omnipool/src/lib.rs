@@ -160,7 +160,7 @@ pub mod pallet {
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
-		type AssetRegistry: RegistryInspect<AssetId = Self::AssetId>;
+		type AssetRegistry: RegistryInspect<Balance, AssetId = Self::AssetId>;
 
 		/// Native Asset ID
 		#[pallet::constant]
@@ -468,8 +468,13 @@ pub mod pallet {
 
 			let amount = T::Currency::free_balance(asset, &Self::protocol_account());
 
+			let ed = T::AssetRegistry::existential_deposit(asset);
+			let minimum_pool_liquidity = ed.checked_mul(20).ok_or(ArithmeticError::Overflow)?;
+
 			ensure!(
-				amount >= T::MinimumPoolLiquidity::get() && amount > 0,
+				// TODO: checked_mul
+				amount >= minimum_pool_liquidity && amount > 0,
+				// amount >= 20 * T::MinimumPoolLiquidity::get() && amount > 0,
 				Error::<T>::MissingBalance
 			);
 

@@ -154,7 +154,7 @@ impl Config for Test {
 use hydradx_traits::AssetKind;
 pub struct MockedAssetRegistry;
 
-impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
+impl hydradx_traits::registry::Inspect<Balance> for MockedAssetRegistry {
 	type AssetId = AssetId;
 	type Location = ();
 
@@ -183,6 +183,9 @@ impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
 	}
 
 	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+	fn existential_deposit(_id: Self::AssetId) -> Balance {
 		unimplemented!()
 	}
 }

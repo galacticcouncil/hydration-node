@@ -425,7 +425,7 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 
 pub struct DummyRegistry;
 
-impl Inspect for DummyRegistry {
+impl Inspect<Balance> for DummyRegistry {
 	type AssetId = AssetId;
 	type Location = u8;
 
@@ -454,6 +454,9 @@ impl Inspect for DummyRegistry {
 	}
 
 	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+	fn existential_deposit(_id: Self::AssetId) -> Balance {
 		unimplemented!()
 	}
 }

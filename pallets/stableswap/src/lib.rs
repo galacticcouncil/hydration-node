@@ -137,7 +137,7 @@ pub mod pallet {
 		type ShareAccountId: AccountIdFor<Self::AssetId, AccountId = Self::AccountId>;
 
 		/// Asset registry mechanism to check if asset is registered and retrieve asset decimals.
-		type AssetInspection: Inspect<AssetId = Self::AssetId>;
+		type AssetInspection: Inspect<Balance, AssetId = Self::AssetId>;
 
 		/// The origin which can create a new pool
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;

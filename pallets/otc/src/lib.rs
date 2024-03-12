@@ -84,7 +84,7 @@ pub mod pallet {
 		type AssetId: Member + Parameter + Copy + HasCompact + MaybeSerializeDeserialize + MaxEncodedLen;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
-		type AssetRegistry: Inspect<AssetId = Self::AssetId>;
+		type AssetRegistry: Inspect<Balance, AssetId = Self::AssetId>;
 
 		/// Named reservable multi currency
 		type Currency: NamedMultiReservableCurrency<

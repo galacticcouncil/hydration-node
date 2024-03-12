@@ -211,7 +211,7 @@ pub mod pallet {
 
 		/// Asset Registry - used to check if asset is correctly registered in asset registry and
 		/// provides information about existential deposit of the asset.
-		type AssetRegistry: Inspect<AssetId = Self::AssetId> + GetByKey<Self::AssetId, Balance>;
+		type AssetRegistry: Inspect<Balance, AssetId = Self::AssetId> + GetByKey<Self::AssetId, Balance>;
 
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
