@@ -472,9 +472,7 @@ pub mod pallet {
 			let minimum_pool_liquidity = ed.checked_mul(20).ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
-				// TODO: checked_mul
 				amount >= minimum_pool_liquidity && amount > 0,
-				// amount >= 20 * T::MinimumPoolLiquidity::get() && amount > 0,
 				Error::<T>::MissingBalance
 			);
 
