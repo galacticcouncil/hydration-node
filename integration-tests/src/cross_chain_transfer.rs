@@ -430,7 +430,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
 				parachain_block_number: 3,
-				relaychain_block_number: 7,
+				relaychain_block_number: 8,
 			}
 			.into(),
 		]);
@@ -670,7 +670,7 @@ fn trap_asset() -> MultiAsset {
 			.into(),
 			pallet_relaychain_info::Event::CurrentBlockNumbers {
 				parachain_block_number: 3,
-				relaychain_block_number: 7,
+				relaychain_block_number: 8,
 			}
 			.into(),
 		]);
