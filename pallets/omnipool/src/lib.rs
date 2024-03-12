@@ -1623,7 +1623,7 @@ pub mod pallet {
 				}
 			}
 			for (asset_id, total) in shares.into_iter() {
-				let state = Assets::<T>::get(&asset_id).unwrap();
+				let state = Assets::<T>::get(asset_id).unwrap();
 				assert_eq!(
 					state.shares - state.protocol_shares,
 					total,
