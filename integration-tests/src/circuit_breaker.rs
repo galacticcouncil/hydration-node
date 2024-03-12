@@ -323,6 +323,55 @@ fn add_token_with_minimum_liquidity_to_omnipool_can_disable_adding_liquidity() {
 
 		let ed = <pallet_asset_registry::Pallet<hydradx_runtime::Runtime> as hydradx_traits::registry::Inspect<
 			Balance,
+		>>::existential_deposit(DOT);
+		let minimum_initial_liquidity = 20 * ed;
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			hydradx_runtime::Omnipool::protocol_account(),
+			DOT,
+			minimum_initial_liquidity,
+			0,
+		));
+
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DOT,
+			FixedU128::from(1),
+			Permill::from_percent(100),
+			hydradx_runtime::Omnipool::protocol_account(),
+		));
+
+		let min_added_liquidity = <hydradx_runtime::Runtime as pallet_omnipool::Config>::MinimumPoolLiquidity::get();
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			DOT,
+			min_added_liquidity,
+			0,
+		));
+
+		set_relaychain_block_number(300);
+
+		//Act and assert
+		// ED >= 1_000_000, adding MinimumPoolLiquidity should not trigger the circuit breaker
+		assert_ok!(
+			Omnipool::add_liquidity(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				DOT,
+				min_added_liquidity,
+			));
+	});
+
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+
+		let ed = <pallet_asset_registry::Pallet<hydradx_runtime::Runtime> as hydradx_traits::registry::Inspect<
+			Balance,
 		>>::existential_deposit(BTC);
 		let minimum_initial_liquidity = 20 * ed;
 
@@ -355,7 +404,7 @@ fn add_token_with_minimum_liquidity_to_omnipool_can_disable_adding_liquidity() {
 		set_relaychain_block_number(300);
 
 		//Act and assert
-		// adding MinimumPoolLiquidity should not trigger the circuit breaker
+		// ED < 1_000_000, adding MinimumPoolLiquidity triggers the circuit breaker
 		assert_noop!(
 			Omnipool::add_liquidity(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
