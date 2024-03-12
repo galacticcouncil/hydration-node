@@ -356,12 +356,11 @@ fn add_token_with_minimum_liquidity_to_omnipool_can_disable_adding_liquidity() {
 
 		//Act and assert
 		// ED >= 1_000_000, adding MinimumPoolLiquidity should not trigger the circuit breaker
-		assert_ok!(
-			Omnipool::add_liquidity(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				DOT,
-				min_added_liquidity,
-			));
+		assert_ok!(Omnipool::add_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			min_added_liquidity,
+		));
 	});
 
 	TestNet::reset();
