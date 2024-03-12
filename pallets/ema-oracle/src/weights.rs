@@ -67,8 +67,8 @@ impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `208`
 		//  Estimated: `7406`
-		// Minimum execution time: 3_108_000 picoseconds.
-		Weight::from_parts(3_213_000, 7406).saturating_add(T::DbWeight::get().reads(1_u64))
+		// Minimum execution time: 3_261_000 picoseconds.
+		Weight::from_parts(3_342_000, 7406).saturating_add(T::DbWeight::get().reads(1))
 	}
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
@@ -79,43 +79,47 @@ impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `270 + b * (626 ±0)`
 		//  Estimated: `7406 + b * (7956 ±0)`
-		// Minimum execution time: 46_197_000 picoseconds.
-		Weight::from_parts(6_894_077, 7406)
-			// Standard Error: 58_512
-			.saturating_add(Weight::from_parts(36_389_579, 0).saturating_mul(b.into()))
-			.saturating_add(T::DbWeight::get().reads(1_u64))
+		// Minimum execution time: 49_005_000 picoseconds.
+		Weight::from_parts(11_980_224, 7406)
+			// Standard Error: 17_790
+			.saturating_add(Weight::from_parts(36_916_571, 0).saturating_mul(b.into()))
+			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().reads((3_u64).saturating_mul(b.into())))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1))
 			.saturating_add(T::DbWeight::get().writes((3_u64).saturating_mul(b.into())))
 			.saturating_add(Weight::from_parts(0, 7956).saturating_mul(b.into()))
 	}
+	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
 	/// The range of component `b` is `[1, 39]`.
 	fn on_trade_multiple_tokens(b: u32) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `270 + b * (148 ±0)`
+		//  Measured:  `718 + b * (163 ±0)`
 		//  Estimated: `7406`
-		// Minimum execution time: 9_225_000 picoseconds.
-		Weight::from_parts(9_309_132, 7406)
-			// Standard Error: 2_681
-			.saturating_add(Weight::from_parts(395_788, 0).saturating_mul(b.into()))
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
+		// Minimum execution time: 18_948_000 picoseconds.
+		Weight::from_parts(19_508_272, 7406)
+			// Standard Error: 3_859
+			.saturating_add(Weight::from_parts(435_799, 0).saturating_mul(b.into()))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(1))
 	}
+	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
 	/// The range of component `b` is `[1, 39]`.
 	fn on_liquidity_changed_multiple_tokens(b: u32) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `270 + b * (148 ±0)`
+		//  Measured:  `718 + b * (163 ±0)`
 		//  Estimated: `7406`
-		// Minimum execution time: 9_353_000 picoseconds.
-		Weight::from_parts(9_378_483, 7406)
-			// Standard Error: 1_820
-			.saturating_add(Weight::from_parts(397_535, 0).saturating_mul(b.into()))
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
+		// Minimum execution time: 18_875_000 picoseconds.
+		Weight::from_parts(19_397_429, 7406)
+			// Standard Error: 4_124
+			.saturating_add(Weight::from_parts(438_627, 0).saturating_mul(b.into()))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
 	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
@@ -123,8 +127,8 @@ impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `604`
 		//  Estimated: `6294`
-		// Minimum execution time: 18_642_000 picoseconds.
-		Weight::from_parts(19_015_000, 6294).saturating_add(T::DbWeight::get().reads(2_u64))
+		// Minimum execution time: 18_746_000 picoseconds.
+		Weight::from_parts(19_158_000, 6294).saturating_add(T::DbWeight::get().reads(2))
 	}
 }
 
@@ -136,8 +140,8 @@ impl WeightInfo for () {
 		// Proof Size summary in bytes:
 		//  Measured:  `208`
 		//  Estimated: `7406`
-		// Minimum execution time: 3_108_000 picoseconds.
-		Weight::from_parts(3_213_000, 7406).saturating_add(RocksDbWeight::get().reads(1_u64))
+		// Minimum execution time: 3_261_000 picoseconds.
+		Weight::from_parts(3_342_000, 7406).saturating_add(RocksDbWeight::get().reads(1))
 	}
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
@@ -148,43 +152,47 @@ impl WeightInfo for () {
 		// Proof Size summary in bytes:
 		//  Measured:  `270 + b * (626 ±0)`
 		//  Estimated: `7406 + b * (7956 ±0)`
-		// Minimum execution time: 46_197_000 picoseconds.
-		Weight::from_parts(6_894_077, 7406)
-			// Standard Error: 58_512
-			.saturating_add(Weight::from_parts(36_389_579, 0).saturating_mul(b.into()))
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
+		// Minimum execution time: 49_005_000 picoseconds.
+		Weight::from_parts(11_980_224, 7406)
+			// Standard Error: 17_790
+			.saturating_add(Weight::from_parts(36_916_571, 0).saturating_mul(b.into()))
+			.saturating_add(RocksDbWeight::get().reads(1))
 			.saturating_add(RocksDbWeight::get().reads((3_u64).saturating_mul(b.into())))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1))
 			.saturating_add(RocksDbWeight::get().writes((3_u64).saturating_mul(b.into())))
 			.saturating_add(Weight::from_parts(0, 7956).saturating_mul(b.into()))
 	}
+	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
 	/// The range of component `b` is `[1, 39]`.
 	fn on_trade_multiple_tokens(b: u32) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `270 + b * (148 ±0)`
+		//  Measured:  `718 + b * (163 ±0)`
 		//  Estimated: `7406`
-		// Minimum execution time: 9_225_000 picoseconds.
-		Weight::from_parts(9_309_132, 7406)
-			// Standard Error: 2_681
-			.saturating_add(Weight::from_parts(395_788, 0).saturating_mul(b.into()))
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
+		// Minimum execution time: 18_948_000 picoseconds.
+		Weight::from_parts(19_508_272, 7406)
+			// Standard Error: 3_859
+			.saturating_add(Weight::from_parts(435_799, 0).saturating_mul(b.into()))
+			.saturating_add(RocksDbWeight::get().reads(3))
+			.saturating_add(RocksDbWeight::get().writes(1))
 	}
+	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
 	/// The range of component `b` is `[1, 39]`.
 	fn on_liquidity_changed_multiple_tokens(b: u32) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `270 + b * (148 ±0)`
+		//  Measured:  `718 + b * (163 ±0)`
 		//  Estimated: `7406`
-		// Minimum execution time: 9_353_000 picoseconds.
-		Weight::from_parts(9_378_483, 7406)
-			// Standard Error: 1_820
-			.saturating_add(Weight::from_parts(397_535, 0).saturating_mul(b.into()))
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
+		// Minimum execution time: 18_875_000 picoseconds.
+		Weight::from_parts(19_397_429, 7406)
+			// Standard Error: 4_124
+			.saturating_add(Weight::from_parts(438_627, 0).saturating_mul(b.into()))
+			.saturating_add(RocksDbWeight::get().reads(3))
+			.saturating_add(RocksDbWeight::get().writes(1))
 	}
 	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
 	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
@@ -192,7 +200,7 @@ impl WeightInfo for () {
 		// Proof Size summary in bytes:
 		//  Measured:  `604`
 		//  Estimated: `6294`
-		// Minimum execution time: 18_642_000 picoseconds.
-		Weight::from_parts(19_015_000, 6294).saturating_add(RocksDbWeight::get().reads(2_u64))
+		// Minimum execution time: 18_746_000 picoseconds.
+		Weight::from_parts(19_158_000, 6294).saturating_add(RocksDbWeight::get().reads(2))
 	}
 }

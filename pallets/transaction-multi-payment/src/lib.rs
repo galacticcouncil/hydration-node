@@ -45,7 +45,7 @@ use sp_std::marker::PhantomData;
 
 use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::sp_runtime::FixedPointOperand;
-use hydradx_traits::NativePriceOracle;
+use hydradx_traits::{AccountFeeCurrency, NativePriceOracle};
 use orml_traits::{GetByKey, Happened, MultiCurrency};
 
 pub use crate::traits::*;
@@ -356,64 +356,6 @@ impl<T: Config> DepositFee<T::AccountId, AssetIdOf<T>, BalanceOf<T>> for Deposit
 	}
 }
 
-#[cfg(feature = "evm")]
-use {
-	frame_support::traits::{Currency as PalletCurrency, Imbalance, OnUnbalanced},
-	pallet_evm::{EVMCurrencyAdapter, OnChargeEVMTransaction},
-	sp_core::{H160, U256},
-	sp_runtime::traits::UniqueSaturatedInto,
-};
-#[cfg(feature = "evm")]
-type CurrencyAccountId<T> = <T as frame_system::Config>::AccountId;
-#[cfg(feature = "evm")]
-type BalanceFor<T> = <<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::Balance;
-#[cfg(feature = "evm")]
-type PositiveImbalanceFor<T> =
-	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::PositiveImbalance;
-#[cfg(feature = "evm")]
-type NegativeImbalanceFor<T> =
-	<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::NegativeImbalance;
-
-#[cfg(feature = "evm")]
-/// Implements the transaction payment for EVM transactions.
-pub struct TransferEvmFees<OU>(PhantomData<OU>);
-
-#[cfg(feature = "evm")]
-impl<T, OU> OnChargeEVMTransaction<T> for TransferEvmFees<OU>
-where
-	T: Config + pallet_evm::Config,
-	PositiveImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = NegativeImbalanceFor<T>>,
-	NegativeImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = PositiveImbalanceFor<T>>,
-	OU: OnUnbalanced<NegativeImbalanceFor<T>>,
-	U256: UniqueSaturatedInto<BalanceFor<T>>,
-{
-	type LiquidityInfo = Option<NegativeImbalanceFor<T>>;
-
-	fn withdraw_fee(who: &H160, fee: U256) -> Result<Self::LiquidityInfo, pallet_evm::Error<T>> {
-		EVMCurrencyAdapter::<<T as pallet_evm::Config>::Currency, ()>::withdraw_fee(who, fee)
-	}
-
-	fn can_withdraw(who: &H160, amount: U256) -> Result<(), pallet_evm::Error<T>> {
-		EVMCurrencyAdapter::<<T as pallet_evm::Config>::Currency, ()>::can_withdraw(who, amount)
-	}
-	fn correct_and_deposit_fee(
-		who: &H160,
-		corrected_fee: U256,
-		base_fee: U256,
-		already_withdrawn: Self::LiquidityInfo,
-	) -> Self::LiquidityInfo {
-		<EVMCurrencyAdapter<<T as pallet_evm::Config>::Currency, OU> as OnChargeEVMTransaction<
-			T,
-		>>::correct_and_deposit_fee(who, corrected_fee, base_fee, already_withdrawn)
-	}
-
-	fn pay_priority_fee(tip: Self::LiquidityInfo) {
-		if let Some(tip) = tip {
-			OU::on_unbalanced(tip);
-		}
-	}
-}
-
 /// Implements the transaction payment for native as well as non-native currencies
 pub struct TransferFees<MC, DF, FR>(PhantomData<(MC, DF, FR)>);
 
@@ -571,5 +513,14 @@ impl<T: Config> Contains<AssetIdOf<T>> for Pallet<T> {
 impl<T: Config> GetByKey<AssetIdOf<T>, Option<FixedU128>> for Pallet<T> {
 	fn get(k: &AssetIdOf<T>) -> Option<FixedU128> {
 		AcceptedCurrencyPrice::<T>::get(k)
+	}
+}
+
+/// Provides account's fee payment asset or default fee asset ( Native asset )
+impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
+	type AssetId = AssetIdOf<T>;
+
+	fn get(who: &T::AccountId) -> Self::AssetId {
+		Pallet::<T>::account_currency(who)
 	}
 }

@@ -4621,7 +4621,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "220.0.0"
+version = "222.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4633,6 +4633,8 @@ dependencies = [
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
  "ethabi",
+ "evm 0.39.1",
+ "fp-evm",
  "fp-rpc",
  "fp-self-contained",
  "frame-benchmarking",
@@ -4746,7 +4748,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6984,7 +6986,7 @@ checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 
 [[package]]
 name = "pallet-asset-registry"
-version = "3.1.0"
+version = "3.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7402,7 +7404,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.3.7"
+version = "1.4.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8150,7 +8152,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.1.1"
+version = "2.1.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8319,7 +8321,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.0.2"
+version = "2.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8588,7 +8590,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "9.3.0"
+version = "9.3.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11362,7 +11364,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.19.5"
+version = "1.19.7"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",

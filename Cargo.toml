@@ -9,7 +9,7 @@ members = [
   'pallets/dca',
   'primitives',
   'utils/build-script-utils',
-   'integration-tests',
+  'integration-tests',
   'pallets/circuit-breaker',
   'pallets/xcm-rate-limiter',
   'pallets/omnipool-liquidity-mining',
@@ -250,6 +250,8 @@ pallet-evm-precompile-simple = { git = "https://github.com/moonbeam-foundation/f
 pallet-evm-precompile-modexp = { git = "https://github.com/moonbeam-foundation/frontier", rev = "bf5885a982041cc744ecbb62a2afc13d56d464dc", default-features = false }
 pallet-evm-precompile-bn128 = { git = "https://github.com/moonbeam-foundation/frontier", rev = "bf5885a982041cc744ecbb62a2afc13d56d464dc", default-features = false }
 pallet-evm-precompile-blake2 = { git = "https://github.com/moonbeam-foundation/frontier", rev = "bf5885a982041cc744ecbb62a2afc13d56d464dc", default-features = false }
+evm = { git = "https://github.com/moonbeam-foundation/evm", rev = "a33ac87ad7462b7e7029d12c385492b2a8311d1c", default-features = false }
+
 
 # EVM from acala
 module-evm-utility-macro = { path = "runtime/hydradx/src/evm/evm-utility/macro", default-features = false}
