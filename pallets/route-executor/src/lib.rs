@@ -143,6 +143,8 @@ pub mod pallet {
 		RouteUpdateIsNotSuccessful,
 		///Insufficient asset is not supported for on chain routing
 		InsufficientAssetNotSupported,
+		///The route execution failed in the underlying AMM
+		InvalidRouteExecution,
 	}
 
 	/// Storing routes for asset pairs
@@ -190,7 +192,8 @@ pub mod pallet {
 
 			let user_balance_of_asset_in_before_trade =
 				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
-
+			let user_balance_of_asset_out_before_trade =
+				T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 			ensure!(
 				user_balance_of_asset_in_before_trade >= amount_in,
 				Error::<T>::InsufficientBalance
@@ -205,6 +208,9 @@ pub mod pallet {
 			);
 
 			for (trade_amount, trade) in trade_amounts.iter().zip(route) {
+				let user_balance_of_asset_in_before_trade =
+					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
 					trade.pool,
@@ -215,7 +221,21 @@ pub mod pallet {
 				);
 
 				handle_execution_error!(execution_result);
+
+				Self::ensure_that_user_spent_asset_in_at_least(
+					who.clone(),
+					trade.asset_in,
+					user_balance_of_asset_in_before_trade,
+					trade_amount.amount_in,
+				)?;
 			}
+
+			Self::ensure_that_user_received_asset_out_at_most(
+				who,
+				asset_out,
+				user_balance_of_asset_out_before_trade,
+				last_trade_amount.amount_out,
+			)?;
 
 			Self::deposit_event(Event::Executed {
 				asset_in,
@@ -251,11 +271,16 @@ pub mod pallet {
 			max_amount_in: T::Balance,
 			route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+
 			Self::ensure_route_size(route.len())?;
 
 			let asset_pair = AssetPair::new(asset_in, asset_out);
 			let route = Self::get_route_or_default(route, asset_pair)?;
 			Self::ensure_route_arguments(&asset_pair, &route)?;
+
+			let user_balance_of_asset_in_before_trade =
+				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
@@ -263,6 +288,8 @@ pub mod pallet {
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
 			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
+				let user_balance_of_asset_out_before_trade =
+					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
 					trade.pool,
@@ -273,7 +300,21 @@ pub mod pallet {
 				);
 
 				handle_execution_error!(execution_result);
+
+				Self::ensure_that_user_received_asset_out_at_most(
+					who.clone(),
+					trade.asset_out,
+					user_balance_of_asset_out_before_trade,
+					trade_amount.amount_out,
+				)?;
 			}
+
+			Self::ensure_that_user_spent_asset_in_at_least(
+				who,
+				asset_in,
+				user_balance_of_asset_in_before_trade,
+				first_trade.amount_in,
+			)?;
 
 			Self::deposit_event(Event::Executed {
 				asset_in,
@@ -406,6 +447,48 @@ impl<T: Config> Pallet<T> {
 				Error::<T>::InsufficientAssetNotSupported
 			);
 		}
+
+		Ok(())
+	}
+
+	fn ensure_that_user_received_asset_out_at_most(
+		who: T::AccountId,
+		asset_out: T::AssetId,
+		user_balance_of_asset_out_before_trade: T::Balance,
+		expected_received_amount: T::Balance,
+	) -> Result<(), DispatchError> {
+		let user_balance_of_asset_out_after_trade =
+			T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
+
+		let actual_received_amount = user_balance_of_asset_out_after_trade
+			.checked_sub(&user_balance_of_asset_out_before_trade)
+			.ok_or(Error::<T>::InvalidRouteExecution)?;
+
+		ensure!(
+			actual_received_amount <= expected_received_amount,
+			Error::<T>::InvalidRouteExecution
+		);
+
+		Ok(())
+	}
+
+	fn ensure_that_user_spent_asset_in_at_least(
+		who: T::AccountId,
+		asset_in: T::AssetId,
+		user_balance_of_asset_in_before_trade: T::Balance,
+		expected_spent_amount: T::Balance,
+	) -> Result<(), DispatchError> {
+		let user_balance_of_asset_in_after_trade =
+			T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+
+		let actual_spent_amount = user_balance_of_asset_in_before_trade
+			.checked_sub(&user_balance_of_asset_in_after_trade)
+			.ok_or(Error::<T>::InvalidRouteExecution)?;
+
+		ensure!(
+			actual_spent_amount >= expected_spent_amount,
+			Error::<T>::InvalidRouteExecution
+		);
 
 		Ok(())
 	}
