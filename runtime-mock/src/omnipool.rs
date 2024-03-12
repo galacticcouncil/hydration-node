@@ -98,4 +98,3 @@ impl crate::traits::Loader for OmnipoolPallet {
 		todo!()
 	}
 }
-

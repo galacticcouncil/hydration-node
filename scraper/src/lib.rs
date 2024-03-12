@@ -2,10 +2,7 @@
 #![allow(clippy::type_complexity)]
 
 use codec::{Compact, Decode, Encode};
-use frame_support::sp_runtime::{
-	traits::Block as BlockT,
-	StateVersion,
-};
+use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion};
 use sp_core::H256;
 use sp_io::TestExternalities;
 use std::{
