@@ -100,13 +100,13 @@ parameter_types! {
 
 	pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
 
-  pub AssetHubLocation: MultiLocation = (Parent, Parachain(1000)).into();
+	pub AssetHubLocation: MultiLocation = (Parent, Parachain(1000)).into();
 }
 
 /// Matches foreign assets from a given origin.
 /// Foreign assets are assets bridged from other consensus systems. i.e parents > 1.
-pub struct IsForeignNativeAsset<Origin>(PhantomData<Origin>);
-impl<Origin> ContainsPair<MultiAsset, MultiLocation> for IsForeignNativeAsset<Origin>
+pub struct IsForeignNativeAssetFrom<Origin>(PhantomData<Origin>);
+impl<Origin> ContainsPair<MultiAsset, MultiLocation> for IsForeignNativeAssetFrom<Origin>
 where
 	Origin: Get<MultiLocation>,
 {
@@ -123,8 +123,31 @@ where
 	}
 }
 
+/// Matches DOT from AssetHub, so we can send directly DOT from AssetHub to Hydra.
+pub struct IsDotFrom<Origin>(PhantomData<Origin>);
+impl<Origin> ContainsPair<MultiAsset, MultiLocation> for IsDotFrom<Origin>
+where
+	Origin: Get<MultiLocation>,
+{
+	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
+		let loc = Origin::get();
+		&loc == origin
+			&& matches!(
+				asset,
+				MultiAsset {
+					id: Concrete(MultiLocation {
+						parents: 1,
+						interior: Here
+					}),
+					fun: Fungible(_),
+				},
+			)
+	}
+}
+
 pub type Reserves = (
-	IsForeignNativeAsset<AssetHubLocation>,
+	IsDotFrom<AssetHubLocation>,
+	IsForeignNativeAssetFrom<AssetHubLocation>,
 	MultiNativeAsset<AbsoluteReserveProvider>,
 );
 

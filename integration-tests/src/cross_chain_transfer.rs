@@ -472,7 +472,7 @@ fn claim_trapped_asset_should_work() {
 }
 
 #[test]
-fn transfer_foreign_asset_from_asset_hub_to_hydra() {
+fn transfer_foreign_asset_from_asset_hub_to_hydra_should_work() {
 	//Arrange
 	TestNet::reset();
 
@@ -620,6 +620,160 @@ fn transfer_foreign_asset_from_acala_to_hydra_should_not_work() {
 	});
 }
 
+#[test]
+fn transfer_dot_reserve_from_asset_hub_to_hydra_should_work() {
+	//Arrange
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		add_currency_price(DOT, FixedU128::from(1));
+
+		assert_ok!(hydradx_runtime::Tokens::deposit(
+			DOT,
+			&AccountId::from(ALICE),
+			3000 * UNITS
+		));
+
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			DOT,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, Here))
+		));
+	});
+
+	AssetHub::execute_with(|| {
+		let _ = with_transaction(|| {
+			register_dot();
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+
+		assert_ok!(hydradx_runtime::Tokens::deposit(
+			DOT,
+			&AccountId::from(ALICE),
+			3000 * UNITS
+		));
+
+		let foreign_asset: MultiAssets = MultiAsset::from((
+			MultiLocation {
+				parents: 1,
+				interior: Junctions::Here,
+			},
+			100 * UNITS,
+		))
+		.into();
+
+		let bob_beneficiary: MultiLocation = Junction::AccountId32 { id: BOB, network: None }.into();
+
+		let xcm =
+			xcm_for_transfer_and_deposit_asset_to_hydra::<hydradx_runtime::RuntimeCall>(foreign_asset, bob_beneficiary);
+
+		//Act
+		let res = hydradx_runtime::PolkadotXcm::execute(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			Box::new(xcm),
+			Weight::from_parts(399_600_000_000, 0),
+		);
+		assert_ok!(res);
+
+		assert!(matches!(
+			last_hydra_events(2).first(),
+			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+				cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+			))
+		));
+	});
+
+	//Assert
+	Hydra::execute_with(|| {
+		assert!(matches!(
+			last_hydra_events(2).first(),
+			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+				cumulus_pallet_xcmp_queue::Event::Success { .. }
+			))
+		));
+
+		let fee = hydradx_runtime::Tokens::free_balance(DOT, &hydradx_runtime::Treasury::account_id());
+		assert!(fee > 0, "treasury should have received fees");
+		//Check if the foreign asset from Assethub has been deposited successfully
+		assert_eq!(
+			hydradx_runtime::Currencies::free_balance(DOT, &AccountId::from(BOB)),
+			100 * UNITS - fee
+		);
+	});
+}
+
+#[test]
+fn transfer_dot_reserve_from_non_asset_hub_chain_to_hydra_should_not_work() {
+	//Arrange
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		add_currency_price(DOT, FixedU128::from(1));
+
+		assert_ok!(hydradx_runtime::Tokens::deposit(
+			DOT,
+			&AccountId::from(ALICE),
+			3000 * UNITS
+		));
+
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			DOT,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, Here))
+		));
+	});
+
+	Acala::execute_with(|| {
+		let _ = with_transaction(|| {
+			register_dot();
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+
+		assert_ok!(hydradx_runtime::Tokens::deposit(
+			DOT,
+			&AccountId::from(ALICE),
+			3000 * UNITS
+		));
+
+		let foreign_asset: MultiAssets = MultiAsset::from((
+			MultiLocation {
+				parents: 1,
+				interior: Junctions::Here,
+			},
+			100 * UNITS,
+		))
+		.into();
+
+		let bob_beneficiary: MultiLocation = Junction::AccountId32 { id: BOB, network: None }.into();
+
+		let xcm =
+			xcm_for_transfer_and_deposit_asset_to_hydra::<hydradx_runtime::RuntimeCall>(foreign_asset, bob_beneficiary);
+
+		//Act
+		let res = hydradx_runtime::PolkadotXcm::execute(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			Box::new(xcm),
+			Weight::from_parts(399_600_000_000, 0),
+		);
+		assert_ok!(res);
+
+		assert!(matches!(
+			last_hydra_events(2).first(),
+			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+				cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+			))
+		));
+	});
+
+	//Assert
+	Hydra::execute_with(|| {
+		assert!(matches!(
+			last_hydra_events(2).first(),
+			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+				cumulus_pallet_xcmp_queue::Event::Fail { .. }
+			))
+		));
+	});
+}
+
 fn xcm_for_transfer_and_deposit_asset_to_hydra<RC: Decode + GetDispatchInfo>(
 	assets: MultiAssets,
 	beneficiary: MultiLocation,
@@ -687,6 +841,19 @@ fn register_foreign_asset() {
 			2,
 			X1(GlobalConsensus(NetworkId::BitcoinCash))
 		))),
+		None,
+	));
+}
+
+fn register_dot() {
+	assert_ok!(AssetRegistry::register_sufficient_asset(
+		Some(DOT),
+		Some(b"DOT".to_vec().try_into().unwrap()),
+		AssetKind::Token,
+		1_000_000,
+		None,
+		None,
+		Some(hydradx_runtime::AssetLocation(MultiLocation::new(1, Here))),
 		None,
 	));
 }
