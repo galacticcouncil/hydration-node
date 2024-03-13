@@ -123,7 +123,7 @@ where
 	}
 }
 
-/// Matches DOT from AssetHub, so we can send directly DOT from AssetHub to Hydra.
+/// Matches DOT from given origin, to send directly DOT from origin to Hydra.
 pub struct IsDotFrom<Origin>(PhantomData<Origin>);
 impl<Origin> ContainsPair<MultiAsset, MultiLocation> for IsDotFrom<Origin>
 where
