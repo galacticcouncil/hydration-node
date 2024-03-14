@@ -252,7 +252,7 @@ mod account_conversion {
 	}
 
 	#[test]
-	fn evm_call_from_runtime_rpc_should_be_accepted_from_bound_addresses() {
+	fn evm_call_from_runtime_rpc_should_be_accepted_from_unbound_addresses() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
