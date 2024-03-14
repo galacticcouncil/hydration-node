@@ -397,6 +397,13 @@ where
 				_ => Pallet::<T>::account_currency(who),
 			};
 			currency
+		} else if let Some(pallet_utility::pallet::Call::<T>::batch_all { calls }) = call.is_sub_type() {
+			let first_call = &calls[0];
+			let currency = match first_call.is_sub_type() {
+				Some(Call::set_currency { currency }) => *currency,
+				_ => Pallet::<T>::account_currency(who),
+			};
+			currency
 		} else {
 			Pallet::<T>::account_currency(who)
 		};
