@@ -361,13 +361,14 @@ pub struct TransferFees<MC, DF, FR>(PhantomData<(MC, DF, FR)>);
 
 impl<T, MC, DF, FR> OnChargeTransaction<T> for TransferFees<MC, DF, FR>
 where
-	T: Config,
+	T: Config + pallet_utility::Config,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	AssetIdOf<T>: Into<MC::CurrencyId>,
 	MC::Balance: FixedPointOperand,
 	FR: Get<T::AccountId>,
 	DF: DepositFee<T::AccountId, MC::CurrencyId, MC::Balance>,
-	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>>,
+	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
+	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 	BalanceOf<T>: FixedPointOperand,
 {
 	type LiquidityInfo = Option<PaymentInfo<Self::Balance, AssetIdOf<T>, Price>>;
@@ -378,8 +379,8 @@ where
 	/// Note: The `fee` already includes the `tip`.
 	fn withdraw_fee(
 		who: &T::AccountId,
-		call: &T::RuntimeCall,
-		_info: &DispatchInfoOf<T::RuntimeCall>,
+		call: &<T as frame_system::Config>::RuntimeCall,
+		_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
 		fee: Self::Balance,
 		_tip: Self::Balance,
 	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
@@ -387,9 +388,17 @@ where
 			return Ok(None);
 		}
 
-		let currency = match call.is_sub_type() {
-			Some(Call::set_currency { currency }) => *currency,
-			_ => Pallet::<T>::account_currency(who),
+		let currency = if let Some(Call::set_currency { currency }) = call.is_sub_type() {
+			*currency
+		} else if let Some(pallet_utility::pallet::Call::<T>::batch { calls }) = call.is_sub_type() {
+			let first_call = &calls[0];
+			let currency = match first_call.is_sub_type() {
+				Some(Call::set_currency { currency }) => *currency,
+				_ => Pallet::<T>::account_currency(who),
+			};
+			currency
+		} else {
+			Pallet::<T>::account_currency(who)
 		};
 
 		let price = Pallet::<T>::get_currency_price(currency)
@@ -416,8 +425,8 @@ where
 	/// Note: The `fee` already includes the `tip`.
 	fn correct_and_deposit_fee(
 		who: &T::AccountId,
-		_dispatch_info: &DispatchInfoOf<T::RuntimeCall>,
-		_post_info: &PostDispatchInfoOf<T::RuntimeCall>,
+		_dispatch_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
+		_post_info: &PostDispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
 		corrected_fee: Self::Balance,
 		tip: Self::Balance,
 		already_withdrawn: Self::LiquidityInfo,

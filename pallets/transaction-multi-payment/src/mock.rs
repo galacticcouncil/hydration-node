@@ -85,6 +85,7 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 Tokens: orml_tokens,
+		 Utility: pallet_utility,
 	 }
 
 );
@@ -258,6 +259,13 @@ impl pallet_currencies::Config for Test {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type GetNativeCurrencyId = HdxAssetId;
+	type WeightInfo = ();
+}
+
+impl pallet_utility::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type PalletsOrigin = OriginCaller;
 	type WeightInfo = ();
 }
 

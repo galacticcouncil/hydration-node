@@ -8601,6 +8601,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-evm",
  "pallet-transaction-payment",
+ "pallet-utility",
  "parity-scale-codec",
  "primitives",
  "scale-info",
