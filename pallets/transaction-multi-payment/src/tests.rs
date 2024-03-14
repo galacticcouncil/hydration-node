@@ -212,10 +212,7 @@ fn set_supported_currency_in_batch_should_not_work_if_not_first_transaction() {
 		let pre = ChargeTransactionPayment::<Test>::from(0).pre_dispatch(&ALICE, &call, &info, len);
 		assert!(pre.is_ok());
 
-		assert_eq!(
-			Currencies::free_balance(HDX, &ALICE),
-			999_999_999_999_980
-		);
+		assert_eq!(Currencies::free_balance(HDX, &ALICE), 999_999_999_999_980);
 
 		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 			Some(pre.unwrap()),
@@ -225,7 +222,10 @@ fn set_supported_currency_in_batch_should_not_work_if_not_first_transaction() {
 			&Ok(())
 		));
 		assert_eq!(Currencies::free_balance(HDX, &FEE_RECEIVER), 20);
-		assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE), alice_initial_non_native_balance);
+		assert_eq!(
+			Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE),
+			alice_initial_non_native_balance
+		);
 	});
 
 	// batch_all
@@ -246,10 +246,7 @@ fn set_supported_currency_in_batch_should_not_work_if_not_first_transaction() {
 		let pre = ChargeTransactionPayment::<Test>::from(0).pre_dispatch(&ALICE, &call, &info, len);
 		assert!(pre.is_ok());
 
-		assert_eq!(
-			Currencies::free_balance(HDX, &ALICE),
-			999_999_999_999_980
-		);
+		assert_eq!(Currencies::free_balance(HDX, &ALICE), 999_999_999_999_980);
 
 		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
 			Some(pre.unwrap()),
@@ -259,7 +256,10 @@ fn set_supported_currency_in_batch_should_not_work_if_not_first_transaction() {
 			&Ok(())
 		));
 		assert_eq!(Currencies::free_balance(HDX, &FEE_RECEIVER), 20);
-		assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE), alice_initial_non_native_balance);
+		assert_eq!(
+			Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE),
+			alice_initial_non_native_balance
+		);
 	});
 }
 
