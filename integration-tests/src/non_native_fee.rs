@@ -83,6 +83,7 @@ fn non_native_fee_payment_works_with_oracle_price_based_on_onchain_route() {
 fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 	TestNet::reset();
 
+	// batch
 	Hydra::execute_with(|| {
 		let first_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
@@ -109,12 +110,10 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 		assert_eq!(bob_balance, 999991);
 	});
-}
 
-#[test]
-fn set_currency_should_work_in_batch_all_transaction_when_first_tx() {
 	TestNet::reset();
 
+	// batch_all
 	Hydra::execute_with(|| {
 		let first_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: BTC },
@@ -147,6 +146,7 @@ fn set_currency_should_work_in_batch_all_transaction_when_first_tx() {
 fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 	TestNet::reset();
 
+	// batch
 	Hydra::execute_with(|| {
 		let first_inner_call = hydradx_runtime::RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		let second_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
@@ -175,12 +175,10 @@ fn set_currency_should_not_work_in_batch_transaction_when_not_first_tx() {
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
 		assert_eq!(bob_balance, bob_initial_balance);
 	});
-}
 
-#[test]
-fn set_currency_should_not_work_in_batch_all_transaction_when_not_first_tx() {
 	TestNet::reset();
 
+	// batch_all
 	Hydra::execute_with(|| {
 		let first_inner_call = hydradx_runtime::RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		let second_inner_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
