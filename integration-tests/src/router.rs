@@ -88,7 +88,7 @@ mod router_different_pools_tests {
 			//Act
 			assert_noop!(
 				Router::sell(
-					RuntimeOrigiHn::signed(BOB.into()),
+					RuntimeOrigin::signed(BOB.into()),
 					HDX,
 					DOT,
 					amount_to_sell,
