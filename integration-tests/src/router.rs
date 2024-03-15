@@ -2894,7 +2894,7 @@ mod set_route {
 	}
 
 	#[test]
-	fn set_route_should_not_work_when_no_existing_and_reversed_route_is_not_valid_for_trade() {
+	fn set_route_should_not_work_when_new_route_is_invalid() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -2960,16 +2960,22 @@ mod set_route {
 				},
 			];
 
+			assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				Tradability::FROZEN
+			));
+
 			//Act and assert
 			assert_noop!(
 				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-				pallet_omnipool::Error::<hydradx_runtime::Runtime>::MaxInRatioExceeded
+				pallet_omnipool::Error::<hydradx_runtime::Runtime>::NotAllowed
 			);
 		});
 	}
 
 	#[test]
-	fn set_route_should_not_work_when_reversed_route_is_not_valid_due_to_maxout_ratio() {
+	fn set_route_should_fail_when_reversed_route_is_not_valid_due_to_minout_ratio() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -2991,11 +2997,11 @@ mod set_route {
 				AccountId::from(BOB),
 			));
 
-			create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
-			create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, BTC, 1000000 * UNITS);
-
 			create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DAI, 1000000 * UNITS);
 			create_xyk_pool_with_amounts(DAI, 1000000 * UNITS, DOT, 1000000 * UNITS);
+			create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, BTC, 1000000 * UNITS);
+
+			create_xyk_pool_with_amounts(HDX, 100000 * UNITS, BTC, 50000000000 * UNITS);
 
 			let route1 = vec![
 				Trade {
@@ -3023,18 +3029,11 @@ mod set_route {
 				route1
 			));
 
-			let route2 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
+			let route2 = vec![Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: BTC,
+			}];
 
 			//Act and assert
 			assert_noop!(

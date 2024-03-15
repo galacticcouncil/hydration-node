@@ -38,6 +38,7 @@ pub use hydradx_traits::router::{
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
+use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{ArithmeticError, DispatchError, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
@@ -369,17 +370,29 @@ pub mod pallet {
 
 			match Self::validate_route(&existing_route) {
 				Ok((reference_amount_in, reference_amount_in_for_inverse)) => {
-					let inverse_new_route = inverse_route(new_route.to_vec());
-					let inverse_existing_route = inverse_route(existing_route.to_vec());
+					let new_route_validation = Self::validate_sell(new_route.clone(), reference_amount_in);
 
-					Self::validate_sell(new_route.clone(), reference_amount_in)?;
-					Self::validate_sell(inverse_new_route.clone(), reference_amount_in_for_inverse)?;
+					let inverse_new_route = inverse_route(new_route.to_vec());
+					let inverse_new_route_validation =
+						Self::validate_sell(inverse_new_route.clone(), reference_amount_in_for_inverse);
+
+					match (new_route_validation, inverse_new_route_validation) {
+						(Ok(_), Ok(_)) => (),
+						(Err(_), Ok(amount_out)) => {
+							Self::validate_sell(new_route.clone().to_vec(), amount_out).map(|_| ())?;
+						}
+						(Ok(amount_out), Err(_)) => {
+							Self::validate_sell(inverse_new_route.clone(), amount_out).map(|_| ())?;
+						}
+						(Err(err), Err(_)) => return Err(err.into()),
+					}
 
 					let amount_out_for_existing_route =
 						Self::calculate_expected_amount_out(&existing_route, reference_amount_in)?;
 					let amount_out_for_new_route =
 						Self::calculate_expected_amount_out(&new_route, reference_amount_in)?;
 
+					let inverse_existing_route = inverse_route(existing_route.to_vec());
 					let amount_out_for_existing_inversed_route =
 						Self::calculate_expected_amount_out(&inverse_existing_route, reference_amount_in_for_inverse)?;
 					let amount_out_for_new_inversed_route =
@@ -514,13 +527,22 @@ impl<T: Config> Pallet<T> {
 
 	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<(T::Balance, T::Balance), DispatchError> {
 		let reference_amount_in = Self::calculate_reference_amount_in(route)?;
-		Self::validate_sell(route.to_vec(), reference_amount_in)?;
+		let route_validation = Self::validate_sell(route.to_vec(), reference_amount_in);
 
 		let inverse_route = inverse_route(route.to_vec());
 		let reference_amount_in_for_inverse_route = Self::calculate_reference_amount_in(&inverse_route)?;
-		Self::validate_sell(inverse_route, reference_amount_in_for_inverse_route)?;
+		let inverse_route_validation =
+			Self::validate_sell(inverse_route.clone(), reference_amount_in_for_inverse_route);
 
-		Ok((reference_amount_in, reference_amount_in_for_inverse_route))
+		match (route_validation, inverse_route_validation) {
+			(Ok(_), Ok(_)) => Ok((reference_amount_in, reference_amount_in_for_inverse_route)),
+			(Err(_), Ok(amount_out)) => Self::validate_sell(route.clone().to_vec(), amount_out)
+				.map(|_| ((amount_out, reference_amount_in_for_inverse_route))),
+			(Ok(amount_out), Err(_)) => {
+				Self::validate_sell(inverse_route.clone(), amount_out).map(|_| ((reference_amount_in, amount_out)))
+			}
+			(Err(err), Err(_)) => Err(err.into()),
+		}
 	}
 
 	fn calculate_reference_amount_in(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
@@ -547,19 +569,23 @@ impl<T: Config> Pallet<T> {
 		Ok(one_percent_asset_in_liquidity)
 	}
 
-	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> DispatchResult {
+	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> Result<T::Balance, DispatchError> {
 		let asset_in = route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
 		let asset_out = route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
 
-		with_transaction(|| {
+		with_transaction::<T::Balance, DispatchError, _>(|| {
 			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
+			let Ok(who) = ensure_signed(origin.clone()) else {
+				return TransactionOutcome::Rollback(Err(Error::<T>::InvalidRoute.into()))
+			};
 			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
 
 			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());
+			let amount_out =
+				T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 
-			TransactionOutcome::Rollback(sell_result)
+			TransactionOutcome::Rollback(sell_result.map(|_| amount_out))
 		})
-		.map_err(|err| err.into())
 	}
 
 	fn calculate_expected_amount_out(
