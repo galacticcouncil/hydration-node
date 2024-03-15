@@ -390,27 +390,20 @@ where
 
 		let currency = if let Some(Call::set_currency { currency }) = call.is_sub_type() {
 			*currency
-		} else if let Some(pallet_utility::pallet::Call::<T>::batch { calls }) = call.is_sub_type() {
-			let first_call = &calls[0];
-			let currency = match first_call.is_sub_type() {
-				Some(Call::set_currency { currency }) => *currency,
+		} else if let Some(pallet_utility::pallet::Call::batch { calls })
+		| Some(pallet_utility::pallet::Call::batch_all { calls })
+		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
+		{
+			// `calls` can be empty Vec
+			match calls.first() {
+				Some(first_call) => {
+					match first_call.is_sub_type() {
+						Some(Call::set_currency { currency }) => *currency,
+						_ => Pallet::<T>::account_currency(who),
+					}
+				}
 				_ => Pallet::<T>::account_currency(who),
-			};
-			currency
-		} else if let Some(pallet_utility::pallet::Call::<T>::batch_all { calls }) = call.is_sub_type() {
-			let first_call = &calls[0];
-			let currency = match first_call.is_sub_type() {
-				Some(Call::set_currency { currency }) => *currency,
-				_ => Pallet::<T>::account_currency(who),
-			};
-			currency
-		} else if let Some(pallet_utility::pallet::Call::<T>::force_batch { calls }) = call.is_sub_type() {
-			let first_call = &calls[0];
-			let currency = match first_call.is_sub_type() {
-				Some(Call::set_currency { currency }) => *currency,
-				_ => Pallet::<T>::account_currency(who),
-			};
-			currency
+			}
 		} else {
 			Pallet::<T>::account_currency(who)
 		};
