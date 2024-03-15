@@ -2767,7 +2767,7 @@ mod set_route {
 			//Act and assert
 			assert_noop!(
 				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
-				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientAssetBalance
+				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 			);
 		});
 	}
@@ -2839,7 +2839,7 @@ mod set_route {
 					asset_pair,
 					invalid_route
 				),
-				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientAssetBalance
+				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 			);
 		});
 	}

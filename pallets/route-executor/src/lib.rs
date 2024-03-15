@@ -431,6 +431,13 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InvalidRoute
 		);
 
+		for i in 0..route.len().saturating_sub(1) {
+			let asset_out = route.get(i).ok_or(Error::<T>::InvalidRoute)?.asset_out;
+			let next_trade_asset_in = route.get(i.saturating_add(1)).ok_or(Error::<T>::InvalidRoute)?.asset_in;
+
+			ensure!(asset_out == next_trade_asset_in, Error::<T>::InvalidRoute)
+		}
+
 		Ok(())
 	}
 
