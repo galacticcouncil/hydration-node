@@ -54,6 +54,53 @@ mod router_different_pools_tests {
 	use super::*;
 
 	#[test]
+	fn route_should_fail_when_route_is_not_consistent() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool();
+			create_xyk_pool_with_amounts(DAI, 1000000 * UNITS, DOT, 1000000 * UNITS);
+			create_xyk_pool_with_amounts(ETH, 1000000 * UNITS, DOT, 1000000 * UNITS);
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				BOB.into(),
+				ETH,
+				300000000 * UNITS as i128,
+			));
+
+			let amount_to_sell = UNITS;
+			let limit = 0;
+			let trades = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DAI,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: ETH,
+					asset_out: DOT,
+				},
+			];
+
+			//Act
+			assert_noop!(
+				Router::sell(
+					RuntimeOrigiHn::signed(BOB.into()),
+					HDX,
+					DOT,
+					amount_to_sell,
+					limit,
+					trades
+				),
+				pallet_route_executor::Error::<Runtime>::InvalidRoute
+			);
+		});
+	}
+
+	#[test]
 	fn sell_should_work_when_route_contains_trades_with_different_pools() {
 		TestNet::reset();
 
