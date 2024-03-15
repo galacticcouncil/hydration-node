@@ -2720,7 +2720,7 @@ mod set_route {
 			//Act and assert
 			assert_noop!(
 				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
+				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientAssetBalance
 			);
 		});
 	}
@@ -2792,7 +2792,7 @@ mod set_route {
 					asset_pair,
 					invalid_route
 				),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
+				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientAssetBalance
 			);
 		});
 	}
@@ -2916,7 +2916,7 @@ mod set_route {
 			//Act and assert
 			assert_noop!(
 				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
+				pallet_omnipool::Error::<hydradx_runtime::Runtime>::MaxInRatioExceeded
 			);
 		});
 	}
@@ -2992,7 +2992,7 @@ mod set_route {
 			//Act and assert
 			assert_noop!(
 				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
+				pallet_omnipool::Error::<hydradx_runtime::Runtime>::MaxInRatioExceeded
 			);
 		});
 	}

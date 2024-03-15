@@ -552,7 +552,7 @@ impl<T: Config> Pallet<T> {
 
 			TransactionOutcome::Rollback(sell_result)
 		})
-		.map_err(|_| Error::<T>::InvalidRoute.into())
+		.map_err(|err| err.into())
 	}
 
 	fn calculate_expected_amount_out(
