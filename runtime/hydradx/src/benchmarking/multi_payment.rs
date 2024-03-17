@@ -162,7 +162,7 @@ runtime_benchmarks! {
 			let caller_evm_address = pallet_evm_accounts::Pallet::<Runtime>::evm_address(&caller);
 			let caller_evm_acc = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(caller_evm_address);
 
-	}: { _(RawOrigin::Root.into(), caller_evm_acc.clone())? }
+	}: { MultiPaymentPallet::<Runtime>::reset_payment_currency(RawOrigin::Root.into(), caller_evm_acc.clone())? }
 	verify{
 		assert_eq!(MultiPaymentPallet::<Runtime>::get_currency(caller_evm_acc), Some(<Runtime as pallet_transaction_multi_payment::Config>::EvmAssetId::get()));
 	}
