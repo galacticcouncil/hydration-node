@@ -25,12 +25,14 @@ use frame_system::RawOrigin;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::PriceOracle;
+use hydradx_traits::evm::InspectEvmAccounts;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use primitives::{BlockNumber, Price};
 use sp_runtime::traits::SaturatedConversion;
 use sp_runtime::FixedU128;
+use sp_core::Get;
 
 type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
 type XykPallet<T> = pallet_xyk::Pallet<T>;
@@ -152,6 +154,17 @@ runtime_benchmarks! {
 
 	verify{
 		assert!(_price.is_some());
+	}
+
+	reset_payment_currency {
+		let caller: AccountId = account("caller", 0, SEED);
+
+			let caller_evm_address = pallet_evm_accounts::Pallet::<Runtime>::evm_address(&caller);
+			let caller_evm_acc = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(caller_evm_address);
+
+	}: { _(RawOrigin::Root.into(), caller_evm_acc.clone())? }
+	verify{
+		assert_eq!(MultiPaymentPallet::<Runtime>::get_currency(caller_evm_acc), Some(<Runtime as pallet_transaction_multi_payment::Config>::EvmAssetId::get()));
 	}
 }
 

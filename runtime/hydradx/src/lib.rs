@@ -46,6 +46,7 @@ pub use xcm::*;
 
 use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::Hooks;
 use codec::{Decode, Encode};
+use hydradx_traits::evm::InspectEvmAccounts;
 use sp_api::impl_runtime_apis;
 use sp_core::{ConstU128, Get, OpaqueMetadata, H160, H256, U256};
 use sp_runtime::{
@@ -108,7 +109,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 222,
+	spec_version: 223,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,

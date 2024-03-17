@@ -18,7 +18,7 @@ use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 pub use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use hex_literal::hex;
 use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeOrigin};
-use hydradx_traits::registry::Mutate;
+pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 use pallet_referrals::{FeeDistribution, Level};
 pub use polkadot_primitives::v5::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;

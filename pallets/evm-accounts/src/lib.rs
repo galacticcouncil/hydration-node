@@ -52,6 +52,7 @@
 
 use frame_support::ensure;
 use frame_support::pallet_prelude::{DispatchResult, Get};
+use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{
 	crypto::{AccountId32, ByteArray},
 	H160, U256,
@@ -262,18 +263,24 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T>
+impl<T: Config> InspectEvmAccounts<T::AccountId, EvmAddress> for Pallet<T>
 where
-	T::AccountId: frame_support::traits::IsType<AccountId32>,
+	T::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
 {
-	/// get the EVM address from the substrate address.
-	pub fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
+	/// Returns `True` if the account is EVM truncated account.
+	fn is_evm_account(account_id: T::AccountId) -> bool {
+		let account_ref = account_id.as_ref();
+		&account_ref[0..4] == b"ETH\0" && account_ref[24..32] == [0u8; 8]
+	}
+
+	/// Get the EVM address from the substrate address.
+	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
 		let acc = account_id.as_ref();
 		EvmAddress::from_slice(&acc[..20])
 	}
 
 	/// Get the truncated address from the EVM address.
-	pub fn truncated_account_id(evm_address: EvmAddress) -> T::AccountId {
+	fn truncated_account_id(evm_address: EvmAddress) -> T::AccountId {
 		let mut data: [u8; 32] = [0u8; 32];
 		data[0..4].copy_from_slice(b"ETH\0");
 		data[4..24].copy_from_slice(&evm_address[..]);
@@ -281,7 +288,7 @@ where
 	}
 
 	/// Return the Substrate address bound to the EVM account. If not bound, returns `None`.
-	pub fn bound_account_id(evm_address: EvmAddress) -> Option<T::AccountId> {
+	fn bound_account_id(evm_address: EvmAddress) -> Option<T::AccountId> {
 		let Some(last_12_bytes) = AccountExtension::<T>::get(evm_address) else {
 			return None;
 		};
@@ -293,11 +300,12 @@ where
 
 	/// Get the Substrate address from the EVM address.
 	/// Returns the truncated version of the address if the address wasn't bind.
-	pub fn account_id(evm_address: EvmAddress) -> T::AccountId {
+	fn account_id(evm_address: EvmAddress) -> T::AccountId {
 		Self::bound_account_id(evm_address).unwrap_or_else(|| Self::truncated_account_id(evm_address))
 	}
 
-	pub fn can_deploy_contracts(evm_address: EvmAddress) -> bool {
+	/// Returns `True` if the address is allowed to deploy smart contracts.
+	fn can_deploy_contracts(evm_address: EvmAddress) -> bool {
 		ContractDeployer::<T>::contains_key(evm_address)
 	}
 }

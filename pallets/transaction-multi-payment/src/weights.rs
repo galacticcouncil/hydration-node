@@ -53,6 +53,7 @@ pub trait WeightInfo {
 	fn remove_currency() -> Weight;
 	fn set_currency() -> Weight;
 	fn get_oracle_price() -> Weight;
+	fn reset_payment_currency() -> Weight;
 }
 
 /// Weights for pallet_transaction_multi_payment using the hydraDX node and recommended hardware.
@@ -105,6 +106,9 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Minimum execution time: 93_281_000 picoseconds.
 		Weight::from_parts(94_259_000, 27510).saturating_add(T::DbWeight::get().reads(11))
 	}
+	fn reset_payment_currency() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
@@ -154,5 +158,8 @@ impl WeightInfo for () {
 		//  Estimated: `27510`
 		// Minimum execution time: 93_281_000 picoseconds.
 		Weight::from_parts(94_259_000, 27510).saturating_add(RocksDbWeight::get().reads(11))
+	}
+	fn reset_payment_currency() -> Weight {
+		Weight::zero()
 	}
 }

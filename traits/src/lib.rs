@@ -23,12 +23,12 @@ pub mod nft;
 pub mod pools;
 pub mod registry;
 pub mod router;
-
-pub use registry::*;
+pub mod evm;
 pub mod oracle;
 pub mod price;
 
 pub use oracle::*;
+pub use registry::*;
 
 use codec::{Decode, Encode};
 use frame_support::dispatch::{self};

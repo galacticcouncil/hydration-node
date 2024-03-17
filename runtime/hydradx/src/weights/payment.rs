@@ -97,4 +97,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::from_parts(95_196_000, 27510)
 			.saturating_add(T::DbWeight::get().reads(11))
 	}
+	fn reset_payment_currency() -> Weight {
+		Weight::zero()
+	}
 }
