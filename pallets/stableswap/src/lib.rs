@@ -724,6 +724,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
+
 			ensure!(
 				Self::is_asset_allowed(pool_id, asset_in, Tradability::SELL)
 					&& Self::is_asset_allowed(pool_id, asset_out, Tradability::BUY),
@@ -793,6 +795,8 @@ pub mod pallet {
 			max_sell_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
 
 			ensure!(
 				Self::is_asset_allowed(pool_id, asset_in, Tradability::SELL)
