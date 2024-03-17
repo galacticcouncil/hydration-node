@@ -23,23 +23,22 @@ use hydra_dx_math::types::Ratio;
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
+	sp_runtime::{
+		traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+		BuildStorage, MultiSignature, Perbill,
+	},
 	traits::{Everything, Get, Nothing},
 	weights::{IdentityFee, Weight},
-	sp_runtime::{
-		BuildStorage, MultiSignature, Perbill,
-	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-		}
 };
 use frame_system as system;
-use hydradx_traits::{AssetPairAccountIdFor, OraclePeriod, PriceOracle, router::{RouteProvider, Trade}};
-use orml_traits::{
-	parameter_type_with_key,
-   currency::MutationHooks,
+use hydradx_traits::{
+	router::{RouteProvider, Trade},
+	AssetPairAccountIdFor, OraclePeriod, PriceOracle,
 };
+use orml_traits::{currency::MutationHooks, parameter_type_with_key};
 use pallet_currencies::BasicCurrencyAdapter;
-use sp_std::{cell::RefCell};
 use sp_core::H256;
-
+use sp_std::cell::RefCell;
 
 pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
 pub type Balance = u128;

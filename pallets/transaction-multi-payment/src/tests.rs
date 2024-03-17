@@ -22,7 +22,7 @@ use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::{DispatchInfo, PostDispatchInfo},
 	sp_runtime::traits::{BadOrigin, SignedExtension},
-	traits::{Hooks, tokens::Precision},
+	traits::{tokens::Precision, Hooks},
 	weights::Weight,
 };
 use hydradx_traits::evm::InspectEvmAccounts;
@@ -1123,7 +1123,11 @@ fn reset_payment_currency_should_set_currency_to_hdx_for_non_evm_accounts() {
 
 		assert_eq!(PaymentPallet::get_currency(ALICE), None);
 
-		expect_events(vec![Event::CurrencySet { account_id: ALICE, asset_id: HDX }.into()]);
+		expect_events(vec![Event::CurrencySet {
+			account_id: ALICE,
+			asset_id: HDX,
+		}
+		.into()]);
 	});
 }
 
@@ -1143,6 +1147,10 @@ fn reset_payment_currency_should_set_currency_to_weth_for_evm_accounts() {
 
 			assert_eq!(PaymentPallet::get_currency(alice_evm_acc.clone()), Some(WETH));
 
-			expect_events(vec![Event::CurrencySet { account_id: alice_evm_acc, asset_id: WETH }.into()]);
+			expect_events(vec![Event::CurrencySet {
+				account_id: alice_evm_acc,
+				asset_id: WETH,
+			}
+			.into()]);
 		});
 }

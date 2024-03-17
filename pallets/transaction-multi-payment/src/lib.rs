@@ -32,27 +32,26 @@ mod traits;
 pub use crate::traits::*;
 use frame_support::traits::{Contains, IsSubType};
 use frame_support::{
-	ensure, traits::Get, weights::Weight,
 	dispatch::DispatchResult,
+	ensure,
 	sp_runtime::{
-		FixedPointNumber, FixedPointOperand, FixedU128,
-		transaction_validity::{InvalidTransaction, TransactionValidityError},
 		traits::{DispatchInfoOf, One, PostDispatchInfoOf, Saturating, Zero},
+		transaction_validity::{InvalidTransaction, TransactionValidityError},
+		FixedPointNumber, FixedPointOperand, FixedU128,
 	},
+	traits::Get,
+	weights::Weight,
 };
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
-use sp_std::{
-    prelude::*,
-	marker::PhantomData,
-};
-use pallet_transaction_payment::OnChargeTransaction;
 use hydradx_traits::{
-	AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle,
-	router::{AssetPair, RouteProvider},
 	evm::InspectEvmAccounts,
+	router::{AssetPair, RouteProvider},
+	AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle,
 };
 use orml_traits::{GetByKey, Happened, MultiCurrency};
+use pallet_transaction_payment::OnChargeTransaction;
+use sp_std::{marker::PhantomData, prelude::*};
 
 type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
 type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
