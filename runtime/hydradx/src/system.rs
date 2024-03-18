@@ -482,8 +482,10 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type RouteProvider = Router;
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type WeightInfo = weights::payment::HydraWeight<Runtime>;
-	type WeightToFee = WeightToFee;
 	type NativeAssetId = NativeAssetId;
+	type EvmAssetId = evm::WethAssetId;
+	type InspectEvmAccounts = EVMAccounts;
+	type WeightToFee = WeightToFee;
 }
 
 impl pallet_relaychain_info::Config for Runtime {

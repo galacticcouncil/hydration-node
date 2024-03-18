@@ -146,6 +146,8 @@ pub mod pallet {
 		InsufficientAssetNotSupported,
 		///The route execution failed in the underlying AMM
 		InvalidRouteExecution,
+		/// Trading same assets is not allowed.
+		NotAllowed,
 	}
 
 	/// Storing routes for asset pairs
@@ -185,6 +187,9 @@ pub mod pallet {
 			route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
+
+			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
+
 			Self::ensure_route_size(route.len())?;
 
 			let asset_pair = AssetPair::new(asset_in, asset_out);
@@ -274,6 +279,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
+			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
 			Self::ensure_route_size(route.len())?;
 
 			let asset_pair = AssetPair::new(asset_in, asset_out);

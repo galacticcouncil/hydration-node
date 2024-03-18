@@ -270,7 +270,7 @@ fn sender_should_pay_ed_only_when_dest_didnt_pay_yet() {
 }
 
 #[test]
-fn dest_should_pay_ed_only_once_when_insufficient_asset_was_depsitted() {
+fn dest_should_pay_ed_only_once_when_insufficient_asset_was_deposited() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let sht1: AssetId = register_external_asset(0_u128);

@@ -16,6 +16,7 @@ use primitives::Price;
 
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_traits::{
+	evm::InspectEvmAccounts,
 	pools::SpotPriceProvider,
 	router::{AssetPair, RouteProvider},
 	OraclePeriod, PriceOracle,
@@ -114,6 +115,42 @@ fn fee_currency_on_account_lifecycle() {
 		));
 
 		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
+	});
+}
+
+#[test]
+fn fee_currency_on_evm_account_lifecycle() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		assert_eq!(MultiTransactionPayment::get_currency(AccountId::from(HITCHHIKER)), None);
+
+		let evm_address = hydradx_runtime::EVMAccounts::evm_address(&Into::<AccountId>::into(HITCHHIKER));
+		let truncated_account: AccountId = hydradx_runtime::EVMAccounts::truncated_account_id(evm_address);
+
+		// ------------ set on create ------------
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(BOB.into()),
+			truncated_account.clone(),
+			DAI,
+			50_000_000_000_000,
+		));
+
+		assert_eq!(Tokens::free_balance(DAI, &truncated_account), 50_000_000_000_000);
+		assert_eq!(
+			MultiTransactionPayment::get_currency(truncated_account.clone()),
+			Some(WETH)
+		);
+
+		// ------------ remove on delete ------------
+		assert_ok!(Tokens::transfer_all(
+			RuntimeOrigin::signed(truncated_account.clone()),
+			BOB.into(),
+			DAI,
+			false,
+		));
+
+		assert_eq!(MultiTransactionPayment::get_currency(truncated_account), None);
 	});
 }
 
