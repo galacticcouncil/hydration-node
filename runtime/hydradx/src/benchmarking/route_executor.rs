@@ -28,6 +28,7 @@ use frame_benchmarking::{account, BenchmarkError};
 use frame_support::dispatch::DispatchResult;
 use frame_support::{assert_ok, ensure};
 use frame_system::RawOrigin;
+use hydradx_traits::router::inverse_route;
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::{PoolType, RouterT, Trade};
 use orml_benchmarking::runtime_benchmarks;
@@ -280,6 +281,57 @@ runtime_benchmarks! {
 	verify {
 		let stored_route = Router::route(AssetPair::new(HDX, asset_6)).unwrap();
 		assert_eq!(stored_route, better_route);
+	}
+
+	// Calculates the weight of xyk force insert route. Used in the calculation to determine the weight of the overhead.
+	force_insert_route_for_xyk {
+		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		let caller: AccountId = funded_account("caller", 0, &[asset_1, asset_2,asset_3]);
+		create_xyk_pool(HDX, asset_2);
+		create_xyk_pool(asset_2, asset_3);
+		create_xyk_pool(asset_3, asset_4);
+		create_xyk_pool(asset_4, asset_5);
+		create_xyk_pool(asset_5, asset_6);
+		create_xyk_pool(HDX, asset_6);
+
+		let route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_6,
+			asset_out: asset_5
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_5,
+			asset_out: asset_4
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_4,
+			asset_out: asset_3
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_3,
+			asset_out: asset_2
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_2,
+			asset_out: HDX
+		}];
+	}: {
+		Router::force_insert_route(
+			RawOrigin::Root.into(),
+			AssetPair::new(asset_6, HDX),
+			route.clone(),
+		)?;
+	}
+	verify {
+
+		let stored_route = Router::route(AssetPair::new(HDX, asset_6)).unwrap();
+		assert_eq!(inverse_route(stored_route.to_vec()), route);
 	}
 }
 
