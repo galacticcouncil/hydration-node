@@ -17,13 +17,11 @@
 #![allow(clippy::result_large_err)]
 
 use crate::{
-	AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeOrigin, System,
-	LBP, XYK,
+	AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System, LBP, XYK,
 };
 
 use super::*;
 use crate::benchmarking::dca::HDX;
-use crate::benchmarking::tokens::update_balance;
 use frame_benchmarking::{account, BenchmarkError};
 use frame_support::dispatch::DispatchResult;
 use frame_support::{assert_ok, ensure};
@@ -34,8 +32,6 @@ use hydradx_traits::router::{PoolType, RouterT, Trade};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::constants::currency::UNITS;
-use sp_runtime::FixedU128;
-use sp_runtime::Permill;
 use sp_std::vec;
 pub const INITIAL_BALANCE: Balance = 10_000_000 * UNITS;
 
@@ -262,7 +258,7 @@ runtime_benchmarks! {
 		Router::set_route(
 			RawOrigin::Signed(caller.clone()).into(),
 			AssetPair::new(HDX, asset_6),
-			route.clone(),
+			route,
 		)?;
 
 		let better_route = vec![Trade {
