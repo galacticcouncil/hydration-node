@@ -283,8 +283,7 @@ runtime_benchmarks! {
 		assert_eq!(stored_route, better_route);
 	}
 
-	// Calculates the weight of xyk force insert route. Used in the calculation to determine the weight of the overhead.
-	force_insert_route_for_xyk {
+	force_insert_route {
 		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
