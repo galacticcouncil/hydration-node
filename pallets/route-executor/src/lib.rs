@@ -379,7 +379,7 @@ pub mod pallet {
 					match (new_route_validation, inverse_new_route_validation) {
 						(Ok(_), Ok(_)) => (),
 						(Err(_), Ok(amount_out)) => {
-							Self::validate_sell(new_route.clone().to_vec(), amount_out).map(|_| ())?;
+							Self::validate_sell(new_route.to_vec(), amount_out).map(|_| ())?;
 						}
 						(Ok(amount_out), Err(_)) => {
 							Self::validate_sell(inverse_new_route.clone(), amount_out).map(|_| ())?;
@@ -569,11 +569,11 @@ impl<T: Config> Pallet<T> {
 		match (route_validation, inverse_route_validation) {
 			(Ok(_), Ok(_)) => Ok((reference_amount_in, reference_amount_in_for_inverse_route)),
 			(Err(_), Ok(amount_out)) => Self::validate_sell(route.clone().to_vec(), amount_out)
-				.map(|_| ((amount_out, reference_amount_in_for_inverse_route))),
+				.map(|_| (amount_out, reference_amount_in_for_inverse_route)),
 			(Ok(amount_out), Err(_)) => {
-				Self::validate_sell(inverse_route.clone(), amount_out).map(|_| ((reference_amount_in, amount_out)))
+				Self::validate_sell(inverse_route, amount_out).map(|_| (reference_amount_in, amount_out))
 			}
-			(Err(err), Err(_)) => Err(err.into()),
+			(Err(err), Err(_)) => Err(err),
 		}
 	}
 

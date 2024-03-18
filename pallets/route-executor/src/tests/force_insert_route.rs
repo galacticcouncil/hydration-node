@@ -36,7 +36,7 @@ fn force_insert_should_not_work_when_called_with_non_technical_origin() {
 
 		//Act
 		assert_noop!(
-			Router::force_insert_route(RuntimeOrigin::signed(ALICE), asset_pair, route.clone()),
+			Router::force_insert_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
 			BadOrigin
 		);
 	});
@@ -55,7 +55,7 @@ fn force_insert_should_work_when_called_with_technical_origin() {
 
 		//Act
 		assert_ok!(
-			Router::force_insert_route(RuntimeOrigin::root(), asset_pair, route.clone()),
+			Router::force_insert_route(RuntimeOrigin::root(), asset_pair, route),
 			Pays::No.into()
 		);
 	});
@@ -101,7 +101,7 @@ fn force_insert_should_fail_when_called_with_too_big_route() {
 
 		//Act
 		assert_noop!(
-			Router::force_insert_route(RuntimeOrigin::root(), asset_pair, route.clone()),
+			Router::force_insert_route(RuntimeOrigin::root(), asset_pair, route),
 			Error::<Test>::MaxTradesExceeded
 		);
 	});
