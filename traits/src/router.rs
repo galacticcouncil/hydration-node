@@ -121,6 +121,12 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 	fn calculate_buy_trade_amounts(route: &[Trade], amount_out: Balance) -> Result<Vec<AmountInAndOut>, DispatchError>;
 
 	fn set_route(origin: Origin, asset_pair: AssetPair<AssetId>, route: Vec<Trade>) -> DispatchResultWithPostInfo;
+
+	fn force_insert_route(
+		origin: Origin,
+		asset_pair: AssetPair<AssetId>,
+		route: Vec<Trade>,
+	) -> DispatchResultWithPostInfo;
 }
 
 /// All AMMs used in the router are required to implement this trait.

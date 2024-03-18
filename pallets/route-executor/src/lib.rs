@@ -108,6 +108,9 @@ pub mod pallet {
 		/// Pool type used in the default route
 		type DefaultRoutePoolType: Get<PoolType<Self::AssetId>>;
 
+		/// Origin able to set route without validation
+		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
 	}
@@ -413,6 +416,38 @@ pub mod pallet {
 
 			Err(Error::<T>::RouteUpdateIsNotSuccessful.into())
 		}
+
+		/// Force inserts the on-chain route for a given asset pair, so there is no any validation for the route
+		///
+		/// Can only be called by technical origin
+		///
+		/// The route is stored in an ordered manner, based on the oder of the ids in the asset pair.
+		///
+		/// If the route is set successfully, then the fee is payed back.
+		///
+		/// - `origin`: The origin of the route setter
+		/// - `asset_pair`: The identifier of the asset-pair for which the route is set
+		/// - `new_route`: Series of [`Trade<AssetId>`] to be executed. A [`Trade<AssetId>`] specifies the asset pair (`asset_in`, `asset_out`) and the AMM (`pool`) in which the trade is executed.
+		///
+		/// Emits `RouteUpdated` when successful.
+		///
+		#[pallet::call_index(3)]
+		#[pallet::weight(T::WeightInfo::set_route_weight(new_route))]
+		#[transactional]
+		pub fn force_insert_route(
+			origin: OriginFor<T>,
+			mut asset_pair: AssetPair<T::AssetId>,
+			mut new_route: Vec<Trade<T::AssetId>>,
+		) -> DispatchResultWithPostInfo {
+			T::TechnicalOrigin::ensure_origin(origin)?;
+
+			if !asset_pair.is_ordered() {
+				asset_pair = asset_pair.ordered_pair();
+				new_route = inverse_route(new_route)
+			}
+
+			Self::insert_route(asset_pair, new_route)
+		}
 	}
 }
 
@@ -706,6 +741,14 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 	) -> DispatchResultWithPostInfo {
 		Pallet::<T>::set_route(origin, asset_pair, route)
 	}
+
+	fn force_insert_route(
+		origin: T::RuntimeOrigin,
+		asset_pair: AssetPair<T::AssetId>,
+		route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResultWithPostInfo {
+		Pallet::<T>::force_insert_route(origin, asset_pair, route)
+	}
 }
 
 pub struct DummyRouter<T>(PhantomData<T>);
@@ -755,6 +798,14 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 	}
 
 	fn set_route(
+		_origin: T::RuntimeOrigin,
+		_asset_pair: AssetPair<T::AssetId>,
+		_route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResultWithPostInfo {
+		Ok(Pays::Yes.into())
+	}
+
+	fn force_insert_route(
 		_origin: T::RuntimeOrigin,
 		_asset_pair: AssetPair<T::AssetId>,
 		_route: Vec<Trade<T::AssetId>>,
