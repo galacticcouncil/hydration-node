@@ -38,7 +38,6 @@ pub use hydradx_traits::router::{
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{ArithmeticError, DispatchError, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
@@ -50,8 +49,6 @@ pub mod weights;
 pub use pallet::*;
 
 pub const MAX_NUMBER_OF_TRADES: u32 = 5;
-
-//TODO: rebenchmark on reference machine
 
 #[frame_support::pallet]
 pub mod pallet {
