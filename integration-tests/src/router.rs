@@ -3119,6 +3119,81 @@ mod set_route {
 	}
 
 	#[test]
+	fn set_route_should_fail_when_no_prestored_but_inverse_route_is_invalid() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool();
+
+			create_xyk_pool_with_amounts(HDX, 100 * UNITS, BTC, 100000000 * UNITS);
+
+			let asset_pair = Pair::new(HDX, BTC);
+
+			let route2 = vec![Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: BTC,
+			}];
+
+			//Act and assert
+			assert_noop!(
+				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
+				sp_runtime::TokenError::BelowMinimum
+			);
+		});
+	}
+
+	#[test]
+	fn set_route_should_pass_when_normal_is_broken_but_revalidated_with_amount_from_inverse() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool();
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				DOT,
+				100000000 * UNITS as i128,
+			));
+
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(1, 2),
+				Permill::from_percent(1),
+				AccountId::from(BOB),
+			));
+
+			create_xyk_pool_with_amounts(DOT, 1 * UNITS, BTC, 1 * UNITS);
+
+			let asset_pair = Pair::new(HDX, BTC);
+
+			let route2 = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DOT,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: DOT,
+					asset_out: BTC,
+				},
+			];
+
+			//Act and assert
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				asset_pair,
+				route2
+			),);
+		});
+	}
+
+	#[test]
 	fn set_should_should_work_when_omnipool_route_does_not_exist_for_pair() {
 		TestNet::reset();
 
