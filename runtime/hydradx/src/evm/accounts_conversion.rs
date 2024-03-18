@@ -27,6 +27,7 @@ use codec::{Decode, Encode};
 use core::marker::PhantomData;
 use frame_support::traits::IsType;
 use hex_literal::hex;
+use hydradx_traits::evm::InspectEvmAccounts;
 use pallet_evm::AddressMapping;
 use sp_core::{crypto::ByteArray, H160};
 use sp_runtime::traits::AccountIdConversion;
