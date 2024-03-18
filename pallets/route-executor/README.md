@@ -18,6 +18,9 @@ If the route is set successfully, then the fee is payed back.
 
 If the route setting fails, it emits event `RouteUpdateIsNotSuccessful`
 
+### Force insert route
+The route can be force inserted for any asset pair by technical origin without involving any validation.
+
 ### Providing routes
 This pallet is also responsible for providing the best routes for asset pairs.
 
