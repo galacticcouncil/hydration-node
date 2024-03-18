@@ -18,17 +18,17 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::upper_case_acronyms)]
 
+pub mod evm;
 pub mod liquidity_mining;
 pub mod nft;
+pub mod oracle;
 pub mod pools;
+pub mod price;
 pub mod registry;
 pub mod router;
 
-pub use registry::*;
-pub mod oracle;
-pub mod price;
-
 pub use oracle::*;
+pub use registry::*;
 
 use codec::{Decode, Encode};
 use frame_support::dispatch::{self};
