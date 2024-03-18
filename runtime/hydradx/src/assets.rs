@@ -977,6 +977,7 @@ impl pallet_route_executor::Config for Runtime {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 	type InspectRegistry = AssetRegistry;
+	type TechnicalOrigin = SuperMajorityTechCommittee;
 }
 
 parameter_types! {
