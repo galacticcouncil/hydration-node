@@ -440,12 +440,10 @@ where
 		{
 			// `calls` can be empty Vec
 			match calls.first() {
-				Some(first_call) => {
-					match first_call.is_sub_type() {
-						Some(Call::set_currency { currency }) => *currency,
-						_ => Pallet::<T>::account_currency(who),
-					}
-				}
+				Some(first_call) => match first_call.is_sub_type() {
+					Some(Call::set_currency { currency }) => *currency,
+					_ => Pallet::<T>::account_currency(who),
+				},
 				_ => Pallet::<T>::account_currency(who),
 			}
 		} else {
