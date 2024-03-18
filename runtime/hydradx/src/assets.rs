@@ -961,6 +961,11 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 		weight
 	}
+
+	fn force_insert_route_weight() -> Weight {
+		//Since we don't have any AMM specific thing in the extrinsic, we just return the plain weight
+		weights::route_executor::HydraWeight::<Runtime>::force_insert_route()
+	}
 }
 
 parameter_types! {

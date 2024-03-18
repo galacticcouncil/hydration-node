@@ -435,7 +435,7 @@ pub mod pallet {
 		/// Emits `RouteUpdated` when successful.
 		///
 		#[pallet::call_index(3)]
-		#[pallet::weight(T::WeightInfo::set_route_weight(new_route))]
+		#[pallet::weight(T::WeightInfo::force_insert_route_weight())]
 		#[transactional]
 		pub fn force_insert_route(
 			origin: OriginFor<T>,
