@@ -224,23 +224,20 @@ runtime_benchmarks! {
 		create_xyk_pool(asset_3, asset_4);
 		create_xyk_pool(asset_4, asset_5);
 		create_xyk_pool(asset_5, asset_6);
+		create_xyk_pool(HDX, asset_6);
 
 		//INIT OMNIPOOL
-		let acc = Omnipool::protocol_account();
+		/*let acc = Omnipool::protocol_account();
 		crate::benchmarking::omnipool::init()?;
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
-
 		let token_price = FixedU128::from((5,1));
 		let token_amount = 100000 * UNITS;
-		//1000000000000000
-
 		update_balance(asset_6, &acc, token_amount);
-
 		// Add the token to the pool
-		Omnipool::add_token(RawOrigin::Root.into(), asset_6, token_price, Permill::from_percent(100), owner)?;
+		Omnipool::add_token(RawOrigin::Root.into(), asset_6, token_price, Permill::from_percent(100), owner)?;*/
 
-		let better_route = vec![Trade {
+		let route = vec![Trade {
 			pool: PoolType::XYK,
 			asset_in: HDX,
 			asset_out: asset_2
@@ -261,6 +258,18 @@ runtime_benchmarks! {
 			asset_in: asset_5,
 			asset_out: asset_6
 		}];
+		Router::set_route(
+			RawOrigin::Signed(caller.clone()).into(),
+			AssetPair::new(HDX, asset_6),
+			route.clone(),
+		)?;
+
+		let better_route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: asset_6
+		},];
+
 	}: {
 		Router::set_route(
 			RawOrigin::Signed(caller.clone()).into(),
