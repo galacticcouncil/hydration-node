@@ -18,20 +18,20 @@
 pub use crate::{mock::*, Config, Error};
 use crate::{AcceptedCurrencies, AcceptedCurrencyPrice, Event, PaymentInfo, Price};
 
-use frame_support::traits::tokens::Precision;
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::{DispatchInfo, PostDispatchInfo},
 	sp_runtime::traits::{BadOrigin, SignedExtension},
-	traits::Hooks,
+	traits::{tokens::Precision, Hooks},
 	weights::Weight,
 };
+use hydradx_traits::evm::InspectEvmAccounts;
 use orml_traits::MultiCurrency;
 use pallet_balances::Call as BalancesCall;
 use pallet_transaction_payment::ChargeTransactionPayment;
 
 const CALL: &<Test as frame_system::Config>::RuntimeCall =
-	&RuntimeCall::Balances(BalancesCall::transfer { dest: 2, value: 69 });
+	&RuntimeCall::Balances(BalancesCall::transfer { dest: BOB, value: 69 });
 
 #[test]
 fn on_initialize_should_fill_storage_with_prices() {
@@ -370,9 +370,32 @@ fn set_native_currency() {
 }
 
 #[test]
-fn fee_payment_in_native_currency() {
-	const CHARLIE: AccountId = 5;
+fn set_currency_for_evm_accounts_should_not_work() {
+	ExtBuilder::default()
+		.account_tokens(ALICE, WETH, 1_000_000_000)
+		.build()
+		.execute_with(|| {
+			let alice_evm_address = EVMAccounts::evm_address(&ALICE);
+			let alice_evm_acc = EVMAccounts::truncated_account_id(alice_evm_address);
 
+			assert_ok!(Tokens::transfer(
+				Some(ALICE).into(),
+				alice_evm_acc.clone(),
+				WETH,
+				1_000_000_000
+			));
+
+			assert_eq!(PaymentPallet::account_currency(&alice_evm_acc), WETH);
+
+			assert_noop!(
+				PaymentPallet::set_currency(RuntimeOrigin::signed(alice_evm_acc), SUPPORTED_CURRENCY),
+				Error::<Test>::EvmAccountNotAllowed
+			);
+		});
+}
+
+#[test]
+fn fee_payment_in_native_currency() {
 	ExtBuilder::default()
 		.base_weight(5)
 		.account_native_balance(CHARLIE, 100)
@@ -391,8 +414,6 @@ fn fee_payment_in_native_currency() {
 
 #[test]
 fn fee_payment_in_non_native_currency() {
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.base_weight(5)
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY_WITH_PRICE, 10_000)
@@ -449,8 +470,6 @@ fn fee_payment_in_expensive_non_native_currency_should_be_non_zero() {
 
 #[test]
 fn fee_payment_non_native_insufficient_balance() {
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.base_weight(5)
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY, 100)
@@ -567,8 +586,6 @@ fn default_post_info() -> PostDispatchInfo {
 #[test]
 fn fee_should_be_transferred_when_paid_in_native_currency() {
 	// Arrange
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.account_native_balance(CHARLIE, 100)
 		.base_weight(5)
@@ -605,8 +622,6 @@ fn fee_should_be_transferred_when_paid_in_native_currency() {
 #[test]
 fn fee_should_be_withdrawn_when_paid_in_native_currency() {
 	// Arrange
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.account_native_balance(CHARLIE, 100)
 		.base_weight(5)
@@ -644,8 +659,6 @@ fn fee_should_be_withdrawn_when_paid_in_native_currency() {
 #[test]
 fn fee_should_be_transferred_when_paid_in_native_currency_work_with_tip() {
 	// Arrange
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.account_native_balance(CHARLIE, 100)
 		.base_weight(5)
@@ -684,8 +697,6 @@ fn fee_should_be_transferred_when_paid_in_native_currency_work_with_tip() {
 #[test]
 fn fee_should_be_withdrawn_when_paid_in_native_currency_work_with_tip() {
 	// Arrange
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.account_native_balance(CHARLIE, 100)
 		.base_weight(5)
@@ -725,8 +736,6 @@ fn fee_should_be_withdrawn_when_paid_in_native_currency_work_with_tip() {
 #[test]
 fn fee_should_be_transferred_when_paid_in_non_native_currency() {
 	// Arrange
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.with_currencies(vec![(CHARLIE, SUPPORTED_CURRENCY)])
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY, 10_000)
@@ -777,8 +786,6 @@ fn fee_should_be_transferred_when_paid_in_non_native_currency() {
 #[test]
 fn fee_should_be_withdrawn_when_paid_in_non_native_currency() {
 	// Arrange
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.with_currencies(vec![(CHARLIE, SUPPORTED_CURRENCY)])
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY, 10_000)
@@ -822,8 +829,6 @@ fn fee_should_be_withdrawn_when_paid_in_non_native_currency() {
 #[test]
 fn fee_should_be_transferred_when_paid_in_non_native_currency_with_tip() {
 	// Arrange
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.with_currencies(vec![(CHARLIE, SUPPORTED_CURRENCY)])
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY, 10_000)
@@ -875,8 +880,6 @@ fn fee_should_be_transferred_when_paid_in_non_native_currency_with_tip() {
 #[test]
 fn fee_should_be_withdrawn_and_not_refunded_when_paid_in_non_native_currency_with_tip() {
 	// Arrange
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.with_currencies(vec![(CHARLIE, SUPPORTED_CURRENCY)])
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY, 10_000)
@@ -920,8 +923,6 @@ fn fee_should_be_withdrawn_and_not_refunded_when_paid_in_non_native_currency_wit
 
 #[test]
 fn fee_payment_in_native_currency_with_no_balance() {
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.base_weight(5)
 		.account_native_balance(CHARLIE, 10)
@@ -941,8 +942,6 @@ fn fee_payment_in_native_currency_with_no_balance() {
 
 #[test]
 fn fee_payment_in_non_native_currency_with_no_balance() {
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.base_weight(5)
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY, 100)
@@ -963,8 +962,6 @@ fn fee_payment_in_non_native_currency_with_no_balance() {
 
 #[test]
 fn fee_payment_in_non_native_currency_with_no_price() {
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.base_weight(5)
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY, 10_000)
@@ -993,8 +990,6 @@ fn fee_payment_in_non_native_currency_with_no_price() {
 
 #[test]
 fn fee_payment_in_unregistered_currency() {
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.base_weight(5)
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY, 100)
@@ -1019,8 +1014,6 @@ fn fee_payment_in_unregistered_currency() {
 
 #[test]
 fn fee_payment_non_native_insufficient_balance_with_no_pool() {
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.base_weight(5)
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY, 100)
@@ -1041,8 +1034,6 @@ fn fee_payment_non_native_insufficient_balance_with_no_pool() {
 #[test]
 fn fee_transfer_can_kill_account_when_paid_in_native() {
 	// Arrange
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.account_native_balance(CHARLIE, 30)
 		.base_weight(5)
@@ -1125,8 +1116,6 @@ fn fee_transfer_can_kill_account_when_paid_in_non_native() {
 
 #[test]
 fn set_and_remove_currency_on_lifecycle_callbacks() {
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.base_weight(5)
 		.account_native_balance(CHARLIE, 10)
@@ -1153,9 +1142,6 @@ fn set_and_remove_currency_on_lifecycle_callbacks() {
 
 #[test]
 fn currency_stays_around_until_reaping() {
-	const CHARLIE: AccountId = 5;
-	const DAVE: AccountId = 6;
-
 	use frame_support::traits::fungibles::Balanced;
 
 	ExtBuilder::default()
@@ -1189,9 +1175,6 @@ fn currency_stays_around_until_reaping() {
 
 #[test]
 fn currency_is_removed_when_balance_hits_zero() {
-	const CHARLIE: AccountId = 5;
-	const DAVE: AccountId = 6;
-
 	use frame_support::traits::fungibles::Balanced;
 
 	ExtBuilder::default()
@@ -1226,9 +1209,6 @@ fn currency_is_removed_when_balance_hits_zero() {
 
 #[test]
 fn currency_is_not_changed_on_unrelated_account_activity() {
-	const CHARLIE: AccountId = 5;
-	const DAVE: AccountId = 6;
-
 	use frame_support::traits::fungibles::Balanced;
 
 	ExtBuilder::default()
@@ -1265,8 +1245,6 @@ fn currency_is_not_changed_on_unrelated_account_activity() {
 
 #[test]
 fn only_set_fee_currency_for_supported_currency() {
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.base_weight(5)
 		.account_native_balance(CHARLIE, 10)
@@ -1284,8 +1262,6 @@ fn only_set_fee_currency_for_supported_currency() {
 
 #[test]
 fn only_set_fee_currency_when_without_native_currency() {
-	const CHARLIE: AccountId = 5;
-
 	ExtBuilder::default()
 		.account_native_balance(CHARLIE, 10)
 		.build()
@@ -1305,9 +1281,6 @@ fn only_set_fee_currency_when_without_native_currency() {
 
 #[test]
 fn do_not_set_fee_currency_for_new_native_account() {
-	const CHARLIE: AccountId = 5;
-	const DAVE: AccountId = 6;
-
 	ExtBuilder::default()
 		.account_native_balance(CHARLIE, 10)
 		.build()
@@ -1337,4 +1310,48 @@ fn returns_prices_for_supported_currencies() {
 			Some(Price::from_float(0.1))
 		);
 	});
+}
+
+#[test]
+fn reset_payment_currency_should_set_currency_to_hdx_for_non_evm_accounts() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(PaymentPallet::set_currency(
+			RuntimeOrigin::signed(ALICE),
+			SUPPORTED_CURRENCY,
+		));
+
+		assert_ok!(PaymentPallet::reset_payment_currency(RuntimeOrigin::root(), ALICE,));
+
+		assert_eq!(PaymentPallet::get_currency(ALICE), None);
+
+		expect_events(vec![Event::CurrencySet {
+			account_id: ALICE,
+			asset_id: HDX,
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn reset_payment_currency_should_set_currency_to_weth_for_evm_accounts() {
+	let alice_evm_address = EVMAccounts::evm_address(&ALICE);
+	let alice_evm_acc = EVMAccounts::truncated_account_id(alice_evm_address);
+
+	ExtBuilder::default()
+		.with_currencies(vec![(alice_evm_acc.clone(), SUPPORTED_CURRENCY)])
+		.build()
+		.execute_with(|| {
+			assert_ok!(PaymentPallet::reset_payment_currency(
+				RuntimeOrigin::root(),
+				alice_evm_acc.clone(),
+			));
+
+			assert_eq!(PaymentPallet::get_currency(alice_evm_acc.clone()), Some(WETH));
+
+			expect_events(vec![Event::CurrencySet {
+				account_id: alice_evm_acc,
+				asset_id: WETH,
+			}
+			.into()]);
+		});
 }

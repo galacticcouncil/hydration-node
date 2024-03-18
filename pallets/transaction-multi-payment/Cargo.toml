@@ -38,6 +38,7 @@ pallet-evm = { workspace = true, optional = true }
 pallet-currencies = { workspace = true }
 orml-tokens = { workspace = true, features=["std"] }
 pallet-balances = { workspace = true, features=["std"] }
+pallet-evm-accounts = { workspace = true, features = ["std"] }
 sp-io = { workspace = true }
 test-utils = { workspace = true }
 

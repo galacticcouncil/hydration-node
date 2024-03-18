@@ -4747,7 +4747,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.0.1"
+version = "3.1.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7677,12 +7677,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hex-literal 0.4.1",
+ "hydradx-traits",
  "orml-tokens",
  "orml-traits",
  "parity-scale-codec",
@@ -8600,6 +8601,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "pallet-evm",
+ "pallet-evm-accounts",
  "pallet-transaction-payment",
  "pallet-utility",
  "parity-scale-codec",

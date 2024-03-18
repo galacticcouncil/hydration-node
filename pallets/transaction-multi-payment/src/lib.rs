@@ -29,29 +29,29 @@ mod mock;
 mod tests;
 mod traits;
 
-use frame_support::traits::Contains;
-use frame_support::{dispatch::DispatchResult, ensure, traits::Get, weights::Weight};
+pub use crate::traits::*;
+use frame_support::traits::{Contains, IsSubType};
+use frame_support::{
+	dispatch::DispatchResult,
+	ensure,
+	sp_runtime::{
+		traits::{DispatchInfoOf, One, PostDispatchInfoOf, Saturating, Zero},
+		transaction_validity::{InvalidTransaction, TransactionValidityError},
+		FixedPointNumber, FixedPointOperand, FixedU128,
+	},
+	traits::Get,
+	weights::Weight,
+};
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
-use sp_runtime::{
-	traits::{DispatchInfoOf, One, PostDispatchInfoOf, Saturating, Zero},
-	transaction_validity::{InvalidTransaction, TransactionValidityError},
-	FixedU128,
+use hydradx_traits::{
+	evm::InspectEvmAccounts,
+	router::{AssetPair, RouteProvider},
+	AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle,
 };
-use sp_std::prelude::*;
-
-use pallet_transaction_payment::OnChargeTransaction;
-use sp_std::marker::PhantomData;
-
-use frame_support::sp_runtime::FixedPointNumber;
-use frame_support::sp_runtime::FixedPointOperand;
-use hydradx_traits::{AccountFeeCurrency, NativePriceOracle};
 use orml_traits::{GetByKey, Happened, MultiCurrency};
-
-pub use crate::traits::*;
-use frame_support::traits::IsSubType;
-use hydradx_traits::router::{AssetPair, RouteProvider};
-use hydradx_traits::{OraclePeriod, PriceOracle};
+use pallet_transaction_payment::OnChargeTransaction;
+use sp_std::{marker::PhantomData, prelude::*};
 
 type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
 type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -123,6 +123,13 @@ pub mod pallet {
 		/// Native Asset
 		#[pallet::constant]
 		type NativeAssetId: Get<AssetIdOf<Self>>;
+
+		/// EVM Asset
+		#[pallet::constant]
+		type EvmAssetId: Get<AssetIdOf<Self>>;
+
+		/// EVM Accounts info
+		type InspectEvmAccounts: InspectEvmAccounts<Self::AccountId, sp_core::H160>;
 	}
 
 	#[pallet::event]
@@ -176,6 +183,9 @@ pub mod pallet {
 
 		/// Math overflow
 		Overflow,
+
+		/// It is not allowed to change payment currency of an EVM account.
+		EvmAccountNotAllowed,
 	}
 
 	/// Account currency map
@@ -226,11 +236,18 @@ pub mod pallet {
 		///
 		/// When currency is set, fixed fee is withdrawn from the account to pay for the currency change
 		///
+		/// EVM accounts are now allowed to change thier payment currency.
+		///
 		/// Emits `CurrencySet` event when successful.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_currency())]
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			ensure!(
+				!T::InspectEvmAccounts::is_evm_account(who.clone()),
+				Error::<T>::EvmAccountNotAllowed
+			);
 
 			ensure!(
 				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
@@ -296,6 +313,33 @@ pub mod pallet {
 
 				Ok(())
 			})
+		}
+
+		/// Reset currency of the specified account to HDX.
+		/// If the account is EVM account, the payment currency is reset to WETH.
+		/// Only selected members can perform this action.
+		///
+		/// Emits `CurrencySet` when successful.
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::reset_payment_currency())]
+		pub fn reset_payment_currency(origin: OriginFor<T>, account_id: T::AccountId) -> DispatchResult {
+			T::AcceptedCurrencyOrigin::ensure_origin(origin)?;
+
+			let currency = if T::InspectEvmAccounts::is_evm_account(account_id.clone()) {
+				let currency = T::EvmAssetId::get();
+				AccountCurrencyMap::<T>::insert(account_id.clone(), currency);
+				currency
+			} else {
+				AccountCurrencyMap::<T>::remove(account_id.clone());
+				T::NativeAssetId::get()
+			};
+
+			Self::deposit_event(Event::CurrencySet {
+				account_id,
+				asset_id: currency,
+			});
+
+			Ok(())
 		}
 	}
 }
@@ -494,6 +538,12 @@ impl<T: Config> NativePriceOracle<AssetIdOf<T>, Price> for Pallet<T> {
 pub struct AddTxAssetOnAccount<T>(PhantomData<T>);
 impl<T: Config> Happened<(T::AccountId, AssetIdOf<T>)> for AddTxAssetOnAccount<T> {
 	fn happened((who, currency): &(T::AccountId, AssetIdOf<T>)) {
+		// all new EVM accounts have WETH set as their payment currency
+		if T::InspectEvmAccounts::is_evm_account(who.clone()) {
+			AccountCurrencyMap::<T>::insert(who, T::EvmAssetId::get());
+			return;
+		}
+
 		if !AccountCurrencyMap::<T>::contains_key(who)
 			&& AcceptedCurrencies::<T>::contains_key(currency)
 			&& T::Currencies::total_balance(T::NativeAssetId::get(), who).is_zero()
