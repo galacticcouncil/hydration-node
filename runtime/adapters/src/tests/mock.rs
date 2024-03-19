@@ -327,6 +327,7 @@ impl pallet_route_executor::Config for Test {
 	type InspectRegistry = DummyRegistry<Test>;
 	type AMM = Pools;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
 }
 

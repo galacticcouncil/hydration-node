@@ -21,6 +21,7 @@ use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
 };
+use frame_system::EnsureRoot;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::parameter_type_with_key;
@@ -148,6 +149,7 @@ impl Config for Test {
 	type InspectRegistry = MockedAssetRegistry;
 	type AMM = Pools;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
 }
 
