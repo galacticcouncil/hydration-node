@@ -398,6 +398,7 @@ impl pallet_route_executor::Config for Test {
 	type InspectRegistry = MockedAssetRegistry;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 }
 
 type OriginForRuntime = OriginFor<Test>;

@@ -4571,7 +4571,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.2.4"
+version = "1.2.5"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4747,7 +4747,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.1.0"
+version = "3.1.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8322,7 +8322,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
