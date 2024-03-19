@@ -2546,1135 +2546,1068 @@ mod set_route {
 	use hydradx_traits::router::PoolType;
 	use sp_runtime::TransactionOutcome;
 
-	#[test]
-	fn set_route_should_work_with_all_pools_involved() {
-		{
+	mod when_prestored_route_is_invalid {
+
+		use super::*;
+
+		#[test]
+		fn set_route_should_work_with_all_pools_involved() {
+			{
+				TestNet::reset();
+
+				Hydra::execute_with(|| {
+					let _ = with_transaction(|| {
+						//Arrange
+						let (pool_id, stable_asset_1, _) =
+							init_stableswap_with_liquidity(1_000_000_000_000_000_000u128, 300_000_000_000_000_000u128)
+								.unwrap();
+
+						init_omnipool();
+
+						assert_ok!(Currencies::update_balance(
+							hydradx_runtime::RuntimeOrigin::root(),
+							Omnipool::protocol_account(),
+							pool_id,
+							60000 * UNITS as i128,
+						));
+
+						assert_ok!(hydradx_runtime::Omnipool::add_token(
+							hydradx_runtime::RuntimeOrigin::root(),
+							pool_id,
+							FixedU128::from_rational(1, 2),
+							Permill::from_percent(1),
+							AccountId::from(BOB),
+						));
+
+						create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, stable_asset_1, 20000 * UNITS);
+
+						create_lbp_pool_with_amounts(DOT, 1000000 * UNITS, stable_asset_1, 20000 * UNITS);
+						//Start lbp campaign
+						set_relaychain_block_number(LBP_SALE_START + 15);
+
+						let route1 = vec![
+							Trade {
+								pool: PoolType::Omnipool,
+								asset_in: HDX,
+								asset_out: pool_id,
+							},
+							Trade {
+								pool: PoolType::Stableswap(pool_id),
+								asset_in: pool_id,
+								asset_out: stable_asset_1,
+							},
+							Trade {
+								pool: PoolType::XYK,
+								asset_in: stable_asset_1,
+								asset_out: DOT,
+							},
+						];
+
+						let route2_cheaper = vec![
+							Trade {
+								pool: PoolType::Omnipool,
+								asset_in: HDX,
+								asset_out: pool_id,
+							},
+							Trade {
+								pool: PoolType::Stableswap(pool_id),
+								asset_in: pool_id,
+								asset_out: stable_asset_1,
+							},
+							Trade {
+								pool: PoolType::LBP,
+								asset_in: stable_asset_1,
+								asset_out: DOT,
+							},
+						];
+
+						let asset_pair = Pair::new(HDX, DOT);
+
+						//Verify if the cheaper route is indeed cheaper in both ways
+						let amount_to_sell = 100 * UNITS;
+
+						//Check for normal route
+						let dot_amount_out = with_transaction::<_, _, _>(|| {
+							assert_ok!(Router::sell(
+								hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+								HDX,
+								DOT,
+								amount_to_sell,
+								0,
+								route1.clone()
+							));
+							let alice_received_dot =
+								Currencies::free_balance(DOT, &AccountId::from(ALICE)) - ALICE_INITIAL_DOT_BALANCE;
+
+							TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_dot))
+						})
+						.unwrap();
+
+						//Check for normal route
+						let dot_amout_out_for_cheaper_route = with_transaction::<_, _, _>(|| {
+							assert_ok!(Router::sell(
+								hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+								HDX,
+								DOT,
+								amount_to_sell,
+								0,
+								route2_cheaper.clone()
+							));
+							let alice_received_dot =
+								Currencies::free_balance(DOT, &AccountId::from(ALICE)) - ALICE_INITIAL_DOT_BALANCE;
+
+							TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_dot))
+						})
+						.unwrap();
+
+						assert!(dot_amout_out_for_cheaper_route > dot_amount_out);
+
+						// Check for inverse route
+						let amount_out_for_inverse = with_transaction::<_, _, _>(|| {
+							let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+							assert_ok!(Router::sell(
+								hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+								DOT,
+								HDX,
+								amount_to_sell,
+								0,
+								inverse_route(route1.clone())
+							));
+							let alice_received_hdx =
+								Currencies::free_balance(HDX, &AccountId::from(ALICE)) - alice_hdx_balance;
+
+							TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_hdx))
+						})
+						.unwrap();
+
+						let amount_out_for_inverse_with_chaper_route = with_transaction::<_, _, _>(|| {
+							let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+							assert_ok!(Router::sell(
+								hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+								DOT,
+								HDX,
+								amount_to_sell,
+								0,
+								inverse_route(route2_cheaper.clone())
+							));
+							let alice_received_hdx =
+								Currencies::free_balance(HDX, &AccountId::from(ALICE)) - alice_hdx_balance;
+
+							TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_hdx))
+						})
+						.unwrap();
+
+						assert!(amount_out_for_inverse_with_chaper_route > amount_out_for_inverse);
+
+						//ACT AND ASSERT
+
+						//We set first the more expensive route
+						assert_ok!(Router::set_route(
+							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+							asset_pair,
+							route1.clone()
+						));
+						assert_eq!(Router::route(asset_pair).unwrap(), route1);
+
+						//We set the cheaper one so it should replace
+						assert_ok!(Router::set_route(
+							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+							asset_pair,
+							route2_cheaper.clone()
+						));
+						assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
+
+						//We try to set back the more expensive but did not replace
+						assert_noop!(
+							Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
+							pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
+						);
+						assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
+						TransactionOutcome::Commit(DispatchResult::Ok(()))
+					});
+				});
+			}
+		}
+
+		#[test]
+		fn set_route_should_fail_with_invalid_route() {
 			TestNet::reset();
 
 			Hydra::execute_with(|| {
-				let _ = with_transaction(|| {
-					//Arrange
-					let (pool_id, stable_asset_1, _) =
-						init_stableswap_with_liquidity(1_000_000_000_000_000_000u128, 300_000_000_000_000_000u128)
-							.unwrap();
+				//Arrange
+				init_omnipool();
 
-					init_omnipool();
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					3000 * UNITS as i128,
+				));
 
-					assert_ok!(Currencies::update_balance(
-						hydradx_runtime::RuntimeOrigin::root(),
-						Omnipool::protocol_account(),
-						pool_id,
-						60000 * UNITS as i128,
-					));
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
 
-					assert_ok!(hydradx_runtime::Omnipool::add_token(
-						hydradx_runtime::RuntimeOrigin::root(),
-						pool_id,
-						FixedU128::from_rational(1, 2),
-						Permill::from_percent(1),
-						AccountId::from(BOB),
-					));
+				create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
 
-					create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, stable_asset_1, 20000 * UNITS);
+				let route1 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: ETH,
+						asset_out: BTC,
+					},
+				];
 
-					create_lbp_pool_with_amounts(DOT, 1000000 * UNITS, stable_asset_1, 20000 * UNITS);
-					//Start lbp campaign
-					set_relaychain_block_number(LBP_SALE_START + 15);
+				let asset_pair = Pair::new(HDX, BTC);
 
-					let route1 = vec![
-						Trade {
-							pool: PoolType::Omnipool,
-							asset_in: HDX,
-							asset_out: pool_id,
-						},
-						Trade {
-							pool: PoolType::Stableswap(pool_id),
-							asset_in: pool_id,
-							asset_out: stable_asset_1,
-						},
-						Trade {
-							pool: PoolType::XYK,
-							asset_in: stable_asset_1,
-							asset_out: DOT,
-						},
-					];
+				//Act and assert
+				assert_noop!(
+					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
+					pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
+				);
+			});
+		}
 
-					let route2_cheaper = vec![
-						Trade {
-							pool: PoolType::Omnipool,
-							asset_in: HDX,
-							asset_out: pool_id,
-						},
-						Trade {
-							pool: PoolType::Stableswap(pool_id),
-							asset_in: pool_id,
-							asset_out: stable_asset_1,
-						},
-						Trade {
-							pool: PoolType::LBP,
-							asset_in: stable_asset_1,
-							asset_out: DOT,
-						},
-					];
+		#[test]
+		fn set_route_should_work_when_stored_route_is_broken_due_to_not_existing_route() {
+			TestNet::reset();
 
-					let asset_pair = Pair::new(HDX, DOT);
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
 
-					//Verify if the cheaper route is indeed cheaper in both ways
-					let amount_to_sell = 100 * UNITS;
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					1000000000000 * UNITS as i128,
+				));
 
-					//Check for normal route
-					let dot_amount_out = with_transaction::<_, _, _>(|| {
-						assert_ok!(Router::sell(
-							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-							HDX,
-							DOT,
-							amount_to_sell,
-							0,
-							route1.clone()
-						));
-						let alice_received_dot =
-							Currencies::free_balance(DOT, &AccountId::from(ALICE)) - ALICE_INITIAL_DOT_BALANCE;
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
 
-						TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_dot))
-					})
-					.unwrap();
+				create_xyk_pool_with_amounts(DOT, 50000 * UNITS, BTC, 4000000 * UNITS);
 
-					//Check for normal route
-					let dot_amout_out_for_cheaper_route = with_transaction::<_, _, _>(|| {
-						assert_ok!(Router::sell(
-							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-							HDX,
-							DOT,
-							amount_to_sell,
-							0,
-							route2_cheaper.clone()
-						));
-						let alice_received_dot =
-							Currencies::free_balance(DOT, &AccountId::from(ALICE)) - ALICE_INITIAL_DOT_BALANCE;
+				let asset_pair = Pair::new(HDX, BTC);
 
-						TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_dot))
-					})
-					.unwrap();
+				let route2 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
 
-					assert!(dot_amout_out_for_cheaper_route > dot_amount_out);
+				//Act and assert
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					route2
+				),);
+			});
+		}
 
-					// Check for inverse route
-					let amount_out_for_inverse = with_transaction::<_, _, _>(|| {
-						let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
-						assert_ok!(Router::sell(
-							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-							DOT,
-							HDX,
-							amount_to_sell,
-							0,
-							inverse_route(route1.clone())
-						));
-						let alice_received_hdx =
-							Currencies::free_balance(HDX, &AccountId::from(ALICE)) - alice_hdx_balance;
+		#[test]
+		fn set_route_should_work_when_stored_route_is_broken_due_to_frozen_asset() {
+			TestNet::reset();
 
-						TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_hdx))
-					})
-					.unwrap();
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
 
-					let amount_out_for_inverse_with_chaper_route = with_transaction::<_, _, _>(|| {
-						let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
-						assert_ok!(Router::sell(
-							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-							DOT,
-							HDX,
-							amount_to_sell,
-							0,
-							inverse_route(route2_cheaper.clone())
-						));
-						let alice_received_hdx =
-							Currencies::free_balance(HDX, &AccountId::from(ALICE)) - alice_hdx_balance;
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					1000000000000 * UNITS as i128,
+				));
 
-						TransactionOutcome::Rollback(Ok::<u128, DispatchError>(alice_received_hdx))
-					})
-					.unwrap();
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
 
-					assert!(amount_out_for_inverse_with_chaper_route > amount_out_for_inverse);
+				create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
+				create_xyk_pool_with_amounts(DOT, 50000 * UNITS, BTC, 4000000 * UNITS);
 
-					//ACT AND ASSERT
+				let route1 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
 
-					//We set first the more expensive route
-					assert_ok!(Router::set_route(
-						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-						asset_pair,
-						route1.clone()
-					));
-					assert_eq!(Router::route(asset_pair).unwrap(), route1);
+				let asset_pair = Pair::new(HDX, BTC);
 
-					//We set the cheaper one so it should replace
-					assert_ok!(Router::set_route(
-						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-						asset_pair,
-						route2_cheaper.clone()
-					));
-					assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					route1
+				));
 
-					//We try to set back the more expensive but did not replace
-					assert_noop!(
-						Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
-						pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
-					);
-					assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
-					TransactionOutcome::Commit(DispatchResult::Ok(()))
-				});
+				assert_ok!(Omnipool::set_asset_tradable_state(
+					RuntimeOrigin::root(),
+					DOT,
+					Tradability::FROZEN
+				));
+
+				let route2 = vec![
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				//Act and assert
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					route2
+				),);
+			});
+		}
+
+		#[test]
+		fn set_route_should_fail_when_new_normal_route_is_invalid() {
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					1000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
+
+				let asset_pair = Pair::new(HDX, BTC);
+
+				let route2 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					Tradability::SELL
+				));
+
+				//Act and assert
+				assert_noop!(
+					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
+					pallet_omnipool::Error::<Runtime>::NotAllowed
+				);
+			});
+		}
+
+		#[test]
+		fn set_route_should_fail_when_new_inverse_route_is_invalid() {
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					1000000000000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				create_xyk_pool_with_amounts(DOT, 10000000 * UNITS, BTC, 10000000 * UNITS);
+
+				let asset_pair = Pair::new(HDX, BTC);
+
+				let route2 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					Tradability::BUY
+				));
+
+				//Act and assert
+				assert_noop!(
+					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
+					pallet_omnipool::Error::<Runtime>::NotAllowed
+				);
+			});
+		}
+
+		#[test]
+		fn invalid_new_normal_route_should_be_revalidated_with_lowest_liquidity_of_assets() {
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					10000000000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				create_xyk_pool_with_amounts(DOT, 10 * UNITS, BTC, 1000000 * UNITS);
+
+				let asset_pair = Pair::new(HDX, BTC);
+
+				let route2 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				//Act and assert
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					route2
+				),);
+			});
+		}
+
+		#[test]
+		fn invalid_new_inverse_route_should_be_revalidated_with_lowest_liquidity_of_assets() {
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					1000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				create_xyk_pool_with_amounts(DOT, 100000000000 * UNITS, BTC, 100000000000 * UNITS);
+
+				let asset_pair = Pair::new(HDX, BTC);
+
+				let route2 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				//Act and assert
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					route2
+				),);
+			});
+		}
+
+		#[test]
+		fn set_should_work_when_omnipool_route_does_not_exist_for_pair() {
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
+				create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, BTC, 1000000 * UNITS);
+
+				let route1 = vec![
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				let asset_pair = Pair::new(HDX, BTC);
+
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					route1
+				));
 			});
 		}
 	}
 
-	#[test]
-	fn set_route_should_fail_with_invalid_route() {
-		TestNet::reset();
+	mod when_prestored_route_is_valid {
+		use super::*;
 
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
+		#[test]
+		fn set_route_should_fail_with_trying_to_override_with_invalid_route() {
+			TestNet::reset();
 
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				3000 * UNITS as i128,
-			));
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					3000 * UNITS as i128,
+				));
 
-			create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
 
-			let route1 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: ETH,
-					asset_out: BTC,
-				},
-			];
+				create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
 
-			let asset_pair = Pair::new(HDX, BTC);
+				let route1 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
 
-			//Act and assert
-			assert_noop!(
-				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
-			);
-		});
-	}
+				let asset_pair = Pair::new(HDX, BTC);
 
-	#[test]
-	fn set_route_should_fail_with_trying_to_override_with_invalid_route() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				3000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
-
-			let route1 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			let asset_pair = Pair::new(HDX, BTC);
-
-			//Act and assert
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				route1
-			));
-
-			create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
-
-			let invalid_route = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: ETH,
-					asset_out: BTC,
-				},
-			];
-			assert_noop!(
-				Router::set_route(
+				//Act and assert
+				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					invalid_route
-				),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
-			);
-		});
-	}
+					route1
+				));
 
-	#[test]
-	fn set_route_should_work_when_stored_route_is_broken_due_to_not_existing_route() {
-		TestNet::reset();
+				create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
 
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
+				let invalid_route = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: ETH,
+						asset_out: BTC,
+					},
+				];
+				assert_noop!(
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						invalid_route
+					),
+					pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
+				);
+			});
+		}
 
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				1000000000000 * UNITS as i128,
-			));
+		#[test]
+		fn set_route_should_not_work_when_new_route_is_invalid() {
+			TestNet::reset();
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
 
-			create_xyk_pool_with_amounts(DOT, 50000 * UNITS, BTC, 4000000 * UNITS);
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					3000 * UNITS as i128,
+				));
 
-			let asset_pair = Pair::new(HDX, BTC);
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
 
-			let route2 = vec![
-				Trade {
+				create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
+				create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, BTC, 1000000 * UNITS);
+
+				let route1 = vec![
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				let asset_pair = Pair::new(HDX, BTC);
+
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					route1
+				));
+
+				assert_ok!(XYK::remove_liquidity(
+					RuntimeOrigin::signed(DAVE.into()),
+					HDX,
+					DOT,
+					1000000 * UNITS
+				));
+
+				let route2 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					Tradability::FROZEN
+				));
+
+				//Act and assert
+				assert_noop!(
+					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
+					pallet_omnipool::Error::<hydradx_runtime::Runtime>::NotAllowed
+				);
+			});
+		}
+		#[test]
+		fn set_route_should_fail_when_new_normal_route_is_invalid() {
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					1000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				create_xyk_pool_with_amounts(HDX, 1000 * UNITS, DOT, 1000 * UNITS);
+				create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
+
+				let asset_pair = Pair::new(HDX, BTC);
+
+				let prestored_route = vec![
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					prestored_route
+				),);
+
+				let route2 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					Tradability::SELL
+				));
+
+				//Act and assert
+				assert_noop!(
+					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
+					pallet_omnipool::Error::<Runtime>::NotAllowed
+				);
+			});
+		}
+
+		#[test]
+		fn set_route_should_fail_when_new_inverse_route_is_invalid() {
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					1000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				create_xyk_pool_with_amounts(HDX, 1000 * UNITS, DOT, 1000 * UNITS);
+				create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
+
+				let asset_pair = Pair::new(HDX, BTC);
+
+				let prestored_route = vec![
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				assert_ok!(Router::set_route(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					asset_pair,
+					prestored_route
+				),);
+
+				let route2 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: BTC,
+					},
+				];
+
+				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					Tradability::BUY
+				));
+
+				//Act and assert
+				assert_noop!(
+					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
+					pallet_omnipool::Error::<Runtime>::NotAllowed
+				);
+			});
+		}
+
+		#[test]
+		fn invalid_new_normal_route_should_be_revalidated_with_other_asset_liquidity() {
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					BTC,
+					1000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					BTC,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					ETH,
+					1000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ETH,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				create_xyk_pool_with_amounts(BTC, 1000 * UNITS, DAI, 1000 * UNITS);
+				create_xyk_pool_with_amounts(DAI, 1000 * UNITS, ETH, 1000 * UNITS);
+
+				let asset_pair = Pair::new(BTC, ETH);
+
+				let route2 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: BTC,
+						asset_out: DAI,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DAI,
+						asset_out: ETH,
+					},
+				];
+
+				//Validation is fine so no AMM error, but since the route is not better, it results in unsuccessfull route setting
+				assert_noop!(
+					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
+					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
+				);
+			});
+		}
+
+		#[test]
+		fn invalid_new_inversed_route_should_be_revalidated_with_other_asset_liquidity() {
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					BTC,
+					1000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					BTC,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					ETH,
+					1000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ETH,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				create_xyk_pool_with_amounts(BTC, 1000 * UNITS, DAI, 1000 * UNITS);
+				create_xyk_pool_with_amounts(DAI, 10000000 * UNITS, ETH, 10000000 * UNITS);
+
+				let asset_pair = Pair::new(BTC, ETH);
+
+				let route2 = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: BTC,
+						asset_out: DAI,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DAI,
+						asset_out: ETH,
+					},
+				];
+
+				//Validation is fine, but since the route is not better, it results in unsuccessfull route setting
+				assert_noop!(
+					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
+					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
+				);
+			});
+		}
+
+		#[test]
+		fn set_route_should_not_work_when_setting_default_omni_route_again() {
+			TestNet::reset();
+
+			Hydra::execute_with(|| {
+				//Arrange
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					1000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(1, 2),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				let route1 = vec![Trade {
 					pool: PoolType::Omnipool,
 					asset_in: HDX,
 					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			//Act and assert
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				route2
-			),);
-		});
-	}
-
-	#[test]
-	fn set_route_should_not_work_when_new_route_is_invalid() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				3000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
-			create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, BTC, 1000000 * UNITS);
-
-			let route1 = vec![
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			let asset_pair = Pair::new(HDX, BTC);
-
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				route1
-			));
-
-			assert_ok!(XYK::remove_liquidity(
-				RuntimeOrigin::signed(DAVE.into()),
-				HDX,
-				DOT,
-				1000000 * UNITS
-			));
-
-			let route2 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				Tradability::FROZEN
-			));
-
-			//Act and assert
-			assert_noop!(
-				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-				pallet_omnipool::Error::<hydradx_runtime::Runtime>::NotAllowed
-			);
-		});
-	}
-
-	#[test]
-	fn set_route_should_work_when_stored_route_is_broken_due_to_frozen_asset() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				1000000000000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
-			create_xyk_pool_with_amounts(DOT, 50000 * UNITS, BTC, 4000000 * UNITS);
-
-			let route1 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			let asset_pair = Pair::new(HDX, BTC);
-
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				route1
-			));
-
-			assert_ok!(Omnipool::set_asset_tradable_state(
-				RuntimeOrigin::root(),
-				DOT,
-				Tradability::FROZEN
-			));
-
-			let route2 = vec![
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			//Act and assert
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				route2
-			),);
-		});
-	}
-
-	#[test]
-	fn set_route_should_fail_when_no_prestored_but_new_normal_route_is_invalid() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				1000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
-
-			let asset_pair = Pair::new(HDX, BTC);
-
-			let route2 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				Tradability::SELL
-			));
-
-			//Act and assert
-			assert_noop!(
-				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-				pallet_omnipool::Error::<Runtime>::NotAllowed
-			);
-		});
-	}
-
-	#[test]
-	fn set_route_should_fail_when_no_prestored_but_new_inverse_route_is_invalid() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				1000000000000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(DOT, 10000000 * UNITS, BTC, 10000000 * UNITS);
-
-			let asset_pair = Pair::new(HDX, BTC);
-
-			let route2 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				Tradability::BUY
-			));
-
-			//Act and assert
-			assert_noop!(
-				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-				pallet_omnipool::Error::<Runtime>::NotAllowed
-			);
-		});
-	}
-
-	#[test]
-	fn set_route_should_fail_when_prestored_route_present_but_new_normal_route_is_invalid() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				1000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(HDX, 1000 * UNITS, DOT, 1000 * UNITS);
-			create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
-
-			let asset_pair = Pair::new(HDX, BTC);
-
-			let prestored_route = vec![
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				prestored_route
-			),);
-
-			let route2 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				Tradability::SELL
-			));
-
-			//Act and assert
-			assert_noop!(
-				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-				pallet_omnipool::Error::<Runtime>::NotAllowed
-			);
-		});
-	}
-
-	#[test]
-	fn set_route_should_fail_when_prestored_route_present_but_new_inverse_route_is_invalid() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				1000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(HDX, 1000 * UNITS, DOT, 1000 * UNITS);
-			create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
-
-			let asset_pair = Pair::new(HDX, BTC);
-
-			let prestored_route = vec![
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				prestored_route
-			),);
-
-			let route2 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				Tradability::BUY
-			));
-
-			//Act and assert
-			assert_noop!(
-				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-				pallet_omnipool::Error::<Runtime>::NotAllowed
-			);
-		});
-	}
-
-	#[test]
-	fn set_route_should_work_when_new_normal_route_is_invalid_but_revalidated_with_lowest_asset_liquidty() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				10000000000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(DOT, 10 * UNITS, BTC, 1000000 * UNITS);
-
-			let asset_pair = Pair::new(HDX, BTC);
-
-			let route2 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			//Act and assert
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				route2
-			),);
-		});
-	}
-
-	#[test]
-	fn set_route_should_work_when_new_inverse_route_is_invalid_but_reinvalidated_with_lowest_asset_liquidty() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				1000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(DOT, 100000000000 * UNITS, BTC, 100000000000 * UNITS);
-
-			let asset_pair = Pair::new(HDX, BTC);
-
-			let route2 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			//Act and assert
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				route2
-			),);
-		});
-	}
-
-	#[test]
-	fn invalid_new_normal_route_should_be_revalidated_with_other_asset_liquidity() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				BTC,
-				1000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				BTC,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				ETH,
-				1000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				ETH,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(BTC, 1000 * UNITS, DAI, 1000 * UNITS);
-			create_xyk_pool_with_amounts(DAI, 1000 * UNITS, ETH, 1000 * UNITS);
-
-			let asset_pair = Pair::new(BTC, ETH);
-
-			let route2 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: BTC,
-					asset_out: DAI,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DAI,
-					asset_out: ETH,
-				},
-			];
-
-			//Validation is fine so no AMM error, but since the route is not better, it results in unsuccessfull route setting
-			assert_noop!(
-				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
-			);
-		});
-	}
-
-	#[test]
-	fn invalid_new_inversed_route_should_be_revalidated_with_other_asset_liquidity() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				BTC,
-				1000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				BTC,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				ETH,
-				1000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				ETH,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(BTC, 1000 * UNITS, DAI, 1000 * UNITS);
-			create_xyk_pool_with_amounts(DAI, 10000000 * UNITS, ETH, 10000000 * UNITS);
-
-			let asset_pair = Pair::new(BTC, ETH);
-
-			let route2 = vec![
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: BTC,
-					asset_out: DAI,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DAI,
-					asset_out: ETH,
-				},
-			];
-
-			//Validation is fine, but since the route is not better, it results in unsuccessfull route setting
-			assert_noop!(
-				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
-			);
-		});
-	}
-
-	#[test]
-	fn set_should_should_work_when_omnipool_route_does_not_exist_for_pair() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
-			create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, BTC, 1000000 * UNITS);
-
-			let route1 = vec![
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: BTC,
-				},
-			];
-
-			let asset_pair = Pair::new(HDX, BTC);
-
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				route1
-			));
-		});
-	}
-
-	#[test]
-	fn set_route_should_not_work_when_setting_default_omni_route_again() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				1000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			let route1 = vec![Trade {
-				pool: PoolType::Omnipool,
-				asset_in: HDX,
-				asset_out: DOT,
-			}];
-
-			let asset_pair = Pair::new(HDX, DOT);
-
-			assert_noop!(
-				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
-			);
-		});
-	}
-
-	#[test]
-	fn set_route_should_not_work_when_existing_inverse_is_broken() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				Omnipool::protocol_account(),
-				DOT,
-				1000 * UNITS as i128,
-			));
-
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				DOT,
-				FixedU128::from_rational(1, 2),
-				Permill::from_percent(1),
-				AccountId::from(BOB),
-			));
-
-			create_xyk_pool_with_amounts(DOT, 100000 * UNITS, HDX, 100000 * UNITS);
-			create_xyk_pool_with_amounts(HDX, 100000 * UNITS, BTC, 100000 * UNITS);
-
-			let route1 = vec![
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: BTC,
-					asset_out: HDX,
-				},
-				Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-			];
-
-			let asset_pair = Pair::new(BTC, DOT);
-
-			assert_ok!(Router::set_route(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-				asset_pair,
-				route1
-			),);
-
-			assert_ok!(Omnipool::buy(
-				RuntimeOrigin::signed(ALICE.into()),
-				HDX,
-				DOT,
-				900 * UNITS,
-				Balance::MAX,
-			));
-
-			let route1 = vec![
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: BTC,
-					asset_out: HDX,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-			];
-
-			assert_noop!(
-				Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
-			);
-		});
+				}];
+
+				let asset_pair = Pair::new(HDX, DOT);
+
+				assert_noop!(
+					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
+					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
+				);
+			});
+		}
 	}
 }
 
