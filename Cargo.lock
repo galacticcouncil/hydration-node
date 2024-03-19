@@ -4571,7 +4571,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.2.5"
+version = "1.2.6"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -11366,7 +11366,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.19.11"
+version = "1.19.12"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
