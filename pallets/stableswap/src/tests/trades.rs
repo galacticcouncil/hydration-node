@@ -666,3 +666,89 @@ fn buy_should_work_when_assets_have_different_decimals() {
 			assert_balance!(pool_account, asset_b, to_precision!(70, dec_b));
 		});
 }
+
+#[test]
+fn sell_should_fail_when_trading_same_assets() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("one".as_bytes().to_vec(), 1, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), 2, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_percent(0),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 100 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+			assert_noop!(
+				Stableswap::sell(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					asset_a,
+					asset_a,
+					30 * ONE,
+					25 * ONE,
+				),
+				Error::<Test>::NotAllowed
+			);
+		});
+}
+
+#[test]
+fn buy_should_fail_when_trading_same_assets() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("one".as_bytes().to_vec(), 1, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), 2, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_percent(0),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 100 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+			assert_noop!(
+				Stableswap::buy(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					asset_a,
+					asset_a,
+					30 * ONE,
+					25 * ONE,
+				),
+				Error::<Test>::NotAllowed
+			);
+		});
+}
