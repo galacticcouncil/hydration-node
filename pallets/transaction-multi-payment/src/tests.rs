@@ -128,6 +128,207 @@ fn set_supported_currency_without_spot_price_should_charge_fee_in_correct_curren
 }
 
 #[test]
+fn set_supported_currency_in_batch_should_charge_fee_in_correct_currency() {
+	// batch
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		let first_inner_call = RuntimeCall::PaymentPallet(crate::Call::set_currency {
+			currency: SUPPORTED_CURRENCY,
+		});
+		let second_inner_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+		let call = RuntimeCall::Utility(pallet_utility::Call::batch {
+			calls: vec![first_inner_call, second_inner_call],
+		});
+
+		let len = 10;
+		let info = info_from_weight(Weight::from_parts(5, 0));
+
+		let pre = ChargeTransactionPayment::<Test>::from(0).pre_dispatch(&ALICE, &call, &info, len);
+		assert!(pre.is_ok());
+
+		assert_eq!(
+			Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE),
+			999_999_999_999_970
+		);
+
+		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&default_post_info(),
+			len,
+			&Ok(())
+		));
+		assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY, &FEE_RECEIVER), 30);
+	});
+
+	// batch_all
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		let first_inner_call = RuntimeCall::PaymentPallet(crate::Call::set_currency {
+			currency: SUPPORTED_CURRENCY,
+		});
+		let second_inner_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+		let call = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![first_inner_call, second_inner_call],
+		});
+
+		let len = 10;
+		let info = info_from_weight(Weight::from_parts(5, 0));
+
+		let pre = ChargeTransactionPayment::<Test>::from(0).pre_dispatch(&ALICE, &call, &info, len);
+		assert!(pre.is_ok());
+
+		assert_eq!(
+			Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE),
+			999_999_999_999_970
+		);
+
+		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&default_post_info(),
+			len,
+			&Ok(())
+		));
+		assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY, &FEE_RECEIVER), 30);
+	});
+
+	// batch_all
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		let first_inner_call = RuntimeCall::PaymentPallet(crate::Call::set_currency {
+			currency: SUPPORTED_CURRENCY,
+		});
+		let second_inner_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+		let call = RuntimeCall::Utility(pallet_utility::Call::force_batch {
+			calls: vec![first_inner_call, second_inner_call],
+		});
+
+		let len = 10;
+		let info = info_from_weight(Weight::from_parts(5, 0));
+
+		let pre = ChargeTransactionPayment::<Test>::from(0).pre_dispatch(&ALICE, &call, &info, len);
+		assert!(pre.is_ok());
+
+		assert_eq!(
+			Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE),
+			999_999_999_999_970
+		);
+
+		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&default_post_info(),
+			len,
+			&Ok(())
+		));
+		assert_eq!(Currencies::free_balance(SUPPORTED_CURRENCY, &FEE_RECEIVER), 30);
+	});
+}
+
+#[test]
+fn set_supported_currency_in_batch_should_not_work_if_not_first_transaction() {
+	// batch
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		let first_inner_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+		let second_inner_call = RuntimeCall::PaymentPallet(crate::Call::set_currency {
+			currency: SUPPORTED_CURRENCY,
+		});
+		let call = RuntimeCall::Utility(pallet_utility::Call::batch {
+			calls: vec![first_inner_call, second_inner_call],
+		});
+
+		let len = 10;
+		let info = info_from_weight(Weight::from_parts(5, 0));
+
+		let alice_initial_non_native_balance = Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE);
+
+		let pre = ChargeTransactionPayment::<Test>::from(0).pre_dispatch(&ALICE, &call, &info, len);
+		assert!(pre.is_ok());
+
+		assert_eq!(Currencies::free_balance(HDX, &ALICE), 999_999_999_999_980);
+
+		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&default_post_info(),
+			len,
+			&Ok(())
+		));
+		assert_eq!(Currencies::free_balance(HDX, &FEE_RECEIVER), 20);
+		assert_eq!(
+			Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE),
+			alice_initial_non_native_balance
+		);
+	});
+
+	// batch_all
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		let first_inner_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+		let second_inner_call = RuntimeCall::PaymentPallet(crate::Call::set_currency {
+			currency: SUPPORTED_CURRENCY,
+		});
+		let call = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![first_inner_call, second_inner_call],
+		});
+
+		let len = 10;
+		let info = info_from_weight(Weight::from_parts(5, 0));
+
+		let alice_initial_non_native_balance = Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE);
+
+		let pre = ChargeTransactionPayment::<Test>::from(0).pre_dispatch(&ALICE, &call, &info, len);
+		assert!(pre.is_ok());
+
+		assert_eq!(Currencies::free_balance(HDX, &ALICE), 999_999_999_999_980);
+
+		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&default_post_info(),
+			len,
+			&Ok(())
+		));
+		assert_eq!(Currencies::free_balance(HDX, &FEE_RECEIVER), 20);
+		assert_eq!(
+			Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE),
+			alice_initial_non_native_balance
+		);
+	});
+
+	// batch_all
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		let first_inner_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+		let second_inner_call = RuntimeCall::PaymentPallet(crate::Call::set_currency {
+			currency: SUPPORTED_CURRENCY,
+		});
+		let call = RuntimeCall::Utility(pallet_utility::Call::force_batch {
+			calls: vec![first_inner_call, second_inner_call],
+		});
+
+		let len = 10;
+		let info = info_from_weight(Weight::from_parts(5, 0));
+
+		let alice_initial_non_native_balance = Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE);
+
+		let pre = ChargeTransactionPayment::<Test>::from(0).pre_dispatch(&ALICE, &call, &info, len);
+		assert!(pre.is_ok());
+
+		assert_eq!(Currencies::free_balance(HDX, &ALICE), 999_999_999_999_980);
+
+		assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&default_post_info(),
+			len,
+			&Ok(())
+		));
+		assert_eq!(Currencies::free_balance(HDX, &FEE_RECEIVER), 20);
+		assert_eq!(
+			Currencies::free_balance(SUPPORTED_CURRENCY, &ALICE),
+			alice_initial_non_native_balance
+		);
+	});
+}
+
+#[test]
 fn set_supported_currency_with_spot_price_should_charge_fee_in_correct_currency() {
 	ExtBuilder::default().base_weight(5).build().execute_with(|| {
 		let call = &RuntimeCall::PaymentPallet(crate::Call::set_currency {

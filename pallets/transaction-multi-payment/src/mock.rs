@@ -90,6 +90,7 @@ frame_support::construct_runtime!(
 		 Currencies: pallet_currencies,
 		 Tokens: orml_tokens,
 		 EVMAccounts: pallet_evm_accounts,
+		 Utility: pallet_utility,
 	 }
 
 );
@@ -284,6 +285,13 @@ impl pallet_evm_accounts::Config for Test {
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = frame_support::traits::ConstU32<10>;
 	type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
+	type WeightInfo = ();
+}
+
+impl pallet_utility::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type PalletsOrigin = OriginCaller;
 	type WeightInfo = ();
 }
 
