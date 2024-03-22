@@ -494,7 +494,7 @@ where
 		if let Some(paid) = already_withdrawn {
 			// Calculate how much refund we should return
 			let (currency, refund, fee, tip) = match paid {
-				PaymentInfo::Native(mut paid_fee) => {
+				PaymentInfo::Native(paid_fee) => {
 					let corrected_fee = NATIVE_FEE_DISCOUNT_MULTIPLIER.mul_floor(corrected_fee);
 					(
 						T::NativeAssetId::get().into(),
