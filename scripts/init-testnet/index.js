@@ -1,6 +1,6 @@
 // Required imports
-const { ApiPromise, WsProvider } = require('@polkadot/api');
-const { Keyring } = require('@polkadot/keyring');
+import { ApiPromise, WsProvider } from '@polkadot/api';
+import { Keyring } from '@polkadot/keyring';
 
 async function main () {
   let rpcAddr = process.argv[2] || 'ws://localhost:9988';

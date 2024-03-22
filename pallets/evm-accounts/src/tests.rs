@@ -29,6 +29,8 @@ fn eth_address_should_convert_to_truncated_address_when_not_bound() {
 		let truncated_address =
 			AccountId::from(hex!["45544800222222ff7be76052e023ec1a306fcca8f9659d800000000000000000"]);
 
+		dbg!(&truncated_address.to_string());
+
 		assert_eq!(EVMAccounts::truncated_account_id(evm_address), truncated_address);
 
 		// Act & Assert

@@ -61,6 +61,8 @@ orml-xtokens = { workspace = true }
 orml-xcm-support = { workspace = true }
 orml-unknown-tokens = { workspace = true }
 
+precompile-utils = { workspace = true }
+
 # Evm
 pallet-evm = { workspace = true }
 fp-evm = { workspace = true }
@@ -196,7 +198,8 @@ std = [
     "hydradx-runtime/std",
     "pallet-staking/std",
     "scraper/std",
-    "pallet-dynamic-evm-fee/std"
+    "pallet-dynamic-evm-fee/std",
+    "precompile-utils/std",
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

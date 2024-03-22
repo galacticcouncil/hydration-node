@@ -72,6 +72,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "affix"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50e7ea84d3fa2009f355f8429a0b418a96849135a4188fadf384f59127d5d4bc"
+dependencies = [
+ "convert_case 0.5.0",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -797,6 +806,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
+name = "basic-toml"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f2139706359229bfa8f19142ac1155b4b80beafb7a60471ac5dd109d4a19778"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "beef"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1045,6 +1063,17 @@ dependencies = [
 
 [[package]]
 name = "bstr"
+version = "0.2.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba3569f383e8f1598449f1a423e72e99569137b47740b1da11ef19af3d5c3223"
+dependencies = [
+ "lazy_static",
+ "memchr",
+ "regex-automata 0.1.10",
+]
+
+[[package]]
+name = "bstr"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "542f33a8835a0884b006a0c3df3dadd99c0c3f296ed26c2fdc8028e01ad6230c"
@@ -1152,6 +1181,12 @@ dependencies = [
  "serde_json",
  "thiserror",
 ]
+
+[[package]]
+name = "case"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd6c0e7b807d60291f42f33f58480c0bfafe28ed08286446f45e463728cf9c1c"
 
 [[package]]
 name = "cast"
@@ -1511,6 +1546,12 @@ name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+
+[[package]]
+name = "convert_case"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb4a24b1aaf0fd0ce8b45161144d6f42cd91677fd5940fd431183eb023b3a2b8"
 
 [[package]]
 name = "core-foundation"
@@ -2541,7 +2582,7 @@ version = "0.99.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fb810d30a7c1953f91334de7244731fc3f3c10d7fe163338a35b9f640960321"
 dependencies = [
- "convert_case",
+ "convert_case 0.4.0",
  "proc-macro2",
  "quote",
  "rustc_version",
@@ -3186,6 +3227,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
 
 [[package]]
+name = "faster-hex"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51e2ce894d53b295cf97b05685aa077950ff3e8541af83217fc720a6437169f8"
+
+[[package]]
 name = "fastrand"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3800,7 +3847,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-core-hashing-proc-macro",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-genesis-builder",
  "sp-inherents",
  "sp-io",
@@ -3810,7 +3857,7 @@ dependencies = [
  "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
  "sp-tracing",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "static_assertions",
  "tt-call",
 ]
@@ -3871,7 +3918,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-version",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -4181,7 +4228,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57da3b9b5b85bd66f31093f8c408b90a74431672542466497dcbdfdc02034be1"
 dependencies = [
  "aho-corasick",
- "bstr",
+ "bstr 1.8.0",
  "log",
  "regex-automata 0.4.3",
  "regex-syntax 0.8.2",
@@ -4684,6 +4731,7 @@ dependencies = [
  "pallet-evm-chain-id",
  "pallet-evm-precompile-blake2",
  "pallet-evm-precompile-bn128",
+ "pallet-evm-precompile-call-permit",
  "pallet-evm-precompile-dispatch",
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
@@ -4719,6 +4767,7 @@ dependencies = [
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain-primitives",
+ "precompile-utils",
  "primitive-types",
  "primitives",
  "scale-info",
@@ -5383,7 +5432,7 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -6111,6 +6160,21 @@ dependencies = [
  "macro_magic_core",
  "quote",
  "syn 2.0.42",
+]
+
+[[package]]
+name = "macrotest"
+version = "1.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7489ae0986ce45414b7b3122c2e316661343ecf396b206e3e15f07c846616f10"
+dependencies = [
+ "diff",
+ "glob",
+ "prettyplease 0.1.25",
+ "serde",
+ "serde_json",
+ "syn 1.0.109",
+ "toml 0.5.11",
 ]
 
 [[package]]
@@ -7733,6 +7797,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompile-call-permit"
+version = "0.1.0"
+dependencies = [
+ "derive_more",
+ "evm 0.39.1",
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "hex-literal 0.4.1",
+ "libsecp256k1",
+ "log",
+ "num_enum 0.5.11",
+ "pallet-balances",
+ "pallet-evm",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils",
+ "scale-info",
+ "serde",
+ "sha3",
+ "slices",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-evm-precompile-dispatch"
 version = "2.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?rev=bf5885a982041cc744ecbb62a2afc13d56d464dc#bf5885a982041cc744ecbb62a2afc13d56d464dc"
@@ -7959,7 +8052,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -8358,7 +8451,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -8664,7 +8757,7 @@ dependencies = [
  "sp-core",
  "sp-rpc",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -8676,7 +8769,7 @@ dependencies = [
  "parity-scale-codec",
  "sp-api",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -10206,7 +10299,7 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -10379,7 +10472,7 @@ dependencies = [
  "sp-timestamp",
  "sp-transaction-pool",
  "sp-version",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "staging-kusama-runtime",
  "substrate-prometheus-endpoint",
  "thiserror",
@@ -10491,6 +10584,58 @@ name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
+
+[[package]]
+name = "precompile-utils"
+version = "0.1.0"
+dependencies = [
+ "affix",
+ "derive_more",
+ "environmental",
+ "evm 0.39.1",
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "hex-literal 0.4.1",
+ "impl-trait-for-tuples",
+ "log",
+ "num_enum 0.5.11",
+ "pallet-evm",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils-macro",
+ "scale-info",
+ "serde",
+ "sha3",
+ "similar-asserts",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-weights 20.0.0 (git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901)",
+ "staging-xcm",
+]
+
+[[package]]
+name = "precompile-utils-macro"
+version = "0.1.0"
+dependencies = [
+ "case",
+ "fp-evm",
+ "frame-support",
+ "macrotest",
+ "num_enum 0.5.11",
+ "precompile-utils",
+ "prettyplease 0.1.25",
+ "proc-macro2",
+ "quote",
+ "sha3",
+ "sp-core",
+ "sp-std",
+ "syn 1.0.109",
+ "trybuild",
+]
 
 [[package]]
 name = "predicates"
@@ -11311,7 +11456,7 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -11444,6 +11589,7 @@ dependencies = [
  "polkadot-runtime",
  "polkadot-runtime-parachains",
  "polkadot-service",
+ "precompile-utils",
  "pretty_assertions",
  "primitives",
  "sc-consensus-grandpa",
@@ -13115,6 +13261,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "similar"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32fea41aca09ee824cc9724996433064c89f7777e60762749a4170a14abbfa21"
+dependencies = [
+ "bstr 0.2.17",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "similar-asserts"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e041bb827d1bfca18f213411d51b665309f1afb37a04a5d1464530e13779fc0f"
+dependencies = [
+ "console",
+ "similar",
+]
+
+[[package]]
 name = "siphasher"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13134,6 +13300,18 @@ name = "slice-group-by"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
+
+[[package]]
+name = "slices"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2086e458a369cdca838e9f6ed04b4cc2e3ce636d99abb80c9e2eada107749cf"
+dependencies = [
+ "faster-hex",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "slot-range-helper"
@@ -13567,7 +13745,7 @@ dependencies = [
  "secrecy",
  "serde",
  "sp-core-hashing",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-externalities",
  "sp-runtime-interface",
  "sp-std",
@@ -13616,6 +13794,16 @@ dependencies = [
 name = "sp-debug-derive"
 version = "8.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3#062d92eae0f3bb9908faf2d4e241eef17368b9d3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.42",
+]
+
+[[package]]
+name = "sp-debug-derive"
+version = "8.0.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -13737,7 +13925,7 @@ dependencies = [
  "serde",
  "sp-api",
  "sp-core",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-runtime",
  "sp-std",
  "thiserror",
@@ -13816,7 +14004,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-std",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -13958,7 +14146,7 @@ dependencies = [
  "parity-scale-codec",
  "ref-cast",
  "serde",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
 ]
 
@@ -14086,7 +14274,21 @@ dependencies = [
  "smallvec",
  "sp-arithmetic",
  "sp-core",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
+ "sp-std",
+]
+
+[[package]]
+name = "sp-weights"
+version = "20.0.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "smallvec",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-debug-derive 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901)",
  "sp-std",
 ]
 
@@ -14263,7 +14465,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "xcm-procedural",
 ]
 
@@ -14284,7 +14486,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "staging-xcm",
  "staging-xcm-executor",
 ]
@@ -14305,7 +14507,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "staging-xcm",
 ]
 
@@ -15258,7 +15460,7 @@ dependencies = [
  "sp-consensus-aura",
  "sp-consensus-babe",
  "sp-core",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-externalities",
  "sp-inherents",
  "sp-io",
@@ -15269,9 +15471,24 @@ dependencies = [
  "sp-timestamp",
  "sp-transaction-storage-proof",
  "sp-version",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "substrate-rpc-client",
  "zstd 0.12.4",
+]
+
+[[package]]
+name = "trybuild"
+version = "1.0.86"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8419ecd263363827c5730386f418715766f584e2f874d32c23c5b00bd9727e7e"
+dependencies = [
+ "basic-toml",
+ "glob",
+ "once_cell",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "termcolor",
 ]
 
 [[package]]
@@ -15351,6 +15568,12 @@ checksum = "5c5713f0fc4b5db668a2ac63cdb7bb4469d8c9fed047b1d0292cc7b0ce2ba921"
 dependencies = [
  "tinyvec",
 ]
+
+[[package]]
+name = "unicode-segmentation"
+version = "1.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
 
 [[package]]
 name = "unicode-width"
@@ -16005,7 +16228,7 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]

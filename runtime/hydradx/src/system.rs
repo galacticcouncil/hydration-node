@@ -486,6 +486,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type EvmAssetId = evm::WethAssetId;
 	type InspectEvmAccounts = EVMAccounts;
 	type WeightToFee = WeightToFee;
+	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
 }
 
 impl pallet_relaychain_info::Config for Runtime {

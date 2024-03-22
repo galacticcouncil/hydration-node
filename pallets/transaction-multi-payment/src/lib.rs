@@ -67,7 +67,9 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
+	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
+	use sp_core::{H160, H256, U256};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -130,6 +132,8 @@ pub mod pallet {
 
 		/// EVM Accounts info
 		type InspectEvmAccounts: InspectEvmAccounts<Self::AccountId, sp_core::H160>;
+
+		type EvmPermit: EVMPermit;
 	}
 
 	#[pallet::event]
@@ -340,6 +344,61 @@ pub mod pallet {
 			});
 
 			Ok(())
+		}
+
+		// Dispatch EVM permit
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::dispatch_permit())]
+		pub fn dispatch_permit(
+			origin: OriginFor<T>,
+			currency: AssetIdOf<T>,
+			source: H160,
+			target: H160,
+			input: Vec<u8>,
+			value: U256,
+			gas_limit: u64,
+			max_fee_per_gas: U256,
+			nonce: U256,
+			deadline: U256,
+			max_priority_fee_per_gas: Option<U256>,
+			access_list: Vec<(H160, Vec<H256>)>,
+			v: u8,
+			r: H256,
+			s: H256,
+		) -> DispatchResultWithPostInfo {
+			ensure_none(origin)?;
+			T::EvmPermit::validate_permit(
+				source,
+				target,
+				input.clone(),
+				value,
+				gas_limit,
+				max_fee_per_gas,
+				nonce,
+				deadline,
+				v,
+				r,
+				s,
+			)?;
+
+			// Set fee currency for the evm dispatch
+			let account_id = T::InspectEvmAccounts::account_id(source);
+			AccountCurrencyMap::<T>::insert(account_id.clone(), currency);
+			let result = T::EvmPermit::dispatch_permit(
+				source,
+				target,
+				input,
+				value,
+				gas_limit,
+				Some(max_fee_per_gas),
+				max_priority_fee_per_gas,
+				Some(nonce),
+				access_list,
+			)?;
+			// Reset currency back to native evm currency
+			let currency = T::EvmAssetId::get();
+			AccountCurrencyMap::<T>::insert(account_id, currency);
+			Ok(result)
 		}
 	}
 }

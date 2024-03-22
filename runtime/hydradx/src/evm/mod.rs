@@ -49,6 +49,7 @@ use sp_core::{Get, U256};
 
 mod accounts_conversion;
 mod evm_fee;
+pub mod permit;
 pub mod precompiles;
 mod runner;
 

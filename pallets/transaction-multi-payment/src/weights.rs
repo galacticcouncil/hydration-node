@@ -54,6 +54,7 @@ pub trait WeightInfo {
 	fn set_currency() -> Weight;
 	fn get_oracle_price() -> Weight;
 	fn reset_payment_currency() -> Weight;
+	fn dispatch_permit() -> Weight;
 }
 
 /// Weights for pallet_transaction_multi_payment using the hydraDX node and recommended hardware.
@@ -121,6 +122,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
+
+	fn dispatch_permit() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
@@ -185,5 +190,9 @@ impl WeightInfo for () {
 		Weight::from_parts(29_378_000, 4087)
 			.saturating_add(RocksDbWeight::get().reads(2))
 			.saturating_add(RocksDbWeight::get().writes(1))
+	}
+
+	fn dispatch_permit() -> Weight {
+		Weight::zero()
 	}
 }
