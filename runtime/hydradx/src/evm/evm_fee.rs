@@ -28,6 +28,7 @@ use pallet_transaction_multi_payment::{DepositAll, DepositFee};
 use primitives::{AssetId, Balance};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::Convert;
+use sp_runtime::Permill;
 use sp_runtime::Rounding;
 use sp_std::marker::PhantomData;
 use {
@@ -36,6 +37,8 @@ use {
 	sp_core::{H160, U256},
 	sp_runtime::traits::UniqueSaturatedInto,
 };
+
+pub const NATIVE_FEE_DISCOUNT_MULTIPLIER: Permill = Permill::from_percent(90); //We have 10% discount on HDX
 
 #[derive(Copy, Clone, Default)]
 pub struct EvmPaymentInfo<Price> {
@@ -66,15 +69,17 @@ impl<Price> TryDrop for EvmPaymentInfo<Price> {
 
 /// Implements the transaction payment for EVM transactions.
 /// Supports multi-currency fees based on what is provided by AC - account currency.
-pub struct TransferEvmFees<OU, AC, EC, C, MC>(PhantomData<(OU, AC, EC, C, MC)>);
+pub struct TransferEvmFees<OU, AC, EC, NativeAssetId, C, MC>(PhantomData<(OU, AC, EC, NativeAssetId, C, MC)>);
 
-impl<T, OU, AC, EC, C, MC> OnChargeEVMTransaction<T> for TransferEvmFees<OU, AC, EC, C, MC>
+impl<T, OU, AC, EC, NativeAssetId, C, MC> OnChargeEVMTransaction<T>
+	for TransferEvmFees<OU, AC, EC, NativeAssetId, C, MC>
 where
 	T: pallet_evm::Config,
 	OU: OnUnbalanced<EvmPaymentInfo<EmaPrice>>,
 	U256: UniqueSaturatedInto<Balance>,
 	AC: AccountFeeCurrency<T::AccountId, AssetId = AssetId>, // AccountCurrency
 	EC: Get<AssetId>,                                        // Evm default fee asset
+	NativeAssetId: Get<AssetId>,
 	C: Convert<(AssetId, AssetId, Balance), Option<(Balance, EmaPrice)>>, // Conversion from default fee asset to account currency
 	U256: UniqueSaturatedInto<Balance>,
 	MC: frame_support::traits::tokens::fungibles::Mutate<T::AccountId, AssetId = AssetId, Balance = Balance>
@@ -88,9 +93,14 @@ where
 		}
 		let account_id = T::AddressMapping::into_account_id(*who);
 		let fee_currency = AC::get(&account_id);
-		let Some((converted, price)) = C::convert((EC::get(), fee_currency, fee.unique_saturated_into())) else{
+		let Some((mut converted, price)) = C::convert((EC::get(), fee_currency, fee.unique_saturated_into())) else{
 			return Err(Error::<T>::WithdrawFailed);
 		};
+
+		//Apply 10% discount on HDX
+		if fee_currency == NativeAssetId::get() {
+			converted = NATIVE_FEE_DISCOUNT_MULTIPLIER.mul_floor(converted);
+		}
 
 		// Ensure that converted fee is not zero
 		if converted == 0 {
@@ -116,9 +126,14 @@ where
 	fn can_withdraw(who: &H160, amount: U256) -> Result<(), pallet_evm::Error<T>> {
 		let account_id = T::AddressMapping::into_account_id(*who);
 		let fee_currency = AC::get(&account_id);
-		let Some((converted, _)) = C::convert((EC::get(), fee_currency, amount.unique_saturated_into())) else{
+		let Some((mut converted, _)) = C::convert((EC::get(), fee_currency, amount.unique_saturated_into())) else{
 			return Err(Error::<T>::BalanceLow);
 		};
+
+		//Apply 10% discount on HDX
+		if fee_currency == NativeAssetId::get() {
+			converted = NATIVE_FEE_DISCOUNT_MULTIPLIER.mul_floor(converted);
+		}
 
 		// Ensure that converted amount is not zero
 		if converted == 0 {
@@ -138,12 +153,16 @@ where
 		if let Some(paid) = already_withdrawn {
 			let account_id = T::AddressMapping::into_account_id(*who);
 
-			let adjusted_paid = if let Some(converted_corrected_fee) = multiply_by_rational_with_rounding(
+			let adjusted_paid = if let Some(mut converted_corrected_fee) = multiply_by_rational_with_rounding(
 				corrected_fee.unique_saturated_into(),
 				paid.price.n,
 				paid.price.d,
 				Rounding::Up,
 			) {
+				//Apply 10% discount on HDX
+				if paid.asset_id == NativeAssetId::get() {
+					converted_corrected_fee = NATIVE_FEE_DISCOUNT_MULTIPLIER.mul_floor(converted_corrected_fee);
+				}
 				// Calculate how much refund we should return
 				let refund_amount = paid.amount.saturating_sub(converted_corrected_fee);
 

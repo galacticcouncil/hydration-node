@@ -140,6 +140,7 @@ impl pallet_evm::Config for crate::Runtime {
 		evm_fee::DepositEvmFeeToTreasury,
 		crate::MultiTransactionPayment, // Get account's fee payment asset
 		WethAssetId,
+		NativeAssetId,
 		ConvertAmount<ShortOraclePrice>,
 		FungibleCurrencies<crate::Runtime>, // Multi currency support
 	>;
