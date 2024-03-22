@@ -488,7 +488,6 @@ where
 		tip: Self::Balance,
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Result<(), TransactionValidityError> {
-		//TODO: add test for the case when no refund because the actual fee is more than paid
 		//TODO: add issuance tests for evm
 		let fee_receiver = FR::get();
 
