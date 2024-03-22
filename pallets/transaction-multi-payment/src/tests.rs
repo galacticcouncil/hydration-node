@@ -684,11 +684,11 @@ fn fee_should_be_transferred_when_paid_in_native_currency_work_with_tip() {
 				.pre_dispatch(&CHARLIE, CALL, &dispatch_info, len)
 				.unwrap();
 			// Assert
-			let fee = (5 + 15 + 10 + tip) * 9 / 10; //with 10% discount on HDX
+			let fee = (5 + 15 + 10) * 9 / 10 + tip; //with 10% discount on HDX
 			assert_eq!(pre, (tip, CHARLIE, Some(PaymentInfo::Native(fee))));
 
 			let fee = 5 + 10 + 15 + tip; //35
-			let fee_discounted = fee - 4; //fee - 10% fee (~4)
+			let fee_discounted = fee - 3; //fee - 10% fee (3)
 			let balance_after_predispatch = 100 - fee_discounted;
 			assert_eq!(Balances::free_balance(CHARLIE), balance_after_predispatch); //69
 			assert_eq!(Balances::free_balance(FEE_RECEIVER), 0);
@@ -703,11 +703,51 @@ fn fee_should_be_transferred_when_paid_in_native_currency_work_with_tip() {
 			));
 
 			// Assert
-			let refund = 4;
+			let refund = 5;
 			assert_eq!(Balances::free_balance(CHARLIE), 100 - fee_discounted + refund);
 			assert_eq!(Balances::free_balance(FEE_RECEIVER), fee_discounted - refund);
 			assert_eq!(Balances::total_issuance(), previous_total_issuance);
 		});
+}
+
+#[test]
+fn fee_should_be_transferred_when_paid_in_native_currency_work_with_huge_tip() {
+	// Arrange
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		ExtBuilder::default().build().execute_with(|| {
+			assert_ok!(Balances::force_set_balance(
+				RuntimeOrigin::root(),
+				CHARLIE,
+				1000 * 1_000_000_000_000,
+			));
+			let len = 1;
+			let tip = 1000;
+			let dispatch_info = info_from_weight(Weight::from_parts(15, 0));
+			let post_dispatch_info = post_info_from_weight(Weight::from_parts(8, 0));
+			let previous_total_issuance = Balances::total_issuance();
+
+			// Act
+			let pre = ChargeTransactionPayment::<Test>::from(tip)
+				.pre_dispatch(&CHARLIE, CALL, &dispatch_info, len)
+				.unwrap();
+
+			assert_eq!(Balances::free_balance(CHARLIE), 999999999998986);
+
+			assert_ok!(ChargeTransactionPayment::<Test>::post_dispatch(
+				Some(pre),
+				&dispatch_info,
+				&post_dispatch_info,
+				len,
+				&Ok(())
+			));
+
+			// Assert
+			assert_eq!(Balances::free_balance(CHARLIE), 999999999998992);
+			assert_eq!(Balances::free_balance(FEE_RECEIVER), 1008); //fee
+
+			assert_eq!(Balances::total_issuance(), previous_total_issuance);
+		});
+	});
 }
 
 #[test]
@@ -731,7 +771,7 @@ fn fee_should_be_withdrawn_when_paid_in_native_currency_work_with_tip() {
 
 			// Assert
 			let fee = 5 + 10 + 15 + tip;
-			let discount = 4; //10% of fee
+			let discount = 3; //10% of fee
 			assert_eq!(Balances::free_balance(CHARLIE), 100 - fee + discount);
 			assert_eq!(Balances::free_balance(FEE_RECEIVER), 0);
 
@@ -745,7 +785,7 @@ fn fee_should_be_withdrawn_when_paid_in_native_currency_work_with_tip() {
 			));
 
 			// Assert
-			let refund = 6;
+			let refund = 7;
 			assert_eq!(Balances::free_balance(CHARLIE), 100 - fee + discount + refund);
 			assert_eq!(Balances::free_balance(FEE_RECEIVER), fee - discount - refund);
 			assert_eq!(Balances::total_issuance(), previous_total_issuance);

@@ -26,6 +26,8 @@ use weights::WeightInfo;
 mod mock;
 
 #[cfg(test)]
+mod invariants;
+#[cfg(test)]
 mod tests;
 mod traits;
 
@@ -429,7 +431,7 @@ where
 		call: &<T as frame_system::Config>::RuntimeCall,
 		_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
 		fee: Self::Balance,
-		_tip: Self::Balance,
+		tip: Self::Balance,
 	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
 		if fee.is_zero() {
 			return Ok(None);
@@ -461,7 +463,9 @@ where
 
 		//Apply 10% discount on HDX
 		if currency == T::NativeAssetId::get() {
-			converted_fee = NATIVE_FEE_DISCOUNT_MULTIPLIER.mul_floor(converted_fee);
+			let fee_without_tip = converted_fee.saturating_sub(tip);
+			let fee_without_tip_discounted = NATIVE_FEE_DISCOUNT_MULTIPLIER.mul_floor(fee_without_tip);
+			converted_fee = fee_without_tip_discounted.saturating_add(tip);
 		};
 
 		match MC::withdraw(currency.into(), who, converted_fee) {
@@ -495,7 +499,9 @@ where
 			// Calculate how much refund we should return
 			let (currency, refund, fee, tip) = match paid {
 				PaymentInfo::Native(paid_fee) => {
-					let corrected_fee = NATIVE_FEE_DISCOUNT_MULTIPLIER.mul_floor(corrected_fee);
+					let fee_without_tip = corrected_fee.saturating_sub(tip);
+					let fee_without_tip_discounted = NATIVE_FEE_DISCOUNT_MULTIPLIER.mul_floor(fee_without_tip);
+					let corrected_fee = fee_without_tip_discounted.saturating_add(tip);
 					(
 						T::NativeAssetId::get().into(),
 						paid_fee.saturating_sub(corrected_fee),

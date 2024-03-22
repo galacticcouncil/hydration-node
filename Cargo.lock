@@ -8606,6 +8606,7 @@ dependencies = [
  "pallet-utility",
  "parity-scale-codec",
  "primitives",
+ "proptest",
  "scale-info",
  "sp-api",
  "sp-core",

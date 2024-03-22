@@ -41,6 +41,7 @@ pallet-balances = { workspace = true, features=["std"] }
 pallet-evm-accounts = { workspace = true, features = ["std"] }
 sp-io = { workspace = true }
 test-utils = { workspace = true }
+proptest = "1.0.0"
 
 [features]
 default = ["std"]
