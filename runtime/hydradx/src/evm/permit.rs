@@ -2,6 +2,7 @@ use frame_support::dispatch::{Pays, PostDispatchInfo};
 use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::traits::{Get, Time};
+use hex_literal::hex;
 use pallet_evm::{AddressMapping, GasWeightMapping, Runner};
 use pallet_transaction_multi_payment::EVMPermit;
 use primitive_types::{H160, H256, U256};
@@ -12,6 +13,7 @@ use sp_std::vec::Vec;
 use pallet_dca::pallet;
 use precompile_utils::{keccak256, solidity};
 use precompile_utils::prelude::{Address, revert};
+use primitives::AccountId;
 use crate::evm::precompiles;
 
 pub struct EvmPermitHandler<R>(sp_std::marker::PhantomData<R>);
@@ -47,10 +49,10 @@ where R: pallet_evm::Config{
 	keccak_256(&domain_separator_inner).into()
 }
 
-
 impl<R> EVMPermit for EvmPermitHandler<R>
 where R: frame_system::Config + pallet_evm::Config,
-R::Nonce: Into<U256>{
+R::Nonce: Into<U256>,
+AccountId: From<R::AccountId>,{
 	fn validate_permit(
 		source: H160,
 		target: H160,
@@ -101,8 +103,10 @@ R::Nonce: Into<U256>{
 		sig[64] = v;
 
 		let signer = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &permit)
-			.map_err(|_| pallet_evm::Error::<R>::Undefined)?;
+			.map_err(|_| pallet_evm::Error::<R>::InvalidNonce)?;
 		let signer = H160::from(H256::from_slice(keccak_256(&signer).as_slice()));
+
+		panic!("signer: {:?}", signer);
 
 		//TODO: more reasonable error
 		ensure!(

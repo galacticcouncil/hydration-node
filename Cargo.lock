@@ -11535,6 +11535,7 @@ dependencies = [
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
+ "libsecp256k1",
  "orml-tokens",
  "orml-traits",
  "orml-unknown-tokens",

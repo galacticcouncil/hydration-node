@@ -133,6 +133,9 @@ pretty_assertions = "1.2.1"
 pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 test-utils = { workspace = true }
+libsecp256k1 = { workspace = true }
+
+
 [features]
 default = ["std"]
 std = [
