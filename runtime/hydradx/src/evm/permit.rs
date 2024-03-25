@@ -106,7 +106,7 @@ AccountId: From<R::AccountId>,{
 			.map_err(|_| pallet_evm::Error::<R>::InvalidNonce)?;
 		let signer = H160::from(H256::from_slice(keccak_256(&signer).as_slice()));
 
-		panic!("signer: {:?}", signer);
+		//panic!("signer: {:?}", signer);
 
 		//TODO: more reasonable error
 		ensure!(

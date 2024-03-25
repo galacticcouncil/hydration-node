@@ -1514,15 +1514,18 @@ fn generate_permit(
 	permit
 }
 
-fn alice_secret() -> [u8;32] {
+fn alice_secret2() -> [u8;32] {
 	hex!("e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a")
+}
+fn alice_secret() -> [u8;32] {
+	hex!("42d8d953e4f9246093a33e9ca6daa078501012f784adfe4bbed57918ff13be14")
 }
 use pallet_evm_accounts::EvmNonceProvider;
 #[test]
 fn fee_should_be_paid_in_hdx_when_permit_is_dispatched() {
 	TestNet::reset();
 	//"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
-	let real_alice = hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"];
+	let real_alice = hex!["45544800222222ff7be76052e023ec1a306fcca8f9659d800000000000000000"];
 	let alice: AccountId = real_alice.into();
 	dbg!(alice);
 
@@ -1532,6 +1535,8 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched() {
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
 			real_alice.into()
 		)));
+
+		let evm_address: H160 = hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"].into();
 
 		//Set up to idle state where the chain is not utilized at all
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
