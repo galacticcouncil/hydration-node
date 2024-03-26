@@ -1,12 +1,13 @@
 #![cfg(test)]
 
+use crate::utils::accounts::*;
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::evm::{ExtendedAddressMapping, precompiles};
+use hydradx_runtime::evm::ExtendedAddressMapping;
 use hydradx_runtime::{
 	evm::precompiles::{
 		addr,
@@ -14,9 +15,10 @@ use hydradx_runtime::{
 		multicurrency::{Action, MultiCurrencyPrecompile},
 		Address, Bytes, EvmAddress, HydraDXPrecompiles,
 	},
-	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
-	TransactionPause, EVM, MultiTransactionPayment,
+	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, MultiTransactionPayment, Omnipool, RuntimeCall,
+	RuntimeOrigin, Tokens, TransactionPause, EVM,
 };
+use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
@@ -1461,100 +1463,53 @@ fn fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 	})
 }
 
-
-use sp_core::Get;
-use libsecp256k1::{sign, Message, SecretKey};
-use precompile_utils::{keccak256, solidity};
-const PERMIT_DOMAIN: [u8; 32] = keccak256!(
-	"EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-);
-fn compute_domain_separator(address: H160) -> [u8; 32]{
-	let name: H256 = keccak_256(b"Call Permit Precompile").into();
-	let version: H256 = keccak256!("1").into();
-	let chain_id: U256  = <hydradx_runtime::Runtime as pallet_evm::Config>::ChainId::get().into();
-
-	let domain_separator_inner = precompile_utils::solidity::encode_arguments((
-		H256::from(PERMIT_DOMAIN),
-		name,
-		version,
-		chain_id,
-		precompile_utils::prelude::Address(address),
-	));
-
-	keccak_256(&domain_separator_inner).into()
-}
-
-fn generate_permit(
-	source: H160,
-	target: H160,
-	input: Vec<u8>,
-	value: U256,
-	gas_limit: u64,
-	nonce: U256,
-	deadline: U256,
-)-> [u8;32] {
-	let domain_separator = compute_domain_separator(DISPATCH_ADDR);
-	let permit_content = solidity::encode_arguments((
-		H256::from(PERMIT_TYPEHASH),
-		precompile_utils::prelude::Address(source),
-		precompile_utils::prelude::Address(target),
-		value,
-		// bytes are encoded as the keccak_256 of the content
-		H256::from(keccak_256(&input)),
-		gas_limit,
-		nonce,
-		deadline,
-	));
-	let permit_content = keccak_256(&permit_content);
-	let mut pre_digest = Vec::with_capacity(2 + 32 + 32);
-	pre_digest.extend_from_slice(b"\x19\x01");
-	pre_digest.extend_from_slice(&domain_separator);
-	pre_digest.extend_from_slice(&permit_content);
-	let permit = keccak_256(&pre_digest);
-	permit
-}
-
-fn alice_secret2() -> [u8;32] {
-	hex!("e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a")
-}
-fn alice_secret() -> [u8;32] {
-	hex!("42d8d953e4f9246093a33e9ca6daa078501012f784adfe4bbed57918ff13be14")
-}
-use pallet_evm_accounts::EvmNonceProvider;
 #[test]
-fn fee_should_be_paid_in_hdx_when_permit_is_dispatched() {
+fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_bounded() {
 	TestNet::reset();
-	//"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
-	let real_alice = hex!["45544800222222ff7be76052e023ec1a306fcca8f9659d800000000000000000"];
-	let alice: AccountId = real_alice.into();
-	dbg!(alice);
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_evm_account());
+	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	Hydra::execute_with(|| {
-		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(real_alice));
-		dbg!(evm_address);
-		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			real_alice.into()
-		)));
-
-		let evm_address: H160 = hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"].into();
-
-		//Set up to idle state where the chain is not utilized at all
+		init_omnipool_with_oracle_for_block_10();
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
+
+		// Prepare user evm account - bind and fund
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			user_acc.address().into()
+		)));
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			real_alice.into(),
+			user_acc.address().into(),
 			HDX,
 			100_000_000_000_000i128,
 		));
+		//Fund some DOT to sell in omnipool
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address().into(),
+			DOT,
+			100_000_000i128,
+		));
 
-		init_omnipool_with_oracle_for_block_10();
-		//dbg!(hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address));
+		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
+		let initial_user_hdx_balance = user_acc.balance(HDX);
+		let initial_user_weth_balance = user_acc.balance(WETH);
+		let initial_user_dot_balance = user_acc.balance(DOT);
 
-		let treasury_hdx_balance = Currencies::free_balance(HDX, &Treasury::account_id());
-		let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
-		//Act
+		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address().into(),
+			WETH,
+			initial_user_weth_balance as i128 * -1,
+		));
+		let initial_user_weth_balance = user_acc.balance(WETH);
+		assert_eq!(initial_user_weth_balance, 0);
+
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
 				asset_in: DOT,
@@ -1567,17 +1522,18 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched() {
 		let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 		let deadline = U256::from(1000000000000u128);
 
-		let permit = generate_permit(
-			evm_address,
-			DISPATCH_ADDR,
-			omni_sell.encode(),
-			U256::from(0),
-			gas_limit,
-			U256::zero(),
-			deadline,
-		);
-
-		let secret_key = SecretKey::parse(&alice_secret()).unwrap();
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				DISPATCH_ADDR,
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				omni_sell.encode(),
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
 		let message = Message::parse(&permit);
 		let (rs, v) = sign(&message, &secret_key);
 
@@ -1585,7 +1541,7 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			HDX,
-			evm_address,
+			user_evm_address,
 			DISPATCH_ADDR,
 			omni_sell.encode(),
 			U256::from(0),
@@ -1599,17 +1555,134 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched() {
 			H256::from(rs.r.b32()),
 			H256::from(rs.s.b32()),
 		));
-		//let alice_new_weth_balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
-		let alice_new_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
-		let fee_amount = alice_hdx_balance - alice_new_hdx_balance;
+		// Verify evm fee amount
+		let user_hdx_balance = user_acc.balance(HDX);
+		let fee_amount = initial_user_hdx_balance - user_hdx_balance;
 		assert!(fee_amount > 0);
-
-		let new_treasury_hdx_balance = Currencies::free_balance(HDX, &Treasury::account_id());
-		let treasury_hdx_diff = new_treasury_hdx_balance - treasury_hdx_balance;
+		//assert_eq!(fee_amount, 451229318663); //TODO: why it is more that Evm::CALL??
+		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
+		let treasury_hdx_diff = new_treasury_hdx_balance - initial_treasury_hdx_balance;
 		assert_eq!(fee_amount, treasury_hdx_diff);
+
+		// Verify omnipool sell
+		let user_weth_balance = user_acc.balance(WETH);
+		assert_eq!(user_weth_balance, 3_565_408_466_680);
+		let user_dot_balance = user_acc.balance(DOT);
+		assert!(user_dot_balance < initial_user_dot_balance);
+		let dot_diff = initial_user_dot_balance - user_dot_balance;
+		assert_eq!(dot_diff, 10_000_000);
 	})
 }
 
+#[test]
+fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounded() {
+	TestNet::reset();
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+	let treasury_acc = MockAccount::new(Treasury::account_id());
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		// Prepare user evm account - bind and fund
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address().into(),
+			HDX,
+			100_000_000_000_000i128,
+		));
+		//Fund some DOT to sell in omnipool
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address().into(),
+			DOT,
+			100_000_000i128,
+		));
+
+		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
+		let initial_user_hdx_balance = user_acc.balance(HDX);
+		let initial_user_weth_balance = user_acc.balance(WETH);
+		let initial_user_dot_balance = user_acc.balance(DOT);
+
+		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address().into(),
+			WETH,
+			initial_user_weth_balance as i128 * -1,
+		));
+		let initial_user_weth_balance = user_acc.balance(WETH);
+		assert_eq!(initial_user_weth_balance, 0);
+
+		//Act
+		let omni_sell =
+			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+				asset_in: DOT,
+				asset_out: WETH,
+				amount: 10_000_000,
+				min_buy_amount: 0,
+			});
+
+		let gas_limit = 1000000;
+		let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
+		let deadline = U256::from(1000000000000u128);
+
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				DISPATCH_ADDR,
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				omni_sell.encode(),
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		//Execute omnipool via EVM
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
+			HDX,
+			user_evm_address,
+			DISPATCH_ADDR,
+			omni_sell.encode(),
+			U256::from(0),
+			gas_limit,
+			gas_price.0 * 10,
+			U256::zero(),
+			deadline,
+			None,
+			[].into(),
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+		// Verify evm fee amount
+		let user_hdx_balance = user_acc.balance(HDX);
+		let fee_amount = initial_user_hdx_balance - user_hdx_balance;
+		assert!(fee_amount > 0);
+		//assert_eq!(fee_amount, 451229318663); //TODO: why it is more that Evm::CALL??
+		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
+		let treasury_hdx_diff = new_treasury_hdx_balance - initial_treasury_hdx_balance;
+		assert_eq!(fee_amount, treasury_hdx_diff);
+
+		// Verify omnipool sell
+		let user_weth_balance = user_acc.balance(WETH);
+		assert_eq!(user_weth_balance, 3_565_408_466_680);
+
+		let user_dot_balance = user_acc.balance(DOT);
+		assert!(user_dot_balance < initial_user_dot_balance);
+		let dot_diff = initial_user_dot_balance - user_dot_balance;
+		assert_eq!(dot_diff, 10_000_000);
+	})
+}
 
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
@@ -1651,9 +1724,6 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 }
 
 use frame_support::traits::fungible::Mutate;
-use sp_io::hashing::keccak_256;
-use hydradx_runtime::evm::permit::PERMIT_TYPEHASH;
-
 pub fn init_omnipol() {
 	let native_price = FixedU128::from_rational(29903049701668757, 73927734532192294158);
 	let dot_price = FixedU128::from_rational(103158291366950047, 4566210555614178);

@@ -1,20 +1,18 @@
+use crate::evm::precompiles;
 use frame_support::dispatch::{Pays, PostDispatchInfo};
 use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::traits::{Get, Time};
-use hex_literal::hex;
 use pallet_evm::{AddressMapping, GasWeightMapping, Runner};
 use pallet_transaction_multi_payment::EVMPermit;
-use primitive_types::{H160, H256, U256};
-use sp_io::hashing::keccak_256;
-use sp_runtime::{DispatchErrorWithPostInfo, DispatchResult};
-use sp_runtime::traits::UniqueSaturatedInto;
-use sp_std::vec::Vec;
-use pallet_dca::pallet;
+use precompile_utils::prelude::Address;
 use precompile_utils::{keccak256, solidity};
-use precompile_utils::prelude::{Address, revert};
+use primitive_types::{H160, H256, U256};
 use primitives::AccountId;
-use crate::evm::precompiles;
+use sp_io::hashing::keccak_256;
+use sp_runtime::traits::UniqueSaturatedInto;
+use sp_runtime::{DispatchErrorWithPostInfo, DispatchResult};
+use sp_std::vec::Vec;
 
 pub struct EvmPermitHandler<R>(sp_std::marker::PhantomData<R>);
 
@@ -25,15 +23,15 @@ pub const PERMIT_TYPEHASH: [u8; 32] = keccak256!(
 );
 
 /// EIP712 permit domain used to compute an individualized domain separator.
-const PERMIT_DOMAIN: [u8; 32] = keccak256!(
-	"EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-);
+const PERMIT_DOMAIN: [u8; 32] =
+	keccak256!("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
 pub const CALL_DATA_LIMIT: u32 = 2u32.pow(16);
 
-
 fn compute_domain_separator<R>(address: H160) -> [u8; 32]
-where R: pallet_evm::Config{
+where
+	R: pallet_evm::Config,
+{
 	let name: H256 = keccak_256(b"Call Permit Precompile").into();
 	let version: H256 = keccak256!("1").into();
 	let chain_id: U256 = R::ChainId::get().into();
@@ -50,9 +48,11 @@ where R: pallet_evm::Config{
 }
 
 impl<R> EVMPermit for EvmPermitHandler<R>
-where R: frame_system::Config + pallet_evm::Config,
-R::Nonce: Into<U256>,
-AccountId: From<R::AccountId>,{
+where
+	R: frame_system::Config + pallet_evm::Config,
+	R::Nonce: Into<U256>,
+	AccountId: From<R::AccountId>,
+{
 	fn validate_permit(
 		source: H160,
 		target: H160,
@@ -90,8 +90,7 @@ AccountId: From<R::AccountId>,{
 		let permit = keccak_256(&pre_digest);
 
 		// Blockchain time is in ms while Ethereum use second timestamps.
-		let timestamp: u128 =
-			<R as pallet_evm::Config>::Timestamp::now().unique_saturated_into();
+		let timestamp: u128 = <R as pallet_evm::Config>::Timestamp::now().unique_saturated_into();
 		let timestamp: U256 = U256::from(timestamp / 1000);
 
 		//TODO: ??
@@ -102,8 +101,8 @@ AccountId: From<R::AccountId>,{
 		sig[32..64].copy_from_slice(&s.as_bytes());
 		sig[64] = v;
 
-		let signer = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &permit)
-			.map_err(|_| pallet_evm::Error::<R>::InvalidNonce)?;
+		let signer =
+			sp_io::crypto::secp256k1_ecdsa_recover(&sig, &permit).map_err(|_| pallet_evm::Error::<R>::InvalidNonce)?;
 		let signer = H160::from(H256::from_slice(keccak_256(&signer).as_slice()));
 
 		//panic!("signer: {:?}", signer);

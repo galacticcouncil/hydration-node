@@ -62,6 +62,7 @@ orml-xcm-support = { workspace = true }
 orml-unknown-tokens = { workspace = true }
 
 precompile-utils = { workspace = true }
+pallet-evm-precompile-call-permit = { workspace = true }
 
 # Evm
 pallet-evm = { workspace = true }
