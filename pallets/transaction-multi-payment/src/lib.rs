@@ -70,6 +70,7 @@ pub mod pallet {
 	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
 	use sp_core::{H160, H256, U256};
+	use sp_runtime::ModuleError;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -387,6 +388,97 @@ pub mod pallet {
 			let currency = T::EvmAssetId::get();
 			AccountCurrencyMap::<T>::insert(account_id, currency);
 			Ok(result)
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match call {
+				Call::dispatch_permit {
+					currency,
+					source,
+					target,
+					input,
+					value,
+					gas_limit,
+					max_fee_per_gas,
+					nonce,
+					deadline,
+					max_priority_fee_per_gas,
+					access_list,
+					v,
+					r,
+					s,
+				} => {
+					// First verify signature
+					let result = T::EvmPermit::validate_permit(
+						*source,
+						*target,
+						input.clone(),
+						*value,
+						*gas_limit,
+						*deadline,
+						*v,
+						*r,
+						*s,
+					);
+					if let Some(error_res) = result.err() {
+						let error_number = match error_res.into() {
+							DispatchError::Module(ModuleError { error, .. }) => error[0],
+							_ => 0, // this case should never happen because an Error is always converted to DispatchError::Module(ModuleError)
+						};
+						return InvalidTransaction::Custom(error_number).into();
+					}
+
+					// Ensure that account has enough balance to pay for the fee
+					let account_id = T::InspectEvmAccounts::account_id(*source);
+
+					//TODO: we should use ensure can withdraw but how much ?!!
+					// free balance includes locked amount, so it might not always work
+					// let's just check if the account has any balance
+					let balance = T::Currencies::free_balance(*currency, &account_id);
+					if balance.is_zero() {
+						return InvalidTransaction::Payment.into();
+					}
+
+					// Set fee currency for the evm dispatch
+					AccountCurrencyMap::<T>::insert(account_id.clone(), *currency);
+
+					let result = T::EvmPermit::dispatch_permit(
+						*source,
+						*target,
+						input.clone(),
+						*value,
+						*gas_limit,
+						Some(*max_fee_per_gas),
+						*max_priority_fee_per_gas,
+						Some(*nonce),
+						access_list.clone(),
+					);
+					// reset currency back to native evm currency
+					let currency = T::EvmAssetId::get();
+					AccountCurrencyMap::<T>::insert(account_id, currency);
+
+					match result {
+						Ok(_post_info) => ValidTransaction::with_tag_prefix("EVMPermit")
+							.priority(0)
+							.longevity(64)
+							.propagate(true)
+							.build(),
+						Err(e) => {
+							let error_number = match e.error {
+								DispatchError::Module(ModuleError { error, .. }) => error[0],
+								_ => 0, // this case should never happen because an Error is always converted to DispatchError::Module(ModuleError)
+							};
+							InvalidTransaction::Custom(error_number).into()
+						}
+					}
+				}
+				_ => InvalidTransaction::Call.into(),
+			}
 		}
 	}
 }

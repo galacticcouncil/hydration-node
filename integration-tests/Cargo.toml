@@ -139,6 +139,7 @@ libsecp256k1 = { workspace = true }
 
 [features]
 default = ["std"]
+no_std = []
 std = [
     "frame-executive/std",
     "frame-support/std",
