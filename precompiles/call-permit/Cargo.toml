@@ -3,6 +3,8 @@ name = "pallet-evm-precompile-call-permit"
 description = "A Precompile to dispatch a call with a ERC712 permit."
 edition = "2021"
 version = "0.1.0"
+authors = ["PureStake"]
+repository = "https://github.com/PureStake/moonbeam"
 
 [dependencies]
 log = { workspace = true }
