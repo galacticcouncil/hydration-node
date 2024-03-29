@@ -30,6 +30,7 @@ mod tests;
 mod traits;
 
 pub use crate::traits::*;
+use frame_support::storage::with_transaction;
 use frame_support::traits::{Contains, IsSubType};
 use frame_support::{
 	dispatch::DispatchResult,
@@ -65,12 +66,13 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
 	use sp_core::{H160, H256, U256};
-	use sp_runtime::ModuleError;
+	use sp_runtime::{ModuleError, TransactionOutcome};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -191,6 +193,12 @@ pub mod pallet {
 
 		/// It is not allowed to change payment currency of an EVM account.
 		EvmAccountNotAllowed,
+
+		/// EVM permit expired.
+		EvmPermitExpired,
+
+		/// EVM permit is invalid.
+		EvmPermitInvalid,
 	}
 
 	/// Account currency map
@@ -349,7 +357,9 @@ pub mod pallet {
 
 		// Dispatch EVM permit
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::dispatch_permit())]
+		#[pallet::weight(
+			<T as Config>::EvmPermit::dispatch_weight(*gas_limit)
+		)]
 		pub fn dispatch_permit(
 			origin: OriginFor<T>,
 			currency: AssetIdOf<T>,
@@ -368,6 +378,12 @@ pub mod pallet {
 			s: H256,
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
+
+			ensure!(
+				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+				Error::<T>::UnsupportedCurrency
+			);
+
 			T::EvmPermit::validate_permit(source, target, input.clone(), value, gas_limit, deadline, v, r, s)?;
 
 			// Set fee currency for the evm dispatch
@@ -413,63 +429,56 @@ pub mod pallet {
 					r,
 					s,
 				} => {
-					// First verify signature
-					let result = T::EvmPermit::validate_permit(
-						*source,
-						*target,
-						input.clone(),
-						*value,
-						*gas_limit,
-						*deadline,
-						*v,
-						*r,
-						*s,
-					);
-					if let Some(error_res) = result.err() {
-						let error_number = match error_res.into() {
-							DispatchError::Module(ModuleError { error, .. }) => error[0],
-							_ => 0, // this case should never happen because an Error is always converted to DispatchError::Module(ModuleError)
-						};
-						return InvalidTransaction::Custom(error_number).into();
-					}
+					// We need to wrap this as separate tx, and since we also "dry-run" the dispatch,
+					// we need to rollback the changes if any
+					let result = with_transaction::<(), DispatchError, _>(|| {
+						// First verify signature
+						let result = T::EvmPermit::validate_permit(
+							*source,
+							*target,
+							input.clone(),
+							*value,
+							*gas_limit,
+							*deadline,
+							*v,
+							*r,
+							*s,
+						);
+						if let Some(error_res) = result.err() {
+							return TransactionOutcome::Rollback(Err(error_res));
+						}
 
-					// Ensure that account has enough balance to pay for the fee
-					let account_id = T::InspectEvmAccounts::account_id(*source);
+						// Set fee currency for the evm dispatch
+						let account_id = T::InspectEvmAccounts::account_id(*source);
+						AccountCurrencyMap::<T>::insert(account_id.clone(), *currency);
 
-					//TODO: we should use ensure can withdraw but how much ?!!
-					// free balance includes locked amount, so it might not always work
-					// let's just check if the account has any balance
-					let balance = T::Currencies::free_balance(*currency, &account_id);
-					if balance.is_zero() {
-						return InvalidTransaction::Payment.into();
-					}
-
-					// Set fee currency for the evm dispatch
-					AccountCurrencyMap::<T>::insert(account_id.clone(), *currency);
-
-					let result = T::EvmPermit::dispatch_permit(
-						*source,
-						*target,
-						input.clone(),
-						*value,
-						*gas_limit,
-						Some(*max_fee_per_gas),
-						*max_priority_fee_per_gas,
-						Some(*nonce),
-						access_list.clone(),
-					);
-					// reset currency back to native evm currency
-					let currency = T::EvmAssetId::get();
-					AccountCurrencyMap::<T>::insert(account_id, currency);
-
+						let result = T::EvmPermit::dispatch_permit(
+							*source,
+							*target,
+							input.clone(),
+							*value,
+							*gas_limit,
+							Some(*max_fee_per_gas),
+							*max_priority_fee_per_gas,
+							Some(*nonce),
+							access_list.clone(),
+						);
+						// reset currency back to native evm currency
+						let currency = T::EvmAssetId::get();
+						AccountCurrencyMap::<T>::insert(account_id, currency);
+						match result {
+							Ok(_post_info) => TransactionOutcome::Rollback(Ok(())),
+							Err(e) => TransactionOutcome::Rollback(Err(e.error)),
+						}
+					});
 					match result {
-						Ok(_post_info) => ValidTransaction::with_tag_prefix("EVMPermit")
+						Ok(()) => ValidTransaction::with_tag_prefix("EVMPermit")
 							.priority(0)
 							.longevity(64)
 							.propagate(true)
 							.build(),
 						Err(e) => {
-							let error_number = match e.error {
+							let error_number = match e {
 								DispatchError::Module(ModuleError { error, .. }) => error[0],
 								_ => 0, // this case should never happen because an Error is always converted to DispatchError::Module(ModuleError)
 							};

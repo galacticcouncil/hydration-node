@@ -1,6 +1,7 @@
 use frame_support::dispatch::PostDispatchInfo;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::DispatchResult;
+use frame_support::weights::Weight;
 use sp_core::{H160, H256, U256};
 use sp_std::vec::Vec;
 
@@ -39,6 +40,8 @@ pub trait EVMPermit {
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
 	) -> DispatchResultWithPostInfo;
+
+	fn dispatch_weight(gas_limit: u64) -> Weight;
 }
 
 impl EVMPermit for () {
@@ -68,5 +71,9 @@ impl EVMPermit for () {
 		_access_list: Vec<(H160, Vec<H256>)>,
 	) -> DispatchResultWithPostInfo {
 		Ok(PostDispatchInfo::default())
+	}
+
+	fn dispatch_weight(_gas_limit: u64) -> Weight {
+		Weight::zero()
 	}
 }
