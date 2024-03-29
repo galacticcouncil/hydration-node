@@ -19,9 +19,7 @@ use crate::{
 	CallPermitPrecompile,
 };
 use libsecp256k1::{sign, Message, SecretKey};
-use precompile_utils::{
-	evm::costs::call_cost, prelude::*, solidity::revert::revert_as_bytes, testing::*,
-};
+use precompile_utils::{evm::costs::call_cost, prelude::*, solidity::revert::revert_as_bytes, testing::*};
 use sp_core::{H160, H256, U256};
 
 fn precompiles() -> Precompiles<Runtime> {

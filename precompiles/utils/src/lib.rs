@@ -68,10 +68,7 @@ pub mod prelude {
 					UnboundedBytes,
 					UnboundedString,
 				},
-				revert::{
-					revert, BacktraceExt, InjectBacktrace, MayRevert, Revert, RevertExt,
-					RevertReason,
-				},
+				revert::{revert, BacktraceExt, InjectBacktrace, MayRevert, Revert, RevertExt, RevertReason},
 			},
 			substrate::{RuntimeHelper, TryDispatchError, SYSTEM_ACCOUNT_SIZE},
 			EvmResult,

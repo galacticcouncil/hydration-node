@@ -23,10 +23,8 @@ use std::{
 	io::{BufRead, BufReader, Read},
 };
 
-pub fn check_precompile_implements_solidity_interfaces<F>(
-	files: &[&'static str],
-	supports_selector: F,
-) where
+pub fn check_precompile_implements_solidity_interfaces<F>(files: &[&'static str], supports_selector: F)
+where
 	F: Fn(u32) -> bool,
 {
 	for file in files {
@@ -111,8 +109,7 @@ pub fn compute_selector(v: &str) -> u32 {
 
 /// Returns a list of [SolidityFunction] defined in a solidity file
 pub fn get_selectors(filename: &str) -> Vec<SolidityFunction> {
-	let file = File::open(filename)
-		.unwrap_or_else(|e| panic!("failed opening file '{}': {}", filename, e));
+	let file = File::open(filename).unwrap_or_else(|e| panic!("failed opening file '{}': {}", filename, e));
 	get_selectors_from_reader(file)
 }
 
@@ -281,11 +278,7 @@ mod tests {
 			})
 			.collect::<Vec<_>>();
 		let expected = vec![
-			(
-				String::from("f7af8d91"),
-				String::from(""),
-				String::from("fnNoArgs()"),
-			),
+			(String::from("f7af8d91"), String::from(""), String::from("fnNoArgs()")),
 			(
 				String::from("d43a9a43"),
 				String::from("c4921133"),

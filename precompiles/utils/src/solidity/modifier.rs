@@ -37,15 +37,9 @@ pub enum FunctionModifier {
 #[must_use]
 /// Check that a function call is compatible with the context it is
 /// called into.
-pub fn check_function_modifier(
-	context: &Context,
-	is_static: bool,
-	modifier: FunctionModifier,
-) -> MayRevert {
+pub fn check_function_modifier(context: &Context, is_static: bool, modifier: FunctionModifier) -> MayRevert {
 	if is_static && modifier != FunctionModifier::View {
-		return Err(
-			RevertReason::custom("Can't call non-static function in static context").into(),
-		);
+		return Err(RevertReason::custom("Can't call non-static function in static context").into());
 	}
 
 	if modifier != FunctionModifier::Payable && context.apparent_value > U256::zero() {

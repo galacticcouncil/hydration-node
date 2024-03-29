@@ -31,17 +31,13 @@ pub fn log_costs(topics: usize, data_len: usize) -> EvmResult<u64> {
 	const G_LOGDATA: u64 = 8;
 	const G_LOGTOPIC: u64 = 375;
 
-	let topic_cost = G_LOGTOPIC
-		.checked_mul(topics as u64)
-		.ok_or(PrecompileFailure::Error {
-			exit_status: ExitError::OutOfGas,
-		})?;
+	let topic_cost = G_LOGTOPIC.checked_mul(topics as u64).ok_or(PrecompileFailure::Error {
+		exit_status: ExitError::OutOfGas,
+	})?;
 
-	let data_cost = G_LOGDATA
-		.checked_mul(data_len as u64)
-		.ok_or(PrecompileFailure::Error {
-			exit_status: ExitError::OutOfGas,
-		})?;
+	let data_cost = G_LOGDATA.checked_mul(data_len as u64).ok_or(PrecompileFailure::Error {
+		exit_status: ExitError::OutOfGas,
+	})?;
 
 	G_LOG
 		.checked_add(topic_cost)
@@ -81,12 +77,7 @@ pub fn call_cost(value: U256, config: &evm::Config) -> u64 {
 		}
 	}
 
-	fn new_cost(
-		is_call_or_staticcall: bool,
-		new_account: bool,
-		transfers_value: bool,
-		config: &evm::Config,
-	) -> u64 {
+	fn new_cost(is_call_or_staticcall: bool, new_account: bool, transfers_value: bool, config: &evm::Config) -> u64 {
 		let eip161 = !config.empty_considered_exists;
 		if is_call_or_staticcall {
 			if eip161 {

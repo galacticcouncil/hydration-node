@@ -137,12 +137,7 @@ impl<K: Kind, S: Get<u32>> Codec for BoundedBytesString<K, S> {
 		let mut value = value.to_vec();
 		value.resize(padded_size, 0);
 
-		writer.write_pointer(
-			Writer::new()
-				.write(U256::from(length))
-				.write_raw_bytes(&value)
-				.build(),
-		);
+		writer.write_pointer(Writer::new().write(U256::from(length)).write_raw_bytes(&value).build());
 	}
 
 	fn has_static_size() -> bool {

@@ -48,9 +48,7 @@ impl Precompile {
 		}
 
 		// Check constraint of PrecompileSet.
-		if precompile.tagged_as_precompile_set
-			&& precompile.precompile_set_discriminant_fn.is_none()
-		{
+		if precompile.tagged_as_precompile_set && precompile.precompile_set_discriminant_fn.is_none() {
 			let msg = "A PrecompileSet must have exactly one function tagged with \
 			`#[precompile::discriminant]`";
 			return Err(syn::Error::new(Span::call_site(), msg));
@@ -181,8 +179,7 @@ impl Precompile {
 				}
 				attr::MethodAttr::Payable(span) => {
 					if modifier != Modifier::NonPayable {
-						let msg =
-							"A precompile method can have at most one modifier (payable, view)";
+						let msg = "A precompile method can have at most one modifier (payable, view)";
 						return Err(syn::Error::new(span, msg));
 					}
 
@@ -190,8 +187,7 @@ impl Precompile {
 				}
 				attr::MethodAttr::View(span) => {
 					if modifier != Modifier::NonPayable {
-						let msg =
-							"A precompile method can have at most one modifier (payable, view)";
+						let msg = "A precompile method can have at most one modifier (payable, view)";
 						return Err(syn::Error::new(span, msg));
 					}
 
@@ -200,11 +196,7 @@ impl Precompile {
 				attr::MethodAttr::Public(_, signature_lit) => {
 					used = true;
 
-					let selector = self.parse_public_attr(
-						signature_lit,
-						&method_name,
-						&mut solidity_arguments_type,
-					)?;
+					let selector = self.parse_public_attr(signature_lit, &method_name, &mut solidity_arguments_type)?;
 					selectors.push(selector);
 				}
 			}
@@ -212,8 +204,7 @@ impl Precompile {
 
 		// A method cannot have attributes without being public or fallback.
 		if !used {
-			let msg =
-				"A precompile method cannot have modifiers without being a fallback or having\
+			let msg = "A precompile method cannot have modifiers without being a fallback or having\
 			a `public` attribute";
 			return Err(syn::Error::new(method.span(), msg));
 		}
@@ -391,11 +382,7 @@ impl Precompile {
 	}
 
 	/// Process the discriminant function.
-	fn parse_discriminant_fn(
-		&mut self,
-		span: Span,
-		method: &syn::ImplItemMethod,
-	) -> syn::Result<()> {
+	fn parse_discriminant_fn(&mut self, span: Span, method: &syn::ImplItemMethod) -> syn::Result<()> {
 		if !self.tagged_as_precompile_set {
 			let msg = "The impl block must be tagged with `#[precompile::precompile_set]` for
 			the discriminant attribute to be used";
@@ -527,10 +514,7 @@ impl Precompile {
 		let digest = Keccak256::digest(signature.as_bytes());
 		let selector = u32::from_be_bytes([digest[0], digest[1], digest[2], digest[3]]);
 
-		if let Some(previous) = self
-			.selector_to_variant
-			.insert(selector, method_name.clone())
-		{
+		if let Some(previous) = self.selector_to_variant.insert(selector, method_name.clone()) {
 			let msg = format!("Selector collision with method {}", previous.to_string());
 			return Err(syn::Error::new(signature_lit.span(), msg));
 		}
@@ -583,8 +567,9 @@ ensuring the Solidity function signatures are correct.";
 
 					if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
 						let types = args.args.iter().filter_map(|arg| match arg {
-							syn::GenericArgument::Type(ty)
-							| syn::GenericArgument::Binding(syn::Binding { ty, .. }) => Some(ty),
+							syn::GenericArgument::Type(ty) | syn::GenericArgument::Binding(syn::Binding { ty, .. }) => {
+								Some(ty)
+							}
 							_ => None,
 						});
 

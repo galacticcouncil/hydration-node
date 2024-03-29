@@ -92,18 +92,13 @@ impl<T: PrecompileHandle> PrecompileHandleExt for T {
 	/// Check that a function call is compatible with the context it is
 	/// called into.
 	fn check_function_modifier(&self, modifier: FunctionModifier) -> MayRevert {
-		crate::solidity::modifier::check_function_modifier(
-			self.context(),
-			self.is_static(),
-			modifier,
-		)
+		crate::solidity::modifier::check_function_modifier(self.context(), self.is_static(), modifier)
 	}
 
 	#[must_use]
 	/// Read the selector from the input data as u32.
 	fn read_u32_selector(&self) -> MayRevert<u32> {
-		crate::solidity::codec::selector(self.input())
-			.ok_or(RevertReason::read_out_of_bounds("selector").into())
+		crate::solidity::codec::selector(self.input()).ok_or(RevertReason::read_out_of_bounds("selector").into())
 	}
 
 	#[must_use]
@@ -130,9 +125,7 @@ pub fn using_precompile_handle<'a, R, F: FnOnce() -> R>(
 	// after the execution of the `mutator` closure (whatever the result of the execution).
 	unsafe {
 		EVM_CONTEXT::using(
-			core::mem::transmute::<&'a mut dyn PrecompileHandle, &'static mut dyn PrecompileHandle>(
-				precompile_handle,
-			),
+			core::mem::transmute::<&'a mut dyn PrecompileHandle, &'static mut dyn PrecompileHandle>(precompile_handle),
 			mutator,
 		)
 	}
@@ -168,12 +161,7 @@ mod tests {
 			unimplemented!()
 		}
 
-		fn log(
-			&mut self,
-			_: sp_core::H160,
-			_: Vec<sp_core::H256>,
-			_: Vec<u8>,
-		) -> Result<(), evm::ExitError> {
+		fn log(&mut self, _: sp_core::H160, _: Vec<sp_core::H256>, _: Vec<u8>) -> Result<(), evm::ExitError> {
 			unimplemented!()
 		}
 

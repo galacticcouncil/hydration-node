@@ -65,9 +65,8 @@ pub const PERMIT_TYPEHASH: [u8; 32] = keccak256!(
 );
 
 /// EIP712 permit domain used to compute an individualized domain separator.
-const PERMIT_DOMAIN: [u8; 32] = keccak256!(
-	"EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-);
+const PERMIT_DOMAIN: [u8; 32] =
+	keccak256!("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
 pub const CALL_DATA_LIMIT: u32 = 2u32.pow(16);
 
@@ -86,13 +85,8 @@ where
 		let version: H256 = keccak256!("1").into();
 		let chain_id: U256 = Runtime::ChainId::get().into();
 
-		let domain_separator_inner = solidity::encode_arguments((
-			H256::from(PERMIT_DOMAIN),
-			name,
-			version,
-			chain_id,
-			Address(address),
-		));
+		let domain_separator_inner =
+			solidity::encode_arguments((H256::from(PERMIT_DOMAIN), name, version, chain_id, Address(address)));
 
 		keccak_256(&domain_separator_inner).into()
 	}
@@ -133,9 +127,7 @@ where
 			+ RuntimeHelper::<Runtime>::db_write_gas_cost() // we write nonce
 	}
 
-	#[precompile::public(
-		"dispatch(address,address,uint256,bytes,uint64,uint256,uint8,bytes32,bytes32)"
-	)]
+	#[precompile::public("dispatch(address,address,uint256,bytes,uint64,uint256,uint8,bytes32,bytes32)")]
 	fn dispatch(
 		handle: &mut impl PrecompileHandle,
 		from: Address,
@@ -173,8 +165,7 @@ where
 		// VERIFY PERMIT
 
 		// Blockchain time is in ms while Ethereum use second timestamps.
-		let timestamp: u128 =
-			<Runtime as pallet_evm::Config>::Timestamp::now().unique_saturated_into();
+		let timestamp: u128 = <Runtime as pallet_evm::Config>::Timestamp::now().unique_saturated_into();
 		let timestamp: U256 = U256::from(timestamp / 1000);
 
 		ensure!(deadline >= timestamp, revert("Permit expired"));
@@ -197,14 +188,10 @@ where
 		sig[32..64].copy_from_slice(&s.as_bytes());
 		sig[64] = v;
 
-		let signer = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &permit)
-			.map_err(|_| revert("Invalid permit"))?;
+		let signer = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &permit).map_err(|_| revert("Invalid permit"))?;
 		let signer = H160::from(H256::from_slice(keccak_256(&signer).as_slice()));
 
-		ensure!(
-			signer != H160::zero() && signer == from,
-			revert("Invalid permit")
-		);
+		ensure!(signer != H160::zero() && signer == from, revert("Invalid permit"));
 
 		NoncesStorage::insert(from, nonce + U256::one());
 
@@ -225,8 +212,7 @@ where
 			})
 		};
 
-		let (reason, output) =
-			handle.call(to, transfer, data, Some(gas_limit), false, &sub_context);
+		let (reason, output) = handle.call(to, transfer, data, Some(gas_limit), false, &sub_context);
 		match reason {
 			ExitReason::Error(exit_status) => Err(PrecompileFailure::Error { exit_status }),
 			ExitReason::Fatal(exit_status) => Err(PrecompileFailure::Fatal { exit_status }),
@@ -257,8 +243,7 @@ where
 		// ChainId
 		handle.record_db_read::<Runtime>(8)?;
 
-		let domain_separator: H256 =
-			Self::compute_domain_separator(handle.context().address).into();
+		let domain_separator: H256 = Self::compute_domain_separator(handle.context().address).into();
 
 		Ok(domain_separator)
 	}

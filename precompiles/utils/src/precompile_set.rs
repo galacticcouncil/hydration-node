@@ -24,16 +24,14 @@ use crate::{
 	EvmResult,
 };
 use fp_evm::{
-	ExitError, IsPrecompileResult, Precompile, PrecompileFailure, PrecompileHandle,
-	PrecompileResult, PrecompileSet,
+	ExitError, IsPrecompileResult, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult, PrecompileSet,
 };
 use frame_support::pallet_prelude::Get;
 use impl_trait_for_tuples::impl_for_tuples;
 use pallet_evm::AddressMapping;
 use sp_core::{H160, H256};
 use sp_std::{
-	cell::RefCell, collections::btree_map::BTreeMap, marker::PhantomData, ops::RangeInclusive, vec,
-	vec::Vec,
+	cell::RefCell, collections::btree_map::BTreeMap, marker::PhantomData, ops::RangeInclusive, vec, vec::Vec,
 };
 
 /// Trait representing checks that can be made on a precompile call.
@@ -356,9 +354,7 @@ fn is_address_eoa_or_precompile<R: pallet_evm::Config>(
 
 /// Common checks for precompile and precompile sets.
 /// Don't contain recursion check as precompile sets have recursion check for each member.
-fn common_checks<R: pallet_evm::Config, C: PrecompileChecks>(
-	handle: &mut impl PrecompileHandle,
-) -> EvmResult<()> {
+fn common_checks<R: pallet_evm::Config, C: PrecompileChecks>(handle: &mut impl PrecompileHandle) -> EvmResult<()> {
 	let code_address = handle.code_address();
 	let caller = handle.context().caller;
 
@@ -376,8 +372,7 @@ fn common_checks<R: pallet_evm::Config, C: PrecompileChecks>(
 	});
 
 	// Is this selector callable from a smart contract?
-	let callable_by_smart_contract =
-		C::callable_by_smart_contract(caller, selector).unwrap_or(false);
+	let callable_by_smart_contract = C::callable_by_smart_contract(caller, selector).unwrap_or(false);
 	if !callable_by_smart_contract {
 		if !is_address_eoa_or_precompile::<R>(handle, caller)? {
 			return Err(revert("Function not callable by smart contracts"));
@@ -444,12 +439,7 @@ impl<'a, H: PrecompileHandle> PrecompileHandle for RestrictiveHandle<'a, H> {
 		self.handle.remaining_gas()
 	}
 
-	fn log(
-		&mut self,
-		address: H160,
-		topics: Vec<H256>,
-		data: Vec<u8>,
-	) -> Result<(), evm::ExitError> {
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), evm::ExitError> {
 		self.handle.log(address, topics, data)
 	}
 
@@ -479,8 +469,7 @@ impl<'a, H: PrecompileHandle> PrecompileHandle for RestrictiveHandle<'a, H> {
 		proof_size: Option<u64>,
 		storage_growth: Option<u64>,
 	) -> Result<(), ExitError> {
-		self.handle
-			.record_external_cost(ref_time, proof_size, storage_growth)
+		self.handle.record_external_cost(ref_time, proof_size, storage_growth)
 	}
 
 	fn refund_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) {
@@ -508,10 +497,7 @@ pub trait PrecompileSetFragment {
 	fn new() -> Self;
 
 	/// Execute the fragment.
-	fn execute<R: pallet_evm::Config>(
-		&self,
-		handle: &mut impl PrecompileHandle,
-	) -> Option<PrecompileResult>;
+	fn execute<R: pallet_evm::Config>(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult>;
 
 	/// Is the provided address a precompile in this fragment?
 	fn is_precompile(&self, address: H160, gas: u64) -> IsPrecompileResult;
@@ -548,10 +534,7 @@ where
 	}
 
 	#[inline(always)]
-	fn execute<R: pallet_evm::Config>(
-		&self,
-		handle: &mut impl PrecompileHandle,
-	) -> Option<PrecompileResult> {
+	fn execute<R: pallet_evm::Config>(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		let code_address = handle.code_address();
 
 		// Check if this is the address of the precompile.
@@ -570,9 +553,7 @@ where
 			match self.current_recursion_level.try_borrow_mut() {
 				Ok(mut recursion_level) => {
 					if *recursion_level > max_recursion_level {
-						return Some(Err(
-							revert("Precompile is called with too high nesting").into()
-						));
+						return Some(Err(revert("Precompile is called with too high nesting").into()));
 					}
 
 					*recursion_level += 1;
@@ -585,10 +566,7 @@ where
 
 		// Subcall protection.
 		let allow_subcalls = C::allow_subcalls().unwrap_or(false);
-		let mut handle = RestrictiveHandle {
-			handle,
-			allow_subcalls,
-		};
+		let mut handle = RestrictiveHandle { handle, allow_subcalls };
 
 		let res = P::execute(&mut handle);
 
@@ -628,8 +606,7 @@ where
 			accept_delegate_call: C::accept_delegate_call().unwrap_or(false),
 			callable_by_smart_contract: C::callable_by_smart_contract_summary()
 				.unwrap_or_else(|| "Not callable".into()),
-			callable_by_precompile: C::callable_by_precompile_summary()
-				.unwrap_or_else(|| "Not callable".into()),
+			callable_by_precompile: C::callable_by_precompile_summary().unwrap_or_else(|| "Not callable".into()),
 		}]
 	}
 }
@@ -674,10 +651,7 @@ where
 	}
 
 	#[inline(always)]
-	fn execute<R: pallet_evm::Config>(
-		&self,
-		handle: &mut impl PrecompileHandle,
-	) -> Option<PrecompileResult> {
+	fn execute<R: pallet_evm::Config>(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		let code_address = handle.code_address();
 		if !is_precompile_or_fail::<R>(code_address, handle.remaining_gas()).ok()? {
 			return None;
@@ -708,10 +682,7 @@ where
 
 		// Subcall protection.
 		let allow_subcalls = C::allow_subcalls().unwrap_or(false);
-		let mut handle = RestrictiveHandle {
-			handle,
-			allow_subcalls,
-		};
+		let mut handle = RestrictiveHandle { handle, allow_subcalls };
 
 		let res = self.precompile_set.execute(&mut handle);
 
@@ -762,8 +733,7 @@ where
 			accept_delegate_call: C::accept_delegate_call().unwrap_or(false),
 			callable_by_smart_contract: C::callable_by_smart_contract_summary()
 				.unwrap_or_else(|| "Not callable".into()),
-			callable_by_precompile: C::callable_by_precompile_summary()
-				.unwrap_or_else(|| "Not callable".into()),
+			callable_by_precompile: C::callable_by_precompile_summary().unwrap_or_else(|| "Not callable".into()),
 		}]
 	}
 }
@@ -792,10 +762,7 @@ where
 	}
 
 	#[inline(always)]
-	fn execute<R: pallet_evm::Config>(
-		&self,
-		handle: &mut impl PrecompileHandle,
-	) -> Option<PrecompileResult> {
+	fn execute<R: pallet_evm::Config>(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		if A::get() == handle.code_address() {
 			Some(Err(revert("revert")))
 		} else {
@@ -851,10 +818,7 @@ where
 	}
 
 	#[inline(always)]
-	fn execute<R: pallet_evm::Config>(
-		&self,
-		handle: &mut impl PrecompileHandle,
-	) -> Option<PrecompileResult> {
+	fn execute<R: pallet_evm::Config>(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		if A::get().contains(&handle.code_address()) {
 			Some(Err(revert("Removed precompile")))
 		} else {
@@ -913,10 +877,7 @@ where
 	}
 
 	#[inline(always)]
-	fn execute<R: pallet_evm::Config>(
-		&self,
-		handle: &mut impl PrecompileHandle,
-	) -> Option<PrecompileResult> {
+	fn execute<R: pallet_evm::Config>(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		if A::get() == handle.code_address() {
 			Some(Err(revert("Removed precompile")))
 		} else {
@@ -970,10 +931,7 @@ impl PrecompileSetFragment for Tuple {
 	}
 
 	#[inline(always)]
-	fn execute<R: pallet_evm::Config>(
-		&self,
-		handle: &mut impl PrecompileHandle,
-	) -> Option<PrecompileResult> {
+	fn execute<R: pallet_evm::Config>(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		for_tuples!(#(
 			if let Some(res) = self.Tuple.execute::<R>(handle) {
 				return Some(res);
@@ -1072,10 +1030,7 @@ where
 		}
 	}
 
-	fn execute<R: pallet_evm::Config>(
-		&self,
-		handle: &mut impl PrecompileHandle,
-	) -> Option<PrecompileResult> {
+	fn execute<R: pallet_evm::Config>(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		if self.range.contains(&handle.code_address()) {
 			self.inner.execute::<R>(handle)
 		} else {

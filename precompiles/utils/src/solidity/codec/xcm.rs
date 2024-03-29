@@ -129,9 +129,7 @@ pub(crate) fn network_id_from_bytes(encoded_bytes: Vec<u8>) -> MayRevert<Option<
 				.in_field("genesis")?
 				.to_vec()
 				.try_into()
-				.map_err(|_| {
-					RevertReason::value_is_too_large("network by genesis").in_field("genesis")
-				})?,
+				.map_err(|_| RevertReason::value_is_too_large("network by genesis").in_field("genesis"))?,
 		))),
 		2 => Ok(Some(NetworkId::Polkadot)),
 		3 => Ok(Some(NetworkId::Kusama)),
@@ -222,9 +220,7 @@ impl Codec for Junction {
 					key: account,
 				})
 			}
-			4 => Ok(Junction::PalletInstance(
-				encoded_junction.read_raw_bytes(1)?[0],
-			)),
+			4 => Ok(Junction::PalletInstance(encoded_junction.read_raw_bytes(1)?[0])),
 			5 => {
 				// In the case of Junction::GeneralIndex, we need 16 additional bytes
 				let mut general_index: [u8; 16] = Default::default();
@@ -351,9 +347,7 @@ impl Codec for Junctions {
 // Cannot used derive macro since it is a foreign struct.
 impl Codec for MultiLocation {
 	fn read(reader: &mut Reader) -> MayRevert<Self> {
-		let (parents, interior) = reader
-			.read()
-			.map_in_tuple_to_field(&["parents", "interior"])?;
+		let (parents, interior) = reader.read().map_in_tuple_to_field(&["parents", "interior"])?;
 		Ok(MultiLocation { parents, interior })
 	}
 
@@ -372,9 +366,7 @@ impl Codec for MultiLocation {
 
 impl Codec for Weight {
 	fn read(reader: &mut Reader) -> MayRevert<Self> {
-		let (ref_time, proof_size) = reader
-			.read()
-			.map_in_tuple_to_field(&["ref_time", "proof_size"])?;
+		let (ref_time, proof_size) = reader.read().map_in_tuple_to_field(&["ref_time", "proof_size"])?;
 		Ok(Weight::from_parts(ref_time, proof_size))
 	}
 

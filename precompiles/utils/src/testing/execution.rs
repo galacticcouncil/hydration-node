@@ -20,8 +20,7 @@ use {
 		testing::{decode_revert_message, MockHandle, PrettyLog, SubcallHandle, SubcallTrait},
 	},
 	fp_evm::{
-		Context, ExitError, ExitSucceed, Log, PrecompileFailure, PrecompileOutput,
-		PrecompileResult, PrecompileSet,
+		Context, ExitError, ExitSucceed, Log, PrecompileFailure, PrecompileOutput, PrecompileResult, PrecompileSet,
 	},
 	sp_core::{H160, U256},
 	sp_std::boxed::Box,
@@ -41,12 +40,7 @@ pub struct PrecompilesTester<'p, P> {
 }
 
 impl<'p, P: PrecompileSet> PrecompilesTester<'p, P> {
-	pub fn new(
-		precompiles: &'p P,
-		from: impl Into<H160>,
-		to: impl Into<H160>,
-		data: Vec<u8>,
-	) -> Self {
+	pub fn new(precompiles: &'p P, from: impl Into<H160>, to: impl Into<H160>, data: Vec<u8>) -> Self {
 		let to = to.into();
 		let mut handle = MockHandle::new(
 			to.clone(),
@@ -163,10 +157,7 @@ impl<'p, P: PrecompileSet> PrecompilesTester<'p, P> {
 					"Revert message (bytes): {:?}",
 					sp_core::hexdisplay::HexDisplay::from(&decoded)
 				);
-				eprintln!(
-					"Revert message (string): {:?}",
-					core::str::from_utf8(decoded).ok()
-				);
+				eprintln!("Revert message (string): {:?}", core::str::from_utf8(decoded).ok());
 				panic!("Shouldn't have reverted");
 			}
 			Some(Ok(PrecompileOutput {
@@ -178,10 +169,7 @@ impl<'p, P: PrecompileSet> PrecompilesTester<'p, P> {
 						"Output (bytes): {:?}",
 						sp_core::hexdisplay::HexDisplay::from(&execution_output)
 					);
-					eprintln!(
-						"Output (string): {:?}",
-						core::str::from_utf8(&execution_output).ok()
-					);
+					eprintln!("Output (string): {:?}", core::str::from_utf8(&execution_output).ok());
 					panic!("Output doesn't match");
 				}
 			}
@@ -209,10 +197,7 @@ impl<'p, P: PrecompileSet> PrecompilesTester<'p, P> {
 						"Revert message (bytes): {:?}",
 						sp_core::hexdisplay::HexDisplay::from(&decoded)
 					);
-					eprintln!(
-						"Revert message (string): {:?}",
-						core::str::from_utf8(decoded).ok()
-					);
+					eprintln!("Revert message (string): {:?}", core::str::from_utf8(decoded).ok());
 					panic!("Revert reason doesn't match !");
 				}
 			}
@@ -225,10 +210,7 @@ impl<'p, P: PrecompileSet> PrecompilesTester<'p, P> {
 	/// Execute the precompile set and check it returns provided output.
 	pub fn execute_error(mut self, error: ExitError) {
 		let res = self.execute();
-		assert_eq!(
-			res,
-			Some(Err(PrecompileFailure::Error { exit_status: error }))
-		);
+		assert_eq!(res, Some(Err(PrecompileFailure::Error { exit_status: error })));
 		self.assert_optionals();
 	}
 }

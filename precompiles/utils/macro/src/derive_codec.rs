@@ -18,8 +18,8 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{quote, quote_spanned};
 use syn::{
-	parse_macro_input, punctuated::Punctuated, spanned::Spanned, DeriveInput, Ident, LitStr, Path,
-	PathSegment, PredicateType, TraitBound, TraitBoundModifier,
+	parse_macro_input, punctuated::Punctuated, spanned::Spanned, DeriveInput, Ident, LitStr, Path, PathSegment,
+	PredicateType, TraitBound, TraitBoundModifier,
 };
 
 pub fn main(input: TokenStream) -> TokenStream {

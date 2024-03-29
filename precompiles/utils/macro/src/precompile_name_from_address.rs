@@ -79,9 +79,7 @@ fn extract_precompile_name_and_prefix(type_: &Type) -> Option<(Ident, u64)> {
 		Type::Path(type_path) => {
 			if let Some(path_segment) = type_path.path.segments.last() {
 				match path_segment.ident.to_string().as_ref() {
-					"PrecompileAt" => {
-						extract_precompile_name_and_prefix_for_precompile_at(path_segment)
-					}
+					"PrecompileAt" => extract_precompile_name_and_prefix_for_precompile_at(path_segment),
 					_ => None,
 				}
 			} else {
@@ -92,9 +90,7 @@ fn extract_precompile_name_and_prefix(type_: &Type) -> Option<(Ident, u64)> {
 	}
 }
 
-fn extract_precompile_name_and_prefix_for_precompile_at(
-	path_segment: &syn::PathSegment,
-) -> Option<(Ident, u64)> {
+fn extract_precompile_name_and_prefix_for_precompile_at(path_segment: &syn::PathSegment) -> Option<(Ident, u64)> {
 	if let syn::PathArguments::AngleBracketed(generics) = &path_segment.arguments {
 		let mut iter = generics.args.iter();
 		if let (
@@ -102,18 +98,15 @@ fn extract_precompile_name_and_prefix_for_precompile_at(
 			Some(GenericArgument::Type(Type::Path(type_path_2))),
 		) = (iter.next(), iter.next())
 		{
-			if let (Some(path_segment_1), Some(path_segment_2)) = (
-				type_path_1.path.segments.last(),
-				type_path_2.path.segments.last(),
-			) {
+			if let (Some(path_segment_1), Some(path_segment_2)) =
+				(type_path_1.path.segments.last(), type_path_2.path.segments.last())
+			{
 				if let syn::PathArguments::AngleBracketed(generics_) = &path_segment_1.arguments {
 					if let Some(GenericArgument::Const(Expr::Lit(lit))) = generics_.args.first() {
 						if let Lit::Int(int) = &lit.lit {
 							if let Ok(precompile_id) = int.base10_parse() {
 								if &path_segment_2.ident.to_string() == "CollectivePrecompile" {
-									if let Some(instance_ident) =
-										precompile_instance_ident(&path_segment_2)
-									{
+									if let Some(instance_ident) = precompile_instance_ident(&path_segment_2) {
 										return Some((instance_ident, precompile_id));
 									}
 								} else {

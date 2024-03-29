@@ -362,10 +362,7 @@ fn read_address_array_size_too_big() {
 	match reader.read::<Vec<Address>>().in_field("field") {
 		Ok(_) => panic!("should not parse correctly"),
 		Err(err) => {
-			assert_eq!(
-				err.to_string(),
-				"field[5]: Tried to read address out of bounds"
-			)
+			assert_eq!(err.to_string(), "field[5]: Tried to read address out of bounds")
 		}
 	}
 }
@@ -378,10 +375,7 @@ fn write_address_nested_array() {
 			Address(H160::repeat_byte(0x22)),
 			Address(H160::repeat_byte(0x33)),
 		],
-		vec![
-			Address(H160::repeat_byte(0x44)),
-			Address(H160::repeat_byte(0x55)),
-		],
+		vec![Address(H160::repeat_byte(0x44)), Address(H160::repeat_byte(0x55))],
 	];
 	let writer_output = Writer::new().write(array.clone()).build();
 	assert_eq!(writer_output.len(), 0x160);
@@ -410,10 +404,7 @@ fn read_address_nested_array() {
 			Address(H160::repeat_byte(0x22)),
 			Address(H160::repeat_byte(0x33)),
 		],
-		vec![
-			Address(H160::repeat_byte(0x44)),
-			Address(H160::repeat_byte(0x55)),
-		],
+		vec![Address(H160::repeat_byte(0x44)), Address(H160::repeat_byte(0x55))],
 	];
 	let writer_output = Writer::new().write(array.clone()).build();
 
@@ -434,10 +425,7 @@ fn write_multiple_arrays() {
 
 	let array2 = vec![H256::repeat_byte(0x44), H256::repeat_byte(0x55)];
 
-	let writer_output = Writer::new()
-		.write(array1.clone())
-		.write(array2.clone())
-		.build();
+	let writer_output = Writer::new().write(array1.clone()).write(array2.clone()).build();
 
 	assert_eq!(writer_output.len(), 0x120);
 
@@ -465,10 +453,7 @@ fn read_multiple_arrays() {
 
 	let array2 = vec![H256::repeat_byte(0x44), H256::repeat_byte(0x55)];
 
-	let writer_output = Writer::new()
-		.write(array1.clone())
-		.write(array2.clone())
-		.build();
+	let writer_output = Writer::new().write(array1.clone()).write(array2.clone()).build();
 
 	// offset 0x20
 	// offset 0x40
@@ -565,10 +550,7 @@ fn write_vec_bytes() {
 	tempor incididunt ut labore et dolore magna aliqua.";
 
 	let writer_output = Writer::new()
-		.write(vec![
-			UnboundedBytes::from(&data[..]),
-			UnboundedBytes::from(&data[..]),
-		])
+		.write(vec![UnboundedBytes::from(&data[..]), UnboundedBytes::from(&data[..])])
 		.build();
 
 	writer_output
@@ -621,10 +603,7 @@ fn read_vec_of_bytes() {
 	tempor incididunt ut labore et dolore magna aliqua.";
 
 	let writer_output = Writer::new()
-		.write(vec![
-			UnboundedBytes::from(&data[..]),
-			UnboundedBytes::from(&data[..]),
-		])
+		.write(vec![UnboundedBytes::from(&data[..]), UnboundedBytes::from(&data[..])])
 		.build();
 
 	writer_output
@@ -636,10 +615,7 @@ fn read_vec_of_bytes() {
 	let parsed: Vec<UnboundedBytes> = reader.read().expect("to correctly parse Vec<u8>");
 
 	assert_eq!(
-		vec![
-			UnboundedBytes::from(&data[..]),
-			UnboundedBytes::from(&data[..])
-		],
+		vec![UnboundedBytes::from(&data[..]), UnboundedBytes::from(&data[..])],
 		parsed
 	);
 }
@@ -732,14 +708,10 @@ fn read_complex_solidity_function() {
 
 #[test]
 fn junctions_decoder_works() {
-	let writer_output = Writer::new()
-		.write(Junctions::X1(Junction::OnlyChild))
-		.build();
+	let writer_output = Writer::new().write(Junctions::X1(Junction::OnlyChild)).build();
 
 	let mut reader = Reader::new(&writer_output);
-	let parsed: Junctions = reader
-		.read::<Junctions>()
-		.expect("to correctly parse Junctions");
+	let parsed: Junctions = reader.read::<Junctions>().expect("to correctly parse Junctions");
 
 	assert_eq!(parsed, Junctions::X1(Junction::OnlyChild));
 
@@ -748,14 +720,9 @@ fn junctions_decoder_works() {
 		.build();
 
 	let mut reader = Reader::new(&writer_output);
-	let parsed: Junctions = reader
-		.read::<Junctions>()
-		.expect("to correctly parse Junctions");
+	let parsed: Junctions = reader.read::<Junctions>().expect("to correctly parse Junctions");
 
-	assert_eq!(
-		parsed,
-		Junctions::X2(Junction::OnlyChild, Junction::OnlyChild)
-	);
+	assert_eq!(parsed, Junctions::X2(Junction::OnlyChild, Junction::OnlyChild));
 
 	let writer_output = Writer::new()
 		.write(Junctions::X3(
@@ -766,17 +733,11 @@ fn junctions_decoder_works() {
 		.build();
 
 	let mut reader = Reader::new(&writer_output);
-	let parsed: Junctions = reader
-		.read::<Junctions>()
-		.expect("to correctly parse Junctions");
+	let parsed: Junctions = reader.read::<Junctions>().expect("to correctly parse Junctions");
 
 	assert_eq!(
 		parsed,
-		Junctions::X3(
-			Junction::OnlyChild,
-			Junction::OnlyChild,
-			Junction::OnlyChild
-		),
+		Junctions::X3(Junction::OnlyChild, Junction::OnlyChild, Junction::OnlyChild),
 	);
 }
 
@@ -785,9 +746,7 @@ fn junction_decoder_works() {
 	let writer_output = Writer::new().write(Junction::Parachain(0)).build();
 
 	let mut reader = Reader::new(&writer_output);
-	let parsed: Junction = reader
-		.read::<Junction>()
-		.expect("to correctly parse Junctions");
+	let parsed: Junction = reader.read::<Junction>().expect("to correctly parse Junctions");
 
 	assert_eq!(parsed, Junction::Parachain(0));
 
@@ -799,9 +758,7 @@ fn junction_decoder_works() {
 		.build();
 
 	let mut reader = Reader::new(&writer_output);
-	let parsed: Junction = reader
-		.read::<Junction>()
-		.expect("to correctly parse Junctions");
+	let parsed: Junction = reader.read::<Junction>().expect("to correctly parse Junctions");
 
 	assert_eq!(
 		parsed,
@@ -819,9 +776,7 @@ fn junction_decoder_works() {
 		.build();
 
 	let mut reader = Reader::new(&writer_output);
-	let parsed: Junction = reader
-		.read::<Junction>()
-		.expect("to correctly parse Junctions");
+	let parsed: Junction = reader.read::<Junction>().expect("to correctly parse Junctions");
 
 	assert_eq!(
 		parsed,
@@ -839,9 +794,7 @@ fn junction_decoder_works() {
 		.build();
 
 	let mut reader = Reader::new(&writer_output);
-	let parsed: Junction = reader
-		.read::<Junction>()
-		.expect("to correctly parse Junctions");
+	let parsed: Junction = reader.read::<Junction>().expect("to correctly parse Junctions");
 
 	assert_eq!(
 		parsed,
@@ -883,11 +836,7 @@ fn test_check_function_modifier() {
 	};
 
 	let payable_error = || Revert::new(RevertReason::custom("Function is not payable"));
-	let static_error = || {
-		Revert::new(RevertReason::custom(
-			"Can't call non-static function in static context",
-		))
-	};
+	let static_error = || Revert::new(RevertReason::custom("Can't call non-static function in static context"));
 
 	// Can't call non-static functions in static context.
 	assert_eq!(
@@ -1111,10 +1060,7 @@ fn evm_data_solidity_types() {
 	assert_eq!(<(Vec<bool>, Address)>::signature(), "(bool[],address)");
 	assert_eq!(<(bool, Vec<Address>)>::signature(), "(bool,address[])");
 	assert_eq!(Vec::<(bool, Address)>::signature(), "(bool,address)[]");
-	assert_eq!(
-		Vec::<(bool, Vec<Address>)>::signature(),
-		"(bool,address[])[]"
-	);
+	assert_eq!(Vec::<(bool, Vec<Address>)>::signature(), "(bool,address[])[]");
 
 	// Struct encode like tuples
 	assert_eq!(MultiLocation::signature(), "(uint8,bytes[])");
