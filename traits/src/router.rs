@@ -136,7 +136,6 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 }
 
 /// All AMMs used in the router are required to implement this trait.
-//TODO: rename it as not longer mathces with the whole purpose
 pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 	type Error;
 
