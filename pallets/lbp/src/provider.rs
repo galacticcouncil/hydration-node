@@ -36,17 +36,16 @@ impl<T: Config> SpotPriceProvider<AssetId> for Pallet<T> {
 
 			let now = T::BlockNumberProvider::current_block_number();
 
-			//TODO: check ordering, that might be not good for all case
 			let (weight_in, weight_out) = match Self::get_sorted_weight(asset_a.clone(), now, &pool_data) {
 				Ok(weights) => weights,
 				Err(_) => return None,
 			};
 
-			let Some(d) = asset_out_reserve.checked_mul(weight_in.into()) else {
+			let Some(n) = asset_in_reserve.checked_mul(weight_out.into()) else {
 				return None;
 			};
 
-			let Some(n) = asset_in_reserve.checked_mul(weight_out.into()) else {
+			let Some(d) = asset_out_reserve.checked_mul(weight_in.into()) else {
 				return None;
 			};
 
