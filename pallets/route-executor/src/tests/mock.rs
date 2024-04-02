@@ -28,6 +28,7 @@ use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pretty_assertions::assert_eq;
 use sp_core::H256;
+use sp_runtime::FixedU128;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError,
@@ -417,6 +418,14 @@ macro_rules! impl_fake_executor {
 				_asset_b: AssetId,
 			) -> Result<Balance, ExecutorError<Self::Error>> {
 				Ok(100)
+			}
+
+			fn calculate_spot_price(
+				_pool_type: PoolType<AssetId>,
+				_asset_a: AssetId,
+				_asset_b: AssetId,
+			) -> Result<FixedU128, ExecutorError<Self::Error>> {
+				Ok(FixedU128::from_rational(1, 10))
 			}
 		}
 	};

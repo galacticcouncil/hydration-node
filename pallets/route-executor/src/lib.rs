@@ -32,13 +32,14 @@ use frame_support::{
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider};
+use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
-use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, TransactionOutcome};
+use sp_core::U512;
+use sp_runtime::traits::{AccountIdConversion, CheckedDiv, CheckedMul};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -850,4 +851,90 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 			None => default_route,
 		}
 	}
+}
+use hydra_dx_math::support::rational::{round_to_rational, round_u512_to_rational, Rounding};
+impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
+	fn spot_price(route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
+		let mut prices: Vec<FixedU128> = Vec::with_capacity(route.len());
+		for trade in route {
+			let asset_a = trade.asset_in;
+			let asset_b = trade.asset_out;
+			match trade.pool {
+				PoolType::Omnipool => {
+					let Ok(spot_price) = T::AMM::calculate_spot_price(PoolType::Omnipool, asset_a, asset_b) else {
+						return None;
+					};
+					prices.push(spot_price);
+				}
+				PoolType::Stableswap(pool_id) => {
+					let Ok(price_of_share_vs_asset_a) = T::AMM::calculate_spot_price(PoolType::Stableswap(pool_id), asset_a, asset_a) else {
+						return None;
+					};
+
+					let Ok(price_of_share_vs_asset_b) = T::AMM::calculate_spot_price(PoolType::Stableswap(pool_id), asset_b, asset_b) else {
+						return None;
+					};
+
+					let Some(price_of_asset_b_vs_share) = price_of_share_vs_asset_b.reciprocal() else {
+						return None;
+					};
+
+					let Some(spot_price_between_asset_a_vs_asset_b) = price_of_share_vs_asset_a.checked_mul(&price_of_asset_b_vs_share) else {
+						return None;
+					};
+
+					prices.push(spot_price_between_asset_a_vs_asset_b);
+				}
+				PoolType::XYK => {
+					let Ok(spot_price) = T::AMM::calculate_spot_price(PoolType::XYK, asset_a, asset_b) else {
+						return None;
+					};
+					prices.push(spot_price);
+				}
+				PoolType::LBP => {
+					let Ok(spot_price) = T::AMM::calculate_spot_price(PoolType::LBP, asset_a, asset_b) else {
+						return None;
+					};
+					prices.push(spot_price);
+				}
+			}
+		}
+		if prices.is_empty() {
+			return None;
+		}
+		//TODO: clean up
+		/*let prices_as_u512: Vec<U512> = prices.iter().map(|p| U512::from(p.into_inner())).collect();
+
+		let spot_price = prices_as_u512
+			.iter()
+			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(*price))?;
+
+		let spot_price_as_u128 = round_u512_to_u128(spot_price);
+		let a = Some(FixedU128::from_inner(spot_price_as_u128));*/
+
+		let nominator = prices.iter().try_fold(U512::from(1u128), |acc, price| {
+			acc.checked_mul(U512::from(price.into_inner()))
+		})?;
+
+		let denominator = prices.iter().try_fold(U512::from(1u128), |acc, price| {
+			acc.checked_mul(U512::from(FixedU128::DIV))
+		})?;
+
+		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
+
+		Some(FixedU128::from_rational(rat_as_u128.0, rat_as_u128.1))
+	}
+}
+
+pub fn round_u512_to_u128(n: U512) -> u128 {
+	let shift = n.bits().saturating_sub(128);
+	let n = if shift > 0 {
+		let min_n = if n.is_zero() { 0 } else { 1 };
+		let shifted_n = (n >> shift).low_u128();
+
+		shifted_n.max(min_n)
+	} else {
+		n.low_u128()
+	};
+	n
 }

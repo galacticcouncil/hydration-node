@@ -1,9 +1,10 @@
 use crate::*;
+use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::BlockNumberProvider;
-use sp_runtime::DispatchError;
+use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
@@ -148,5 +149,19 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		let liquidty = T::MultiCurrency::free_balance(asset_a, &pair_account);
 
 		Ok(liquidty)
+	}
+
+	fn calculate_spot_price(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<FixedU128, ExecutorError<Self::Error>> {
+		if pool_type != PoolType::LBP {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		let spot_price = Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::NotSupported)?;
+
+		Ok(spot_price)
 	}
 }

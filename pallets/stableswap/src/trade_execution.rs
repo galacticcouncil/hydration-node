@@ -2,10 +2,13 @@ use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
-use sp_runtime::{ArithmeticError, DispatchError};
+use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
 use sp_std::vec;
 
-impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
+impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T>
+where
+	u32: From<<T as Config>::AssetId>,
+{
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -193,6 +196,35 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 			PoolType::Stableswap(pool_id) => {
 				let pool_account = Self::pool_account(pool_id);
 				Ok(T::Currency::free_balance(asset_a, &pool_account))
+			}
+			_ => Err(ExecutorError::NotSupported),
+		}
+	}
+
+	fn calculate_spot_price(
+		pool_type: PoolType<T::AssetId>,
+		asset_a: T::AssetId,
+		_asset_b: T::AssetId,
+	) -> Result<FixedU128, ExecutorError<Self::Error>> {
+		match pool_type {
+			PoolType::Stableswap(pool_id) => {
+				let pool_account = Self::pool_account(pool_id);
+				let pool =
+					Pools::<T>::get(pool_id).ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+				let balances = pool
+					.reserves_with_decimals::<T>(&pool_account)
+					.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+				let amp = Pallet::<T>::get_amplification(&pool);
+				let asset_idx = pool
+					.find_asset(asset_a)
+					.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+
+				let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp)
+					.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+				let p = hydra_dx_math::stableswap::calculate_spot_price(&balances, amp, d, asset_idx)
+					.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+
+				Ok(FixedU128::from_rational(p.0, p.1))
 			}
 			_ => Err(ExecutorError::NotSupported),
 		}

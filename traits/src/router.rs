@@ -3,8 +3,13 @@ use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 use frame_support::weights::Weight;
 use scale_info::TypeInfo;
+use sp_arithmetic::FixedU128;
 use sp_std::vec;
 use sp_std::vec::Vec;
+
+pub trait RouteSpotPriceProvider<AssetId> {
+	fn spot_price(route: &[Trade<AssetId>]) -> Option<FixedU128>;
+}
 
 #[derive(Debug, Encode, Decode, Copy, Clone, PartialOrd, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
 pub struct AssetPair<AssetId> {
@@ -63,6 +68,7 @@ pub enum PoolType<AssetId> {
 	Omnipool,
 }
 
+//TODO: reanme it as no longer matches with the purpose
 #[derive(Debug, PartialEq, Eq)]
 pub enum ExecutorError<E> {
 	NotSupported,
@@ -130,6 +136,7 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 }
 
 /// All AMMs used in the router are required to implement this trait.
+//TODO: rename it as not longer mathces with the whole purpose
 pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 	type Error;
 
@@ -170,6 +177,12 @@ pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 		asset_a: AssetId,
 		asset_b: AssetId,
 	) -> Result<Balance, ExecutorError<Self::Error>>;
+
+	fn calculate_spot_price(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<FixedU128, ExecutorError<Self::Error>>;
 }
 
 #[allow(clippy::redundant_clone)] //Needed as it complains about redundant clone, but clone is needed as Origin is moved and it is not copy type.
@@ -264,6 +277,23 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 		for_tuples!(
 			#(
 				let value = match Tuple::get_liquidity_depth(pool_type,asset_a, asset_b){
+					Ok(result) => return Ok(result),
+					Err(v) if v == ExecutorError::NotSupported => v,
+					Err(v) => return Err(v),
+				};
+			)*
+		);
+		Err(value)
+	}
+
+	fn calculate_spot_price(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<FixedU128, ExecutorError<Self::Error>> {
+		for_tuples!(
+			#(
+				let value = match Tuple::calculate_spot_price(pool_type,asset_a, asset_b){
 					Ok(result) => return Ok(result),
 					Err(v) if v == ExecutorError::NotSupported => v,
 					Err(v) => return Err(v),

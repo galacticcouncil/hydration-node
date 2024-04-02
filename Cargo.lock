@@ -8326,6 +8326,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
  "orml-tokens",
