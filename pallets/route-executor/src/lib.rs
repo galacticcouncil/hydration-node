@@ -28,6 +28,7 @@ use frame_support::{
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
+use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
@@ -852,7 +853,6 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 		}
 	}
 }
-use hydra_dx_math::support::rational::{round_to_rational, round_u512_to_rational, Rounding};
 impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 	fn spot_price(route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
 		let mut prices: Vec<FixedU128> = Vec::with_capacity(route.len());
@@ -902,21 +902,12 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 		if prices.is_empty() {
 			return None;
 		}
-		//TODO: clean up
-		/*let prices_as_u512: Vec<U512> = prices.iter().map(|p| U512::from(p.into_inner())).collect();
-
-		let spot_price = prices_as_u512
-			.iter()
-			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(*price))?;
-
-		let spot_price_as_u128 = round_u512_to_u128(spot_price);
-		let a = Some(FixedU128::from_inner(spot_price_as_u128));*/
 
 		let nominator = prices.iter().try_fold(U512::from(1u128), |acc, price| {
 			acc.checked_mul(U512::from(price.into_inner()))
 		})?;
 
-		let denominator = prices.iter().try_fold(U512::from(1u128), |acc, price| {
+		let denominator = prices.iter().try_fold(U512::from(1u128), |acc, _price| {
 			acc.checked_mul(U512::from(FixedU128::DIV))
 		})?;
 
@@ -924,17 +915,4 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 
 		Some(FixedU128::from_rational(rat_as_u128.0, rat_as_u128.1))
 	}
-}
-
-pub fn round_u512_to_u128(n: U512) -> u128 {
-	let shift = n.bits().saturating_sub(128);
-	let n = if shift > 0 {
-		let min_n = if n.is_zero() { 0 } else { 1 };
-		let shifted_n = (n >> shift).low_u128();
-
-		shifted_n.max(min_n)
-	} else {
-		n.low_u128()
-	};
-	n
 }

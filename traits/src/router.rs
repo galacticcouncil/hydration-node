@@ -68,7 +68,6 @@ pub enum PoolType<AssetId> {
 	Omnipool,
 }
 
-//TODO: reanme it as no longer matches with the purpose
 #[derive(Debug, PartialEq, Eq)]
 pub enum ExecutorError<E> {
 	NotSupported,
