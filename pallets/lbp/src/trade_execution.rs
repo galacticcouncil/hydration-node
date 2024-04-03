@@ -4,6 +4,7 @@ use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{DispatchError, FixedU128};
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
@@ -160,7 +161,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			return Err(ExecutorError::NotSupported);
 		}
 
-		let spot_price = Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::NotSupported)?;
+		let spot_price = Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
 
 		Ok(spot_price)
 	}
