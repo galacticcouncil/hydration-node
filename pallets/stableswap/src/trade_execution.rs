@@ -10,10 +10,7 @@ use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128, TransactionOutcome};
 use sp_std::vec;
 
-impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T>
-where
-	u32: From<<T as Config>::AssetId>,
-{
+impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -218,30 +215,28 @@ where
 					let origin: OriginFor<T> = Origin::<T>::Signed(Self::pallet_account()).into();
 
 					//We mint amount in to dry-run sell
-					let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in.clone());
+					let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in);
 
 					//We need to mint some asset_out balance otherwise we can have ED error triggered when amount_out is transferred to account from sell
-					let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_in.clone());
+					let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_in);
 
 					if let Err(err) = Self::execute_sell(
 						origin,
 						PoolType::Stableswap(pool_id),
 						asset_a,
 						asset_b,
-						amount_in.clone(),
+						amount_in,
 						Balance::MIN,
 					) {
 						return match err {
-							ExecutorError::Error(dispatch_err) => {
-								TransactionOutcome::Rollback(Err(dispatch_err.into()))
-							}
-							_ => TransactionOutcome::Rollback(Err(Corruption.into())),
+							ExecutorError::Error(dispatch_err) => TransactionOutcome::Rollback(Err(dispatch_err)),
+							_ => TransactionOutcome::Rollback(Err(Corruption)),
 						};
 					}
 
 					let Some(amount_out) =
 						T::Currency::free_balance(asset_b, &Self::pallet_account()).checked_sub(amount_in) else {
-						return TransactionOutcome::Rollback(Err(Corruption.into()));
+						return TransactionOutcome::Rollback(Err(Corruption));
 					};
 
 					let spot_price = FixedU128::from_rational(amount_in, amount_out);
