@@ -26,14 +26,13 @@ impl<T: Config> SpotPriceProvider<AssetId> for Pallet<T> {
 				asset_in: asset_a.clone(),
 				asset_out: asset_b.clone(),
 			});
-			let asset_in_reserve = T::MultiCurrency::free_balance(asset_a.clone(), &pair_account);
-			let asset_out_reserve = T::MultiCurrency::free_balance(asset_b.clone(), &pair_account);
-
-			let pool_data = <PoolData<T>>::try_get(&pair_account).ok()?;
 
 			let now = T::BlockNumberProvider::current_block_number();
-
+			let pool_data = <PoolData<T>>::try_get(&pair_account).ok()?;
 			let (weight_in, weight_out) = Self::get_sorted_weight(asset_a.clone(), now, &pool_data).ok()?;
+
+			let asset_in_reserve = T::MultiCurrency::free_balance(asset_a.clone(), &pair_account);
+			let asset_out_reserve = T::MultiCurrency::free_balance(asset_b.clone(), &pair_account);
 
 			let n = asset_in_reserve.checked_mul(weight_out.into())?;
 			let d = asset_out_reserve.checked_mul(weight_in.into())?;
