@@ -191,6 +191,9 @@ construct_runtime!(
 		EVMAccounts: pallet_evm_accounts = 93,
 		DynamicEvmFee: pallet_dynamic_evm_fee = 94,
 
+		XYKLiquidityMining: pallet_xyk_liquidity_mining = 95,
+		XYKWarehouseLM: warehouse_liquidity_mining::<Instance2> = 96,
+
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
 		ParachainInfo: parachain_info = 105,

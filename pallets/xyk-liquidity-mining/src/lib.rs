@@ -53,12 +53,9 @@ use pallet_xyk::types::{AssetId, AssetPair, Balance};
 
 use frame_support::{pallet_prelude::*, sp_runtime::traits::AccountIdConversion};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::{
-	AMMPosition, AMM,
-};
+use hydradx_traits::{AMMPosition, AMM};
 use orml_traits::MultiCurrency;
 use primitives::{CollectionId, ItemId as DepositId};
-use scale_info::TypeInfo;
 use sp_arithmetic::{FixedU128, Perquintill};
 use sp_std::{
 	convert::{From, Into, TryInto},
@@ -105,11 +102,11 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + TypeInfo {
+	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Currency for transfers.
-		type MultiCurrency: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Balance>;
+		type Currencies: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Balance>;
 
 		/// AMM helper functions.
 		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance>
@@ -682,7 +679,7 @@ pub mod pallet {
 			let amm_share_token = T::AMM::get_share_token(asset_pair);
 
 			ensure!(
-				T::MultiCurrency::ensure_can_withdraw(amm_share_token, &who, shares_amount).is_ok(),
+				T::Currencies::ensure_can_withdraw(amm_share_token, &who, shares_amount).is_ok(),
 				Error::<T>::InsufficientXykSharesBalance
 			);
 
@@ -880,7 +877,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// Account ID of the pot holding locked LP shares. This account is also owner of NFT class
 	/// for all the NFTs minted by this pallet.
-	fn account_id() -> T::AccountId {
+	pub fn account_id() -> T::AccountId {
 		<T as pallet::Config>::PalletId::get().into_account_truncating()
 	}
 
@@ -897,13 +894,13 @@ impl<T: Config> Pallet<T> {
 	fn lock_lp_tokens(lp_token: AssetId, who: &T::AccountId, amount: Balance) -> Result<(), DispatchError> {
 		let service_account_for_lp_shares = Self::account_id();
 
-		T::MultiCurrency::transfer(lp_token, who, &service_account_for_lp_shares, amount)
+		T::Currencies::transfer(lp_token, who, &service_account_for_lp_shares, amount)
 	}
 
 	fn unlock_lp_tokens(lp_token: AssetId, who: &T::AccountId, amount: Balance) -> Result<(), DispatchError> {
 		let service_account_for_lp_shares = Self::account_id();
 
-		T::MultiCurrency::transfer(lp_token, &service_account_for_lp_shares, who, amount)
+		T::Currencies::transfer(lp_token, &service_account_for_lp_shares, who, amount)
 	}
 
 	/// This function retuns value of lp tokens in the `asset` currency.

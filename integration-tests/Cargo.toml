@@ -45,6 +45,7 @@ pallet-democracy = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-tips = { workspace = true }
+pallet-xyk-liquidity-mining = { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }

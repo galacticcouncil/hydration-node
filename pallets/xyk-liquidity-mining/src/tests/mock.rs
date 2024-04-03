@@ -332,7 +332,7 @@ parameter_types! {
 
 impl liq_mining::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type MultiCurrency = Tokens;
+	type Currencies = Tokens;
 	type CreateOrigin = frame_system::EnsureRoot<AccountId>;
 	type WeightInfo = ();
 	type PalletId = LMPalletId;
