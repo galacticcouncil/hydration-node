@@ -220,7 +220,7 @@ where
 					//We mint amount in to dry-run sell
 					let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in.clone());
 
-					//We need to mint some asset_out balance otherwise we can have ED error triggered when transfer happens from sell trade
+					//We need to mint some asset_out balance otherwise we can have ED error triggered when amount_out is transferred to account from sell
 					let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_in.clone());
 
 					if let Err(err) = Self::execute_sell(
