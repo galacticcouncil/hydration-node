@@ -39,7 +39,8 @@ members = [
   'runtime/hydradx/src/evm/evm-utility/macro',
   'pallets/referrals',
   'pallets/evm-accounts',
-  'pallets/dynamic-evm-fee'
+  'pallets/dynamic-evm-fee',
+  'pallets/xyk-liquidity-mining',
 ]
 
 [workspace.dependencies]
@@ -86,6 +87,7 @@ pallet-xyk = { path = "pallets/xyk", default-features = false}
 pallet-referrals = { path = "pallets/referrals", default-features = false}
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false}
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false}
+pallet-xyk-liquidity-mining = { path = "pallets/xyk-liquidity-mining", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

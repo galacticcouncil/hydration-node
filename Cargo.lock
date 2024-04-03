@@ -8852,6 +8852,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-xyk-liquidity-mining"
+version = "1.1.10"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-liquidity-mining",
+ "pallet-xyk",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitives",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parachain-info"
 version = "0.1.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3#062d92eae0f3bb9908faf2d4e241eef17368b9d3"

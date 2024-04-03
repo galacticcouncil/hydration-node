@@ -1,0 +1,64 @@
+[package]
+name = "pallet-xyk-liquidity-mining"
+version = "1.1.10"
+description = "Liquidity mining"
+authors = ["GalacticCouncil"]
+edition = "2021"
+homepage = 'https://github.com/galacticcouncil/hydradx-node'
+repository = 'https://github.com/galacticcouncil/hydradx-node'
+license = "Apache 2.0"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.4.0", features = ["derive", "max-encoded-len"], default-features = false }
+scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
+
+log = { workspace = true }
+
+# ORML dependencies
+orml-traits = { workspace = true }
+
+# Local dependencies
+primitives = { workspace = true }
+
+# Warehouse dependencies
+pallet-liquidity-mining = { workspace = true }
+hydradx-traits = { workspace = true }
+pallet-xyk = { workspace = true }
+
+# Substrate dependencies
+sp-std = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-arithmetic = { workspace = true }
+sp-runtime = { workspace = true }
+
+[dev-dependencies]
+sp-io = { workspace = true }
+sp-core = { workspace = true }
+orml-tokens = { workspace = true }
+pallet-balances = { workspace = true }
+pretty_assertions = "1.2.1"
+
+[features]
+default = ["std"]
+std = [
+  "codec/std",
+  "scale-info/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "frame-support/std",
+  "frame-system/std",
+	"sp-core/std",
+	"sp-io/std",
+	"pallet-balances/std",
+  "orml-tokens/std",
+  "pallet-xyk/std",
+  "pallet-liquidity-mining/std",
+  "primitives/std",
+  "hydradx-traits/std",
+  "log/std",
+]
+try-runtime = ["frame-support/try-runtime"]
