@@ -857,34 +857,11 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 	fn spot_price(route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
 		let mut prices: Vec<FixedU128> = Vec::with_capacity(route.len());
 		for trade in route {
-			let asset_a = trade.asset_in;
-			let asset_b = trade.asset_out;
-			match trade.pool {
-				PoolType::Omnipool => {
-					let Ok(spot_price) = T::AMM::calculate_spot_price(PoolType::Omnipool, asset_a, asset_b) else {
-						return None;
-					};
-					prices.push(spot_price);
-				}
-				PoolType::Stableswap(pool_id) => {
-					let Ok(spot_price) = T::AMM::calculate_spot_price(PoolType::Stableswap(pool_id), asset_a, asset_b) else {
-						return None;
-					};
+			let spot_price_result = T::AMM::calculate_spot_price(trade.pool, trade.asset_in, trade.asset_out);
 
-					prices.push(spot_price);
-				}
-				PoolType::XYK => {
-					let Ok(spot_price) = T::AMM::calculate_spot_price(PoolType::XYK, asset_a, asset_b) else {
-						return None;
-					};
-					prices.push(spot_price);
-				}
-				PoolType::LBP => {
-					let Ok(spot_price) = T::AMM::calculate_spot_price(PoolType::LBP, asset_a, asset_b) else {
-						return None;
-					};
-					prices.push(spot_price);
-				}
+			match spot_price_result {
+				Ok(spot_price) => prices.push(spot_price),
+				Err(_) => return None,
 			}
 		}
 		if prices.is_empty() {

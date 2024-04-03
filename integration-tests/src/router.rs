@@ -3732,7 +3732,7 @@ mod route_spot_price {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
-				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+				let (pool_id, stable_asset_1, _stable_asset_2) = init_stableswap().unwrap();
 				init_omnipool();
 
 				assert_ok!(Currencies::update_balance(

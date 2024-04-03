@@ -7,6 +7,7 @@ use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::{GetByKey, MultiCurrency};
 use sp_runtime::traits::Get;
+use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
 
 // dev note: The code is calculate sell and buy is copied from the corresponding functions.
@@ -176,6 +177,6 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		if pool_type != PoolType::Omnipool {
 			return Err(ExecutorError::NotSupported);
 		}
-		Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::NotSupported) //TODO: Consider more meaningfull error error. If so, then change it in all the 4 amm `calculate_spot_price`
+		Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))
 	}
 }
