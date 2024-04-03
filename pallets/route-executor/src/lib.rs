@@ -39,7 +39,7 @@ pub use hydradx_traits::router::{
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_core::U512;
-use sp_runtime::traits::{AccountIdConversion, CheckedDiv, CheckedMul};
+use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
@@ -867,23 +867,11 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 					prices.push(spot_price);
 				}
 				PoolType::Stableswap(pool_id) => {
-					let Ok(price_of_share_vs_asset_a) = T::AMM::calculate_spot_price(PoolType::Stableswap(pool_id), asset_a, asset_a) else {
+					let Ok(spot_price) = T::AMM::calculate_spot_price(PoolType::Stableswap(pool_id), asset_a, asset_b) else {
 						return None;
 					};
 
-					let Ok(price_of_share_vs_asset_b) = T::AMM::calculate_spot_price(PoolType::Stableswap(pool_id), asset_b, asset_b) else {
-						return None;
-					};
-
-					let Some(price_of_asset_b_vs_share) = price_of_share_vs_asset_b.reciprocal() else {
-						return None;
-					};
-
-					let Some(spot_price_between_asset_a_vs_asset_b) = price_of_share_vs_asset_a.checked_mul(&price_of_asset_b_vs_share) else {
-						return None;
-					};
-
-					prices.push(spot_price_between_asset_a_vs_asset_b);
+					prices.push(spot_price);
 				}
 				PoolType::XYK => {
 					let Ok(spot_price) = T::AMM::calculate_spot_price(PoolType::XYK, asset_a, asset_b) else {
