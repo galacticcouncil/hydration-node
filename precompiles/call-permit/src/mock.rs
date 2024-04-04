@@ -92,7 +92,7 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = ();
 	type MaxHolds = ();
 	type MaxFreezes = ();
-	type RuntimeFreezeReason = ();
+	//type RuntimeFreezeReason = ();
 }
 
 mock_account!(CallPermit, |_| MockAccount::from_u64(1));
@@ -134,7 +134,7 @@ impl pallet_evm::Config for Runtime {
 	type OnCreate = ();
 	type GasLimitPovSizeRatio = ();
 	type GasLimitStorageGrowthRatio = ();
-	type SuicideQuickClearLimit = SuicideQuickClearLimit;
+	//type SuicideQuickClearLimit = SuicideQuickClearLimit;
 	type Timestamp = Timestamp;
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 }

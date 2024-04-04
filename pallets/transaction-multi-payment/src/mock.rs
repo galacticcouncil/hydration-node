@@ -162,6 +162,7 @@ impl Config for Test {
 	type NativeAssetId = HdxAssetId;
 	type EvmAssetId = EvmAssetId;
 	type InspectEvmAccounts = EVMAccounts;
+	type EvmPermit = ();
 }
 
 pub struct DefaultRouteProvider;

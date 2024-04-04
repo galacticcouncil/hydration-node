@@ -60,8 +60,8 @@ where
 		);
 
 		let mut sig = [0u8; 65];
-		sig[0..32].copy_from_slice(&r.as_bytes());
-		sig[32..64].copy_from_slice(&s.as_bytes());
+		sig[0..32].copy_from_slice(r.as_bytes());
+		sig[32..64].copy_from_slice(s.as_bytes());
 		sig[64] = v;
 		let signer = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &permit)
 			.map_err(|_| pallet_transaction_multi_payment::Error::<R>::EvmPermitInvalid)?;

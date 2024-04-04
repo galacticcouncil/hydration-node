@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::large_enum_variant)]
 
 pub mod weights;
 
