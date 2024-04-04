@@ -4668,7 +4668,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "224.0.0"
+version = "225.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -8683,7 +8683,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "9.4.0"
+version = "9.5.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8696,6 +8696,7 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-accounts",
  "pallet-transaction-payment",
+ "pallet-utility",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -11510,7 +11511,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.19.10"
+version = "1.19.11"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
