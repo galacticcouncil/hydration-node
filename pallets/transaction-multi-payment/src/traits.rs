@@ -17,6 +17,7 @@ pub trait DepositFee<AccountId, AssetId, Balance> {
 }
 
 pub trait EVMPermit {
+	#![allow(clippy::too_many_arguments)]
 	fn validate_permit(
 		source: H160,
 		target: H160,

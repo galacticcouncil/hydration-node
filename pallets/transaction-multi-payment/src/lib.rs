@@ -17,6 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![allow(clippy::too_many_arguments)]
 
 pub mod weights;
 
@@ -367,7 +368,6 @@ pub mod pallet {
 			input: Vec<u8>,
 			value: U256,
 			gas_limit: u64,
-			nonce: U256,
 			deadline: U256,
 			access_list: Vec<(H160, Vec<H256>)>,
 			v: u8,
@@ -396,7 +396,7 @@ pub mod pallet {
 				gas_limit,
 				gas_price,
 				None,
-				Some(nonce),
+				None,
 				access_list,
 			)?;
 			// Reset currency back to native evm currency
@@ -419,7 +419,6 @@ pub mod pallet {
 					input,
 					value,
 					gas_limit,
-					nonce,
 					deadline,
 					access_list,
 					v,
@@ -459,7 +458,7 @@ pub mod pallet {
 							*gas_limit,
 							gas_price,
 							None,
-							Some(*nonce),
+							None,
 							access_list.clone(),
 						);
 						// reset currency back to native evm currency
