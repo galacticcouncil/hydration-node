@@ -20,6 +20,7 @@ pub use crate as multi_payment;
 use crate::{Config, TransferFees};
 use hydra_dx_math::types::Ratio;
 
+use frame_support::dispatch::{DispatchResultWithPostInfo, PostDispatchInfo};
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
@@ -37,7 +38,7 @@ use hydradx_traits::{
 };
 use orml_traits::{currency::MutationHooks, parameter_type_with_key};
 use pallet_currencies::BasicCurrencyAdapter;
-use sp_core::H256;
+use sp_core::{H160, H256, U256};
 use sp_std::cell::RefCell;
 
 pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
@@ -163,7 +164,7 @@ impl Config for Test {
 	type NativeAssetId = HdxAssetId;
 	type EvmAssetId = EvmAssetId;
 	type InspectEvmAccounts = EVMAccounts;
-	type EvmPermit = ();
+	type EvmPermit = PermitDispatchHandler;
 }
 
 pub struct DefaultRouteProvider;
@@ -389,4 +390,109 @@ impl ExtBuilder {
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PermitDispatchData {
+	pub source: H160,
+	pub target: H160,
+	pub input: Vec<u8>,
+	pub value: U256,
+	pub gas_limit: u64,
+	pub max_fee_per_gas: U256,
+	pub max_priority_fee_per_gas: Option<U256>,
+	pub nonce: Option<U256>,
+	pub access_list: Vec<(H160, Vec<H256>)>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ValidationData {
+	pub source: H160,
+	pub target: H160,
+	pub input: Vec<u8>,
+	pub value: U256,
+	pub gas_limit: u64,
+	pub deadline: U256,
+	pub v: u8,
+	pub r: H256,
+	pub s: H256,
+}
+
+thread_local! {
+	static PERMIT_VALIDATION: RefCell<Vec<ValidationData>> = RefCell::new(vec![]);
+	static PERMIT_DISPATCH: RefCell<Vec<PermitDispatchData>> = RefCell::new(vec![]);
+}
+
+pub struct PermitDispatchHandler;
+
+impl PermitDispatchHandler {
+	pub fn last_validation_call_data() -> ValidationData {
+		PERMIT_VALIDATION.with(|v| v.borrow().last().unwrap().clone())
+	}
+
+	pub fn last_dispatch_call_data() -> PermitDispatchData {
+		PERMIT_DISPATCH.with(|v| v.borrow().last().unwrap().clone())
+	}
+}
+
+impl EVMPermit for PermitDispatchHandler {
+	fn validate_permit(
+		source: H160,
+		target: H160,
+		input: Vec<u8>,
+		value: U256,
+		gas_limit: u64,
+		deadline: U256,
+		v: u8,
+		r: H256,
+		s: H256,
+	) -> sp_runtime::DispatchResult {
+		let data = ValidationData {
+			source,
+			target,
+			input,
+			value,
+			gas_limit,
+			deadline,
+			v,
+			r,
+			s,
+		};
+		PERMIT_VALIDATION.with(|v| v.borrow_mut().push(data));
+		Ok(())
+	}
+
+	fn dispatch_permit(
+		source: H160,
+		target: H160,
+		input: Vec<u8>,
+		value: U256,
+		gas_limit: u64,
+		max_fee_per_gas: U256,
+		max_priority_fee_per_gas: Option<U256>,
+		nonce: Option<U256>,
+		access_list: Vec<(H160, Vec<H256>)>,
+	) -> DispatchResultWithPostInfo {
+		let data = PermitDispatchData {
+			source,
+			target,
+			input,
+			value,
+			gas_limit,
+			max_fee_per_gas,
+			max_priority_fee_per_gas,
+			nonce,
+			access_list,
+		};
+		PERMIT_DISPATCH.with(|v| v.borrow_mut().push(data));
+		Ok(PostDispatchInfo::default())
+	}
+
+	fn gas_price() -> (U256, Weight) {
+		(U256::from(222u128), Weight::zero())
+	}
+
+	fn dispatch_weight(_gas_limit: u64) -> Weight {
+		todo!()
+	}
 }
