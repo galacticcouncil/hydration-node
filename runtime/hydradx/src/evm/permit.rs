@@ -1,4 +1,5 @@
 use crate::evm::precompiles;
+use fp_evm::FeeCalculator;
 use frame_support::dispatch::{Pays, PostDispatchInfo};
 use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
@@ -17,7 +18,10 @@ pub struct EvmPermitHandler<R>(sp_std::marker::PhantomData<R>);
 
 impl<R> EVMPermit for EvmPermitHandler<R>
 where
-	R: frame_system::Config + pallet_evm::Config + pallet_transaction_multi_payment::Config,
+	R: frame_system::Config
+		+ pallet_evm::Config
+		+ pallet_transaction_multi_payment::Config
+		+ pallet_dynamic_evm_fee::Config,
 	R::Nonce: Into<U256>,
 	AccountId: From<R::AccountId>,
 {
@@ -76,7 +80,7 @@ where
 		input: Vec<u8>,
 		value: U256,
 		gas_limit: u64,
-		max_fee_per_gas: Option<U256>,
+		max_fee_per_gas: U256,
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
@@ -89,7 +93,7 @@ where
 			input,
 			value,
 			gas_limit,
-			max_fee_per_gas,
+			Some(max_fee_per_gas),
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
@@ -125,6 +129,10 @@ where
 			},
 			pays_fee: Pays::No,
 		})
+	}
+
+	fn gas_price() -> (U256, Weight) {
+		pallet_dynamic_evm_fee::Pallet::<R>::min_gas_price()
 	}
 
 	fn dispatch_weight(gas_limit: u64) -> Weight {

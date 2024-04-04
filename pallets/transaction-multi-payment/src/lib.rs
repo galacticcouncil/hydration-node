@@ -66,7 +66,6 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
@@ -368,10 +367,8 @@ pub mod pallet {
 			input: Vec<u8>,
 			value: U256,
 			gas_limit: u64,
-			max_fee_per_gas: U256,
 			nonce: U256,
 			deadline: U256,
-			max_priority_fee_per_gas: Option<U256>,
 			access_list: Vec<(H160, Vec<H256>)>,
 			v: u8,
 			r: H256,
@@ -386,6 +383,8 @@ pub mod pallet {
 
 			T::EvmPermit::validate_permit(source, target, input.clone(), value, gas_limit, deadline, v, r, s)?;
 
+			let (gas_price, _) = T::EvmPermit::gas_price();
+
 			// Set fee currency for the evm dispatch
 			let account_id = T::InspectEvmAccounts::account_id(source);
 			AccountCurrencyMap::<T>::insert(account_id.clone(), currency);
@@ -395,8 +394,8 @@ pub mod pallet {
 				input,
 				value,
 				gas_limit,
-				Some(max_fee_per_gas),
-				max_priority_fee_per_gas,
+				gas_price,
+				None,
 				Some(nonce),
 				access_list,
 			)?;
@@ -420,10 +419,8 @@ pub mod pallet {
 					input,
 					value,
 					gas_limit,
-					max_fee_per_gas,
 					nonce,
 					deadline,
-					max_priority_fee_per_gas,
 					access_list,
 					v,
 					r,
@@ -452,14 +449,16 @@ pub mod pallet {
 						let account_id = T::InspectEvmAccounts::account_id(*source);
 						AccountCurrencyMap::<T>::insert(account_id.clone(), *currency);
 
+						let (gas_price, _) = T::EvmPermit::gas_price();
+
 						let result = T::EvmPermit::dispatch_permit(
 							*source,
 							*target,
 							input.clone(),
 							*value,
 							*gas_limit,
-							Some(*max_fee_per_gas),
-							*max_priority_fee_per_gas,
+							gas_price,
+							None,
 							Some(*nonce),
 							access_list.clone(),
 						);

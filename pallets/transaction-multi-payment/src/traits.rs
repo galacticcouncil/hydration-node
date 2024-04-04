@@ -35,11 +35,13 @@ pub trait EVMPermit {
 		input: Vec<u8>,
 		value: U256,
 		gas_limit: u64,
-		max_fee_per_gas: Option<U256>,
+		max_fee_per_gas: U256,
 		max_priority_fee_per_gas: Option<U256>,
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
 	) -> DispatchResultWithPostInfo;
+
+	fn gas_price() -> (U256, Weight);
 
 	fn dispatch_weight(gas_limit: u64) -> Weight;
 }
@@ -65,12 +67,16 @@ impl EVMPermit for () {
 		_input: Vec<u8>,
 		_value: U256,
 		_gas_limit: u64,
-		_max_fee_per_gas: Option<U256>,
+		_max_fee_per_gas: U256,
 		_max_priority_fee_per_gas: Option<U256>,
 		_nonce: Option<U256>,
 		_access_list: Vec<(H160, Vec<H256>)>,
 	) -> DispatchResultWithPostInfo {
 		Ok(PostDispatchInfo::default())
+	}
+
+	fn gas_price() -> (U256, Weight) {
+		Default::default()
 	}
 
 	fn dispatch_weight(_gas_limit: u64) -> Weight {

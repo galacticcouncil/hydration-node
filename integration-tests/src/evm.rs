@@ -1519,7 +1519,6 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_bounded() 
 			});
 
 		let gas_limit = 1000000;
-		let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 		let deadline = U256::from(1000000000000u128);
 
 		let permit =
@@ -1546,10 +1545,8 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_bounded() 
 			omni_sell.encode(),
 			U256::from(0),
 			gas_limit,
-			gas_price.0 * 10,
 			U256::zero(),
 			deadline,
-			None,
 			[].into(),
 			v.serialize(),
 			H256::from(rs.r.b32()),
@@ -1628,7 +1625,6 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 			});
 
 		let gas_limit = 1000000;
-		let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 		let deadline = U256::from(1000000000000u128);
 
 		let permit =
@@ -1655,10 +1651,8 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 			omni_sell.encode(),
 			U256::from(0),
 			gas_limit,
-			gas_price.0 * 10,
 			U256::zero(),
 			deadline,
-			None,
 			[].into(),
 			v.serialize(),
 			H256::from(rs.r.b32()),
@@ -1738,7 +1732,6 @@ fn evm_permit_should_validate_unsigned_correctly() {
 			});
 
 		let gas_limit = 1000000;
-		let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 		let deadline = U256::from(1000000000000u128);
 
 		let permit =
@@ -1763,10 +1756,8 @@ fn evm_permit_should_validate_unsigned_correctly() {
 			input: omni_sell.encode(),
 			value: U256::from(0),
 			gas_limit: gas_limit,
-			max_fee_per_gas: gas_price.0 * 10,
 			nonce: U256::zero(),
 			deadline: deadline,
-			max_priority_fee_per_gas: None,
 			access_list: vec![],
 			v: v.serialize(),
 			r: H256::from(rs.r.b32()),
@@ -1851,7 +1842,6 @@ fn evm_permit_dispatch_flow_should_work() {
 			});
 
 		let gas_limit = 1000000;
-		let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 		let deadline = U256::from(1000000000000u128);
 
 		let permit =
@@ -1878,10 +1868,8 @@ fn evm_permit_dispatch_flow_should_work() {
 			input: omni_sell.encode(),
 			value: U256::from(0),
 			gas_limit: gas_limit,
-			max_fee_per_gas: gas_price.0 * 10,
 			nonce: U256::zero(),
 			deadline: deadline,
-			max_priority_fee_per_gas: None,
 			access_list: vec![],
 			v: v.serialize(),
 			r: H256::from(rs.r.b32()),
@@ -1908,10 +1896,8 @@ fn evm_permit_dispatch_flow_should_work() {
 			omni_sell.encode(),
 			U256::from(0),
 			gas_limit,
-			gas_price.0 * 10,
 			U256::zero(),
 			deadline,
-			None,
 			[].into(),
 			v.serialize(),
 			H256::from(rs.r.b32()),
