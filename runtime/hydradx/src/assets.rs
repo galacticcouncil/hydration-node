@@ -553,6 +553,7 @@ parameter_types! {
 	pub const MaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms, TODO:
 	pub const MinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks, TODO:
 	pub const MinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT * 100; //TODO:
+	pub const OmnipoolLmOracle: [u8; 8] = OMNIPOOL_SOURCE;
 }
 
 type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
@@ -569,7 +570,7 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
-	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance>;
+	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance, OmnipoolLmOracle>;
 }
 
 parameter_types! {
@@ -600,6 +601,7 @@ parameter_types! {
 	pub const XYKLmMaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms
 	pub const XYKLmMinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks
 	pub const XYKLmMinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT * 100;
+	pub const XYKLmOracle: [u8; 8] = XYK_SOURCE;
 }
 
 type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
@@ -616,7 +618,7 @@ impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime 
 	type MaxYieldFarmsPerGlobalFarm = XYKLmMaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
-	type PriceAdjustment = warehouse_liquidity_mining::DefaultPriceAdjustment;
+	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, XYKLiquidityMiningInstance, XYKLmOracle>;
 }
 
 parameter_types! {

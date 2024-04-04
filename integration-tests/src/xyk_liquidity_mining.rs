@@ -17,16 +17,17 @@
 
 #![cfg(test)]
 
-use crate::{assert_nft_owner, polkadot_test_net::*};
+use crate::{assert_nft_owner, omnipool_init::hydra_run_to_block, polkadot_test_net::*};
 
 use frame_support::{assert_noop, assert_ok};
-use hydradx_traits::AMM;
+use hydradx_traits::{liquidity_mining::PriceAdjustment, AMM};
+use pallet_asset_registry::AssetType;
 use warehouse_liquidity_mining::{
-	DepositData, GlobalFarmData, GlobalFarmId, Instance2, LoyaltyCurve, YieldFarmData, YieldFarmEntry,
+	DefaultPriceAdjustment, DepositData, GlobalFarmData, GlobalFarmId, Instance2, LoyaltyCurve, YieldFarmData,
+	YieldFarmEntry,
 };
 
 use orml_traits::MultiCurrency;
-use primitives::{constants::currency::UNITS, AssetId};
 use sp_runtime::{
 	traits::{One, Zero},
 	FixedU128, Perquintill,
@@ -34,7 +35,7 @@ use sp_runtime::{
 use xcm_emulator::TestExt;
 
 use hydradx_runtime::{
-	AssetRegistry, Balance, InsufficientEDinHDX, Runtime, RuntimeOrigin, RuntimeOrigin as hydra_origin,
+	AssetRegistry, Balance, Bonds, InsufficientEDinHDX, Runtime, RuntimeOrigin, RuntimeOrigin as hydra_origin,
 	XYKLiquidityMining, XYKWarehouseLM, XYK,
 };
 use pallet_xyk::types::AssetPair;
@@ -44,6 +45,7 @@ use polkadot_xcm::v3::{
 	MultiLocation,
 };
 use pretty_assertions::assert_eq;
+use primitives::constants::time::unix_time::MONTH;
 
 #[test]
 fn create_global_farm_should_work_when_origin_is_root() {
@@ -803,6 +805,211 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 			Currencies::free_balance(xyk_share_id, &XYKLiquidityMining::account_id()),
 			Balance::zero()
 		);
+	});
+}
+
+#[test]
+fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_available() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_1_id = 1;
+		let global_farm_2_id = 2;
+		let yield_farm_1_id = 3;
+		let asset_pair = AssetPair {
+			asset_in: PEPE,
+			asset_out: ACA,
+		};
+
+		//Arrange
+		let xyk_share_id = create_xyk_pool(
+			asset_pair.asset_in,
+			10_000_000 * UNITS,
+			asset_pair.asset_out,
+			100_000_000 * UNITS,
+		);
+		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
+		seed_lm_pot();
+
+		set_relaychain_block_number(100);
+		create_global_farm(Some(ACA), PEPE, None);
+		create_global_farm(Some(PEPE), ACA, None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, asset_pair, None);
+		create_yield_farm(global_farm_2_id, asset_pair, None);
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			PEPE,
+			1000 * UNITS as i128,
+		));
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			ACA,
+			1000 * UNITS as i128,
+		));
+
+		assert_ok!(hydradx_runtime::XYK::buy(
+			RuntimeOrigin::signed(ALICE.into()),
+			PEPE,
+			ACA,
+			2 * UNITS,
+			200 * UNITS,
+			false,
+		));
+
+		hydra_run_to_block(500);
+		set_relaychain_block_number(500);
+
+		//Act
+		let deposit_id = 1;
+		assert_ok!(XYKLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(DAVE.into()),
+			global_farm_1_id,
+			yield_farm_1_id,
+			asset_pair,
+			dave_shares_balance,
+		));
+
+		set_relaychain_block_number(600);
+
+		assert_ok!(XYKLiquidityMining::claim_rewards(
+			RuntimeOrigin::signed(DAVE.into()),
+			deposit_id,
+			yield_farm_1_id
+		));
+
+		//Assert
+		let global_farm = XYKWarehouseLM::global_farm(global_farm_1_id).unwrap();
+		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
+		assert_eq!(price_adjustment, FixedU128::from_inner(10_000_004_006_001_202_400_u128));
+	});
+}
+
+#[test]
+fn liquidity_mining_should_work_when_farm_distribute_bonds() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Create bodns
+		assert_ok!(hydradx_runtime::Balances::force_set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			Treasury::account_id(),
+			2_000_000 * UNITS,
+		));
+
+		let maturity = NOW + MONTH;
+		let bond_id = AssetRegistry::next_asset_id().unwrap();
+		assert_ok!(Bonds::issue(
+			RuntimeOrigin::signed(Treasury::account_id()),
+			HDX,
+			2_000_000 * UNITS,
+			maturity
+		));
+		assert_eq!(AssetRegistry::assets(bond_id).unwrap().asset_type, AssetType::Bond);
+		//NOTE: make bond sufficient because treasury account is whitelisted. In this case farm
+		//would have to pay ED for receiving insufficicient bods and farm's account has no balance.
+		assert_ok!(AssetRegistry::update(
+			hydradx_runtime::RuntimeOrigin::root(),
+			bond_id,
+			None,
+			None,
+			None,
+			None,
+			Some(true),
+			None,
+			None,
+			None,
+		));
+
+		// farm's rewards in test are less than ED.
+		assert_ok!(hydradx_runtime::Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
+			CHARLIE.into(),
+			bond_id,
+			2 * UNITS,
+		));
+
+		let global_farm_1_id = 1;
+		let yield_farm_1_id = 2;
+		let asset_pair = AssetPair {
+			asset_in: PEPE,
+			asset_out: ACA,
+		};
+
+		//Arrange
+		let xyk_share_id = create_xyk_pool(
+			asset_pair.asset_in,
+			10_000_000 * UNITS,
+			asset_pair.asset_out,
+			100_000_000 * UNITS,
+		);
+
+		create_xyk_pool(HDX, 10_000_000 * UNITS, PEPE, 100_000_000 * UNITS);
+		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
+		seed_lm_pot();
+
+		set_relaychain_block_number(100);
+		create_global_farm(Some(bond_id), PEPE, None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, asset_pair, None);
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			PEPE,
+			1000 * UNITS as i128,
+		));
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			bond_id,
+			1000 * UNITS as i128,
+		));
+
+		assert_ok!(hydradx_runtime::XYK::buy(
+			RuntimeOrigin::signed(ALICE.into()),
+			PEPE,
+			HDX,
+			2 * UNITS,
+			200 * UNITS,
+			false,
+		));
+
+		hydra_run_to_block(500);
+		set_relaychain_block_number(500);
+
+		//Act
+		let deposit_id = 1;
+		assert_ok!(XYKLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(DAVE.into()),
+			global_farm_1_id,
+			yield_farm_1_id,
+			asset_pair,
+			dave_shares_balance,
+		));
+
+		set_relaychain_block_number(600);
+
+		let dave_bonds_balance = Currencies::free_balance(bond_id, &DAVE.into());
+
+		assert_ok!(XYKLiquidityMining::claim_rewards(
+			RuntimeOrigin::signed(DAVE.into()),
+			deposit_id,
+			yield_farm_1_id
+		));
+
+		//Assert
+		assert!(Currencies::free_balance(bond_id, &DAVE.into()) > dave_bonds_balance);
+		let global_farm = XYKWarehouseLM::global_farm(global_farm_1_id).unwrap();
+		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
+		assert_eq!(price_adjustment, FixedU128::from_inner(100_000_004_006_000_120_u128));
 	});
 }
 
