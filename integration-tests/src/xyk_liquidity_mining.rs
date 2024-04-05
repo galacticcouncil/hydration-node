@@ -35,7 +35,7 @@ use sp_runtime::{
 use xcm_emulator::TestExt;
 
 use hydradx_runtime::{
-	AssetRegistry, Balance, Bonds, InsufficientEDinHDX, Runtime, RuntimeOrigin, RuntimeOrigin as hydra_origin,
+	AssetRegistry, Balance, Bonds, Runtime, RuntimeOrigin, RuntimeOrigin as hydra_origin,
 	XYKLiquidityMining, XYKWarehouseLM, XYK,
 };
 use pallet_xyk::types::AssetPair;
@@ -246,7 +246,6 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 			100_000_000 * UNITS,
 		);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
-		seed_lm_pot();
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
@@ -339,7 +338,6 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 			100_000_000 * UNITS,
 		);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
-		seed_lm_pot();
 
 		set_relaychain_block_number(100);
 		create_global_farm(None, PEPE, None);
@@ -427,7 +425,6 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 			100_000_000 * UNITS,
 		);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
-		seed_lm_pot();
 
 		set_relaychain_block_number(100);
 		create_global_farm(None, PEPE, None);
@@ -559,23 +556,16 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 			100_000_000 * UNITS,
 		);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
-		seed_lm_pot();
 
 		set_relaychain_block_number(100);
 		let farm_owner = BOB;
 		create_global_farm(Some(ext1), ext1, Some(farm_owner.into()));
 		create_global_farm(Some(ext1), ext2, Some(farm_owner.into()));
 
-		assert_ok!(Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			Treasury::account_id(),
-			HDX,
-			20 * InsufficientEDinHDX::get() as i128,
-		));
-
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, asset_pair, Some(farm_owner.into()));
 		create_yield_farm(global_farm_2_id, asset_pair, Some(farm_owner.into()));
+
 
 		set_relaychain_block_number(400);
 		let deposit_id = 1;
@@ -700,7 +690,6 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 			100_000_000 * UNITS,
 		);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
-		seed_lm_pot();
 
 		set_relaychain_block_number(100);
 		create_global_farm(None, ext1, None);
@@ -829,7 +818,6 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 			100_000_000 * UNITS,
 		);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
-		seed_lm_pot();
 
 		set_relaychain_block_number(100);
 		create_global_farm(Some(ACA), PEPE, None);
@@ -951,7 +939,6 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		create_xyk_pool(HDX, 10_000_000 * UNITS, PEPE, 100_000_000 * UNITS);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
-		seed_lm_pot();
 
 		set_relaychain_block_number(100);
 		create_global_farm(Some(bond_id), PEPE, None);
@@ -1072,18 +1059,6 @@ fn create_yield_farm(id: GlobalFarmId, pair: AssetPair, owner: Option<AccountId>
 		pair,
 		FixedU128::one(),
 		Some(LoyaltyCurve::default())
-	));
-}
-
-//This function add initial amount in native currency to pot to prevent dusting.
-fn seed_lm_pot() {
-	//prevent pot account from dusting
-	let pot = warehouse_liquidity_mining::Pallet::<hydradx_runtime::Runtime, Instance2>::pot_account_id().unwrap();
-	assert_ok!(hydradx_runtime::Currencies::update_balance(
-		hydradx_runtime::RuntimeOrigin::root(),
-		pot,
-		HDX,
-		100 * UNITS as i128,
 	));
 }
 
