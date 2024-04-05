@@ -47,13 +47,15 @@ pub use pallet::*;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
 use frame_support::{ensure, sp_runtime::traits::Zero, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
-use hydradx_traits::liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId};
+use hydradx_traits::liquidity_mining::{
+	GlobalFarmId, Inspect as LiquidityMiningInspect, Mutate as LiquidityMiningMutate, YieldFarmId,
+};
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
 
 use frame_support::{pallet_prelude::*, sp_runtime::traits::AccountIdConversion};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::{AMMPosition, AMM};
+use hydradx_traits::{registry::Inspect as RegistryInspect, AMMPosition, AMM};
 use orml_traits::MultiCurrency;
 use primitives::{CollectionId, ItemId as DepositId};
 use sp_arithmetic::{FixedU128, Perquintill};
@@ -61,6 +63,8 @@ use sp_std::{
 	convert::{From, Into, TryInto},
 	vec,
 };
+
+const INSSUFFICIENT_ASSET_ED_MULTIPLIER: u8 = 2;
 
 type PeriodOf<T> = BlockNumberFor<T>;
 
@@ -131,18 +135,21 @@ pub mod pallet {
 
 		/// Liquidity mining handler for managing liquidity mining functionalities
 		type LiquidityMiningHandler: LiquidityMiningMutate<
-			Self::AccountId,
-			AssetId,
-			BlockNumberFor<Self>,
-			Error = DispatchError,
-			AmmPoolId = Self::AccountId,
-			Balance = Balance,
-			LoyaltyCurve = LoyaltyCurve,
-			Period = PeriodOf<Self>,
-		>;
+				Self::AccountId,
+				AssetId,
+				BlockNumberFor<Self>,
+				Error = DispatchError,
+				AmmPoolId = Self::AccountId,
+				Balance = Balance,
+				LoyaltyCurve = LoyaltyCurve,
+				Period = PeriodOf<Self>,
+			> + LiquidityMiningInspect<Self::AccountId>;
 
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
+
+		/// AssetRegistry used to retrieve information about asset.
+		type AssetRegistry: RegistryInspect<AssetId = AssetId>;
 
 		/// Weight information for extrinsic in this module.
 		type WeightInfo: WeightInfo;
@@ -178,6 +185,12 @@ pub mod pallet {
 
 		/// Provided `AssetPair` is not used by the deposit.
 		InvalidAssetPair,
+
+		/// Asset is not registered in asset registry.
+		AssetNotRegistered,
+
+		/// Failed to calculate `pot`'s account.
+		FailToGetPotId,
 	}
 
 	#[pallet::event]
@@ -343,6 +356,15 @@ pub mod pallet {
 			price_adjustment: FixedU128,
 		) -> DispatchResult {
 			<T as pallet::Config>::CreateOrigin::ensure_origin(origin)?;
+
+			if !T::AssetRegistry::is_sufficient(reward_currency) {
+				let ed =
+					T::AssetRegistry::existential_deposit(reward_currency).ok_or(Error::<T>::AssetNotRegistered)?;
+
+				let pot = T::LiquidityMiningHandler::pot_account().ok_or(Error::<T>::FailToGetPotId)?;
+				let amount = ed.saturating_mul(INSSUFFICIENT_ASSET_ED_MULTIPLIER.into());
+				T::Currencies::transfer(reward_currency, &owner, &pot, amount)?;
+			}
 
 			let (id, max_reward_per_period) = T::LiquidityMiningHandler::create_global_farm(
 				total_rewards,

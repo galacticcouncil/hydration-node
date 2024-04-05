@@ -46,6 +46,7 @@ pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 pub const CHARLIE: AccountId = 3;
 pub const ZERO_REWARDS_USER: AccountId = 4;
+pub const LM_POT: AccountId = 5;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -56,6 +57,7 @@ pub const BSX: AssetId = 1000;
 pub const ACA: AssetId = 3000;
 pub const KSM: AssetId = 4000;
 pub const DOT: AssetId = 5000;
+pub const INSUFF: AssetId = 5_555;
 
 pub const BSX_ACA_AMM: AccountId = 11_000;
 pub const BSX_KSM_AMM: AccountId = 11_001;
@@ -341,6 +343,51 @@ impl liq_mining::Config for Test {
 	type NFTHandler = DummyNFT;
 	type LiquidityMiningHandler = DummyLiquidityMining;
 	type NonDustableWhitelistHandler = Whitelist;
+	type AssetRegistry = DummyRegistry<Test>;
+}
+
+use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
+
+pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> InspectRegistry for DummyRegistry<T>
+where
+	AssetId: Into<AssetId> + From<u32>,
+{
+	type AssetId = AssetId;
+	type Location = u8;
+
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		id != INSUFF
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn exists(_id: AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		return Some(1_000_u128);
+	}
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
@@ -766,6 +813,11 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 	}
 }
 
+impl hydradx_traits::liquidity_mining::Inspect<AccountId> for DummyLiquidityMining {
+	fn pot_account() -> Option<AccountId> {
+		Some(LM_POT)
+	}
+}
 //NOTE: this is and should not be used anywhere. This exists only to make trait bellow happy. Trait
 //bellow is not really used. Basilisk is using `DefaultPriceAdjustment` implementation.
 struct FakeGlobalFarm;

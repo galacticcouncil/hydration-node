@@ -35,8 +35,8 @@ use sp_runtime::{
 use xcm_emulator::TestExt;
 
 use hydradx_runtime::{
-	AssetRegistry, Balance, Bonds, Runtime, RuntimeOrigin, RuntimeOrigin as hydra_origin,
-	XYKLiquidityMining, XYKWarehouseLM, XYK,
+	AssetRegistry, Balance, Bonds, Runtime, RuntimeOrigin, RuntimeOrigin as hydra_origin, XYKLiquidityMining,
+	XYKWarehouseLM, XYK,
 };
 use pallet_xyk::types::AssetPair;
 use polkadot_xcm::v3::{
@@ -566,7 +566,6 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 		create_yield_farm(global_farm_1_id, asset_pair, Some(farm_owner.into()));
 		create_yield_farm(global_farm_2_id, asset_pair, Some(farm_owner.into()));
 
-
 		set_relaychain_block_number(400);
 		let deposit_id = 1;
 		assert_ok!(XYKLiquidityMining::deposit_shares(
@@ -1035,7 +1034,7 @@ fn create_global_farm(rewards_currency: Option<AssetId>, incentivized_asset: Ass
 		hydradx_runtime::RuntimeOrigin::root(),
 		owner.clone(),
 		rewards_currency.unwrap_or(HDX),
-		total_rewards as i128,
+		total_rewards as i128 + 1_000, //for seeding pot's account
 	));
 
 	assert_ok!(XYKLiquidityMining::create_global_farm(

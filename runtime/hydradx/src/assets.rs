@@ -636,6 +636,7 @@ impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type LiquidityMiningHandler = XYKWarehouseLM;
 	type NonDustableWhitelistHandler = Duster;
 	type AMM = XYK;
+	type AssetRegistry = AssetRegistry;
 	type WeightInfo = (); //TODO:
 }
 

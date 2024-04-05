@@ -98,3 +98,63 @@ fn create_global_farm_should_fail_when_not_allowed_origin() {
 			);
 		});
 }
+
+#[test]
+fn owner_should_seed_pot_account_when_reward_currency_is_insufficient_asset() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, INSUFF, 500_002 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let id = 1;
+			let total_rewards: Balance = 400_000 * ONE;
+			let reward_currency = INSUFF;
+			let planned_yielding_periods: BlockNumber = 1_000_000_000_u64;
+			let blocks_per_period = 20_000;
+			let incentivized_asset = BSX;
+			let owner = ALICE;
+			let yield_per_period = Perquintill::from_percent(20);
+			let max_reward_per_period: Balance = total_rewards.checked_div(planned_yielding_periods.into()).unwrap();
+			let min_deposit = 3;
+			let price_adjustment = One::one();
+
+			let created_at_block = 15_896;
+
+			set_block_number(created_at_block);
+
+			let pot = DummyLiquidityMining::pot_account().unwrap();
+			assert_eq!(Tokens::free_balance(reward_currency, &pot), Balance::default());
+			//Act
+			assert_ok!(LiquidityMining::create_global_farm(
+				Origin::root(),
+				total_rewards,
+				planned_yielding_periods,
+				blocks_per_period,
+				incentivized_asset,
+				reward_currency,
+				owner,
+				yield_per_period,
+				min_deposit,
+				price_adjustment
+			));
+
+			assert_last_event!(crate::Event::GlobalFarmCreated {
+				id,
+				owner,
+				total_rewards,
+				reward_currency,
+				yield_per_period,
+				planned_yielding_periods,
+				blocks_per_period,
+				incentivized_asset,
+				max_reward_per_period,
+				min_deposit,
+				price_adjustment,
+			}
+			.into());
+
+			let expected_ed: u128 = DummyRegistry::<Test>::existential_deposit(reward_currency).unwrap()
+				* INSSUFFICIENT_ASSET_ED_MULTIPLIER as u128;
+			assert_eq!(Tokens::free_balance(reward_currency, &pot), expected_ed);
+		});
+}
