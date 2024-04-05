@@ -3,11 +3,12 @@ use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use frame_support::storage::with_transaction;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
+use hydra_dx_math::types::Price;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
 use sp_core::Get;
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{ArithmeticError, DispatchError, FixedU128, TransactionOutcome};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, TransactionOutcome};
 use sp_std::vec;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
@@ -210,42 +211,73 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
-				let spot_price = with_transaction::<_, DispatchError, _>(|| {
-					let amount_in = T::MinTradingLimit::get();
-					let origin: OriginFor<T> = Origin::<T>::Signed(Self::pallet_account()).into();
+				let pool_account = Self::pool_account(pool_id);
+				let pool =
+					Pools::<T>::get(pool_id).ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+				let balances = pool
+					.reserves_with_decimals::<T>(&pool_account)
+					.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+				let amp = Pallet::<T>::get_amplification(&pool);
 
-					//We mint amount in to dry-run sell
-					let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in);
+				let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp)
+					.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 
-					//We need to mint some asset_out balance otherwise we can have ED error triggered when amount_out is transferred to account from sell
-					let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_in);
+				if asset_a == pool_id {
+					let total_issuance = T::Currency::total_issuance(pool_id);
+					let asset_out_idx = pool
+						.find_asset(asset_b)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 
-					if let Err(err) = Self::execute_sell(
-						origin,
-						PoolType::Stableswap(pool_id),
-						asset_a,
-						asset_b,
-						amount_in,
-						Balance::MIN,
-					) {
-						return match err {
-							ExecutorError::Error(dispatch_err) => TransactionOutcome::Rollback(Err(dispatch_err)),
-							_ => TransactionOutcome::Rollback(Err(Corruption)),
-						};
-					}
+					let p = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+						&balances,
+						amp,
+						total_issuance,
+						asset_out_idx,
+						None,
+					)
+					.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 
-					let Some(amount_out) =
-						T::Currency::free_balance(asset_b, &Self::pallet_account()).checked_sub(amount_in) else {
-						return TransactionOutcome::Rollback(Err(Corruption));
-					};
+					let spot_price =
+						Price::checked_from_rational(p.1, p.0).ok_or_else(|| ExecutorError::Error(Corruption))?;
 
-					let spot_price = FixedU128::from_rational(amount_in, amount_out);
+					return Ok(spot_price);
+				} else if asset_b == pool_id {
+					let total_issuance = T::Currency::total_issuance(pool_id);
+					let asset_in_idx = pool
+						.find_asset(asset_a)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 
-					TransactionOutcome::Rollback(Ok(spot_price))
-				})
-				.map_err(ExecutorError::Error)?;
+					let p = hydra_dx_math::stableswap::calculate_share_price::<D_ITERATIONS>(
+						&balances,
+						amp,
+						total_issuance,
+						asset_in_idx,
+						None,
+					)
+					.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 
-				Ok(spot_price)
+					let spot_price =
+						Price::checked_from_rational(p.0, p.1).ok_or_else(|| ExecutorError::Error(Corruption))?;
+
+					return Ok(spot_price);
+				} else {
+					let asset_in_idx = pool
+						.find_asset(asset_a)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+
+					let asset_out_idx = pool
+						.find_asset(asset_b)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+
+					let p =
+						hydra_dx_math::stableswap::calculate_spot_price(&balances, amp, d, asset_in_idx, asset_out_idx)
+							.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+
+					let spot_price =
+						Price::checked_from_rational(p.0, p.1).ok_or_else(|| ExecutorError::Error(Corruption))?;
+
+					return Ok(spot_price);
+				}
 			}
 			_ => Err(ExecutorError::NotSupported),
 		}
