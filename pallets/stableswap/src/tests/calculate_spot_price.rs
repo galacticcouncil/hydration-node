@@ -1,9 +1,9 @@
+use crate::assert_balance;
 use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
-use crate::{assert_balance, to_precision, Error};
 use std::num::NonZeroU16;
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::assert_ok;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::TradeExecution;
 use orml_traits::MultiCurrencyExtended;

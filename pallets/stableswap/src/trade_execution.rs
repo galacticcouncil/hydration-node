@@ -1,14 +1,10 @@
 use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
-use frame_support::storage::with_transaction;
-use frame_system::pallet_prelude::OriginFor;
-use frame_system::Origin;
 use hydra_dx_math::types::Price;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
-use sp_core::Get;
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, TransactionOutcome};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 use sp_std::vec;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
@@ -237,10 +233,9 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					)
 					.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 
-					let spot_price =
-						Price::checked_from_rational(p.1, p.0).ok_or_else(|| ExecutorError::Error(Corruption))?;
+					let spot_price = Price::checked_from_rational(p.1, p.0).ok_or(ExecutorError::Error(Corruption))?;
 
-					return Ok(spot_price);
+					Ok(spot_price)
 				} else if asset_b == pool_id {
 					let total_issuance = T::Currency::total_issuance(pool_id);
 					let asset_in_idx = pool
@@ -256,8 +251,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					)
 					.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 
-					let spot_price =
-						Price::checked_from_rational(p.0, p.1).ok_or_else(|| ExecutorError::Error(Corruption))?;
+					let spot_price = Price::checked_from_rational(p.0, p.1).ok_or(ExecutorError::Error(Corruption))?;
 
 					return Ok(spot_price);
 				} else {
@@ -273,8 +267,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						hydra_dx_math::stableswap::calculate_spot_price(&balances, amp, d, asset_in_idx, asset_out_idx)
 							.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 
-					let spot_price =
-						Price::checked_from_rational(p.0, p.1).ok_or_else(|| ExecutorError::Error(Corruption))?;
+					let spot_price = Price::checked_from_rational(p.0, p.1).ok_or(ExecutorError::Error(Corruption))?;
 
 					return Ok(spot_price);
 				}
