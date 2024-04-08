@@ -282,7 +282,7 @@ pub mod pallet {
 			for period in T::SupportedPeriods::get().into_iter() {
 				let _ = Accumulator::<T>::mutate(|accumulator| {
 					accumulator.remove(&(source, assets));
-						Ok::<(), ()>(())
+					Ok::<(), ()>(())
 				});
 				Oracles::<T>::remove((source, assets, period));
 			}
@@ -302,9 +302,7 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), ()> {
-		if !(T::OracleWhitelist::contains(&(src, assets.0, assets.1))
-			|| WhitelistedAssets::<T>::get().contains(&(src, (assets.0, assets.1))))
-		{
+		if !T::OracleWhitelist::contains(&(src, assets.0, assets.1)) {
 			// if we don't track oracle for given asset pair, don't throw error
 			return Ok(());
 		}
@@ -652,5 +650,13 @@ impl<T: Config> AggregatedPriceOracle<AssetId, BlockNumberFor<T>, Price> for Pal
 
 	fn get_price_weight() -> Weight {
 		Self::get_entry_weight()
+	}
+}
+
+/// Oracle whitelist based on the pallet's storage.
+pub struct OracleWhitelist<T>(PhantomData<T>);
+impl<T: Config> Contains<(Source, AssetId, AssetId)> for OracleWhitelist<T> {
+	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
+		WhitelistedAssets::<T>::get().contains(&(t.0, (t.1, t.2)))
 	}
 }

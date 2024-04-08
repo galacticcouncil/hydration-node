@@ -95,20 +95,14 @@ fn remove_oracle_should_remove_entry_from_storage() {
 		EmaOracle::on_initialize(6);
 
 		for period in <Test as crate::Config>::SupportedPeriods::get() {
-			assert_eq!(
-				get_oracle_entry(HDX, DOT, period),
-				Some(ORACLE_ENTRY_1),
-			);
+			assert_eq!(get_oracle_entry(HDX, DOT, period), Some(ORACLE_ENTRY_1),);
 		}
 
 		assert_ok!(EmaOracle::remove_oracle(RuntimeOrigin::root(), SOURCE, (HDX, DOT)));
 		assert!(!WhitelistedAssets::<Test>::get().contains(&(SOURCE, (HDX, DOT))));
 
 		for period in <Test as crate::Config>::SupportedPeriods::get() {
-			assert_eq!(
-				get_oracle_entry(HDX, DOT, period),
-				None,
-			);
+			assert!(get_oracle_entry(HDX, DOT, period).is_none());
 		}
 
 		EmaOracle::on_finalize(6);
@@ -142,7 +136,7 @@ fn on_trade_should_include_whitelisted_oracle_for_correct_source() {
 			(HDX, INSUFFICIENT_ASSET)
 		));
 
-		assert_eq!(get_accumulator_entry(SOURCE, (HDX, INSUFFICIENT_ASSET)), None);
+		assert!(get_accumulator_entry(SOURCE, (HDX, INSUFFICIENT_ASSET)).is_none());
 
 		assert_ok!(OnActivityHandler::<Test>::on_trade(
 			SOURCE,
@@ -169,7 +163,7 @@ fn on_liquidity_changed_should_include_whitelisted_oracle_for_correct_source() {
 			(HDX, INSUFFICIENT_ASSET)
 		));
 
-		assert_eq!(get_accumulator_entry(SOURCE, (HDX, INSUFFICIENT_ASSET)), None);
+		assert!(get_accumulator_entry(SOURCE, (HDX, INSUFFICIENT_ASSET)).is_none());
 
 		assert_ok!(OnActivityHandler::<Test>::on_liquidity_changed(
 			SOURCE,

@@ -497,10 +497,15 @@ parameter_types! {
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 
-pub struct SufficientAssetsFilter;
-impl Contains<(Source, AssetId, AssetId)> for SufficientAssetsFilter {
+pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
+impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist<Runtime>
+where
+	Runtime: pallet_ema_oracle::Config + pallet_asset_registry::Config,
+	AssetId: From<<Runtime as pallet_asset_registry::Config>::AssetId>,
+{
 	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
-		AssetRegistry::is_sufficient(t.1) && AssetRegistry::is_sufficient(t.2)
+		pallet_asset_registry::OracleWhitelist::<Runtime>::contains(t)
+			|| pallet_ema_oracle::OracleWhitelist::<Runtime>::contains(t)
 	}
 }
 
@@ -512,7 +517,7 @@ impl pallet_ema_oracle::Config for Runtime {
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
-	type OracleWhitelist = SufficientAssetsFilter;
+	type OracleWhitelist = OracleWhitelist<Runtime>;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;

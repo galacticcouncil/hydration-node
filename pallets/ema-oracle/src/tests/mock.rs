@@ -126,10 +126,10 @@ parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = bounded_vec![LastBlock, TenMinutes, Day, Week];
 }
 
-pub struct SufficientAssetsFilter;
-impl Contains<(Source, AssetId, AssetId)> for SufficientAssetsFilter {
+pub struct OracleWhitelist;
+impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist {
 	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
-		t.1 != INSUFFICIENT_ASSET && t.2 != INSUFFICIENT_ASSET
+		(t.1 != INSUFFICIENT_ASSET && t.2 != INSUFFICIENT_ASSET) || ema_oracle::OracleWhitelist::<Test>::contains(t)
 	}
 }
 
@@ -138,7 +138,7 @@ impl Config for Test {
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
-	type OracleWhitelist = SufficientAssetsFilter;
+	type OracleWhitelist = OracleWhitelist;
 	type MaxUniqueEntries = ConstU32<45>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
