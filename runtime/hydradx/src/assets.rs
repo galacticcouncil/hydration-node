@@ -637,7 +637,7 @@ impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type NonDustableWhitelistHandler = Duster;
 	type AMM = XYK;
 	type AssetRegistry = AssetRegistry;
-	type WeightInfo = (); //TODO:
+	type WeightInfo = weights::xyk_lm::HydraWeight<Runtime>;
 }
 
 // The reason why there is difference between PROD and benchmark is that it is not possible
