@@ -3579,6 +3579,7 @@ mod with_on_chain_and_default_route {
 mod route_spot_price {
 	use super::*;
 	use hydradx_traits::router::PoolType;
+	use sp_runtime::FixedU128;
 
 	#[test]
 	fn spot_price_should_be_ok_for_lbp() {
@@ -3714,7 +3715,7 @@ mod route_spot_price {
 					.unwrap()
 					.checked_mul_int(amount_to_sell)
 					.unwrap();
-				let difference = expected_amount_out - calculated_amount_out;
+				let difference = calculated_amount_out - expected_amount_out;
 				let relative_difference = FixedU128::from_rational(difference, expected_amount_out);
 				let tolerated_difference = FixedU128::from_rational(1, 100);
 				// The difference of the amount out calculated with spot price should be less than 1%
