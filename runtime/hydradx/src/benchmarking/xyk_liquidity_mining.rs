@@ -141,7 +141,6 @@ runtime_benchmarks! {
 	}: _(RawOrigin::Signed(farm_owner), gfarm_id, FixedU128::from_inner(234_456_677_000_000_000_u128))
 	//NOTE: not verified because update prop is not public
 
-
 	terminate_global_farm {
 		let pair = AssetPair {
 			asset_in: register_external_asset(b"TKN1".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?,
@@ -169,7 +168,6 @@ runtime_benchmarks! {
 	}: _(RawOrigin::Signed(farm_owner), gfarm_id)
 	//NOTE: farm is removed from storage lazylly and prop to check is private
 
-
 	create_yield_farm {
 		let pair = AssetPair {
 			asset_in: register_external_asset(b"TKN1".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?,
@@ -188,7 +186,6 @@ runtime_benchmarks! {
 
 		assert!(XYKWarehouseLM::active_yield_farm(amm_pool_id, global_farm_id).is_some());
 	}
-
 
 	update_yield_farm {
 		let pair = AssetPair {
@@ -559,6 +556,7 @@ fn create_xyk_pool(caller: AccountId, asset_a: u32, asset_b: u32) {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::NativeExistentialDeposit;
 	use orml_benchmarking::impl_benchmark_test_suite;
 	use sp_runtime::BuildStorage;
 
@@ -575,6 +573,12 @@ mod tests {
 			native_symbol: b"HDX".to_vec().try_into().unwrap(),
 		}
 		.assimilate_storage(&mut t)
+		.unwrap();
+
+		<pallet_xyk_liquidity_mining::GenesisConfig<crate::Runtime> as BuildStorage>::assimilate_storage(
+			&pallet_xyk_liquidity_mining::GenesisConfig::<crate::Runtime>::default(),
+			&mut t,
+		)
 		.unwrap();
 
 		sp_io::TestExternalities::new(t)
