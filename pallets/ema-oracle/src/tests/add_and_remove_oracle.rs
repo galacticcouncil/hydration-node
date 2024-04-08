@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use super::*;
-pub use mock::{expect_events, EmaOracle, RuntimeOrigin, Test, DOT, HDX};
+pub use mock::{expect_events, EmaOracle, RuntimeOrigin, Test, DOT, HDX, ORACLE_ENTRY_1};
 
 use frame_support::{assert_noop, assert_ok};
 use pretty_assertions::assert_eq;
@@ -85,8 +85,35 @@ fn remove_oracle_should_remove_entry_from_storage() {
 		assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), SOURCE, (HDX, DOT)));
 		assert!(WhitelistedAssets::<Test>::get().contains(&(SOURCE, (HDX, DOT))));
 
+		System::set_block_number(5);
+		EmaOracle::on_initialize(5);
+
+		assert_ok!(EmaOracle::on_trade(SOURCE, ordered_pair(HDX, DOT), ORACLE_ENTRY_1));
+
+		EmaOracle::on_finalize(5);
+		System::set_block_number(6);
+		EmaOracle::on_initialize(6);
+
+		for period in <Test as crate::Config>::SupportedPeriods::get() {
+			assert_eq!(
+				get_oracle_entry(HDX, DOT, period),
+				Some(ORACLE_ENTRY_1),
+			);
+		}
+
 		assert_ok!(EmaOracle::remove_oracle(RuntimeOrigin::root(), SOURCE, (HDX, DOT)));
 		assert!(!WhitelistedAssets::<Test>::get().contains(&(SOURCE, (HDX, DOT))));
+
+		for period in <Test as crate::Config>::SupportedPeriods::get() {
+			assert_eq!(
+				get_oracle_entry(HDX, DOT, period),
+				None,
+			);
+		}
+
+		EmaOracle::on_finalize(6);
+		System::set_block_number(7);
+		EmaOracle::on_initialize(7);
 
 		expect_events(vec![Event::RemovedFromWhitelist {
 			source: SOURCE,

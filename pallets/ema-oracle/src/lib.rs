@@ -273,11 +273,19 @@ pub mod pallet {
 			let assets = ordered_pair(assets.0, assets.1);
 
 			WhitelistedAssets::<T>::mutate(|list| {
-				let was_removed = list.remove(&(source, (assets)));
-				ensure!(was_removed, Error::<T>::OracleNotFound);
+				ensure!(list.remove(&(source, (assets))), Error::<T>::OracleNotFound);
 
 				Ok::<(), DispatchError>(())
 			})?;
+
+			// remove oracle from the storage
+			for period in T::SupportedPeriods::get().into_iter() {
+				let _ = Accumulator::<T>::mutate(|accumulator| {
+					accumulator.remove(&(source, assets));
+						Ok::<(), ()>(())
+				});
+				Oracles::<T>::remove((source, assets, period));
+			}
 
 			Self::deposit_event(Event::RemovedFromWhitelist { source, assets });
 
