@@ -104,7 +104,7 @@ cumulus-primitives-core = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
 cumulus-primitives-timestamp = { workspace = true }
-parachain-info = { workspace = true }
+staging-parachain-info = { workspace = true }
 
 # Polkadot dependencies
 polkadot-parachain = { workspace = true }
@@ -217,7 +217,7 @@ std = [
     "cumulus-primitives-core/std",
     "cumulus-pallet-xcm/std",
     "cumulus-pallet-xcmp-queue/std",
-    "parachain-info/std",
+    "staging-parachain-info/std",
     "pallet-xcm/std",
     "polkadot-xcm/std",
     "xcm-executor/std",
@@ -318,7 +318,7 @@ try-runtime= [
     "cumulus-pallet-aura-ext/try-runtime",
     "cumulus-pallet-xcm/try-runtime",
     "cumulus-pallet-xcmp-queue/try-runtime",
-    "parachain-info/try-runtime",
+    "staging-parachain-info/try-runtime",
     "pallet-aura/try-runtime",
     "pallet-balances/try-runtime",
     "pallet-elections-phragmen/try-runtime",
