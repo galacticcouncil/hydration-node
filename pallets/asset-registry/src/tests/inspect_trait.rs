@@ -279,7 +279,7 @@ fn existential_deposit_should_work() {
 				Some(1),
 				Some(b"Tkn1".to_vec().try_into().unwrap()),
 				UNIT,
-				Some(asset_one_symbol.clone().try_into().unwrap()),
+				Some(asset_one_symbol.try_into().unwrap()),
 				None,
 				None,
 				true,

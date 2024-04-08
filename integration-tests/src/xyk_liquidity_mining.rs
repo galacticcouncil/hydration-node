@@ -1023,7 +1023,7 @@ fn create_xyk_pool(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) -
 		amount_b,
 	));
 
-	return share_id;
+	share_id
 }
 
 fn create_global_farm(rewards_currency: Option<AssetId>, incentivized_asset: AssetId, owner: Option<AccountId>) {
