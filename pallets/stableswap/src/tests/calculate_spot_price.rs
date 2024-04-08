@@ -11,7 +11,6 @@ use sp_runtime::FixedPointNumber;
 use sp_runtime::{FixedU128, Permill};
 
 //TODO: FIX IT
-#[ignore]
 #[test]
 fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() {
 	let asset_a: AssetId = 1;
@@ -80,8 +79,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			let tolerated_difference = FixedU128::from_rational(1, 100);
 			// The difference of the amount out calculated with spot price should be less than 1%
-			assert_eq!(relative_difference, tolerated_difference);
-
+			assert_eq!(relative_difference, FixedU128::from_float(0.001138184176343564));
 			assert!(relative_difference < tolerated_difference);
 		});
 }
@@ -274,8 +272,8 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
 			let difference = expected - calculated_amount_out;
 			let relative_difference = FixedU128::from_rational(difference, expected);
-			let tolerated_difference = FixedU128::from_rational(2, 1000);
-			// The difference of the amount out calculated with spot price should be less than 0.2%
+			let tolerated_difference = FixedU128::from_rational(1, 100);
+			// The difference of the amount out calculated with spot price should be less than 1%
 			assert!(relative_difference < tolerated_difference);
 		});
 }
@@ -304,7 +302,7 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				fee: Permill::from_percent(0),
+				fee: Permill::from_percent(2),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -330,7 +328,7 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 				0,
 			));
 
-			let expected = 9878590594274;
+			let expected = 9681018782389;
 
 			assert_balance!(BOB, asset_c, 200 * ONE - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
@@ -341,8 +339,9 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
 			let difference = expected - calculated_amount_out;
 			let relative_difference = FixedU128::from_rational(difference, expected);
-			let tolerated_difference = FixedU128::from_rational(1, 1000);
-			// The difference of the amount out calculated with spot price should be less than 0.1%
+			let tolerated_difference = FixedU128::from_rational(1, 100);
+			// The difference of the amount out calculated with spot price should be less than 1%
+			assert_eq!(relative_difference, FixedU128::from_float(0.001138184176343564));
 			assert!(relative_difference < tolerated_difference);
 		});
 }

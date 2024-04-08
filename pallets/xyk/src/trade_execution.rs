@@ -152,6 +152,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			return Err(ExecutorError::NotSupported);
 		}
 
+		//TODO: here we would need to multiply it by (1-fee)
 		XYKSpotPrice::<T>::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))
 	}
 }

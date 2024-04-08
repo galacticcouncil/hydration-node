@@ -211,11 +211,16 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
+				//TODO: for normal we could use the standard fee * (1-fee)
 				let spot_price = with_transaction::<_, DispatchError, _>(|| {
 					//We need 2x min liquidity to make the calculation valid
-					let Some(amount_in) = T::MinPoolLiquidity::get().checked_mul(2) else {
-						return TransactionOutcome::Rollback(Err(Corruption.into()));
+					let amount_in = if asset_a != pool_id && asset_b != pool_id {
+						T::MinTradingLimit::get()
+					} else {
+						T::MinTradingLimit::get() //TODO: fix it properly
+						  //T::MinPoolLiquidity::get().saturating_mul(2)
 					};
+
 					let origin: OriginFor<T> = Origin::<T>::Signed(Self::pallet_account()).into();
 
 					//We mint amount in to dry-run sell

@@ -161,6 +161,9 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			return Err(ExecutorError::NotSupported);
 		}
 
+		//TODO: adjust it
+		//let fee_asset = pool_data.assets.0;
+		//if fee asset is asset out, then user pays so we need to multiply, otherwise we don't need. DOUBLE CHECK THIS
 		let spot_price = Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
 
 		Ok(spot_price)
