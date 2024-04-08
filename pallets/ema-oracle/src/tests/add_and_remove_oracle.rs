@@ -30,7 +30,7 @@ fn add_oracle_should_add_entry_to_storage() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), SOURCE, (HDX, DOT)));
 
-		expect_events(vec![Event::OracleAdded {
+		expect_events(vec![Event::AddedToWhitelist {
 			source: SOURCE,
 			assets: (HDX, DOT),
 		}
@@ -43,7 +43,7 @@ fn add_oracle_should_store_assets_in_correct_order() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), SOURCE, (DOT, HDX)));
 
-		expect_events(vec![Event::OracleAdded {
+		expect_events(vec![Event::AddedToWhitelist {
 			source: SOURCE,
 			assets: (HDX, DOT),
 		}
@@ -88,7 +88,7 @@ fn remove_oracle_should_remove_entry_from_storage() {
 		assert_ok!(EmaOracle::remove_oracle(RuntimeOrigin::root(), SOURCE, (HDX, DOT)));
 		assert!(!WhitelistedAssets::<Test>::get().contains(&(SOURCE, (HDX, DOT))));
 
-		expect_events(vec![Event::OracleRemoved {
+		expect_events(vec![Event::RemovedFromWhitelist {
 			source: SOURCE,
 			assets: (HDX, DOT),
 		}

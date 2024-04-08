@@ -159,9 +159,9 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Oracle was added to the whitelist.
-		OracleAdded { source: Source, assets: (AssetId, AssetId) },
+		AddedToWhitelist { source: Source, assets: (AssetId, AssetId) },
 		/// Oracle was removed from the whitelist.
-		OracleRemoved { source: Source, assets: (AssetId, AssetId) },
+		RemovedFromWhitelist { source: Source, assets: (AssetId, AssetId) },
 	}
 
 	/// Accumulator for oracle data in current block that will be recorded at the end of the block.
@@ -260,7 +260,7 @@ pub mod pallet {
 					.map_err(|_| Error::<T>::TooManyUniqueEntries)
 			})?;
 
-			Self::deposit_event(Event::OracleAdded { source, assets });
+			Self::deposit_event(Event::AddedToWhitelist { source, assets });
 
 			Ok(())
 		}
@@ -279,7 +279,7 @@ pub mod pallet {
 				Ok::<(), DispatchError>(())
 			})?;
 
-			Self::deposit_event(Event::OracleRemoved { source, assets });
+			Self::deposit_event(Event::RemovedFromWhitelist { source, assets });
 
 			Ok(())
 		}
