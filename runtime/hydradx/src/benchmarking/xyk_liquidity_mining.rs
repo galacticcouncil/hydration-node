@@ -111,7 +111,7 @@ runtime_benchmarks! {
 		let min_deposit = 1_000;
 		let reward_currency = register_external_asset(b"FCK".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let owner = funded_account("caller", 0, &[HDX, reward_currency]);
-	}: _(RawOrigin::Root,  total_rewards, planned_yielding_periods, blocks_per_period, HDX.into(), reward_currency, owner, yield_per_period, min_deposit, FixedU128::one())
+	}: _(RawOrigin::Root,  total_rewards, planned_yielding_periods, blocks_per_period, HDX, reward_currency, owner, yield_per_period, min_deposit, FixedU128::one())
 	verify {
 		assert!(XYKWarehouseLM::global_farm(1).is_some());
 	}
@@ -153,7 +153,7 @@ runtime_benchmarks! {
 
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
-		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
+		xyk_add_liquidity(liq_provider, pair, 1_000 * ONE, 100_000 * ONE)?;
 
 
 		let gfarm_id = 1;
@@ -285,7 +285,7 @@ runtime_benchmarks! {
 		let gfarm_id = 1;
 		let yfarm_id = 2;
 		create_gfarm(farm_owner.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(farm_owner.clone(), gfarm_id, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(farm_owner, gfarm_id, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		run_to_block(200);
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(liq_provider).into(), gfarm_id, yfarm_id, pair, 10 * ONE)?;
@@ -325,23 +325,23 @@ runtime_benchmarks! {
 
 		//gId: 1, yId: 2
 		create_gfarm(fowner1.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner1.clone(), 1, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner1, 1, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		//gId: 3, yId: 4
 		create_gfarm(fowner2.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner2.clone(), 3, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner2, 3, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		//gId: 5, yId: 6
 		create_gfarm(fowner3.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner3.clone(), 5, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner3, 5, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		//gId: 7, yId: 8
 		create_gfarm(fowner4.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner4.clone(), 7, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner4, 7, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		//gId: 9, yId: 10
 		create_gfarm(fowner5.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner5.clone(), 9, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner5, 9, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		run_to_block(200);
 
@@ -384,23 +384,23 @@ runtime_benchmarks! {
 
 		//gId: 1, yId: 2
 		create_gfarm(fowner1.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner1.clone(), 1, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner1, 1, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		//gId: 3, yId: 4
 		create_gfarm(fowner2.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner2.clone(), 3, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner2, 3, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		//gId: 5, yId: 6
 		create_gfarm(fowner3.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner3.clone(), 5, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner3, 5, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		//gId: 7, yId: 8
 		create_gfarm(fowner4.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner4.clone(), 7, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner4, 7, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		//gId: 9, yId: 10
 		create_gfarm(fowner5.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner5.clone(), 9, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner5, 9, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		run_to_block(200);
 
@@ -439,7 +439,7 @@ runtime_benchmarks! {
 
 		//gId: 1, yId: 2
 		create_gfarm(fowner1.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
-		create_yfarm(fowner1.clone(), 1, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+		create_yfarm(fowner1, 1, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
 
 		run_to_block(200);
 
@@ -494,7 +494,7 @@ runtime_benchmarks! {
 
 		run_to_block(300);
 
-		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp.clone()).into(), gfarm_id, yfarm_id2, pair2, 10 * ONE)?;
+		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp).into(), gfarm_id, yfarm_id2, pair2, 10 * ONE)?;
 
 		run_to_block(400);
 	}: _(RawOrigin::Signed(fowner), gfarm_id, yfarm_id1, pair, FixedU128::from(12_452))
