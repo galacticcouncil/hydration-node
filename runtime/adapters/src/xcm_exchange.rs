@@ -1,5 +1,6 @@
 use orml_traits::MultiCurrency;
-use polkadot_xcm::latest::prelude::*;
+use polkadot_xcm::v3::{MultiAsset, MultiAssets, MultiLocation};
+use polkadot_xcm::v4::prelude::*;
 use sp_core::Get;
 use sp_runtime::traits::{Convert, Zero};
 use sp_std::marker::PhantomData;

@@ -272,6 +272,7 @@ parameter_types! {
 	pub MaxDeferDuration: RelayChainBlockNumber = 600 * 24 * 10; // 10 days
 }
 
+/*
 impl pallet_xcm_rate_limiter::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -281,6 +282,8 @@ impl pallet_xcm_rate_limiter::Config for Runtime {
 	type CurrencyIdConvert = CurrencyIdConvert;
 	type RateLimitFor = pallet_asset_registry::XcmRateLimitsInRegistry<Runtime>;
 }
+
+ */
 
 pub struct CurrencyIdConvert;
 use crate::evm::ExtendedAddressMapping;

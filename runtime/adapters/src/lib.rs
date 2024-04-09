@@ -41,12 +41,14 @@ use hydradx_traits::{
 };
 use orml_traits::GetByKey;
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
+use polkadot_xcm::v3::{MultiAsset, MultiLocation};
+use polkadot_xcm::v3::prelude::Concrete;
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use pallet_stableswap::types::{PoolState, StableswapHooks};
 use pallet_transaction_multi_payment::DepositFee;
-use polkadot_xcm::latest::prelude::*;
+use polkadot_xcm::v4::prelude::*;
 use primitive_types::{U128, U512};
 use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
@@ -55,10 +57,7 @@ use sp_std::vec::Vec;
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
 use warehouse_liquidity_mining::GlobalFarmData;
 use xcm_builder::TakeRevenue;
-use xcm_executor::{
-	traits::{ConvertLocation, MatchesFungible, TransactAsset, WeightTrader},
-	Assets,
-};
+use xcm_executor::{AssetsInHolding, traits::{ConvertLocation, MatchesFungible, TransactAsset, WeightTrader}};
 
 pub mod inspect;
 pub mod price;
@@ -109,7 +108,7 @@ impl<
 {
 	/// Get the asset id of the first asset in `payment` and try to determine its price via the
 	/// price oracle.
-	fn get_asset_and_price(&mut self, payment: &Assets) -> Option<(MultiLocation, Price)> {
+	fn get_asset_and_price(&mut self, payment: &AssetsInHolding) -> Option<(MultiLocation, Price)> {
 		if let Some(asset) = payment.fungible_assets_iter().next() {
 			ConvertCurrency::convert(asset.clone())
 				.and_then(|currency| AcceptedCurrencyPrices::price(currency))
@@ -148,7 +147,7 @@ impl<
 	/// per buy.
 	/// The fee is determined by `ConvertWeightToFee` in combination with the price determined by
 	/// `AcceptedCurrencyPrices`.
-	fn buy_weight(&mut self, weight: Weight, payment: Assets, _context: &XcmContext) -> Result<Assets, XcmError> {
+	fn buy_weight(&mut self, weight: Weight, payment: AssetsInHolding, _context: &XcmContext) -> Result<Assets, XcmError> {
 		log::trace!(
 			target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {:?}, payment: {:?}",
 			weight, payment

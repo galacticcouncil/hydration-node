@@ -55,13 +55,14 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 use codec::HasCompact;
-use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
 use sp_core::U256;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
+use frame_support::weights::Weight;
+use frame_support::pallet_prelude::{Member, Parameter, MaybeSerializeDeserialize, MaxEncodedLen, TypeInfo, Get, StorageVersion, StorageValue, ValueQuery, Hooks};
 
 pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(8945857934143137845); //Current onchain ETH price on at block #4,534,103
 
