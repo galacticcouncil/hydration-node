@@ -65,8 +65,6 @@ use sp_std::{
 	vec,
 };
 
-const INSSUFFICIENT_ASSET_ED_MULTIPLIER: u8 = 2;
-
 type PeriodOf<T> = BlockNumberFor<T>;
 
 #[frame_support::pallet]
@@ -123,7 +121,6 @@ pub mod pallet {
 		/// Pallet id.
 		type PalletId: Get<PalletId>;
 
-		/// NFT collection id for liq. mining deposit nfts. Has to be within the range of reserved NFT class IDs.
 		/// NFT collection id for liquidity mining's deposit nfts.
 		#[pallet::constant]
 		type NFTCollectionId: Get<CollectionId>;
@@ -319,6 +316,8 @@ pub mod pallet {
 		///
 		/// `owner` account has to have at least `total_rewards` balance. This fund will be
 		/// transferred from `owner` to farm account.
+		/// In case of `reward_currency` is insufficient asset, farm's `owner` has to pay existential
+		/// deposit for global farm account and for liquidity mining `pot` account.
 		///
 		/// The dispatch origin for this call must be `T::CreateOrigin`.
 		/// !!!WARN: `T::CreateOrigin` has power over funds of `owner`'s account and it should be
@@ -363,8 +362,7 @@ pub mod pallet {
 					T::AssetRegistry::existential_deposit(reward_currency).ok_or(Error::<T>::AssetNotRegistered)?;
 
 				let pot = T::LiquidityMiningHandler::pot_account().ok_or(Error::<T>::FailToGetPotId)?;
-				let amount = ed.saturating_mul(INSSUFFICIENT_ASSET_ED_MULTIPLIER.into());
-				T::Currencies::transfer(reward_currency, &owner, &pot, amount)?;
+				T::Currencies::transfer(reward_currency, &owner, &pot, ed)?;
 			}
 
 			let (id, max_reward_per_period) = T::LiquidityMiningHandler::create_global_farm(

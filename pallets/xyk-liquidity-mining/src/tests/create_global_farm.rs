@@ -153,8 +153,7 @@ fn owner_should_seed_pot_account_when_reward_currency_is_insufficient_asset() {
 			}
 			.into());
 
-			let expected_ed: u128 = DummyRegistry::<Test>::existential_deposit(reward_currency).unwrap()
-				* INSSUFFICIENT_ASSET_ED_MULTIPLIER as u128;
+			let expected_ed = DummyRegistry::<Test>::existential_deposit(reward_currency).unwrap();
 			assert_eq!(Tokens::free_balance(reward_currency, &pot), expected_ed);
 		});
 }
