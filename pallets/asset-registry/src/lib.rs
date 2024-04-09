@@ -21,6 +21,7 @@ use frame_support::pallet_prelude::*;
 use frame_support::require_transactional;
 use frame_support::sp_runtime::traits::CheckedAdd;
 use frame_support::traits::tokens::fungibles::{Inspect as FungiblesInspect, Mutate as FungiblesMutate};
+use frame_support::traits::Contains;
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_arithmetic::traits::BaseArithmetic;
@@ -754,5 +755,15 @@ impl<T: Config> Create<Balance> for Pallet<T> {
 				Self::do_register_asset(None, &details, location)
 			}
 		}
+	}
+}
+
+/// Oracle whitelist based on the asset sufficiency.
+pub struct OracleWhitelist<T>(PhantomData<T>);
+impl<T: Config> Contains<(hydradx_traits::Source, <T as Config>::AssetId, <T as Config>::AssetId)>
+	for OracleWhitelist<T>
+{
+	fn contains(t: &(hydradx_traits::Source, <T as Config>::AssetId, <T as Config>::AssetId)) -> bool {
+		Pallet::<T>::is_sufficient(t.1) && Pallet::<T>::is_sufficient(t.2)
 	}
 }

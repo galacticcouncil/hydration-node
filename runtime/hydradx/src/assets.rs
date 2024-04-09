@@ -497,25 +497,31 @@ parameter_types! {
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 
-pub struct SufficientAssetsFilter;
-impl Contains<(Source, AssetId, AssetId)> for SufficientAssetsFilter {
+pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
+impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist<Runtime>
+where
+	Runtime: pallet_ema_oracle::Config + pallet_asset_registry::Config,
+	AssetId: From<<Runtime as pallet_asset_registry::Config>::AssetId>,
+{
 	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
-		AssetRegistry::is_sufficient(t.1) && AssetRegistry::is_sufficient(t.2)
+		pallet_asset_registry::OracleWhitelist::<Runtime>::contains(t)
+			|| pallet_ema_oracle::OracleWhitelist::<Runtime>::contains(t)
 	}
 }
 
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
+	type AuthorityOrigin = SuperMajorityTechCommittee;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
-	type OracleWhitelist = SufficientAssetsFilter;
+	type OracleWhitelist = OracleWhitelist<Runtime>;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;
+	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	/// Should take care of the overhead introduced by `OracleWhitelist`.
 	type BenchmarkHelper = RegisterAsset<Runtime>;
