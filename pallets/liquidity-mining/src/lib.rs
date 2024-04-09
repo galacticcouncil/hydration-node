@@ -1911,3 +1911,9 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 		Self::get_global_farm_id(deposit_id, yield_farm_id)
 	}
 }
+
+impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Inspect<T::AccountId> for Pallet<T, I> {
+	fn pot_account() -> Option<T::AccountId> {
+		Self::pot_account_id()
+	}
+}
