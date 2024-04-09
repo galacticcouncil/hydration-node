@@ -683,6 +683,10 @@ impl<T: Config> Inspect for Pallet<T> {
 	fn asset_symbol(id: Self::AssetId) -> Option<Vec<u8>> {
 		Self::assets(id).and_then(|a| a.symbol.map(|v| v.into()))
 	}
+
+	fn existential_deposit(id: Self::AssetId) -> Option<u128> {
+		Self::assets(id).map(|a| a.existential_deposit)
+	}
 }
 
 impl<T: Config> Mutate for Pallet<T> {

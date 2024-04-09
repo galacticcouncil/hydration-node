@@ -191,6 +191,9 @@ construct_runtime!(
 		EVMAccounts: pallet_evm_accounts = 93,
 		DynamicEvmFee: pallet_dynamic_evm_fee = 94,
 
+		XYKLiquidityMining: pallet_xyk_liquidity_mining = 95,
+		XYKWarehouseLM: warehouse_liquidity_mining::<Instance2> = 96,
+
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
 		ParachainInfo: parachain_info = 105,
@@ -734,6 +737,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_dca, benchmarking::dca);
 			orml_list_benchmark!(list, extra, pallet_xyk, benchmarking::xyk);
 			orml_list_benchmark!(list, extra, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
+			orml_list_benchmark!(list, extra, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -818,6 +822,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_dca, benchmarking::dca);
 			orml_add_benchmark!(params, batches, pallet_xyk, benchmarking::xyk);
 			orml_add_benchmark!(params, batches, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
+			orml_add_benchmark!(params, batches, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

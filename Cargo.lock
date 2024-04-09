@@ -4482,7 +4482,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "12.1.0"
+version = "12.2.0"
 dependencies = [
  "async-trait",
  "clap 4.4.11",
@@ -4571,7 +4571,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.2.5"
+version = "1.3.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4716,6 +4716,7 @@ dependencies = [
  "pallet-xcm",
  "pallet-xcm-rate-limiter",
  "pallet-xyk",
+ "pallet-xyk-liquidity-mining",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain-primitives",
@@ -4747,7 +4748,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.1.1"
+version = "3.2.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6985,7 +6986,7 @@ checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 
 [[package]]
 name = "pallet-asset-registry"
-version = "3.1.2"
+version = "3.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7199,7 +7200,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-bonds"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7260,7 +7261,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.20"
+version = "1.1.21"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7904,7 +7905,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.3.0"
+version = "4.3.1"
 dependencies = [
  "fixed",
  "frame-support",
@@ -8126,7 +8127,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.1.4"
+version = "4.1.5"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8180,7 +8181,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8322,7 +8323,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8421,7 +8422,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.5.0"
+version = "3.5.1"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8801,7 +8802,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm-rate-limiter"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-benchmarking",
@@ -8828,7 +8829,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.4.0"
+version = "6.4.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8850,6 +8851,30 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-xyk-liquidity-mining"
+version = "1.1.10"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-liquidity-mining",
+ "pallet-xyk",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitives",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -11367,7 +11392,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.19.13"
+version = "1.20.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -11440,6 +11465,7 @@ dependencies = [
  "pallet-utility",
  "pallet-xcm",
  "pallet-xyk",
+ "pallet-xyk-liquidity-mining",
  "parachain-info",
  "polkadot-parachain-primitives",
  "polkadot-primitives",
