@@ -4066,7 +4066,7 @@ mod route_spot_price {
 				let tolerated_difference = FixedU128::from_rational(1, 100);
 				// The difference of the amount out calculated with spot price should be less than 1%
 				assert!(relative_difference < tolerated_difference);
-				assert_eq!(relative_difference, FixedU128::from_float(0.002541101725638051)); //TEMP assertion
+				//assert_eq!(relative_difference, FixedU128::from_float(0.002541101725638051)); //TEMP assertion
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -4192,7 +4192,7 @@ mod route_spot_price {
 				));
 
 				//Assert
-				let expected_amount_out = 994999;
+				let expected_amount_out = 621873466890;
 
 				assert_eq!(
 					hydradx_runtime::Currencies::free_balance(pool_id, &AccountId::from(ALICE)),
@@ -4214,7 +4214,7 @@ mod route_spot_price {
 				let relative_difference = FixedU128::from_rational(difference, expected_amount_out);
 				let tolerated_difference = FixedU128::from_rational(1, 100);
 				// The difference of the amount out calculated with spot price should be less than 1%
-				assert_eq!(relative_difference, FixedU128::from_float(0.497486932147670500)); //TEMP assertion
+				assert_eq!(relative_difference, FixedU128::from_float(0.003012617501385355)); //TEMP assertion
 				assert!(relative_difference < tolerated_difference);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -4381,7 +4381,7 @@ pub fn init_stableswap_with_liquidity(
 			AssetKind::Token,
 			1000u128,
 			Some(b"xDUM".to_vec().try_into().unwrap()),
-			Some(12u8),
+			Some(18u8),
 			None,
 			None,
 		)?;

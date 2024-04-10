@@ -6,8 +6,10 @@ use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
+use sp_runtime::traits::CheckedDiv;
+use sp_runtime::traits::CheckedSub;
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{DispatchError, FixedU128};
+use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
@@ -152,7 +154,23 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			return Err(ExecutorError::NotSupported);
 		}
 
-		//TODO: here we would need to multiply it by (1-fee)
-		XYKSpotPrice::<T>::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))
+		//TODO: we have differente based on sell or buy, fix
+		// Formula: spot-price-with-fee = spot-price-withoit-fee / (1 - fee)
+		// We divide by (1 - f) to adjust for the fee, because the fee reduces the amount of the output asset received per unit of input asset.
+		// It makes asset B more expensive, so the spot price should be increased
+		let fee = T::GetExchangeFee::get();
+		let fee = FixedU128::checked_from_rational(fee.0, fee.1).ok_or(ExecutorError::Error(Corruption))?;
+		let fee_multipiler = FixedU128::from_rational(1, 1)
+			.checked_sub(&fee)
+			.ok_or(ExecutorError::Error(Corruption))?;
+
+		let spot_price_without_fee =
+			XYKSpotPrice::<T>::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
+
+		spot_price_without_fee
+			.checked_div(&fee_multipiler)
+			.ok_or(ExecutorError::Error(Corruption))
+
+		//XYKSpotPrice::<T>::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))
 	}
 }

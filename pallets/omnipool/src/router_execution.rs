@@ -180,7 +180,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		}
 
 		///Formula: Price = price_without_fee_included of asset_in denominated in asset_put * (1 - protocol_fee) * (1 - asset_fee)
-		//TODO: verify from colin if this is good
+		//TODO: verify from colin if this is good, i think it is bad, we need to divide
 		let (_, protocol_fee) = T::Fee::get(&asset_a);
 		let protocol_fee_multipiler = Permill::from_percent(100)
 			.checked_sub(&protocol_fee)
