@@ -233,7 +233,7 @@ impl pallet_aura::Config for Runtime {
 	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
-impl parachain_info::Config for Runtime {}
+impl staging_parachain_info::Config for Runtime {}
 
 impl cumulus_pallet_aura_ext::Config for Runtime {}
 

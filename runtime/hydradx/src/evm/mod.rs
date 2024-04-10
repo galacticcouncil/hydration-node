@@ -40,9 +40,10 @@ use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::EnsureAddressTruncated;
 use pallet_transaction_payment::Multiplier;
+use polkadot_xcm::v4::Junctions;
 use polkadot_xcm::{
-	latest::MultiLocation,
-	prelude::{AccountKey20, PalletInstance, Parachain, X3},
+	latest::Location,
+	prelude::{AccountKey20, PalletInstance, Parachain},
 };
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
@@ -73,9 +74,9 @@ parameter_types! {
 }
 
 const MOONBEAM_PARA_ID: u32 = 2004;
-pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(MultiLocation {
+pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(Location {
 	parents: 1,
-	interior: X3(
+	interior: Junctions::X3(
 		Parachain(MOONBEAM_PARA_ID),
 		PalletInstance(110),
 		AccountKey20 {
@@ -124,6 +125,8 @@ parameter_types! {
 	pub GasLimitStorageGrowthRatio: u64 = 366;
 
 	pub const OracleEvmPeriod: OraclePeriod = OraclePeriod::Short;
+
+	pub const SuicideQuickClearLimit: u32 = 0;
 }
 
 impl pallet_evm::Config for crate::Runtime {
@@ -163,6 +166,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
 	type Timestamp = crate::Timestamp;
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<crate::Runtime>;
+	type SuicideQuickClearLimit = SuicideQuickClearLimit;
 }
 
 impl pallet_evm_chain_id::Config for crate::Runtime {}

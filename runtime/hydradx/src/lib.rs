@@ -193,7 +193,7 @@ construct_runtime!(
 
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
-		ParachainInfo: parachain_info = 105,
+		ParachainInfo: staging_parachain_info = 105,
 
 		//NOTE: Scheduler must be after ParachainSystem otherwise RelayChainBlockNumberProvider
 		//will return 0 as current block number when used with Scheduler(democracy).
