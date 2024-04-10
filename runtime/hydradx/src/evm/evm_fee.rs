@@ -88,7 +88,7 @@ where
 		}
 		let account_id = T::AddressMapping::into_account_id(*who);
 		let fee_currency = AC::get(&account_id);
-		let Some((converted, price)) = C::convert((EC::get(), fee_currency, fee.unique_saturated_into())) else{
+		let Some((converted, price)) = C::convert((EC::get(), fee_currency, fee.unique_saturated_into())) else {
 			return Err(Error::<T>::WithdrawFailed);
 		};
 
@@ -116,7 +116,7 @@ where
 	fn can_withdraw(who: &H160, amount: U256) -> Result<(), pallet_evm::Error<T>> {
 		let account_id = T::AddressMapping::into_account_id(*who);
 		let fee_currency = AC::get(&account_id);
-		let Some((converted, _)) = C::convert((EC::get(), fee_currency, amount.unique_saturated_into())) else{
+		let Some((converted, _)) = C::convert((EC::get(), fee_currency, amount.unique_saturated_into())) else {
 			return Err(Error::<T>::BalanceLow);
 		};
 

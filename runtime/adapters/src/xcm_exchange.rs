@@ -1,11 +1,11 @@
 use orml_traits::MultiCurrency;
-use polkadot_xcm::v3::{MultiAsset, MultiAssets, MultiLocation};
 use polkadot_xcm::v4::prelude::*;
 use sp_core::Get;
 use sp_runtime::traits::{Convert, Zero};
 use sp_std::marker::PhantomData;
 use sp_std::vec;
 use xcm_executor::traits::AssetExchange;
+use xcm_executor::AssetsInHolding;
 
 /// Implements `AssetExchange` to support the `ExchangeAsset` XCM instruction.
 ///
@@ -24,16 +24,16 @@ impl<Runtime, TempAccount, CurrencyIdConvert, Currency> AssetExchange
 where
 	Runtime: pallet_route_executor::Config,
 	TempAccount: Get<Runtime::AccountId>,
-	CurrencyIdConvert: Convert<MultiAsset, Option<Runtime::AssetId>>,
+	CurrencyIdConvert: Convert<Asset, Option<Runtime::AssetId>>,
 	Currency: MultiCurrency<Runtime::AccountId, CurrencyId = Runtime::AssetId, Balance = Runtime::Balance>,
 	Runtime::Balance: From<u128> + Zero + Into<u128>,
 {
 	fn exchange_asset(
-		_origin: Option<&MultiLocation>,
-		give: xcm_executor::Assets,
-		want: &MultiAssets,
+		_origin: Option<&Location>,
+		give: AssetsInHolding,
+		want: &Assets,
 		maximal: bool,
-	) -> Result<xcm_executor::Assets, xcm_executor::Assets> {
+	) -> Result<AssetsInHolding, AssetsInHolding> {
 		use orml_utilities::with_transaction_result;
 
 		let account = TempAccount::get();
@@ -53,15 +53,21 @@ where
 			return Err(give);
 		};
 
-		let Some(asset_in) = CurrencyIdConvert::convert(given.clone()) else { return Err(give) };
+		let Some(asset_in) = CurrencyIdConvert::convert(given.clone()) else {
+			return Err(give);
+		};
 		let Some(wanted) = want.get(0) else { return Err(give) };
-		let Some(asset_out) = CurrencyIdConvert::convert(wanted.clone()) else { return Err(give) };
+		let Some(asset_out) = CurrencyIdConvert::convert(wanted.clone()) else {
+			return Err(give);
+		};
 		let use_onchain_route = vec![];
 
 		if maximal {
 			// sell
 			let Fungible(amount) = given.fun else { return Err(give) };
-			let Fungible(min_buy_amount) = wanted.fun else { return Err(give) };
+			let Fungible(min_buy_amount) = wanted.fun else {
+				return Err(give);
+			};
 
 			with_transaction_result(|| {
 				Currency::deposit(asset_in, &account, amount.into())?; // mint the incoming tokens
@@ -83,13 +89,16 @@ where
 					"Sell should return more than mininum buy amount."
 				);
 				Currency::withdraw(asset_out, &account, amount_received)?; // burn the received tokens
-				Ok(MultiAsset::from((wanted.id, amount_received.into())).into())
+				let holding: Asset = (wanted.id.clone(), amount_received.into()).into();
+				Ok(holding.into())
 			})
 			.map_err(|_| give)
 		} else {
 			// buy
 			let Fungible(amount) = wanted.fun else { return Err(give) };
-			let Fungible(max_sell_amount) = given.fun else { return Err(give) };
+			let Fungible(max_sell_amount) = given.fun else {
+				return Err(give);
+			};
 
 			with_transaction_result(|| {
 				Currency::deposit(asset_in, &account, max_sell_amount.into())?; // mint the incoming tokens
@@ -105,7 +114,8 @@ where
 				let left_over = Currency::free_balance(asset_in, &account);
 				if left_over > Runtime::Balance::zero() {
 					Currency::withdraw(asset_in, &account, left_over)?; // burn left over tokens
-					assets.push(MultiAsset::from((given.id, left_over.into())));
+					let holding: Asset = (given.id.clone(), left_over.into()).into();
+					assets.push(holding);
 				}
 				let amount_received = Currency::free_balance(asset_out, &account);
 				debug_assert!(
@@ -113,7 +123,8 @@ where
 					"Buy should return exactly the amount we specified."
 				);
 				Currency::withdraw(asset_out, &account, amount_received)?; // burn the received tokens
-				assets.push(MultiAsset::from((wanted.id, amount_received.into())));
+				let holding: Asset = (wanted.id.clone(), amount_received.into()).into();
+				assets.push(holding);
 				Ok(assets.into())
 			})
 			.map_err(|_| give)

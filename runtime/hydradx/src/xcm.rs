@@ -24,6 +24,7 @@ use pallet_evm::AddressMapping;
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::{RelayChainBlockNumber, Sibling};
 use polkadot_xcm::v3::{prelude::*, Weight as XcmWeight};
+use polkadot_xcm::v4::{Asset, InteriorLocation};
 use primitives::Price;
 use scale_info::TypeInfo;
 use xcm_builder::{
@@ -35,7 +36,7 @@ use xcm_builder::{
 use xcm_executor::{Config, XcmExecutor};
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
+pub struct AssetLocation(pub polkadot_xcm::v4::Location);
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
@@ -56,7 +57,7 @@ pub type Barrier = (
 );
 
 parameter_types! {
-	pub SelfLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(ParachainInfo::get().into())));
+	pub SelfLocation: Location = Location::new(1, X1(Parachain(ParachainInfo::get().into())));
 }
 
 parameter_types! {
@@ -64,7 +65,7 @@ parameter_types! {
 
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 
-	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+	pub Ancestry: Location = Parachain(ParachainInfo::parachain_id().into()).into();
 }
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
@@ -98,7 +99,7 @@ parameter_types! {
 	pub const MaxXcmDepth: u16 = 5;
 	pub const MaxNumberOfInstructions: u16 = 100;
 
-	pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+	pub UniversalLocation: InteriorLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
 }
 
 pub struct XcmConfig;
@@ -182,7 +183,7 @@ impl cumulus_pallet_dmp_queue::Config for Runtime {
 const ASSET_HUB_PARA_ID: u32 = 1000;
 
 parameter_type_with_key! {
-	pub ParachainMinFee: |location: MultiLocation| -> Option<u128> {
+	pub ParachainMinFee: |location: Location| -> Option<u128> {
 		#[allow(clippy::match_ref_pats)] // false positive
 		match (location.parents, location.first_interior()) {
 			(1, Some(Parachain(ASSET_HUB_PARA_ID))) => Some(50_000_000),
@@ -196,13 +197,13 @@ impl orml_xtokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = AssetId;
 	type CurrencyIdConvert = CurrencyIdConvert;
-	type AccountIdToMultiLocation = AccountIdToMultiLocation;
+	type AccountIdToLocation = AccountIdToMultiLocation;
 	type SelfLocation = SelfLocation;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
 	type BaseXcmWeight = BaseXcmWeight;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
-	type MultiLocationsFilter = Everything;
+	type LocationsFilter = Everything;
 	type ReserveProvider = AbsoluteReserveProvider;
 	type MinXcmFee = ParachainMinFee;
 	type UniversalLocation = UniversalLocation;
@@ -219,7 +220,7 @@ impl orml_xcm::Config for Runtime {
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
+	pub ReachableDest: Option<Location> = Some(Parent.into());
 }
 
 impl pallet_xcm::Config for Runtime {
@@ -289,10 +290,10 @@ pub struct CurrencyIdConvert;
 use crate::evm::ExtendedAddressMapping;
 use primitives::constants::chain::CORE_ASSET_ID;
 
-impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
-	fn convert(id: AssetId) -> Option<MultiLocation> {
+impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
+	fn convert(id: AssetId) -> Option<Location> {
 		match id {
-			CORE_ASSET_ID => Some(MultiLocation::new(
+			CORE_ASSET_ID => Some(Location::new(
 				1,
 				X2(Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())),
 			)),
@@ -301,10 +302,10 @@ impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
 	}
 }
 
-impl Convert<MultiLocation, Option<AssetId>> for CurrencyIdConvert {
-	fn convert(location: MultiLocation) -> Option<AssetId> {
+impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
+	fn convert(location: Location) -> Option<AssetId> {
 		match location {
-			MultiLocation {
+			Location {
 				parents,
 				interior: X2(Parachain(id), GeneralIndex(index)),
 			} if parents == 1 && ParaId::from(id) == ParachainInfo::get() && (index as u32) == CORE_ASSET_ID => {
@@ -312,7 +313,7 @@ impl Convert<MultiLocation, Option<AssetId>> for CurrencyIdConvert {
 				Some(CORE_ASSET_ID)
 			}
 			// handle reanchor canonical location: https://github.com/paritytech/polkadot/pull/4470
-			MultiLocation {
+			Location {
 				parents: 0,
 				interior: X1(GeneralIndex(index)),
 			} if (index as u32) == CORE_ASSET_ID => Some(CORE_ASSET_ID),
@@ -322,13 +323,10 @@ impl Convert<MultiLocation, Option<AssetId>> for CurrencyIdConvert {
 	}
 }
 
-impl Convert<MultiAsset, Option<AssetId>> for CurrencyIdConvert {
-	fn convert(asset: MultiAsset) -> Option<AssetId> {
-		if let MultiAsset {
-			id: Concrete(location), ..
-		} = asset
-		{
-			Self::convert(location)
+impl Convert<Asset, Option<AssetId>> for CurrencyIdConvert {
+	fn convert(asset: Asset) -> Option<AssetId> {
+		if let Asset { id: asset_id, .. } = asset {
+			Self::convert(asset_id.0)
 		} else {
 			None
 		}
@@ -336,8 +334,8 @@ impl Convert<MultiAsset, Option<AssetId>> for CurrencyIdConvert {
 }
 
 pub struct AccountIdToMultiLocation;
-impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
-	fn convert(account: AccountId) -> MultiLocation {
+impl Convert<AccountId, Location> for AccountIdToMultiLocation {
+	fn convert(account: AccountId) -> Location {
 		X1(AccountId32 {
 			network: None,
 			id: account.into(),
@@ -375,9 +373,9 @@ use xcm_executor::traits::ConvertLocation;
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);
 impl<Network: Get<Option<NetworkId>>> ConvertLocation<AccountId> for EvmAddressConversion<Network> {
-	fn convert_location(location: &MultiLocation) -> Option<AccountId> {
+	fn convert_location(location: &Location) -> Option<AccountId> {
 		match location {
-			MultiLocation {
+			Location {
 				parents: 0,
 				interior: X1(AccountKey20 { network: _, key }),
 			} => {
