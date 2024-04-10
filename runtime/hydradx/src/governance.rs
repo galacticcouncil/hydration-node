@@ -21,6 +21,9 @@ use primitives::constants::{
 	time::{DAYS, HOURS},
 };
 
+use frame_support::traits::fungible::HoldConsideration;
+use frame_support::traits::tokens::{PayFromAccount, UnityAssetBalanceConversion};
+use frame_support::traits::LinearStoragePrice;
 use frame_support::{
 	parameter_types,
 	sp_runtime::{Perbill, Percent, Permill},
@@ -28,6 +31,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
+use sp_runtime::traits::IdentityLookup;
 use sp_staking::currency_to_vote::U128CurrencyToVote;
 use sp_std::cmp::Ordering;
 
@@ -40,6 +44,7 @@ parameter_types! {
 	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const MaxApprovals: u32 =  100;
+	pub const TreasuryPayoutPeriod: u32 = 30 * DAYS;
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -59,11 +64,20 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
 	type SpendOrigin = NeverEnsureOrigin<Balance>;
+	type AssetKind = ();
+	type Beneficiary = AccountId;
+	type BeneficiaryLookup = IdentityLookup<AccountId>;
+	type Paymaster = PayFromAccount<Balances, TreasuryAccount>; // TODO: check what this means
+	type BalanceConverter = UnityAssetBalanceConversion; //TODO: check this
+	type PayoutPeriod = TreasuryPayoutPeriod;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = (); //TODO: implement helper!
 }
 
 parameter_types! {
 	pub PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub PreimageByteDeposit: Balance = deposit(0, 1);
+	pub const PreimageHoldReason: RuntimeHoldReason = RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
 }
 
 impl pallet_preimage::Config for Runtime {
@@ -71,8 +85,12 @@ impl pallet_preimage::Config for Runtime {
 	type WeightInfo = weights::preimage::HydraWeight<Runtime>;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
-	type BaseDeposit = PreimageBaseDeposit;
-	type ByteDeposit = PreimageByteDeposit;
+	type Consideration = HoldConsideration<
+		AccountId,
+		Balances,
+		PreimageHoldReason,
+		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
+	>;
 }
 
 /// Used the compare the privilege of an origin inside the scheduler.
@@ -302,6 +320,7 @@ parameter_types! {
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
 	pub const MaximumReasonLength: u32 = 1024;
+	pub const MaxTipAmount: u128 = 1_000 * DOLLARS; // TODO: check this
 }
 
 impl pallet_tips::Config for Runtime {
@@ -311,6 +330,7 @@ impl pallet_tips::Config for Runtime {
 	type TipCountdown = TipCountdown;
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
+	type MaxTipAmount = MaxTipAmount;
 	type Tippers = Elections;
 	type WeightInfo = weights::tips::HydraWeight<Runtime>;
 }

@@ -8,7 +8,8 @@ use hydradx_adapters::{
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
-use cumulus_primitives_core::ParaId;
+use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
+use frame_support::traits::TransformOrigin;
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::{AccountIdConversion, Convert},
@@ -55,6 +56,10 @@ pub type Barrier = (
 		ConstU32<8>,
 	>,
 );
+
+parameter_types! {
+	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
+}
 
 parameter_types! {
 	pub SelfLocation: Location = Location::new(1, X1(Parachain(ParachainInfo::get().into())));
@@ -143,6 +148,7 @@ impl Config for XcmConfig {
 	type CallDispatcher = RuntimeCall;
 	type SafeCallFilter = SafeCallFilter;
 	type Aliasers = Nothing;
+	type TransactionalProcessor = xcm_builder::FrameTransactionalProcessor;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -154,30 +160,25 @@ parameter_types! {
 	pub const MaxDeferredMessages: u32 = 20;
 	pub const MaxDeferredBuckets: u32 = 1_000;
 	pub const MaxBucketsProcessed: u32 = 3;
+	pub const MaxInboundSuspended: u32 = 1_000;
 }
 
 impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type ChannelInfo = ParachainSystem;
 	type VersionWrapper = PolkadotXcm;
-	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
 	type ControllerOrigin = MoreThanHalfTechCommittee;
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
 	type PriceForSiblingDelivery = ();
 	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
-	type ExecuteDeferredOrigin = EnsureRoot<AccountId>;
-	type MaxDeferredMessages = MaxDeferredMessages;
-	type MaxDeferredBuckets = MaxDeferredBuckets;
-	type MaxBucketsProcessed = MaxBucketsProcessed;
-	type RelayChainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
-	type XcmDeferFilter = XcmRateLimiter;
+	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
+	type MaxInboundSuspended = MaxInboundSuspended;
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
+	type DmpSink = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
+	type WeightInfo = ();
 }
 
 const ASSET_HUB_PARA_ID: u32 = 1000;
@@ -207,6 +208,8 @@ impl orml_xtokens::Config for Runtime {
 	type ReserveProvider = AbsoluteReserveProvider;
 	type MinXcmFee = ParachainMinFee;
 	type UniversalLocation = UniversalLocation;
+	type RateLimiter = (); //TODO: what do ?
+	type RateLimiterId = (); //TODO: what do ?
 }
 
 impl orml_unknown_tokens::Config for Runtime {
@@ -216,11 +219,6 @@ impl orml_unknown_tokens::Config for Runtime {
 impl orml_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type SovereignOrigin = MoreThanHalfCouncil;
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-parameter_types! {
-	pub ReachableDest: Option<Location> = Some(Parent.into());
 }
 
 impl pallet_xcm::Config for Runtime {
@@ -244,8 +242,6 @@ impl pallet_xcm::Config for Runtime {
 	type SovereignAccountOf = ();
 	type MaxLockers = ConstU32<8>;
 	type WeightInfo = weights::xcm::HydraWeight<Runtime>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type ReachableDest = ReachableDest;
 	type AdminOrigin = MajorityOfCouncil;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
