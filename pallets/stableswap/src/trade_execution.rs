@@ -4,7 +4,7 @@ use frame_support::storage::with_transaction;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
 use hydra_dx_math::types::Price;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution, TradeType};
 use orml_traits::MultiCurrency;
 use sp_core::Get;
 use sp_runtime::DispatchError::Corruption;
@@ -206,6 +206,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 	fn calculate_spot_price(
 		pool_type: PoolType<T::AssetId>,
+		trade_type: TradeType,
 		asset_a: T::AssetId,
 		asset_b: T::AssetId,
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {

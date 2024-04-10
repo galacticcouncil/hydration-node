@@ -3919,7 +3919,7 @@ mod with_on_chain_and_default_route {
 
 mod route_spot_price {
 	use super::*;
-	use hydradx_traits::router::PoolType;
+	use hydradx_traits::router::{PoolType, TradeType};
 	use sp_runtime::FixedU128;
 
 	#[test]
@@ -3956,7 +3956,7 @@ mod route_spot_price {
 			assert_balance!(BOB.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DOT, amount_out);
 
-			let spot_price_of_hdx_per_dot = Router::spot_price(&trades).unwrap();
+			let spot_price_of_hdx_per_dot = Router::spot_price(&trades, TradeType::Sell).unwrap();
 			let calculated_amount_out = spot_price_of_hdx_per_dot
 				.reciprocal()
 				.unwrap()
@@ -3971,6 +3971,7 @@ mod route_spot_price {
 		});
 	}
 
+	//TODO: add integration tests for buy
 	#[test]
 	fn route_should_have_spot_price_for_all_pools() {
 		TestNet::reset();
@@ -4051,7 +4052,7 @@ mod route_spot_price {
 					ALICE_INITIAL_DOT_BALANCE + expected_amount_out
 				);
 
-				let spot_price_of_hdx_per_dot = Router::spot_price(&trades).unwrap();
+				let spot_price_of_hdx_per_dot = Router::spot_price(&trades, TradeType::Sell).unwrap();
 				let calculated_amount_out = spot_price_of_hdx_per_dot
 					.reciprocal()
 					.unwrap()
@@ -4135,7 +4136,7 @@ mod route_spot_price {
 					expected_amount_out
 				);
 
-				let spot_price_of_hdx_per_dot = Router::spot_price(&trades).unwrap();
+				let spot_price_of_hdx_per_dot = Router::spot_price(&trades, TradeType::Sell).unwrap();
 				let calculated_amount_out = spot_price_of_hdx_per_dot
 					.reciprocal()
 					.unwrap()
@@ -4204,7 +4205,7 @@ mod route_spot_price {
 					expected_amount_out
 				);
 
-				let spot_price_of_hdx_per_dot = Router::spot_price(&trades).unwrap();
+				let spot_price_of_hdx_per_dot = Router::spot_price(&trades, TradeType::Sell).unwrap();
 				let calculated_amount_out = spot_price_of_hdx_per_dot
 					.reciprocal()
 					.unwrap()
