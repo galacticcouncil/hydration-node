@@ -6,7 +6,7 @@ use hydra_dx_math::omnipool::types::I129;
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution, TradeType};
 use orml_traits::{GetByKey, MultiCurrency};
-use sp_runtime::traits::CheckedSub;
+use sp_runtime::traits::{CheckedDiv, CheckedSub};
 use sp_runtime::traits::{CheckedMul, Get};
 use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Perbill, Permill};
@@ -180,8 +180,8 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			return Err(ExecutorError::NotSupported);
 		}
 
-		///Formula: Price = price_without_fee_included of asset_in denominated in asset_put * (1 - protocol_fee) * (1 - asset_fee)
-		//TODO: verify from colin if this is good, i think it is bad, we need to divide
+		///Formula: Price = price_without_fee_included of asset_in denominated in asset_put / (1 - protocol_fee) * (1 - asset_fee)
+		/// Fee is taken from asset out, so spot price will be more expensive so increase it
 		let (_, protocol_fee) = T::Fee::get(&asset_a);
 		let protocol_fee_multipiler = Permill::from_percent(100)
 			.checked_sub(&protocol_fee)
@@ -201,9 +201,9 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		let spot_price_without_fee = Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
 
 		let spot_price = spot_price_without_fee
-			.checked_mul(&protocol_fee_multipiler)
+			.checked_div(&protocol_fee_multipiler)
 			.ok_or(ExecutorError::Error(Corruption))?
-			.checked_mul(&asset_fee_multiplier)
+			.checked_div(&asset_fee_multiplier)
 			.ok_or(ExecutorError::Error(Corruption))?;
 
 		Ok(spot_price)
