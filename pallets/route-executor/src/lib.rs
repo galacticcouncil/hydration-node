@@ -28,17 +28,19 @@ use frame_support::{
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
+use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider};
+use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider, RouteSpotPriceProvider, TradeType};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, TransactionOutcome};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -849,5 +851,34 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 			}
 			None => default_route,
 		}
+	}
+}
+impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
+	fn spot_price(route: &[Trade<T::AssetId>], trade_type: TradeType) -> Option<FixedU128> {
+		let mut prices: Vec<FixedU128> = Vec::with_capacity(route.len());
+		for trade in route {
+			let spot_price_result =
+				T::AMM::calculate_spot_price(trade.pool, trade_type, trade.asset_in, trade.asset_out);
+
+			match spot_price_result {
+				Ok(spot_price) => prices.push(spot_price),
+				Err(_) => return None,
+			}
+		}
+		if prices.is_empty() {
+			return None;
+		}
+
+		let nominator = prices.iter().try_fold(U512::from(1u128), |acc, price| {
+			acc.checked_mul(U512::from(price.into_inner()))
+		})?;
+
+		let denominator = prices.iter().try_fold(U512::from(1u128), |acc, _price| {
+			acc.checked_mul(U512::from(FixedU128::DIV))
+		})?;
+
+		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
+
+		Some(FixedU128::from_rational(rat_as_u128.0, rat_as_u128.1))
 	}
 }

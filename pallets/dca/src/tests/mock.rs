@@ -531,6 +531,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		todo!("Not implemented as not used directly within DCA context")
 	}
+
+	fn calculate_spot_price(
+		_pool_type: PoolType<AssetId>,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
+	) -> Result<FixedU128, ExecutorError<Self::Error>> {
+		todo!("No need to implement it as this is not used directly in DCA")
+	}
 }
 
 pub const XYK_SELL_CALCULATION_RESULT: Balance = ONE * 5 / 4;
@@ -634,6 +642,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 		_asset_a: AssetId,
 		_asset_b: AssetId,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
+		todo!("No need to implement it as this is not used directly in DCA")
+	}
+
+	fn calculate_spot_price(
+		_pool_type: PoolType<AssetId>,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
+	) -> Result<FixedU128, ExecutorError<Self::Error>> {
 		todo!("No need to implement it as this is not used directly in DCA")
 	}
 }

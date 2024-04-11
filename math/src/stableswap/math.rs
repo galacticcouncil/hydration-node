@@ -684,7 +684,7 @@ pub fn calculate_share_price<const D: u8>(
 	provided_d: Option<Balance>,
 ) -> Option<(Balance, Balance)> {
 	let n = reserves.len() as u128;
-	if n <= 1 {
+	if n <= 1 || asset_idx >= reserves.len() {
 		return None;
 	}
 	let d = if let Some(v) = provided_d {
@@ -733,18 +733,19 @@ pub fn calculate_spot_price(
 	reserves: &[AssetReserve],
 	amplification: Balance,
 	d: Balance,
-	asset_idx: usize,
+	asset_in_idx: usize,
+	asset_out_idx: usize,
 ) -> Option<(Balance, Balance)> {
 	let n = reserves.len();
-	if n <= 1 || asset_idx > n {
+	if n <= 1 || asset_in_idx >= n || asset_out_idx >= n {
 		return None;
 	}
 	let ann = calculate_ann(n, amplification)?;
 
 	let mut n_reserves = normalize_reserves(reserves);
 
-	let x0 = n_reserves[0];
-	let xi = n_reserves[asset_idx];
+	let x0 = n_reserves[asset_in_idx];
+	let xi = n_reserves[asset_out_idx];
 
 	let (n, d, ann, x0, xi) = to_u256!(n, d, ann, x0, xi);
 
@@ -807,7 +808,7 @@ mod tests {
 		];
 		let amp = 319u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
-		let p = calculate_spot_price(&reserves, amp, d, 1).unwrap();
+		let p = calculate_spot_price(&reserves, amp, d, 0, 1).unwrap();
 		assert_eq!(
 			p,
 			(
@@ -824,7 +825,7 @@ mod tests {
 		];
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
-		let p = calculate_spot_price(&reserves, amp, d, 1).unwrap();
+		let p = calculate_spot_price(&reserves, amp, d, 0, 1).unwrap();
 		assert_eq!(
 			p,
 			(
@@ -832,5 +833,33 @@ mod tests {
 				320440458954331380180651678529102355242
 			)
 		);
+	}
+
+	#[test]
+	fn spot_price_calculation_should_fail_gracefully_with_invalid_indexes() {
+		let reserves = vec![
+			AssetReserve::new(478_626_000_000_000_000_000, 12),
+			AssetReserve::new(487_626_000_000_000_000_000, 12),
+			AssetReserve::new(866_764_000_000_000_000_000, 12),
+			AssetReserve::new(518_696_000_000_000_000_000, 12),
+		];
+		let amp = 10u128;
+		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
+
+		assert!(calculate_spot_price(&reserves, amp, d, 4, 1).is_none());
+		assert!(calculate_spot_price(&reserves, amp, d, 1, 4).is_none());
+	}
+
+	#[test]
+	fn share_price_calculation_should_fail_gracefully_with_invalid_indexes() {
+		let reserves = vec![
+			AssetReserve::new(478_626_000_000_000_000_000, 12),
+			AssetReserve::new(487_626_000_000_000_000_000, 12),
+			AssetReserve::new(866_764_000_000_000_000_000, 12),
+			AssetReserve::new(518_696_000_000_000_000_000, 12),
+		];
+		let amp = 10u128;
+
+		assert!(calculate_share_price::<MAX_D_ITERATIONS>(&reserves, amp, 1000000000000000, 4, None).is_none());
 	}
 }
