@@ -196,9 +196,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.81"
+version = "1.0.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0952808a6c2afd1aa8947271f3a60f1a6763c7b912d210184c5149b5cf147247"
+checksum = "f538837af36e6f6a9be0faa67f9a314f8119e4e4b5867c6ab40ed60360142519"
 
 [[package]]
 name = "approx"
@@ -1288,9 +1288,9 @@ dependencies = [
 
 [[package]]
 name = "cfg-expr"
-version = "0.15.7"
+version = "0.15.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa50868b64a9a6fda9d593ce778849ea8715cd2a3d2cc17ffdb4a2f2f2f1961d"
+checksum = "d067ad48b8650848b989a59a86c6c36a995d02d2bf778d45c3c5d57bc2718f02"
 dependencies = [
  "smallvec",
 ]
@@ -4725,7 +4725,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "12.1.0"
+version = "12.2.0"
 dependencies = [
  "async-trait",
  "clap 4.5.4",
@@ -4814,7 +4814,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.2.5"
+version = "1.3.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4864,7 +4864,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "225.0.0"
+version = "227.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4934,6 +4934,7 @@ dependencies = [
  "pallet-identity",
  "pallet-lbp",
  "pallet-liquidity-mining",
+ "pallet-message-queue",
  "pallet-multisig",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
@@ -4958,6 +4959,8 @@ dependencies = [
  "pallet-utility",
  "pallet-xcm",
  "pallet-xyk",
+ "pallet-xyk-liquidity-mining",
+ "parachains-common",
  "parity-scale-codec",
  "polkadot-parachain-primitives",
  "primitive-types",
@@ -4989,7 +4992,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.1.1"
+version = "3.2.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7486,7 +7489,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "3.1.1"
+version = "3.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7701,7 +7704,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-bonds"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7779,7 +7782,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.20"
+version = "1.1.21"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7922,7 +7925,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.4.1"
+version = "1.4.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8124,7 +8127,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.2.1"
+version = "1.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8143,6 +8146,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
+ "test-utils",
 ]
 
 [[package]]
@@ -8423,7 +8427,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.3.0"
+version = "4.3.1"
 dependencies = [
  "fixed",
  "frame-support",
@@ -8646,7 +8650,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.1.4"
+version = "4.1.5"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8673,7 +8677,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.1.2"
+version = "2.1.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8700,7 +8704,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8858,7 +8862,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8957,7 +8961,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.5.0"
+version = "3.5.1"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -9344,7 +9348,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.4.0"
+version = "6.4.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9366,6 +9370,30 @@ dependencies = [
  "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-xyk-liquidity-mining"
+version = "1.1.10"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-liquidity-mining",
+ "pallet-xyk",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitives",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
 ]
 
 [[package]]
@@ -11292,9 +11320,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.35"
+version = "1.0.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "291ec9ab5efd934aaf503a6466c5d5251535d108ee747472c3977cc5acc868ef"
+checksum = "0fa76aaf39101c457836aec0ce2316dbdc3ab723cdda1c6bd4e6ad4208acaca7"
 dependencies = [
  "proc-macro2",
 ]
@@ -11823,7 +11851,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.19.12"
+version = "1.20.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -11896,6 +11924,7 @@ dependencies = [
  "pallet-utility",
  "pallet-xcm",
  "pallet-xyk",
+ "pallet-xyk-liquidity-mining",
  "polkadot-parachain-primitives",
  "polkadot-primitives",
  "polkadot-runtime-parachains",
@@ -14138,7 +14167,7 @@ dependencies = [
 [[package]]
 name = "sp-core-hashing"
 version = "15.0.0"
-source = "git+https://github.com/moonbeam-foundation/polkadot-sdk?branch=moonbeam-polkadot-v1.7.2#55d05ab37c2aef0593bc255965a01e7583dd06c8"
+source = "git+https://github.com/moonbeam-foundation/polkadot-sdk?branch=moonbeam-polkadot-v1.7.2#2073906e7994ca069f7f68120b05474f7565b8d2"
 dependencies = [
  "sp-crypto-hashing 0.0.0 (git+https://github.com/moonbeam-foundation/polkadot-sdk?branch=moonbeam-polkadot-v1.7.2)",
 ]
@@ -14146,7 +14175,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#b6231c79ca708d9c9280210f41ca38fd816c8ad9"
+source = "git+https://github.com/paritytech/polkadot-sdk#69cc7f2090e169e736d9c998c29467040521881d"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -14166,7 +14195,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-hashing"
 version = "0.0.0"
-source = "git+https://github.com/moonbeam-foundation/polkadot-sdk?branch=moonbeam-polkadot-v1.7.2#55d05ab37c2aef0593bc255965a01e7583dd06c8"
+source = "git+https://github.com/moonbeam-foundation/polkadot-sdk?branch=moonbeam-polkadot-v1.7.2#2073906e7994ca069f7f68120b05474f7565b8d2"
 dependencies = [
  "blake2b_simd",
  "byteorder",
@@ -14221,7 +14250,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#b6231c79ca708d9c9280210f41ca38fd816c8ad9"
+source = "git+https://github.com/paritytech/polkadot-sdk#69cc7f2090e169e736d9c998c29467040521881d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -14242,7 +14271,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#b6231c79ca708d9c9280210f41ca38fd816c8ad9"
+source = "git+https://github.com/paritytech/polkadot-sdk#69cc7f2090e169e736d9c998c29467040521881d"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -14460,7 +14489,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#b6231c79ca708d9c9280210f41ca38fd816c8ad9"
+source = "git+https://github.com/paritytech/polkadot-sdk#69cc7f2090e169e736d9c998c29467040521881d"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -14492,7 +14521,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#b6231c79ca708d9c9280210f41ca38fd816c8ad9"
+source = "git+https://github.com/paritytech/polkadot-sdk#69cc7f2090e169e736d9c998c29467040521881d"
 dependencies = [
  "Inflector",
  "expander 2.1.0",
@@ -14585,7 +14614,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#b6231c79ca708d9c9280210f41ca38fd816c8ad9"
+source = "git+https://github.com/paritytech/polkadot-sdk#69cc7f2090e169e736d9c998c29467040521881d"
 
 [[package]]
 name = "sp-storage"
@@ -14603,7 +14632,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#b6231c79ca708d9c9280210f41ca38fd816c8ad9"
+source = "git+https://github.com/paritytech/polkadot-sdk#69cc7f2090e169e736d9c998c29467040521881d"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -14640,7 +14669,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#b6231c79ca708d9c9280210f41ca38fd816c8ad9"
+source = "git+https://github.com/paritytech/polkadot-sdk#69cc7f2090e169e736d9c998c29467040521881d"
 dependencies = [
  "parity-scale-codec",
  "tracing",
@@ -14740,7 +14769,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#b6231c79ca708d9c9280210f41ca38fd816c8ad9"
+source = "git+https://github.com/paritytech/polkadot-sdk#69cc7f2090e169e736d9c998c29467040521881d"
 dependencies = [
  "impl-trait-for-tuples",
  "log",
@@ -15393,9 +15422,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.34"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8248b6521bb14bc45b4067159b9b6ad792e2d6d754d6c41fb50e29fefe38749"
+checksum = "5dfd88e563464686c916c7e46e623e520ddc6d79fa6641390f2e3fa86e83e885"
 dependencies = [
  "deranged",
  "itoa",
@@ -15414,9 +15443,9 @@ checksum = "ef927ca75afb808a4d64dd374f00a2adf8d0fcff8e7b184af886c3c87ec4a3f3"
 
 [[package]]
 name = "time-macros"
-version = "0.2.17"
+version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ba3a3ef41e6672a2f0f001392bb5dcd3ff0a9992d618ca761a11c3121547774"
+checksum = "3f252a68540fde3a3877aeea552b832b40ab9a69e318efd078774a01ddee1ccf"
 dependencies = [
  "num-conv",
  "time-core",

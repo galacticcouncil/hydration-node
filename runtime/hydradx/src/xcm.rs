@@ -23,11 +23,13 @@ use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
 use pallet_xcm::XcmPassthrough;
+use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::{RelayChainBlockNumber, Sibling};
 use polkadot_xcm::v3::{prelude::*, Weight as XcmWeight};
 use polkadot_xcm::v4::{Asset, InteriorLocation};
 use primitives::Price;
 use scale_info::TypeInfo;
+use sp_runtime::Perbill;
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
 	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset,
@@ -267,6 +269,22 @@ fn defer_duration_configuration() {
 parameter_types! {
 	pub DeferDuration: RelayChainBlockNumber = 600 * 36; // 36 hours
 	pub MaxDeferDuration: RelayChainBlockNumber = 600 * 24 * 10; // 10 days
+
+	pub const MessageQueueServiceWeight: Weight = Perbill::from_percent(25) * BlockWeights::get().max_block;
+	pub const MessageQueueMaxStale: u32 = 8;
+	pub const MessageQueueHeapSize: u32 = 128 * 1048;
+}
+
+impl pallet_message_queue::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type MessageProcessor = xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, XcmExecutor<XcmConfig>, RuntimeCall>;
+	type Size = u32;
+	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
+	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
+	type HeapSize = MessageQueueHeapSize;
+	type MaxStale = MessageQueueMaxStale;
+	type ServiceWeight = MessageQueueServiceWeight;
 }
 
 /*

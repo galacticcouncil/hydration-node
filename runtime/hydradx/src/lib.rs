@@ -44,7 +44,6 @@ pub use governance::*;
 pub use system::*;
 pub use xcm::*;
 
-use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::Hooks;
 use codec::{Decode, Encode};
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_api::impl_runtime_apis;
@@ -210,6 +209,7 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm = 109,
 		XcmpQueue: cumulus_pallet_xcmp_queue exclude_parts { Call } = 111,
 		DmpQueue: cumulus_pallet_dmp_queue = 113,
+		MessageQueue: pallet_message_queue = 114,
 
 		// ORML XCM
 		OrmlXcm: orml_xcm = 135,

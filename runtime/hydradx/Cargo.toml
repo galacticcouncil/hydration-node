@@ -61,6 +61,7 @@ pallet-multisig = { workspace = true }
 pallet-democracy = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-uniques = { workspace = true }
+pallet-message-queue= { workspace = true }
 #pallet-xcm-rate-limiter = { workspace = true }
 
 # Warehouse dependencies
@@ -106,6 +107,7 @@ cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
 cumulus-primitives-timestamp = { workspace = true }
 staging-parachain-info = { workspace = true }
+parachains-common = { workspace = true }
 
 # Polkadot dependencies
 polkadot-parachain = { workspace = true }
@@ -203,6 +205,7 @@ runtime-benchmarks = [
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
+    "pallet-message-queue/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -305,6 +308,7 @@ std = [
     "pallet-evm-accounts/std",
     "pallet-evm-accounts-rpc-runtime-api/std",
     "pallet-xyk-liquidity-mining/std",
+    "parachains-common/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -374,4 +378,5 @@ try-runtime= [
     "pallet-referrals/try-runtime",
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",
+    "pallet-message-queue/try-runtime",
 ]
