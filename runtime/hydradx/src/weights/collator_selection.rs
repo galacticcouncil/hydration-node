@@ -118,7 +118,7 @@ impl<T: frame_system::Config> pallet_collator_selection::WeightInfo for HydraWei
 	}
 	/// Storage: `CollatorSelection::CandidacyBond` (r:0 w:1)
 	/// Proof: `CollatorSelection::CandidacyBond` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	fn set_candidacy_bond() -> Weight {
+	fn set_candidacy_bond(_a: u32, _b: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
@@ -169,6 +169,15 @@ impl<T: frame_system::Config> pallet_collator_selection::WeightInfo for HydraWei
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
+
+	fn update_bond(_c: u32) -> Weight {
+		todo!()
+	}
+
+	fn take_candidate_slot(_c: u32) -> Weight {
+		todo!()
+	}
+
 	/// Storage: `System::Account` (r:2 w:2)
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	/// Storage: `System::BlockWeight` (r:1 w:1)

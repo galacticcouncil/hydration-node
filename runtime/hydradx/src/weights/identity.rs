@@ -62,23 +62,11 @@ impl<T: frame_system::Config> pallet_identity::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: `Identity::IdentityOf` (r:1 w:1)
-	/// Proof: `Identity::IdentityOf` (`max_values`: None, `max_size`: Some(7538), added: 10013, mode: `MaxEncodedLen`)
-	/// The range of component `r` is `[1, 20]`.
-	/// The range of component `x` is `[0, 100]`.
-	fn set_identity(r: u32, x: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `442 + r * (5 ±0)`
-		//  Estimated: `11003`
-		// Minimum execution time: 44_163_000 picoseconds.
-		Weight::from_parts(42_727_355, 11003)
-			// Standard Error: 4_678
-			.saturating_add(Weight::from_parts(103_190, 0).saturating_mul(r.into()))
-			// Standard Error: 897
-			.saturating_add(Weight::from_parts(697_595, 0).saturating_mul(x.into()))
-			.saturating_add(T::DbWeight::get().reads(1))
-			.saturating_add(T::DbWeight::get().writes(1))
+
+	fn set_identity(r: u32) -> Weight {
+		todo!()
 	}
+
 	/// Storage: `Identity::IdentityOf` (r:1 w:0)
 	/// Proof: `Identity::IdentityOf` (`max_values`: None, `max_size`: Some(7538), added: 10013, mode: `MaxEncodedLen`)
 	/// Storage: `Identity::SubsOf` (r:1 w:1)
@@ -119,67 +107,19 @@ impl<T: frame_system::Config> pallet_identity::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1))
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(p.into())))
 	}
-	/// Storage: `Identity::SubsOf` (r:1 w:1)
-	/// Proof: `Identity::SubsOf` (`max_values`: None, `max_size`: Some(3258), added: 5733, mode: `MaxEncodedLen`)
-	/// Storage: `Identity::IdentityOf` (r:1 w:1)
-	/// Proof: `Identity::IdentityOf` (`max_values`: None, `max_size`: Some(7538), added: 10013, mode: `MaxEncodedLen`)
-	/// Storage: `Identity::SuperOf` (r:0 w:100)
-	/// Proof: `Identity::SuperOf` (`max_values`: None, `max_size`: Some(114), added: 2589, mode: `MaxEncodedLen`)
-	/// The range of component `r` is `[1, 20]`.
-	/// The range of component `s` is `[0, 100]`.
-	/// The range of component `x` is `[0, 100]`.
-	fn clear_identity(r: u32, s: u32, x: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `468 + r * (5 ±0) + s * (32 ±0) + x * (66 ±0)`
-		//  Estimated: `11003`
-		// Minimum execution time: 78_695_000 picoseconds.
-		Weight::from_parts(41_668_144, 11003)
-			// Standard Error: 7_894
-			.saturating_add(Weight::from_parts(85_933, 0).saturating_mul(r.into()))
-			// Standard Error: 1_517
-			.saturating_add(Weight::from_parts(1_590_914, 0).saturating_mul(s.into()))
-			// Standard Error: 1_517
-			.saturating_add(Weight::from_parts(375_705, 0).saturating_mul(x.into()))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(2))
-			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(s.into())))
+
+	fn clear_identity(r: u32, s: u32) -> Weight {
+		todo!()
 	}
-	/// Storage: `Identity::Registrars` (r:1 w:0)
-	/// Proof: `Identity::Registrars` (`max_values`: Some(1), `max_size`: Some(1141), added: 1636, mode: `MaxEncodedLen`)
-	/// Storage: `Identity::IdentityOf` (r:1 w:1)
-	/// Proof: `Identity::IdentityOf` (`max_values`: None, `max_size`: Some(7538), added: 10013, mode: `MaxEncodedLen`)
-	/// The range of component `r` is `[1, 20]`.
-	/// The range of component `x` is `[0, 100]`.
-	fn request_judgement(r: u32, x: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `365 + r * (57 ±0) + x * (66 ±0)`
-		//  Estimated: `11003`
-		// Minimum execution time: 44_784_000 picoseconds.
-		Weight::from_parts(43_971_070, 11003)
-			// Standard Error: 5_047
-			.saturating_add(Weight::from_parts(80_761, 0).saturating_mul(r.into()))
-			// Standard Error: 968
-			.saturating_add(Weight::from_parts(702_450, 0).saturating_mul(x.into()))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(1))
+
+	fn request_judgement(r: u32) -> Weight {
+		todo!()
 	}
-	/// Storage: `Identity::IdentityOf` (r:1 w:1)
-	/// Proof: `Identity::IdentityOf` (`max_values`: None, `max_size`: Some(7538), added: 10013, mode: `MaxEncodedLen`)
-	/// The range of component `r` is `[1, 20]`.
-	/// The range of component `x` is `[0, 100]`.
-	fn cancel_request(r: u32, x: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `396 + x * (66 ±0)`
-		//  Estimated: `11003`
-		// Minimum execution time: 41_076_000 picoseconds.
-		Weight::from_parts(40_739_871, 11003)
-			// Standard Error: 6_026
-			.saturating_add(Weight::from_parts(54_796, 0).saturating_mul(r.into()))
-			// Standard Error: 1_156
-			.saturating_add(Weight::from_parts(702_783, 0).saturating_mul(x.into()))
-			.saturating_add(T::DbWeight::get().reads(1))
-			.saturating_add(T::DbWeight::get().writes(1))
+
+	fn cancel_request(r: u32) -> Weight {
+		todo!()
 	}
+
 	/// Storage: `Identity::Registrars` (r:1 w:1)
 	/// Proof: `Identity::Registrars` (`max_values`: Some(1), `max_size`: Some(1141), added: 1636, mode: `MaxEncodedLen`)
 	/// The range of component `r` is `[1, 19]`.
@@ -222,52 +162,15 @@ impl<T: frame_system::Config> pallet_identity::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: `Identity::Registrars` (r:1 w:0)
-	/// Proof: `Identity::Registrars` (`max_values`: Some(1), `max_size`: Some(1141), added: 1636, mode: `MaxEncodedLen`)
-	/// Storage: `Identity::IdentityOf` (r:1 w:1)
-	/// Proof: `Identity::IdentityOf` (`max_values`: None, `max_size`: Some(7538), added: 10013, mode: `MaxEncodedLen`)
-	/// The range of component `r` is `[1, 19]`.
-	/// The range of component `x` is `[0, 100]`.
-	fn provide_judgement(r: u32, x: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `443 + r * (57 ±0) + x * (66 ±0)`
-		//  Estimated: `11003`
-		// Minimum execution time: 32_212_000 picoseconds.
-		Weight::from_parts(30_951_168, 11003)
-			// Standard Error: 5_657
-			.saturating_add(Weight::from_parts(98_160, 0).saturating_mul(r.into()))
-			// Standard Error: 1_016
-			.saturating_add(Weight::from_parts(1_087_740, 0).saturating_mul(x.into()))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(1))
+
+	fn provide_judgement(r: u32) -> Weight {
+		todo!()
 	}
-	/// Storage: `Identity::SubsOf` (r:1 w:1)
-	/// Proof: `Identity::SubsOf` (`max_values`: None, `max_size`: Some(3258), added: 5733, mode: `MaxEncodedLen`)
-	/// Storage: `Identity::IdentityOf` (r:1 w:1)
-	/// Proof: `Identity::IdentityOf` (`max_values`: None, `max_size`: Some(7538), added: 10013, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:2 w:2)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `Identity::SuperOf` (r:0 w:100)
-	/// Proof: `Identity::SuperOf` (`max_values`: None, `max_size`: Some(114), added: 2589, mode: `MaxEncodedLen`)
-	/// The range of component `r` is `[1, 20]`.
-	/// The range of component `s` is `[0, 100]`.
-	/// The range of component `x` is `[0, 100]`.
-	fn kill_identity(r: u32, s: u32, x: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `760 + r * (16 ±0) + s * (32 ±0) + x * (66 ±0)`
-		//  Estimated: `11003`
-		// Minimum execution time: 102_051_000 picoseconds.
-		Weight::from_parts(67_588_586, 11003)
-			// Standard Error: 12_409
-			.saturating_add(Weight::from_parts(167_208, 0).saturating_mul(r.into()))
-			// Standard Error: 2_384
-			.saturating_add(Weight::from_parts(1_609_560, 0).saturating_mul(s.into()))
-			// Standard Error: 2_384
-			.saturating_add(Weight::from_parts(344_185, 0).saturating_mul(x.into()))
-			.saturating_add(T::DbWeight::get().reads(4))
-			.saturating_add(T::DbWeight::get().writes(4))
-			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(s.into())))
+
+	fn kill_identity(r: u32, s: u32) -> Weight {
+		todo!()
 	}
+
 	/// Storage: `Identity::IdentityOf` (r:1 w:0)
 	/// Proof: `Identity::IdentityOf` (`max_values`: None, `max_size`: Some(7538), added: 10013, mode: `MaxEncodedLen`)
 	/// Storage: `Identity::SuperOf` (r:1 w:1)
@@ -337,5 +240,33 @@ impl<T: frame_system::Config> pallet_identity::WeightInfo for HydraWeight<T> {
 			.saturating_add(Weight::from_parts(54_735, 0).saturating_mul(s.into()))
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(2))
+	}
+
+	fn add_username_authority() -> Weight {
+		todo!()
+	}
+
+	fn remove_username_authority() -> Weight {
+		todo!()
+	}
+
+	fn set_username_for() -> Weight {
+		todo!()
+	}
+
+	fn accept_username() -> Weight {
+		todo!()
+	}
+
+	fn remove_expired_approval() -> Weight {
+		todo!()
+	}
+
+	fn set_primary_username() -> Weight {
+		todo!()
+	}
+
+	fn remove_dangling_username() -> Weight {
+		todo!()
 	}
 }

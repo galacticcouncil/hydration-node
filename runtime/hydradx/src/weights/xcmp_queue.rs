@@ -59,93 +59,28 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for HydraWei
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: `XcmpQueue::QueueConfig` (r:1 w:1)
-	/// Proof: `XcmpQueue::QueueConfig` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	fn set_config_with_weight() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `142`
-		//  Estimated: `1627`
-		// Minimum execution time: 7_869_000 picoseconds.
-		Weight::from_parts(8_072_000, 1627)
-			.saturating_add(T::DbWeight::get().reads(1))
-			.saturating_add(T::DbWeight::get().writes(1))
+
+	fn enqueue_xcmp_message() -> Weight {
+		todo!()
 	}
-	/// Storage: `XcmpQueue::QueueConfig` (r:1 w:0)
-	/// Proof: `XcmpQueue::QueueConfig` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `XcmpQueue::QueueSuspended` (r:1 w:0)
-	/// Proof: `XcmpQueue::QueueSuspended` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `XcmpQueue::DeferredQueueSuspended` (r:1 w:0)
-	/// Proof: `XcmpQueue::DeferredQueueSuspended` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `XcmpQueue::DeferredIndices` (r:1 w:1)
-	/// Proof: `XcmpQueue::DeferredIndices` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `XcmpQueue::DeferredMessageBuckets` (r:3 w:3)
-	/// Proof: `XcmpQueue::DeferredMessageBuckets` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `XcmpQueue::CounterForOverweight` (r:1 w:1)
-	/// Proof: `XcmpQueue::CounterForOverweight` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `XcmpQueue::OverweightCount` (r:1 w:1)
-	/// Proof: `XcmpQueue::OverweightCount` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `XcmpQueue::Overweight` (r:60 w:60)
-	/// Proof: `XcmpQueue::Overweight` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// The range of component `b` is `[1, 3]`.
-	fn service_deferred(b: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `6275 + b * (324357 ±0)`
-		//  Estimated: `9740 + b * (373857 ±0)`
-		// Minimum execution time: 33_398_415_000 picoseconds.
-		Weight::from_parts(57_262_807, 9740)
-			// Standard Error: 7_265_843
-			.saturating_add(Weight::from_parts(33_588_589_234, 0).saturating_mul(b.into()))
-			.saturating_add(T::DbWeight::get().reads(6))
-			.saturating_add(T::DbWeight::get().reads((21_u64).saturating_mul(b.into())))
-			.saturating_add(T::DbWeight::get().writes(3))
-			.saturating_add(T::DbWeight::get().writes((21_u64).saturating_mul(b.into())))
-			.saturating_add(Weight::from_parts(0, 373857).saturating_mul(b.into()))
+
+	fn suspend_channel() -> Weight {
+		todo!()
 	}
-	/// Storage: `XcmpQueue::DeferredMessageBuckets` (r:1 w:1)
-	/// Proof: `XcmpQueue::DeferredMessageBuckets` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// The range of component `m` is `[1, 20]`.
-	fn discard_deferred_bucket(m: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `252 + m * (16216 ±0)`
-		//  Estimated: `3716 + m * (16216 ±0)`
-		// Minimum execution time: 1_285_382_000 picoseconds.
-		Weight::from_parts(242_447_351, 3716)
-			// Standard Error: 426_683
-			.saturating_add(Weight::from_parts(1_106_936_264, 0).saturating_mul(m.into()))
-			.saturating_add(T::DbWeight::get().reads(1))
-			.saturating_add(T::DbWeight::get().writes(1))
-			.saturating_add(Weight::from_parts(0, 16216).saturating_mul(m.into()))
+
+	fn resume_channel() -> Weight {
+		todo!()
 	}
-	/// Storage: `XcmpQueue::DeferredMessageBuckets` (r:1 w:1)
-	/// Proof: `XcmpQueue::DeferredMessageBuckets` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// The range of component `m` is `[1, 20]`.
-	fn discard_deferred_individual(m: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `252 + m * (16216 ±0)`
-		//  Estimated: `3716 + m * (16216 ±0)`
-		// Minimum execution time: 1_351_709_000 picoseconds.
-		Weight::from_parts(116_677_544, 3716)
-			// Standard Error: 375_367
-			.saturating_add(Weight::from_parts(1_225_618_925, 0).saturating_mul(m.into()))
-			.saturating_add(T::DbWeight::get().reads(1))
-			.saturating_add(T::DbWeight::get().writes(1))
-			.saturating_add(Weight::from_parts(0, 16216).saturating_mul(m.into()))
+
+	fn take_first_concatenated_xcm() -> Weight {
+		todo!()
 	}
-	/// Storage: `XcmpQueue::DeferredIndices` (r:1 w:1)
-	/// Proof: `XcmpQueue::DeferredIndices` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `XcmpQueue::DeferredMessageBuckets` (r:1 w:1)
-	/// Proof: `XcmpQueue::DeferredMessageBuckets` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// The range of component `m` is `[1, 20]`.
-	fn try_place_in_deferred_queue(m: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0 + m * (16216 ±0)`
-		//  Estimated: `9724 + m * (15020 ±55)`
-		// Minimum execution time: 107_020_000 picoseconds.
-		Weight::from_parts(128_836_899, 9724)
-			// Standard Error: 222_629
-			.saturating_add(Weight::from_parts(6_772_210, 0).saturating_mul(m.into()))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(2))
-			.saturating_add(Weight::from_parts(0, 15020).saturating_mul(m.into()))
+
+	fn on_idle_good_msg() -> Weight {
+		todo!()
+	}
+
+	fn on_idle_large_msg() -> Weight {
+		todo!()
 	}
 }

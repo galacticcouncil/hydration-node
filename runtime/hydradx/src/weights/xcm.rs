@@ -86,6 +86,11 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(30_412_000, 1489)
 			.saturating_add(T::DbWeight::get().reads(1))
 	}
+
+	fn transfer_assets() -> Weight {
+		todo!()
+	}
+
 	/// Storage: `Benchmark::Override` (r:0 w:0)
 	/// Proof: `Benchmark::Override` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	fn execute() -> Weight {
@@ -267,5 +272,13 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(51_043_000, 11144)
 			.saturating_add(T::DbWeight::get().reads(9))
 			.saturating_add(T::DbWeight::get().writes(4))
+	}
+
+	fn new_query() -> Weight {
+		todo!()
+	}
+
+	fn take_response() -> Weight {
+		todo!()
 	}
 }
