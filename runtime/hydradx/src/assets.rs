@@ -497,25 +497,31 @@ parameter_types! {
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 
-pub struct SufficientAssetsFilter;
-impl Contains<(Source, AssetId, AssetId)> for SufficientAssetsFilter {
+pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
+impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist<Runtime>
+where
+	Runtime: pallet_ema_oracle::Config + pallet_asset_registry::Config,
+	AssetId: From<<Runtime as pallet_asset_registry::Config>::AssetId>,
+{
 	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
-		AssetRegistry::is_sufficient(t.1) && AssetRegistry::is_sufficient(t.2)
+		pallet_asset_registry::OracleWhitelist::<Runtime>::contains(t)
+			|| pallet_ema_oracle::OracleWhitelist::<Runtime>::contains(t)
 	}
 }
 
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
+	type AuthorityOrigin = SuperMajorityTechCommittee;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
-	type OracleWhitelist = SufficientAssetsFilter;
+	type OracleWhitelist = OracleWhitelist<Runtime>;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;
+	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	/// Should take care of the overhead introduced by `OracleWhitelist`.
 	type BenchmarkHelper = RegisterAsset<Runtime>;
@@ -553,6 +559,7 @@ parameter_types! {
 	pub const MaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms, TODO:
 	pub const MinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks, TODO:
 	pub const MinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT * 100; //TODO:
+	pub const OmnipoolLmOracle: [u8; 8] = OMNIPOOL_SOURCE;
 }
 
 type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
@@ -569,7 +576,7 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
-	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance>;
+	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance, OmnipoolLmOracle>;
 }
 
 parameter_types! {
@@ -591,6 +598,52 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type OraclePeriod = OmnipoolLMOraclePeriod;
 	type PriceOracle = EmaOracle;
 	type WeightInfo = weights::omnipool_lm::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const XYKWarehouseLMPalletId: PalletId = PalletId(*b"xykLMpID");
+	#[derive(PartialEq, Eq)]
+	pub const XYKLmMaxEntriesPerDeposit: u8 = 5; //NOTE: Rebenchmark when this change
+	pub const XYKLmMaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms
+	pub const XYKLmMinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks
+	pub const XYKLmMinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT * 100;
+	pub const XYKLmOracle: [u8; 8] = XYK_SOURCE;
+}
+
+type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
+impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type MultiCurrency = Currencies;
+	type PalletId = XYKWarehouseLMPalletId;
+	type MinTotalFarmRewards = XYKLmMinTotalFarmRewards;
+	type MinPlannedYieldingPeriods = XYKLmMinPlannedYieldingPeriods;
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type AmmPoolId = AccountId;
+	type MaxFarmEntriesPerDeposit = XYKLmMaxEntriesPerDeposit;
+	type MaxYieldFarmsPerGlobalFarm = XYKLmMaxYieldFarmsPerGlobalFarm;
+	type AssetRegistry = AssetRegistry;
+	type NonDustableWhitelistHandler = Duster;
+	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, XYKLiquidityMiningInstance, XYKLmOracle>;
+}
+
+parameter_types! {
+	pub const XYKLmPalletId: PalletId = PalletId(*b"XYK///LM");
+	pub const XYKLmCollectionId: CollectionId = 5389_u128;
+}
+
+impl pallet_xyk_liquidity_mining::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currencies = Currencies;
+	type CreateOrigin = AllTechnicalCommitteeMembers;
+	type PalletId = XYKLmPalletId;
+	type NFTCollectionId = XYKLmCollectionId;
+	type NFTHandler = Uniques;
+	type LiquidityMiningHandler = XYKWarehouseLM;
+	type NonDustableWhitelistHandler = Duster;
+	type AMM = XYK;
+	type AssetRegistry = AssetRegistry;
+	type WeightInfo = weights::xyk_lm::HydraWeight<Runtime>;
 }
 
 // The reason why there is difference between PROD and benchmark is that it is not possible

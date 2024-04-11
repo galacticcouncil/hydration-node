@@ -625,16 +625,16 @@ where
 	}
 }
 
-pub struct PriceAdjustmentAdapter<Runtime, LMInstance>(PhantomData<(Runtime, LMInstance)>);
+pub struct PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource>(PhantomData<(Runtime, LMInstance, OracleSource)>);
 
-impl<Runtime, LMInstance> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
-	for PriceAdjustmentAdapter<Runtime, LMInstance>
+impl<Runtime, LMInstance, OracleSource> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
+	for PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource>
 where
 	Runtime: warehouse_liquidity_mining::Config<LMInstance>
 		+ pallet_ema_oracle::Config
-		+ pallet_omnipool_liquidity_mining::Config
 		+ pallet_asset_registry::Config
 		+ pallet_bonds::Config,
+	OracleSource: Get<[u8; 8]>,
 	u32: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 {
 	type Error = DispatchError;
@@ -644,12 +644,12 @@ where
 		use pallet_asset_registry::AssetType;
 
 		let asset_detail = pallet_asset_registry::Assets::<Runtime>::get(global_farm.reward_currency.into())
-			.ok_or(pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
+			.ok_or(DispatchError::Other("RewardCurrencyNotFoundInAssetRegistry"))?;
 
 		let reward_currency_id = if asset_detail.asset_type == AssetType::Bond {
 			let name = asset_detail
 				.name
-				.ok_or(pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
+				.ok_or(DispatchError::Other("PriceAdjustmentNotAvailable"))?;
 
 			pallet_bonds::Pallet::<Runtime>::parse_bond_name(name.into())?
 		} else {
@@ -658,11 +658,11 @@ where
 
 		let (price, _) = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			reward_currency_id,
-			global_farm.incentivized_asset.into(), //LRNA
+			global_farm.incentivized_asset.into(),
 			OraclePeriod::TenMinutes,
-			OMNIPOOL_SOURCE,
+			OracleSource::get(),
 		)
-		.map_err(|_| pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
+		.map_err(|_| DispatchError::Other("PriceAdjustmentNotAvailable"))?;
 
 		FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into())
 	}
