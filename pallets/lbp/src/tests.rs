@@ -3858,3 +3858,188 @@ fn simulate_lbp_event_with_repayment() {
 		assert_eq!(Currency::free_balance(sold_asset, &fee_collector), 0);
 	});
 }
+mod spot_price_calculation {
+	use super::*;
+	use crate::mock::RuntimeOrigin;
+	use frame_support::storage::with_transaction;
+	use hydradx_traits::pools::SpotPriceProvider;
+	use hydradx_traits::router::PoolType;
+	use hydradx_traits::router::TradeExecution;
+	use hydradx_traits::router::TradeType;
+	use sp_runtime::FixedPointNumber;
+	use sp_runtime::{FixedU128, TransactionOutcome};
+	use test_utils::assert_eq_approx;
+
+	pub const ONE: u128 = 1_000_000_000_000u128;
+
+	#[test]
+	pub fn compare_spot_price_with_and_without_fee_when_user_pays_fee() {
+		predefined_test_ext().execute_with(|| {
+			let asset_a = BSX;
+			let asset_b = KUSD;
+
+			let sell_amount = 8_000_000_u128;
+
+			//start sale
+			set_block_number(11);
+
+			let received = with_transaction::<u128, DispatchError, _>(|| {
+				let balance_before = Currency::free_balance(asset_b, &ALICE);
+				assert_ok!(LBPPallet::sell(
+					RuntimeOrigin::signed(ALICE),
+					asset_a,
+					asset_b,
+					sell_amount,
+					u128::MIN
+				));
+				let balance_after = Currency::free_balance(asset_b, &ALICE);
+				let received = balance_after - balance_before;
+				TransactionOutcome::Rollback(Ok(received))
+			})
+			.unwrap();
+
+			//Check spot price without fee
+			let spot_price_without_fee = LBPPallet::spot_price(asset_a, asset_b).unwrap();
+			let calculated_amount_out_without_fee = spot_price_without_fee
+				.reciprocal()
+				.unwrap()
+				.checked_mul_int(sell_amount)
+				.unwrap();
+			let difference = calculated_amount_out_without_fee - received;
+			let relative_difference_without_fee = FixedU128::from_rational(difference, received);
+			let tolerated_difference = FixedU128::from_rational(2, 100);
+
+			// The difference of the amount out calculated with spot price should be less than 2%
+			assert_eq_approx!(
+				relative_difference_without_fee,
+				FixedU128::from_float(0.011128473641983631),
+				FixedU128::from((2, (ONE / 10_000))),
+				"the relative difference is not as expected"
+			);
+			assert!(relative_difference_without_fee < tolerated_difference);
+
+			//Check spot price with fee
+			let spot_price_with_fee =
+				LBPPallet::calculate_spot_price(PoolType::LBP, TradeType::Sell, asset_a, asset_b).unwrap();
+			let calculated_amount_out_with_fee = spot_price_with_fee
+				.reciprocal()
+				.unwrap()
+				.checked_mul_int(sell_amount)
+				.unwrap();
+			let difference = calculated_amount_out_with_fee - received;
+			let relative_difference_with_fee = FixedU128::from_rational(difference, received);
+			let tolerated_difference = FixedU128::from_rational(1, 100);
+
+			assert_eq_approx!(
+				relative_difference_with_fee,
+				FixedU128::from_float(0.009106190742401841),
+				FixedU128::from((2, (ONE / 10_000))),
+				"the relative difference is not as expected"
+			);
+			// The difference of the amount out calculated with spot price should be less than 0.1%
+			assert!(relative_difference_with_fee < tolerated_difference);
+
+			//Compare the two price
+			assert!(relative_difference_with_fee < relative_difference_without_fee);
+
+			assert!(
+				spot_price_with_fee > spot_price_without_fee,
+				"Spot price with fee should be smaller than without fee"
+			);
+		})
+	}
+
+	#[test]
+	pub fn spot_price_with_and_without_fee_should_be_the_same_when_pool_pays_fee() {
+		predefined_test_ext().execute_with(|| {
+			let asset_a = KUSD;
+			let asset_b = BSX;
+
+			//start sale
+			set_block_number(11);
+
+			//Act and Assert
+			let spot_price_without_fee = LBPPallet::spot_price(asset_a, asset_b).unwrap();
+
+			let spot_price_with_fee =
+				LBPPallet::calculate_spot_price(PoolType::LBP, TradeType::Sell, asset_a, asset_b).unwrap();
+
+			assert_eq!(spot_price_without_fee, spot_price_with_fee);
+		})
+	}
+
+	#[test]
+	pub fn compare_spot_price_with_and_without_fee_when_repay_target_not_reached() {
+		predefined_test_ext_with_repay_target().execute_with(|| {
+			let asset_a = BSX;
+			let asset_b = KUSD;
+
+			let sell_amount = 8_000_000_u128;
+
+			//start sale
+			set_block_number(11);
+
+			let received = with_transaction::<u128, DispatchError, _>(|| {
+				let balance_before = Currency::free_balance(asset_b, &ALICE);
+				assert_ok!(LBPPallet::sell(
+					RuntimeOrigin::signed(ALICE),
+					asset_a,
+					asset_b,
+					sell_amount,
+					u128::MIN
+				));
+				let balance_after = Currency::free_balance(asset_b, &ALICE);
+				let received = balance_after - balance_before;
+				TransactionOutcome::Rollback(Ok(received))
+			})
+			.unwrap();
+
+			//Check spot price without fee
+			let spot_price_without_fee = LBPPallet::spot_price(asset_a, asset_b).unwrap();
+			let calculated_amount_out_without_fee = spot_price_without_fee
+				.reciprocal()
+				.unwrap()
+				.checked_mul_int(sell_amount)
+				.unwrap();
+			let difference = calculated_amount_out_without_fee - received;
+			let relative_difference_without_fee = FixedU128::from_rational(difference, received);
+
+			// The difference of the amount out calculated with spot price should be less than 3%
+			assert_eq_approx!(
+				relative_difference_without_fee,
+				FixedU128::from_float(0.252251427999321039),
+				FixedU128::from((2, (ONE / 10_000))),
+				"the relative difference is not as expected"
+			);
+
+			//Check spot price with fee
+			let spot_price_with_fee =
+				LBPPallet::calculate_spot_price(PoolType::LBP, TradeType::Sell, asset_a, asset_b).unwrap();
+			let calculated_amount_out_with_fee = spot_price_with_fee
+				.reciprocal()
+				.unwrap()
+				.checked_mul_int(sell_amount)
+				.unwrap();
+			let difference = calculated_amount_out_with_fee - received;
+			let relative_difference_with_fee = FixedU128::from_rational(difference, received);
+			let tolerated_difference = FixedU128::from_rational(1, 100);
+
+			assert_eq_approx!(
+				relative_difference_with_fee,
+				FixedU128::from_float(0.001801166700140859),
+				FixedU128::from((2, (ONE / 10_000))),
+				"the relative difference is not as expected"
+			);
+			// The difference of the amount out calculated with spot price should be less than 0.1%
+			assert!(relative_difference_with_fee < tolerated_difference);
+
+			//Compare the two price
+			assert!(relative_difference_with_fee < relative_difference_without_fee);
+
+			assert!(
+				spot_price_with_fee > spot_price_without_fee,
+				"Spot price with fee should be smaller than without fee"
+			);
+		})
+	}
+}

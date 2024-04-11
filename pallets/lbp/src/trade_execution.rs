@@ -3,10 +3,10 @@ use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution, TradeType};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::traits::CheckedDiv;
+use sp_runtime::traits::{BlockNumberProvider, CheckedSub};
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{DispatchError, FixedU128};
-
+use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
@@ -162,11 +162,37 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			return Err(ExecutorError::NotSupported);
 		}
 
-		//TODO: adjust it
-		//let fee_asset = pool_data.assets.0;
-		//if fee asset is asset out, then user pays so we need to multiply, otherwise we don't need. DOUBLE CHECK THIS
-		let spot_price = Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
+		let spot_price_without_fee = Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
+		let assets = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		let pool_id = Self::get_pair_id(assets);
+		let pool_data =
+			<PoolData<T>>::try_get(&pool_id).map_err(|_| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+		let fee_asset = pool_data.assets.0;
 
-		Ok(spot_price)
+		let spot_price_with_fee = if fee_asset == assets.asset_out {
+			let fee = if Self::is_repay_fee_applied(&pool_data) {
+				Self::repay_fee()
+			} else {
+				pool_data.fee
+			};
+
+			let fee = FixedU128::checked_from_rational(fee.0, fee.1).ok_or(ExecutorError::Error(Corruption))?;
+			let fee_multiplier = FixedU128::from_rational(1, 1)
+				.checked_sub(&fee)
+				.ok_or(ExecutorError::Error(Corruption))?;
+
+			//Fee is deducted from asset out so we increase spot price by dividing it by (1-f)
+			spot_price_without_fee
+				.checked_div(&fee_multiplier)
+				.ok_or(ExecutorError::Error(Corruption))?
+		} else {
+			//Pool pays fee and the amount in for sell is less by the fee, so no impact on spot price
+			spot_price_without_fee
+		};
+
+		Ok(spot_price_with_fee)
 	}
 }
