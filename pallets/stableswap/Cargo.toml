@@ -46,6 +46,7 @@ sp-api = { workspace = true }
 sp-tracing = { workspace = true }
 orml-tokens = { workspace = true, features=["std"] }
 proptest = "1.0.0"
+test-utils = { workspace = true }
 
 [features]
 default = ['std']

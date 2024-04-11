@@ -8441,6 +8441,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-tracing",
+ "test-utils",
 ]
 
 [[package]]
