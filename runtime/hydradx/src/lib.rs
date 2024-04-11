@@ -109,11 +109,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 227,
+	spec_version: 228,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 0,
+	state_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -155,6 +155,7 @@ construct_runtime!(
 		Proxy: pallet_proxy = 29,
 		Multisig: pallet_multisig = 31,
 		Uniques: pallet_uniques = 32,
+		StateTrieMigration: pallet_state_trie_migration = 35,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry = 51,
@@ -712,6 +713,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 			list_benchmark!(list, extra, pallet_bonds, Bonds);
 			list_benchmark!(list, extra, pallet_stableswap, Stableswap);
+			list_benchmark!(list, extra, pallet_state_trie_migration, StateTrieMigration);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -805,6 +807,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
 			add_benchmark!(params, batches, pallet_referrals, Referrals);
 			add_benchmark!(params, batches, pallet_evm_accounts, EVMAccounts);
+			add_benchmark!(params, batches, pallet_state_trie_migration, StateTrieMigration);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
