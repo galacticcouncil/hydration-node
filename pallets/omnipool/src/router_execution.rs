@@ -182,7 +182,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 
 		/// Formula: Price = price_without_fee_included of asset_in denominated in asset_put / (1 - protocol_fee) * (1 - asset_fee)
 		/// Fee is taken from asset out, so we need to increase the spot price
-		/// We divide by (1-fee_protocol)*(1-fee_trade) to reflect correct amount out after the fee deduction
+		/// We divide by (1-protocol_fee)*(1-asset_fee) to reflect correct amount out after the fee deduction
 		let (_, protocol_fee) = T::Fee::get(&asset_a);
 		let protocol_fee_multipiler = Permill::from_percent(100)
 			.checked_sub(&protocol_fee)
