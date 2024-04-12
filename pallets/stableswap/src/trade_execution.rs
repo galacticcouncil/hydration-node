@@ -248,7 +248,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 					Ok(spot_price_with_fee)
 				} else if asset_a == pool_id {
-					//We need to withdraw a small amount of token to prevent decimal issues
+					//We need to buy an exact amount of stable asset to prevent too low share amount in calculations
 					let spot_price = with_transaction::<_, DispatchError, _>(|| {
 						let amount_out = T::MinTradingLimit::get();
 
@@ -293,19 +293,19 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 					Ok(spot_price)
 				} else {
-					//We add need to add exact liquidity
+					//We need to sell an exact amount of stable asset to prevent too low share amount in calculations
 					let spot_price = with_transaction::<_, DispatchError, _>(|| {
 						let sell_amount = T::MinTradingLimit::get();
 
 						let origin: OriginFor<T> = Origin::<T>::Signed(Self::pallet_account()).into();
 
-						//We need to mint MinPoolLiquidity to dry-run sell, othewise we can have issues with too low shares
-						let amount_in_balance = T::MinPoolLiquidity::get();
+						//We need to mint MinPoolLiquidity to dry-run sell, otherwise we can have issues with too low shares
+						let asset_balance = T::MinPoolLiquidity::get();
 
-						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in_balance.clone());
+						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), asset_balance.clone());
 
 						//We need to mint some asset_out balance otherwise we can have ED error triggered when transfer happens from sell trade
-						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_in_balance.clone());
+						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), asset_balance.clone());
 						if let Err(err) = Self::execute_sell(
 							origin,
 							PoolType::Stableswap(pool_id),
@@ -323,7 +323,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						}
 
 						let Some(amount_out) =
-							T::Currency::free_balance(asset_b, &Self::pallet_account()).checked_sub(amount_in_balance) else {
+							T::Currency::free_balance(asset_b, &Self::pallet_account()).checked_sub(asset_balance) else {
 							return TransactionOutcome::Rollback(Err(Corruption.into()));
 						};
 

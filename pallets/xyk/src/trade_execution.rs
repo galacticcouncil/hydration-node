@@ -155,7 +155,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		}
 
 		// Formula: spot-price-with-fee = spot-price-without-fee / (1 - fee)
-		// Since in the trade the amount out is reduced by fee, it makes asset B more exepensive, so the spot price should be increased
+		// Since in the trade the amount out is reduced by fee, it makes asset B more expensive, so the spot price should be increased
 		// We divide to reflect correct amount out after the fee deduction
 		let fee = T::GetExchangeFee::get();
 		let fee = FixedU128::checked_from_rational(fee.0, fee.1).ok_or(ExecutorError::Error(Corruption))?;

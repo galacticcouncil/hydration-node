@@ -178,7 +178,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		};
 
 		let spot_price_with_fee = if fee_asset == assets.asset_out {
-			//Pool pays fee, but fee id deducted from asset out.
+			//Pool pays fee, but fee is deducted from asset out.
 			//We divide by (1-f) to reflect correct amount out after the fee deduction
 			let fee = FixedU128::checked_from_rational(fee.0, fee.1).ok_or(ExecutorError::Error(Corruption))?;
 			let fee_multiplier = FixedU128::from_rational(1, 1)

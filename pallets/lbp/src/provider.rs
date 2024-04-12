@@ -21,7 +21,6 @@ impl<T: Config> SpotPriceProvider<AssetId> for Pallet<T> {
 			return Some(FixedU128::one());
 		}
 
-		//TODO: write tests for it
 		if Self::pair_exists(asset_a, asset_b) {
 			let pair_account = <crate::Pallet<T>>::get_pair_id(AssetPair {
 				asset_in: asset_a,

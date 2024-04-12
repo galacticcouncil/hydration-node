@@ -4023,7 +4023,7 @@ mod spot_price_calculation {
 	}
 
 	#[test]
-	pub fn compare_spot_price_with_and_without_fee_when_repay_target_not_reached() {
+	pub fn compare_spot_price_with_and_without_fee_when_repay_fee_paid() {
 		predefined_test_ext_with_repay_target().execute_with(|| {
 			let asset_a = BSX;
 			let asset_b = KUSD;
