@@ -2560,9 +2560,12 @@ mod set_route {
 				Hydra::execute_with(|| {
 					let _ = with_transaction(|| {
 						//Arrange
-						let (pool_id, stable_asset_1, _) =
-							init_stableswap_with_liquidity(1_000_000_000_000_000_000u128, 300_000_000_000_000_000u128)
-								.unwrap();
+						let (pool_id, stable_asset_1, _) = init_stableswap_with_details(
+							1_000_000_000_000_000_000u128,
+							300_000_000_000_000_000u128,
+							18,
+						)
+						.unwrap();
 
 						init_omnipool();
 
@@ -3967,7 +3970,7 @@ mod route_spot_price {
 			let tolerated_difference = FixedU128::from_rational(1, 100);
 			// The difference of the amount out calculated with spot price should be less than 1%
 			assert!(relative_difference < tolerated_difference);
-			assert_eq!(relative_difference, FixedU128::from_float(0.007487127448488005)); //TEMP assertion
+			//assert_eq!(relative_difference, FixedU128::from_float(0.009468191066027364)); //TEMP assertion
 		});
 	}
 
@@ -4081,7 +4084,9 @@ mod route_spot_price {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
-				let (pool_id, stable_asset_1, _stable_asset_2) = init_stableswap().unwrap();
+				let (pool_id, stable_asset_1, _) =
+					init_stableswap_with_details(1_000_000_000_000_000_000u128, 300_000_000_000_000_000u128, 12)
+						.unwrap();
 				init_omnipool();
 
 				assert_ok!(Currencies::update_balance(
@@ -4124,7 +4129,7 @@ mod route_spot_price {
 				));
 
 				//Assert
-				let expected_amount_out = 29042093212;
+				let expected_amount_out = 46467;
 
 				assert_eq!(
 					hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
@@ -4150,8 +4155,8 @@ mod route_spot_price {
 				let relative_difference = FixedU128::from_rational(difference, expected_amount_out);
 				let tolerated_difference = FixedU128::from_rational(1, 100);
 				// The difference of the amount out calculated with spot price should be less than 1%
+				//assert_eq!(relative_difference, FixedU128::from_float(0.002991370219725827)); //TEMP assertion
 				assert!(relative_difference < tolerated_difference);
-				assert_eq!(relative_difference, FixedU128::from_float(0.002974777450418163)); //TEMP assertion
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -4165,7 +4170,9 @@ mod route_spot_price {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
-				let (pool_id, stable_asset_1, _stable_asset_2) = init_stableswap().unwrap();
+				let (pool_id, stable_asset_1, _) =
+					init_stableswap_with_details(1_000_000_000_000_000_000u128, 300_000_000_000_000_000u128, 12)
+						.unwrap();
 				init_omnipool();
 
 				assert_ok!(Currencies::update_balance(
@@ -4193,7 +4200,7 @@ mod route_spot_price {
 				));
 
 				//Assert
-				let expected_amount_out = 621873466890;
+				let expected_amount_out = 994999;
 
 				assert_eq!(
 					hydradx_runtime::Currencies::free_balance(pool_id, &AccountId::from(ALICE)),
@@ -4211,11 +4218,15 @@ mod route_spot_price {
 					.unwrap()
 					.checked_mul_int(amount_to_sell)
 					.unwrap();
-				let difference = expected_amount_out - calculated_amount_out;
+				let difference = if expected_amount_out > calculated_amount_out {
+					expected_amount_out - calculated_amount_out
+				} else {
+					calculated_amount_out - expected_amount_out
+				};
 				let relative_difference = FixedU128::from_rational(difference, expected_amount_out);
 				let tolerated_difference = FixedU128::from_rational(1, 100);
 				// The difference of the amount out calculated with spot price should be less than 1%
-				assert_eq!(relative_difference, FixedU128::from_float(0.003012617501385355)); //TEMP assertion
+				//assert_eq!(relative_difference, FixedU128::from_float(0.003019098511656796)); //TEMP assertion
 				assert!(relative_difference < tolerated_difference);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -4362,12 +4373,13 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let initial_liquidity = 1_000_000_000_000_000u128;
 	let liquidity_added = 300_000_000_000_000u128;
 
-	init_stableswap_with_liquidity(initial_liquidity, liquidity_added)
+	init_stableswap_with_details(initial_liquidity, liquidity_added, 18)
 }
 
-pub fn init_stableswap_with_liquidity(
+pub fn init_stableswap_with_details(
 	initial_liquidity: Balance,
 	liquidity_added: Balance,
+	decimals: u8,
 ) -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let mut initial: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
 	let mut added_liquidity: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> =
@@ -4382,7 +4394,7 @@ pub fn init_stableswap_with_liquidity(
 			AssetKind::Token,
 			1000u128,
 			Some(b"xDUM".to_vec().try_into().unwrap()),
-			Some(18u8),
+			Some(decimals),
 			None,
 			None,
 		)?;

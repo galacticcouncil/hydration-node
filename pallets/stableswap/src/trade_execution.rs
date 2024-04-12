@@ -7,8 +7,11 @@ use hydra_dx_math::types::Price;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution, TradeType};
 use orml_traits::MultiCurrency;
 use sp_core::Get;
+use sp_runtime::traits::{CheckedDiv, CheckedSub};
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TransactionOutcome};
+use sp_runtime::{
+	ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill, Saturating, TransactionOutcome,
+};
 use sp_std::vec;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
@@ -211,12 +214,41 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 		asset_b: T::AssetId,
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {
 		match pool_type {
-			//TODO: for normal we could use the standard fee * (1-fee)
 			PoolType::Stableswap(pool_id) => {
 				if asset_a != pool_id && asset_b != pool_id {
-					todo!("we can use formula here")
-				}
-				if asset_a == pool_id {
+					let pool_account = Self::pool_account(pool_id);
+					let pool = Pools::<T>::get(pool_id)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+					let balances = pool
+						.reserves_with_decimals::<T>(&pool_account)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+					let amp = Pallet::<T>::get_amplification(&pool);
+					let asset_in_idx = pool
+						.find_asset(asset_a)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+					let asset_out_idx = pool
+						.find_asset(asset_b)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+					let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+					let p =
+						hydra_dx_math::stableswap::calculate_spot_price(&balances, amp, d, asset_in_idx, asset_out_idx)
+							.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+
+					let fee_multiplier = Permill::from_percent(100)
+						.checked_sub(&pool.fee)
+						.ok_or(ExecutorError::Error(Corruption))?;
+					let fee_multiplier =
+						FixedU128::checked_from_rational(fee_multiplier.deconstruct() as u128, 1_000_000)
+							.ok_or(ExecutorError::Error(Corruption))?;
+
+					let spot_price_without_fee = FixedU128::from_rational(p.0, p.1);
+					let spot_price_with_fee = spot_price_without_fee
+						.checked_div(&fee_multiplier)
+						.ok_or(ExecutorError::Error(Corruption))?;
+
+					Ok(spot_price_with_fee)
+				} else if asset_a == pool_id {
 					//We need to withdraw a small amount of token to prevent decimal issues
 					let spot_price = with_transaction::<_, DispatchError, _>(|| {
 						let amount_out = T::MinTradingLimit::get();
@@ -262,7 +294,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 					Ok(spot_price)
 				} else {
-					//We add need to add exact liquidty
+					//We add need to add exact liquidity
 					let spot_price = with_transaction::<_, DispatchError, _>(|| {
 						let amount_in = T::MinTradingLimit::get();
 

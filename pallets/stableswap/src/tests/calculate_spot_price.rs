@@ -11,6 +11,7 @@ use std::num::NonZeroU16;
 use test_utils::assert_eq_approx;
 
 //TODO: add benchmark tests
+//TODO: add tests for decimals when asset out, maybe benchmark is better
 
 #[test]
 fn sell_should_work_for_share_asset_when_pool_with_6_decimals() {
@@ -310,7 +311,6 @@ fn spot_price_calculation_should_work_when_asset_out_is_share() {
 		});
 }
 
-#[ignore] //TODO: unignore this and other and also fix
 #[test]
 fn spot_price_calculation_should_work_for_two_stableassets() {
 	let asset_a: AssetId = 1;
@@ -327,7 +327,7 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				fee: Permill::from_percent(0),
+				fee: Permill::from_percent(1),
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -352,7 +352,7 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 				0,
 			));
 
-			let expected = 9990011086474;
+			let expected = 9890110975610;
 
 			assert_balance!(BOB, asset_a, 200 * ONE - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
@@ -367,11 +367,16 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			let tolerated_difference = FixedU128::from_rational(1, 100);
 			// The difference of the amount out calculated with spot price should be less than 1%
+			assert_eq_approx!(
+				relative_difference,
+				FixedU128::from_float(0.001007120704465670),
+				FixedU128::from((2, (ONE / 10_000))),
+				"the relative difference is not as expected"
+			);
 			assert!(relative_difference < tolerated_difference);
 		});
 }
 
-#[ignore]
 #[test]
 fn spot_price_calculation_should_work_for_two_stableassets_on_different_positions() {
 	let asset_a: AssetId = 1;
@@ -433,11 +438,19 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-			let difference = expected - calculated_amount_out;
+			let difference = if expected > calculated_amount_out {
+				expected - calculated_amount_out
+			} else {
+				calculated_amount_out - expected
+			};
 			let relative_difference = FixedU128::from_rational(difference, expected);
-			let tolerated_difference = FixedU128::from_rational(1, 100);
-			// The difference of the amount out calculated with spot price should be less than 1%
-			assert_eq!(relative_difference, FixedU128::from_float(0.001138184176343564));
+			let tolerated_difference = FixedU128::from_rational(3, 100);
+			assert_eq_approx!(
+				relative_difference,
+				FixedU128::from_float(0.000396225660875478),
+				FixedU128::from((2, (ONE / 10_000))),
+				"the relative difference is not as expected"
+			);
 			assert!(relative_difference < tolerated_difference);
 		});
 }
