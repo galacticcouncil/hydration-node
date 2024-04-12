@@ -76,13 +76,14 @@ parameter_types! {
 const MOONBEAM_PARA_ID: u32 = 2004;
 pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(Location {
 	parents: 1,
-	interior: Junctions::X3(
+	interior: [
 		Parachain(MOONBEAM_PARA_ID),
 		PalletInstance(110),
 		AccountKey20 {
 			network: None,
 			key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
 		},
+		].into(
 	),
 });
 

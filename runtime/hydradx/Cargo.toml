@@ -115,6 +115,7 @@ pallet-xcm = { workspace = true }
 polkadot-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
+#polkadot-runtime-common= { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -309,6 +310,7 @@ std = [
     "pallet-evm-accounts-rpc-runtime-api/std",
     "pallet-xyk-liquidity-mining/std",
     "parachains-common/std",
+    #"polkadot-runtime-common/std",
 ]
 try-runtime= [
     "frame-try-runtime",

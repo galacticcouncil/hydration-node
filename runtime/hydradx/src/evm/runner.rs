@@ -24,7 +24,7 @@
 //!
 //! Shamelessly copied from pallet-evm and modified to support multi-currency fees.
 use crate::evm::WethAssetId;
-use fp_evm::{Account};
+use fp_evm::Account;
 use frame_support::traits::Get;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;

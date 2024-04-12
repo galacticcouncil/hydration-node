@@ -63,7 +63,7 @@ parameter_types! {
 }
 
 parameter_types! {
-	pub SelfLocation: Location = Location::new(1, X1(Parachain(ParachainInfo::get().into())));
+	pub SelfLocation: Location = Location::here();
 }
 
 parameter_types! {
@@ -105,7 +105,7 @@ parameter_types! {
 	pub const MaxXcmDepth: u16 = 5;
 	pub const MaxNumberOfInstructions: u16 = 100;
 
-	pub UniversalLocation: InteriorLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+	pub UniversalLocation: InteriorLocation = [GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into())].into();
 }
 
 pub struct XcmConfig;
@@ -170,7 +170,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type VersionWrapper = PolkadotXcm;
 	type ControllerOrigin = MoreThanHalfTechCommittee;
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
-	type PriceForSiblingDelivery = ();
+	type PriceForSiblingDelivery =  polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery<ParaId>;
 	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
 	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
 	type MaxInboundSuspended = MaxInboundSuspended;
@@ -308,7 +308,7 @@ impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 		match id {
 			CORE_ASSET_ID => Some(Location::new(
 				1,
-				X2(Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())),
+				[Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())].into(),
 			)),
 			_ => AssetRegistry::asset_to_location(id).map(|loc| loc.0),
 		}
@@ -317,22 +317,41 @@ impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 
 impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 	fn convert(location: Location) -> Option<AssetId> {
+		let Location { parents, interior } = location.clone();
+
+		match interior {
+			Junctions::X2(a) if parents == 1 &&
+				a.contains(&GeneralIndex(CORE_ASSET_ID.into())) &&
+				a.contains(&Parachain(ParachainInfo::get().into()))
+			=> {
+				Some(CORE_ASSET_ID)
+			},
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) => {
+				Some(CORE_ASSET_ID)
+			},
+			_ => AssetRegistry::location_to_asset(AssetLocation(location)),
+		}
+
+		// Note: keeping the original code for reference until tests are successful
+		/*
 		match location {
 			Location {
-				parents,
-				interior: X2(Parachain(id), GeneralIndex(index)),
-			} if parents == 1 && ParaId::from(id) == ParachainInfo::get() && (index as u32) == CORE_ASSET_ID => {
+				parents: p,
+				interior: [Parachain(id), GeneralIndex(index)].into(),
+			} if p == 1 && ParaId::from(id) == ParachainInfo::get() && (index as u32) == CORE_ASSET_ID => {
 				// Handling native asset for this parachain
 				Some(CORE_ASSET_ID)
 			}
 			// handle reanchor canonical location: https://github.com/paritytech/polkadot/pull/4470
 			Location {
 				parents: 0,
-				interior: X1(GeneralIndex(index)),
+				interior: [GeneralIndex(index)].into(),
 			} if (index as u32) == CORE_ASSET_ID => Some(CORE_ASSET_ID),
 			// delegate to asset-registry
 			_ => AssetRegistry::location_to_asset(AssetLocation(location)),
 		}
+
+		 */
 	}
 }
 
@@ -349,10 +368,10 @@ impl Convert<Asset, Option<AssetId>> for CurrencyIdConvert {
 pub struct AccountIdToMultiLocation;
 impl Convert<AccountId, Location> for AccountIdToMultiLocation {
 	fn convert(account: AccountId) -> Location {
-		X1(AccountId32 {
+		[AccountId32 {
 			network: None,
 			id: account.into(),
-		})
+		}]
 		.into()
 	}
 }
@@ -387,16 +406,34 @@ use xcm_executor::traits::ConvertLocation;
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);
 impl<Network: Get<Option<NetworkId>>> ConvertLocation<AccountId> for EvmAddressConversion<Network> {
 	fn convert_location(location: &Location) -> Option<AccountId> {
+		let Location { parents, interior } = location;
+		match interior{
+			Junctions::X1(a) if *parents == 0 =>  {
+				let j = a.as_ref()[0];
+				match j {
+					AccountKey20 {network: _, key} => {
+						let account_32 = ExtendedAddressMapping::into_account_id(H160::from(key));
+						Some(account_32)
+					},
+					_ => None
+
+				}
+			},
+			_ => None
+		}
+		// Note: keeping the original code for reference until tests are successful
+		/*
 		match location {
 			Location {
 				parents: 0,
-				interior: X1(AccountKey20 { network: _, key }),
+				interior: (AccountKey20 { network: _, key })
 			} => {
 				let account_32 = ExtendedAddressMapping::into_account_id(H160::from(key));
 				Some(account_32)
 			}
 			_ => None,
 		}
+		 */
 	}
 }
 
