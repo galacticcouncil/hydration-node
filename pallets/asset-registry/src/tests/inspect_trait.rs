@@ -270,26 +270,24 @@ fn asset_symbol_should_work() {
 
 #[test]
 fn existential_deposit_should_work() {
+	let non_existing_id = 543_u32;
+	let asset_one_symbol = b"TKN".to_vec();
+
 	ExtBuilder::default()
-		.with_assets(vec![
-			(
-				Some(1),
-				Some(b"Tkn1".to_vec().try_into().unwrap()),
-				UNIT,
-				None,
-				None,
-				None,
-				true,
-			),
-			(Some(2), None, 100 * UNIT, None, None, None, false),
-		])
+		.with_assets(vec![(
+			Some(1),
+			Some(b"Tkn1".to_vec().try_into().unwrap()),
+			2 * UNIT,
+			Some(asset_one_symbol.try_into().unwrap()),
+			None,
+			None,
+			true,
+		)])
 		.build()
 		.execute_with(|| {
 			//Act & assert
-			assert_eq!(<Registry as Inspect>::existential_deposit(1), Some(UNIT));
+			assert_eq!(<Registry as Inspect>::existential_deposit(1), Some(2 * UNIT));
 
-			assert_eq!(<Registry as Inspect>::existential_deposit(2), Some(100 * UNIT));
-
-			assert_eq!(<Registry as Inspect>::existential_deposit(3), None);
+			assert_eq!(<Registry as Inspect>::existential_deposit(non_existing_id), None);
 		});
 }

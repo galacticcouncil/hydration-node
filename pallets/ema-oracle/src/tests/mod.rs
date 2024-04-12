@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod add_and_remove_oracle;
 mod invariants;
 mod mock;
 
@@ -474,13 +475,13 @@ fn oracle_volume_should_factor_in_asset_order() {
 			price: Price::new(2_000, 1),
 			volume: Volume::from_a_in_b_out(2_000_000, 1_000),
 			liquidity: (2_000, 1).into(),
-			updated_at: 0,
+			updated_at: 1,
 		};
 		let second_entry = OracleEntry {
 			price: Price::new(2_000, 1),
 			volume: Volume::from_a_out_b_in(2_000_000, 1_000),
 			liquidity: (2_000, 1).into(),
-			updated_at: 0,
+			updated_at: 1,
 		};
 
 		let result = second_entry.with_added_volume_from(&first_entry);

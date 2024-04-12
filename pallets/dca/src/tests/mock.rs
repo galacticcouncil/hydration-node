@@ -146,13 +146,14 @@ parameter_types! {
 
 impl pallet_ema_oracle::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type WeightInfo = ();
 }
 
 impl BlockNumberProvider for MockBlockNumberProvider {
@@ -775,6 +776,7 @@ where
 	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
 	}
+
 	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
 		unimplemented!()
 	}

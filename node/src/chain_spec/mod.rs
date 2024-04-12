@@ -216,6 +216,8 @@ pub fn parachain_genesis(
 		},
 		ethereum: Default::default(),
 		evm: Default::default(),
+		xyk_warehouse_lm: Default::default(),
+		xyk_liquidity_mining: Default::default(),
 	}
 }
 

@@ -10,6 +10,7 @@ pub mod route_executor;
 pub mod tokens;
 pub mod vesting;
 pub mod xyk;
+pub mod xyk_liquidity_mining;
 
 use crate::{AssetLocation, AssetRegistry, MultiTransactionPayment};
 use frame_system::RawOrigin;
