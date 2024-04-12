@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.19.13"
+version = "1.20.2"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -45,6 +45,7 @@ pallet-democracy = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-tips = { workspace = true }
+pallet-xyk-liquidity-mining = { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }

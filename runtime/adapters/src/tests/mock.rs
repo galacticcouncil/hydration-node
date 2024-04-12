@@ -351,6 +351,10 @@ impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
 	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
 	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		unimplemented!()
+	}
 }
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -645,6 +649,10 @@ where
 	}
 
 	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
 		unimplemented!()
 	}
 }

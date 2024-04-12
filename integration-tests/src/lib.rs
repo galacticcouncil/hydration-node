@@ -28,6 +28,7 @@ mod vesting;
 mod xcm_defer;
 mod xcm_rate_limiter;
 mod xyk;
+mod xyk_liquidity_mining;
 
 #[macro_export]
 macro_rules! assert_balance {

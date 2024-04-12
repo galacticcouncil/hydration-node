@@ -173,3 +173,7 @@ pub trait PriceAdjustment<GlobalFarm> {
 	/// Returns value of `PriceAdjustment` for given `GlobalFarm`.
 	fn get(global_farm: &GlobalFarm) -> Result<Self::PriceAdjustment, Self::Error>;
 }
+
+pub trait Inspect<AccountId> {
+	fn pot_account() -> Option<AccountId>;
+}
