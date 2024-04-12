@@ -8,7 +8,7 @@ use sp_std::vec;
 use sp_std::vec::Vec;
 
 pub trait RouteSpotPriceProvider<AssetId> {
-	fn spot_price(route: &[Trade<AssetId>], trade_type: TradeType) -> Option<FixedU128>;
+	fn spot_price(route: &[Trade<AssetId>]) -> Option<FixedU128>;
 }
 
 #[derive(Debug, Encode, Decode, Copy, Clone, PartialOrd, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
@@ -66,12 +66,6 @@ pub enum PoolType<AssetId> {
 	LBP,
 	Stableswap(AssetId),
 	Omnipool,
-}
-
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum TradeType {
-	Sell,
-	Buy,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -184,7 +178,6 @@ pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 
 	fn calculate_spot_price(
 		pool_type: PoolType<AssetId>,
-		trade_type: TradeType,
 		asset_a: AssetId,
 		asset_b: AssetId,
 	) -> Result<FixedU128, ExecutorError<Self::Error>>;
@@ -293,13 +286,12 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 
 	fn calculate_spot_price(
 		pool_type: PoolType<AssetId>,
-		trade_type: TradeType,
 		asset_a: AssetId,
 		asset_b: AssetId,
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {
 		for_tuples!(
 			#(
-				let value = match Tuple::calculate_spot_price(pool_type,trade_type, asset_a, asset_b){
+				let value = match Tuple::calculate_spot_price(pool_type, asset_a, asset_b){
 					Ok(result) => return Ok(result),
 					Err(v) if v == ExecutorError::NotSupported => v,
 					Err(v) => return Err(v),

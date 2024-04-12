@@ -1,6 +1,6 @@
 use crate::*;
 use hydradx_traits::pools::SpotPriceProvider;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution, TradeType};
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::{BlockNumberProvider, CheckedSub};
@@ -154,7 +154,6 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 
 	fn calculate_spot_price(
 		pool_type: PoolType<AssetId>,
-		trade_type: TradeType,
 		asset_a: AssetId,
 		asset_b: AssetId,
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {

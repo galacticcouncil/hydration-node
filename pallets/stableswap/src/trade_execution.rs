@@ -4,7 +4,7 @@ use frame_support::storage::with_transaction;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
 use hydra_dx_math::types::Price;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution, TradeType};
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
 use sp_core::Get;
 use sp_runtime::traits::{CheckedDiv, CheckedSub};
@@ -209,7 +209,6 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 	fn calculate_spot_price(
 		pool_type: PoolType<T::AssetId>,
-		trade_type: TradeType,
 		asset_a: T::AssetId,
 		asset_b: T::AssetId,
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {
@@ -255,9 +254,9 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 						let origin: OriginFor<T> = Origin::<T>::Signed(Self::pallet_account()).into();
 
-						//We mint amount in to dry-run buy
+						//We mint amount in to dry-run buy. We need such big amount to make it work with all decimals up to 18
 						let amount_in_balance = 1_000_000_000_000_000_000;
-						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in_balance); //TODO: change this, ask lumir
+						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in_balance);
 
 						//We need to mint some asset_out balance otherwise we can have ED error triggered when transfer happens from trade
 						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_out.clone());
@@ -296,13 +295,12 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 				} else {
 					//We add need to add exact liquidity
 					let spot_price = with_transaction::<_, DispatchError, _>(|| {
-						let amount_in = T::MinTradingLimit::get();
+						let sell_amount = T::MinTradingLimit::get();
 
 						let origin: OriginFor<T> = Origin::<T>::Signed(Self::pallet_account()).into();
 
-						//We mint MinPoolLiquidity to dry-run sell
+						//We need to mint MinPoolLiquidity to dry-run sell, othewise we can have issues with too low shares
 						let amount_in_balance = T::MinPoolLiquidity::get();
-						nice it works, mint same for the other? Otherwise go now and andd benchmark test
 
 						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in_balance.clone());
 
@@ -313,7 +311,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 							PoolType::Stableswap(pool_id),
 							asset_a,
 							asset_b,
-							amount_in.clone(),
+							sell_amount.clone(),
 							Balance::MIN,
 						) {
 							return match err {
@@ -330,7 +328,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						};
 
 						let Some(spot_price) =
-							FixedU128::checked_from_rational(amount_in, amount_out) else {
+							FixedU128::checked_from_rational(sell_amount, amount_out) else {
 							return TransactionOutcome::Rollback(Err(Corruption.into()));
 						};
 

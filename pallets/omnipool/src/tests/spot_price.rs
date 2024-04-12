@@ -2,8 +2,8 @@ use super::*;
 use frame_support::assert_noop;
 use frame_support::storage::with_transaction;
 use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::router::PoolType;
 use hydradx_traits::router::TradeExecution;
-use hydradx_traits::router::{PoolType, TradeType};
 use pretty_assertions::assert_eq;
 use sp_runtime::{Permill, TransactionOutcome};
 
@@ -67,8 +67,7 @@ fn compare_spot_price_with_and_without_fee() {
 			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
-			let spot_price_with_fee =
-				Omnipool::calculate_spot_price(PoolType::Omnipool, TradeType::Sell, asset_a, asset_b).unwrap();
+			let spot_price_with_fee = Omnipool::calculate_spot_price(PoolType::Omnipool, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()

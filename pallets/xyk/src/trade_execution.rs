@@ -3,7 +3,7 @@ use crate::{Config, Error, Pallet, XYKSpotPrice};
 use frame_support::ensure;
 use frame_support::traits::Get;
 use hydradx_traits::pools::SpotPriceProvider;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution, TradeType};
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::CheckedSub;
@@ -147,7 +147,6 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 
 	fn calculate_spot_price(
 		pool_type: PoolType<AssetId>,
-		tradetype: TradeType,
 		asset_a: AssetId,
 		asset_b: AssetId,
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {
@@ -155,43 +154,20 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			return Err(ExecutorError::NotSupported);
 		}
 
-		return match tradetype {
-			TradeType::Sell => {
-				// Formula: spot-price-with-fee = spot-price-without-fee / (1 - fee)
-				// Since in the trade the amount out is reduced by fee, it makes asset B more exepensive, so the spot price should be increased
-				// We divide to reflect correct amount out after the fee deduction
-				let fee = T::GetExchangeFee::get();
-				let fee = FixedU128::checked_from_rational(fee.0, fee.1).ok_or(ExecutorError::Error(Corruption))?;
-				let fee_multipiler = FixedU128::from_rational(1, 1)
-					.checked_sub(&fee)
-					.ok_or(ExecutorError::Error(Corruption))?;
+		// Formula: spot-price-with-fee = spot-price-without-fee / (1 - fee)
+		// Since in the trade the amount out is reduced by fee, it makes asset B more exepensive, so the spot price should be increased
+		// We divide to reflect correct amount out after the fee deduction
+		let fee = T::GetExchangeFee::get();
+		let fee = FixedU128::checked_from_rational(fee.0, fee.1).ok_or(ExecutorError::Error(Corruption))?;
+		let fee_multipiler = FixedU128::from_rational(1, 1)
+			.checked_sub(&fee)
+			.ok_or(ExecutorError::Error(Corruption))?;
 
-				let spot_price_without_fee =
-					XYKSpotPrice::<T>::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
+		let spot_price_without_fee =
+			XYKSpotPrice::<T>::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
 
-				spot_price_without_fee
-					.checked_div(&fee_multipiler)
-					.ok_or(ExecutorError::Error(Corruption))
-			}
-			TradeType::Buy => {
-				// Formula: spot-price-with-fee = spot-price-without-fee * (1 + fee)
-				// Fee increases the input cost for a given amount of output.
-				// So it increases the spot price, indicating a higher cost per unit of output due to the fee.
-				let fee = T::GetExchangeFee::get();
-				let fee = FixedU128::checked_from_rational(fee.0, fee.1).ok_or(ExecutorError::Error(Corruption))?;
-				let fee_multipiler = FixedU128::from_rational(1, 1)
-					.checked_add(&fee)
-					.ok_or(ExecutorError::Error(Corruption))?;
-
-				let spot_price_without_fee =
-					XYKSpotPrice::<T>::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
-
-				spot_price_without_fee
-					.checked_mul(&fee_multipiler)
-					.ok_or(ExecutorError::Error(Corruption))
-			}
-		};
-
-		//XYKSpotPrice::<T>::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))
+		spot_price_without_fee
+			.checked_div(&fee_multipiler)
+			.ok_or(ExecutorError::Error(Corruption))
 	}
 }
