@@ -120,7 +120,6 @@ pub fn parachain_genesis(
 	RuntimeGenesisConfig {
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
-			code: wasm_binary.to_vec(),
 			..Default::default()
 		},
 		session: SessionConfig {

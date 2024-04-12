@@ -138,5 +138,6 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 			para_id: PARA_ID,
 			evm_since: 1,
 		},
+		vec![].as_slice(),
 	))
 }
