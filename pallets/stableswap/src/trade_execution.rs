@@ -300,11 +300,14 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 						let origin: OriginFor<T> = Origin::<T>::Signed(Self::pallet_account()).into();
 
-						//We mint amount in to dry-run sell
-						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in.clone());
+						//We mint MinPoolLiquidity to dry-run sell
+						let amount_in_balance = T::MinPoolLiquidity::get();
+						nice it works, mint same for the other? Otherwise go now and andd benchmark test
+
+						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in_balance.clone());
 
 						//We need to mint some asset_out balance otherwise we can have ED error triggered when transfer happens from sell trade
-						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_in.clone());
+						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_in_balance.clone());
 						if let Err(err) = Self::execute_sell(
 							origin,
 							PoolType::Stableswap(pool_id),
@@ -322,7 +325,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						}
 
 						let Some(amount_out) =
-							T::Currency::free_balance(asset_b, &Self::pallet_account()).checked_sub(amount_in) else {
+							T::Currency::free_balance(asset_b, &Self::pallet_account()).checked_sub(amount_in_balance) else {
 							return TransactionOutcome::Rollback(Err(Corruption.into()));
 						};
 
