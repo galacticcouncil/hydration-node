@@ -9,7 +9,7 @@ use orml_traits::{GetByKey, MultiCurrency};
 use sp_runtime::traits::Get;
 use sp_runtime::traits::{CheckedDiv, CheckedSub};
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Perbill, Permill};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
 // dev note: The code is calculate sell and buy is copied from the corresponding functions.
 // This is not ideal and should be refactored to avoid code duplication.
@@ -179,9 +179,9 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			return Err(ExecutorError::NotSupported);
 		}
 
-		/// Formula: Price = price_without_fee_included of asset_in denominated in asset_put / (1 - protocol_fee) * (1 - asset_fee)
-		/// Fee is taken from asset out, so we need to increase the spot price
-		/// We divide by (1-protocol_fee)*(1-asset_fee) to reflect correct amount out after the fee deduction
+		// Formula: Price = price_without_fee_included of asset_in denominated in asset_put / (1 - protocol_fee) * (1 - asset_fee)
+		// Fee is taken from asset out, so we need to increase the spot price
+		// We divide by (1-protocol_fee)*(1-asset_fee) to reflect correct amount out after the fee deduction
 		let (_, protocol_fee) = T::Fee::get(&asset_a);
 		let protocol_fee_multipiler = Permill::from_percent(100)
 			.checked_sub(&protocol_fee)

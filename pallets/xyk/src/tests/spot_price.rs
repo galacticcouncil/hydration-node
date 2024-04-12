@@ -1,3 +1,5 @@
+#![allow(clippy::excessive_precision)]
+
 use super::mock::*;
 use crate::types::{AssetPair, Price};
 use crate::XYKSpotPrice;
@@ -138,7 +140,7 @@ fn compare_sell_spot_price_with_and_without_fee() {
 			// The difference of the amount out calculated with spot price should be less than 1%
 			assert_eq!(
 				relative_difference_without_fee,
-				FixedU128::from_float(0.003006012023039060)
+				FixedU128::from_float(0.003_006_012_023_039_060)
 			);
 			assert!(relative_difference_without_fee < tolerated_difference);
 

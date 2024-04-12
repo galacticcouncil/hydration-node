@@ -1,3 +1,5 @@
+#![allow(clippy::excessive_precision)]
+
 use super::*;
 use frame_support::storage::with_transaction;
 use hydradx_traits::pools::SpotPriceProvider;
@@ -30,7 +32,7 @@ fn compare_spot_price_with_and_without_fee() {
 
 			let asset_a = 100;
 			let asset_b = 200;
-			let sell_amount = 1 * ONE;
+			let sell_amount = ONE;
 
 			let received = with_transaction::<Balance, DispatchError, _>(|| {
 				let balance_before = Tokens::free_balance(asset_b, &LP1);
@@ -60,7 +62,7 @@ fn compare_spot_price_with_and_without_fee() {
 			let tolerated_difference = FixedU128::from_rational(3, 100);
 			assert_eq!(
 				relative_difference_without_fee,
-				FixedU128::from_float(0.021234227801488840)
+				FixedU128::from_float(0.021_234_227_801_488_840)
 			);
 			// The difference of the amount out calculated with spot price should be less than 3%
 			assert!(relative_difference_without_fee < tolerated_difference);

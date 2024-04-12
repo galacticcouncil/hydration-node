@@ -3,15 +3,12 @@ use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use frame_support::storage::with_transaction;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
-use hydra_dx_math::types::Price;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
 use sp_core::Get;
 use sp_runtime::traits::{CheckedDiv, CheckedSub};
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{
-	ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill, Saturating, TransactionOutcome,
-};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill, TransactionOutcome};
 use sp_std::vec;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
@@ -259,32 +256,30 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in_balance);
 
 						//We need to mint some asset_out balance otherwise we can have ED error triggered when transfer happens from trade
-						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_out.clone());
+						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_out);
 
 						if let Err(err) = Self::execute_buy(
 							origin,
 							PoolType::Stableswap(pool_id),
 							asset_a,
 							asset_b,
-							amount_out.clone(),
+							amount_out,
 							Balance::MAX,
 						) {
 							return match err {
-								ExecutorError::Error(dispatch_err) => {
-									TransactionOutcome::Rollback(Err(dispatch_err.into()))
-								}
-								_ => TransactionOutcome::Rollback(Err(Corruption.into())),
+								ExecutorError::Error(dispatch_err) => TransactionOutcome::Rollback(Err(dispatch_err)),
+								_ => TransactionOutcome::Rollback(Err(Corruption)),
 							};
 						}
 
 						let Some(spent_amount_in) =
 							amount_in_balance.checked_sub(T::Currency::free_balance(asset_a, &Self::pallet_account())) else {
-							return TransactionOutcome::Rollback(Err(Corruption.into()));
+							return TransactionOutcome::Rollback(Err(Corruption));
 						};
 
 						let Some(spot_price) =
 							FixedU128::checked_from_rational(spent_amount_in, amount_out) else {
-							return TransactionOutcome::Rollback(Err(Corruption.into()));
+							return TransactionOutcome::Rollback(Err(Corruption));
 						};
 
 						TransactionOutcome::Rollback(Ok(spot_price))
@@ -302,34 +297,32 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						//We need to mint MinPoolLiquidity to dry-run sell, otherwise we can have issues with too low shares
 						let asset_balance = T::MinPoolLiquidity::get();
 
-						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), asset_balance.clone());
+						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), asset_balance);
 
 						//We need to mint some asset_out balance otherwise we can have ED error triggered when transfer happens from sell trade
-						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), asset_balance.clone());
+						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), asset_balance);
 						if let Err(err) = Self::execute_sell(
 							origin,
 							PoolType::Stableswap(pool_id),
 							asset_a,
 							asset_b,
-							sell_amount.clone(),
+							sell_amount,
 							Balance::MIN,
 						) {
 							return match err {
-								ExecutorError::Error(dispatch_err) => {
-									TransactionOutcome::Rollback(Err(dispatch_err.into()))
-								}
-								_ => TransactionOutcome::Rollback(Err(Corruption.into())),
+								ExecutorError::Error(dispatch_err) => TransactionOutcome::Rollback(Err(dispatch_err)),
+								_ => TransactionOutcome::Rollback(Err(Corruption)),
 							};
 						}
 
 						let Some(amount_out) =
 							T::Currency::free_balance(asset_b, &Self::pallet_account()).checked_sub(asset_balance) else {
-							return TransactionOutcome::Rollback(Err(Corruption.into()));
+							return TransactionOutcome::Rollback(Err(Corruption));
 						};
 
 						let Some(spot_price) =
 							FixedU128::checked_from_rational(sell_amount, amount_out) else {
-							return TransactionOutcome::Rollback(Err(Corruption.into()));
+							return TransactionOutcome::Rollback(Err(Corruption));
 						};
 
 						TransactionOutcome::Rollback(Ok(spot_price))

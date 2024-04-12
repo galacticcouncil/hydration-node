@@ -16,6 +16,8 @@
 // limitations under the License.
 
 #![allow(clippy::bool_assert_comparison)]
+#![allow(clippy::excessive_precision)]
+
 use super::*;
 use crate::mock::{
 	expect_events, generate_trades, run_to_sale_end, run_to_sale_start, AccountId, RuntimeCall as Call, DEFAULT_FEE,
@@ -4061,7 +4063,7 @@ mod spot_price_calculation {
 			// The difference of the amount out calculated with spot price should be less than 3%
 			assert_eq_approx!(
 				relative_difference_without_fee,
-				FixedU128::from_float(0.252251427999321039),
+				FixedU128::from_float(0.252_251_427_999_321_039),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);

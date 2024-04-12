@@ -1,3 +1,5 @@
+#![allow(clippy::excessive_precision)]
+
 use crate::assert_balance;
 use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
@@ -121,7 +123,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 			let bob_share_balance = 100 * ONE;
 			Tokens::update_balance(pool_id, &BOB, bob_share_balance as i128).unwrap();
 
-			let sell_amount = 1 * ONE;
+			let sell_amount = ONE;
 			let total_issuance = Tokens::total_issuance(pool_id);
 			let initial_issuance = 8000000100000000000000;
 			assert_eq!(total_issuance, initial_issuance);
@@ -428,7 +430,7 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 			// The difference of the amount out calculated with spot price should be less than 1%
 			assert_eq_approx!(
 				relative_difference,
-				FixedU128::from_float(0.001007120704465670),
+				FixedU128::from_float(0.001_007_120_704_465_670),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
