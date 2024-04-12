@@ -97,7 +97,7 @@ where
 	T: pallet_ema_oracle::Config,
 	T::AssetId: From<u32>,
 	<T as pallet_omnipool::Config>::AssetRegistry: Create<Balance, Error = DispatchError, AssetId = T::AssetId>,
-	<<T as pallet_omnipool::Config>::AssetRegistry as hydradx_traits::Inspect<Balance>>::AssetId: From<u32>,
+	<<T as pallet_omnipool::Config>::AssetRegistry as hydradx_traits::Inspect>::AssetId: From<u32>,
 {
 	let stable_amount: Balance = 1_000_000_000_000_000u128;
 	let native_amount: Balance = 1_000_000_000_000_000u128;
