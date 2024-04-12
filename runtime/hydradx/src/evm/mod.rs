@@ -83,8 +83,8 @@ pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(Location {
 			network: None,
 			key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
 		},
-		].into(
-	),
+	]
+	.into(),
 });
 
 pub struct WethAssetId;

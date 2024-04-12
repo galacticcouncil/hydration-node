@@ -170,7 +170,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type VersionWrapper = PolkadotXcm;
 	type ControllerOrigin = MoreThanHalfTechCommittee;
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
-	type PriceForSiblingDelivery =  polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery<ParaId>;
+	type PriceForSiblingDelivery = polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery<ParaId>;
 	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
 	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
 	type MaxInboundSuspended = MaxInboundSuspended;
@@ -306,10 +306,10 @@ use primitives::constants::chain::CORE_ASSET_ID;
 impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 	fn convert(id: AssetId) -> Option<Location> {
 		match id {
-			CORE_ASSET_ID => Some(Location::new(
-				1,
-				[Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())].into(),
-			)),
+			CORE_ASSET_ID => Some(Location {
+				parents: 1,
+				interior: [Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())].into(),
+			}),
 			_ => AssetRegistry::asset_to_location(id).map(|loc| loc.0),
 		}
 	}
@@ -320,15 +320,14 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 		let Location { parents, interior } = location.clone();
 
 		match interior {
-			Junctions::X2(a) if parents == 1 &&
-				a.contains(&GeneralIndex(CORE_ASSET_ID.into())) &&
-				a.contains(&Parachain(ParachainInfo::get().into()))
-			=> {
+			Junctions::X2(a)
+				if parents == 1
+					&& a.contains(&GeneralIndex(CORE_ASSET_ID.into()))
+					&& a.contains(&Parachain(ParachainInfo::get().into())) =>
+			{
 				Some(CORE_ASSET_ID)
-			},
-			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) => {
-				Some(CORE_ASSET_ID)
-			},
+			}
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) => Some(CORE_ASSET_ID),
 			_ => AssetRegistry::location_to_asset(AssetLocation(location)),
 		}
 
@@ -407,19 +406,18 @@ pub struct EvmAddressConversion<Network>(PhantomData<Network>);
 impl<Network: Get<Option<NetworkId>>> ConvertLocation<AccountId> for EvmAddressConversion<Network> {
 	fn convert_location(location: &Location) -> Option<AccountId> {
 		let Location { parents, interior } = location;
-		match interior{
-			Junctions::X1(a) if *parents == 0 =>  {
+		match interior {
+			Junctions::X1(a) if *parents == 0 => {
 				let j = a.as_ref()[0];
 				match j {
-					AccountKey20 {network: _, key} => {
+					AccountKey20 { network: _, key } => {
 						let account_32 = ExtendedAddressMapping::into_account_id(H160::from(key));
 						Some(account_32)
-					},
-					_ => None
-
+					}
+					_ => None,
 				}
-			},
-			_ => None
+			}
+			_ => None,
 		}
 		// Note: keeping the original code for reference until tests are successful
 		/*

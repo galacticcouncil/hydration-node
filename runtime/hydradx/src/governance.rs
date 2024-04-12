@@ -85,12 +85,17 @@ impl pallet_preimage::Config for Runtime {
 	type WeightInfo = weights::preimage::HydraWeight<Runtime>;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
+	type Consideration = ();
+	//TODO: check this - this does not compile for some reason
+	/*
 	type Consideration = HoldConsideration<
 		AccountId,
 		Balances,
 		PreimageHoldReason,
 		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
 	>;
+
+	 */
 }
 
 /// Used the compare the privilege of an origin inside the scheduler.

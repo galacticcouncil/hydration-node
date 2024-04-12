@@ -24,7 +24,7 @@
 //!
 //! Shamelessly copied from pallet-evm and modified to support multi-currency fees.
 use crate::evm::WethAssetId;
-use fp_evm::Account;
+use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::Get;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
@@ -41,7 +41,7 @@ impl<T, R, B> Runner<T> for WrapRunner<T, R, B>
 where
 	T: Config,
 	R: Runner<T>,
-	//<R as pallet_evm::Runner<T>>::Error: core::convert::From<InvalidEvmTransactionError>,
+	<R as pallet_evm::Runner<T>>::Error: core::convert::From<TransactionValidationError>,
 	B: AccountFeeCurrencyBalanceInCurrency<AssetId, T::AccountId, Output = (Balance, Weight)>,
 {
 	type Error = R::Error;

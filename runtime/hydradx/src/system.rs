@@ -77,7 +77,7 @@ impl Contains<RuntimeCall> for CallFilter {
 			}
 		}
 		// filter transfers of HDX to the omnipool account
-		if let RuntimeCall::Balances(pallet_balances::Call::transfer { dest, .. })
+		if let RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death { dest, .. })
 		| RuntimeCall::Balances(pallet_balances::Call::transfer_keep_alive { dest, .. })
 		| RuntimeCall::Balances(pallet_balances::Call::transfer_all { dest, .. })
 		| RuntimeCall::Currencies(pallet_currencies::Call::transfer_native_currency { dest, .. }) = call
