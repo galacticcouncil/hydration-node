@@ -66,8 +66,6 @@ fn sell_should_work_for_share_asset_when_pool_with_6_decimals() {
 
 			let expected = 994;
 
-			let pool_account = pool_account(pool_id);
-
 			assert_balance!(BOB, pool_id, bob_share_balance - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
 			let total_issuance = Tokens::total_issuance(pool_id);

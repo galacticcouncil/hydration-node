@@ -1,5 +1,4 @@
 use super::*;
-use frame_support::assert_noop;
 use frame_support::storage::with_transaction;
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::PoolType;
