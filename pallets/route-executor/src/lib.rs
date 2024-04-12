@@ -33,7 +33,7 @@ use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider, RouteSpotPriceProvider, TradeType};
+use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
@@ -854,11 +854,10 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 	}
 }
 impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
-	fn spot_price(route: &[Trade<T::AssetId>], trade_type: TradeType) -> Option<FixedU128> {
+	fn spot_price(route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
 		let mut prices: Vec<FixedU128> = Vec::with_capacity(route.len());
 		for trade in route {
-			let spot_price_result =
-				T::AMM::calculate_spot_price(trade.pool, trade_type, trade.asset_in, trade.asset_out);
+			let spot_price_result = T::AMM::calculate_spot_price(trade.pool, trade.asset_in, trade.asset_out);
 
 			match spot_price_result {
 				Ok(spot_price) => prices.push(spot_price),

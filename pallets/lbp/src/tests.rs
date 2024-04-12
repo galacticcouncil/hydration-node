@@ -16,6 +16,8 @@
 // limitations under the License.
 
 #![allow(clippy::bool_assert_comparison)]
+#![allow(clippy::excessive_precision)]
+
 use super::*;
 use crate::mock::{
 	expect_events, generate_trades, run_to_sale_end, run_to_sale_start, AccountId, RuntimeCall as Call, DEFAULT_FEE,
@@ -3865,7 +3867,6 @@ mod spot_price_calculation {
 	use hydradx_traits::pools::SpotPriceProvider;
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::router::TradeExecution;
-	use hydradx_traits::router::TradeType;
 	use sp_runtime::FixedPointNumber;
 	use sp_runtime::{FixedU128, TransactionOutcome};
 	use test_utils::assert_eq_approx;
@@ -3919,8 +3920,7 @@ mod spot_price_calculation {
 			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
-			let spot_price_with_fee =
-				LBPPallet::calculate_spot_price(PoolType::LBP, TradeType::Sell, asset_a, asset_b).unwrap();
+			let spot_price_with_fee = LBPPallet::calculate_spot_price(PoolType::LBP, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()
@@ -3995,8 +3995,7 @@ mod spot_price_calculation {
 			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
-			let spot_price_with_fee =
-				LBPPallet::calculate_spot_price(PoolType::LBP, TradeType::Sell, asset_a, asset_b).unwrap();
+			let spot_price_with_fee = LBPPallet::calculate_spot_price(PoolType::LBP, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()
@@ -4026,7 +4025,7 @@ mod spot_price_calculation {
 	}
 
 	#[test]
-	pub fn compare_spot_price_with_and_without_fee_when_repay_target_not_reached() {
+	pub fn compare_spot_price_with_and_without_fee_when_repay_fee_paid() {
 		predefined_test_ext_with_repay_target().execute_with(|| {
 			let asset_a = BSX;
 			let asset_b = KUSD;
@@ -4064,14 +4063,13 @@ mod spot_price_calculation {
 			// The difference of the amount out calculated with spot price should be less than 3%
 			assert_eq_approx!(
 				relative_difference_without_fee,
-				FixedU128::from_float(0.252251427999321039),
+				FixedU128::from_float(0.252_251_427_999_321_039),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
 
 			//Check spot price with fee
-			let spot_price_with_fee =
-				LBPPallet::calculate_spot_price(PoolType::LBP, TradeType::Sell, asset_a, asset_b).unwrap();
+			let spot_price_with_fee = LBPPallet::calculate_spot_price(PoolType::LBP, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()

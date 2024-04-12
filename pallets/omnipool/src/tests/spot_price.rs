@@ -1,9 +1,10 @@
+#![allow(clippy::excessive_precision)]
+
 use super::*;
-use frame_support::assert_noop;
 use frame_support::storage::with_transaction;
 use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::router::PoolType;
 use hydradx_traits::router::TradeExecution;
-use hydradx_traits::router::{PoolType, TradeType};
 use pretty_assertions::assert_eq;
 use sp_runtime::{Permill, TransactionOutcome};
 
@@ -31,7 +32,7 @@ fn compare_spot_price_with_and_without_fee() {
 
 			let asset_a = 100;
 			let asset_b = 200;
-			let sell_amount = 1 * ONE;
+			let sell_amount = ONE;
 
 			let received = with_transaction::<Balance, DispatchError, _>(|| {
 				let balance_before = Tokens::free_balance(asset_b, &LP1);
@@ -61,14 +62,13 @@ fn compare_spot_price_with_and_without_fee() {
 			let tolerated_difference = FixedU128::from_rational(3, 100);
 			assert_eq!(
 				relative_difference_without_fee,
-				FixedU128::from_float(0.021234227801488840)
+				FixedU128::from_float(0.021_234_227_801_488_840)
 			);
 			// The difference of the amount out calculated with spot price should be less than 3%
 			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
-			let spot_price_with_fee =
-				Omnipool::calculate_spot_price(PoolType::Omnipool, TradeType::Sell, asset_a, asset_b).unwrap();
+			let spot_price_with_fee = Omnipool::calculate_spot_price(PoolType::Omnipool, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()
