@@ -132,7 +132,7 @@ impl orml_tokens::Config for Test {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Inspect<Balance> for DummyRegistry<T> {
+impl<T: Config> Inspect for DummyRegistry<T> {
 	type AssetId = AssetId;
 	type Location = u8;
 
@@ -165,7 +165,7 @@ impl<T: Config> Inspect<Balance> for DummyRegistry<T> {
 		unimplemented!()
 	}
 
-	fn existential_deposit(_id: Self::AssetId) -> Balance {
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
 		unimplemented!()
 	}
 }

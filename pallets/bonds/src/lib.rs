@@ -103,7 +103,7 @@ pub mod pallet {
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Self::Balance>;
 
 		/// Asset Registry mechanism - used to register bonds in the asset registry.
-		type AssetRegistry: Inspect<Self::Balance, AssetId = AssetId> + Create<Self::Balance, Error = DispatchError>;
+		type AssetRegistry: Inspect<AssetId = AssetId> + Create<Self::Balance, Error = DispatchError>;
 
 		/// Provider for existential deposits of assets.
 		type ExistentialDeposits: GetByKey<AssetId, Self::Balance>;

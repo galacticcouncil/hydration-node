@@ -29,7 +29,7 @@ pub trait AccountIdFor<Assets> {
 
 use frame_support::dispatch::Parameter;
 
-pub trait Inspect<Balance> {
+pub trait Inspect {
 	type AssetId: Parameter;
 	type Location: Parameter;
 
@@ -47,11 +47,11 @@ pub trait Inspect<Balance> {
 
 	fn asset_symbol(id: Self::AssetId) -> Option<Vec<u8>>;
 
-	fn existential_deposit(id: Self::AssetId) -> Balance;
+	fn existential_deposit(id: Self::AssetId) -> Option<u128>;
 }
 
 #[allow(clippy::too_many_arguments)]
-pub trait Create<Balance>: Inspect<Balance> {
+pub trait Create<Balance>: Inspect {
 	type Error;
 	type Name: Parameter + TryFrom<sp_std::prelude::Vec<u8>>;
 	type Symbol: Parameter + TryFrom<sp_std::prelude::Vec<u8>>;
@@ -168,7 +168,7 @@ pub trait Create<Balance>: Inspect<Balance> {
 	}
 }
 
-pub trait Mutate<Balance>: Inspect<Balance> {
+pub trait Mutate<Balance>: Inspect {
 	type Error;
 
 	/// Set location for existing asset id if it wasn't set yet.

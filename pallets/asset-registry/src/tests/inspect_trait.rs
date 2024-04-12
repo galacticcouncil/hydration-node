@@ -36,11 +36,11 @@ fn is_sufficient_should_work() {
 		])
 		.build()
 		.execute_with(|| {
-			assert_eq!(<Registry as Inspect<Balance>>::is_sufficient(suff_asset_id), true);
+			assert_eq!(<Registry as Inspect>::is_sufficient(suff_asset_id), true);
 
-			assert_eq!(<Registry as Inspect<Balance>>::is_sufficient(insuff_asset_id), false);
+			assert_eq!(<Registry as Inspect>::is_sufficient(insuff_asset_id), false);
 
-			assert_eq!(<Registry as Inspect<Balance>>::is_sufficient(non_existing_id), false);
+			assert_eq!(<Registry as Inspect>::is_sufficient(non_existing_id), false);
 		});
 }
 
@@ -61,9 +61,9 @@ fn exists_should_work() {
 		)])
 		.build()
 		.execute_with(|| {
-			assert_eq!(<Registry as Inspect<Balance>>::exists(asset_id), true);
+			assert_eq!(<Registry as Inspect>::exists(asset_id), true);
 
-			assert_eq!(<Registry as Inspect<Balance>>::exists(non_existing_id), false);
+			assert_eq!(<Registry as Inspect>::exists(non_existing_id), false);
 		});
 }
 
@@ -103,13 +103,13 @@ fn decimals_should_work() {
 		])
 		.build()
 		.execute_with(|| {
-			assert_eq!(<Registry as Inspect<Balance>>::decimals(1), Some(5));
+			assert_eq!(<Registry as Inspect>::decimals(1), Some(5));
 
-			assert_eq!(<Registry as Inspect<Balance>>::decimals(2), Some(0));
+			assert_eq!(<Registry as Inspect>::decimals(2), Some(0));
 
-			assert_eq!(<Registry as Inspect<Balance>>::decimals(3), None);
+			assert_eq!(<Registry as Inspect>::decimals(3), None);
 
-			assert_eq!(<Registry as Inspect<Balance>>::decimals(non_existing_id), None);
+			assert_eq!(<Registry as Inspect>::decimals(non_existing_id), None);
 		});
 }
 
@@ -137,28 +137,19 @@ fn asset_type_should_work() {
 					.unwrap();
 
 			//Assert
+			assert_eq!(<Registry as Inspect>::asset_type(token_type_id), Some(AssetKind::Token));
+			assert_eq!(<Registry as Inspect>::asset_type(xyk_type_id), Some(AssetKind::XYK));
 			assert_eq!(
-				<Registry as Inspect<Balance>>::asset_type(token_type_id),
-				Some(AssetKind::Token)
-			);
-			assert_eq!(
-				<Registry as Inspect<Balance>>::asset_type(xyk_type_id),
-				Some(AssetKind::XYK)
-			);
-			assert_eq!(
-				<Registry as Inspect<Balance>>::asset_type(stableswap_type_id),
+				<Registry as Inspect>::asset_type(stableswap_type_id),
 				Some(AssetKind::StableSwap)
 			);
+			assert_eq!(<Registry as Inspect>::asset_type(bond_type_id), Some(AssetKind::Bond));
 			assert_eq!(
-				<Registry as Inspect<Balance>>::asset_type(bond_type_id),
-				Some(AssetKind::Bond)
-			);
-			assert_eq!(
-				<Registry as Inspect<Balance>>::asset_type(external_type_id),
+				<Registry as Inspect>::asset_type(external_type_id),
 				Some(AssetKind::External)
 			);
 
-			assert_eq!(<Registry as Inspect<Balance>>::asset_type(non_existing_id), None);
+			assert_eq!(<Registry as Inspect>::asset_type(non_existing_id), None);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
@@ -195,9 +186,9 @@ fn is_banned_should_work() {
 			assert_ok!(Registry::ban_asset(RuntimeOrigin::signed(ALICE), 1));
 
 			//Act & assert
-			assert_eq!(<Registry as Inspect<Balance>>::is_banned(1), true);
+			assert_eq!(<Registry as Inspect>::is_banned(1), true);
 
-			assert_eq!(<Registry as Inspect<Balance>>::is_banned(2), false);
+			assert_eq!(<Registry as Inspect>::is_banned(2), false);
 		});
 }
 
@@ -231,11 +222,11 @@ fn asset_name_should_work() {
 		.build()
 		.execute_with(|| {
 			//Act & assert
-			assert_eq!(<Registry as Inspect<Balance>>::asset_name(1), Some(asset_one_name));
+			assert_eq!(<Registry as Inspect>::asset_name(1), Some(asset_one_name));
 
-			assert_eq!(<Registry as Inspect<Balance>>::asset_name(2), None);
+			assert_eq!(<Registry as Inspect>::asset_name(2), None);
 
-			assert_eq!(<Registry as Inspect<Balance>>::asset_name(non_existing_id), None);
+			assert_eq!(<Registry as Inspect>::asset_name(non_existing_id), None);
 		});
 }
 
@@ -269,11 +260,11 @@ fn asset_symbol_should_work() {
 		.build()
 		.execute_with(|| {
 			//Act & assert
-			assert_eq!(<Registry as Inspect<Balance>>::asset_symbol(1), Some(asset_one_symbol));
+			assert_eq!(<Registry as Inspect>::asset_symbol(1), Some(asset_one_symbol));
 
-			assert_eq!(<Registry as Inspect<Balance>>::asset_name(2), None);
+			assert_eq!(<Registry as Inspect>::asset_name(2), None);
 
-			assert_eq!(<Registry as Inspect<Balance>>::asset_name(non_existing_id), None);
+			assert_eq!(<Registry as Inspect>::asset_name(non_existing_id), None);
 		});
 }
 
@@ -295,10 +286,10 @@ fn existential_deposit_should_work() {
 		.build()
 		.execute_with(|| {
 			//Act & assert
-			assert_eq!(<Registry as Inspect<Balance>>::existential_deposit(1), UNIT);
+			assert_eq!(<Registry as Inspect>::existential_deposit(1), Some(UNIT));
 
-			assert_eq!(<Registry as Inspect<Balance>>::existential_deposit(2), 100 * UNIT);
+			assert_eq!(<Registry as Inspect>::existential_deposit(2), Some(100 * UNIT));
 
-			assert_eq!(<Registry as Inspect<Balance>>::existential_deposit(3), Balance::MAX);
+			assert_eq!(<Registry as Inspect>::existential_deposit(3), None);
 		});
 }

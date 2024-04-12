@@ -578,7 +578,7 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: pallet_omnipool::Config> InspectRegistry<Balance> for DummyRegistry<T>
+impl<T: pallet_omnipool::Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
@@ -614,8 +614,8 @@ where
 		unimplemented!()
 	}
 
-	fn existential_deposit(_id: Self::AssetId) -> Balance {
-		1u128
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		Some(1u128)
 	}
 }
 

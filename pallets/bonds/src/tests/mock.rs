@@ -221,7 +221,7 @@ impl<T: Config> Create<Balance> for DummyRegistry<T> {
 	}
 }
 
-impl<T: Config> Inspect<Balance> for DummyRegistry<T> {
+impl<T: Config> Inspect for DummyRegistry<T> {
 	type AssetId = AssetId;
 	type Location = AssetLocation;
 
@@ -252,7 +252,7 @@ impl<T: Config> Inspect<Balance> for DummyRegistry<T> {
 	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
 	}
-	fn existential_deposit(_id: Self::AssetId) -> Balance {
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
 		unimplemented!()
 	}
 }

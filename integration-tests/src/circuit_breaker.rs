@@ -321,10 +321,9 @@ fn add_token_with_minimum_liquidity_to_omnipool_can_disable_adding_liquidity() {
 		//Arrange
 		init_omnipool();
 
-		let ed = <pallet_asset_registry::Pallet<hydradx_runtime::Runtime> as hydradx_traits::registry::Inspect<
-			Balance,
-		>>::existential_deposit(DOT);
-		let minimum_initial_liquidity = 20 * ed;
+		let ed = <pallet_asset_registry::Pallet<hydradx_runtime::Runtime> as hydradx_traits::registry::Inspect
+		>::existential_deposit(DOT);
+		let minimum_initial_liquidity = 20 * ed.unwrap();
 
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
@@ -369,10 +368,9 @@ fn add_token_with_minimum_liquidity_to_omnipool_can_disable_adding_liquidity() {
 		//Arrange
 		init_omnipool();
 
-		let ed = <pallet_asset_registry::Pallet<hydradx_runtime::Runtime> as hydradx_traits::registry::Inspect<
-			Balance,
-		>>::existential_deposit(BTC);
-		let minimum_initial_liquidity = 20 * ed;
+		let ed = <pallet_asset_registry::Pallet<hydradx_runtime::Runtime> as hydradx_traits::registry::Inspect
+		>::existential_deposit(BTC);
+		let minimum_initial_liquidity = 20 * ed.unwrap();
 
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),

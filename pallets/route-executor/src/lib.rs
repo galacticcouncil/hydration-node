@@ -91,7 +91,7 @@ pub mod pallet {
 		type Currency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
 			+ Mutate<Self::AccountId>;
 
-		type InspectRegistry: hydradx_traits::registry::Inspect<Self::Balance, AssetId = Self::AssetId>;
+		type InspectRegistry: hydradx_traits::registry::Inspect<AssetId = Self::AssetId>;
 
 		/// Handlers for AMM pools to calculate and execute trades
 		type AMM: TradeExecution<

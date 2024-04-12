@@ -629,7 +629,12 @@ use orml_traits::GetByKey;
 // Return Existential deposit of an asset
 impl<T: Config> GetByKey<T::AssetId, Balance> for Pallet<T> {
 	fn get(k: &T::AssetId) -> Balance {
-		<Self as Inspect<Balance>>::existential_deposit(*k)
+		if let Some(details) = Self::assets(k) {
+			details.existential_deposit
+		} else {
+			// Asset does not exist - not supported
+			Balance::max_value()
+		}
 	}
 }
 
@@ -643,7 +648,7 @@ impl<T: Config> GetByKey<T::AssetId, Option<Balance>> for XcmRateLimitsInRegistr
 	}
 }
 
-impl<T: Config> Inspect<Balance> for Pallet<T> {
+impl<T: Config> Inspect for Pallet<T> {
 	type AssetId = T::AssetId;
 	type Location = T::AssetNativeLocation;
 
@@ -678,13 +683,8 @@ impl<T: Config> Inspect<Balance> for Pallet<T> {
 		Self::assets(id).and_then(|a| a.symbol.map(|v| v.into()))
 	}
 
-	fn existential_deposit(id: Self::AssetId) -> Balance {
-		if let Some(details) = Self::assets(id) {
-			details.existential_deposit
-		} else {
-			// Asset does not exist - not supported
-			Balance::MAX
-		}
+	fn existential_deposit(id: Self::AssetId) -> Option<u128> {
+		Self::assets(id).map(|a| a.existential_deposit)
 	}
 }
 

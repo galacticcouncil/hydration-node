@@ -640,7 +640,7 @@ use hydradx_traits::Inspect as InspectRegistry;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> InspectRegistry<Balance> for DummyRegistry<T>
+impl<T: Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
@@ -675,8 +675,8 @@ where
 	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
 	}
-	fn existential_deposit(_id: Self::AssetId) -> Balance {
-		1u128
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		Some(1u128)
 	}
 }
 

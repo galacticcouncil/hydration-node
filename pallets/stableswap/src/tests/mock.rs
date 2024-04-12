@@ -317,7 +317,7 @@ use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;
 
-impl Inspect<Balance> for DummyRegistry {
+impl Inspect for DummyRegistry {
 	type AssetId = AssetId;
 	type Location = u8;
 
@@ -350,7 +350,7 @@ impl Inspect<Balance> for DummyRegistry {
 	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
 	}
-	fn existential_deposit(_id: Self::AssetId) -> Balance {
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
 		unimplemented!()
 	}
 }
