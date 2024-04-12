@@ -6,8 +6,8 @@ use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
+use sp_runtime::traits::CheckedDiv;
 use sp_runtime::traits::CheckedSub;
-use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul};
 use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 
