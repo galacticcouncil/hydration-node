@@ -269,7 +269,7 @@ parameter_types! {
 	pub DeferDuration: RelayChainBlockNumber = 600 * 36; // 36 hours
 	pub MaxDeferDuration: RelayChainBlockNumber = 600 * 24 * 10; // 10 days
 
-	pub const MessageQueueServiceWeight: Weight = Perbill::from_percent(25) * BlockWeights::get().max_block;
+	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(25) * BlockWeights::get().max_block;
 	pub const MessageQueueMaxStale: u32 = 8;
 	pub const MessageQueueHeapSize: u32 = 128 * 1048;
 }
