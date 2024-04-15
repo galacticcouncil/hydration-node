@@ -74,20 +74,17 @@ parameter_types! {
 }
 
 const MOONBEAM_PARA_ID: u32 = 2004;
-parameter_types! {
-	pub WETH_ASSET_LOCATION: AssetLocation = AssetLocation(Location {
-		parents: 1,
-		interior: [
-			Parachain(MOONBEAM_PARA_ID),
-			PalletInstance(110),
-			AccountKey20 {
-				network: None,
-				key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
-			},
-		]
-		.into(),
-	});
-}
+pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::MultiLocation {
+	parents: 1,
+	interior: polkadot_xcm::v3::prelude::X3(
+		polkadot_xcm::v3::prelude::Parachain(MOONBEAM_PARA_ID),
+		polkadot_xcm::v3::prelude::PalletInstance(110),
+		polkadot_xcm::v3::prelude::AccountKey20 {
+			network: None,
+			key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
+		},
+	),
+});
 
 pub struct WethAssetId;
 impl Get<AssetId> for WethAssetId {
@@ -95,7 +92,7 @@ impl Get<AssetId> for WethAssetId {
 		let invalid_id =
 			pallet_asset_registry::Pallet::<crate::Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
 
-		match pallet_asset_registry::Pallet::<crate::Runtime>::location_to_asset(WETH_ASSET_LOCATION::get()) {
+		match pallet_asset_registry::Pallet::<crate::Runtime>::location_to_asset(WETH_ASSET_LOCATION) {
 			Some(asset_id) => asset_id,
 			None => invalid_id,
 		}

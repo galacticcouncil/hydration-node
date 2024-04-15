@@ -25,10 +25,12 @@ use pallet_evm::AddressMapping;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::{RelayChainBlockNumber, Sibling};
+use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
 use primitives::Price;
 use scale_info::TypeInfo;
 use sp_runtime::Perbill;
+use sp_runtime::traits::MaybeEquivalence;
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
 	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset,
@@ -38,7 +40,23 @@ use xcm_builder::{
 use xcm_executor::{Config, XcmExecutor};
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub struct AssetLocation(pub polkadot_xcm::v4::Location);
+pub struct AssetLocation(pub polkadot_xcm::v3::Location);
+
+impl Into<Option<Location>> for AssetLocation{
+	fn into(self) -> Option<Location> {
+		xcm_builder::V4V3LocationConverter::convert_back(&self.0)
+	}
+}
+
+impl TryFrom<Location> for AssetLocation{
+	type Error = ();
+
+	fn try_from(value: Location) -> Result<Self, Self::Error> {
+		let loc: MultiLocation = value.try_into()?;
+		Ok(AssetLocation(loc.into()))
+	}
+}
+
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
@@ -310,7 +328,14 @@ impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 				parents: 1,
 				interior: [Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())].into(),
 			}),
-			_ => AssetRegistry::asset_to_location(id).map(|loc| loc.0),
+			_ => {
+				let loc = AssetRegistry::asset_to_location(id);
+				if let Some(location) = loc {
+					location.into()
+				}else{
+					None
+				}
+			},
 		}
 	}
 }
@@ -328,7 +353,14 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 				Some(CORE_ASSET_ID)
 			}
 			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) => Some(CORE_ASSET_ID),
-			_ => AssetRegistry::location_to_asset(AssetLocation(location)),
+			_ => {
+				let location: Option<AssetLocation> = location.try_into().ok();
+				if let Some(location) = location {
+					AssetRegistry::location_to_asset(location)
+				} else {
+					None
+				}
+			},
 		}
 
 		// Note: keeping the original code for reference until tests are successful
