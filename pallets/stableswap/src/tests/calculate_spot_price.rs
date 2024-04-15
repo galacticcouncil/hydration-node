@@ -20,11 +20,7 @@ fn sell_should_work_for_share_asset_when_pool_with_6_decimals() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(BOB, 1, 5000 * ONE),
-			(ALICE, 1, 5000 * ONE),
-			(ALICE, 2, 5000 * ONE),
-		])
+		.with_endowed_accounts(vec![(BOB, 1, 50 * ONE), (ALICE, 1, 50 * ONE), (ALICE, 2, 50 * ONE)])
 		.with_registered_asset("one".as_bytes().to_vec(), 1, 6)
 		.with_registered_asset("two".as_bytes().to_vec(), 2, 6)
 		.with_pool(
@@ -39,22 +35,19 @@ fn sell_should_work_for_share_asset_when_pool_with_6_decimals() {
 			},
 			InitialLiquidity {
 				account: ALICE,
-				assets: vec![
-					AssetAmount::new(asset_a, 4000 * ONE),
-					AssetAmount::new(asset_b, 4000 * ONE),
-				],
+				assets: vec![AssetAmount::new(asset_a, 40 * ONE), AssetAmount::new(asset_b, 40 * ONE)],
 			},
 		)
 		.build()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 
-			let bob_share_balance = 200000 * ONE;
+			let bob_share_balance = 20 * ONE;
 			Tokens::update_balance(pool_id, &BOB, bob_share_balance as i128).unwrap();
 
-			let sell_amount = 1000 * ONE;
+			let sell_amount = 10 * ONE;
 			let total_issuance = Tokens::total_issuance(pool_id);
-			let initial_issuance = 8000000000200000000000000000;
+			let initial_issuance = 80000000000020000000000000;
 			assert_eq!(total_issuance, initial_issuance);
 
 			assert_ok!(Stableswap::execute_sell(
@@ -66,7 +59,7 @@ fn sell_should_work_for_share_asset_when_pool_with_6_decimals() {
 				0,
 			));
 
-			let expected = 994;
+			let expected = 9;
 
 			assert_balance!(BOB, pool_id, bob_share_balance - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
@@ -79,9 +72,9 @@ fn sell_should_work_for_share_asset_when_pool_with_6_decimals() {
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
 			let difference = calculated_amount_out - expected;
 			let relative_difference = FixedU128::from_rational(difference, expected);
-			let tolerated_difference = FixedU128::from_rational(1, 100);
-			// The difference of the amount out calculated with spot price should be less than 1%
-			assert_eq!(relative_difference, FixedU128::from_float(0.002012072434607646));
+			let tolerated_difference = FixedU128::from_rational(1, 1000);
+			// The difference of the amount out calculated with spot price should be less than 0.1%
+			assert_eq!(relative_difference, FixedU128::from_float(0.000000000000000000));
 			assert!(relative_difference < tolerated_difference);
 		});
 }
@@ -404,7 +397,7 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 
-			let sell_amount = 10 * ONE;
+			let sell_amount = 1_000_000_000;
 
 			assert_ok!(Stableswap::execute_sell(
 				RuntimeOrigin::signed(BOB),
@@ -415,7 +408,7 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 				0,
 			));
 
-			let expected = 9890110975610;
+			let expected = 989999901;
 
 			assert_balance!(BOB, asset_a, 200 * ONE - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
@@ -426,11 +419,11 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
 			let difference = expected - calculated_amount_out;
 			let relative_difference = FixedU128::from_rational(difference, expected);
-			let tolerated_difference = FixedU128::from_rational(1, 100);
-			// The difference of the amount out calculated with spot price should be less than 1%
+			let tolerated_difference = FixedU128::from_rational(1, 1000);
+			// The difference of the amount out calculated with spot price should be less than 0.1%
 			assert_eq_approx!(
 				relative_difference,
-				FixedU128::from_float(0.001_007_120_704_465_670),
+				FixedU128::from_float(0.000000097979807778),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
@@ -478,7 +471,7 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 
-			let sell_amount = 10 * ONE;
+			let sell_amount = 1_000_000_000;
 
 			assert_ok!(Stableswap::execute_sell(
 				RuntimeOrigin::signed(BOB),
@@ -489,7 +482,7 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 				0,
 			));
 
-			let expected = 9681018782389;
+			let expected = 968488820;
 
 			assert_balance!(BOB, asset_c, 200 * ONE - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
@@ -504,10 +497,10 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 				calculated_amount_out - expected
 			};
 			let relative_difference = FixedU128::from_rational(difference, expected);
-			let tolerated_difference = FixedU128::from_rational(3, 100);
+			let tolerated_difference = FixedU128::from_rational(1, 1000);
 			assert_eq_approx!(
 				relative_difference,
-				FixedU128::from_float(0.000396225660875478),
+				FixedU128::from_float(0.000000038203848342),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
