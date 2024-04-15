@@ -5,7 +5,6 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::TradeExecution;
-use pretty_assertions::assert_eq;
 use sp_runtime::{Permill, TransactionOutcome};
 
 #[test]
