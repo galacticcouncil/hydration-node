@@ -206,7 +206,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 				.checked_div(&asset_fee_multiplier)
 				.ok_or(ExecutorError::Error(Corruption))?
 		} else {
-			// Protocol fee reduce the effective liquidity while asset fee reduce the asset_out amount received, both making the price higher
+			// Both protocol fee and asset fee reduce the asset_out amount received, both making the A/B price higher
 			// So we increase the spot price with dividing by (1-protocol_fee)*(1-asset_fee) to reflect correct amount out after the fee deduction
 			spot_price_without_fee
 				.checked_div(&protocol_fee_multiplier)

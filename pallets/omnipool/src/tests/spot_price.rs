@@ -23,8 +23,8 @@ fn compare_spot_price_with_and_without_fee_between_two_new_tokens() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP2, 20000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP3, 20000 * ONE)
-		.with_asset_fee(Permill::from_percent(1))
-		.with_protocol_fee(Permill::from_percent(1))
+		.with_asset_fee(Permill::from_percent(3))
+		.with_protocol_fee(Permill::from_percent(5))
 		.build()
 		.execute_with(|| {
 			let liq_added = 4000 * ONE;
@@ -59,13 +59,13 @@ fn compare_spot_price_with_and_without_fee_between_two_new_tokens() {
 				.unwrap();
 			let difference = calculated_amount_out_without_fee - received;
 			let relative_difference_without_fee = FixedU128::from_rational(difference, received);
-			let tolerated_difference = FixedU128::from_rational(3, 100);
-			assert_eq!(
+			//Fee is off here with 9% due to high fees used in trade, resulting in big difference
+			assert_eq_approx!(
 				relative_difference_without_fee,
-				FixedU128::from_float(0.021450459652706844)
+				FixedU128::from_float(0.086956521739130435),
+				FixedU128::from((2, (ONE / 10_000))),
+				"the relative difference is not as expected"
 			);
-			// The difference of the amount out calculated with spot price should be less than 3%
-			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
 			let spot_price_with_fee = Omnipool::calculate_spot_price(PoolType::Omnipool, asset_a, asset_b).unwrap();
@@ -81,7 +81,7 @@ fn compare_spot_price_with_and_without_fee_between_two_new_tokens() {
 			// The difference of the amount out calculated with spot price should be less than 0.2%
 			assert_eq_approx!(
 				relative_difference_with_fee,
-				FixedU128::from_float(0.001021450459652707),
+				FixedU128::from_float(0.001086956521739130),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
@@ -113,8 +113,8 @@ fn compare_spot_price_with_and_without_fee_when_hdx_sold() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
-		.with_asset_fee(Permill::from_percent(1))
-		.with_protocol_fee(Permill::from_percent(1))
+		.with_asset_fee(Permill::from_percent(3))
+		.with_protocol_fee(Permill::from_percent(5))
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
@@ -149,15 +149,13 @@ fn compare_spot_price_with_and_without_fee_when_hdx_sold() {
 				.unwrap();
 			let difference = calculated_amount_out_without_fee - received;
 			let relative_difference_without_fee = FixedU128::from_rational(difference, received);
-			let tolerated_difference = FixedU128::from_rational(3, 100);
+			//Fee is off here with 9% due to high fees used in trade, resulting in big difference
 			assert_eq_approx!(
 				relative_difference_without_fee,
-				FixedU128::from_float(0.020570670205706702),
+				FixedU128::from_float(0.085391672547635850),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
-			// The difference of the amount out calculated with spot price should be less than 3%
-			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
 			let spot_price_with_fee = Omnipool::calculate_spot_price(PoolType::Omnipool, asset_a, asset_b).unwrap();
@@ -205,8 +203,8 @@ fn compare_spot_price_with_and_without_fee_when_lrna_sold() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
-		.with_asset_fee(Permill::from_percent(1))
-		.with_protocol_fee(Permill::from_percent(1))
+		.with_asset_fee(Permill::from_percent(3))
+		.with_protocol_fee(Permill::from_percent(5))
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
@@ -241,15 +239,13 @@ fn compare_spot_price_with_and_without_fee_when_lrna_sold() {
 				.unwrap();
 			let difference = calculated_amount_out_without_fee - received;
 			let relative_difference_without_fee = FixedU128::from_rational(difference, received);
-			let tolerated_difference = FixedU128::from_rational(3, 100);
+			//Fee is off here with 3% due to high fees used in trade, resulting in big difference
 			assert_eq_approx!(
 				relative_difference_without_fee,
-				FixedU128::from_float(0.010512483574244415),
+				FixedU128::from_float(0.031522468142186452),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
-			// The difference of the amount out calculated with spot price should be less than 3%
-			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
 			let spot_price_with_fee = Omnipool::calculate_spot_price(PoolType::Omnipool, asset_a, asset_b).unwrap();
@@ -268,7 +264,7 @@ fn compare_spot_price_with_and_without_fee_when_lrna_sold() {
 
 			assert_eq_approx!(
 				relative_difference_with_fee,
-				FixedU128::from_float(0.000657030223390276),
+				FixedU128::from_float(0.000670690811535882),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
