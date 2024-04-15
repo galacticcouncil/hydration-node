@@ -16,7 +16,7 @@ use std::num::NonZeroU16;
 use test_utils::assert_eq_approx;
 
 #[test]
-fn sell_should_work_for_share_asset_when_pool_with_6_decimals() {
+fn spot_price_calculation_should_work_when_asset_in_is_share_with_6_decimals() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	ExtBuilder::default()
