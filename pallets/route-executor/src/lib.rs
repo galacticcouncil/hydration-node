@@ -878,6 +878,6 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 
 		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
 
-		Some(FixedU128::from_rational(rat_as_u128.0, rat_as_u128.1))
+		FixedU128::checked_from_rational(rat_as_u128.0, rat_as_u128.1)
 	}
 }
