@@ -187,7 +187,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 			let bob_share_balance = 100000 * ONE;
 			Tokens::update_balance(pool_id, &BOB, bob_share_balance as i128).unwrap();
 
-			let sell_amount = 10000 * ONE;
+			let sell_amount = 1000;
 			let total_issuance = Tokens::total_issuance(pool_id);
 			let initial_issuance = 200100000000000000000;
 			assert_eq!(total_issuance, initial_issuance);
@@ -201,7 +201,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 				0,
 			));
 
-			let expected = 9945025050391988;
+			let expected = 991;
 
 			let pool_account = pool_account(pool_id);
 
@@ -215,13 +215,17 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-			let difference = expected - calculated_amount_out;
+			let difference = if expected > calculated_amount_out {
+				expected - calculated_amount_out
+			} else {
+				calculated_amount_out - expected
+			};
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			let tolerated_difference = FixedU128::from_rational(1, 100);
 			// The difference of the amount out calculated with spot price should be less than 1%
 			assert_eq_approx!(
 				relative_difference,
-				FixedU128::from_float(0.004427837150631646),
+				FixedU128::from_float(0.001009081735620585),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
@@ -259,7 +263,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 
-			let sell_amount = 10 * ONE;
+			let sell_amount = 1_000;
 			let total_issuance = Tokens::total_issuance(pool_id);
 			let initial_issuance = 300000000000000000000;
 			assert_eq!(total_issuance, initial_issuance);
@@ -273,7 +277,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 				0,
 			));
 
-			let expected = 9998401427248106189;
+			let expected = 999999999;
 
 			assert_balance!(BOB, asset_a, 200 * ONE - sell_amount);
 			assert_balance!(BOB, pool_id, expected);
@@ -290,8 +294,11 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 				expected - calculated_amount_out
 			};
 			let relative_difference = FixedU128::from_rational(difference, expected);
-			let tolerated_difference = FixedU128::from_rational(1, 100);
-			// The difference of the amount out calculated with spot price should be less than 1%
+
+			// The difference of the amount out calculated with spot price should be less than 0.1%
+			let tolerated_difference = FixedU128::from_rational(1, 1000);
+			assert_eq!(relative_difference, FixedU128::from_float(0.000000001000000001));
+
 			assert!(relative_difference < tolerated_difference);
 		});
 }
@@ -330,7 +337,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 
-			let sell_amount = 10 * ONE;
+			let sell_amount = 1_000_000_000_000000;
 			let total_issuance = Tokens::total_issuance(pool_id);
 			let initial_issuance = 300000000000000000000;
 			assert_eq!(total_issuance, initial_issuance);
@@ -344,7 +351,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 				0,
 			));
 
-			let expected = 9999999998348;
+			let expected = 999999983498403;
 
 			assert_balance!(BOB, asset_a, 200000000 * ONE - sell_amount);
 			assert_balance!(BOB, pool_id, expected);
@@ -361,8 +368,9 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 				expected - calculated_amount_out
 			};
 			let relative_difference = FixedU128::from_rational(difference, expected);
-			let tolerated_difference = FixedU128::from_rational(1, 100);
 			// The difference of the amount out calculated with spot price should be less than 1%
+			let tolerated_difference = FixedU128::from_rational(1, 1000);
+			assert_eq!(relative_difference, FixedU128::from_float(0.000000016501597272));
 			assert!(relative_difference < tolerated_difference);
 		});
 }
