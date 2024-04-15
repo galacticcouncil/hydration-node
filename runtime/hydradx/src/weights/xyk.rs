@@ -319,4 +319,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes((11_u64).saturating_mul(e.into())))
 			.saturating_add(Weight::from_parts(0, 10332).saturating_mul(e.into()))
 	}
+
+	fn calculate_spot_price() -> Weight {
+		Weight::zero()
+	}
 }

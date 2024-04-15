@@ -174,6 +174,7 @@ construct_runtime!(
 		Staking: pallet_staking = 69,
 		Stableswap: pallet_stableswap = 70,
 		Bonds: pallet_bonds = 71,
+		OtcSettlements: pallet_otc_settlements = 72,
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
@@ -265,6 +266,14 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsReversedWithSystemFirst,
 	(migrations::OnRuntimeUpgradeMigration,),
 >;
+
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type OverarchingCall = RuntimeCall;
+	type Extrinsic = UncheckedExtrinsic;
+}
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -725,6 +734,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
 
 			list_benchmark!(list, extra, pallet_otc, OTC);
+			list_benchmark!(list, extra, pallet_otc_settlements, OtcSettlements);
 			list_benchmark!(list, extra, pallet_xcm, PolkadotXcm);
 
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
@@ -810,6 +820,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
 
 			add_benchmark!(params, batches, pallet_otc, OTC);
+			add_benchmark!(params, batches, pallet_otc_settlements, OtcSettlements);
 			add_benchmark!(params, batches, pallet_xcm, PolkadotXcm);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);

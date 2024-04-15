@@ -76,6 +76,7 @@ pallet-transaction-pause = { workspace = true }
 pallet-duster = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
+pallet-otc-settlements = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 
@@ -191,6 +192,7 @@ runtime-benchmarks = [
     "pallet-duster/runtime-benchmarks",
     "pallet-omnipool-liquidity-mining/runtime-benchmarks",
     "pallet-otc/runtime-benchmarks",
+    "pallet-otc-settlements/runtime-benchmarks",
     "pallet-dca/runtime-benchmarks",
     "pallet-route-executor/runtime-benchmarks",
     "pallet-ethereum/runtime-benchmarks",
@@ -265,6 +267,7 @@ std = [
     "pallet-dca/std",
     "pallet-ema-oracle/std",
     "pallet-otc/std",
+    "pallet-otc-settlements/std",
     "pallet-route-executor/std",
     "pallet-omnipool-liquidity-mining/std",
     "pallet-dynamic-fees/std",
@@ -357,6 +360,7 @@ try-runtime= [
     "pallet-circuit-breaker/try-runtime",
     "pallet-xcm-rate-limiter/try-runtime",
     "pallet-otc/try-runtime",
+    "pallet-otc-settlements/try-runtime",
     "pallet-route-executor/try-runtime",
     "pallet-dynamic-fees/try-runtime",
     "pallet-staking/try-runtime",

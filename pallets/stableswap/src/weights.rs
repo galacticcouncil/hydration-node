@@ -62,6 +62,7 @@ pub trait WeightInfo {
 	fn update_amplification() -> Weight;
 	fn router_execution_sell(c: u32, e: u32) -> Weight;
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
+	fn calculate_spot_price() -> Weight;
 }
 
 /// Weights for pallet_stableswap using the hydraDX node and recommended hardware.
@@ -362,6 +363,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes((6_u64).saturating_mul(e.into())))
 			.saturating_add(Weight::from_parts(0, 5797).saturating_mul(e.into()))
 	}
+
+	fn calculate_spot_price() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
@@ -659,5 +664,9 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads((12_u64).saturating_mul(e.into())))
 			.saturating_add(RocksDbWeight::get().writes((6_u64).saturating_mul(e.into())))
 			.saturating_add(Weight::from_parts(0, 5797).saturating_mul(e.into()))
+	}
+
+	fn calculate_spot_price() -> Weight {
+		Weight::zero()
 	}
 }

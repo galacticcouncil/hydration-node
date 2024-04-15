@@ -264,6 +264,35 @@ runtime_benchmarks! {
 			assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
 		}
 	}
+
+	calculate_spot_price {
+		let c in 1..3;	// number of times calculate_buy is executed
+		let e in 0..1;	// if e == 1, execute_buy is executed
+
+		let asset_a = register_external_asset(b"TKNA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_b = register_external_asset(b"TKNB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let fee_asset = register_asset(b"FEE".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		let maker = funded_account::<Runtime>("maker", 0, &[asset_a, asset_b, fee_asset]);
+		let caller = funded_account::<Runtime>("caller", 1, &[asset_a, fee_asset]);
+
+
+		init_fee_asset(fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(maker.clone()).into(), fee_asset)?;
+		MultiTransactionPayment::set_currency(RawOrigin::Signed(caller.clone()).into(), fee_asset)?;
+
+		let discount = false;
+		let amount: Balance = 200_000_000_000_000;
+		let max_sold: Balance = INITIAL_BALANCE;
+
+		XYK::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, INITIAL_BALANCE, asset_b, INITIAL_BALANCE)?;
+
+		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, 749_249_999_999_999_u128)?;
+
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
+	}: {
+		assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_spot_price(PoolType::XYK, asset_a, asset_b).is_ok());
+	}
 }
 
 #[cfg(test)]

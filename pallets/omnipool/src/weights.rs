@@ -62,6 +62,7 @@ pub trait WeightInfo {
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
 	fn withdraw_protocol_liquidity() -> Weight;
 	fn remove_token() -> Weight;
+	fn calculate_spot_price() -> Weight;
 }
 
 /// Weights for pallet_omnipool using the hydraDX node and recommended hardware.
@@ -527,6 +528,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(33))
 			.saturating_add(T::DbWeight::get().writes(22))
 	}
+
+	fn calculate_spot_price() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
@@ -989,5 +994,9 @@ impl WeightInfo for () {
 			.saturating_add(Weight::from_parts(1_594_024, 0).saturating_mul(e.into()))
 			.saturating_add(RocksDbWeight::get().reads(33))
 			.saturating_add(RocksDbWeight::get().writes(22))
+	}
+
+	fn calculate_spot_price() -> Weight {
+		Weight::zero()
 	}
 }

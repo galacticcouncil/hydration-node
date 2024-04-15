@@ -52,6 +52,8 @@ pub trait WeightInfo {
 	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32, ) -> Weight;
 	fn set_route_for_xyk() -> Weight;
 	fn force_insert_route() -> Weight;
+	fn get_route() -> Weight;
+	fn calculate_spot_price_in_lbp() -> Weight;
 }
 
 /// Weights for `pallet_route_executor` using the HydraDX node and recommended hardware.
@@ -155,6 +157,14 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::from_parts(30_421_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+
+	fn get_route() -> Weight {
+		Weight::zero()
+	}
+
+	fn calculate_spot_price_in_lbp() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests.
@@ -256,5 +266,13 @@ impl WeightInfo for () {
 		// Minimum execution time: 30_072_000 picoseconds.
 		Weight::from_parts(30_421_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+
+	fn get_route() -> Weight {
+		Weight::zero()
+	}
+
+	fn calculate_spot_price_in_lbp() -> Weight {
+		Weight::zero()
 	}
 }

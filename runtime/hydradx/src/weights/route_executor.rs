@@ -146,4 +146,12 @@ impl<T: frame_system::Config> pallet_route_executor::weights::WeightInfo for Hyd
 		Weight::from_parts(30_303_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
+
+	fn get_route() -> Weight {
+		Weight::zero()
+	}
+
+	fn calculate_spot_price_in_lbp() -> Weight {
+		Weight::zero()
+	}
 }

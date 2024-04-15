@@ -21,13 +21,13 @@ use crate::{
 };
 
 use super::*;
-use crate::benchmarking::dca::HDX;
+use crate::benchmarking::dca::{HDX, DAI};
 use frame_benchmarking::{account, BenchmarkError};
 use frame_support::dispatch::DispatchResult;
 use frame_support::{assert_ok, ensure};
 use frame_system::RawOrigin;
 use hydradx_traits::router::inverse_route;
-use hydradx_traits::router::AssetPair;
+use hydradx_traits::router::{AssetPair, RouteProvider, RouteSpotPriceProvider};
 use hydradx_traits::router::{PoolType, RouterT, Trade};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
@@ -327,6 +327,44 @@ runtime_benchmarks! {
 
 		let stored_route = Router::route(AssetPair::new(HDX, asset_6)).unwrap();
 		assert_eq!(inverse_route(stored_route.to_vec()), route);
+	}
+
+	get_route {
+		let route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: DAI
+		}];
+
+		Router::force_insert_route(
+			RawOrigin::Root.into(),
+			AssetPair::new(HDX, DAI),
+			route.clone(),
+		)?;
+	}: {
+        Router::get_route(AssetPair::new(HDX, DAI))
+    }
+
+	// Calculates the weight of LBP spot price calculation. Used in the calculation to determine the weight of the overhead.
+	calculate_spot_price_in_lbp {
+		let asset_in = register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_out = register_external_asset(b"FCB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let caller: AccountId = funded_account("caller", 7, &[asset_in, asset_out]);
+		let seller: AccountId = funded_account("seller", 8, &[asset_in, asset_out]);
+
+		setup_lbp(caller, asset_in, asset_out)?;
+
+		let trades = vec![Trade {
+			pool: PoolType::LBP,
+			asset_in,
+			asset_out
+		}];
+
+	}: {
+		Router::spot_price(trades.as_slice());
+	}
+	verify {
+		assert!(Router::spot_price(trades.as_slice()).is_some());
 	}
 }
 

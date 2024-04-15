@@ -17,6 +17,7 @@ pub mod lbp;
 pub mod omnipool;
 pub mod omnipool_lm;
 pub mod otc;
+pub mod otc_settlements;
 pub mod payment;
 pub mod preimage;
 pub mod proxy;

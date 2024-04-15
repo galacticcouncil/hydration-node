@@ -829,6 +829,13 @@ impl RouterWeightInfo {
 			number_of_times_execute_sell_amounts_executed,
 		))
 	}
+
+	pub fn calculate_spot_price_overweight() -> Weight {
+
+		weights::route_executor::HydraWeight::<Runtime>::calculate_spot_price_in_lbp()
+		.saturating_sub(weights::lbp::HydraWeight::<Runtime>::calculate_spot_price(
+		))
+	}
 }
 
 impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
@@ -1019,6 +1026,27 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		//Since we don't have any AMM specific thing in the extrinsic, we just return the plain weight
 		weights::route_executor::HydraWeight::<Runtime>::force_insert_route()
 	}
+
+	// Used in OtcSettlements::settle_otc_order extrinsic
+	fn calculate_spot_price_weight(route: &[Trade<AssetId>]) -> Weight {
+		let mut weight = Self::calculate_spot_price_overweight();
+
+		for trade in route {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::calculate_spot_price(),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::calculate_spot_price(),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::calculate_spot_price(),
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::calculate_spot_price(),
+			};
+			weight.saturating_accrue(amm_weight);
+		}
+
+		weight
+	}
+
+	fn get_route_weight() -> Weight {
+		weights::route_executor::HydraWeight::<Runtime>::get_route()
+	}
 }
 
 parameter_types! {
@@ -1040,6 +1068,8 @@ impl pallet_route_executor::Config for Runtime {
 
 parameter_types! {
 	pub const ExistentialDepositMultiplier: u8 = 5;
+	pub TreasuryAccount: AccountId = Treasury::account_id();
+	pub const PricePrecision: FixedU128 = FixedU128::from_rational(1, 100);
 }
 
 impl pallet_otc::Config for Runtime {
@@ -1050,6 +1080,21 @@ impl pallet_otc::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type WeightInfo = weights::otc::HydraWeight<Runtime>;
+}
+
+impl pallet_otc_settlements::Config for Runtime {
+	type Currency = Currencies;
+	type RuntimeEvent = RuntimeEvent;
+	type ExistentialDeposits = AssetRegistry;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Router = Router;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Router = pallet_route_executor::DummyRouter<Runtime>;
+	type ProfitReceiver = TreasuryAccount;
+	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
+	type PricePrecision = PricePrecision;
+	type WeightInfo = weights::otc_settlements::HydraWeight<Runtime>;
+	type RouterWeightInfo = RouterWeightInfo;
 }
 
 // Dynamic fees
