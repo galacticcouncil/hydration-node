@@ -373,10 +373,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1587`
 		//  Estimated: `13990`
-		// Minimum execution time: 260_302_000 picoseconds.
-		Weight::from_parts(262_839_643, 13990)
-			// Standard Error: 74_388
-			.saturating_add(Weight::from_parts(8_090, 0))
+		// Minimum execution time: 263_924_000 picoseconds.
+		Weight::from_parts(264_905_000, 13990)
 			.saturating_add(T::DbWeight::get().reads(11))
 	}
 }
