@@ -4030,7 +4030,7 @@ mod spot_price_calculation {
 			let asset_a = BSX;
 			let asset_b = KUSD;
 
-			let sell_amount = 8_000_000_u128;
+			let sell_amount = 100000_u128;
 
 			//start sale
 			set_block_number(11);
@@ -4063,7 +4063,7 @@ mod spot_price_calculation {
 			// The difference of the amount out calculated with spot price should be less than 3%
 			assert_eq_approx!(
 				relative_difference_without_fee,
-				FixedU128::from_float(0.252_251_427_999_321_039),
+				FixedU128::from_float(0.250016980235006452),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
@@ -4077,11 +4077,11 @@ mod spot_price_calculation {
 				.unwrap();
 			let difference = calculated_amount_out_with_fee - received;
 			let relative_difference_with_fee = FixedU128::from_rational(difference, received);
-			let tolerated_difference = FixedU128::from_rational(1, 100);
+			let tolerated_difference = FixedU128::from_rational(1, 1000);
 
 			assert_eq_approx!(
 				relative_difference_with_fee,
-				FixedU128::from_float(0.001801166700140859),
+				FixedU128::from_float(0.000019405982864517),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
