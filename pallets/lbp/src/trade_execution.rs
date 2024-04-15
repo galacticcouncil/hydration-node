@@ -191,7 +191,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		} else {
 			//Pool bears repay fee
 			//Fee does not change spot price as user receives the whole amount out based on whole amount in.
-			//For the trade, amount_in-fee is transferred from the user, then in the end the fee is transferred to fee-collector
+			//For the trade, amount_in minus fee is transferred from the user, then in the end the fee is transferred to fee-collector
 			spot_price_without_fee
 		};
 
