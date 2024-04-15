@@ -337,7 +337,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 
-			let sell_amount = 1_000_000_000_000000;
+			let sell_amount = 1_000_000_000_000_000;
 			let total_issuance = Tokens::total_issuance(pool_id);
 			let initial_issuance = 300000000000000000000;
 			assert_eq!(total_issuance, initial_issuance);
