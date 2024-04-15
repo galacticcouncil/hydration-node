@@ -516,8 +516,6 @@ runtime_benchmarks! {
 	}
 
     calculate_spot_price {
-		let c in 1..2;	// number of times calculate_buy is executed
-		let e in 0..1;	// if e == 1, execute_buy is executed
 		init()?;
 
 		let acc = Omnipool::protocol_account();

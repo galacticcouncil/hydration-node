@@ -608,9 +608,6 @@ benchmarks! {
 	}
 
     calculate_spot_price {
-		let c in 1..2;	// number of times calculate_buy is executed
-		let e in 0..1;	// if e == 1, execute_buy is executed
-
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let initial_liquidity = 1_000_000_000_000_000_000u128;
