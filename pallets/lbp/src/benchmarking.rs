@@ -258,7 +258,7 @@ benchmarks! {
 	}
 	verify{}
 
-    calculate_spot_price {
+	calculate_spot_price {
 		let caller = funded_account::<T>("caller", 0);
 		let fee_collector = funded_account::<T>("fee_collector", 0);
 		let asset_in: AssetId = ASSET_A_ID;

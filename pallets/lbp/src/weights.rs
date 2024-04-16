@@ -216,7 +216,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `789 + e * (1155 ±0)`
 		//  Estimated: `6156 + e * (7749 ±245_709_589_663_843_264)`
@@ -247,7 +247,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 3]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_buy(c: u32, e: u32, ) -> Weight {
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `789 + e * (1155 ±0)`
 		//  Estimated: `6156 + e * (7749 ±0)`
@@ -271,8 +271,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		//  Measured:  `789`
 		//  Estimated: `6156`
 		// Minimum execution time: 67_298_000 picoseconds.
-		Weight::from_parts(68_051_000, 6156)
-			.saturating_add(T::DbWeight::get().reads(3))
+		Weight::from_parts(68_051_000, 6156).saturating_add(T::DbWeight::get().reads(3))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
@@ -285,8 +284,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		//  Measured:  `789`
 		//  Estimated: `6156`
 		// Minimum execution time: 33_145_000 picoseconds.
-		Weight::from_parts(33_774_000, 6156)
-			.saturating_add(T::DbWeight::get().reads(4))
+		Weight::from_parts(33_774_000, 6156).saturating_add(T::DbWeight::get().reads(4))
 	}
 }
 
@@ -442,7 +440,7 @@ impl WeightInfo for () {
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `789 + e * (1155 ±0)`
 		//  Estimated: `6156 + e * (7749 ±245_709_589_663_843_264)`
@@ -473,7 +471,7 @@ impl WeightInfo for () {
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 3]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_buy(c: u32, e: u32, ) -> Weight {
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `789 + e * (1155 ±0)`
 		//  Estimated: `6156 + e * (7749 ±0)`
@@ -497,8 +495,7 @@ impl WeightInfo for () {
 		//  Measured:  `789`
 		//  Estimated: `6156`
 		// Minimum execution time: 67_298_000 picoseconds.
-		Weight::from_parts(68_051_000, 6156)
-			.saturating_add(RocksDbWeight::get().reads(3))
+		Weight::from_parts(68_051_000, 6156).saturating_add(RocksDbWeight::get().reads(3))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
@@ -511,7 +508,6 @@ impl WeightInfo for () {
 		//  Measured:  `789`
 		//  Estimated: `6156`
 		// Minimum execution time: 33_145_000 picoseconds.
-		Weight::from_parts(33_774_000, 6156)
-			.saturating_add(RocksDbWeight::get().reads(4))
+		Weight::from_parts(33_774_000, 6156).saturating_add(RocksDbWeight::get().reads(4))
 	}
 }

@@ -21,7 +21,7 @@ use crate::{
 };
 
 use super::*;
-use crate::benchmarking::dca::{HDX, DAI};
+use crate::benchmarking::dca::{DAI, HDX};
 use frame_benchmarking::{account, BenchmarkError};
 use frame_support::dispatch::DispatchResult;
 use frame_support::{assert_ok, ensure};
@@ -342,8 +342,8 @@ runtime_benchmarks! {
 			route.clone(),
 		)?;
 	}: {
-        Router::get_route(AssetPair::new(HDX, DAI))
-    }
+		Router::get_route(AssetPair::new(HDX, DAI))
+	}
 
 	// Calculates the weight of LBP spot price calculation. Used in the calculation to determine the weight of the overhead.
 	calculate_spot_price_in_lbp {

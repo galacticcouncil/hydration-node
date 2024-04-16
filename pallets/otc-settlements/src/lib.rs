@@ -22,10 +22,12 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 	RawOrigin,
 };
-use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouteSpotPriceProvider, RouterT, Trade};
+use hydradx_traits::router::{
+	AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouteSpotPriceProvider, RouterT, Trade,
+};
 use orml_traits::{GetByKey, MultiCurrency};
-pub use pallet_otc::OrderId;
 use pallet_otc::weights::WeightInfo as OtcWeightInfo;
+pub use pallet_otc::OrderId;
 use sp_arithmetic::traits::{CheckedMul, Saturating};
 use sp_arithmetic::{ArithmeticError, FixedPointNumber, FixedU128};
 use sp_runtime::offchain::storage::StorageValueRef;
@@ -209,7 +211,12 @@ pub mod pallet {
 		.saturating_add(<T as Config>::RouterWeightInfo::calculate_spot_price_weight(route))
 		.saturating_add(<T as pallet_otc::Config>::WeightInfo::fill_order().max(<T as pallet_otc::Config>::WeightInfo::partial_fill_order()))
 		)]
-		pub fn settle_otc_order(origin: OriginFor<T>, otc_id: OrderId, amount: Balance, route: Vec<Trade<AssetIdOf<T>>>) -> DispatchResult {
+		pub fn settle_otc_order(
+			origin: OriginFor<T>,
+			otc_id: OrderId,
+			amount: Balance,
+			route: Vec<Trade<AssetIdOf<T>>>,
+		) -> DispatchResult {
 			ensure_none(origin)?;
 
 			Self::settle_otc(otc_id, amount, route)
@@ -256,10 +263,14 @@ impl<T: Config> Pallet<T> {
 			ensure!(otc.amount_out == amount, Error::<T>::InvalidConditions);
 		}
 
-		ensure!(route == T::Router::get_route(AssetPair {
-			asset_in: asset_b,
-			asset_out: asset_a,
-		}), Error::<T>::InvalidConditions);
+		ensure!(
+			route
+				== T::Router::get_route(AssetPair {
+					asset_in: asset_b,
+					asset_out: asset_a,
+				}),
+			Error::<T>::InvalidConditions
+		);
 
 		// get initial otc and router price
 		let otc_price =

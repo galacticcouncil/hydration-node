@@ -515,7 +515,7 @@ runtime_benchmarks! {
 		}
 	}
 
-    calculate_spot_price {
+	calculate_spot_price {
 		init()?;
 
 		let acc = Omnipool::protocol_account();

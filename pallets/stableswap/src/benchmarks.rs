@@ -607,7 +607,7 @@ benchmarks! {
 		}
 	}
 
-    calculate_spot_price {
+	calculate_spot_price {
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let initial_liquidity = 1_000_000_000_000_000_000u128;

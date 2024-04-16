@@ -277,7 +277,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1187 + e * (2970 ±0)`
 		//  Estimated: `6156 + e * (10332 ±124_823_812_913_251_024)`
@@ -318,7 +318,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 3]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_buy(c: u32, e: u32, ) -> Weight {
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1187 + e * (2970 ±0)`
 		//  Estimated: `6156 + e * (10332 ±0)`
@@ -342,8 +342,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		//  Measured:  `1187`
 		//  Estimated: `6156`
 		// Minimum execution time: 26_159_000 picoseconds.
-		Weight::from_parts(26_805_702, 6156)
-			.saturating_add(T::DbWeight::get().reads(3))
+		Weight::from_parts(26_805_702, 6156).saturating_add(T::DbWeight::get().reads(3))
 	}
 }
 
@@ -562,7 +561,7 @@ impl WeightInfo for () {
 	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
+	fn router_execution_sell(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1187 + e * (2970 ±0)`
 		//  Estimated: `6156 + e * (10332 ±124_823_812_913_251_024)`
@@ -603,7 +602,7 @@ impl WeightInfo for () {
 	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 3]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_buy(c: u32, e: u32, ) -> Weight {
+	fn router_execution_buy(c: u32, e: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1187 + e * (2970 ±0)`
 		//  Estimated: `6156 + e * (10332 ±0)`
@@ -627,7 +626,6 @@ impl WeightInfo for () {
 		//  Measured:  `1187`
 		//  Estimated: `6156`
 		// Minimum execution time: 26_159_000 picoseconds.
-		Weight::from_parts(26_805_702, 6156)
-			.saturating_add(RocksDbWeight::get().reads(3))
+		Weight::from_parts(26_805_702, 6156).saturating_add(RocksDbWeight::get().reads(3))
 	}
 }

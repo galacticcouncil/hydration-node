@@ -110,8 +110,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		//  Measured:  `1113`
 		//  Estimated: `3566`
 		// Minimum execution time: 19_342_000 picoseconds.
-		Weight::from_parts(19_876_000, 3566)
-			.saturating_add(T::DbWeight::get().reads(1))
+		Weight::from_parts(19_876_000, 3566).saturating_add(T::DbWeight::get().reads(1))
 	}
 	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
 	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
@@ -220,8 +219,7 @@ impl WeightInfo for () {
 		//  Measured:  `1113`
 		//  Estimated: `3566`
 		// Minimum execution time: 19_342_000 picoseconds.
-		Weight::from_parts(19_876_000, 3566)
-			.saturating_add(RocksDbWeight::get().reads(1))
+		Weight::from_parts(19_876_000, 3566).saturating_add(RocksDbWeight::get().reads(1))
 	}
 	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
 	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)

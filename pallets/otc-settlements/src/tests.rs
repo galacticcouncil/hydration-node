@@ -17,7 +17,6 @@
 
 // we don't need to run tests with benchmarking feature
 #![cfg(not(feature = "runtime-benchmarks"))]
-
 #![allow(clippy::bool_assert_comparison)]
 use super::*;
 pub use crate::mock::*;

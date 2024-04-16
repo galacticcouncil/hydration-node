@@ -831,10 +831,8 @@ impl RouterWeightInfo {
 	}
 
 	pub fn calculate_spot_price_overweight() -> Weight {
-
 		weights::route_executor::HydraWeight::<Runtime>::calculate_spot_price_in_lbp()
-		.saturating_sub(weights::lbp::HydraWeight::<Runtime>::calculate_spot_price(
-		))
+			.saturating_sub(weights::lbp::HydraWeight::<Runtime>::calculate_spot_price())
 	}
 }
 
