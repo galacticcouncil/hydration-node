@@ -4810,6 +4810,7 @@ dependencies = [
  "pallet-xcm",
  "pallet-xcm-rate-limiter",
  "pallet-xyk",
+ "pallet-xyk-liquidity-mining",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain-primitives",

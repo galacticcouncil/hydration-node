@@ -44,6 +44,8 @@ members = [
   'precompiles/call-permit',
 ]
 
+resolver = "2"
+
 [workspace.dependencies]
 log = "0.4.20"
 async-trait = "0.1"

@@ -40,6 +40,7 @@ pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
+pallet-xyk-liquidity-mining = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -305,6 +306,7 @@ std = [
     "pallet-referrals/std",
     "pallet-evm-accounts/std",
     "pallet-evm-accounts-rpc-runtime-api/std",
+    "pallet-xyk-liquidity-mining/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -373,4 +375,5 @@ try-runtime= [
     "pallet-xyk/try-runtime",
     "pallet-referrals/try-runtime",
     "pallet-evm-accounts/try-runtime",
+    "pallet-xyk-liquidity-mining/try-runtime",
 ]
