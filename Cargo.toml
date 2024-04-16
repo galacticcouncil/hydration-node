@@ -40,6 +40,7 @@ members = [
   'pallets/referrals',
   'pallets/evm-accounts',
   'pallets/dynamic-evm-fee',
+  'pallets/xyk-liquidity-mining',
   'precompiles/call-permit',
 ]
 
@@ -99,6 +100,7 @@ pallet-xyk = { path = "pallets/xyk", default-features = false}
 pallet-referrals = { path = "pallets/referrals", default-features = false}
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false}
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false}
+pallet-xyk-liquidity-mining = { path = "pallets/xyk-liquidity-mining", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
@@ -119,7 +121,7 @@ frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", rev =
 frame-benchmarking-cli = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 frame-executive = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 frame-remote-externalities = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
-frame-support = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false, features = ["tuples-96"] }
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 frame-system-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }

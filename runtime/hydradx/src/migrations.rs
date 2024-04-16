@@ -9,10 +9,6 @@ pub struct OnRuntimeUpgradeMigration;
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	#[cfg(feature = "try-runtime")]
 	fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::DispatchError> {
-		log::info!("PreMigrate Asset Registry Pallet start");
-		pallet_asset_registry::migration::v2::pre_migrate::<Runtime>();
-		log::info!("PreMigrate Asset Registry  Pallet end");
-
 		log::info!("PreMigrate Collator Selection Pallet start");
 		let number_of_invulnerables = pallet_collator_selection::migration::v1::MigrateToV1::<Runtime>::pre_upgrade()?;
 		log::info!("PreMigrate Collator Selection Pallet end");
@@ -22,10 +18,6 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	fn on_runtime_upgrade() -> Weight {
 		let mut weight: Weight = Weight::zero();
 
-		log::info!("Migrate Asset Registry Pallet");
-		weight = weight.saturating_add(pallet_asset_registry::migration::v2::migrate::<Runtime>());
-		log::info!("Migrate Asset Registry Pallet end");
-
 		log::info!("Migrate Collator Selection Pallet to v1 start");
 		weight = weight
 			.saturating_add(pallet_collator_selection::migration::v1::MigrateToV1::<Runtime>::on_runtime_upgrade());
@@ -34,6 +26,10 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		log::info!("Migrate Unknown Tokens Pallet to v2 start");
 		weight = weight.saturating_add(orml_unknown_tokens::Migration::<Runtime>::on_runtime_upgrade());
 		log::info!("Migrate Unknown Tokens Pallet to v2 end");
+
+		log::info!("Migrate pallet xyk-liquidity-mining to v1 start");
+		weight = weight.saturating_add(pallet_xyk_liquidity_mining::migration::migrate_to_v1::<Runtime>());
+		log::info!("Migrate pallet xyk-liquidity-mining to v1 end");
 
 		let evm_id: u64 = 222_222u64;
 		ChainId::<Runtime>::put(evm_id);
@@ -46,10 +42,6 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
-		log::info!("PostMigrate Asset Registry Pallet start");
-		pallet_asset_registry::migration::v2::post_migrate::<Runtime>();
-		log::info!("PostMigrate Asset Registry Pallet end");
-
 		log::info!("PostMigrate Collator Selection Pallet start");
 		let migration_result = pallet_collator_selection::migration::v1::MigrateToV1::<Runtime>::post_upgrade(state);
 		log::info!("PostMigrate Collator Selection Pallet end");
