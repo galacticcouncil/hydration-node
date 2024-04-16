@@ -179,18 +179,16 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			return Err(ExecutorError::NotSupported);
 		}
 
-		// Formula: Price = price_without_fee_included of asset_in denominated in asset_put / (1 - protocol_fee) * (1 - asset_fee)
-		// Fee is taken from asset out, so we need to increase the spot price
-		// We divide by (1-protocol_fee)*(1-asset_fee) to reflect correct amount out after the fee deduction
 		let (_, protocol_fee) = T::Fee::get(&asset_a);
+		let (asset_fee, _) = T::Fee::get(&asset_b);
+
 		let protocol_fee_multipiler = Permill::from_percent(100)
 			.checked_sub(&protocol_fee)
 			.ok_or(ExecutorError::Error(Corruption))?;
-		let protocol_fee_multipiler =
+		let protocol_fee_multiplier =
 			FixedU128::checked_from_rational(protocol_fee_multipiler.deconstruct() as u128, 1_000_000)
 				.ok_or(ExecutorError::Error(Corruption))?;
 
-		let (asset_fee, _) = T::Fee::get(&asset_b);
 		let asset_fee_multiplier = Permill::from_percent(100)
 			.checked_sub(&asset_fee)
 			.ok_or(ExecutorError::Error(Corruption))?;
@@ -200,11 +198,22 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 
 		let spot_price_without_fee = Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
 
-		let spot_price = spot_price_without_fee
-			.checked_div(&protocol_fee_multipiler)
-			.ok_or(ExecutorError::Error(Corruption))?
-			.checked_div(&asset_fee_multiplier)
-			.ok_or(ExecutorError::Error(Corruption))?;
+		let spot_price = if asset_a == T::HubAssetId::get() {
+			// No protocol fee involved when LRNA is sold
+			// Fee is taken from asset out, so we need to increase the spot price
+			// We divide by (1-asset_fee) to reflect correct amount out after the fee deduction
+			spot_price_without_fee
+				.checked_div(&asset_fee_multiplier)
+				.ok_or(ExecutorError::Error(Corruption))?
+		} else {
+			// Both protocol fee and asset fee reduce the asset_out amount received, both making the A/B price higher
+			// So we increase the spot price with dividing by (1-protocol_fee)*(1-asset_fee) to reflect correct amount out after the fee deduction
+			spot_price_without_fee
+				.checked_div(&protocol_fee_multiplier)
+				.ok_or(ExecutorError::Error(Corruption))?
+				.checked_div(&asset_fee_multiplier)
+				.ok_or(ExecutorError::Error(Corruption))?
+		};
 
 		Ok(spot_price)
 	}
