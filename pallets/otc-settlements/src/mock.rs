@@ -39,6 +39,7 @@ use sp_runtime::{
 	BuildStorage,
 };
 use sp_std::sync::Arc;
+use std::{cell::RefCell, collections::HashMap};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -59,6 +60,10 @@ pub const ONE: Balance = 1_000_000_000_000;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
+
+thread_local! {
+	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
+}
 
 frame_support::construct_runtime!(
 	pub enum Test
@@ -123,7 +128,7 @@ impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
 		true
 	}
 
-	fn exists(_id: Self::AssetId) -> bool {
+	fn exists(_asset_id: Self::AssetId) -> bool {
 		true
 	}
 
@@ -303,7 +308,17 @@ where
 		_xcm_rate_limit: Option<Balance>,
 		_is_sufficient: bool,
 	) -> Result<Self::AssetId, Self::Error> {
-		unimplemented!()
+		let assigned = REGISTERED_ASSETS.with(|v| {
+			//NOTE: This is to have same ids as real AssetRegistry which is used in the benchmarks.
+			//1_000_000 - offset of the reals AssetRegistry
+			// - 5 - remove assets reagistered by default for the vec.len()
+			// + 1 - first reg asset start with 1 not 0
+			// => 1st asset id == 1_000_001
+			let l = 1_000_000 - 4 + v.borrow().len();
+			v.borrow_mut().insert(l as u32, l as u32);
+			l as u32
+		});
+		Ok(assigned)
 	}
 
 	fn register_insufficient_asset(
@@ -486,6 +501,14 @@ impl ExtBuilder {
 	pub fn build(self) -> (sp_io::TestExternalities, Arc<parking_lot::RwLock<PoolState>>) {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().insert(HDX, HDX);
+			v.borrow_mut().insert(LRNA, LRNA);
+			v.borrow_mut().insert(DAI, DAI);
+			v.borrow_mut().insert(DOT, DOT);
+			v.borrow_mut().insert(KSM, KSM);
+		});
+
 		let mut initial_native_accounts: Vec<(AccountId, Balance)> = vec![];
 		let additional_accounts: Vec<(AccountId, Balance)> = self
 			.endowed_accounts
@@ -560,12 +583,4 @@ impl ExtBuilder {
 
 		(ext, pool_state)
 	}
-}
-
-pub fn expect_events(e: Vec<RuntimeEvent>) {
-	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
-}
-
-pub fn calculate_otc_price(otc: &pallet_otc::Order<AccountId, AssetId>) -> FixedU128 {
-	FixedU128::checked_from_rational(otc.amount_out, otc.amount_in).unwrap()
 }

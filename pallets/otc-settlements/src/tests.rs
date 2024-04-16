@@ -15,10 +15,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// we don't need to run tests with benchmarking feature
+#![cfg(not(feature = "runtime-benchmarks"))]
+
 #![allow(clippy::bool_assert_comparison)]
 use super::*;
 pub use crate::mock::*;
 use frame_support::{assert_ok, assert_storage_noop};
+
+pub fn expect_events(e: Vec<RuntimeEvent>) {
+	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
+
+pub fn calculate_otc_price(otc: &pallet_otc::Order<AccountId, AssetId>) -> FixedU128 {
+	FixedU128::checked_from_rational(otc.amount_out, otc.amount_in).unwrap()
+}
 
 #[test]
 fn offchain_worker_should_store_last_update_in_storage() {

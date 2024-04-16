@@ -21,7 +21,7 @@ use orml_traits::MultiCurrency;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const HDX: u32 = 0;
-pub const DOT: u32 = 2;
+pub const DAI: u32 = 2;
 
 benchmarks! {
 	where_clause { where
@@ -30,22 +30,26 @@ benchmarks! {
 		T: crate::Config,
 		T: pallet_otc::Config,
 		u32: From<AssetIdOf<T>>,
-		<T as pallet_otc::Config>::AssetRegistry: Create<Balance, Error=DispatchError, AssetId = AssetIdOf<T>>
+		<T as pallet_otc::Config>::AssetRegistry: Create<Balance, Error=DispatchError, AssetId = AssetIdOf<T>>,
 	}
 	settle_otc_order {
+		let (dot, dai) = (HDX, DAI);
 		let account: T::AccountId = account("acc", 1, 1);
-		<T as crate::Config>::Currency::deposit(HDX.into(), &account, 1_000_000 * ONE)?;
-		<T as crate::Config>::Currency::deposit(DOT.into(), &account, 1_000_000 * ONE)?;
+
+
+		<T as crate::Config>::Currency::deposit(dot.into(), &account, 1_000_000_000 * ONE)?;
+		<T as crate::Config>::Currency::deposit(dai.into(), &account, 1_000_000_000 * ONE)?;
 
 		assert_ok!(
-			pallet_otc::Pallet::<T>::place_order(RawOrigin::Signed(account.clone()).into(), HDX.into(), DOT.into(), 100_000 * ONE, 200_001 * ONE, true)
+			pallet_otc::Pallet::<T>::place_order(RawOrigin::Signed(account.clone()).into(), dot.into(), dai.into(), 100_000_000 * ONE, 200_000_001 * ONE, true)
 		);
 
 		let route = <T as crate::Config>::Router::get_route(AssetPair {
-			asset_in: DOT.into(),
-			asset_out: HDX.into(),
+			asset_in: dai.into(),
+			asset_out: dot.into(),
 		});
-  }:  _(RawOrigin::None, 0u32, 762_939_453_125, route)
+
+  }:  _(RawOrigin::None, 0u32, 2 * ONE, route)
 }
 
 #[cfg(test)]

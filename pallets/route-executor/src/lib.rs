@@ -39,7 +39,7 @@ pub use hydradx_traits::router::{
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_core::U512;
-use sp_runtime::traits::{AccountIdConversion, CheckedDiv, One};
+use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
@@ -821,7 +821,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 
 impl<T: Config> RouteSpotPriceProvider<T::AssetId> for DummyRouter<T> {
 	fn spot_price(_route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
-		Some(FixedU128::one())
+		Some(FixedU128::from_u32(2))
 	}
 }
 

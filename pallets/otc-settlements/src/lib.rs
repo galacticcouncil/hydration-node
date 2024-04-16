@@ -25,6 +25,7 @@ use frame_system::{
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouteSpotPriceProvider, RouterT, Trade};
 use orml_traits::{GetByKey, MultiCurrency};
 pub use pallet_otc::OrderId;
+use pallet_otc::weights::WeightInfo as OtcWeightInfo;
 use sp_arithmetic::traits::{CheckedMul, Saturating};
 use sp_arithmetic::{ArithmeticError, FixedPointNumber, FixedU128};
 use sp_runtime::offchain::storage::StorageValueRef;
@@ -180,6 +181,7 @@ pub mod pallet {
 			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
 		.saturating_add(<T as Config>::RouterWeightInfo::get_route_weight())
 		.saturating_add(<T as Config>::RouterWeightInfo::calculate_spot_price_weight(route))
+		.saturating_add(<T as pallet_otc::Config>::WeightInfo::fill_order().max(<T as pallet_otc::Config>::WeightInfo::partial_fill_order()))
 		)]
 		pub fn settle_otc_order(origin: OriginFor<T>, otc_id: OrderId, amount: Balance, route: Vec<Trade<AssetIdOf<T>>>) -> DispatchResult {
 			ensure_none(origin)?;
@@ -237,15 +239,7 @@ impl<T: Config> Pallet<T> {
 		let otc_price =
 			FixedU128::checked_from_rational(otc.amount_out, otc.amount_in).ok_or(ArithmeticError::Overflow)?;
 
-		// TODO: remove
-		// let router_price_before = T::Router::spot_price(&route).ok_or(Error::<T>::PriceNotAvailable)?;
-		log::debug!(
-			target: "offchain_worker::settle_otc",
-			"initial router price: {:?}   otc_price: {:?} ",
-			T::Router::spot_price(&route).ok_or(Error::<T>::PriceNotAvailable)?,
-			otc_price
-		);
-
+		#[cfg(not(feature = "runtime-benchmarks"))]
 		if otc.partially_fillable && amount != otc.amount_in {
 			log::debug!(
 			target: "offchain_worker::settle_otc",
@@ -265,6 +259,8 @@ impl<T: Config> Pallet<T> {
 		log::debug!(
 			target: "offchain_worker::settle_otc",
 			"calling router sell: amount_in {:?} ", otc_amount_out);
+
+		#[cfg(not(feature = "runtime-benchmarks"))]
 		T::Router::sell(
 			RawOrigin::Signed(pallet_acc.clone()).into(),
 			asset_b,
