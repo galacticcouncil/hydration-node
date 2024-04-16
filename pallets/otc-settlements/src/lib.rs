@@ -80,32 +80,37 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_otc::Config + SendTransactionTypes<Call<Self>> {
+		/// The overarching event type.
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
 		/// Named reservable multi currency
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetIdOf<Self>, Balance = Balance>;
 
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
+		///Router implementation
 		type Router: RouteProvider<AssetIdOf<Self>>
 			+ RouterT<Self::RuntimeOrigin, AssetIdOf<Self>, Balance, Trade<AssetIdOf<Self>>, AmountInAndOut<Balance>>
 			+ RouteSpotPriceProvider<AssetIdOf<Self>>;
 
+		/// Provider of existential deposits.
 		type ExistentialDeposits: GetByKey<AssetIdOf<Self>, Balance>;
+
+		/// Determines the minimum profit
+		#[pallet::constant]
+		type ExistentialDepositMultiplier: Get<u8>;
 
 		/// Account who receives the profit.
 		#[pallet::constant]
 		type ProfitReceiver: Get<Self::AccountId>;
 
-		#[pallet::constant]
-		type ExistentialDepositMultiplier: Get<u8>;
-
+		/// Determines when we consider an arbitrage as closed.
 		#[pallet::constant]
 		type PricePrecision: Get<FixedU128>;
 
-		/// Weight information for the extrinsics.
-		type WeightInfo: WeightInfo;
+		/// Router weight information.
+		type RouterWeightInfo: AmmTradeWeights<Trade<AssetIdOf<Self>>>;
 
 		/// Weight information for the extrinsics.
-		type RouterWeightInfo: AmmTradeWeights<Trade<AssetIdOf<Self>>>;
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::hooks]
@@ -152,7 +157,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// An Order has been cancelled
+		/// A trade has been executed
 		Executed {
 			otc_id: OrderId,
 			otc_asset_in: AssetIdOf<T>,
@@ -166,16 +171,37 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Order cannot be found
+		/// Otc order not found
 		OrderNotFound,
-		PriceNotAvailable,
+		/// Execution requirements not met
 		InvalidConditions,
+		/// Trade amount higher than necessary
 		TradeAmountTooHigh,
+		/// Trade amount lower than necessary
 		TradeAmountTooLow,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Close an existing OTC arbitrage opportunity.
+		///
+		/// Executes a trade between an OTC order and some route.
+		/// If the OTC order is partially fillable, the extrinsic fails if the existing arbitrage
+		/// opportunity is not closed af the trade.
+		/// If the OTC order is not partially fillable, fails if there is no profit af the trade.
+		///
+		/// `Origin` calling this extrinsic is not paying or receiving anything.
+		///
+		/// The profit made by closing the arbitrage is transferred to `FeeReceiver`.
+		///
+		/// Parameters:
+		/// - `origin`: Unsigned origin.
+		/// - `otc_id`: ID of the OTC order with existing arbitrage opportunity.
+		/// - `amount`: Amount necessary to clone the arb.
+		/// - `route`: The route we trade against. Required for the fee calculation.
+		///
+		/// Emits `Executed` event when successful.
+		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::settle_otc_order()
 			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
