@@ -18,14 +18,14 @@
 //                  :?Y!                    Licensed under the Apache License, Version 2.0 (the "License");
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
-use crate::TreasuryAccount;
+use crate::{Runtime, TreasuryAccount};
 use frame_support::traits::tokens::{Fortitude, Precision};
 use frame_support::traits::{Get, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::AccountFeeCurrency;
 use pallet_evm::{AddressMapping, Error};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee};
-use primitives::{AssetId, Balance};
+use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::Convert;
 use sp_runtime::Rounding;
@@ -205,5 +205,23 @@ impl OnUnbalanced<EvmPaymentInfo<EmaPrice>> for DepositEvmFeeToTreasury {
 			payment_info.amount,
 		);
 		debug_assert_eq!(result, Ok(()));
+	}
+}
+
+
+pub struct FeeCurrencyOverrideOrDefault<EC>(PhantomData<EC>);
+
+impl<EC> AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault<EC>
+where
+	EC: Get<AssetId>,
+{
+	type AssetId = AssetId;
+
+	fn get(a: &AccountId) -> Self::AssetId {
+		let maybe_override = pallet_transaction_multi_payment::Pallet::<Runtime>::tx_fee_currency_override(a);
+		match maybe_override{
+			Some(currency) => currency,
+			None => EC::get()
+		}
 	}
 }

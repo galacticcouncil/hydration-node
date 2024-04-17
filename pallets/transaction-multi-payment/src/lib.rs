@@ -22,6 +22,7 @@
 
 pub mod weights;
 
+use codec::{Decode, Encode, MaxEncodedLen};
 use weights::WeightInfo;
 
 #[cfg(test)]
@@ -45,6 +46,8 @@ use frame_support::{
 	traits::Get,
 	weights::Weight,
 };
+use frame_support::__private::RuntimeDebug;
+use frame_support::pallet_prelude::TypeInfo;
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{
@@ -100,6 +103,7 @@ pub mod pallet {
 
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			let _ = <AcceptedCurrencyPrice<T>>::clear(u32::MAX, None);
+			let _ = <TransactionCurrencyOverride<T>>::clear(u32::MAX, None);
 		}
 	}
 
@@ -216,6 +220,10 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn currency_price)]
 	pub type AcceptedCurrencyPrice<T: Config> = StorageMap<_, Twox64Concat, AssetIdOf<T>, Price, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn tx_fee_currency_override)]
+	pub type TransactionCurrencyOverride<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, AssetIdOf<T>, OptionQuery>;
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
@@ -388,7 +396,8 @@ pub mod pallet {
 
 			// Set fee currency for the evm dispatch
 			let account_id = T::InspectEvmAccounts::account_id(source);
-			AccountCurrencyMap::<T>::insert(account_id.clone(), currency);
+			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
+
 			let result = T::EvmPermit::dispatch_permit(
 				source,
 				target,
@@ -401,8 +410,8 @@ pub mod pallet {
 				access_list,
 			)?;
 			// Reset currency back to native evm currency
-			let currency = T::EvmAssetId::get();
-			AccountCurrencyMap::<T>::insert(account_id, currency);
+			//let currency = T::EvmAssetId::get();
+			//AccountCurrencyMap::<T>::insert(account_id, currency);
 			Ok(result)
 		}
 	}
@@ -447,7 +456,7 @@ pub mod pallet {
 
 						// Set fee currency for the evm dispatch
 						let account_id = T::InspectEvmAccounts::account_id(*source);
-						AccountCurrencyMap::<T>::insert(account_id.clone(), *currency);
+						TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
 						let (gas_price, _) = T::EvmPermit::gas_price();
 
@@ -462,9 +471,6 @@ pub mod pallet {
 							None,
 							access_list.clone(),
 						);
-						// reset currency back to native evm currency
-						let currency = T::EvmAssetId::get();
-						AccountCurrencyMap::<T>::insert(account_id, currency);
 						match result {
 							Ok(_post_info) => TransactionOutcome::Rollback(Ok(())),
 							Err(e) => TransactionOutcome::Rollback(Err(e.error)),

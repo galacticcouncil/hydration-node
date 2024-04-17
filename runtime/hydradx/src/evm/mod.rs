@@ -46,6 +46,7 @@ use polkadot_xcm::{
 };
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
+use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
 
 mod accounts_conversion;
 mod evm_fee;
@@ -139,7 +140,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type OnChargeTransaction = evm_fee::TransferEvmFees<
 		evm_fee::DepositEvmFeeToTreasury,
-		crate::MultiTransactionPayment, // Get account's fee payment asset
+		FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
 		WethAssetId,
 		ConvertAmount<ShortOraclePrice>,
 		FungibleCurrencies<crate::Runtime>, // Multi currency support
@@ -153,7 +154,7 @@ impl pallet_evm::Config for crate::Runtime {
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			crate::Runtime,
 			ConvertAmount<ShortOraclePrice>,
-			crate::MultiTransactionPayment,     // Get account's fee payment asset
+			FeeCurrencyOverrideOrDefault<WethAssetId>,     // Get account's fee payment asset
 			FungibleCurrencies<crate::Runtime>, // Account balance inspector
 		>,
 	>;
