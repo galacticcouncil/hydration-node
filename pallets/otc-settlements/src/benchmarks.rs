@@ -16,7 +16,6 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 
 pub const ONE: Balance = 1_000_000_000_000;
@@ -27,26 +26,21 @@ benchmarks! {
 	where_clause { where
 		AssetIdOf<T>: From<u32>,
 		<T as crate::Config>::Currency: MultiCurrency<T::AccountId>,
-		T: crate::Config,
-		T: pallet_otc::Config,
-		u32: From<AssetIdOf<T>>,
-		<T as pallet_otc::Config>::AssetRegistry: Create<Balance, Error=DispatchError, AssetId = AssetIdOf<T>>,
+		T: crate::Config + pallet_otc::Config,
 	}
 	settle_otc_order {
-		let (dot, dai) = (HDX, DAI);
 		let account: T::AccountId = account("acc", 1, 1);
 
-
-		<T as crate::Config>::Currency::deposit(dot.into(), &account, 1_000_000_000 * ONE)?;
-		<T as crate::Config>::Currency::deposit(dai.into(), &account, 1_000_000_000 * ONE)?;
+		<T as crate::Config>::Currency::deposit(HDX.into(), &account, 1_000_000_000 * ONE)?;
+		<T as crate::Config>::Currency::deposit(DAI.into(), &account, 1_000_000_000 * ONE)?;
 
 		assert_ok!(
-			pallet_otc::Pallet::<T>::place_order(RawOrigin::Signed(account).into(), dot.into(), dai.into(), 100_000_000 * ONE, 200_000_001 * ONE, true)
+			pallet_otc::Pallet::<T>::place_order(RawOrigin::Signed(account).into(), HDX.into(), DAI.into(), 100_000_000 * ONE, 200_000_001 * ONE, true)
 		);
 
 		let route = <T as crate::Config>::Router::get_route(AssetPair {
-			asset_in: dai.into(),
-			asset_out: dot.into(),
+			asset_in: DAI.into(),
+			asset_out: HDX.into(),
 		});
 
   }:  _(RawOrigin::None, 0u32, 2 * ONE, route)
