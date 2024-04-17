@@ -16,6 +16,7 @@ use sp_io::hashing::keccak_256;
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_runtime::{DispatchErrorWithPostInfo, DispatchResult};
 use sp_std::vec::Vec;
+use pallet_evm_precompile_call_permit::{CallPermitPrecompile, NoncesStorage};
 
 pub struct EvmPermitHandler<R>(sp_std::marker::PhantomData<R>);
 
@@ -41,8 +42,7 @@ where
 		r: H256,
 		s: H256,
 	) -> DispatchResult {
-		let account_id = <R as pallet_evm::Config>::AddressMapping::into_account_id(source);
-		let account_nonce = frame_system::Pallet::<R>::account_nonce(&account_id);
+		let account_nonce = NoncesStorage::get(source);
 
 		let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<R>::generate_permit(
 			precompiles::CALLPERMIT,
@@ -87,12 +87,15 @@ where
 		gas_limit: u64,
 		max_fee_per_gas: U256,
 		max_priority_fee_per_gas: Option<U256>,
-		nonce: Option<U256>,
+		_nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
 	) -> DispatchResultWithPostInfo {
 		let mut data: [u8; 32] = [0u8; 32];
 		data[0..20].copy_from_slice(&source[..]);
 		let a = R::AccountId::from(data.into());
+
+		let permit_nonce = NoncesStorage::get(source);
+		NoncesStorage::insert(source, permit_nonce + U256::one());
 
 		pallet_evm::Pallet::<R>::call(
 			RawOrigin::Signed(a).into(),
@@ -103,7 +106,7 @@ where
 			gas_limit,
 			max_fee_per_gas,
 			max_priority_fee_per_gas,
-			nonce,
+			None,
 			access_list,
 		)
 	}
