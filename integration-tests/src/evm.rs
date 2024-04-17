@@ -1539,7 +1539,6 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_bounded() 
 		//Execute omnipool via EVM
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
-			HDX,
 			user_evm_address,
 			DISPATCH_ADDR,
 			omni_sell.encode(),
@@ -1644,7 +1643,6 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 		//Execute omnipool via EVM
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
-			HDX,
 			user_evm_address,
 			DISPATCH_ADDR,
 			omni_sell.encode(),
@@ -1748,7 +1746,6 @@ fn evm_permit_should_validate_unsigned_correctly() {
 		let (rs, v) = sign(&message, &secret_key);
 
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
-			currency: HDX,
 			source: user_evm_address,
 			target: DISPATCH_ADDR,
 			input: omni_sell.encode(),
@@ -1859,7 +1856,6 @@ fn evm_permit_dispatch_flow_should_work() {
 		// Validate unsigned first
 
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
-			currency: HDX,
 			source: user_evm_address,
 			target: DISPATCH_ADDR,
 			input: omni_sell.encode(),
@@ -1886,7 +1882,6 @@ fn evm_permit_dispatch_flow_should_work() {
 		// And Dispatch
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
-			HDX,
 			user_evm_address,
 			DISPATCH_ADDR,
 			omni_sell.encode(),
@@ -1993,7 +1988,6 @@ fn evm_permit_should_fail_when_replayed() {
 		// Validate unsigned first
 
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
-			currency: HDX,
 			source: user_evm_address,
 			target: DISPATCH_ADDR,
 			input: omni_sell.encode(),
@@ -2020,7 +2014,6 @@ fn evm_permit_should_fail_when_replayed() {
 		// And Dispatch
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
-			HDX,
 			user_evm_address,
 			DISPATCH_ADDR,
 			omni_sell.encode(),
@@ -2036,7 +2029,6 @@ fn evm_permit_should_fail_when_replayed() {
 		// And try to replay
 		assert_noop!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
-			HDX,
 			user_evm_address,
 			DISPATCH_ADDR,
 			omni_sell.encode(),

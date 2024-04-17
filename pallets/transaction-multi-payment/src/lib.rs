@@ -370,7 +370,6 @@ pub mod pallet {
 		)]
 		pub fn dispatch_permit(
 			origin: OriginFor<T>,
-			currency: AssetIdOf<T>, //TODO: to remove!
 			source: H160,
 			target: H160,
 			input: Vec<u8>,
@@ -420,7 +419,6 @@ pub mod pallet {
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
 				Call::dispatch_permit {
-					currency,
 					source,
 					target,
 					input,
