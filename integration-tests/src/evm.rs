@@ -5,7 +5,7 @@ use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::pallet_prelude::ValidateUnsigned;
-use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
+use frame_support::{assert_noop, assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::evm::ExtendedAddressMapping;
@@ -2034,7 +2034,7 @@ fn evm_permit_should_fail_when_replayed() {
 		));
 
 		// And try to replay
-		assert_ok!(MultiTransactionPayment::dispatch_permit(
+		assert_noop!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			HDX,
 			user_evm_address,
@@ -2047,7 +2047,7 @@ fn evm_permit_should_fail_when_replayed() {
 			v.serialize(),
 			H256::from(rs.r.b32()),
 			H256::from(rs.s.b32()),
-		));
+		), pallet_transaction_multi_payment::Error::<hydradx_runtime::Runtime>::EvmPermitInvalid);
 
 		// Verify evm fee amount
 		let user_hdx_balance = user_acc.balance(HDX);

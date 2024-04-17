@@ -103,7 +103,6 @@ pub mod pallet {
 
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			let _ = <AcceptedCurrencyPrice<T>>::clear(u32::MAX, None);
-			let _ = <TransactionCurrencyOverride<T>>::clear(u32::MAX, None);
 		}
 	}
 
@@ -371,7 +370,7 @@ pub mod pallet {
 		)]
 		pub fn dispatch_permit(
 			origin: OriginFor<T>,
-			currency: AssetIdOf<T>,
+			currency: AssetIdOf<T>, //TODO: to remove!
 			source: H160,
 			target: H160,
 			input: Vec<u8>,
@@ -385,17 +384,15 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 
-			ensure!(
-				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
-				Error::<T>::UnsupportedCurrency
-			);
-
 			T::EvmPermit::validate_permit(source, target, input.clone(), value, gas_limit, deadline, v, r, s)?;
 
 			let (gas_price, _) = T::EvmPermit::gas_price();
 
+			//TODO: handle set_currency
+
 			// Set fee currency for the evm dispatch
 			let account_id = T::InspectEvmAccounts::account_id(source);
+			let currency = Pallet::<T>::account_currency(&account_id);
 			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
 			let result = T::EvmPermit::dispatch_permit(
@@ -409,9 +406,9 @@ pub mod pallet {
 				None,
 				access_list,
 			)?;
-			// Reset currency back to native evm currency
-			//let currency = T::EvmAssetId::get();
-			//AccountCurrencyMap::<T>::insert(account_id, currency);
+
+			TransactionCurrencyOverride::<T>::remove(account_id.clone());
+
 			Ok(result)
 		}
 	}
@@ -456,6 +453,7 @@ pub mod pallet {
 
 						// Set fee currency for the evm dispatch
 						let account_id = T::InspectEvmAccounts::account_id(*source);
+						let currency = Pallet::<T>::account_currency(&account_id);
 						TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
 						let (gas_price, _) = T::EvmPermit::gas_price();
@@ -471,6 +469,7 @@ pub mod pallet {
 							None,
 							access_list.clone(),
 						);
+						TransactionCurrencyOverride::<T>::remove(&account_id);
 						match result {
 							Ok(_post_info) => TransactionOutcome::Rollback(Ok(())),
 							Err(e) => TransactionOutcome::Rollback(Err(e.error)),
