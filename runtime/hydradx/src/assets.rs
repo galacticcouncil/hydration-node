@@ -1066,7 +1066,6 @@ impl pallet_route_executor::Config for Runtime {
 
 parameter_types! {
 	pub const ExistentialDepositMultiplier: u8 = 5;
-	pub TreasuryAccount: AccountId = Treasury::account_id();
 	pub const PricePrecision: FixedU128 = FixedU128::from_rational(1, 100);
 }
 
