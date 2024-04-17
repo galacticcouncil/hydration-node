@@ -189,8 +189,8 @@ pub mod pallet {
 		///
 		/// Executes a trade between an OTC order and some route.
 		/// If the OTC order is partially fillable, the extrinsic fails if the existing arbitrage
-		/// opportunity is not closed af the trade.
-		/// If the OTC order is not partially fillable, fails if there is no profit af the trade.
+		/// opportunity is not closed after the trade.
+		/// If the OTC order is not partially fillable, fails if there is no profit after the trade.
 		///
 		/// `Origin` calling this extrinsic is not paying or receiving anything.
 		///
@@ -229,24 +229,25 @@ impl<T: Config> Pallet<T> {
 		PALLET_ID.into_account_truncating()
 	}
 
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	fn ensure_min_profit_amount(asset: T::AssetId, amount: Balance) -> DispatchResult {
+	/// Ensure that the profit is more than some minimum amount.
+	fn ensure_min_profit(asset: T::AssetId, profit: Balance) -> DispatchResult {
 		let min_amount = <T as Config>::ExistentialDeposits::get(&asset)
 			.checked_mul(<T as Config>::ExistentialDepositMultiplier::get().into())
 			.ok_or(ArithmeticError::Overflow)?;
 
-		// tell the binary search algo to find higher values
-		ensure!(amount >= min_amount, Error::<T>::TradeAmountTooLow);
+		// In the benchmark we doesn't make any trade, so this check would fail.
+		#[cfg(not(feature = "runtime-benchmarks"))]
+		// tell the binary search algorithm to find higher values
+		ensure!(profit >= min_amount, Error::<T>::TradeAmountTooLow);
 
 		Ok(())
 	}
 
-	#[cfg(feature = "runtime-benchmarks")]
-	fn ensure_min_profit_amount(_asset: T::AssetId, _amount: Balance) -> DispatchResult {
-		Ok(())
-	}
-
-	/// Executes two trades: asset_a -> OTC -> asset_b, and asset_b -> Router -> asset_a
+	/// Executes two trades: asset_a -> OTC -> asset_b, and asset_b -> Router -> asset_a.
+	///
+	/// If the OTC order is partially fillable, the extrinsic fails if the existing arbitrage
+	/// opportunity is not closed after the trade.
+	/// If the OTC order is not partially fillable, fails if there is no profit after the trade.
 	pub fn settle_otc(otc_id: OrderId, amount: Balance, route: Vec<Trade<AssetIdOf<T>>>) -> DispatchResult {
 		let pallet_acc = Self::account_id();
 
@@ -276,6 +277,8 @@ impl<T: Config> Pallet<T> {
 		let otc_price =
 			FixedU128::checked_from_rational(otc.amount_out, otc.amount_in).ok_or(ArithmeticError::Overflow)?;
 
+		// Router trade is disabled in the benchmarks, so disable this one as well.
+		// Without disabling it, the requirements for the extrinsic cannot be met (e.g. profit).
 		#[cfg(not(feature = "runtime-benchmarks"))]
 		if otc.partially_fillable && amount != otc.amount_in {
 			log::debug!(
@@ -297,6 +300,7 @@ impl<T: Config> Pallet<T> {
 			target: "offchain_worker::settle_otc",
 			"calling router sell: amount_in {:?} ", otc_amount_out);
 
+		// Disable in the benchmarks and use existing weight from the router pallet.
 		#[cfg(not(feature = "runtime-benchmarks"))]
 		T::Router::sell(
 			RawOrigin::Signed(pallet_acc.clone()).into(),
@@ -346,7 +350,7 @@ impl<T: Config> Pallet<T> {
 			.checked_sub(amount)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		Self::ensure_min_profit_amount(asset_a, profit)?;
+		Self::ensure_min_profit(asset_a, profit)?;
 
 		<T as Config>::Currency::transfer(asset_a, &pallet_acc, &T::ProfitReceiver::get(), profit)?;
 
