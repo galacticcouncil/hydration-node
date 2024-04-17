@@ -286,7 +286,7 @@ runtime_benchmarks! {
 
 		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, 749_249_999_999_999_u128)?;
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
 	}: {
 		assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_spot_price(PoolType::XYK, asset_a, asset_b).is_ok());
 	}

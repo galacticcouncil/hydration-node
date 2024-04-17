@@ -339,7 +339,7 @@ runtime_benchmarks! {
 		Router::force_insert_route(
 			RawOrigin::Root.into(),
 			AssetPair::new(HDX, DAI),
-			route.clone(),
+			route,
 		)?;
 	}: {
 		Router::get_route(AssetPair::new(HDX, DAI))
