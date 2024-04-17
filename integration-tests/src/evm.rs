@@ -1523,7 +1523,7 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_bounded() 
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				DISPATCH_ADDR,
+				CALLPERMIT,
 				user_evm_address,
 				DISPATCH_ADDR,
 				U256::from(0),
@@ -1628,7 +1628,7 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				DISPATCH_ADDR,
+				CALLPERMIT,
 				user_evm_address,
 				DISPATCH_ADDR,
 				U256::from(0),
@@ -1734,7 +1734,7 @@ fn evm_permit_should_validate_unsigned_correctly() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				DISPATCH_ADDR,
+				CALLPERMIT,
 				user_evm_address,
 				DISPATCH_ADDR,
 				U256::from(0),
@@ -1843,7 +1843,7 @@ fn evm_permit_dispatch_flow_should_work() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				DISPATCH_ADDR,
+				CALLPERMIT,
 				user_evm_address,
 				DISPATCH_ADDR,
 				U256::from(0),
@@ -1959,7 +1959,7 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 }
 
 use frame_support::traits::fungible::Mutate;
-use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
 use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
 
 pub fn init_omnipol() {

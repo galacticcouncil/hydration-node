@@ -1,14 +1,17 @@
 use crate::evm::precompiles;
 use fp_evm::FeeCalculator;
-use frame_support::dispatch::{Pays, PostDispatchInfo};
+use frame_support::dispatch::{Pays, PostDispatchInfo, RawOrigin};
 use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::traits::Time;
+use frame_system::Origin;
+use hydradx_traits::evm::InspectEvmAccounts;
 use pallet_evm::{AddressMapping, GasWeightMapping, Runner};
 use pallet_genesis_history::migration::Weight;
 use pallet_transaction_multi_payment::EVMPermit;
 use primitive_types::{H160, H256, U256};
 use primitives::AccountId;
+use sp_core::crypto::AccountId32;
 use sp_io::hashing::keccak_256;
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_runtime::{DispatchErrorWithPostInfo, DispatchResult};
@@ -21,9 +24,11 @@ where
 	R: frame_system::Config
 		+ pallet_evm::Config
 		+ pallet_transaction_multi_payment::Config
+		+ pallet_evm_accounts::Config
 		+ pallet_dynamic_evm_fee::Config,
 	R::Nonce: Into<U256>,
 	AccountId: From<R::AccountId>,
+	R::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
 {
 	fn validate_permit(
 		source: H160,
@@ -40,7 +45,7 @@ where
 		let account_nonce = frame_system::Pallet::<R>::account_nonce(&account_id);
 
 		let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<R>::generate_permit(
-			precompiles::DISPATCH_ADDR,
+			precompiles::CALLPERMIT,
 			source,
 			target,
 			value,
@@ -85,50 +90,22 @@ where
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
 	) -> DispatchResultWithPostInfo {
-		let is_transactional = true;
-		let validate = true;
-		let info = match <R as pallet_evm::Config>::Runner::call(
+		let mut data: [u8; 32] = [0u8; 32];
+		data[0..20].copy_from_slice(&source[..]);
+		let a = R::AccountId::from(data.into());
+
+		pallet_evm::Pallet::<R>::call(
+			RawOrigin::Signed(a).into(),
 			source,
 			target,
 			input,
 			value,
 			gas_limit,
-			Some(max_fee_per_gas),
+			max_fee_per_gas,
 			max_priority_fee_per_gas,
 			nonce,
 			access_list,
-			is_transactional,
-			validate,
-			None,
-			None,
-			<R as pallet_evm::Config>::config(),
-		) {
-			Ok(info) => info,
-			Err(e) => {
-				return Err(DispatchErrorWithPostInfo {
-					post_info: PostDispatchInfo {
-						actual_weight: Some(e.weight),
-						pays_fee: Pays::Yes,
-					},
-					error: e.error.into(),
-				})
-			}
-		};
-		Ok(PostDispatchInfo {
-			actual_weight: {
-				let mut gas_to_weight = <R as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
-					info.used_gas.standard.unique_saturated_into(),
-					true,
-				);
-				if let Some(weight_info) = info.weight_info {
-					if let Some(proof_size_usage) = weight_info.proof_size_usage {
-						*gas_to_weight.proof_size_mut() = proof_size_usage;
-					}
-				}
-				Some(gas_to_weight)
-			},
-			pays_fee: Pays::No,
-		})
+		)
 	}
 
 	fn gas_price() -> (U256, Weight) {
