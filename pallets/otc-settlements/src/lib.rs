@@ -230,15 +230,15 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Ensure that the profit is more than some minimum amount.
-	fn ensure_min_profit(asset: T::AssetId, profit: Balance) -> DispatchResult {
-		let min_amount = <T as Config>::ExistentialDeposits::get(&asset)
+	fn ensure_min_profit(asset: T::AssetId, _profit: Balance) -> DispatchResult {
+		let _min_amount = <T as Config>::ExistentialDeposits::get(&asset)
 			.checked_mul(<T as Config>::ExistentialDepositMultiplier::get().into())
 			.ok_or(ArithmeticError::Overflow)?;
 
 		// In the benchmark we doesn't make any trade, so this check would fail.
 		#[cfg(not(feature = "runtime-benchmarks"))]
 		// tell the binary search algorithm to find higher values
-		ensure!(profit >= min_amount, Error::<T>::TradeAmountTooLow);
+		ensure!(_profit >= _min_amount, Error::<T>::TradeAmountTooLow);
 
 		Ok(())
 	}
