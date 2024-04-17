@@ -246,7 +246,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	// Executes two trades: asset_a -> OTC -> asset_b, and asset_b -> Router -> asset_a
+	/// Executes two trades: asset_a -> OTC -> asset_b, and asset_b -> Router -> asset_a
 	pub fn settle_otc(otc_id: OrderId, amount: Balance, route: Vec<Trade<AssetIdOf<T>>>) -> DispatchResult {
 		let pallet_acc = Self::account_id();
 
@@ -377,6 +377,8 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Store the latest block number in the offchain storage.
+	/// Returns `true` if `block_number` is newer than the block number stored in the storage.
 	fn try_update_last_block_storage(block_number: BlockNumberFor<T>) -> bool {
 		let last_update_storage = StorageValueRef::persistent(OFFCHAIN_WORKER_DATA_LAST_UPDATE);
 		let last_update = last_update_storage
@@ -392,6 +394,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Sort open OTCs orders and save a list in the offchain storage.
 	fn sort_otcs(block_number: BlockNumberFor<T>) {
 		log::debug!(
 			target: "offchain_worker::sort_otcs",
@@ -430,6 +433,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Iterate over sorted list of OTCs and try to find arbitrage opportunities.
 	fn settle_otcs() {
 		log::debug!(
 			target: "offchain_worker::settle_otcs",
@@ -476,6 +480,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Try to find the correct amount to close the arbitrage opportunity.
 	fn try_find_trade_amount(otc_id: OrderId, route: Vec<Trade<AssetIdOf<T>>>) -> Option<Balance> {
 		let otc = <pallet_otc::Orders<T>>::get(otc_id).unwrap();
 
