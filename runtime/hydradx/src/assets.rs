@@ -23,7 +23,6 @@ use hydradx_adapters::{
 	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
 	OracleAssetVolumeProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
 };
-
 use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{
 	registry::Inspect,
@@ -44,7 +43,7 @@ use primitives::constants::{
 	chain::OMNIPOOL_SOURCE,
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 };
-use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedPointNumber};
+use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber};
 
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -108,12 +107,32 @@ impl pallet_balances::Config for Runtime {
 }
 
 pub struct CurrencyHooks;
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type AssetPriceOracle = AssetFeeOraclePriceProvider<
+	NativeAssetId,
+	crate::MultiTransactionPayment,
+	crate::Router,
+	OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
+	crate::MultiTransactionPayment,
+	EmaOracleSpotPriceShort,
+>;
+#[cfg(feature = "runtime-benchmarks")]
+pub type AssetPriceOracle = AssetFeeOraclePriceProvider<
+	NativeAssetId,
+	crate::MultiTransactionPayment,
+	crate::Router,
+	DummyOraclePriceProvider,
+	crate::MultiTransactionPayment,
+	EmaOracleSpotPriceShort,
+>;
+
 impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
 	type OnSlash = ();
-	type PreDeposit = SufficiencyCheck;
+	type PreDeposit = SufficiencyCheck<AssetPriceOracle>;
 	type PostDeposit = ();
-	type PreTransfer = SufficiencyCheck;
+	type PreTransfer = SufficiencyCheck<AssetPriceOracle>;
 	type PostTransfer = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
@@ -128,8 +147,13 @@ parameter_types! {
 		.saturating_mul_int(<Runtime as pallet_balances::Config>::ExistentialDeposit::get());
 }
 
-pub struct SufficiencyCheck;
-impl SufficiencyCheck {
+pub struct SufficiencyCheck<PriceOracle>(PhantomData<PriceOracle>);
+
+//pub struct SufficiencyCheck;
+impl<PriceOracle> SufficiencyCheck<PriceOracle>
+where
+	PriceOracle: NativePriceOracle<AssetId, hydra_dx_math::ema::EmaPrice>,
+{
 	/// This function is used by `orml-toknes::MutationHooks` before a transaction is executed.
 	/// It is called from `PreDeposit` and `PreTransfer`.
 	/// If transferred asset is not sufficient asset, it calculates ED amount in user's fee asset
@@ -171,8 +195,14 @@ impl SufficiencyCheck {
 		if !orml_tokens::Accounts::<Runtime>::contains_key(to, asset) && !AssetRegistry::is_sufficient(asset) {
 			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);
 
-			let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)
-				.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
+			let fee_payment_asset_native_price = PriceOracle::price(fee_payment_asset)
+				.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?;
+
+			let fee_payment_asset_native_price =
+				FixedU128::checked_from_rational(fee_payment_asset_native_price.n, fee_payment_asset_native_price.d)
+					.ok_or(ArithmeticError::DivisionByZero)?;
+
+			let ed_in_fee_asset = fee_payment_asset_native_price
 				.saturating_mul_int(InsufficientEDinHDX::get())
 				.max(1);
 
@@ -217,7 +247,7 @@ impl SufficiencyCheck {
 	}
 }
 
-impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
+impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck<AssetPriceOracle> {
 	fn on_transfer(asset: AssetId, from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
 		//NOTE: `to` is paying ED if `from` is whitelisted.
 		//This can happen if pallet's account transfers insufficient tokens to another account.
@@ -229,7 +259,7 @@ impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 	}
 }
 
-impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
+impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck<AssetPriceOracle> {
 	fn on_deposit(asset: AssetId, to: &AccountId, _amount: Balance) -> DispatchResult {
 		Self::on_funds(asset, to, to)
 	}
