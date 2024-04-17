@@ -522,12 +522,14 @@ where
 }
 
 /// We provide an oracle for the price of all currencies accepted as fee payment.
+/// In the else statement, first we try to get the price from cache, otherwise we calculate it
+/// The price calculation based on onchain-route is mainly used by EVM dry run as in the dry run we dont have storage filled with prices, so calculation is needed
 impl<T: Config> NativePriceOracle<AssetIdOf<T>, Price> for Pallet<T> {
 	fn price(currency: AssetIdOf<T>) -> Option<Price> {
 		if currency == T::NativeAssetId::get() {
 			Some(Price::one())
 		} else {
-			Pallet::<T>::currency_price(currency)
+			Pallet::<T>::currency_price(currency).or_else(|| Self::get_oracle_price(currency, T::NativeAssetId::get()))
 		}
 	}
 }
