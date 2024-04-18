@@ -1801,20 +1801,11 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address().into(),
 			HDX,
-			100_000_000_000_000i128,
+			100_000_000_000_000_000_000i128,
 		));
-		//Fund some DOT to sell in omnipool
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
-			DOT,
-			100_000_000i128,
-		));
-
-		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
-		let initial_user_hdx_balance = user_acc.balance(HDX);
+		let initial_treasury_dai_balance = treasury_acc.balance(DAI);
+		let initial_user_dai_balance = user_acc.balance(DOT);
 		let initial_user_weth_balance = user_acc.balance(WETH);
-		let initial_user_dot_balance = user_acc.balance(DOT);
 
 		// just reset the weth balance to 0 - to make sure we dont have enough WETH
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1827,7 +1818,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		assert_eq!(initial_user_weth_balance, 0);
 
 		let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::set_currency {
-			currency: DOT
+			currency: DAI
 		});
 
 		let gas_limit = 1000000;
@@ -1889,10 +1880,13 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 			H256::from(rs.s.b32()),
 		));
 
-		let user_dot_balance = user_acc.balance(DOT);
-		assert!(user_dot_balance < initial_user_dot_balance);
-		let dot_diff = initial_user_dot_balance - user_dot_balance;
-		assert_eq!(dot_diff, 10_000_000);
+		let currency = pallet_transaction_multi_payment::Pallet::<hydradx_runtime::Runtime>::account_currency(&user_acc.address());
+		assert_eq!(currency, DAI);
+
+		let user_dai_balance = user_acc.balance(DAI);
+		assert!(user_dai_balance < initial_user_dai_balance);
+		let dai_diff = initial_user_dai_balance - user_dai_balance;
+		assert_eq!(dai_diff, 10_000_000);
 	})
 }
 

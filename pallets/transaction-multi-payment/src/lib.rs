@@ -70,6 +70,7 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use codec::DecodeLimit;
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
@@ -265,10 +266,13 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			/*
 			ensure!(
 				!T::InspectEvmAccounts::is_evm_account(who.clone()),
 				Error::<T>::EvmAccountNotAllowed
 			);
+
+			 */
 
 			ensure!(
 				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
@@ -391,6 +395,22 @@ pub mod pallet {
 
 			// Set fee currency for the evm dispatch
 			let account_id = T::InspectEvmAccounts::account_id(source);
+
+
+			let encoded = input.clone();
+			let mut encoded_extrinsic = encoded.as_slice();
+			let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> = DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
+
+			/*
+			let currency = if let Some(crate::pallet::Call::set_currency { currency }) = maybe_call.unwrap().is_sub_type() {
+				*currency
+			}else{
+				Pallet::<T>::account_currency(&account_id)
+			};
+			let currecny = Self::determine_call_fee_currency(&account_id, &maybe_call.unwrap());
+
+			 */
+
 			let currency = Pallet::<T>::account_currency(&account_id);
 			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
@@ -736,5 +756,36 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 
 	fn get(who: &T::AccountId) -> Self::AssetId {
 		Pallet::<T>::account_currency(who)
+	}
+}
+
+impl<T: Config + pallet_utility::Config> Pallet<T>
+where
+	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
+	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
+{
+	fn determine_call_fee_currency(
+		who: &T::AccountId,
+		call: &<T as frame_system::Config>::RuntimeCall,
+	)
+		-> AssetIdOf<T>
+	{
+		if let Some(crate::pallet::Call::set_currency { currency }) = call.is_sub_type() {
+			*currency
+		} else if let Some(pallet_utility::pallet::Call::batch { calls })
+		| Some(pallet_utility::pallet::Call::batch_all { calls })
+		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
+		{
+			// `calls` can be empty Vec
+			match calls.first() {
+				Some(first_call) => match first_call.is_sub_type() {
+					Some(crate::pallet::Call::set_currency { currency }) => *currency,
+					_ => Self::account_currency(who),
+				},
+				_ => Self::account_currency(who),
+			}
+		} else {
+			Self::account_currency(who)
+		}
 	}
 }
