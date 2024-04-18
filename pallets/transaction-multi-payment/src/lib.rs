@@ -57,6 +57,7 @@ use hydradx_traits::{
 };
 use orml_traits::{GetByKey, Happened, MultiCurrency};
 use pallet_transaction_payment::OnChargeTransaction;
+use sp_runtime::traits::{Convert, ConvertToValue, TryConvert};
 use sp_std::{marker::PhantomData, prelude::*};
 
 type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
@@ -142,6 +143,10 @@ pub mod pallet {
 		type InspectEvmAccounts: InspectEvmAccounts<Self::AccountId, sp_core::H160>;
 
 		type EvmPermit: EVMPermit;
+
+		/// Try to retrieve fee currency from runtime call.
+		/// It is generic implementation to avoid tight coupling with other pallets such as utility.
+		type TryCallCurrency<'a>: TryConvert<&'a <Self as frame_system::Config>::RuntimeCall, AssetIdOf<Self>>;
 	}
 
 	#[pallet::event]
@@ -396,20 +401,21 @@ pub mod pallet {
 			// Set fee currency for the evm dispatch
 			let account_id = T::InspectEvmAccounts::account_id(source);
 
-
 			let encoded = input.clone();
 			let mut encoded_extrinsic = encoded.as_slice();
 			let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> = DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
-			/*
-			let currency = if let Some(crate::pallet::Call::set_currency { currency }) = maybe_call.unwrap().is_sub_type() {
-				*currency
+			// TODO: Simplify this
+			let currency = if let Some(call) = maybe_call.ok(){
+				let call_currency = T::TryCallCurrency::try_convert(&call);
+				if let Ok(currency) = call_currency {
+					currency
+				}else{
+					Pallet::<T>::account_currency(&account_id)
+				}
 			}else{
 				Pallet::<T>::account_currency(&account_id)
 			};
-			let currecny = Self::determine_call_fee_currency(&account_id, &maybe_call.unwrap());
-
-			 */
 
 			let currency = Pallet::<T>::account_currency(&account_id);
 			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
@@ -759,19 +765,16 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 	}
 }
 
-impl<T: Config + pallet_utility::Config> Pallet<T>
-where
-	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
-	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
+pub struct TryCallCurrency<T>(PhantomData<T>);
+impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for TryCallCurrency<T>
+	where
+		T: Config + pallet_utility::Config,
+		<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
+		<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 {
-	fn determine_call_fee_currency(
-		who: &T::AccountId,
-		call: &<T as frame_system::Config>::RuntimeCall,
-	)
-		-> AssetIdOf<T>
-	{
+	fn try_convert(call: &<T as frame_system::Config>::RuntimeCall) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
 		if let Some(crate::pallet::Call::set_currency { currency }) = call.is_sub_type() {
-			*currency
+			Ok(*currency)
 		} else if let Some(pallet_utility::pallet::Call::batch { calls })
 		| Some(pallet_utility::pallet::Call::batch_all { calls })
 		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
@@ -779,13 +782,20 @@ where
 			// `calls` can be empty Vec
 			match calls.first() {
 				Some(first_call) => match first_call.is_sub_type() {
-					Some(crate::pallet::Call::set_currency { currency }) => *currency,
-					_ => Self::account_currency(who),
+					Some(crate::pallet::Call::set_currency { currency }) => Ok(*currency),
+					_ => Err(call)
 				},
-				_ => Self::account_currency(who),
+				_ => Err(call)
 			}
 		} else {
-			Self::account_currency(who)
+			Err(call)
 		}
+	}
+}
+
+pub struct NoCallCurrency<T>(PhantomData<T>);
+impl<T: Config> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for NoCallCurrency<T>{
+	fn try_convert(call: &<T as frame_system::Config>::RuntimeCall) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
+		Err(call)
 	}
 }

@@ -487,6 +487,8 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type InspectEvmAccounts = EVMAccounts;
 	type WeightToFee = WeightToFee;
 	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
+	type TryCallCurrency<'a> = pallet_transaction_multi_payment::TryCallCurrency<Runtime>;
+	//type TryCallCurrency = pallet_transaction_multi_payment::TryCallCurrency<Runtime>;
 }
 
 impl pallet_relaychain_info::Config for Runtime {

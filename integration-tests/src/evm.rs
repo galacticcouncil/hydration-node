@@ -1800,7 +1800,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address().into(),
-			HDX,
+			DAI,
 			100_000_000_000_000_000_000i128,
 		));
 		let initial_treasury_dai_balance = treasury_acc.balance(DAI);
