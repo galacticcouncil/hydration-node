@@ -1315,12 +1315,18 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls() {
 	TestNet::reset();
 
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_evm_account());
+	let treasury_acc = MockAccount::new(Treasury::account_id());
+
 	Hydra::execute_with(|| {
 		let fee_currency = HDX;
-		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+		/*
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			ALICE.into()
+			user_acc.address().into()
 		)));
+		 */
 
 		//Set up to idle state where the chain is not utilized at all
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
@@ -1331,25 +1337,20 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls() {
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			ALICE.into(),
+			user_acc.address().into(),
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			fee_currency,
-		));
-
 		// give alice evm addr seom weth to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			ALICE.into(),
+			user_acc.address().into(),
 			DOT,
 			(10 * UNITS) as i128,
 		));
 
 		let treasury_currency_balance = Currencies::free_balance(fee_currency, &Treasury::account_id());
-		let alice_currency_balance = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
+		let alice_currency_balance = Currencies::free_balance(fee_currency, &AccountId::from(user_acc.address()));
 
 		//Act
 		let omni_sell =
@@ -1363,6 +1364,39 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls() {
 		let gas_limit = 1_000_000;
 		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
 
+
+		let deadline = U256::from(1000000000000u128);
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				CALLPERMIT,
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				omni_sell.encode(),
+				gas_limit * 10,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&alith_secret_key()).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		//Execute omnipool via EVM
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
+			user_evm_address,
+			DISPATCH_ADDR,
+			omni_sell.encode(),
+			U256::from(0),
+			gas_limit * 10,
+			deadline,
+			[].into(),
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+
+		/*
 		//Execute omnipool sell via EVM
 		assert_ok!(EVM::call(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -1377,8 +1411,10 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls() {
 			[].into(),
 		));
 
+		 */
+
 		let new_treasury_currency_balance = Currencies::free_balance(fee_currency, &Treasury::account_id());
-		let new_alice_currency_balance = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
+		let new_alice_currency_balance = Currencies::free_balance(fee_currency, &AccountId::from(user_acc.address()));
 		let evm_fee = alice_currency_balance - new_alice_currency_balance;
 		let treasury_evm_fee = new_treasury_currency_balance - treasury_currency_balance;
 		assert_eq!(treasury_evm_fee, evm_fee);
@@ -1387,11 +1423,12 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls() {
 		let info = omni_sell.get_dispatch_info();
 		let len: usize = 146;
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, len);
+			.pre_dispatch(&AccountId::from(user_acc.address()), &omni_sell, &info, len);
 		assert_ok!(&pre);
 
-		let alice_currency_balance_pre_dispatch = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
+		let alice_currency_balance_pre_dispatch = Currencies::free_balance(fee_currency, &AccountId::from(user_acc.address()));
 		let native_fee = new_alice_currency_balance - alice_currency_balance_pre_dispatch;
+		dbg!(evm_fee,native_fee);
 		assert!(evm_fee > native_fee);
 
 		let fee_difference = evm_fee - native_fee;

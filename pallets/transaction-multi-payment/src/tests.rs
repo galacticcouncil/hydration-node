@@ -373,31 +373,6 @@ fn set_native_currency() {
 }
 
 #[test]
-fn set_currency_for_evm_accounts_should_not_work() {
-	ExtBuilder::default()
-		.account_tokens(ALICE, WETH, 1_000_000_000)
-		.build()
-		.execute_with(|| {
-			let alice_evm_address = EVMAccounts::evm_address(&ALICE);
-			let alice_evm_acc = EVMAccounts::truncated_account_id(alice_evm_address);
-
-			assert_ok!(Tokens::transfer(
-				Some(ALICE).into(),
-				alice_evm_acc.clone(),
-				WETH,
-				1_000_000_000
-			));
-
-			assert_eq!(PaymentPallet::account_currency(&alice_evm_acc), WETH);
-
-			assert_noop!(
-				PaymentPallet::set_currency(RuntimeOrigin::signed(alice_evm_acc), SUPPORTED_CURRENCY),
-				Error::<Test>::EvmAccountNotAllowed
-			);
-		});
-}
-
-#[test]
 fn fee_payment_in_native_currency() {
 	ExtBuilder::default()
 		.base_weight(5)
@@ -1373,10 +1348,9 @@ fn validate_unsigned_should_correctly_call_validate_handler() {
 			let s: [u8; 32] = [200; 32];
 
 			let call = crate::Call::dispatch_permit {
-				currency: HDX,
 				source: alice_evm_address,
 				target: other_evm_address,
-				input: b"test".to_vec(),
+				data: b"test".to_vec(),
 				value: U256::from(1234),
 				gas_limit: 123,
 				deadline: U256::from(99999),
@@ -1421,10 +1395,9 @@ fn validate_unsigned_should_correctly_dry_run_dispatch() {
 			let s: [u8; 32] = [200; 32];
 
 			let call = crate::Call::dispatch_permit {
-				currency: HDX,
 				source: alice_evm_address,
 				target: other_evm_address,
-				input: b"test".to_vec(),
+				data: b"test".to_vec(),
 				value: U256::from(1234),
 				gas_limit: 123,
 				deadline: U256::from(99999),
@@ -1470,7 +1443,6 @@ fn dispatch_should_correctly_call_validate_and_dispatch() {
 
 			assert_ok!(PaymentPallet::dispatch_permit(
 				RuntimeOrigin::none(),
-				HDX,
 				alice_evm_address,
 				other_evm_address,
 				b"test".to_vec(),

@@ -269,14 +269,6 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			/*
-			ensure!(
-				!T::InspectEvmAccounts::is_evm_account(who.clone()),
-				Error::<T>::EvmAccountNotAllowed
-			);
-
-			 */
-
 			ensure!(
 				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
 				Error::<T>::UnsupportedCurrency
