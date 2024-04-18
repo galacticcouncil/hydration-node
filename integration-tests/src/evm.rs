@@ -2178,6 +2178,7 @@ pub fn init_omnipool_with_oracle_for_block_10() {
 	for _ in from..=to {
 		hydradx_run_to_next_block();
 		do_trade_to_populate_oracle(DOT, HDX, 1_000_000_000_000);
+		do_trade_to_populate_oracle(DAI, HDX, 1_000_000_000_000);
 		do_trade_to_populate_oracle(WETH, DOT, 1_000_000_000_000);
 	}
 }
@@ -2215,8 +2216,10 @@ use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
 pub fn init_omnipol() {
 	let native_price = FixedU128::from_rational(29903049701668757, 73927734532192294158);
 	let dot_price = FixedU128::from_rational(103158291366950047, 4566210555614178);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
 	let acc = hydradx_runtime::Omnipool::protocol_account();
 
+	let stable_amount = 50_000_000 * UNITS * 1_000_000;
 	let dot_amount: Balance = 4566210555614178u128;
 	let native_amount: Balance = 73927734532192294158u128;
 	let weth_amount: Balance = 1074271742496220564487u128;
@@ -2229,7 +2232,7 @@ pub fn init_omnipol() {
 		0
 	));
 	Balances::set_balance(&acc, native_amount);
-	assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), acc, WETH, weth_amount, 0));
+	assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), acc.clone(), WETH, weth_amount, 0));
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
 		HDX,
@@ -2250,6 +2253,15 @@ pub fn init_omnipol() {
 		WETH,
 		weth_price,
 		Permill::from_percent(60),
+		AccountId::from(ALICE),
+	));
+
+	assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), acc, DAI, stable_amount, 0));
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAI,
+		stable_price,
+		Permill::from_percent(100),
 		AccountId::from(ALICE),
 	));
 

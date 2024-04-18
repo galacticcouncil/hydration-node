@@ -396,8 +396,6 @@ pub mod pallet {
 
 			let (gas_price, _) = T::EvmPermit::gas_price();
 
-			//TODO: handle set_currency
-
 			// Set fee currency for the evm dispatch
 			let account_id = T::InspectEvmAccounts::account_id(source);
 
@@ -417,7 +415,6 @@ pub mod pallet {
 				Pallet::<T>::account_currency(&account_id)
 			};
 
-			let currency = Pallet::<T>::account_currency(&account_id);
 			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
 			let result = T::EvmPermit::dispatch_permit(
@@ -477,7 +474,23 @@ pub mod pallet {
 
 						// Set fee currency for the evm dispatch
 						let account_id = T::InspectEvmAccounts::account_id(*source);
-						let currency = Pallet::<T>::account_currency(&account_id);
+
+						let encoded = input.clone();
+						let mut encoded_extrinsic = encoded.as_slice();
+						let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> = DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
+
+						// TODO: Simplify this
+						let currency = if let Some(call) = maybe_call.ok(){
+							let call_currency = T::TryCallCurrency::try_convert(&call);
+							if let Ok(currency) = call_currency {
+								currency
+							}else{
+								Pallet::<T>::account_currency(&account_id)
+							}
+						}else{
+							Pallet::<T>::account_currency(&account_id)
+						};
+
 						TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
 						let (gas_price, _) = T::EvmPermit::gas_price();
