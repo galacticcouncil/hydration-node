@@ -19,6 +19,7 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
 use crate::evm::runner::WrapRunner;
 use crate::types::ShortOraclePrice;
 pub use crate::{
@@ -46,7 +47,6 @@ use polkadot_xcm::{
 };
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
-use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
 
 mod accounts_conversion;
 mod evm_fee;
@@ -154,8 +154,8 @@ impl pallet_evm::Config for crate::Runtime {
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			crate::Runtime,
 			ConvertAmount<ShortOraclePrice>,
-			FeeCurrencyOverrideOrDefault<WethAssetId>,     // Get account's fee payment asset
-			FungibleCurrencies<crate::Runtime>, // Account balance inspector
+			FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
+			FungibleCurrencies<crate::Runtime>,        // Account balance inspector
 		>,
 	>;
 	type RuntimeEvent = crate::RuntimeEvent;

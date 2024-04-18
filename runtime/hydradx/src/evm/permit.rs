@@ -1,12 +1,11 @@
 use crate::evm::precompiles;
 use fp_evm::FeeCalculator;
-use frame_support::dispatch::{Pays, PostDispatchInfo, RawOrigin};
+use frame_support::dispatch::RawOrigin;
 use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::traits::Time;
-use frame_system::Origin;
-use hydradx_traits::evm::InspectEvmAccounts;
-use pallet_evm::{AddressMapping, GasWeightMapping, Runner};
+use pallet_evm::GasWeightMapping;
+use pallet_evm_precompile_call_permit::NoncesStorage;
 use pallet_genesis_history::migration::Weight;
 use pallet_transaction_multi_payment::EVMPermit;
 use primitive_types::{H160, H256, U256};
@@ -14,9 +13,8 @@ use primitives::AccountId;
 use sp_core::crypto::AccountId32;
 use sp_io::hashing::keccak_256;
 use sp_runtime::traits::UniqueSaturatedInto;
-use sp_runtime::{DispatchErrorWithPostInfo, DispatchResult};
+use sp_runtime::DispatchResult;
 use sp_std::vec::Vec;
-use pallet_evm_precompile_call_permit::{CallPermitPrecompile, NoncesStorage};
 
 pub struct EvmPermitHandler<R>(sp_std::marker::PhantomData<R>);
 
@@ -34,7 +32,7 @@ where
 	fn validate_permit(
 		source: H160,
 		target: H160,
-		input: Vec<u8>,
+		data: Vec<u8>,
 		value: U256,
 		gas_limit: u64,
 		deadline: U256,
@@ -49,7 +47,7 @@ where
 			source,
 			target,
 			value,
-			input,
+			data,
 			gas_limit,
 			account_nonce.into(),
 			deadline,
@@ -82,7 +80,7 @@ where
 	fn dispatch_permit(
 		source: H160,
 		target: H160,
-		input: Vec<u8>,
+		data: Vec<u8>,
 		value: U256,
 		gas_limit: u64,
 		max_fee_per_gas: U256,
@@ -90,18 +88,18 @@ where
 		_nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
 	) -> DispatchResultWithPostInfo {
-		let mut data: [u8; 32] = [0u8; 32];
-		data[0..20].copy_from_slice(&source[..]);
-		let a = R::AccountId::from(data.into());
+		let mut acc_data: [u8; 32] = [0u8; 32];
+		acc_data[0..20].copy_from_slice(&source[..]);
+		let a = R::AccountId::from(acc_data.into());
 
 		let permit_nonce = NoncesStorage::get(source);
 		NoncesStorage::insert(source, permit_nonce + U256::one());
-		
+
 		pallet_evm::Pallet::<R>::call(
 			RawOrigin::Signed(a).into(),
 			source,
 			target,
-			input,
+			data,
 			value,
 			gas_limit,
 			max_fee_per_gas,

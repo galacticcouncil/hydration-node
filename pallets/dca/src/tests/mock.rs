@@ -476,7 +476,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			});
 		});
 
-		let Ok(who) =  ensure_signed(who) else {
+		let Ok(who) = ensure_signed(who) else {
 			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
 		};
 		let amount_out = CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| *v.borrow());
@@ -511,7 +511,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			});
 		});
 
-		let Ok(who) =  ensure_signed(origin) else {
+		let Ok(who) = ensure_signed(origin) else {
 			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
 		};
 		let amount_in = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;

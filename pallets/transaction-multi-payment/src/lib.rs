@@ -22,7 +22,6 @@
 
 pub mod weights;
 
-use codec::{Decode, Encode, MaxEncodedLen};
 use weights::WeightInfo;
 
 #[cfg(test)]
@@ -46,8 +45,6 @@ use frame_support::{
 	traits::Get,
 	weights::Weight,
 };
-use frame_support::__private::RuntimeDebug;
-use frame_support::pallet_prelude::TypeInfo;
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{
@@ -57,7 +54,7 @@ use hydradx_traits::{
 };
 use orml_traits::{GetByKey, Happened, MultiCurrency};
 use pallet_transaction_payment::OnChargeTransaction;
-use sp_runtime::traits::{Convert, ConvertToValue, TryConvert};
+use sp_runtime::traits::TryConvert;
 use sp_std::{marker::PhantomData, prelude::*};
 
 type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
@@ -71,8 +68,8 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use codec::DecodeLimit;
 	use super::*;
+	use codec::DecodeLimit;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
@@ -228,7 +225,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn tx_fee_currency_override)]
-	pub type TransactionCurrencyOverride<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, AssetIdOf<T>, OptionQuery>;
+	pub type TransactionCurrencyOverride<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, AssetIdOf<T>, OptionQuery>;
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
@@ -381,7 +379,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			source: H160,
 			target: H160,
-			input: Vec<u8>,
+			data: Vec<u8>,
 			value: U256,
 			gas_limit: u64,
 			deadline: U256,
@@ -392,26 +390,27 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 
-			T::EvmPermit::validate_permit(source, target, input.clone(), value, gas_limit, deadline, v, r, s)?;
+			T::EvmPermit::validate_permit(source, target, data.clone(), value, gas_limit, deadline, v, r, s)?;
 
 			let (gas_price, _) = T::EvmPermit::gas_price();
 
 			// Set fee currency for the evm dispatch
 			let account_id = T::InspectEvmAccounts::account_id(source);
 
-			let encoded = input.clone();
+			let encoded = data.clone();
 			let mut encoded_extrinsic = encoded.as_slice();
-			let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> = DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
+			let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
+				DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
 			// TODO: Simplify this
-			let currency = if let Some(call) = maybe_call.ok(){
+			let currency = if let Some(call) = maybe_call.ok() {
 				let call_currency = T::TryCallCurrency::try_convert(&call);
 				if let Ok(currency) = call_currency {
 					currency
-				}else{
+				} else {
 					Pallet::<T>::account_currency(&account_id)
 				}
-			}else{
+			} else {
 				Pallet::<T>::account_currency(&account_id)
 			};
 
@@ -420,7 +419,7 @@ pub mod pallet {
 			let result = T::EvmPermit::dispatch_permit(
 				source,
 				target,
-				input,
+				data,
 				value,
 				gas_limit,
 				gas_price,
@@ -444,7 +443,7 @@ pub mod pallet {
 				Call::dispatch_permit {
 					source,
 					target,
-					input,
+					data,
 					value,
 					gas_limit,
 					deadline,
@@ -460,7 +459,7 @@ pub mod pallet {
 						let result = T::EvmPermit::validate_permit(
 							*source,
 							*target,
-							input.clone(),
+							data.clone(),
 							*value,
 							*gas_limit,
 							*deadline,
@@ -475,19 +474,20 @@ pub mod pallet {
 						// Set fee currency for the evm dispatch
 						let account_id = T::InspectEvmAccounts::account_id(*source);
 
-						let encoded = input.clone();
+						let encoded = data.clone();
 						let mut encoded_extrinsic = encoded.as_slice();
-						let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> = DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
+						let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
+							DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
 						// TODO: Simplify this
-						let currency = if let Some(call) = maybe_call.ok(){
+						let currency = if let Some(call) = maybe_call.ok() {
 							let call_currency = T::TryCallCurrency::try_convert(&call);
 							if let Ok(currency) = call_currency {
 								currency
-							}else{
+							} else {
 								Pallet::<T>::account_currency(&account_id)
 							}
-						}else{
+						} else {
 							Pallet::<T>::account_currency(&account_id)
 						};
 
@@ -498,7 +498,7 @@ pub mod pallet {
 						let result = T::EvmPermit::dispatch_permit(
 							*source,
 							*target,
-							input.clone(),
+							data.clone(),
 							*value,
 							*gas_limit,
 							gas_price,
@@ -780,12 +780,14 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 
 pub struct TryCallCurrency<T>(PhantomData<T>);
 impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for TryCallCurrency<T>
-	where
-		T: Config + pallet_utility::Config,
-		<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
-		<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
+where
+	T: Config + pallet_utility::Config,
+	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
+	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 {
-	fn try_convert(call: &<T as frame_system::Config>::RuntimeCall) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
+	fn try_convert(
+		call: &<T as frame_system::Config>::RuntimeCall,
+	) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
 		if let Some(crate::pallet::Call::set_currency { currency }) = call.is_sub_type() {
 			Ok(*currency)
 		} else if let Some(pallet_utility::pallet::Call::batch { calls })
@@ -796,9 +798,9 @@ impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for 
 			match calls.first() {
 				Some(first_call) => match first_call.is_sub_type() {
 					Some(crate::pallet::Call::set_currency { currency }) => Ok(*currency),
-					_ => Err(call)
+					_ => Err(call),
 				},
-				_ => Err(call)
+				_ => Err(call),
 			}
 		} else {
 			Err(call)
@@ -807,8 +809,10 @@ impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for 
 }
 
 pub struct NoCallCurrency<T>(PhantomData<T>);
-impl<T: Config> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for NoCallCurrency<T>{
-	fn try_convert(call: &<T as frame_system::Config>::RuntimeCall) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
+impl<T: Config> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for NoCallCurrency<T> {
+	fn try_convert(
+		call: &<T as frame_system::Config>::RuntimeCall,
+	) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
 		Err(call)
 	}
 }

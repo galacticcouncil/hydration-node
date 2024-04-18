@@ -21,7 +21,7 @@ pub trait EVMPermit {
 	fn validate_permit(
 		source: H160,
 		target: H160,
-		input: Vec<u8>,
+		data: Vec<u8>,
 		value: U256,
 		gas_limit: u64,
 		deadline: U256,
@@ -33,7 +33,7 @@ pub trait EVMPermit {
 	fn dispatch_permit(
 		source: H160,
 		target: H160,
-		input: Vec<u8>,
+		data: Vec<u8>,
 		value: U256,
 		gas_limit: u64,
 		max_fee_per_gas: U256,
@@ -51,7 +51,7 @@ impl EVMPermit for () {
 	fn validate_permit(
 		_source: H160,
 		_target: H160,
-		_input: Vec<u8>,
+		_data: Vec<u8>,
 		_value: U256,
 		_gas_limit: u64,
 		_deadline: U256,
@@ -65,7 +65,7 @@ impl EVMPermit for () {
 	fn dispatch_permit(
 		_source: H160,
 		_target: H160,
-		_input: Vec<u8>,
+		_data: Vec<u8>,
 		_value: U256,
 		_gas_limit: u64,
 		_max_fee_per_gas: U256,

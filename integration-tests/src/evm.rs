@@ -1748,7 +1748,7 @@ fn evm_permit_should_validate_unsigned_correctly() {
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			source: user_evm_address,
 			target: DISPATCH_ADDR,
-			input: omni_sell.encode(),
+			data: omni_sell.encode(),
 			value: U256::from(0),
 			gas_limit: gas_limit,
 			deadline: deadline,
@@ -1817,9 +1817,9 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		assert_eq!(initial_user_weth_balance, 0);
 
-		let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::set_currency {
-			currency: DAI
-		});
+		let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
+			pallet_transaction_multi_payment::Call::set_currency { currency: DAI },
+		);
 
 		let gas_limit = 1000000;
 		let deadline = U256::from(1000000000000u128);
@@ -1844,7 +1844,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			source: user_evm_address,
 			target: DISPATCH_ADDR,
-			input: set_currency_call.encode(),
+			data: set_currency_call.encode(),
 			value: U256::from(0),
 			gas_limit: gas_limit,
 			deadline: deadline,
@@ -1880,7 +1880,8 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 			H256::from(rs.s.b32()),
 		));
 
-		let currency = pallet_transaction_multi_payment::Pallet::<hydradx_runtime::Runtime>::account_currency(&user_acc.address());
+		let currency =
+			pallet_transaction_multi_payment::Pallet::<hydradx_runtime::Runtime>::account_currency(&user_acc.address());
 		assert_eq!(currency, DAI);
 
 		let user_dai_balance = user_acc.balance(DAI);
@@ -1966,7 +1967,7 @@ fn evm_permit_dispatch_flow_should_work() {
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			source: user_evm_address,
 			target: DISPATCH_ADDR,
-			input: omni_sell.encode(),
+			data: omni_sell.encode(),
 			value: U256::from(0),
 			gas_limit: gas_limit,
 			deadline: deadline,
@@ -2098,7 +2099,7 @@ fn evm_permit_should_fail_when_replayed() {
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			source: user_evm_address,
 			target: DISPATCH_ADDR,
-			input: omni_sell.encode(),
+			data: omni_sell.encode(),
 			value: U256::from(0),
 			gas_limit: gas_limit,
 			deadline: deadline,
@@ -2135,19 +2136,22 @@ fn evm_permit_should_fail_when_replayed() {
 		));
 
 		// And try to replay
-		assert_noop!(MultiTransactionPayment::dispatch_permit(
-			hydradx_runtime::RuntimeOrigin::none(),
-			user_evm_address,
-			DISPATCH_ADDR,
-			omni_sell.encode(),
-			U256::from(0),
-			gas_limit,
-			deadline,
-			[].into(),
-			v.serialize(),
-			H256::from(rs.r.b32()),
-			H256::from(rs.s.b32()),
-		), pallet_transaction_multi_payment::Error::<hydradx_runtime::Runtime>::EvmPermitInvalid);
+		assert_noop!(
+			MultiTransactionPayment::dispatch_permit(
+				hydradx_runtime::RuntimeOrigin::none(),
+				user_evm_address,
+				DISPATCH_ADDR,
+				omni_sell.encode(),
+				U256::from(0),
+				gas_limit,
+				deadline,
+				[].into(),
+				v.serialize(),
+				H256::from(rs.r.b32()),
+				H256::from(rs.s.b32()),
+			),
+			pallet_transaction_multi_payment::Error::<hydradx_runtime::Runtime>::EvmPermitInvalid
+		);
 
 		// Verify evm fee amount
 		let user_hdx_balance = user_acc.balance(HDX);
@@ -2232,7 +2236,13 @@ pub fn init_omnipol() {
 		0
 	));
 	Balances::set_balance(&acc, native_amount);
-	assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), acc.clone(), WETH, weth_amount, 0));
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
+		acc.clone(),
+		WETH,
+		weth_amount,
+		0
+	));
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
 		HDX,
