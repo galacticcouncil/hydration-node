@@ -1,10 +1,10 @@
 use crate::evm::precompiles;
 use fp_evm::FeeCalculator;
-use frame_support::dispatch::RawOrigin;
+use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
 use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::traits::Time;
-use pallet_evm::GasWeightMapping;
+use pallet_evm::{GasWeightMapping, Runner};
 use pallet_evm_precompile_call_permit::NoncesStorage;
 use pallet_genesis_history::migration::Weight;
 use pallet_transaction_multi_payment::EVMPermit;
@@ -88,25 +88,54 @@ where
 		_nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
 	) -> DispatchResultWithPostInfo {
-		let mut acc_data: [u8; 32] = [0u8; 32];
-		acc_data[0..20].copy_from_slice(&source[..]);
-		let a = R::AccountId::from(acc_data.into());
-
-		let permit_nonce = NoncesStorage::get(source);
-		NoncesStorage::insert(source, permit_nonce + U256::one());
-
-		pallet_evm::Pallet::<R>::call(
-			RawOrigin::Signed(a).into(),
+		let is_transactional = true;
+		let validate = true;
+		let info = match <R as pallet_evm::Config>::Runner::call(
 			source,
 			target,
 			data,
 			value,
 			gas_limit,
-			max_fee_per_gas,
+			Some(max_fee_per_gas),
 			max_priority_fee_per_gas,
 			None,
 			access_list,
-		)
+			is_transactional,
+			validate,
+			None,
+			None,
+			<R as pallet_evm::Config>::config(),
+		) {
+			Ok(info) => info,
+			Err(e) => {
+				return Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight: Some(e.weight),
+						pays_fee: Pays::Yes,
+					},
+					error: e.error.into(),
+				})
+			}
+		};
+
+		let permit_nonce = NoncesStorage::get(source);
+		NoncesStorage::insert(source, permit_nonce + U256::one());
+
+		Ok(PostDispatchInfo {
+			actual_weight: {
+				let mut gas_to_weight = <R as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
+					info.used_gas.standard.unique_saturated_into(),
+					true,
+				);
+				if let Some(weight_info) = info.weight_info {
+					if let Some(proof_size_usage) = weight_info.proof_size_usage {
+						*gas_to_weight.proof_size_mut() = proof_size_usage;
+					}
+				}
+				Some(gas_to_weight)
+			},
+			pays_fee: Pays::No,
+		})
 	}
 
 	fn gas_price() -> (U256, Weight) {
