@@ -19,7 +19,7 @@ use crate::tests::mock::*;
 use crate::*;
 pub type Bonds = Pallet<Test>;
 use frame_support::{assert_noop, assert_ok};
-pub use pretty_assertions::{assert_eq, assert_ne};
+pub use pretty_assertions::{assert_eq};
 
 #[test]
 fn partially_redeem_bonds_should_work_when_fee_is_zero() {

@@ -21,7 +21,7 @@ mod mock;
 
 use super::*;
 pub use mock::{
-	BlockNumber, EmaOracle, ExtBuilder, RuntimeEvent as TestEvent, RuntimeOrigin, System, Test, ACA, DOT, HDX,
+	BlockNumber, EmaOracle, ExtBuilder, System, Test, ACA, DOT, HDX,
 	INSUFFICIENT_ASSET, ORACLE_ENTRY_1, ORACLE_ENTRY_2,
 };
 

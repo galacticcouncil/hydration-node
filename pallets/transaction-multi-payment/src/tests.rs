@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::{mock::*, Config, Error};
+pub use crate::{mock::*, Error};
 use crate::{AcceptedCurrencies, AcceptedCurrencyPrice, Event, PaymentInfo, Price};
 
 use frame_support::{

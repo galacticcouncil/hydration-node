@@ -35,13 +35,13 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			HDX,
 			(10_000 * UNITS) as i128,
 		));
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			DOT,
 			(10 * UNITS) as i128,
 		));
@@ -53,9 +53,9 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			WETH,
-			initial_user_weth_balance as i128 * -1,
+			-(initial_user_weth_balance as i128),
 		));
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		assert_eq!(initial_user_weth_balance, 0);
@@ -161,14 +161,14 @@ fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			HDX,
-			100000_000_000_000_000i128,
+			100_000_000_000_000_000_i128,
 		));
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			DOT,
 			(10 * UNITS) as i128,
 		));
@@ -244,18 +244,18 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_bounded() 
 
 		// Prepare user evm account - bind and fund
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			user_acc.address().into()
+			user_acc.address()
 		)));
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			HDX,
 			100_000_000_000_000i128,
 		));
 		//Fund some DOT to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			DOT,
 			100_000_000i128,
 		));
@@ -268,9 +268,9 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_bounded() 
 		// just reset the weth balance to 0 - to make sure we dont have enough WETH
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			WETH,
-			initial_user_weth_balance as i128 * -1,
+			-(initial_user_weth_balance as i128),
 		));
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		assert_eq!(initial_user_weth_balance, 0);
@@ -351,14 +351,14 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 		// Prepare user evm account - bind and fund
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			HDX,
 			100_000_000_000_000i128,
 		));
 		//Fund some DOT to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			DOT,
 			100_000_000i128,
 		));
@@ -371,9 +371,9 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 		// just reset the weth balance to 0 - to make sure we dont have enough WETH
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			WETH,
-			initial_user_weth_balance as i128 * -1,
+			-(initial_user_weth_balance as i128),
 		));
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		assert_eq!(initial_user_weth_balance, 0);
@@ -456,14 +456,14 @@ fn evm_permit_should_validate_unsigned_correctly() {
 		// Prepare user evm account - bind and fund
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			HDX,
 			100_000_000_000_000i128,
 		));
 		//Fund some DOT to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			DOT,
 			100_000_000i128,
 		));
@@ -476,9 +476,9 @@ fn evm_permit_should_validate_unsigned_correctly() {
 		// just reset the weth balance to 0 - to make sure we dont have enough WETH
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			WETH,
-			initial_user_weth_balance as i128 * -1,
+			-(initial_user_weth_balance as i128),
 		));
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		assert_eq!(initial_user_weth_balance, 0);
@@ -515,8 +515,8 @@ fn evm_permit_should_validate_unsigned_correctly() {
 			target: DISPATCH_ADDR,
 			data: omni_sell.encode(),
 			value: U256::from(0),
-			gas_limit: gas_limit,
-			deadline: deadline,
+			gas_limit,
+			deadline,
 			access_list: vec![],
 			v: v.serialize(),
 			r: H256::from(rs.r.b32()),
@@ -563,7 +563,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		// Prepare user evm account - bind and fund
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			DAI,
 			100_000_000_000_000_000_000i128,
 		));
@@ -575,9 +575,9 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		// just reset the weth balance to 0 - to make sure we dont have enough WETH
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			WETH,
-			initial_user_weth_balance as i128 * -1,
+			-(initial_user_weth_balance as i128),
 		));
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		assert_eq!(initial_user_weth_balance, 0);
@@ -611,8 +611,8 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 			target: DISPATCH_ADDR,
 			data: set_currency_call.encode(),
 			value: U256::from(0),
-			gas_limit: gas_limit,
-			deadline: deadline,
+			gas_limit,
+			deadline,
 			access_list: vec![],
 			v: v.serialize(),
 			r: H256::from(rs.r.b32()),
@@ -676,14 +676,14 @@ fn evm_permit_dispatch_flow_should_work() {
 		// Prepare user evm account - bind and fund
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			HDX,
 			100_000_000_000_000i128,
 		));
 		//Fund some DOT to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			DOT,
 			100_000_000i128,
 		));
@@ -696,9 +696,9 @@ fn evm_permit_dispatch_flow_should_work() {
 		// just reset the weth balance to 0 - to make sure we dont have enough WETH
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			WETH,
-			initial_user_weth_balance as i128 * -1,
+			-(initial_user_weth_balance as i128),
 		));
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		assert_eq!(initial_user_weth_balance, 0);
@@ -737,8 +737,8 @@ fn evm_permit_dispatch_flow_should_work() {
 			target: DISPATCH_ADDR,
 			data: omni_sell.encode(),
 			value: U256::from(0),
-			gas_limit: gas_limit,
-			deadline: deadline,
+			gas_limit,
+			deadline,
 			access_list: vec![],
 			v: v.serialize(),
 			r: H256::from(rs.r.b32()),
@@ -808,14 +808,14 @@ fn evm_permit_should_fail_when_replayed() {
 		// Prepare user evm account - bind and fund
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			HDX,
 			100_000_000_000_000i128,
 		));
 		//Fund some DOT to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			DOT,
 			100_000_000i128,
 		));
@@ -828,9 +828,9 @@ fn evm_permit_should_fail_when_replayed() {
 		// just reset the weth balance to 0 - to make sure we dont have enough WETH
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address().into(),
+			user_acc.address(),
 			WETH,
-			initial_user_weth_balance as i128 * -1,
+			-(initial_user_weth_balance as i128),
 		));
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		assert_eq!(initial_user_weth_balance, 0);
@@ -869,8 +869,8 @@ fn evm_permit_should_fail_when_replayed() {
 			target: DISPATCH_ADDR,
 			data: omni_sell.encode(),
 			value: U256::from(0),
-			gas_limit: gas_limit,
-			deadline: deadline,
+			gas_limit,
+			deadline,
 			access_list: vec![],
 			v: v.serialize(),
 			r: H256::from(rs.r.b32()),

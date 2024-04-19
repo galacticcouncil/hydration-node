@@ -395,7 +395,7 @@ pub mod pallet {
 				DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
 			// TODO: Simplify this
-			let currency = if let Some(call) = maybe_call.ok() {
+			let currency = if let Ok(call) = maybe_call {
 				let call_currency = T::TryCallCurrency::try_convert(&call);
 				if let Ok(currency) = call_currency {
 					currency
@@ -472,7 +472,7 @@ pub mod pallet {
 							DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
 						// TODO: Simplify this
-						let currency = if let Some(call) = maybe_call.ok() {
+						let currency = if let Ok(call) = maybe_call {
 							let call_currency = T::TryCallCurrency::try_convert(&call);
 							if let Ok(currency) = call_currency {
 								currency
