@@ -421,6 +421,8 @@ pub mod pallet {
 		AssetNotFrozen,
 		/// Calculated amount out from sell trade is zero.
 		ZeroAmountOut,
+		/// Existential deposit of asset is not available.
+		ExistentialDepositNotAvailable,
 	}
 
 	#[pallet::call]
@@ -468,7 +470,7 @@ pub mod pallet {
 
 			let amount = T::Currency::free_balance(asset, &Self::protocol_account());
 
-			let ed = T::AssetRegistry::existential_deposit(asset).unwrap_or(u128::MAX);
+			let ed = T::AssetRegistry::existential_deposit(asset).ok_or(Error::<T>::ExistentialDepositNotAvailable)?;
 			let minimum_pool_liquidity = ed.saturating_mul(20);
 
 			ensure!(ed > 0 && amount >= minimum_pool_liquidity, Error::<T>::MissingBalance);
