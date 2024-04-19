@@ -1222,12 +1222,6 @@ fn dispatch_should_respect_call_filter() {
 fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let accs = pallet_transaction_multi_payment::AccountCurrencyMap::<hydradx_runtime::Runtime>::iter();
-
-		for a in accs {
-			dbg!(a);
-		}
-
 		let fee_currency = WETH;
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(

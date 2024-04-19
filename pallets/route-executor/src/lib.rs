@@ -574,7 +574,7 @@ impl<T: Config> Pallet<T> {
 
 		match (route_validation, inverse_route_validation) {
 			(Ok(_), Ok(_)) => Ok((reference_amount_in, reference_amount_in_for_inverse_route)),
-			(Err(_), Ok(amount_out)) => Self::validate_sell(route.clone().to_vec(), amount_out)
+			(Err(_), Ok(amount_out)) => Self::validate_sell(route.to_vec(), amount_out)
 				.map(|_| (amount_out, reference_amount_in_for_inverse_route)),
 			(Ok(amount_out), Err(_)) => {
 				Self::validate_sell(inverse_route, amount_out).map(|_| (reference_amount_in, amount_out))
