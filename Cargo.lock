@@ -8596,7 +8596,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "9.5.0"
+version = "9.6.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11396,7 +11396,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.20.1"
+version = "1.20.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
