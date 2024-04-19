@@ -3,9 +3,11 @@
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
+use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
+use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::evm::ExtendedAddressMapping;
 use hydradx_runtime::{
 	evm::precompiles::{
@@ -13,8 +15,8 @@ use hydradx_runtime::{
 		multicurrency::{Action, MultiCurrencyPrecompile},
 		Address, Bytes, EvmAddress, HydraDXPrecompiles,
 	},
-	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall,
-	RuntimeOrigin, Tokens, TransactionPause, EVM,
+	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
+	TransactionPause, EVM,
 };
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
@@ -24,8 +26,6 @@ use sp_core::{blake2_256, H160, H256, U256};
 use sp_runtime::{traits::SignedExtension, FixedU128, Permill};
 use std::borrow::Cow;
 use xcm_emulator::TestExt;
-use frame_support::traits::fungible::Mutate;
-use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
@@ -1349,7 +1349,6 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 		Balance::MIN
 	));
 }
-
 
 pub fn init_omnipol() {
 	let native_price = FixedU128::from_rational(29903049701668757, 73927734532192294158);

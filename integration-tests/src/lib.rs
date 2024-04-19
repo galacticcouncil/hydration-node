@@ -11,6 +11,7 @@ mod dust;
 mod dust_removal_whitelist;
 mod dynamic_fees;
 mod evm;
+mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
 mod global_account_derivation;
@@ -31,7 +32,6 @@ mod xcm_defer;
 mod xcm_rate_limiter;
 mod xyk;
 mod xyk_liquidity_mining;
-mod evm_permit;
 
 #[macro_export]
 macro_rules! assert_balance {

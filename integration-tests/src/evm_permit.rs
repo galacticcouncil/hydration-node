@@ -1,14 +1,11 @@
 #![cfg(test)]
 
+use crate::polkadot_test_net::*;
 use crate::utils::accounts::*;
-use crate::{polkadot_test_net::*};
 use frame_support::pallet_prelude::ValidateUnsigned;
 use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
 use frame_system::RawOrigin;
-use hydradx_runtime::{
-	Balances, Currencies, EVMAccounts, MultiTransactionPayment, Omnipool,
-	RuntimeOrigin, Tokens,
-};
+use hydradx_runtime::{Balances, Currencies, EVMAccounts, MultiTransactionPayment, Omnipool, RuntimeOrigin, Tokens};
 use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
@@ -175,7 +172,6 @@ fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 			DOT,
 			(10 * UNITS) as i128,
 		));
-
 
 		init_omnipool_with_oracle_for_block_10();
 		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
@@ -653,7 +649,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 			pallet_transaction_multi_payment::Pallet::<hydradx_runtime::Runtime>::account_currency(&user_acc.address());
 		assert_eq!(currency, DAI);
 
-		let dai_issuance= Currencies::total_issuance(DAI);
+		let dai_issuance = Currencies::total_issuance(DAI);
 		assert_eq!(initial_dai_issuance, dai_issuance);
 
 		let user_dai_balance = user_acc.balance(DAI);
