@@ -27,6 +27,7 @@ pub mod route_executor;
 pub mod scheduler;
 pub mod stableswap;
 pub mod staking;
+pub mod state_trie;
 pub mod system;
 pub mod technical_committee;
 pub mod timestamp;
