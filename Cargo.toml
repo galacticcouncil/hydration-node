@@ -192,6 +192,8 @@ pallet-proxy = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2
 pallet-scheduler = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 pallet-session = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
+pallet-state-trie-migration = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
+substrate-state-trie-migration-rpc = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901" }
 pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 pallet-tips = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
@@ -381,6 +383,8 @@ pallet-preimage = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev
 pallet-proxy = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-scheduler = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-session = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
+pallet-state-trie-migration = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
+substrate-state-trie-migration-rpc = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-sudo = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-timestamp = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-tips = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }

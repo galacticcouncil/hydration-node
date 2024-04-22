@@ -3,12 +3,14 @@
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
+use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::evm::ExtendedAddressMapping;
+use hydradx_runtime::XYK;
 use hydradx_runtime::{
 	evm::precompiles::{
 		handle::EvmDataWriter,
@@ -18,12 +20,16 @@ use hydradx_runtime::{
 	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
 	TransactionPause, EVM,
 };
+use hydradx_traits::router::{PoolType, Trade};
+use hydradx_traits::AssetKind;
+use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, H160, H256, U256};
-use sp_runtime::{traits::SignedExtension, FixedU128, Permill};
+use sp_runtime::TransactionOutcome;
+use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
 use std::borrow::Cow;
 use xcm_emulator::TestExt;
 
@@ -1121,6 +1127,102 @@ fn dispatch_should_work_with_transfer() {
 }
 
 #[test]
+fn dispatch_should_work_with_buying_insufficient_asset() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Set up to idle state where the chain is not utilized at all
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		)));
+
+		//Create inssufficient asset
+		let shitcoin = with_transaction::<u32, DispatchError, _>(|| {
+			let name = b"SHITCO".to_vec();
+			let shitcoin = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(name.try_into().unwrap()),
+				AssetKind::External,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
+			TransactionOutcome::Commit(Ok(shitcoin))
+		})
+		.unwrap();
+
+		create_xyk_pool_with_amounts(shitcoin, 1000000 * UNITS, HDX, 1000000 * UNITS);
+		init_omnipool_with_oracle_for_block_10();
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			currency_precompile::alice_substrate_evm_addr().into(),
+			WETH,
+			(100 * UNITS * 1_000_000) as i128,
+		));
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			WETH,
+		));
+
+		let swap_route = vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: WETH,
+				asset_out: HDX,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: shitcoin,
+			},
+		];
+		let router_swap = RuntimeCall::Router(pallet_route_executor::Call::buy {
+			asset_in: WETH,
+			asset_out: shitcoin,
+			amount_out: 1 * UNITS,
+			max_amount_in: u128::MAX,
+			route: swap_route.clone(),
+		});
+
+		//Arrange
+		let data = router_swap.encode();
+		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+		hydradx_finalize_block(); //We do this to simulate that we don't have any prices in multi-payment-pallet, but the prices can be still calculated based on onchain route
+
+		let init_balance = Tokens::free_balance(shitcoin, &currency_precompile::alice_substrate_evm_addr());
+		assert_eq!(init_balance, 0);
+
+		// Act
+		assert_ok!(EVM::call(
+			evm_signed_origin(currency_precompile::alice_evm_addr()),
+			currency_precompile::alice_evm_addr(),
+			DISPATCH_ADDR,
+			data,
+			U256::from(0),
+			1000000,
+			gas_price * 10,
+			None,
+			Some(U256::zero()),
+			[].into()
+		));
+
+		//EVM call passes even when the substrate tx fails, so we need to check if the tx is executed
+		expect_hydra_events(vec![pallet_evm::Event::Executed { address: DISPATCH_ADDR }.into()]);
+		let new_balance = Tokens::free_balance(shitcoin, &currency_precompile::alice_substrate_evm_addr());
+		assert_eq!(new_balance, 1 * UNITS);
+	});
+}
+
+#[test]
 fn dispatch_transfer_should_not_work_with_insufficient_fees() {
 	TestNet::reset();
 
@@ -1499,4 +1601,27 @@ impl PrecompileHandle for MockHandle {
 	fn gas_limit(&self) -> Option<u64> {
 		None
 	}
+}
+
+fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		asset_a,
+		amount_a as i128,
+	));
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		asset_b,
+		amount_b as i128,
+	));
+
+	assert_ok!(XYK::create_pool(
+		RuntimeOrigin::signed(DAVE.into()),
+		asset_a,
+		amount_a,
+		asset_b,
+		amount_b,
+	));
 }

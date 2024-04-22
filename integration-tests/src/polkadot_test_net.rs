@@ -660,6 +660,16 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 	}
 }
 
+pub fn hydradx_finalize_block() {
+	use frame_support::traits::OnFinalize;
+
+	let b = hydradx_runtime::System::block_number();
+
+	hydradx_runtime::System::on_finalize(b);
+	hydradx_runtime::EmaOracle::on_finalize(b);
+	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
+}
+
 pub fn polkadot_run_to_block(to: BlockNumber) {
 	use frame_support::traits::OnFinalize;
 

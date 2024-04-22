@@ -135,7 +135,7 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 
 #[test]
 #[ignore]
-//Note: the acount has incorrect fee currency set for unknow reasy, ingore for now
+//Note: the account has incorrect fee currency set for unknown reasy, ignore for now
 fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 	TestNet::reset();
 
@@ -319,7 +319,6 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_bounded() 
 		let user_hdx_balance = user_acc.balance(HDX);
 		let fee_amount = initial_user_hdx_balance - user_hdx_balance;
 		assert!(fee_amount > 0);
-		//assert_eq!(fee_amount, 451229318663); //TODO: why it is more that Evm::CALL??
 		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
 		let treasury_hdx_diff = new_treasury_hdx_balance - initial_treasury_hdx_balance;
 		assert_eq!(fee_amount, treasury_hdx_diff);
@@ -423,7 +422,6 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 		let user_hdx_balance = user_acc.balance(HDX);
 		let fee_amount = initial_user_hdx_balance - user_hdx_balance;
 		assert!(fee_amount > 0);
-		//assert_eq!(fee_amount, 451229318663); //TODO: why it is more that Evm::CALL??
 		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
 		let treasury_hdx_diff = new_treasury_hdx_balance - initial_treasury_hdx_balance;
 		assert_eq!(fee_amount, treasury_hdx_diff);
