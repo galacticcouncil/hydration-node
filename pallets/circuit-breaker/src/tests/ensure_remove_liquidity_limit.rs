@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::*;
-pub use pretty_assertions::{assert_eq};
+pub use pretty_assertions::assert_eq;
 
 #[test]
 fn ensure_remove_liquidity_limit_should_be_ignored_for_admin_when_limit_is_reached() {

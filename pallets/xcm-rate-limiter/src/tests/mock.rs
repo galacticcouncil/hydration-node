@@ -18,7 +18,7 @@
 pub use crate as pallet_xcm_rate_limiter;
 
 use frame_support::traits::Contains;
-pub use frame_support::traits::{Everything};
+pub use frame_support::traits::Everything;
 pub use frame_support::{assert_ok, parameter_types};
 use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;

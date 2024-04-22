@@ -29,7 +29,6 @@ use sp_runtime::{
 
 mod nfc {
 	// Re-export needed for `impl_outer_event!`.
-	
 }
 
 type AccountId = AccountId32;
