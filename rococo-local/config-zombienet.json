@@ -40,14 +40,14 @@
       "collators": [
         {
           "name": "alice",
-          "command": "/home/martin/workspace/galactic/HydraDX-node/target/release/hydradx",
+          "command": "../target/release/hydradx",
           "args": ["--pruning=archive", "--log=info"],
           "ws_port": 9988,
           "rpc_port": 9999
         },
         {
           "name": "bob",
-          "command": "/home/martin/workspace/galactic/HydraDX-node/target/release/hydradx",
+          "command": "../target/release/hydradx",
           "ws_port": 9989
         }
       ]

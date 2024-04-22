@@ -362,7 +362,10 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// Dispatch EVM permit
+		/// Dispatch EVM permit.
+		/// The main purpose of this function is to allow EVM accounts to pay for the transaction fee in non-native currency
+		/// by allowing them to self-dispatch pre-signed permit.
+		/// The EVM fee is paid in the currency set for the account.
 		#[pallet::call_index(4)]
 		#[pallet::weight(
 			<T as Config>::EvmPermit::dispatch_weight(*gas_limit)
