@@ -43,7 +43,6 @@ use sp_runtime::{
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
-pub type Balance = u128;
 pub type AssetId = u32;
 
 pub const HDX: AssetId = 0;
