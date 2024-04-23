@@ -31,6 +31,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::router::RefundEdCalculator;
 use hydradx_traits::{
 	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
 	Inspect as InspectRegistry,
@@ -364,9 +365,18 @@ impl pallet_route_executor::Config for Test {
 	type Currency = FungibleCurrencies<Test>;
 	type InspectRegistry = MockedAssetRegistry;
 	type AMM = Pools;
+	type EdToRefundCalculator = MockedEdCalculator;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
+}
+
+pub struct MockedEdCalculator;
+
+impl RefundEdCalculator<Balance> for MockedEdCalculator {
+	fn calculate() -> Balance {
+		1_000_000_000_000
+	}
 }
 
 pub struct ExtBuilder {
