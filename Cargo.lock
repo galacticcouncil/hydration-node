@@ -4574,7 +4574,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.3.0"
+version = "1.3.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7408,7 +7408,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.4.3"
+version = "1.4.4"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
