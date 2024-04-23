@@ -6833,7 +6833,7 @@ dependencies = [
 [[package]]
 name = "orml-benchmarking"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6852,8 +6852,8 @@ dependencies = [
 
 [[package]]
 name = "orml-tokens"
-version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+version = "0.4.2-dev"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6870,7 +6870,7 @@ dependencies = [
 [[package]]
 name = "orml-traits"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6890,7 +6890,7 @@ dependencies = [
 [[package]]
 name = "orml-unknown-tokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6905,7 +6905,7 @@ dependencies = [
 [[package]]
 name = "orml-utilities"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -6920,7 +6920,7 @@ dependencies = [
 [[package]]
 name = "orml-vesting"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6935,7 +6935,7 @@ dependencies = [
 [[package]]
 name = "orml-xcm"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6949,7 +6949,7 @@ dependencies = [
 [[package]]
 name = "orml-xcm-support"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "orml-traits",
@@ -6963,7 +6963,7 @@ dependencies = [
 [[package]]
 name = "orml-xtokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",

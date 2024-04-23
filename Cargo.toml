@@ -192,18 +192,18 @@ substrate-rpc-client = { git = "https://github.com/paritytech/polkadot-sdk", rev
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 
 # ORML dependencies
-orml-benchmarking = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "b3694e631df7f1ca16b1973122937753fcdee9d4", default-features = false }
-orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "b3694e631df7f1ca16b1973122937753fcdee9d4", default-features = false }
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "b3694e631df7f1ca16b1973122937753fcdee9d4", default-features = false }
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "b3694e631df7f1ca16b1973122937753fcdee9d4", default-features = false }
-orml-utilities = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "b3694e631df7f1ca16b1973122937753fcdee9d4", default-features = false }
-orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "b3694e631df7f1ca16b1973122937753fcdee9d4", default-features = false }
+orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
+orml-currencies = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
+orml-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
+orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
+orml-utilities = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
+orml-vesting = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
 
 # orml XCM support
-orml-unknown-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "b3694e631df7f1ca16b1973122937753fcdee9d4", default-features = false }
-orml-xcm = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "b3694e631df7f1ca16b1973122937753fcdee9d4", default-features = false }
-orml-xcm-support = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "b3694e631df7f1ca16b1973122937753fcdee9d4", default-features = false }
-orml-xtokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "b3694e631df7f1ca16b1973122937753fcdee9d4", default-features = false }
+orml-unknown-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
+orml-xcm = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
+orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
+orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
 
 # Cumulus dependencies
 cumulus-client-cli = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
