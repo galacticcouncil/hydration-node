@@ -191,6 +191,7 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-
 substrate-rpc-client = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 
+#TODO: We use our custom ORML as it contains the fix of bug for reducible_balance check, for Preserve mode. Once the official ORML pushes a new version with the fix, we can use that again
 # ORML dependencies
 orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
 orml-currencies = { git = "https://github.com/galacticcouncil/open-runtime-module-library", rev = "f36a0abefd8e6b929bee3cc2420f7c4fbe459c99", default-features = false }
