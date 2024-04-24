@@ -198,8 +198,6 @@ pub mod pallet {
 			let route = Self::get_route_or_default(route, asset_pair)?;
 			Self::ensure_route_arguments(&asset_pair, &route)?;
 
-			let user_balance_of_asset_in_before_trade =
-				T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 			let user_balance_of_asset_out_before_trade =
 				T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 
