@@ -45,6 +45,8 @@ use sp_std::{vec, vec::Vec};
 mod tests;
 pub mod weights;
 
+pub use weights::WeightInfo;
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 

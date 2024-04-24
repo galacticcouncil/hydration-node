@@ -88,7 +88,7 @@ pub use types::*;
 
 #[allow(clippy::all)]
 pub mod weights;
-use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 mod benchmarking;
 
