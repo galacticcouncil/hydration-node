@@ -21,9 +21,14 @@
 use super::*;
 pub use crate::mock::*;
 use frame_support::{assert_ok, assert_storage_noop};
+use hydradx_traits::Inspect;
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
+
+pub fn expect_last_events(e: Vec<RuntimeEvent>) {
+	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
 
 pub fn calculate_otc_price(otc: &pallet_otc::Order<AccountId, AssetId>) -> FixedU128 {
@@ -217,14 +222,63 @@ fn existing_arb_opportunity_should_trigger_trade() {
 		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
 		assert!(Currencies::free_balance(DAI, &OtcSettlements::account_id()) == 0);
 
-		expect_events(vec![Event::Executed {
-			otc_id,
-			otc_asset_in: HDX,
-			otc_asset_out: DAI,
-			otc_amount_in: 762_939_453_125,
-			otc_amount_out: 1_525_886_535_644,
-			trade_amount_in: 1_525_886_535_644,
-			trade_amount_out: 762_941_521_577,
+		expect_last_events(vec![Event::Executed {
+			asset_id: HDX,
+			profit: 2_068_452,
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn existing_arb_opportunity_of_insufficient_asset_should_trigger_trade() {
+	let (mut ext, _) = ExtBuilder::default().build();
+	ext.execute_with(|| {
+		// ensure that BTC is configured as insufficient asset
+		assert!(!AssetRegistry::is_sufficient(BTC));
+
+		assert_ok!(OTC::place_order(
+			RuntimeOrigin::signed(ALICE),
+			BTC, // otc asset_in
+			HDX, // otc asset_out
+			200_000 * ONE,
+			100_001 * ONE,
+			true,
+		));
+
+		// get otc price
+		let otc_id = 0;
+		let otc = <pallet_otc::Orders<Test>>::get(otc_id).unwrap();
+		let otc_price = calculate_otc_price(&otc);
+
+		// get trade price
+		let route = Router::get_route(AssetPair {
+			asset_in: otc.asset_out,
+			asset_out: otc.asset_in,
+		});
+		let router_price = Router::spot_price(&route).unwrap();
+
+		// verify that there's an arb opportunity
+		assert!(otc_price > router_price);
+
+		let hdx_total_issuance = Currencies::total_issuance(HDX);
+		let btc_total_issuance = Currencies::total_issuance(BTC);
+
+		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
+		assert!(Currencies::free_balance(BTC, &OtcSettlements::account_id()) == 0);
+
+		<OtcSettlements as Hooks<BlockNumberFor<Test>>>::offchain_worker(System::block_number());
+
+		assert_eq!(hdx_total_issuance, Currencies::total_issuance(HDX));
+		assert_eq!(btc_total_issuance, Currencies::total_issuance(BTC));
+
+		// total issuance of tokens should not change
+		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
+		assert!(Currencies::free_balance(BTC, &OtcSettlements::account_id()) == 0);
+
+		expect_last_events(vec![Event::Executed {
+			asset_id: BTC,
+			profit: 16_547_522,
 		}
 		.into()]);
 	});
@@ -255,23 +309,13 @@ fn multiple_arb_opportunities_should_trigger_trades() {
 
 		expect_events(vec![
 			Event::Executed {
-				otc_id: 0,
-				otc_asset_in: HDX,
-				otc_asset_out: DAI,
-				otc_amount_in: 762_939_453_125,
-				otc_amount_out: 1_525_886_535_644,
-				trade_amount_in: 1_525_886_535_644,
-				trade_amount_out: 762_941_521_577,
+				asset_id: HDX,
+				profit: 2_068_452,
 			}
 			.into(),
 			Event::Executed {
-				otc_id: 1,
-				otc_asset_in: DOT,
-				otc_asset_out: KSM,
-				otc_amount_in: 2288818359375,
-				otc_amount_out: 2288841247558,
-				trade_amount_in: 2288841247558,
-				trade_amount_out: 2288830796079,
+				asset_id: DOT,
+				profit: 12_436_704,
 			}
 			.into(),
 		]);
@@ -341,14 +385,9 @@ fn trade_should_be_triggered_when_arb_opportunity_appears() {
 		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
 		assert!(Currencies::free_balance(DAI, &OtcSettlements::account_id()) == 0);
 
-		expect_events(vec![Event::Executed {
-			otc_id,
-			otc_asset_in: HDX,
-			otc_asset_out: DAI,
-			otc_amount_in: 8_392_417_907_714,
-			otc_amount_out: 16_784_667_968_748,
-			trade_amount_in: 16_784_667_968_748,
-			trade_amount_out: 8_392_626_224_459,
+		expect_last_events(vec![Event::Executed {
+			asset_id: HDX,
+			profit: 208_316_745,
 		}
 		.into()]);
 	});

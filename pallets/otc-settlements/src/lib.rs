@@ -57,20 +57,19 @@ pub type NamedReserveIdentifier = [u8; 8];
 
 pub const PALLET_ID: PalletId = PalletId(*b"otcsettl");
 
-pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"otcorder";
-
 // value taken from https://github.com/substrate-developer-hub/recipes/blob/master/pallets/ocw-demo/src/lib.rs
 pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
 
+/// Vector of `SortedOtcsStorageType`
 pub const OFFCHAIN_WORKER_DATA: &[u8] = b"hydradx/otc-settlements/data/";
+/// Last block number when we updated the `OFFCHAIN_WORKER_DATA`
 pub const OFFCHAIN_WORKER_DATA_LAST_UPDATE: &[u8] = b"hydradx/otc-settlements/data-last-update/";
-pub const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/otc-settlements/lock/";
-pub const OFFCHAIN_WORKER_MAX_ITERATIONS: &[u8] = b"hydradx/otc-settlements/max-iterations/";
-pub const LOCK_DURATION: u64 = 5_000; // 5 seconds
-pub const NUM_OF_ITERATIONS: u32 = 40;
+pub const SORTED_ORDERS_LOCK: &[u8] = b"hydradx/otc-settlements/lock/";
+pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
+/// The number of iterations in the binary search algorithm
+pub const FILL_SEARCH_ITERATIONS: u32 = 40;
 
 pub type AssetIdOf<T> = <T as pallet_otc::Config>::AssetId;
-
 type SortedOtcsStorageType = (OrderId, FixedU128, FixedU128, FixedU128);
 
 #[frame_support::pallet]
@@ -88,7 +87,7 @@ pub mod pallet {
 		/// Named reservable multi currency
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetIdOf<Self>, Balance = Balance>;
 
-		///Router implementation
+		/// Router implementation
 		type Router: RouteProvider<AssetIdOf<Self>>
 			+ RouterT<Self::RuntimeOrigin, AssetIdOf<Self>, Balance, Trade<AssetIdOf<Self>>, AmountInAndOut<Balance>>
 			+ RouteSpotPriceProvider<AssetIdOf<Self>>;
@@ -160,23 +159,19 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A trade has been executed
-		Executed {
-			otc_id: OrderId,
-			otc_asset_in: AssetIdOf<T>,
-			otc_asset_out: AssetIdOf<T>,
-			otc_amount_in: Balance,
-			otc_amount_out: Balance,
-			trade_amount_in: Balance,
-			trade_amount_out: Balance,
-		},
+		Executed { asset_id: AssetIdOf<T>, profit: Balance },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Otc order not found
 		OrderNotFound,
-		/// Execution requirements not met
-		InvalidConditions,
+		/// OTC order is not partially fillable
+		NotPartiallyFillable,
+		/// Provided route doesn't match the existing route
+		InvalidRoute,
+		/// Initial and final balance are different
+		BalanceInconsistency,
 		/// Trade amount higher than necessary
 		TradeAmountTooHigh,
 		/// Trade amount lower than necessary
@@ -261,7 +256,7 @@ impl<T: Config> Pallet<T> {
 		<T as Config>::Currency::deposit(asset_a, &pallet_acc, amount)?;
 
 		if !otc.partially_fillable {
-			ensure!(otc.amount_out == amount, Error::<T>::InvalidConditions);
+			ensure!(otc.amount_out == amount, Error::<T>::NotPartiallyFillable);
 		}
 
 		ensure!(
@@ -270,7 +265,7 @@ impl<T: Config> Pallet<T> {
 					asset_in: asset_b,
 					asset_out: asset_a,
 				}),
-			Error::<T>::InvalidConditions
+			Error::<T>::InvalidRoute
 		);
 
 		// get initial otc and router price
@@ -361,21 +356,16 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(
 			asset_a_balance_after == asset_a_balance_before,
-			Error::<T>::InvalidConditions
+			Error::<T>::BalanceInconsistency
 		);
 		ensure!(
 			asset_b_balance_after == asset_b_balance_before,
-			Error::<T>::InvalidConditions
+			Error::<T>::BalanceInconsistency
 		);
 
 		Self::deposit_event(Event::Executed {
-			otc_id,
-			otc_asset_in: asset_a,
-			otc_asset_out: asset_b,
-			otc_amount_in: amount,
-			otc_amount_out,
-			trade_amount_in: otc_amount_out,
-			trade_amount_out: amount + profit,
+			asset_id: asset_a,
+			profit,
 		});
 
 		Ok(())
@@ -405,8 +395,8 @@ impl<T: Config> Pallet<T> {
 			"sort_otcs()");
 
 		// acquire offchain worker lock.
-		let lock_expiration = Duration::from_millis(LOCK_DURATION);
-		let mut lock = StorageLock::<'_, Time>::with_deadline(OFFCHAIN_WORKER_LOCK, lock_expiration);
+		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT_EXPIRATION);
+		let mut lock = StorageLock::<'_, Time>::with_deadline(SORTED_ORDERS_LOCK, lock_expiration);
 
 		if Self::try_update_last_block_storage(block_number) {
 			if let Ok(_guard) = lock.try_lock() {
@@ -493,7 +483,11 @@ impl<T: Config> Pallet<T> {
 		let mut sell_amt_up = sell_amt;
 		let mut sell_amt_down = 0; // TODO: set to some min trade amount
 
-		let iters = if !otc.partially_fillable { 1 } else { NUM_OF_ITERATIONS };
+		let iters = if otc.partially_fillable {
+			FILL_SEARCH_ITERATIONS
+		} else {
+			1
+		};
 		for i in 0..iters {
 			log::debug!(
 			target: "offchain_worker::settle_otcs",

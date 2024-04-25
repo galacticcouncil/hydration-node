@@ -27,7 +27,6 @@ frame-system = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 pallet-otc = { workspace = true }
-pallet-route-executor = { workspace = true }
 
 # ORML dependencies
 orml-traits = { workspace = true }
@@ -38,8 +37,9 @@ frame-benchmarking = { workspace = true, optional = true }
 [dev-dependencies]
 hydra-dx-math = { workspace = true }
 pallet-omnipool = { workspace = true }
+pallet-asset-registry = { workspace = true }
+pallet-route-executor = { workspace = true }
 pallet-balances = { workspace = true }
-pallet-xyk = { workspace = true }
 pallet-currencies = { workspace = true }
 sp-api = { workspace = true }
 orml-tokens = { workspace = true, features=["std"] }
@@ -69,7 +69,7 @@ std = [
   "pallet-currencies/std",
   "pallet-route-executor/std",
   "pallet-omnipool/std",
-  "pallet-xyk/std",
+  "pallet-asset-registry/std",
 ]
 
 runtime-benchmarks = [

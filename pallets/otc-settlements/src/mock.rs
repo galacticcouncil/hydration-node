@@ -20,10 +20,9 @@ use frame_support::{
 	assert_ok, parameter_types,
 	traits::{Everything, Nothing},
 };
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, EnsureSigned};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::router::PoolType;
-use hydradx_traits::AssetKind;
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::BasicCurrencyAdapter;
@@ -39,7 +38,6 @@ use sp_runtime::{
 	BuildStorage,
 };
 use sp_std::sync::Arc;
-use std::{cell::RefCell, collections::HashMap};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -61,10 +59,6 @@ pub const ONE: Balance = 1_000_000_000_000;
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 
-thread_local! {
-	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
-}
-
 frame_support::construct_runtime!(
 	pub enum Test
 	 {
@@ -72,11 +66,11 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Tokens: orml_tokens,
 		 Currencies: pallet_currencies,
-		 OtcSettlements: pallet_otc_settlements,
+		 AssetRegistry: pallet_asset_registry,
 		 OTC: pallet_otc,
 		 Omnipool: pallet_omnipool,
 		 Router: pallet_route_executor,
-		 XYK: pallet_xyk,
+		 OtcSettlements: pallet_otc_settlements,
 	 }
 );
 
@@ -106,7 +100,7 @@ impl pallet_otc_settlements::Config for Test {
 
 impl pallet_otc::Config for Test {
 	type AssetId = AssetId;
-	type AssetRegistry = MockedAssetRegistry;
+	type AssetRegistry = AssetRegistry;
 	type Currency = Currencies;
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
@@ -118,53 +112,14 @@ parameter_types! {
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 }
 
-pub struct MockedAssetRegistry;
-
-impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
-	type AssetId = AssetId;
-	type Location = ();
-
-	fn is_sufficient(_id: Self::AssetId) -> bool {
-		true
-	}
-
-	fn exists(_asset_id: Self::AssetId) -> bool {
-		true
-	}
-
-	fn decimals(_id: Self::AssetId) -> Option<u8> {
-		unimplemented!()
-	}
-
-	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
-		unimplemented!()
-	}
-
-	fn is_banned(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-
-	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-
-	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
-		unimplemented!()
-	}
-}
-
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = HDXAssetId;
 	type Currency = FungibleCurrencies<Test>;
-	type AMM = (Omnipool, XYK);
-	type InspectRegistry = MockedAssetRegistry;
+	type AMM = Omnipool;
+	type InspectRegistry = AssetRegistry;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
@@ -264,8 +219,6 @@ impl pallet_currencies::Config for Test {
 parameter_types! {
 	pub const MinTradingLimit: Balance = 1_000;
 	pub const MinPoolLiquidity: Balance = 1_000;
-	pub const OracleSourceIdentifier: hydradx_traits::Source = *b"hydraxyk";
-	pub XYKExchangeFee: (u32, u32) = (3, 1_000);
 	pub const DiscountedFee: (u32, u32) = (7, 10_000);
 }
 
@@ -289,62 +242,28 @@ impl hydradx_traits::AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdT
 	}
 }
 
-impl hydradx_traits::Create<Balance> for MockedAssetRegistry
-where
-	AssetId: From<u32>,
-{
-	type Error = DispatchError;
-	type Name = BoundedVec<u8, ConstU32<50>>;
-	type Symbol = BoundedVec<u8, ConstU32<50>>;
+parameter_types! {
+	#[derive(PartialEq, Debug)]
+	pub RegistryStringLimit: u32 = 100;
+	#[derive(PartialEq, Debug)]
+	pub MinRegistryStringLimit: u32 = 2;
+	pub const SequentialIdOffset: u32 = 1_000_000;
+}
 
-	fn register_asset(
-		_asset_id: Option<Self::AssetId>,
-		_name: Option<Self::Name>,
-		_kind: AssetKind,
-		_existential_deposit: Option<Balance>,
-		_symbol: Option<Self::Symbol>,
-		_decimals: Option<u8>,
-		_location: Option<Self::Location>,
-		_xcm_rate_limit: Option<Balance>,
-		_is_sufficient: bool,
-	) -> Result<Self::AssetId, Self::Error> {
-		let assigned = REGISTERED_ASSETS.with(|v| {
-			//NOTE: This is to have same ids as real AssetRegistry which is used in the benchmarks.
-			//1_000_000 - offset of the reals AssetRegistry
-			// - 5 - remove assets reagistered by default for the vec.len()
-			// + 1 - first reg asset start with 1 not 0
-			// => 1st asset id == 1_000_001
-			let l = 1_000_000 - 4 + v.borrow().len();
-			v.borrow_mut().insert(l as u32, l as u32);
-			l as u32
-		});
-		Ok(assigned)
-	}
+type AssetLocation = u8;
 
-	fn register_insufficient_asset(
-		_asset_id: Option<Self::AssetId>,
-		_name: Option<Self::Name>,
-		_kind: AssetKind,
-		_existential_deposit: Option<Balance>,
-		_symbol: Option<Self::Symbol>,
-		_decimals: Option<u8>,
-		_location: Option<Self::Location>,
-		_xcm_rate_limit: Option<Balance>,
-	) -> Result<Self::AssetId, Self::Error> {
-		unimplemented!()
-	}
-	fn get_or_register_asset(
-		_name: Self::Name,
-		_kind: AssetKind,
-		_existential_deposit: Option<Balance>,
-		_symbol: Option<Self::Symbol>,
-		_decimals: Option<u8>,
-		_location: Option<Self::Location>,
-		_xcm_rate_limit: Option<Balance>,
-		_is_sufficient: bool,
-	) -> Result<Self::AssetId, Self::Error> {
-		Ok(AssetId::default())
-	}
+impl pallet_asset_registry::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type RegistryOrigin = EnsureRoot<AccountId>;
+	type Currency = Tokens;
+	type UpdateOrigin = EnsureSigned<u64>;
+	type AssetId = AssetId;
+	type AssetNativeLocation = AssetLocation;
+	type StringLimit = RegistryStringLimit;
+	type MinStringLimit = MinRegistryStringLimit;
+	type SequentialIdStartAt = SequentialIdOffset;
+	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
+	type WeightInfo = ();
 }
 
 pub struct DummyDuster;
@@ -361,25 +280,6 @@ impl hydradx_traits::pools::DustRemovalAccountWhitelist<AccountId> for DummyDust
 	}
 }
 
-impl pallet_xyk::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type AssetRegistry = MockedAssetRegistry;
-	type AssetPairAccountId = AssetPairAccountIdTest;
-	type Currency = Currencies;
-	type NativeAssetId = HDXAssetId;
-	type WeightInfo = ();
-	type GetExchangeFee = XYKExchangeFee;
-	type MinTradingLimit = MinTradingLimit;
-	type MinPoolLiquidity = MinPoolLiquidity;
-	type MaxInRatio = MaxInRatio;
-	type MaxOutRatio = MaxOutRatio;
-	type CanCreatePool = AllowPools;
-	type AMMHandler = ();
-	type DiscountedFee = DiscountedFee;
-	type NonDustableWhitelistHandler = DummyDuster;
-	type OracleSource = OracleSourceIdentifier;
-}
-
 impl pallet_omnipool::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -390,7 +290,7 @@ impl pallet_omnipool::Config for Test {
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PositionCollectionId;
 	type NFTHandler = DummyNFT;
-	type AssetRegistry = MockedAssetRegistry;
+	type AssetRegistry = AssetRegistry;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
@@ -490,6 +390,7 @@ impl Default for ExtBuilder {
 				(Omnipool::protocol_account(), DAI, 1_000_000 * ONE),
 				(Omnipool::protocol_account(), DOT, 1_000_000 * ONE),
 				(Omnipool::protocol_account(), KSM, 1_000_000 * ONE),
+				(Omnipool::protocol_account(), BTC, 1_000_000 * ONE),
 			],
 			init_pool: Some((FixedU128::from_float(0.5), FixedU128::from(1))),
 			omnipool_liquidity: vec![(ALICE, KSM, 5_000 * ONE)],
@@ -501,13 +402,53 @@ impl ExtBuilder {
 	pub fn build(self) -> (sp_io::TestExternalities, Arc<parking_lot::RwLock<PoolState>>) {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
-		REGISTERED_ASSETS.with(|v| {
-			v.borrow_mut().insert(HDX, HDX);
-			v.borrow_mut().insert(LRNA, LRNA);
-			v.borrow_mut().insert(DAI, DAI);
-			v.borrow_mut().insert(DOT, DOT);
-			v.borrow_mut().insert(KSM, KSM);
-		});
+		let registered_assets = vec![
+			(
+				Some(LRNA),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"LRNA".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"LRNA".to_vec().try_into().unwrap()),
+				Some(12),
+				None::<Balance>,
+				true,
+			),
+			(
+				Some(DAI),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DAI".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DAI".to_vec().try_into().unwrap()),
+				Some(12),
+				None::<Balance>,
+				true,
+			),
+			(
+				Some(DOT),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"DOT".to_vec().try_into().unwrap()),
+				Some(12),
+				None::<Balance>,
+				true,
+			),
+			(
+				Some(KSM),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"KSM".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"KSM".to_vec().try_into().unwrap()),
+				Some(12),
+				None::<Balance>,
+				true,
+			),
+			(
+				Some(BTC),
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"BTC".to_vec().try_into().unwrap()),
+				10_000,
+				Some::<BoundedVec<u8, RegistryStringLimit>>(b"BTC".to_vec().try_into().unwrap()),
+				Some(12),
+				None::<Balance>,
+				false,
+			),
+		];
 
 		let mut initial_native_accounts: Vec<(AccountId, Balance)> = vec![];
 		let additional_accounts: Vec<(AccountId, Balance)> = self
@@ -518,6 +459,14 @@ impl ExtBuilder {
 			.collect::<_>();
 
 		initial_native_accounts.extend(additional_accounts);
+
+		pallet_asset_registry::GenesisConfig::<Test> {
+			registered_assets,
+			..Default::default()
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
 		pallet_balances::GenesisConfig::<Test> {
 			balances: initial_native_accounts,
 		}
@@ -562,6 +511,13 @@ impl ExtBuilder {
 				assert_ok!(Omnipool::add_token(
 					RuntimeOrigin::root(),
 					KSM,
+					stable_price,
+					Permill::from_percent(100),
+					Omnipool::protocol_account(),
+				));
+				assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					BTC,
 					stable_price,
 					Permill::from_percent(100),
 					Omnipool::protocol_account(),
