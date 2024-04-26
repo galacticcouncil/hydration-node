@@ -8252,7 +8252,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.1.4"
+version = "2.1.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
