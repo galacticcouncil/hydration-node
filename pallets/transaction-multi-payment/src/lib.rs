@@ -722,12 +722,6 @@ impl<T: Config> NativePriceOracle<AssetIdOf<T>, Price> for Pallet<T> {
 pub struct AddTxAssetOnAccount<T>(PhantomData<T>);
 impl<T: Config> Happened<(T::AccountId, AssetIdOf<T>)> for AddTxAssetOnAccount<T> {
 	fn happened((who, currency): &(T::AccountId, AssetIdOf<T>)) {
-		// all new EVM accounts have WETH set as their payment currency
-		if T::InspectEvmAccounts::is_evm_account(who.clone()) {
-			AccountCurrencyMap::<T>::insert(who, T::EvmAssetId::get());
-			return;
-		}
-
 		if !AccountCurrencyMap::<T>::contains_key(who)
 			&& AcceptedCurrencies::<T>::contains_key(currency)
 			&& T::Currencies::total_balance(T::NativeAssetId::get(), who).is_zero()
