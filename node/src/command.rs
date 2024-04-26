@@ -20,7 +20,6 @@ use crate::cli::{Cli, RelayChainCli, Subcommand};
 use crate::service::{new_partial, HydraDXNativeExecutor};
 
 use codec::Encode;
-use cumulus_client_cli::generate_genesis_block;
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
 use hydradx_runtime::Block;
@@ -32,8 +31,10 @@ use sc_cli::{
 use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
 use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
-use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::traits::Block as BlockT;
+use sp_runtime::{
+	traits::{AccountIdConversion, Block as BlockT, Hash as HashT, Header as HeaderT, Zero},
+	StateVersion,
+};
 use std::io::Write;
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
@@ -227,7 +228,7 @@ pub fn run() -> sc_cli::Result<()> {
 				}
 			}
 		}
-		Some(Subcommand::ExportGenesisState(params)) => {
+		Some(Subcommand::ExportGenesisHead(params)) => {
 			let mut builder = sc_cli::LoggerBuilder::new("");
 			builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
 			let _ = builder.init();
@@ -302,7 +303,7 @@ pub fn run() -> sc_cli::Result<()> {
 				let id = ParaId::from(para_id);
 
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v5::AccountId>::into_account_truncating(&id);
+					AccountIdConversion::<polkadot_primitives::v6::AccountId>::into_account_truncating(&id);
 
 				let state_version = Cli::runtime_version().state_version();
 
@@ -447,4 +448,38 @@ impl Cli {
 	fn runtime_version() -> &'static RuntimeVersion {
 		&hydradx_runtime::VERSION
 	}
+}
+
+/// Generate the genesis block from a given ChainSpec.
+pub fn generate_genesis_block<Block: BlockT>(
+	chain_spec: &dyn ChainSpec,
+	genesis_state_version: StateVersion,
+) -> std::result::Result<Block, String> {
+	let storage = chain_spec.build_storage()?;
+
+	let child_roots = storage.children_default.iter().map(|(sk, child_content)| {
+		let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
+			child_content.data.clone().into_iter().collect(),
+			genesis_state_version,
+		);
+		(sk.clone(), state_root.encode())
+	});
+	let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
+		storage.top.clone().into_iter().chain(child_roots).collect(),
+		genesis_state_version,
+	);
+
+	let extrinsics_root =
+		<<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(Vec::new(), genesis_state_version);
+
+	Ok(Block::new(
+		<<Block as BlockT>::Header as HeaderT>::new(
+			Zero::zero(),
+			extrinsics_root,
+			state_root,
+			Default::default(),
+			Default::default(),
+		),
+		Default::default(),
+	))
 }
