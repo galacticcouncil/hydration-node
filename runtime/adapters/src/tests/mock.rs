@@ -318,51 +318,13 @@ parameter_types! {
 
 type Pools = (Omnipool, XYK);
 
-pub struct MockedAssetRegistry;
-
-impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
-	type AssetId = AssetId;
-	type Location = ();
-
-	fn is_sufficient(_id: Self::AssetId) -> bool {
-		true
-	}
-
-	fn exists(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn decimals(_id: Self::AssetId) -> Option<u8> {
-		unimplemented!()
-	}
-
-	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
-		unimplemented!()
-	}
-
-	fn is_banned(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-
-	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-
-	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
-		unimplemented!()
-	}
-}
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = MockedAssetRegistry;
+	type InspectRegistry = DummyRegistry<Test>;
 	type AMM = Pools;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
@@ -632,7 +594,7 @@ where
 	}
 
 	fn is_sufficient(_id: Self::AssetId) -> bool {
-		unimplemented!()
+		true
 	}
 
 	fn exists(asset_id: AssetId) -> bool {
@@ -653,7 +615,7 @@ where
 	}
 
 	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
-		unimplemented!()
+		Some(1u128)
 	}
 }
 

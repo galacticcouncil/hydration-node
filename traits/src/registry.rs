@@ -168,7 +168,7 @@ pub trait Create<Balance>: Inspect {
 	}
 }
 
-pub trait Mutate: Inspect {
+pub trait Mutate<Balance>: Inspect {
 	type Error;
 
 	/// Set location for existing asset id if it wasn't set yet.

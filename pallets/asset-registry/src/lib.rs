@@ -689,7 +689,7 @@ impl<T: Config> Inspect for Pallet<T> {
 	}
 }
 
-impl<T: Config> Mutate for Pallet<T> {
+impl<T: Config> Mutate<Balance> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn set_location(asset_id: Self::AssetId, location: T::AssetNativeLocation) -> Result<(), Self::Error> {

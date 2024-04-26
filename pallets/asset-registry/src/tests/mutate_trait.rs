@@ -29,7 +29,7 @@ fn set_location_should_work_when_location_was_not_set_yet() {
 			assert_eq!(Registry::locations(asset_id), None);
 
 			//Act
-			assert_ok!(<Registry as Mutate>::set_location(asset_id, location.clone()));
+			assert_ok!(<Registry as Mutate<Balance>>::set_location(asset_id, location.clone()));
 
 			//Assert
 			assert_eq!(Registry::location_assets(location.clone()), Some(asset_id));
@@ -59,7 +59,7 @@ fn set_location_should_not_work_when_location_was_not() {
 
 			//Act
 			assert_noop!(
-				<Registry as Mutate>::set_location(asset_id, location),
+				<Registry as Mutate<Balance>>::set_location(asset_id, location),
 				Error::<Test>::LocationAlreadyRegistered
 			);
 		});
@@ -75,7 +75,7 @@ fn set_location_should_not_work_when_asset_does_not_exists() {
 
 		//Act
 		assert_noop!(
-			<Registry as Mutate>::set_location(non_existing_id, location),
+			<Registry as Mutate<Balance>>::set_location(non_existing_id, location),
 			Error::<Test>::AssetNotFound
 		);
 	});
