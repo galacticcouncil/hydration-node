@@ -65,6 +65,7 @@ use sp_std::prelude::*;
 use sp_std::vec;
 
 pub mod types;
+mod trade_execution;
 pub mod weights;
 
 use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, Tradability};
