@@ -1163,7 +1163,7 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
-			currency_precompile::alice_substrate_evm_addr().into(),
+			currency_precompile::alice_substrate_evm_addr(),
 			WETH,
 			(100 * UNITS * 1_000_000) as i128,
 		));
@@ -1187,9 +1187,9 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 		let router_swap = RuntimeCall::Router(pallet_route_executor::Call::buy {
 			asset_in: WETH,
 			asset_out: shitcoin,
-			amount_out: 1 * UNITS,
+			amount_out: UNITS,
 			max_amount_in: u128::MAX,
-			route: swap_route.clone(),
+			route: swap_route,
 		});
 
 		//Arrange
@@ -1218,7 +1218,7 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 		//EVM call passes even when the substrate tx fails, so we need to check if the tx is executed
 		expect_hydra_events(vec![pallet_evm::Event::Executed { address: DISPATCH_ADDR }.into()]);
 		let new_balance = Tokens::free_balance(shitcoin, &currency_precompile::alice_substrate_evm_addr());
-		assert_eq!(new_balance, 1 * UNITS);
+		assert_eq!(new_balance, UNITS);
 	});
 }
 
