@@ -2,8 +2,9 @@ use crate::stableswap::types::AssetReserve;
 use crate::support::rational::round_to_rational;
 use crate::to_u256;
 use crate::types::Balance;
-use num_traits::{CheckedDiv, CheckedMul, One, Zero};
+use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
+use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::Div;
 use sp_std::prelude::*;
@@ -735,6 +736,7 @@ pub fn calculate_spot_price(
 	d: Balance,
 	asset_in_idx: usize,
 	asset_out_idx: usize,
+	fee: Option<Permill>,
 ) -> Option<(Balance, Balance)> {
 	let n = reserves.len();
 	if n <= 1 || asset_in_idx >= n || asset_out_idx >= n {
@@ -758,10 +760,17 @@ pub fn calculate_spot_price(
 	let num = x0.checked_mul(ann.checked_mul(xi)?.checked_add(c)?)?;
 	let denom = xi.checked_mul(ann.checked_mul(x0)?.checked_add(c)?)?;
 
-	Some(round_to_rational(
-		(num, denom),
-		crate::support::rational::Rounding::Down,
-	))
+	let mut spot_price = round_to_rational((num, denom), crate::support::rational::Rounding::Down);
+
+	if let Some(fee) = fee {
+		// Amount_out is reduced by fee in SELL, making asset_out more expensive, so the asset_in/asset_out spot price should be increased.
+		// So divide spot-price-without-fee by (1-fee) to reflect correct amount out after the fee deduction
+		let fee_multiplier = Permill::from_percent(100).checked_sub(&fee)?;
+
+		spot_price.1 = fee_multiplier.mul_floor(spot_price.1);
+	}
+
+	Some((spot_price.0, spot_price.1))
 }
 
 #[cfg(test)]
@@ -808,7 +817,7 @@ mod tests {
 		];
 		let amp = 319u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
-		let p = calculate_spot_price(&reserves, amp, d, 0, 1).unwrap();
+		let p = calculate_spot_price(&reserves, amp, d, 0, 1, None).unwrap();
 		assert_eq!(
 			p,
 			(
@@ -825,7 +834,7 @@ mod tests {
 		];
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
-		let p = calculate_spot_price(&reserves, amp, d, 0, 1).unwrap();
+		let p = calculate_spot_price(&reserves, amp, d, 0, 1, None).unwrap();
 		assert_eq!(
 			p,
 			(
@@ -846,8 +855,8 @@ mod tests {
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
 
-		assert!(calculate_spot_price(&reserves, amp, d, 4, 1).is_none());
-		assert!(calculate_spot_price(&reserves, amp, d, 1, 4).is_none());
+		assert!(calculate_spot_price(&reserves, amp, d, 4, 1, None).is_none());
+		assert!(calculate_spot_price(&reserves, amp, d, 1, 4, None).is_none());
 	}
 
 	#[test]

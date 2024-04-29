@@ -230,21 +230,18 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
-					let p =
-						hydra_dx_math::stableswap::calculate_spot_price(&balances, amp, d, asset_in_idx, asset_out_idx)
-							.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
-					let fee_multiplier = Permill::from_percent(100)
-						.checked_sub(&pool.fee)
-						.ok_or(ExecutorError::Error(Corruption))?;
+					let p = hydra_dx_math::stableswap::calculate_spot_price(
+						&balances,
+						amp,
+						d,
+						asset_in_idx,
+						asset_out_idx,
+						Some(pool.fee),
+					)
+					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
-					let fee_multiplier =
-						FixedU128::checked_from_rational(fee_multiplier.deconstruct() as u128, 1_000_000)
-							.ok_or(ExecutorError::Error(Corruption))?;
-
-					let spot_price_without_fee = FixedU128::from_rational(p.0, p.1);
-					let spot_price_with_fee = spot_price_without_fee
-						.checked_div(&fee_multiplier)
-						.ok_or(ExecutorError::Error(Corruption))?;
+					let spot_price_with_fee =
+						FixedU128::checked_from_rational(p.0, p.1).ok_or(ExecutorError::Error(Corruption))?;
 
 					Ok(spot_price_with_fee)
 				} else if asset_a == pool_id {
@@ -262,7 +259,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						share_issuance,
 						pool.fee,
 					)
-					.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?; //TODO: change error
+					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					let spot_price_with_fee =
 						FixedU128::checked_from_rational(shares, amount).ok_or(ExecutorError::Error(Corruption))?;
