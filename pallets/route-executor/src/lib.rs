@@ -55,6 +55,7 @@ pub const MAX_NUMBER_OF_TRADES: u32 = 5;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::__private::log;
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
@@ -331,6 +332,28 @@ pub mod pallet {
 				amount_in: first_trade.amount_in,
 				amount_out,
 			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(4)]
+		#[pallet::weight(T::WeightInfo::buy_weight(route))]
+		#[transactional]
+		pub fn spot_price_print(
+			origin: OriginFor<T>,
+			asset_in: T::AssetId,
+			asset_out: T::AssetId,
+			route: Vec<Trade<T::AssetId>>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+
+			let spot_price = Self::spot_price(&route[..]).unwrap();
+			log::info!(
+				"SPOT PRICE FOR {:?}-{:?} is {}",
+				asset_in,
+				asset_out,
+				spot_price.into_inner()
+			);
 
 			Ok(())
 		}
