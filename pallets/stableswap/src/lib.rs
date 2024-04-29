@@ -64,11 +64,8 @@ use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
 
-mod trade_execution;
 pub mod types;
 pub mod weights;
-
-pub use trade_execution::*;
 
 use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, Tradability};
 use hydra_dx_math::stableswap::types::AssetReserve;
@@ -1166,68 +1163,6 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> Pallet<T> {
-	fn calculate_shares(pool_id: T::AssetId, assets: &[AssetAmount<T::AssetId>]) -> Result<Balance, DispatchError> {
-		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
-		let pool_account = Self::pool_account(pool_id);
-
-		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);
-
-		let mut added_assets = BTreeMap::<T::AssetId, Balance>::new();
-		for asset in assets.iter() {
-			ensure!(
-				Self::is_asset_allowed(pool_id, asset.asset_id, Tradability::ADD_LIQUIDITY),
-				Error::<T>::NotAllowed
-			);
-			ensure!(
-				asset.amount >= T::MinTradingLimit::get(),
-				Error::<T>::InsufficientTradingAmount
-			);
-
-			ensure!(pool.find_asset(asset.asset_id).is_some(), Error::<T>::AssetNotInPool);
-
-			if added_assets.insert(asset.asset_id, asset.amount).is_some() {
-				return Err(Error::<T>::IncorrectAssets.into());
-			}
-		}
-
-		let mut initial_reserves = Vec::with_capacity(pool.assets.len());
-		let mut updated_reserves = Vec::with_capacity(pool.assets.len());
-		for pool_asset in pool.assets.iter() {
-			let decimals = Self::retrieve_decimals(*pool_asset).ok_or(Error::<T>::UnknownDecimals)?;
-			let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
-			initial_reserves.push(AssetReserve {
-				amount: reserve,
-				decimals,
-			});
-			if let Some(liq_added) = added_assets.remove(pool_asset) {
-				let inc_reserve = reserve.checked_add(liq_added).ok_or(ArithmeticError::Overflow)?;
-				updated_reserves.push(AssetReserve {
-					amount: inc_reserve,
-					decimals,
-				});
-			} else {
-				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push(AssetReserve {
-					amount: reserve,
-					decimals,
-				});
-			}
-		}
-
-		let amplification = Self::get_amplification(&pool);
-		let share_issuance = T::Currency::total_issuance(pool_id);
-		let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
-			&initial_reserves,
-			&updated_reserves,
-			amplification,
-			share_issuance,
-			pool.fee,
-		)
-		.ok_or(ArithmeticError::Overflow)?;
-
-		Ok(share_amount)
-	}
-
 	// Trigger on_liquidity_changed hook. Initial reserves and issuance are required to calculate delta.
 	// We need new updated reserves and new share price of each asset in pool, so for this, we can simply query the storage after the update.
 	fn call_on_liquidity_change_hook(

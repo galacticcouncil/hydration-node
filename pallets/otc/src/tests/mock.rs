@@ -96,6 +96,7 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
+	type RuntimeTask = RuntimeTask;
 	type Nonce = u64;
 	type Block = Block;
 	type Hash = H256;
@@ -150,7 +151,7 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 
 	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
-		matches!(asset, Some(_))
+		asset.is_some()
 	}
 
 	fn is_banned(_id: Self::AssetId) -> bool {

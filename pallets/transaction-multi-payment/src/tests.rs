@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::{mock::*, Config, Error};
+pub use crate::{mock::*, Error};
 use crate::{AcceptedCurrencies, AcceptedCurrencyPrice, Event, PaymentInfo, Price};
 
 use frame_support::{
@@ -31,7 +31,7 @@ use pallet_balances::Call as BalancesCall;
 use pallet_transaction_payment::ChargeTransactionPayment;
 
 const CALL: &<Test as frame_system::Config>::RuntimeCall =
-	&RuntimeCall::Balances(BalancesCall::transfer { dest: BOB, value: 69 });
+	&RuntimeCall::Balances(BalancesCall::transfer_allow_death { dest: BOB, value: 69 });
 
 #[test]
 fn on_initialize_should_fill_storage_with_prices() {

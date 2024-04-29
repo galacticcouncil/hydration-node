@@ -40,11 +40,6 @@ use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::EnsureAddressTruncated;
 use pallet_transaction_payment::Multiplier;
-use polkadot_xcm::v4::Junctions;
-use polkadot_xcm::{
-	latest::Location,
-	prelude::{AccountKey20, PalletInstance, Parachain},
-};
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
 

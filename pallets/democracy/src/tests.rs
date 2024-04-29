@@ -97,6 +97,7 @@ impl frame_system::Config for Test {
 	type RuntimeOrigin = RuntimeOrigin;
 	type Nonce = u64;
 	type RuntimeCall = RuntimeCall;
+	type RuntimeTask = RuntimeTask;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
@@ -123,8 +124,6 @@ impl pallet_preimage::Config for Test {
 	type WeightInfo = ();
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<u64>;
-	type BaseDeposit = ConstU64<0>;
-	type ByteDeposit = ConstU64<0>;
 }
 
 impl pallet_scheduler::Config for Test {
@@ -153,7 +152,7 @@ impl pallet_balances::Config for Test {
 	type FreezeIdentifier = ();
 	type MaxFreezes = ();
 	type RuntimeHoldReason = ();
-	type MaxHolds = ();
+	type RuntimeFreezeReason = ();
 }
 parameter_types! {
 	pub static PreimageByteDeposit: u64 = 0;

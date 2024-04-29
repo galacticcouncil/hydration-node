@@ -3,7 +3,7 @@ use sp_std::marker::PhantomData;
 
 use codec::MaxEncodedLen;
 use hydradx_adapters::{
-	MultiCurrencyTrader, RelayChainBlockNumberProvider, ReroutingMultiCurrencyAdapter, ToFeeReceiver,
+	MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver,
 };
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
@@ -16,7 +16,6 @@ use frame_support::{
 	traits::{ConstU32, Contains, Everything, Get, Nothing},
 	PalletId,
 };
-use frame_system::EnsureRoot;
 use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
 use hydradx_adapters::xcm_execute_filter::AllowTransferAndSwap;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};

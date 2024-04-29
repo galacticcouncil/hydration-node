@@ -304,7 +304,6 @@ cumulus-relay-chain-rpc-interface = { git = "https://github.com/paritytech/polka
 [patch."https://github.com/moonbeam-foundation/open-runtime-module-library"]
 # ORML dependencies
 orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-v1.7.2"}
-orml-currencies = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-v1.7.2"}
 orml-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-v1.7.2"}
 orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-v1.7.2"}
 orml-utilities = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-v1.7.2"}
@@ -381,7 +380,6 @@ sc-utils = { git = "https://github.com/paritytech/polkadot-sdk", branch = "relea
 sp-state-machine = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 sp-weights = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2"}
 sp-crypto-hashing= {  git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2"}
-sp-crypto-ec-utils= {   git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2"}
 sp-core-hashing = {   git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2"}
 
 # Substrate Pallets

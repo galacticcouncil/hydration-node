@@ -21,9 +21,7 @@ use primitives::constants::{
 	time::{DAYS, HOURS},
 };
 
-use frame_support::traits::fungible::HoldConsideration;
 use frame_support::traits::tokens::{PayFromAccount, UnityAssetBalanceConversion};
-use frame_support::traits::LinearStoragePrice;
 use frame_support::{
 	parameter_types,
 	sp_runtime::{Perbill, Percent, Permill},

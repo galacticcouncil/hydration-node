@@ -17,6 +17,7 @@
 
 #![cfg(test)]
 
+use crate::Balance;
 use frame_support::parameter_types;
 use frame_system as system;
 use orml_traits::parameter_type_with_key;
@@ -34,7 +35,6 @@ use crate as pallet_asset_registry;
 use crate::types::{Name, Symbol};
 
 pub type AssetId = u32;
-pub type Balance = u128;
 
 pub const UNIT: Balance = 1_000_000_000_000;
 pub const ALICE: u64 = 1_000;
@@ -69,6 +69,7 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
+	type RuntimeTask = RuntimeTask;
 	type Nonce = u64;
 	type Block = Block;
 	type Hash = H256;
