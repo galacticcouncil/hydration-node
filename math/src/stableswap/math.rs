@@ -737,7 +737,7 @@ pub fn calculate_spot_price(
 	asset_in_idx: usize,
 	asset_out_idx: usize,
 	fee: Option<Permill>,
-) -> Option<(Balance, Balance)> {
+) -> Option<FixedU128> {
 	let n = reserves.len();
 	if n <= 1 || asset_in_idx >= n || asset_out_idx >= n {
 		return None;
@@ -770,12 +770,13 @@ pub fn calculate_spot_price(
 		spot_price.1 = fee_multiplier.mul_floor(spot_price.1);
 	}
 
-	Some((spot_price.0, spot_price.1))
+	FixedU128::checked_from_rational(spot_price.0, spot_price.1)
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::{assert_approx_eq, test_utils};
 
 	#[test]
 	fn test_normalize_value_same_decimals() {
@@ -818,14 +819,15 @@ mod tests {
 		let amp = 319u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
 		let p = calculate_spot_price(&reserves, amp, d, 0, 1, None).unwrap();
-		assert_eq!(
+		assert_approx_eq!(
 			p,
-			(
+			FixedU128::from_rational(
 				259416830506303392284340673024338472588,
 				259437723055509887749072196895052016056
-			)
+			),
+			FixedU128::from((2, (1_000_000_000_000u128 / 10_000))),
+			"the relative difference is not as expected"
 		);
-
 		let reserves = vec![
 			AssetReserve::new(1_001_000_000_000_000_000, 12),
 			AssetReserve::new(1_000_000_000_000_000_000, 12),
@@ -835,12 +837,14 @@ mod tests {
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
 		let p = calculate_spot_price(&reserves, amp, d, 0, 1, None).unwrap();
-		assert_eq!(
+		assert_approx_eq!(
 			p,
-			(
+			FixedU128::from_rational(
 				320469570070413807187663384895131457597,
 				320440458954331380180651678529102355242
-			)
+			),
+			FixedU128::from((2, (1_000_000_000_000u128 / 10_000))),
+			"the relative difference is not as expected"
 		);
 	}
 
