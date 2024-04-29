@@ -19,6 +19,7 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
 use crate::evm::runner::WrapRunner;
 use crate::types::ShortOraclePrice;
 pub use crate::{
@@ -49,6 +50,7 @@ use sp_core::{Get, U256};
 
 mod accounts_conversion;
 mod evm_fee;
+pub mod permit;
 pub mod precompiles;
 mod runner;
 
@@ -138,7 +140,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type OnChargeTransaction = evm_fee::TransferEvmFees<
 		evm_fee::DepositEvmFeeToTreasury,
-		crate::MultiTransactionPayment, // Get account's fee payment asset
+		FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
 		WethAssetId,
 		ConvertAmount<ShortOraclePrice>,
 		FungibleCurrencies<crate::Runtime>, // Multi currency support
@@ -152,8 +154,8 @@ impl pallet_evm::Config for crate::Runtime {
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			crate::Runtime,
 			ConvertAmount<ShortOraclePrice>,
-			crate::MultiTransactionPayment,     // Get account's fee payment asset
-			FungibleCurrencies<crate::Runtime>, // Account balance inspector
+			FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
+			FungibleCurrencies<crate::Runtime>,        // Account balance inspector
 		>,
 	>;
 	type RuntimeEvent = crate::RuntimeEvent;

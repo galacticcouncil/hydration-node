@@ -1,3 +1,5 @@
+#![allow(clippy::bad_bit_mask)]
+
 use super::*;
 use codec::MaxEncodedLen;
 use frame_support::pallet_prelude::*;

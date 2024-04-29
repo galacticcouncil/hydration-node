@@ -29,7 +29,7 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 };
 use orml_traits::GetByKey;
-pub use orml_traits::MultiCurrency;
+
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One, Zero},

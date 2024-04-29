@@ -1,3 +1,4 @@
+#![allow(clippy::bad_bit_mask)]
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 

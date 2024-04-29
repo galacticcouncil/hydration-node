@@ -15,11 +15,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::{mock::*, Config, Error};
+pub use crate::{mock::*, Error};
 use crate::{AcceptedCurrencies, AcceptedCurrencyPrice, Event, PaymentInfo, Price};
 
 use frame_support::{
-	assert_noop, assert_ok,
+	assert_noop, assert_ok, assert_storage_noop,
 	dispatch::{DispatchInfo, PostDispatchInfo},
 	sp_runtime::traits::{BadOrigin, SignedExtension},
 	traits::{tokens::Precision, Hooks},
@@ -29,6 +29,9 @@ use hydradx_traits::evm::InspectEvmAccounts;
 use orml_traits::MultiCurrency;
 use pallet_balances::Call as BalancesCall;
 use pallet_transaction_payment::ChargeTransactionPayment;
+use sp_core::{H256, U256};
+use sp_runtime::traits::ValidateUnsigned;
+use sp_runtime::transaction_validity::TransactionSource;
 
 const CALL: &<Test as frame_system::Config>::RuntimeCall =
 	&RuntimeCall::Balances(BalancesCall::transfer { dest: BOB, value: 69 });
@@ -367,31 +370,6 @@ fn set_native_currency() {
 
 		assert_eq!(PaymentPallet::get_currency(ALICE), Some(HDX));
 	});
-}
-
-#[test]
-fn set_currency_for_evm_accounts_should_not_work() {
-	ExtBuilder::default()
-		.account_tokens(ALICE, WETH, 1_000_000_000)
-		.build()
-		.execute_with(|| {
-			let alice_evm_address = EVMAccounts::evm_address(&ALICE);
-			let alice_evm_acc = EVMAccounts::truncated_account_id(alice_evm_address);
-
-			assert_ok!(Tokens::transfer(
-				Some(ALICE).into(),
-				alice_evm_acc.clone(),
-				WETH,
-				1_000_000_000
-			));
-
-			assert_eq!(PaymentPallet::account_currency(&alice_evm_acc), WETH);
-
-			assert_noop!(
-				PaymentPallet::set_currency(RuntimeOrigin::signed(alice_evm_acc), SUPPORTED_CURRENCY),
-				Error::<Test>::EvmAccountNotAllowed
-			);
-		});
 }
 
 #[test]
@@ -1353,5 +1331,153 @@ fn reset_payment_currency_should_set_currency_to_weth_for_evm_accounts() {
 				asset_id: WETH,
 			}
 			.into()]);
+		});
+}
+
+#[test]
+fn validate_unsigned_should_correctly_call_validate_handler() {
+	let alice_evm_address = EVMAccounts::evm_address(&ALICE);
+	let other_evm_address = EVMAccounts::evm_address(&BOB);
+	let alice_evm_acc = EVMAccounts::truncated_account_id(alice_evm_address);
+
+	ExtBuilder::default()
+		.with_currencies(vec![(alice_evm_acc.clone(), SUPPORTED_CURRENCY)])
+		.build()
+		.execute_with(|| {
+			let r: [u8; 32] = [100; 32];
+			let s: [u8; 32] = [200; 32];
+
+			let call = crate::Call::dispatch_permit {
+				from: alice_evm_address,
+				to: other_evm_address,
+				data: b"test".to_vec(),
+				value: U256::from(1234),
+				gas_limit: 123,
+				deadline: U256::from(99999),
+				v: 255,
+				r: H256::from(r),
+				s: H256::from(s),
+			};
+
+			assert_storage_noop!({
+				let res = PaymentPallet::validate_unsigned(TransactionSource::Local, &call);
+				assert_ok!(res);
+			});
+
+			let expected = ValidationData {
+				source: alice_evm_address,
+				target: other_evm_address,
+				input: b"test".to_vec(),
+				value: U256::from(1234),
+				gas_limit: 123,
+				deadline: U256::from(99999),
+				v: 255,
+				r: H256::from(r),
+				s: H256::from(s),
+			};
+
+			assert_eq!(PermitDispatchHandler::last_validation_call_data(), expected);
+		});
+}
+
+#[test]
+fn validate_unsigned_should_correctly_dry_run_dispatch() {
+	let alice_evm_address = EVMAccounts::evm_address(&ALICE);
+	let other_evm_address = EVMAccounts::evm_address(&BOB);
+	let alice_evm_acc = EVMAccounts::truncated_account_id(alice_evm_address);
+
+	ExtBuilder::default()
+		.with_currencies(vec![(alice_evm_acc.clone(), SUPPORTED_CURRENCY)])
+		.build()
+		.execute_with(|| {
+			let r: [u8; 32] = [100; 32];
+			let s: [u8; 32] = [200; 32];
+
+			let call = crate::Call::dispatch_permit {
+				from: alice_evm_address,
+				to: other_evm_address,
+				data: b"test".to_vec(),
+				value: U256::from(1234),
+				gas_limit: 123,
+				deadline: U256::from(99999),
+				v: 255,
+				r: H256::from(r),
+				s: H256::from(s),
+			};
+
+			assert_storage_noop!({
+				let res = PaymentPallet::validate_unsigned(TransactionSource::Local, &call);
+				assert_ok!(res);
+			});
+
+			let expected = PermitDispatchData {
+				source: alice_evm_address,
+				target: other_evm_address,
+				input: b"test".to_vec(),
+				value: U256::from(1234),
+				gas_limit: 123,
+				max_fee_per_gas: U256::from(222u128),
+				max_priority_fee_per_gas: None,
+				nonce: None,
+				access_list: vec![],
+			};
+
+			assert_eq!(PermitDispatchHandler::last_dispatch_call_data(), expected);
+		});
+}
+
+#[test]
+fn dispatch_should_correctly_call_validate_and_dispatch() {
+	let alice_evm_address = EVMAccounts::evm_address(&ALICE);
+	let other_evm_address = EVMAccounts::evm_address(&BOB);
+	let alice_evm_acc = EVMAccounts::truncated_account_id(alice_evm_address);
+
+	ExtBuilder::default()
+		.with_currencies(vec![(alice_evm_acc.clone(), SUPPORTED_CURRENCY)])
+		.build()
+		.execute_with(|| {
+			let r: [u8; 32] = [50; 32];
+			let s: [u8; 32] = [100; 32];
+
+			assert_ok!(PaymentPallet::dispatch_permit(
+				RuntimeOrigin::none(),
+				alice_evm_address,
+				other_evm_address,
+				U256::from(1234),
+				b"test".to_vec(),
+				333,
+				U256::from(99999u128),
+				128,
+				H256::from(r),
+				H256::from(s),
+			));
+
+			let expected = ValidationData {
+				source: alice_evm_address,
+				target: other_evm_address,
+				input: b"test".to_vec(),
+				value: U256::from(1234),
+				gas_limit: 333,
+				deadline: U256::from(99999u128),
+				v: 128,
+				r: H256::from(r),
+				s: H256::from(s),
+			};
+
+			assert_eq!(PermitDispatchHandler::last_validation_call_data(), expected);
+
+			let expected = PermitDispatchData {
+				source: alice_evm_address,
+				target: other_evm_address,
+				input: b"test".to_vec(),
+				value: U256::from(1234),
+				gas_limit: 333,
+				max_fee_per_gas: U256::from(222u128),
+				max_priority_fee_per_gas: None,
+				nonce: None,
+				access_list: vec![],
+			};
+
+			assert_eq!(PermitDispatchHandler::last_dispatch_call_data(), expected);
 		});
 }
