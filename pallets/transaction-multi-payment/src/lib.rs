@@ -410,17 +410,8 @@ pub mod pallet {
 
 			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
-			let result = T::EvmPermit::dispatch_permit(
-				from,
-				to,
-				data,
-				value,
-				gas_limit,
-				gas_price,
-				None,
-				None,
-				vec![],
-			)?;
+			let result =
+				T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![])?;
 
 			TransactionCurrencyOverride::<T>::remove(account_id.clone());
 
