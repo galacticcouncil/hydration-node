@@ -3996,7 +3996,12 @@ mod spot_price_calculation {
 
 			//Check spot price with fee
 			let spot_price_with_fee = LBPPallet::calculate_spot_price(PoolType::LBP, asset_a, asset_b).unwrap();
-			assert_eq!(spot_price_without_fee, spot_price_with_fee);
+			assert_eq_approx!(
+				spot_price_without_fee,
+				spot_price_with_fee,
+				FixedU128::from((2, (ONE / 10_000))),
+				"the relative difference is not as expected"
+			);
 		})
 	}
 

@@ -6,7 +6,7 @@ use orml_traits::MultiCurrency;
 use sp_runtime::traits::CheckedDiv;
 use sp_runtime::traits::{BlockNumberProvider, CheckedSub};
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
@@ -161,7 +161,6 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			return Err(ExecutorError::NotSupported);
 		}
 
-		let spot_price_without_fee = Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
 		let assets = AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
@@ -169,6 +168,10 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		let pool_id = Self::get_pair_id(assets);
 		let pool_data =
 			<PoolData<T>>::try_get(&pool_id).map_err(|_| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+		let now = T::BlockNumberProvider::current_block_number();
+
+		let (weight_in, weight_out) =
+			Self::get_sorted_weight(asset_a, now, &pool_data).map_err(|err| ExecutorError::Error(err.into()))?;
 		let fee_asset = pool_data.assets.0;
 
 		let fee = if Self::is_repay_fee_applied(&pool_data) {
@@ -177,23 +180,20 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			pool_data.fee
 		};
 
-		let spot_price_with_fee = if fee_asset == assets.asset_out {
-			//Buyer bears fee, the fee is deducted from asset out.
-			//We divide by (1-f) to reflect correct amount out after the fee deduction
-			let fee = FixedU128::checked_from_rational(fee.0, fee.1).ok_or(ExecutorError::Error(Corruption))?;
-			let fee_multiplier = FixedU128::from_rational(1, 1)
-				.checked_sub(&fee)
-				.ok_or(ExecutorError::Error(Corruption))?;
-
-			spot_price_without_fee
-				.checked_div(&fee_multiplier)
-				.ok_or(ExecutorError::Error(Corruption))?
-		} else {
-			//Pool bears repay fee
-			//Fee does not change spot price as user receives the whole amount out based on whole amount in.
-			//For the trade, amount_in minus fee is transferred from the user, then in the end the fee is transferred to fee-collector
-			spot_price_without_fee
-		};
+		let asset_in_reserve = T::MultiCurrency::free_balance(asset_a, &pool_id);
+		let asset_out_reserve = T::MultiCurrency::free_balance(asset_b, &pool_id);
+		let spot_price_with_fee = hydra_dx_math::lbp::spot_price(
+			asset_in_reserve,
+			asset_out_reserve,
+			weight_in,
+			weight_out,
+			fee_asset,
+			asset_b,
+			Some(fee),
+		)
+		.or_else(|_| Err(ExecutorError::Error(ArithmeticError::Overflow.into())))?
+		.reciprocal()
+		.ok_or(ExecutorError::Error(Corruption))?;
 
 		Ok(spot_price_with_fee)
 	}
