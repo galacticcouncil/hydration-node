@@ -1,7 +1,7 @@
 use crate::stableswap::types::AssetReserve;
 use crate::support::rational::round_to_rational;
 use crate::to_u256;
-use crate::types::Balance;
+use crate::types::{AssetId, Balance};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
@@ -771,6 +771,44 @@ pub fn calculate_spot_price(
 	}
 
 	FixedU128::checked_from_rational(spot_price.0, spot_price.1)
+}
+
+pub fn calculate_spot_price_between_share_and_stableasset(
+	reserves: &[AssetReserve],
+	asset_out_idx: usize,
+	reference_amount: Balance,
+	amplification: Balance,
+	share_issuance: Balance,
+	pool_fee: Permill,
+) -> Option<FixedU128> {
+	let shares = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
+		&reserves,
+		asset_out_idx,
+		reference_amount.clone(),
+		amplification,
+		share_issuance,
+		pool_fee,
+	)?;
+
+	let spot_price_with_fee = FixedU128::checked_from_rational(reference_amount, shares)?;
+
+	Some(spot_price_with_fee)
+}
+
+pub fn calculate_spot_price_between_stableasset_and_share(
+	initial_reserves: &[AssetReserve],
+	updated_reserves: &[AssetReserve],
+	amplification: Balance,
+	share_issuance: Balance,
+	fee: Permill,
+	reference_amount: Balance,
+) -> Option<FixedU128> {
+	let share_amount =
+		calculate_shares::<MAX_D_ITERATIONS>(initial_reserves, updated_reserves, amplification, share_issuance, fee)?;
+
+	let spot_price_with_fee = FixedU128::checked_from_rational(share_amount, reference_amount)?;
+
+	Some(spot_price_with_fee)
 }
 
 #[cfg(test)]

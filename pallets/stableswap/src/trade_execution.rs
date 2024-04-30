@@ -230,7 +230,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
-					let p = hydra_dx_math::stableswap::calculate_spot_price(
+					let spot_price_with_fee = hydra_dx_math::stableswap::calculate_spot_price(
 						&balances,
 						amp,
 						d,
@@ -240,9 +240,6 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 					)
 					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
-					let spot_price_with_fee =
-						FixedU128::checked_from_rational(p.0, p.1).ok_or(ExecutorError::Error(Corruption))?;
-
 					Ok(spot_price_with_fee)
 				} else if asset_a == pool_id {
 					let amount = T::MinTradingLimit::get();
@@ -251,31 +248,81 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 						.find_asset(asset_b)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 
-					let shares = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
-						&balances,
-						asset_out_idx,
-						amount,
-						amp,
-						share_issuance,
-						pool.fee,
-					)
-					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
-
 					let spot_price_with_fee =
-						FixedU128::checked_from_rational(shares, amount).ok_or(ExecutorError::Error(Corruption))?;
+						hydra_dx_math::stableswap::calculate_spot_price_between_share_and_stableasset(
+							&balances,
+							asset_out_idx,
+							amount,
+							amp,
+							share_issuance,
+							pool.fee,
+						)
+						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?
+						.reciprocal()
+						.ok_or(ExecutorError::Error(Corruption))?;
 
 					Ok(spot_price_with_fee)
 				} else {
 					let amount_in = T::MinTradingLimit::get();
+
 					let assets = vec![AssetAmount {
 						asset_id: asset_a,
-						amount: amount_in,
+						amount: amount_in.clone(),
 					}];
 
-					let share_amount = Self::calculate_shares(pool_id, &assets)
-						.or_else(|_| Err(ExecutorError::Error(ArithmeticError::Overflow.into())))?;
+					let pool = Pools::<T>::get(pool_id)
+						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+					let mut added_assets = BTreeMap::<T::AssetId, Balance>::new();
+					for asset in assets.iter() {
+						if added_assets.insert(asset.asset_id, asset.amount).is_some() {
+							return Err(ExecutorError::Error(Error::<T>::IncorrectAssets.into()));
+						}
+					}
 
-					let spot_price_with_fee = FixedU128::checked_from_rational(amount_in, share_amount)
+					let pool_account = Self::pool_account(pool_id);
+					let mut initial_reserves = Vec::with_capacity(pool.assets.len());
+					let mut updated_reserves = Vec::with_capacity(pool.assets.len());
+					let mut added_amounts = Vec::with_capacity(pool.assets.len());
+					for pool_asset in pool.assets.iter() {
+						let decimals = Self::retrieve_decimals(*pool_asset)
+							.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+						let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
+						initial_reserves.push(AssetReserve {
+							amount: reserve,
+							decimals,
+						});
+						if let Some(liq_added) = added_assets.remove(pool_asset) {
+							let inc_reserve = reserve
+								.checked_add(liq_added)
+								.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+							updated_reserves.push(AssetReserve {
+								amount: inc_reserve,
+								decimals,
+							});
+							added_amounts.push(liq_added);
+						} else {
+							updated_reserves.push(AssetReserve {
+								amount: reserve,
+								decimals,
+							});
+							added_amounts.push(0);
+						}
+					}
+
+					let amplification = Self::get_amplification(&pool);
+					let share_issuance = T::Currency::total_issuance(pool_id);
+
+					let spot_price_with_fee =
+						hydra_dx_math::stableswap::calculate_spot_price_between_stableasset_and_share(
+							&initial_reserves,
+							&updated_reserves,
+							amplification,
+							share_issuance,
+							pool.fee,
+							amount_in,
+						)
+						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?
+						.reciprocal()
 						.ok_or(ExecutorError::Error(Corruption))?;
 
 					Ok(spot_price_with_fee)

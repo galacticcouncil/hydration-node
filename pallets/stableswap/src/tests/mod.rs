@@ -41,6 +41,5 @@ pub(crate) fn asset_spot_price(pool_id: AssetId, asset_id: AssetId) -> FixedU128
 	let amp = Pallet::<Test>::get_amplification(&pool);
 	let asset_idx = pool.find_asset(asset_id).unwrap();
 	let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp).unwrap();
-	let p = hydra_dx_math::stableswap::calculate_spot_price(&balances, amp, d, 0, asset_idx, None).unwrap();
-	FixedU128::from_rational(p.0, p.1)
+	hydra_dx_math::stableswap::calculate_spot_price(&balances, amp, d, 0, asset_idx, None).unwrap()
 }
