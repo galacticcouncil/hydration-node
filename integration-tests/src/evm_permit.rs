@@ -515,7 +515,6 @@ fn evm_permit_should_validate_unsigned_correctly() {
 			r: H256::from(rs.r.b32()),
 			s: H256::from(rs.s.b32()),
 		};
-
 		assert_eq!(
 			MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
 			Ok(ValidTransaction {

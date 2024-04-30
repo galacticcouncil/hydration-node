@@ -499,7 +499,7 @@ pub mod pallet {
 					let nonce = T::EvmPermit::permit_nonce(*from);
 					match result {
 						Ok(()) => ValidTransaction::with_tag_prefix("EVMPermit")
-							.and_provides((nonce, from, to))
+							.and_provides((nonce, from))
 							.priority(0)
 							.longevity(64)
 							.propagate(true)

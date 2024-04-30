@@ -86,7 +86,7 @@ impl EVMPermit for () {
 		Weight::zero()
 	}
 
-	fn permit_nonce(account: H160) -> U256 {
+	fn permit_nonce(_account: H160) -> U256 {
 		U256::default()
 	}
 }
