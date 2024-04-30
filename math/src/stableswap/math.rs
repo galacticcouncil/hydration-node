@@ -795,22 +795,6 @@ pub fn calculate_spot_price_between_share_and_stableasset(
 	Some(spot_price_with_fee)
 }
 
-pub fn calculate_spot_price_between_stableasset_and_share(
-	initial_reserves: &[AssetReserve],
-	updated_reserves: &[AssetReserve],
-	amplification: Balance,
-	share_issuance: Balance,
-	fee: Permill,
-	reference_amount: Balance,
-) -> Option<FixedU128> {
-	let share_amount =
-		calculate_shares::<MAX_D_ITERATIONS>(initial_reserves, updated_reserves, amplification, share_issuance, fee)?;
-
-	let spot_price_with_fee = FixedU128::checked_from_rational(share_amount, reference_amount)?;
-
-	Some(spot_price_with_fee)
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
