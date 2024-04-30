@@ -497,7 +497,7 @@ impl EVMPermit for PermitDispatchHandler {
 		todo!()
 	}
 
-	fn permit_nonce(account: H160) -> U256 {
+	fn permit_nonce(_account: H160) -> U256 {
 		U256::default()
 	}
 }
