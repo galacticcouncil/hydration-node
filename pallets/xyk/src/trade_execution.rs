@@ -162,11 +162,14 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-		let spot_price_with_fee =
-			hydra_dx_math::xyk::spot_price(asset_a_reserve, asset_b_reserve, Some(T::GetExchangeFee::get()))
-				.or_else(|_| Err(ExecutorError::Error(ArithmeticError::Overflow.into())))?
-				.reciprocal()
-				.ok_or(ExecutorError::Error(Corruption))?;
+		let spot_price_with_fee = hydra_dx_math::xyk::calculate_spot_price_with_fee(
+			asset_a_reserve,
+			asset_b_reserve,
+			Some(T::GetExchangeFee::get()),
+		)
+		.or_else(|_| Err(ExecutorError::Error(ArithmeticError::Overflow.into())))?
+		.reciprocal()
+		.ok_or(ExecutorError::Error(Corruption))?;
 
 		Ok(spot_price_with_fee)
 	}

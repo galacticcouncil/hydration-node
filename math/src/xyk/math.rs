@@ -37,7 +37,16 @@ pub fn calculate_spot_price(in_reserve: Balance, out_reserve: Balance, amount: B
 	to_balance!(spot_price_hp)
 }
 
-pub fn spot_price(
+/// Calculating spot price including fee
+///
+/// Spot price = B/A
+///
+/// - `in_reserve` - reserve amount of selling ass
+/// - `out_reserve` - reserve amount of buying asset
+/// - `fee_rate` - fee rate of the pool
+///
+/// Returns MathError in case of error
+pub fn calculate_spot_price_with_fee(
 	in_reserve: Balance,
 	out_reserve: Balance,
 	fee_rate: Option<(u32, u32)>,
