@@ -3,13 +3,11 @@ use crate::{Config, Error, HubAssetImbalance, Pallet};
 use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::omnipool::types::I129;
 
-use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::{GetByKey, MultiCurrency};
 use sp_runtime::traits::Get;
-use sp_runtime::traits::{CheckedDiv, CheckedSub};
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 
 // dev note: The code is calculate sell and buy is copied from the corresponding functions.
 // This is not ideal and should be refactored to avoid code duplication.

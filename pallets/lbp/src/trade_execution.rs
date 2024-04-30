@@ -1,10 +1,8 @@
 use crate::*;
-use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use sp_runtime::traits::CheckedDiv;
-use sp_runtime::traits::{BlockNumberProvider, CheckedSub};
+use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
@@ -191,7 +189,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			asset_b,
 			Some(fee),
 		)
-		.or_else(|_| Err(ExecutorError::Error(ArithmeticError::Overflow.into())))?
+		.map_err(|_| ExecutorError::Error(ArithmeticError::Overflow.into()))?
 		.reciprocal()
 		.ok_or(ExecutorError::Error(Corruption))?;
 

@@ -3,9 +3,9 @@ use crate::{
 	MathError::{InsufficientOutReserve, Overflow, ZeroReserve},
 };
 use core::convert::TryFrom;
-use num_traits::{CheckedDiv, CheckedMul, CheckedSub, Zero};
+use num_traits::{CheckedMul, CheckedSub, Zero};
 use primitive_types::U256;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use sp_arithmetic::{FixedPointNumber, FixedU128};
 
 type Balance = u128;
 

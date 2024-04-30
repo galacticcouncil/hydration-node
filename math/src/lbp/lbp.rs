@@ -9,7 +9,7 @@ use crate::{
 
 use core::convert::From;
 use fixed::types::U32F96;
-use num_traits::{CheckedDiv, CheckedMul, CheckedSub, Zero};
+use num_traits::{CheckedMul, CheckedSub, Zero};
 use sp_arithmetic;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Rounding};

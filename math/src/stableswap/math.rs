@@ -1,10 +1,9 @@
 use crate::stableswap::types::AssetReserve;
 use crate::support::rational::round_to_rational;
 use crate::to_u256;
-use crate::types::{AssetId, Balance};
+use crate::types::Balance;
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
-use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::Div;
 use sp_std::prelude::*;
@@ -804,9 +803,9 @@ pub fn calculate_spot_price_between_share_and_stableasset(
 	pool_fee: Permill,
 ) -> Option<FixedU128> {
 	let shares = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
-		&reserves,
+		reserves,
 		asset_out_idx,
-		reference_amount.clone(),
+		reference_amount,
 		amplification,
 		share_issuance,
 		pool_fee,

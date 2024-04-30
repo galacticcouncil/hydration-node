@@ -259,11 +259,11 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 
 					let assets = vec![AssetAmount {
 						asset_id: asset_a,
-						amount: amount_in.clone(),
+						amount: amount_in,
 					}];
 
 					let share_amount = Self::calculate_shares(pool_id, &assets)
-						.or_else(|_| Err(ExecutorError::Error(ArithmeticError::Overflow.into())))?;
+						.map_err(|_| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					let spot_price_with_fee = FixedU128::checked_from_rational(amount_in, share_amount)
 						.ok_or(ExecutorError::Error(Corruption))?;

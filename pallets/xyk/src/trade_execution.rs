@@ -164,7 +164,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			asset_b_reserve,
 			Some(T::GetExchangeFee::get()),
 		)
-		.or_else(|_| Err(ExecutorError::Error(ArithmeticError::Overflow.into())))?
+		.map_err(|_| ExecutorError::Error(ArithmeticError::Overflow.into()))?
 		.reciprocal()
 		.ok_or(ExecutorError::Error(Corruption))?;
 
