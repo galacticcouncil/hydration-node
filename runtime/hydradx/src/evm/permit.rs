@@ -146,4 +146,8 @@ where
 		let without_base_extrinsic_weight = true;
 		<R as pallet_evm::Config>::GasWeightMapping::gas_to_weight(gas_limit, without_base_extrinsic_weight)
 	}
+
+	fn permit_nonce(account: H160) -> U256 {
+		NoncesStorage::get(account)
+	}
 }

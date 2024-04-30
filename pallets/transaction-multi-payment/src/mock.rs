@@ -496,4 +496,8 @@ impl EVMPermit for PermitDispatchHandler {
 	fn dispatch_weight(_gas_limit: u64) -> Weight {
 		todo!()
 	}
+
+	fn permit_nonce(account: H160) -> U256 {
+		U256::default()
+	}
 }
