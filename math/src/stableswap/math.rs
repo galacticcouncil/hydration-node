@@ -820,7 +820,7 @@ pub fn calculate_spot_price_between_share_and_stableasset(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::{assert_approx_eq, test_utils};
+	use crate::assert_approx_eq;
 
 	#[test]
 	fn test_normalize_value_same_decimals() {

@@ -1,13 +1,10 @@
 use crate::types::{AssetId, AssetPair, Balance};
-use crate::{Config, Error, Pallet, XYKSpotPrice};
+use crate::{Config, Error, Pallet};
 use frame_support::ensure;
 use frame_support::traits::Get;
-use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use sp_runtime::traits::CheckedDiv;
-use sp_runtime::traits::CheckedSub;
 use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 

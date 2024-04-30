@@ -1,17 +1,11 @@
 use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
-use frame_support::storage::with_transaction;
-use frame_system::pallet_prelude::OriginFor;
-use frame_system::Origin;
-use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
 use sp_core::Get;
-use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedSub};
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill, TransactionOutcome};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 use sp_std::vec;
-use std::collections::BTreeMap;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
