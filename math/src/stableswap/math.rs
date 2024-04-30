@@ -730,6 +730,17 @@ pub fn calculate_share_price<const D: u8>(
 	Some((num, denom))
 }
 
+/// Calculating spot price between two stable asset AB, including the impact of the fee
+///
+/// Spot price = asset_a / asset_b
+///
+/// - `reserves` - reserve balances of assets
+/// - `amplification` - curve AMM pool amplification parameter
+/// - `d` - D invariant
+/// - `asset_in_idx` - asset in index
+/// - `asset_out_idx` - asset out index
+/// - `fee` - fee of the pool
+///
 pub fn calculate_spot_price(
 	reserves: &[AssetReserve],
 	amplification: Balance,
@@ -773,6 +784,17 @@ pub fn calculate_spot_price(
 	FixedU128::checked_from_rational(spot_price.0, spot_price.1)
 }
 
+/// Calculating spot price when buying stable asset with shares,  including the impact of the fee
+///
+/// Spot price = share_asset / stable_asset
+///
+/// - `reserves` - reserve balances of assets
+/// - `asset_out_idx` - asset out index
+/// - `reference_amount` - a min shares amount to exchange for stable assets
+/// - `amplification` - curve AMM pool amplification parameter
+/// - `share_issuance` - total issuance of the share
+/// - `pool_fee` - fee of the pool
+///
 pub fn calculate_spot_price_between_share_and_stableasset(
 	reserves: &[AssetReserve],
 	asset_out_idx: usize,
@@ -790,7 +812,7 @@ pub fn calculate_spot_price_between_share_and_stableasset(
 		pool_fee,
 	)?;
 
-	let spot_price_with_fee = FixedU128::checked_from_rational(reference_amount, shares)?;
+	let spot_price_with_fee = FixedU128::checked_from_rational(shares, reference_amount)?;
 
 	Some(spot_price_with_fee)
 }

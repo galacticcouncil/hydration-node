@@ -257,9 +257,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 							share_issuance,
 							pool.fee,
 						)
-						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?
-						.reciprocal()
-						.ok_or(ExecutorError::Error(Corruption))?;
+						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					Ok(spot_price_with_fee)
 				} else {
