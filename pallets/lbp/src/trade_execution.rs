@@ -182,7 +182,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 
 		let asset_in_reserve = T::MultiCurrency::free_balance(asset_a, &pool_id);
 		let asset_out_reserve = T::MultiCurrency::free_balance(asset_b, &pool_id);
-		let spot_price_with_fee = hydra_dx_math::lbp::spot_price(
+		let spot_price_with_fee = hydra_dx_math::lbp::calculate_spot_price_with_fee(
 			asset_in_reserve,
 			asset_out_reserve,
 			weight_in,

@@ -52,8 +52,21 @@ pub fn calculate_spot_price(
 	to_balance!(spot_price)
 }
 
-//TODO: add doc, and also to all other places
-pub fn spot_price(
+/// Calculating spot price given reserve of selling asset and reserve of buying asset.
+/// The calculation includes the fee of the pool
+///
+/// - `in_reserve` - reserve amount of selling asset
+/// - `out_reserve` - reserve amount of buying asset
+/// - `in_weight` - pool weight of selling asset
+/// - `out_Weight` - pool weight of buying asset
+/// - `fee_asset` - the fee asset of the pool (it is usually the asset at the first index within the pool)
+/// - `asset_out` - the asset id of the buying asset
+/// - `fee` - fee rate of the pool.
+///
+/// NOTE: the fee should be passed based on the fact if repay fee should be applied or not.
+///
+/// Returns MathError in case of error
+pub fn calculate_spot_price_with_fee(
 	in_reserve: Balance,
 	out_reserve: Balance,
 	in_weight: LBPWeight,
