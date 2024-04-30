@@ -43,7 +43,6 @@ use sp_runtime::{
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
-pub type Balance = u128;
 pub type AssetId = u32;
 
 pub const HDX: AssetId = 0;
@@ -531,7 +530,7 @@ where
 
 	fn exists(asset_id: T::AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
-		matches!(asset, Some(_))
+		asset.is_some()
 	}
 
 	fn decimals(_id: Self::AssetId) -> Option<u8> {

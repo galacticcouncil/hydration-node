@@ -18,8 +18,8 @@
 pub use crate as pallet_xcm_rate_limiter;
 
 use frame_support::traits::Contains;
-pub use frame_support::traits::{Everything, OnFinalize};
-pub use frame_support::{assert_noop, assert_ok, parameter_types};
+pub use frame_support::traits::Everything;
+pub use frame_support::{assert_ok, parameter_types};
 use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
 use orml_traits::GetByKey;
@@ -331,7 +331,7 @@ where
 
 	fn exists(asset_id: T::AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
-		matches!(asset, Some(_))
+		asset.is_some()
 	}
 
 	fn is_banned(_id: Self::AssetId) -> bool {
