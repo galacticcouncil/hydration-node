@@ -150,7 +150,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		Ok(liquidty)
 	}
 
-	fn calculate_spot_price(
+	fn calculate_spot_price_with_fee(
 		pool_type: PoolType<AssetId>,
 		asset_a: AssetId,
 		asset_b: AssetId,

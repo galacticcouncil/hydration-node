@@ -66,7 +66,8 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_6_decimals() {
 			let total_issuance = Tokens::total_issuance(pool_id);
 			assert_eq!(total_issuance, initial_issuance - sell_amount);
 
-			let spot_price = Stableswap::calculate_spot_price(PoolType::Stableswap(pool_id), pool_id, asset_b).unwrap();
+			let spot_price =
+				Stableswap::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), pool_id, asset_b).unwrap();
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
@@ -137,7 +138,8 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 			let total_issuance = Tokens::total_issuance(pool_id);
 			assert_eq!(total_issuance, initial_issuance - sell_amount);
 
-			let spot_price = Stableswap::calculate_spot_price(PoolType::Stableswap(pool_id), pool_id, asset_b).unwrap();
+			let spot_price =
+				Stableswap::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), pool_id, asset_b).unwrap();
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
@@ -215,7 +217,8 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 			assert_eq!(total_issuance, initial_issuance - sell_amount);
 			assert_balance!(pool_account, asset_b, 100000000 * ONE - expected);
 
-			let spot_price = Stableswap::calculate_spot_price(PoolType::Stableswap(pool_id), pool_id, asset_b).unwrap();
+			let spot_price =
+				Stableswap::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), pool_id, asset_b).unwrap();
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
@@ -288,7 +291,8 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 			let total_issuance = Tokens::total_issuance(pool_id);
 			assert_eq!(total_issuance, initial_issuance + expected);
 
-			let spot_price = Stableswap::calculate_spot_price(PoolType::Stableswap(pool_id), asset_a, pool_id).unwrap();
+			let spot_price =
+				Stableswap::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), asset_a, pool_id).unwrap();
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
@@ -362,7 +366,8 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 			let total_issuance = Tokens::total_issuance(pool_id);
 			assert_eq!(total_issuance, initial_issuance + expected);
 
-			let spot_price = Stableswap::calculate_spot_price(PoolType::Stableswap(pool_id), asset_a, pool_id).unwrap();
+			let spot_price =
+				Stableswap::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), asset_a, pool_id).unwrap();
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
@@ -425,7 +430,8 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 			assert_balance!(BOB, asset_a, 200 * ONE - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
 
-			let spot_price = Stableswap::calculate_spot_price(PoolType::Stableswap(pool_id), asset_a, asset_b).unwrap();
+			let spot_price =
+				Stableswap::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), asset_a, asset_b).unwrap();
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
@@ -499,7 +505,8 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 			assert_balance!(BOB, asset_c, 200 * ONE - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
 
-			let spot_price = Stableswap::calculate_spot_price(PoolType::Stableswap(pool_id), asset_c, asset_b).unwrap();
+			let spot_price =
+				Stableswap::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), asset_c, asset_b).unwrap();
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
@@ -583,7 +590,7 @@ mod invariants {
 				let expected = Tokens::free_balance(asset_b, &BOB);
 
 				let spot_price =
-					Stableswap::calculate_spot_price(PoolType::Stableswap(pool_id), pool_id, asset_b)
+					Stableswap::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), pool_id, asset_b)
 						.unwrap();
 
 				//Check if spot price calculation is correct
@@ -651,7 +658,7 @@ mod invariants {
 				let expected = Tokens::free_balance(pool_id, &BOB);
 
 				let spot_price =
-					Stableswap::calculate_spot_price(PoolType::Stableswap(pool_id), asset_a, pool_id)
+					Stableswap::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), asset_a, pool_id)
 						.unwrap();
 
 				//Check if spot price calculation is correct

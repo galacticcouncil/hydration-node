@@ -3920,7 +3920,8 @@ mod spot_price_calculation {
 			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
-			let spot_price_with_fee = LBPPallet::calculate_spot_price(PoolType::LBP, asset_a, asset_b).unwrap();
+			let spot_price_with_fee =
+				LBPPallet::calculate_spot_price_with_fee(PoolType::LBP, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()
@@ -3995,7 +3996,8 @@ mod spot_price_calculation {
 			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
-			let spot_price_with_fee = LBPPallet::calculate_spot_price(PoolType::LBP, asset_a, asset_b).unwrap();
+			let spot_price_with_fee =
+				LBPPallet::calculate_spot_price_with_fee(PoolType::LBP, asset_a, asset_b).unwrap();
 			assert_eq_approx!(
 				spot_price_without_fee,
 				spot_price_with_fee,
@@ -4050,7 +4052,8 @@ mod spot_price_calculation {
 			);
 
 			//Check spot price with fee
-			let spot_price_with_fee = LBPPallet::calculate_spot_price(PoolType::LBP, asset_a, asset_b).unwrap();
+			let spot_price_with_fee =
+				LBPPallet::calculate_spot_price_with_fee(PoolType::LBP, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()

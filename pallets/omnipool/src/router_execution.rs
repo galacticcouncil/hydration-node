@@ -168,7 +168,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		Ok(asset_state.reserve)
 	}
 
-	fn calculate_spot_price(
+	fn calculate_spot_price_with_fee(
 		pool_type: PoolType<T::AssetId>,
 		asset_a: T::AssetId,
 		asset_b: T::AssetId,

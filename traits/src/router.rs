@@ -176,7 +176,7 @@ pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 		asset_b: AssetId,
 	) -> Result<Balance, ExecutorError<Self::Error>>;
 
-	fn calculate_spot_price(
+	fn calculate_spot_price_with_fee(
 		pool_type: PoolType<AssetId>,
 		asset_a: AssetId,
 		asset_b: AssetId,
@@ -284,14 +284,14 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 		Err(value)
 	}
 
-	fn calculate_spot_price(
+	fn calculate_spot_price_with_fee(
 		pool_type: PoolType<AssetId>,
 		asset_a: AssetId,
 		asset_b: AssetId,
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {
 		for_tuples!(
 			#(
-				let value = match Tuple::calculate_spot_price(pool_type, asset_a, asset_b){
+				let value = match Tuple::calculate_spot_price_with_fee(pool_type, asset_a, asset_b){
 					Ok(result) => return Ok(result),
 					Err(v) if v == ExecutorError::NotSupported => v,
 					Err(v) => return Err(v),
