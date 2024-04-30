@@ -515,13 +515,13 @@ fn evm_permit_should_validate_unsigned_correctly() {
 			r: H256::from(rs.r.b32()),
 			s: H256::from(rs.s.b32()),
 		};
-
+		let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
 		assert_eq!(
 			MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
 			Ok(ValidTransaction {
 				priority: 0,
 				requires: vec![],
-				provides: vec![],
+				provides: vec![tag],
 				longevity: 64,
 				propagate: true,
 			})
@@ -611,12 +611,13 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 			s: H256::from(rs.s.b32()),
 		};
 
+		let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
 		assert_eq!(
 			MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
 			Ok(ValidTransaction {
 				priority: 0,
 				requires: vec![],
-				provides: vec![],
+				provides: vec![tag],
 				longevity: 64,
 				propagate: true,
 			})
@@ -735,12 +736,13 @@ fn evm_permit_dispatch_flow_should_work() {
 			s: H256::from(rs.s.b32()),
 		};
 
+		let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
 		assert_eq!(
 			MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
 			Ok(ValidTransaction {
 				priority: 0,
 				requires: vec![],
-				provides: vec![],
+				provides: vec![tag],
 				longevity: 64,
 				propagate: true,
 			})
@@ -865,12 +867,13 @@ fn evm_permit_should_fail_when_replayed() {
 			s: H256::from(rs.s.b32()),
 		};
 
+		let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
 		assert_eq!(
 			MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
 			Ok(ValidTransaction {
 				priority: 0,
 				requires: vec![],
-				provides: vec![],
+				provides: vec![tag],
 				longevity: 64,
 				propagate: true,
 			})
