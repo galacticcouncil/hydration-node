@@ -189,7 +189,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		let spot_price = if asset_a == T::HubAssetId::get() {
 			let asset_b_state = Self::load_asset_state(asset_b).map_err(ExecutorError::Error)?;
 
-			hydra_dx_math::omnipool::calculate_lrna_spot_sprice(&asset_b_state.into(), Some(asset_fee))
+			hydra_dx_math::omnipool::calculate_lrna_spot_price(&asset_b_state.into(), Some(asset_fee))
 				.ok_or(ExecutorError::Error(Corruption))?
 				.reciprocal()
 				.ok_or(ExecutorError::Error(Corruption))?
@@ -197,7 +197,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			let asset_a_state = Self::load_asset_state(asset_a).map_err(ExecutorError::Error)?;
 			let asset_b_state = Self::load_asset_state(asset_b).map_err(ExecutorError::Error)?;
 
-			hydra_dx_math::omnipool::calculate_spot_sprice(
+			hydra_dx_math::omnipool::calculate_spot_price(
 				&asset_a_state.into(),
 				&asset_b_state.into(),
 				Some((protocol_fee, asset_fee)),

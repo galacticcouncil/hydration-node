@@ -441,7 +441,17 @@ pub fn calculate_delta_imbalance(
 	to_balance!(delta_imbalance_hp).ok()
 }
 
-pub fn calculate_spot_sprice(
+/// Calculate spot price between two omnipool assets, with incorporating the fee
+///
+/// Spot price = asset_b/asset_a
+///
+/// - `asset_a` - selling asset reserve
+/// - `asset_b` - buying asset reserve
+/// - `fee` - protocol fee and asset fee in a tuple
+///
+/// NOTE: If you want price with LRNA, use `calculate_lrna_spot_sprice`
+///
+pub fn calculate_spot_price(
 	asset_a: &AssetReserveState<Balance>,
 	asset_b: &AssetReserveState<Balance>,
 	fee: Option<(Permill, Permill)>,
@@ -471,7 +481,14 @@ pub fn calculate_spot_sprice(
 	Some(spot_price_without_fee)
 }
 
-pub fn calculate_lrna_spot_sprice(asset: &AssetReserveState<Balance>, fee: Option<Permill>) -> Option<FixedU128> {
+/// Calculate LRNA spot price
+///
+/// Spot price = asset/LRNA
+///
+/// - `asset` - selling asset reserve
+/// - `fee` - asset fee
+///
+pub fn calculate_lrna_spot_price(asset: &AssetReserveState<Balance>, fee: Option<Permill>) -> Option<FixedU128> {
 	let spot_price_without_fee = FixedU128::checked_from_rational(asset.reserve, asset.hub_reserve)?;
 
 	if let Some(asset_fee) = fee {
