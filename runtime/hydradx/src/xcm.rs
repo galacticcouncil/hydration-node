@@ -123,30 +123,7 @@ where
 	}
 }
 
-/// Matches DOT from given origin, to send directly DOT from origin to Hydra.
-pub struct IsDotFrom<Origin>(PhantomData<Origin>);
-impl<Origin> ContainsPair<MultiAsset, MultiLocation> for IsDotFrom<Origin>
-where
-	Origin: Get<MultiLocation>,
-{
-	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
-		let loc = Origin::get();
-		&loc == origin
-			&& matches!(
-				asset,
-				MultiAsset {
-					id: Concrete(MultiLocation {
-						parents: 1,
-						interior: Here
-					}),
-					fun: Fungible(_),
-				},
-			)
-	}
-}
-
 pub type Reserves = (
-	IsDotFrom<AssetHubLocation>,
 	IsForeignNativeAssetFrom<AssetHubLocation>,
 	MultiNativeAsset<AbsoluteReserveProvider>,
 );
