@@ -45,6 +45,8 @@ pub trait EVMPermit {
 	fn gas_price() -> (U256, Weight);
 
 	fn dispatch_weight(gas_limit: u64) -> Weight;
+
+	fn permit_nonce(account: H160) -> U256;
 }
 
 impl EVMPermit for () {
@@ -82,5 +84,9 @@ impl EVMPermit for () {
 
 	fn dispatch_weight(_gas_limit: u64) -> Weight {
 		Weight::zero()
+	}
+
+	fn permit_nonce(_account: H160) -> U256 {
+		U256::default()
 	}
 }
