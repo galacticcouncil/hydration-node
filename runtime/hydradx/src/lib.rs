@@ -109,11 +109,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 226,
+	spec_version: 232,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 0,
+	state_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -155,6 +155,7 @@ construct_runtime!(
 		Proxy: pallet_proxy = 29,
 		Multisig: pallet_multisig = 31,
 		Uniques: pallet_uniques = 32,
+		StateTrieMigration: pallet_state_trie_migration = 35,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry = 51,
@@ -190,6 +191,9 @@ construct_runtime!(
 		Ethereum: pallet_ethereum = 92,
 		EVMAccounts: pallet_evm_accounts = 93,
 		DynamicEvmFee: pallet_dynamic_evm_fee = 94,
+
+		XYKLiquidityMining: pallet_xyk_liquidity_mining = 95,
+		XYKWarehouseLM: warehouse_liquidity_mining::<Instance2> = 96,
 
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
@@ -709,6 +713,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 			list_benchmark!(list, extra, pallet_bonds, Bonds);
 			list_benchmark!(list, extra, pallet_stableswap, Stableswap);
+			list_benchmark!(list, extra, pallet_state_trie_migration, StateTrieMigration);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -734,6 +739,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_dca, benchmarking::dca);
 			orml_list_benchmark!(list, extra, pallet_xyk, benchmarking::xyk);
 			orml_list_benchmark!(list, extra, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
+			orml_list_benchmark!(list, extra, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -801,6 +807,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
 			add_benchmark!(params, batches, pallet_referrals, Referrals);
 			add_benchmark!(params, batches, pallet_evm_accounts, EVMAccounts);
+			add_benchmark!(params, batches, pallet_state_trie_migration, StateTrieMigration);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
@@ -818,6 +825,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_dca, benchmarking::dca);
 			orml_add_benchmark!(params, batches, pallet_xyk, benchmarking::xyk);
 			orml_add_benchmark!(params, batches, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
+			orml_add_benchmark!(params, batches, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

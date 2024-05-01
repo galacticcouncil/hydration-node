@@ -248,8 +248,8 @@ pub fn generate_trades(
 	let buy_amount = sale_rate / 24;
 	let sell_amount = sale_rate / sell_ratio / 24;
 
-	let skip = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-	let sells = vec![19, 20, 21, 33, 34, 35, 48, 49, 50, 62, 63, 64];
+	let skip = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+	let sells = [19, 20, 21, 33, 34, 35, 48, 49, 50, 62, 63, 64];
 	for i in 0..=intervals {
 		let block_num = start + (i * ((end - start) / intervals));
 

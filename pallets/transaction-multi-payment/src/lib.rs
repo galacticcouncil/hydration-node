@@ -17,6 +17,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::large_enum_variant)]
 
 pub mod weights;
 
@@ -30,6 +32,7 @@ mod tests;
 mod traits;
 
 pub use crate::traits::*;
+use frame_support::storage::with_transaction;
 use frame_support::traits::{Contains, IsSubType};
 use frame_support::{
 	dispatch::DispatchResult,
@@ -51,6 +54,7 @@ use hydradx_traits::{
 };
 use orml_traits::{GetByKey, Happened, MultiCurrency};
 use pallet_transaction_payment::OnChargeTransaction;
+use sp_runtime::traits::TryConvert;
 use sp_std::{marker::PhantomData, prelude::*};
 
 type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
@@ -65,9 +69,13 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use codec::DecodeLimit;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
+	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
+	use sp_core::{H160, H256, U256};
+	use sp_runtime::{ModuleError, TransactionOutcome};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -130,6 +138,12 @@ pub mod pallet {
 
 		/// EVM Accounts info
 		type InspectEvmAccounts: InspectEvmAccounts<Self::AccountId, sp_core::H160>;
+
+		type EvmPermit: EVMPermit;
+
+		/// Try to retrieve fee currency from runtime call.
+		/// It is generic implementation to avoid tight coupling with other pallets such as utility.
+		type TryCallCurrency<'a>: TryConvert<&'a <Self as frame_system::Config>::RuntimeCall, AssetIdOf<Self>>;
 	}
 
 	#[pallet::event]
@@ -186,6 +200,12 @@ pub mod pallet {
 
 		/// It is not allowed to change payment currency of an EVM account.
 		EvmAccountNotAllowed,
+
+		/// EVM permit expired.
+		EvmPermitExpired,
+
+		/// EVM permit is invalid.
+		EvmPermitInvalid,
 	}
 
 	/// Account currency map
@@ -202,6 +222,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn currency_price)]
 	pub type AcceptedCurrencyPrice<T: Config> = StorageMap<_, Twox64Concat, AssetIdOf<T>, Price, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn tx_fee_currency_override)]
+	pub type TransactionCurrencyOverride<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, AssetIdOf<T>, OptionQuery>;
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
@@ -243,11 +268,6 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::set_currency())]
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-
-			ensure!(
-				!T::InspectEvmAccounts::is_evm_account(who.clone()),
-				Error::<T>::EvmAccountNotAllowed
-			);
 
 			ensure!(
 				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
@@ -340,6 +360,161 @@ pub mod pallet {
 			});
 
 			Ok(())
+		}
+
+		/// Dispatch EVM permit.
+		/// The main purpose of this function is to allow EVM accounts to pay for the transaction fee in non-native currency
+		/// by allowing them to self-dispatch pre-signed permit.
+		/// The EVM fee is paid in the currency set for the account.
+		#[pallet::call_index(4)]
+		#[pallet::weight(
+			<T as Config>::EvmPermit::dispatch_weight(*gas_limit)
+		)]
+		pub fn dispatch_permit(
+			origin: OriginFor<T>,
+			from: H160,
+			to: H160,
+			value: U256,
+			data: Vec<u8>,
+			gas_limit: u64,
+			deadline: U256,
+			v: u8,
+			r: H256,
+			s: H256,
+		) -> DispatchResultWithPostInfo {
+			ensure_none(origin)?;
+
+			T::EvmPermit::validate_permit(from, to, data.clone(), value, gas_limit, deadline, v, r, s)?;
+
+			let (gas_price, _) = T::EvmPermit::gas_price();
+
+			// Set fee currency for the evm dispatch
+			let account_id = T::InspectEvmAccounts::account_id(from);
+
+			let encoded = data.clone();
+			let mut encoded_extrinsic = encoded.as_slice();
+			let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
+				DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
+
+			// TODO: Simplify this
+			let currency = if let Ok(call) = maybe_call {
+				let call_currency = T::TryCallCurrency::try_convert(&call);
+				if let Ok(currency) = call_currency {
+					currency
+				} else {
+					Pallet::<T>::account_currency(&account_id)
+				}
+			} else {
+				Pallet::<T>::account_currency(&account_id)
+			};
+
+			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
+
+			let result =
+				T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![])?;
+
+			TransactionCurrencyOverride::<T>::remove(account_id.clone());
+
+			Ok(result)
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match call {
+				Call::dispatch_permit {
+					from,
+					to,
+					value,
+					data,
+					gas_limit,
+					deadline,
+					v,
+					r,
+					s,
+				} => {
+					// We need to wrap this as separate tx, and since we also "dry-run" the dispatch,
+					// we need to rollback the changes if any
+					let result = with_transaction::<(), DispatchError, _>(|| {
+						// First verify signature
+						let result = T::EvmPermit::validate_permit(
+							*from,
+							*to,
+							data.clone(),
+							*value,
+							*gas_limit,
+							*deadline,
+							*v,
+							*r,
+							*s,
+						);
+						if let Some(error_res) = result.err() {
+							return TransactionOutcome::Rollback(Err(error_res));
+						}
+
+						// Set fee currency for the evm dispatch
+						let account_id = T::InspectEvmAccounts::account_id(*from);
+
+						let encoded = data.clone();
+						let mut encoded_extrinsic = encoded.as_slice();
+						let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
+							DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
+
+						// TODO: Simplify this
+						let currency = if let Ok(call) = maybe_call {
+							let call_currency = T::TryCallCurrency::try_convert(&call);
+							if let Ok(currency) = call_currency {
+								currency
+							} else {
+								Pallet::<T>::account_currency(&account_id)
+							}
+						} else {
+							Pallet::<T>::account_currency(&account_id)
+						};
+
+						TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
+
+						let (gas_price, _) = T::EvmPermit::gas_price();
+
+						let result = T::EvmPermit::dispatch_permit(
+							*from,
+							*to,
+							data.clone(),
+							*value,
+							*gas_limit,
+							gas_price,
+							None,
+							None,
+							vec![],
+						);
+						TransactionCurrencyOverride::<T>::remove(&account_id);
+						match result {
+							Ok(_post_info) => TransactionOutcome::Rollback(Ok(())),
+							Err(e) => TransactionOutcome::Rollback(Err(e.error)),
+						}
+					});
+					let nonce = T::EvmPermit::permit_nonce(*from);
+					match result {
+						Ok(()) => ValidTransaction::with_tag_prefix("EVMPermit")
+							.and_provides((nonce, from))
+							.priority(0)
+							.longevity(64)
+							.propagate(true)
+							.build(),
+						Err(e) => {
+							let error_number = match e {
+								DispatchError::Module(ModuleError { error, .. }) => error[0],
+								_ => 0, // this case should never happen because an Error is always converted to DispatchError::Module(ModuleError)
+							};
+							InvalidTransaction::Custom(error_number).into()
+						}
+					}
+				}
+				_ => InvalidTransaction::Call.into(),
+			}
 		}
 	}
 }
@@ -522,12 +697,14 @@ where
 }
 
 /// We provide an oracle for the price of all currencies accepted as fee payment.
+/// In the else statement, first we try to get the price from cache, otherwise we calculate it
+/// The price calculation based on onchain-route is mainly used by EVM dry run as in the dry run we dont have storage filled with prices, so calculation is needed
 impl<T: Config> NativePriceOracle<AssetIdOf<T>, Price> for Pallet<T> {
 	fn price(currency: AssetIdOf<T>) -> Option<Price> {
 		if currency == T::NativeAssetId::get() {
 			Some(Price::one())
 		} else {
-			Pallet::<T>::currency_price(currency)
+			Pallet::<T>::currency_price(currency).or_else(|| Self::get_oracle_price(currency, T::NativeAssetId::get()))
 		}
 	}
 }
@@ -536,12 +713,6 @@ impl<T: Config> NativePriceOracle<AssetIdOf<T>, Price> for Pallet<T> {
 pub struct AddTxAssetOnAccount<T>(PhantomData<T>);
 impl<T: Config> Happened<(T::AccountId, AssetIdOf<T>)> for AddTxAssetOnAccount<T> {
 	fn happened((who, currency): &(T::AccountId, AssetIdOf<T>)) {
-		// all new EVM accounts have WETH set as their payment currency
-		if T::InspectEvmAccounts::is_evm_account(who.clone()) {
-			AccountCurrencyMap::<T>::insert(who, T::EvmAssetId::get());
-			return;
-		}
-
 		if !AccountCurrencyMap::<T>::contains_key(who)
 			&& AcceptedCurrencies::<T>::contains_key(currency)
 			&& T::Currencies::total_balance(T::NativeAssetId::get(), who).is_zero()
@@ -586,5 +757,44 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 
 	fn get(who: &T::AccountId) -> Self::AssetId {
 		Pallet::<T>::account_currency(who)
+	}
+}
+
+pub struct TryCallCurrency<T>(PhantomData<T>);
+impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for TryCallCurrency<T>
+where
+	T: Config + pallet_utility::Config,
+	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
+	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
+{
+	fn try_convert(
+		call: &<T as frame_system::Config>::RuntimeCall,
+	) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
+		if let Some(crate::pallet::Call::set_currency { currency }) = call.is_sub_type() {
+			Ok(*currency)
+		} else if let Some(pallet_utility::pallet::Call::batch { calls })
+		| Some(pallet_utility::pallet::Call::batch_all { calls })
+		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
+		{
+			// `calls` can be empty Vec
+			match calls.first() {
+				Some(first_call) => match first_call.is_sub_type() {
+					Some(crate::pallet::Call::set_currency { currency }) => Ok(*currency),
+					_ => Err(call),
+				},
+				_ => Err(call),
+			}
+		} else {
+			Err(call)
+		}
+	}
+}
+
+pub struct NoCallCurrency<T>(PhantomData<T>);
+impl<T: Config> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for NoCallCurrency<T> {
+	fn try_convert(
+		call: &<T as frame_system::Config>::RuntimeCall,
+	) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
+		Err(call)
 	}
 }

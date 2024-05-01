@@ -122,7 +122,7 @@ fn main() {
 					.block_on(async {
 						ChainApi::<(), Hash, Header, ()>::block_hash(
 							&rpc,
-							Some(ListOrValue::Value(NumberOrHex::Number(block_num.try_into().unwrap()))),
+							Some(ListOrValue::Value(NumberOrHex::Number(block_num.into()))),
 						)
 						.await
 						.unwrap()

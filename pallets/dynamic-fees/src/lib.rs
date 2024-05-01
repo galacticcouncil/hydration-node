@@ -177,11 +177,11 @@ where
 			.saturated_into();
 
 		let Some(volume) = T::Oracle::asset_volume(asset_id) else {
-            return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
-        };
+			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
+		};
 		let Some(liquidity) = T::Oracle::asset_liquidity(asset_id) else {
-            return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
-        };
+			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
+		};
 
 		let asset_fee = recalculate_asset_fee(
 			OracleEntry {

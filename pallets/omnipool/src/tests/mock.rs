@@ -43,7 +43,6 @@ use sp_runtime::{
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
-pub type Balance = u128;
 pub type AssetId = u32;
 
 pub const HDX: AssetId = 0;
@@ -51,6 +50,7 @@ pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 
 pub const REGISTERED_ASSET: AssetId = 1000;
+pub const ASSET_WITHOUT_ED: AssetId = 1001;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
@@ -136,7 +136,7 @@ parameter_type_with_key! {
 		if *currency_id == LRNA{
 			400_000_000
 		}else{
-			0
+			1
 		}
 	};
 }
@@ -377,6 +377,7 @@ impl ExtBuilder {
 			v.borrow_mut().insert(DAI, DAI);
 			v.borrow_mut().insert(HDX, HDX);
 			v.borrow_mut().insert(REGISTERED_ASSET, REGISTERED_ASSET);
+			v.borrow_mut().insert(ASSET_WITHOUT_ED, ASSET_WITHOUT_ED);
 			self.registered_assets.iter().for_each(|asset| {
 				v.borrow_mut().insert(*asset, *asset);
 			});
@@ -529,7 +530,7 @@ where
 
 	fn exists(asset_id: T::AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
-		matches!(asset, Some(_))
+		asset.is_some()
 	}
 
 	fn decimals(_id: Self::AssetId) -> Option<u8> {
@@ -550,6 +551,13 @@ where
 
 	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
+	}
+	fn existential_deposit(id: Self::AssetId) -> Option<u128> {
+		if id == ASSET_WITHOUT_ED.into() {
+			None
+		} else {
+			Some(ExistentialDeposits::get(&id.into()))
+		}
 	}
 }
 

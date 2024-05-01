@@ -1,8 +1,7 @@
 use super::*;
 use crate::mock::BlockNumber;
 pub use crate::mock::{
-	set_block_number, Currency, ExtBuilder, LBPPallet, RuntimeEvent as TestEvent, RuntimeOrigin as Origin, Test, ALICE,
-	BOB, BSX, CHARLIE, ETH, HDX, KUSD,
+	set_block_number, Currency, ExtBuilder, LBPPallet, RuntimeOrigin as Origin, Test, ALICE, CHARLIE,
 };
 use frame_support::assert_ok;
 use hydra_dx_math::types::HYDRA_ONE;

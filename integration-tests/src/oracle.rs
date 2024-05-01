@@ -192,3 +192,57 @@ fn xyk_trades_with_insufficient_asset_are_not_tracked_by_oracle() {
 		}
 	});
 }
+
+#[test]
+fn xyk_trades_with_insufficient_asset_are_tracked_by_oracle_when_asset_is_whitelisted() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// arrange
+		hydradx_run_to_next_block();
+
+		assert_ok!(hydradx_runtime::Tokens::mint_into(
+			INSUFFICIENT_ASSET,
+			&ALICE.into(),
+			200 * UNITS,
+		));
+
+		assert_ok!(hydradx_runtime::XYK::create_pool(
+			RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			100 * UNITS,
+			INSUFFICIENT_ASSET,
+			100 * UNITS,
+		));
+
+		assert_ok!(EmaOracle::add_oracle(
+			RuntimeOrigin::root(),
+			XYK_SOURCE,
+			(HDX, INSUFFICIENT_ASSET)
+		));
+
+		assert_ok!(hydradx_runtime::XYK::buy(
+			RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			INSUFFICIENT_ASSET,
+			2 * UNITS,
+			200 * UNITS,
+			false,
+		));
+
+		// act
+		// will store the data received in the sell as oracle values
+		hydradx_run_to_next_block();
+
+		// assert
+		for supported_period in SUPPORTED_PERIODS {
+			assert!(EmaOracle::get_price(HDX, INSUFFICIENT_ASSET, *supported_period, XYK_SOURCE).is_ok(),);
+		}
+		for unsupported_period in UNSUPPORTED_PERIODS {
+			assert_eq!(
+				EmaOracle::get_price(HDX, INSUFFICIENT_ASSET, *unsupported_period, XYK_SOURCE),
+				Err(OracleError::NotPresent)
+			);
+		}
+	});
+}

@@ -39,14 +39,30 @@ members = [
   'runtime/hydradx/src/evm/evm-utility/macro',
   'pallets/referrals',
   'pallets/evm-accounts',
-  'pallets/dynamic-evm-fee'
+  'pallets/dynamic-evm-fee',
+  'pallets/xyk-liquidity-mining',
+  'precompiles/call-permit',
 ]
+
+resolver = "2"
 
 [workspace.dependencies]
 log = "0.4.20"
 async-trait = "0.1"
 futures = "0.3.25"
 hex-literal = "0.4.1"
+paste = "1.0.6"
+slices = "0.2.0"
+derive_more = "0.99"
+affix = "0.1.2"
+similar-asserts = "1.1.0"
+impl-trait-for-tuples = "0.2.1"
+environmental = {version = "1.1.2", default-features = false}
+hex = {version = "0.4.3", default-features = false}
+sha3 = {version = "0.10", default-features = false}
+serde = {version = "1.0.101", default-features = false}
+libsecp256k1 = {version = "0.7", default-features = false}
+num_enum = {version = "0.5.3", default-features = false}
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
 hydradx-traits = { path = "traits", default-features = false }
@@ -86,12 +102,16 @@ pallet-xyk = { path = "pallets/xyk", default-features = false}
 pallet-referrals = { path = "pallets/referrals", default-features = false}
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false}
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false}
+pallet-xyk-liquidity-mining = { path = "pallets/xyk-liquidity-mining", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
 test-utils = { path = "utils/test-utils", default-features = false }
 
 integration-tests = { path = "integration-tests", default-features = false }
+
+pallet-evm-precompile-call-permit = { path ="precompiles/call-permit", default-features = false }
+precompile-utils = { path ="precompiles/utils", default-features = false }
 
 # Codec
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
@@ -103,7 +123,7 @@ frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", rev =
 frame-benchmarking-cli = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 frame-executive = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 frame-remote-externalities = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
-frame-support = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false, features = ["tuples-96"] }
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 frame-system-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
@@ -157,6 +177,7 @@ sc-tracing = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d225
 sc-transaction-pool = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 sc-transaction-pool-api = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 sc-sysinfo = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
+sp-weights = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 
 # Substrate Pallets
 pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
@@ -171,6 +192,8 @@ pallet-proxy = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2
 pallet-scheduler = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 pallet-session = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
+pallet-state-trie-migration = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
+substrate-state-trie-migration-rpc = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901" }
 pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 pallet-tips = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
@@ -360,6 +383,8 @@ pallet-preimage = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev
 pallet-proxy = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-scheduler = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-session = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
+pallet-state-trie-migration = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
+substrate-state-trie-migration-rpc = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-sudo = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-timestamp = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-tips = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }

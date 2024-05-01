@@ -150,7 +150,7 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 
 	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
-		matches!(asset, Some(_))
+		asset.is_some()
 	}
 
 	fn is_banned(_id: Self::AssetId) -> bool {
@@ -162,6 +162,10 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	}
 
 	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
 		unimplemented!()
 	}
 }

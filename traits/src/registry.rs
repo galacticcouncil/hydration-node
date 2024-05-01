@@ -46,6 +46,8 @@ pub trait Inspect {
 	fn asset_name(id: Self::AssetId) -> Option<Vec<u8>>;
 
 	fn asset_symbol(id: Self::AssetId) -> Option<Vec<u8>>;
+
+	fn existential_deposit(id: Self::AssetId) -> Option<u128>;
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -166,7 +168,7 @@ pub trait Create<Balance>: Inspect {
 	}
 }
 
-pub trait Mutate: Inspect {
+pub trait Mutate<Balance>: Inspect {
 	type Error;
 
 	/// Set location for existing asset id if it wasn't set yet.
