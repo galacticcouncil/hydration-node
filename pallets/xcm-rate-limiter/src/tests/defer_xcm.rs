@@ -20,7 +20,7 @@ use crate::tests::mock::*;
 use crate::*;
 use cumulus_pallet_xcmp_queue::XcmDeferFilter;
 
-pub use pretty_assertions::{assert_eq, assert_ne};
+pub use pretty_assertions::assert_eq;
 
 use xcm::VersionedXcm;
 

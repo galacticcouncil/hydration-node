@@ -353,45 +353,6 @@ parameter_types! {
 
 type Pools = (OmniPool, Xyk);
 
-pub struct MockedAssetRegistry;
-
-impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
-	type AssetId = AssetId;
-	type Location = ();
-
-	fn is_sufficient(_id: Self::AssetId) -> bool {
-		true
-	}
-
-	fn exists(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn decimals(_id: Self::AssetId) -> Option<u8> {
-		unimplemented!()
-	}
-
-	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
-		unimplemented!()
-	}
-
-	fn is_banned(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-
-	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-
-	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
-		unimplemented!()
-	}
-}
-
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -399,7 +360,7 @@ impl pallet_route_executor::Config for Test {
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
-	type InspectRegistry = MockedAssetRegistry;
+	type InspectRegistry = DummyRegistry<Test>;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
@@ -485,7 +446,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			});
 		});
 
-		let Ok(who) =  ensure_signed(who) else {
+		let Ok(who) = ensure_signed(who) else {
 			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
 		};
 		let amount_out = CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| *v.borrow());
@@ -520,7 +481,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			});
 		});
 
-		let Ok(who) =  ensure_signed(origin) else {
+		let Ok(who) = ensure_signed(origin) else {
 			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
 		};
 		let amount_in = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;
@@ -801,7 +762,7 @@ where
 	}
 
 	fn is_sufficient(_id: Self::AssetId) -> bool {
-		unimplemented!()
+		true
 	}
 
 	fn decimals(_id: Self::AssetId) -> Option<u8> {
@@ -810,7 +771,7 @@ where
 
 	fn exists(asset_id: T::AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
-		matches!(asset, Some(_))
+		asset.is_some()
 	}
 
 	fn is_banned(_id: Self::AssetId) -> bool {

@@ -61,7 +61,7 @@ prop_compose! {
 }
 
 fn assert_loyalty_factor(b: FixedU128, periods: u32, scale_coef: u32, multiplier: FixedU128) {
-	let t = FixedU128::from(TryInto::<u128>::try_into(periods).unwrap());
+	let t = FixedU128::from(Into::<u128>::into(periods));
 	let t_add_tb = b.checked_mul(&t).unwrap().checked_add(&t).unwrap();
 
 	let scale_coef_mul_b_add_one = FixedU128::one()

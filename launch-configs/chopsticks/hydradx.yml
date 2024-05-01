@@ -2,7 +2,7 @@ endpoint: wss://rpc.hydradx.cloud
 mock-signature-host: true
 #block: 1872160
 db: ./db.sqlite
-#wasm-override: target/release/hydradx_runtime.compact.compressed.wasm
+wasm-override: target/release/hydradx_runtime.compact.compressed.wasm
 
 import-storage:
   System:

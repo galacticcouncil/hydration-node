@@ -83,7 +83,7 @@ impl<R> HydraDXPrecompiles<R> {
 // Same as Moonbean and Centrifuge, should benefit interoperability
 // See also
 // https://docs.moonbeam.network/builders/pallets-precompiles/precompiles/overview/#precompiled-contract-addresses
-const DISPATCH_ADDR: H160 = addr(1025);
+pub const DISPATCH_ADDR: H160 = addr(1025);
 
 pub const ECRECOVER: H160 = H160(hex!("0000000000000000000000000000000000000001"));
 pub const SHA256: H160 = H160(hex!("0000000000000000000000000000000000000002"));
@@ -94,6 +94,7 @@ pub const BN_ADD: H160 = H160(hex!("0000000000000000000000000000000000000006"));
 pub const BN_MUL: H160 = H160(hex!("0000000000000000000000000000000000000007"));
 pub const BN_PAIRING: H160 = H160(hex!("0000000000000000000000000000000000000008"));
 pub const BLAKE2F: H160 = H160(hex!("0000000000000000000000000000000000000009"));
+pub const CALLPERMIT: H160 = H160(hex!("000000000000000000000000000000000000080a"));
 
 pub const ETH_PRECOMPILE_END: H160 = BLAKE2F;
 
@@ -138,6 +139,10 @@ where
 			Some(Bn128Pairing::execute(handle))
 		} else if address == BLAKE2F {
 			Some(Blake2F::execute(handle))
+		} else if address == CALLPERMIT {
+			Some(pallet_evm_precompile_call_permit::CallPermitPrecompile::<R>::execute(
+				handle,
+			))
 		} else if address == DISPATCH_ADDR {
 			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
 		} else if is_asset_address(address) {
