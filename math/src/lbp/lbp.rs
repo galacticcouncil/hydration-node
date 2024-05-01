@@ -55,6 +55,8 @@ pub fn calculate_spot_price(
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// The calculation includes the fee of the pool
 ///
+/// Returns price of asset_in denominated in asset_out (asset_out/asset_in)
+///
 /// - `in_reserve` - reserve amount of selling asset
 /// - `out_reserve` - reserve amount of buying asset
 /// - `in_weight` - pool weight of selling asset

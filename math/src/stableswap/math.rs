@@ -731,7 +731,7 @@ pub fn calculate_share_price<const D: u8>(
 
 /// Calculating spot price between two stable asset AB, including the impact of the fee
 ///
-/// Spot price = asset_a / asset_b
+/// Returns price of asset_out denominated in asset_in (asset_in/asset_out)
 ///
 /// - `reserves` - reserve balances of assets
 /// - `amplification` - curve AMM pool amplification parameter
@@ -785,7 +785,7 @@ pub fn calculate_spot_price(
 
 /// Calculating spot price when buying stable asset with shares,  including the impact of the fee
 ///
-/// Spot price = share_asset / stable_asset
+/// Returns price of stable_asset denominated in share_asset (share_asset/stable_asset)
 ///
 /// - `reserves` - reserve balances of assets
 /// - `asset_out_idx` - asset out index

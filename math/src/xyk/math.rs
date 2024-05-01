@@ -39,7 +39,7 @@ pub fn calculate_spot_price(in_reserve: Balance, out_reserve: Balance, amount: B
 
 /// Calculating spot price including fee
 ///
-/// Spot price = B/A
+/// Returns price of asset_in denominated in asset_out (asset_out/asset_in)
 ///
 /// - `in_reserve` - reserve amount of selling ass
 /// - `out_reserve` - reserve amount of buying asset

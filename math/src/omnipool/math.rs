@@ -443,7 +443,7 @@ pub fn calculate_delta_imbalance(
 
 /// Calculate spot price between two omnipool assets, with incorporating the fee
 ///
-/// Spot price = asset_b/asset_a
+/// Returns price of asset_in denominated in asset_out (asset_out/asset_in)
 ///
 /// - `asset_a` - selling asset reserve
 /// - `asset_b` - buying asset reserve
@@ -483,7 +483,7 @@ pub fn calculate_spot_price(
 
 /// Calculate LRNA spot price
 ///
-/// Spot price = asset/LRNA
+/// Returns price of LRNA denominated in asset (asset/LRNA)
 ///
 /// - `asset` - selling asset reserve
 /// - `fee` - asset fee
