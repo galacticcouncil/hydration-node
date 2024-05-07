@@ -206,6 +206,9 @@ pub mod pallet {
 
 		/// EVM permit is invalid.
 		EvmPermitInvalid,
+
+		/// EVM permit call failed.
+		EvmPermitCallExecutionError,
 	}
 
 	/// Account currency map
@@ -410,8 +413,12 @@ pub mod pallet {
 
 			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
+			// dispatch_permit does not fail at this point, as we need to keep the storage updates regarding nonces
 			let result =
-				T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![])?;
+				match T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![]) {
+					Ok(post_info) => post_info,
+					Err(e) => e.post_info,
+				};
 
 			TransactionCurrencyOverride::<T>::remove(account_id.clone());
 

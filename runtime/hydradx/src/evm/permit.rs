@@ -1,4 +1,5 @@
 use crate::evm::precompiles;
+use evm::ExitReason;
 use fp_evm::FeeCalculator;
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
 use frame_support::ensure;
@@ -132,21 +133,30 @@ where
 		let permit_nonce = NoncesStorage::get(source);
 		NoncesStorage::insert(source, permit_nonce + U256::one());
 
-		Ok(PostDispatchInfo {
-			actual_weight: {
-				let mut gas_to_weight = <R as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
-					info.used_gas.standard.unique_saturated_into(),
-					true,
-				);
-				if let Some(weight_info) = info.weight_info {
-					if let Some(proof_size_usage) = weight_info.proof_size_usage {
-						*gas_to_weight.proof_size_mut() = proof_size_usage;
-					}
-				}
-				Some(gas_to_weight)
-			},
-			pays_fee: Pays::No,
-		})
+		let mut gas_to_weight = <R as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
+			info.used_gas.standard.unique_saturated_into(),
+			true,
+		);
+		if let Some(weight_info) = info.weight_info {
+			if let Some(proof_size_usage) = weight_info.proof_size_usage {
+				*gas_to_weight.proof_size_mut() = proof_size_usage;
+			}
+		}
+		let actual_weight = gas_to_weight;
+
+		match info.exit_reason {
+			ExitReason::Succeed(_) => Ok(PostDispatchInfo {
+				actual_weight: Some(actual_weight),
+				pays_fee: Pays::No,
+			}),
+			_ => Err(DispatchErrorWithPostInfo {
+				post_info: PostDispatchInfo {
+					actual_weight: Some(actual_weight),
+					pays_fee: Pays::Yes,
+				},
+				error: pallet_transaction_multi_payment::Error::<R>::EvmPermitCallExecutionError.into(),
+			}),
+		}
 	}
 
 	fn gas_price() -> (U256, Weight) {
