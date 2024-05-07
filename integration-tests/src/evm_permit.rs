@@ -1048,15 +1048,16 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
 		assert_eq!(evm_account_nonce, U256::zero());
 
-		let permit_nonce = <hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(user_evm_address);
+		let permit_nonce =
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				user_evm_address,
+			);
 		assert_eq!(permit_nonce, U256::one());
-
 	})
 }
 
 use pallet_evm_accounts::EvmNonceProvider;
 use pallet_transaction_multi_payment::EVMPermit;
-
 
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
