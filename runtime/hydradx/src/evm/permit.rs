@@ -88,6 +88,11 @@ where
 		_nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
 	) -> DispatchResultWithPostInfo {
+		// Dispatching permit should not increase account nonce, as TX is not signed by the account.
+		// Therefore, we need to manually reset it back to current value after execution.
+		let account_id = <R as pallet_evm::Config>::AddressMapping::into_account_id(source);
+		let source_nonce = frame_system::Account::<R>::get(&account_id).nonce;
+
 		let is_transactional = true;
 		let validate = true;
 		let info = match <R as pallet_evm::Config>::Runner::call(
@@ -117,8 +122,11 @@ where
 				})
 			}
 		};
-
-		let account_id = <R as pallet_evm::Config>::AddressMapping::into_account_id(source);
+		let account_source_nonce = frame_system::Account::<R>::get(&account_id).nonce;
+		debug_assert_eq!(
+			account_source_nonce,
+			source_nonce + <R as frame_system::Config>::Nonce::one()
+		);
 		frame_system::Account::<R>::mutate(account_id, |a| a.nonce -= <R as frame_system::Config>::Nonce::one());
 
 		let permit_nonce = NoncesStorage::get(source);

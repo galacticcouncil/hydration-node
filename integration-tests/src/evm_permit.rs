@@ -8,6 +8,8 @@ use frame_system::RawOrigin;
 use hydradx_runtime::{Balances, Currencies, EVMAccounts, MultiTransactionPayment, Omnipool, RuntimeOrigin, Tokens};
 use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
+use pallet_evm_accounts::EvmNonceProvider;
+use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{H256, U256};
@@ -1056,8 +1058,100 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 	})
 }
 
-use pallet_evm_accounts::EvmNonceProvider;
-use pallet_transaction_multi_payment::EVMPermit;
+#[test]
+fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
+	TestNet::reset();
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+	let treasury_acc = MockAccount::new(Treasury::account_id());
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+
+		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
+		assert_eq!(evm_account_nonce, U256::zero());
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		// Prepare user evm account - bind and fund
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address(),
+			HDX,
+			100_000_000_000_000i128,
+		));
+		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
+		let initial_user_hdx_balance = user_acc.balance(HDX);
+		let initial_user_weth_balance = user_acc.balance(WETH);
+		let initial_user_dot_balance = user_acc.balance(DOT);
+
+		assert_eq!(initial_user_dot_balance, 0);
+
+		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address(),
+			WETH,
+			-(initial_user_weth_balance as i128),
+		));
+		let initial_user_weth_balance = user_acc.balance(WETH);
+		assert_eq!(initial_user_weth_balance, 0);
+
+		//Act
+		let omni_sell =
+			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+				asset_in: DOT,
+				asset_out: WETH,
+				amount: 10_000_000,
+				min_buy_amount: 0,
+			});
+
+		let gas_limit = 1000000;
+		let deadline = U256::from(1000000000000u128);
+
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				CALLPERMIT,
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				omni_sell.encode(),
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
+			user_evm_address,
+			DISPATCH_ADDR,
+			U256::from(0),
+			omni_sell.encode(),
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+
+		assert_eq!(user_acc.balance(WETH), 0);
+
+		// Verify account nonces
+		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
+		assert_eq!(evm_account_nonce, U256::zero());
+
+		let permit_nonce =
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				user_evm_address,
+			);
+		assert_eq!(permit_nonce, U256::one());
+	})
+}
 
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
