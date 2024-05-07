@@ -2,9 +2,12 @@
 
 use crate::polkadot_test_net::*;
 use crate::utils::accounts::*;
+use frame_support::dispatch::GetDispatchInfo;
 use frame_support::pallet_prelude::ValidateUnsigned;
+use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
 use frame_system::RawOrigin;
+use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
 use hydradx_runtime::{Balances, Currencies, EVMAccounts, MultiTransactionPayment, Omnipool, RuntimeOrigin, Tokens};
 use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
@@ -13,8 +16,10 @@ use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{H256, U256};
+use sp_runtime::traits::SignedExtension;
 use sp_runtime::transaction_validity::InvalidTransaction;
 use sp_runtime::transaction_validity::TransactionValidityError;
+use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
 
@@ -133,8 +138,6 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		assert!(relative_fee_difference < tolerated_fee_difference);
 	})
 }
-use frame_support::dispatch::GetDispatchInfo;
-use sp_runtime::traits::SignedExtension;
 
 #[test]
 fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
@@ -692,7 +695,6 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		let (rs, v) = sign(&message, &secret_key);
 
 		// Validate unsigned first
-
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
 			to: DISPATCH_ADDR,
@@ -1378,10 +1380,6 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 		Balance::MIN
 	));
 }
-
-use frame_support::traits::fungible::Mutate;
-use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
-use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
 
 pub fn init_omnipol() {
 	let native_price = FixedU128::from_rational(29903049701668757, 73927734532192294158);
