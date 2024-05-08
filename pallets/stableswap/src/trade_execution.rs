@@ -9,7 +9,7 @@ use sp_std::vec;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T>
 where
-	u32: From<T::AssetId>,
+	u32: sp_std::convert::From<T::AssetId>,
 	sp_std::vec::Vec<(u32, AssetReserve)>: FromIterator<(T::AssetId, AssetReserve)>,
 {
 	type Error = DispatchError;
