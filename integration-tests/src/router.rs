@@ -850,14 +850,14 @@ mod omnipool_router_tests {
 	}
 
 	#[test]
-	fn sell_should_fail_when_all_asset_in_spent_for_shitcoin() {
+	fn sell_should_fail_when_all_asset_in_spent_for_altcoin() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
 				let name = b"SHITCO".to_vec();
-				let shitcoin = AssetRegistry::register_insufficient_asset(
+				let altcoin = AssetRegistry::register_insufficient_asset(
 					None,
 					Some(name.try_into().unwrap()),
 					AssetKind::External,
@@ -868,7 +868,7 @@ mod omnipool_router_tests {
 					None,
 				)
 				.unwrap();
-				assert_ok!(Currencies::deposit(shitcoin, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(altcoin, &DAVE.into(), 100000 * UNITS,));
 				assert_ok!(Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
 					DAVE.into(),
@@ -880,14 +880,14 @@ mod omnipool_router_tests {
 					RuntimeOrigin::signed(DAVE.into()),
 					HDX,
 					100000 * UNITS,
-					shitcoin,
+					altcoin,
 					100000 * UNITS,
 				));
 
 				let trades = vec![Trade {
 					pool: PoolType::XYK,
 					asset_in: HDX,
-					asset_out: shitcoin,
+					asset_out: altcoin,
 				}];
 
 				//Act
@@ -896,7 +896,7 @@ mod omnipool_router_tests {
 					Router::sell(
 						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 						HDX,
-						shitcoin,
+						altcoin,
 						amount_to_sell,
 						0,
 						trades
@@ -910,14 +910,14 @@ mod omnipool_router_tests {
 	}
 
 	#[test]
-	fn sell_should_pass_when_user_has_asset_in_covering_the_fee_for_shitcoin() {
+	fn sell_should_pass_when_user_has_asset_in_covering_the_fee_for_altcoin() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
 				let name = b"SHITCO".to_vec();
-				let shitcoin = AssetRegistry::register_insufficient_asset(
+				let altcoin = AssetRegistry::register_insufficient_asset(
 					None,
 					Some(name.try_into().unwrap()),
 					AssetKind::External,
@@ -929,7 +929,7 @@ mod omnipool_router_tests {
 				)
 				.unwrap();
 
-				assert_ok!(Currencies::deposit(shitcoin, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(altcoin, &DAVE.into(), 100000 * UNITS,));
 				assert_ok!(Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
 					DAVE.into(),
@@ -941,14 +941,14 @@ mod omnipool_router_tests {
 					RuntimeOrigin::signed(DAVE.into()),
 					HDX,
 					100000 * UNITS,
-					shitcoin,
+					altcoin,
 					100000 * UNITS,
 				));
 
 				let trades = vec![Trade {
 					pool: PoolType::XYK,
 					asset_in: HDX,
-					asset_out: shitcoin,
+					asset_out: altcoin,
 				}];
 
 				//Act
@@ -956,7 +956,7 @@ mod omnipool_router_tests {
 				assert_ok!(Router::sell(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					HDX,
-					shitcoin,
+					altcoin,
 					amount_to_sell,
 					0,
 					trades
