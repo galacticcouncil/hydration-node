@@ -770,7 +770,14 @@ pub fn calculate_spot_price_all(
 		(STABLE_ASSET, STABLE_ASSET) => {
 			let asset_in_idx = asset_reserves.iter().position(|r| r.0 == asset_in)?;
 			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
-			calculate_spot_price(&reserves, amplification, d, asset_in_idx, asset_out_idx, fee)
+			calculate_spot_price_between_two_stable_assets(
+				&reserves,
+				amplification,
+				d,
+				asset_in_idx,
+				asset_out_idx,
+				fee,
+			)
 		}
 		(SHARE_ASSET, STABLE_ASSET) => {
 			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
@@ -823,7 +830,7 @@ pub fn calculate_spot_price_all(
 /// - `asset_out_idx` - asset out index
 /// - `fee` - fee of the pool
 ///
-pub fn calculate_spot_price(
+pub fn calculate_spot_price_between_two_stable_assets(
 	reserves: &[AssetReserve],
 	amplification: Balance,
 	d: Balance,
@@ -911,7 +918,7 @@ mod tests {
 		];
 		let amp = 319u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
-		let p = calculate_spot_price(&reserves, amp, d, 0, 1, None).unwrap();
+		let p = calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 0, 1, None).unwrap();
 		assert_approx_eq!(
 			p,
 			FixedU128::from_rational(
@@ -929,7 +936,7 @@ mod tests {
 		];
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
-		let p = calculate_spot_price(&reserves, amp, d, 0, 1, None).unwrap();
+		let p = calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 0, 1, None).unwrap();
 		assert_approx_eq!(
 			p,
 			FixedU128::from_rational(
@@ -952,8 +959,8 @@ mod tests {
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
 
-		assert!(calculate_spot_price(&reserves, amp, d, 4, 1, None).is_none());
-		assert!(calculate_spot_price(&reserves, amp, d, 1, 4, None).is_none());
+		assert!(calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 4, 1, None).is_none());
+		assert!(calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 1, 4, None).is_none());
 	}
 
 	#[test]
