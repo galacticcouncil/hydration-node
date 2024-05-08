@@ -120,7 +120,7 @@ where
 						actual_weight: Some(e.weight),
 						pays_fee: Pays::Yes,
 					},
-					error: e.error.into(),
+					error: pallet_transaction_multi_payment::Error::<R>::EvmPermitRunnerError.into(),
 				})
 			}
 		};
@@ -144,17 +144,15 @@ where
 			}
 		}
 		let actual_weight = gas_to_weight;
+		let post_info = PostDispatchInfo {
+			actual_weight: Some(actual_weight),
+			pays_fee: Pays::No,
+		};
 
 		match info.exit_reason {
-			ExitReason::Succeed(_) => Ok(PostDispatchInfo {
-				actual_weight: Some(actual_weight),
-				pays_fee: Pays::No,
-			}),
+			ExitReason::Succeed(_) => Ok(post_info),
 			_ => Err(DispatchErrorWithPostInfo {
-				post_info: PostDispatchInfo {
-					actual_weight: Some(actual_weight),
-					pays_fee: Pays::Yes,
-				},
+				post_info,
 				error: pallet_transaction_multi_payment::Error::<R>::EvmPermitCallExecutionError.into(),
 			}),
 		}

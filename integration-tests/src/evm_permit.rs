@@ -1445,7 +1445,7 @@ fn dispatch_permit_should_pause_tx_when_permit_is_invalid() {
 }
 
 #[test]
-fn dispatch_permit_should_pause_tx_when_call_execution_fails() {
+fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 	TestNet::reset();
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
@@ -1538,8 +1538,6 @@ fn dispatch_permit_should_pause_tx_when_call_execution_fails() {
 
 		assert_eq!(tx_fee, 6707014587503);
 
-		//TODO: we dont probably need to pause it here!?!
-
 		let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
 			to: DISPATCH_ADDR,
@@ -1551,7 +1549,7 @@ fn dispatch_permit_should_pause_tx_when_call_execution_fails() {
 			r: H256::from(rs.r.b32()),
 			s: H256::from(rs.s.b32()),
 		});
-		assert!(pallet_transaction_pause::PausedTransactionFilter::<
+		assert!(!pallet_transaction_pause::PausedTransactionFilter::<
 			hydradx_runtime::Runtime,
 		>::contains(&call));
 	})

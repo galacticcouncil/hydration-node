@@ -210,6 +210,9 @@ pub mod pallet {
 
 		/// EVM permit call failed.
 		EvmPermitCallExecutionError,
+
+		/// EVM permit call failed.
+		EvmPermitRunnerError,
 	}
 
 	/// Account currency map
@@ -407,14 +410,8 @@ pub mod pallet {
 			let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
 				DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
-			// TODO: Simplify this
 			let currency = if let Ok(call) = maybe_call {
-				let call_currency = T::TryCallCurrency::try_convert(&call);
-				if let Ok(currency) = call_currency {
-					currency
-				} else {
-					Pallet::<T>::account_currency(&account_id)
-				}
+				T::TryCallCurrency::try_convert(&call).unwrap_or_else(|_| Pallet::<T>::account_currency(&account_id))
 			} else {
 				Pallet::<T>::account_currency(&account_id)
 			};
@@ -423,7 +420,10 @@ pub mod pallet {
 
 			let result = T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![])
 				.unwrap_or_else(|e| {
-					T::EvmPermit::on_dispatch_permit_error();
+					// In case of runner error, account has not been charged, so we need to call error handler to pause dispatch error
+					if e.error == Error::<T>::EvmPermitRunnerError.into() {
+						T::EvmPermit::on_dispatch_permit_error();
+					}
 					e.post_info
 				});
 
@@ -477,14 +477,9 @@ pub mod pallet {
 						let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
 							DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
-						// TODO: Simplify this
 						let currency = if let Ok(call) = maybe_call {
-							let call_currency = T::TryCallCurrency::try_convert(&call);
-							if let Ok(currency) = call_currency {
-								currency
-							} else {
-								Pallet::<T>::account_currency(&account_id)
-							}
+							T::TryCallCurrency::try_convert(&call)
+								.unwrap_or_else(|_| crate::pallet::Pallet::<T>::account_currency(&account_id))
 						} else {
 							Pallet::<T>::account_currency(&account_id)
 						};
