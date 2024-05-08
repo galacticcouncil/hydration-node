@@ -109,11 +109,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 227,
+	spec_version: 231,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 0,
+	state_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -155,6 +155,7 @@ construct_runtime!(
 		Proxy: pallet_proxy = 29,
 		Multisig: pallet_multisig = 31,
 		Uniques: pallet_uniques = 32,
+		StateTrieMigration: pallet_state_trie_migration = 35,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry = 51,
@@ -822,6 +823,7 @@ mod benches {
 		[pallet_referrals, Referrals]
 		[pallet_evm_accounts, EVMAccounts]
 		[pallet_otc, OTC]
+		[pallet_state_trie_migration, StateTrieMigration]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]

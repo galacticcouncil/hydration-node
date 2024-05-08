@@ -452,7 +452,7 @@ pub mod hydra {
 					(
 						Some(DOT),
 						Some(b"DOT".to_vec().try_into().unwrap()),
-						1_000u128,
+						1_000_000u128,
 						None,
 						None,
 						None,
@@ -683,6 +683,16 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 	while hydradx_runtime::System::block_number() < to {
 		hydradx_run_to_next_block();
 	}
+}
+
+pub fn hydradx_finalize_block() {
+	use frame_support::traits::OnFinalize;
+
+	let b = hydradx_runtime::System::block_number();
+
+	hydradx_runtime::System::on_finalize(b);
+	hydradx_runtime::EmaOracle::on_finalize(b);
+	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
 }
 
 pub fn rococo_run_to_block(to: BlockNumber) {

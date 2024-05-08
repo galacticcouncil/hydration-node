@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "227.0.0"
+version = "231.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -62,7 +62,7 @@ pallet-democracy = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-uniques = { workspace = true }
 pallet-message-queue= { workspace = true }
-#pallet-xcm-rate-limiter = { workspace = true }
+pallet-state-trie-migration = { workspace = true }
 
 # Warehouse dependencies
 hydradx-adapters = { workspace = true }
@@ -154,6 +154,8 @@ pallet-evm-precompile-simple = { workspace = true }
 pallet-evm-precompile-modexp = { workspace = true }
 pallet-evm-precompile-bn128 = { workspace = true }
 pallet-evm-precompile-blake2 = { workspace = true }
+pallet-evm-precompile-call-permit = { workspace = true }
+precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { version = "18.0.0", default-features = false }
 
@@ -207,6 +209,7 @@ runtime-benchmarks = [
     "pallet-referrals/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-message-queue/runtime-benchmarks",
+    "pallet-state-trie-migration/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -265,7 +268,6 @@ std = [
     "pallet-currencies/std",
     "pallet-omnipool/std",
     "pallet-circuit-breaker/std",
-    #"pallet-xcm-rate-limiter/std",
     "pallet-transaction-pause/std",
     "pallet-dca/std",
     "pallet-ema-oracle/std",
@@ -305,12 +307,14 @@ std = [
     "pallet-evm-precompile-modexp/std",
     "pallet-evm-precompile-bn128/std",
     "pallet-evm-precompile-blake2/std",
+    "pallet-xyk/std",
     "pallet-referrals/std",
     "pallet-evm-accounts/std",
     "pallet-evm-accounts-rpc-runtime-api/std",
     "pallet-xyk-liquidity-mining/std",
     "parachains-common/std",
     "polkadot-runtime-common/std",
+    "pallet-state-trie-migration/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -362,7 +366,6 @@ try-runtime= [
     "warehouse-liquidity-mining/try-runtime",
     "pallet-omnipool-liquidity-mining/try-runtime",
     "pallet-circuit-breaker/try-runtime",
-    #"pallet-xcm-rate-limiter/try-runtime",
     "pallet-otc/try-runtime",
     "pallet-route-executor/try-runtime",
     "pallet-dynamic-fees/try-runtime",
@@ -381,4 +384,5 @@ try-runtime= [
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",
     "pallet-message-queue/try-runtime",
+    "pallet-state-trie-migration/try-runtime",
 ]

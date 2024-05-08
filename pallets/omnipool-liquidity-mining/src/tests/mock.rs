@@ -679,7 +679,7 @@ where
 	}
 
 	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
-		unimplemented!()
+		Some(1u128)
 	}
 }
 

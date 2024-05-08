@@ -301,12 +301,14 @@ async fn start_node_impl(
 		let filter_pool = filter_pool.clone();
 		let overrides = overrides.clone();
 		let pubsub_notification_sinks = pubsub_notification_sinks.clone();
+		let backend = backend.clone();
 
 		Box::new(move |deny_unsafe, subscription_task_executor| {
 			let deps = crate::rpc::FullDeps {
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				deny_unsafe,
+				backend: backend.clone(),
 			};
 
 			let module = rpc::create_full(deps)?;

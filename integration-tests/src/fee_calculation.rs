@@ -1,10 +1,10 @@
 #![cfg(test)]
 
-use crate::evm::DISPATCH_ADDR;
 use crate::{oracle::hydradx_run_to_block, polkadot_test_net::*};
 use frame_support::assert_ok;
 use frame_support::dispatch::DispatchClass;
 use frame_support::dispatch::GetDispatchInfo;
+use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::Tokens;
 use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::EVM;

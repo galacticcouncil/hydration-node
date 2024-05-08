@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "12.2.0"
+version = "12.3.0"
 description = "HydraDX node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -79,6 +79,10 @@ frame-system-rpc-runtime-api = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 sp-authority-discovery = { workspace = true }
 frame-try-runtime = { workspace = true, optional = true }
+substrate-state-trie-migration-rpc = { workspace = true }
+
+trie-db = "0.28.0"
+sp-state-machine = { workspace = true }
 
 # Cumulus dependencies
 cumulus-client-cli = { workspace = true }
