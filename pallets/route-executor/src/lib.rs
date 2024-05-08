@@ -854,7 +854,7 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 	}
 }
 impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
-	fn spot_price(route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
+	fn spot_price_with_fee(route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
 		let mut prices: Vec<FixedU128> = Vec::with_capacity(route.len());
 		for trade in route {
 			let spot_price_result = T::AMM::calculate_spot_price_with_fee(trade.pool, trade.asset_in, trade.asset_out);
