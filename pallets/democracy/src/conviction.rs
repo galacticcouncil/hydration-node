@@ -27,9 +27,23 @@ use sp_runtime::{
 use sp_std::{prelude::*, result::Result};
 
 /// A value denoting the strength of conviction of a vote.
-#[derive(Encode, MaxEncodedLen, Decode, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo)]
+#[derive(
+	Default,
+	Encode,
+	MaxEncodedLen,
+	Decode,
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	RuntimeDebug,
+	TypeInfo,
+)]
 pub enum Conviction {
 	/// 0.1x votes, unlocked.
+	#[default]
 	None,
 	/// 1x votes, locked for an enactment period following a successful vote.
 	Locked1x,
@@ -43,12 +57,6 @@ pub enum Conviction {
 	Locked5x,
 	/// 6x votes, locked for 32x...
 	Locked6x,
-}
-
-impl Default for Conviction {
-	fn default() -> Self {
-		Conviction::None
-	}
 }
 
 impl From<Conviction> for u8 {
@@ -97,7 +105,10 @@ impl Conviction {
 	}
 
 	/// The votes of a voter of the given `balance` with our conviction.
-	pub fn votes<B: From<u8> + Zero + Copy + CheckedMul + CheckedDiv + Bounded>(self, capital: B) -> Delegations<B> {
+	pub fn votes<B: From<u8> + Zero + Copy + CheckedMul + CheckedDiv + Bounded>(
+		self,
+		capital: B,
+	) -> Delegations<B> {
 		let votes = match self {
 			Conviction::None => capital.checked_div(&10u8.into()).unwrap_or_else(Zero::zero),
 			x => capital.checked_mul(&u8::from(x).into()).unwrap_or_else(B::max_value),

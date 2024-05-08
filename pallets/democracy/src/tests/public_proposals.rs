@@ -70,10 +70,7 @@ fn proposal_with_deposit_below_minimum_should_not_work() {
 #[test]
 fn poor_proposer_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_noop!(
-			propose_set_balance(1, 2, 11),
-			BalancesError::<Test, _>::InsufficientBalance
-		);
+		assert_noop!(propose_set_balance(1, 2, 11), BalancesError::<Test, _>::InsufficientBalance);
 	});
 }
 
@@ -94,7 +91,7 @@ fn cancel_proposal_should_work() {
 		assert_ok!(propose_set_balance(1, 2, 2));
 		assert_ok!(propose_set_balance(1, 4, 4));
 		assert_noop!(Democracy::cancel_proposal(RuntimeOrigin::signed(1), 0), BadOrigin);
-		let hash = note_preimage::<Test>(1);
+		let hash = note_preimage(1);
 		assert_ok!(Democracy::set_metadata(
 			RuntimeOrigin::signed(1),
 			MetadataOwner::Proposal(0),
@@ -106,11 +103,7 @@ fn cancel_proposal_should_work() {
 		assert!(<MetadataOf<Test>>::get(MetadataOwner::Proposal(0)).is_none());
 		System::assert_has_event(crate::Event::ProposalCanceled { prop_index: 0 }.into());
 		System::assert_last_event(
-			crate::Event::MetadataCleared {
-				owner: MetadataOwner::Proposal(0),
-				hash,
-			}
-			.into(),
+			crate::Event::MetadataCleared { owner: MetadataOwner::Proposal(0), hash }.into(),
 		);
 		assert_eq!(Democracy::backing_for(0), None);
 		assert_eq!(Democracy::backing_for(1), Some(4));

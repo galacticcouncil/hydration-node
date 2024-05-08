@@ -20,8 +20,11 @@
 use super::*;
 use crate as pallet_democracy;
 use frame_support::{
-	assert_noop, assert_ok, ord_parameter_types, parameter_types,
-	traits::{ConstU32, ConstU64, Contains, EqualPrivilegeOnly, OnInitialize, SortedMembers, StorePreimage},
+	assert_noop, assert_ok, derive_impl, ord_parameter_types, parameter_types,
+	traits::{
+		ConstU32, ConstU64, Contains, EqualPrivilegeOnly, OnInitialize, SortedMembers,
+		StorePreimage,
+	},
 	weights::Weight,
 };
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy};
@@ -42,33 +45,21 @@ mod public_proposals;
 mod scheduling;
 mod voting;
 
-const AYE: Vote = Vote {
-	aye: true,
-	conviction: Conviction::None,
-};
-const NAY: Vote = Vote {
-	aye: false,
-	conviction: Conviction::None,
-};
-const BIG_AYE: Vote = Vote {
-	aye: true,
-	conviction: Conviction::Locked1x,
-};
-const BIG_NAY: Vote = Vote {
-	aye: false,
-	conviction: Conviction::Locked1x,
-};
+const AYE: Vote = Vote { aye: true, conviction: Conviction::None };
+const NAY: Vote = Vote { aye: false, conviction: Conviction::None };
+const BIG_AYE: Vote = Vote { aye: true, conviction: Conviction::Locked1x };
+const BIG_NAY: Vote = Vote { aye: false, conviction: Conviction::Locked1x };
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
 	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		System: frame_system,
+		Balances: pallet_balances,
 		Preimage: pallet_preimage,
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Scheduler: pallet_scheduler,
+		Democracy: pallet_democracy,
 	}
 );
 
@@ -76,10 +67,7 @@ frame_support::construct_runtime!(
 pub struct BaseFilter;
 impl Contains<RuntimeCall> for BaseFilter {
 	fn contains(call: &RuntimeCall) -> bool {
-		!matches!(
-			call,
-			&RuntimeCall::Balances(pallet_balances::Call::force_set_balance { .. })
-		)
+		!matches!(call, &RuntimeCall::Balances(pallet_balances::Call::force_set_balance { .. }))
 	}
 }
 
@@ -89,6 +77,8 @@ parameter_types! {
 			Weight::from_parts(frame_support::weights::constants::WEIGHT_REF_TIME_PER_SECOND, u64::MAX),
 		);
 }
+
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type BaseCallFilter = BaseFilter;
 	type BlockWeights = BlockWeights;
@@ -97,7 +87,6 @@ impl frame_system::Config for Test {
 	type RuntimeOrigin = RuntimeOrigin;
 	type Nonce = u64;
 	type RuntimeCall = RuntimeCall;
-	type RuntimeTask = RuntimeTask;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
@@ -234,10 +223,7 @@ fn params_should_work() {
 }
 
 fn set_balance_proposal(value: u64) -> BoundedCallOf<Test> {
-	let inner = pallet_balances::Call::force_set_balance {
-		who: 42,
-		new_free: value,
-	};
+	let inner = pallet_balances::Call::force_set_balance { who: 42, new_free: value };
 	let outer = RuntimeCall::Balances(inner);
 	Preimage::bound(outer).unwrap()
 }
@@ -274,31 +260,19 @@ fn begin_referendum() -> ReferendumIndex {
 }
 
 fn aye(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard {
-		vote: AYE,
-		balance: Balances::free_balance(&who),
-	}
+	AccountVote::Standard { vote: AYE, balance: Balances::free_balance(who) }
 }
 
 fn nay(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard {
-		vote: NAY,
-		balance: Balances::free_balance(&who),
-	}
+	AccountVote::Standard { vote: NAY, balance: Balances::free_balance(who) }
 }
 
 fn big_aye(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard {
-		vote: BIG_AYE,
-		balance: Balances::free_balance(&who),
-	}
+	AccountVote::Standard { vote: BIG_AYE, balance: Balances::free_balance(who) }
 }
 
 fn big_nay(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard {
-		vote: BIG_NAY,
-		balance: Balances::free_balance(&who),
-	}
+	AccountVote::Standard { vote: BIG_NAY, balance: Balances::free_balance(who) }
 }
 
 fn tally(r: ReferendumIndex) -> Tally<u64> {
@@ -306,7 +280,7 @@ fn tally(r: ReferendumIndex) -> Tally<u64> {
 }
 
 /// note a new preimage without registering.
-fn note_preimage<T: frame_system::Config>(who: u64) -> sp_core::H256 {
+fn note_preimage(who: u64) -> <Test as frame_system::Config>::Hash {
 	use std::sync::atomic::{AtomicU8, Ordering};
 	// note a new preimage on every function invoke.
 	static COUNTER: AtomicU8 = AtomicU8::new(0);

@@ -23,10 +23,7 @@ use super::*;
 fn veto_external_works() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
-		assert_ok!(Democracy::external_propose(
-			RuntimeOrigin::signed(2),
-			set_balance_proposal(2),
-		));
+		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(2),));
 		assert!(<NextExternal<Test>>::exists());
 
 		let h = set_balance_proposal(2).hash();
@@ -48,10 +45,7 @@ fn veto_external_works() {
 
 		fast_forward_to(2);
 		// works; as we're out of the cooloff period.
-		assert_ok!(Democracy::external_propose(
-			RuntimeOrigin::signed(2),
-			set_balance_proposal(2),
-		));
+		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(2),));
 		assert!(<NextExternal<Test>>::exists());
 
 		// 3 can't veto the same thing twice.
@@ -72,10 +66,7 @@ fn veto_external_works() {
 			Error::<Test>::ProposalBlacklisted
 		);
 		// different proposal works fine.
-		assert_ok!(Democracy::external_propose(
-			RuntimeOrigin::signed(2),
-			set_balance_proposal(3),
-		));
+		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(3),));
 	});
 }
 
@@ -84,10 +75,7 @@ fn external_blacklisting_should_work() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
 
-		assert_ok!(Democracy::external_propose(
-			RuntimeOrigin::signed(2),
-			set_balance_proposal(2),
-		));
+		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(2),));
 
 		let hash = set_balance_proposal(2).hash();
 		assert_ok!(Democracy::blacklist(RuntimeOrigin::root(), hash, None));
@@ -110,10 +98,7 @@ fn external_referendum_works() {
 			Democracy::external_propose(RuntimeOrigin::signed(1), set_balance_proposal(2),),
 			BadOrigin,
 		);
-		assert_ok!(Democracy::external_propose(
-			RuntimeOrigin::signed(2),
-			set_balance_proposal(2),
-		));
+		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(2),));
 		assert_noop!(
 			Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(1),),
 			Error::<Test>::DuplicateProposal
@@ -126,11 +111,7 @@ fn external_referendum_works() {
 				proposal: set_balance_proposal(2),
 				threshold: VoteThreshold::SuperMajorityApprove,
 				delay: 2,
-				tally: Tally {
-					ayes: 0,
-					nays: 0,
-					turnout: 0
-				},
+				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
 			})
 		);
 	});
@@ -156,11 +137,7 @@ fn external_majority_referendum_works() {
 				proposal: set_balance_proposal(2),
 				threshold: VoteThreshold::SimpleMajority,
 				delay: 2,
-				tally: Tally {
-					ayes: 0,
-					nays: 0,
-					turnout: 0
-				},
+				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
 			})
 		);
 	});
@@ -186,11 +163,7 @@ fn external_default_referendum_works() {
 				proposal: set_balance_proposal(2),
 				threshold: VoteThreshold::SuperMajorityAgainst,
 				delay: 2,
-				tally: Tally {
-					ayes: 0,
-					nays: 0,
-					turnout: 0
-				},
+				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
 			})
 		);
 	});
@@ -200,10 +173,7 @@ fn external_default_referendum_works() {
 fn external_and_public_interleaving_works() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
-		assert_ok!(Democracy::external_propose(
-			RuntimeOrigin::signed(2),
-			set_balance_proposal(1),
-		));
+		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(1),));
 		assert_ok!(propose_set_balance(6, 2, 2));
 
 		fast_forward_to(2);
@@ -216,18 +186,11 @@ fn external_and_public_interleaving_works() {
 				proposal: set_balance_proposal(1),
 				threshold: VoteThreshold::SuperMajorityApprove,
 				delay: 2,
-				tally: Tally {
-					ayes: 0,
-					nays: 0,
-					turnout: 0
-				},
+				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
 			})
 		);
 		// replenish external
-		assert_ok!(Democracy::external_propose(
-			RuntimeOrigin::signed(2),
-			set_balance_proposal(3),
-		));
+		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(3),));
 
 		fast_forward_to(4);
 
@@ -239,11 +202,7 @@ fn external_and_public_interleaving_works() {
 				proposal: set_balance_proposal(2),
 				threshold: VoteThreshold::SuperMajorityApprove,
 				delay: 2,
-				tally: Tally {
-					ayes: 0,
-					nays: 0,
-					turnout: 0
-				},
+				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
 			})
 		);
 		// don't replenish public
@@ -258,18 +217,11 @@ fn external_and_public_interleaving_works() {
 				proposal: set_balance_proposal(3),
 				threshold: VoteThreshold::SuperMajorityApprove,
 				delay: 2,
-				tally: Tally {
-					ayes: 0,
-					nays: 0,
-					turnout: 0
-				},
+				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
 			})
 		);
 		// replenish external
-		assert_ok!(Democracy::external_propose(
-			RuntimeOrigin::signed(2),
-			set_balance_proposal(5),
-		));
+		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(5),));
 
 		fast_forward_to(8);
 
@@ -281,18 +233,11 @@ fn external_and_public_interleaving_works() {
 				proposal: set_balance_proposal(5),
 				threshold: VoteThreshold::SuperMajorityApprove,
 				delay: 2,
-				tally: Tally {
-					ayes: 0,
-					nays: 0,
-					turnout: 0
-				},
+				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
 			})
 		);
 		// replenish both
-		assert_ok!(Democracy::external_propose(
-			RuntimeOrigin::signed(2),
-			set_balance_proposal(7),
-		));
+		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(7),));
 		assert_ok!(propose_set_balance(6, 4, 2));
 
 		fast_forward_to(10);
@@ -305,11 +250,7 @@ fn external_and_public_interleaving_works() {
 				proposal: set_balance_proposal(4),
 				threshold: VoteThreshold::SuperMajorityApprove,
 				delay: 2,
-				tally: Tally {
-					ayes: 0,
-					nays: 0,
-					turnout: 0
-				},
+				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
 			})
 		);
 		// replenish public again
@@ -328,11 +269,7 @@ fn external_and_public_interleaving_works() {
 				proposal: set_balance_proposal(6),
 				threshold: VoteThreshold::SuperMajorityApprove,
 				delay: 2,
-				tally: Tally {
-					ayes: 0,
-					nays: 0,
-					turnout: 0
-				},
+				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
 			})
 		);
 	});
