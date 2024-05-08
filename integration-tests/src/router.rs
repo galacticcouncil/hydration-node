@@ -7,6 +7,7 @@ use hydradx_runtime::{
 	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
 	LBP, XYK,
 };
+use hydradx_traits::router::RouteSpotPriceProvider;
 use hydradx_traits::{
 	registry::Create,
 	router::{PoolType, Trade},
@@ -21,8 +22,8 @@ use pallet_route_executor::AmmTradeWeights;
 use std::convert::Into;
 
 use hydradx_traits::router::AssetPair as Pair;
-
 use primitives::AssetId;
+use sp_runtime::FixedPointNumber;
 
 use frame_support::{assert_noop, assert_ok};
 use xcm_emulator::TestExt;
@@ -52,6 +53,7 @@ fn router_weights_should_be_non_zero() {
 
 mod router_different_pools_tests {
 	use super::*;
+	use hydradx_traits::router::PoolType;
 
 	#[test]
 	fn route_should_fail_when_route_is_not_consistent() {
@@ -2558,9 +2560,12 @@ mod set_route {
 				Hydra::execute_with(|| {
 					let _ = with_transaction(|| {
 						//Arrange
-						let (pool_id, stable_asset_1, _) =
-							init_stableswap_with_liquidity(1_000_000_000_000_000_000u128, 300_000_000_000_000_000u128)
-								.unwrap();
+						let (pool_id, stable_asset_1, _) = init_stableswap_with_details(
+							1_000_000_000_000_000_000u128,
+							300_000_000_000_000_000u128,
+							18,
+						)
+						.unwrap();
 
 						init_omnipool();
 
@@ -3915,10 +3920,336 @@ mod with_on_chain_and_default_route {
 	}
 }
 
+mod route_spot_price {
+	use super::*;
+	use hydradx_traits::router::PoolType;
+	use sp_runtime::FixedU128;
+
+	#[test]
+	fn spot_price_should_be_ok_for_lbp() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			create_lbp_pool(HDX, DOT);
+
+			set_relaychain_block_number(LBP_SALE_START + 7);
+
+			let amount_to_sell = 1 * UNITS;
+			let limit = 0;
+			let trades = vec![Trade {
+				pool: PoolType::LBP,
+				asset_in: HDX,
+				asset_out: DOT,
+			}];
+
+			//Act
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				HDX,
+				DOT,
+				amount_to_sell,
+				limit,
+				trades.clone()
+			));
+
+			//Assert
+			let amount_out = 1_022562572986; //+7 blocks
+
+			assert_balance!(BOB.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
+			assert_balance!(BOB.into(), DOT, amount_out);
+
+			let spot_price_of_hdx_per_dot = Router::spot_price_with_fee(&trades).unwrap();
+			let calculated_amount_out = spot_price_of_hdx_per_dot
+				.reciprocal()
+				.unwrap()
+				.checked_mul_int(amount_to_sell)
+				.unwrap();
+			let difference = amount_out - calculated_amount_out;
+			let relative_difference = FixedU128::from_rational(difference, amount_out);
+			let tolerated_difference = FixedU128::from_rational(1, 100);
+			// The difference of the amount out calculated with spot price should be less than 1%
+			assert!(relative_difference < tolerated_difference);
+			//assert_eq!(relative_difference, FixedU128::from_float(0.009468191066027364)); //TEMP assertion
+		});
+	}
+
+	#[test]
+	fn route_should_have_spot_price_for_all_pools() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				create_lbp_pool(HDX, DAI);
+				assert_eq!(
+					hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
+					ALICE_INITIAL_NATIVE_BALANCE
+				);
+				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+				init_omnipool();
+				create_xyk_pool_with_amounts(stable_asset_2, 1000 * UNITS, DOT, 1000 * UNITS);
+
+				set_relaychain_block_number(LBP_SALE_START + 7);
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_asset_1,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_inner(25_650_000_000_000_000),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::LBP,
+						asset_in: HDX,
+						asset_out: DAI,
+					},
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: DAI,
+						asset_out: stable_asset_1,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: stable_asset_1,
+						asset_out: stable_asset_2,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: stable_asset_2,
+						asset_out: DOT,
+					},
+				];
+				let amount_to_sell = 1 * UNITS;
+
+				//Act
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					DOT,
+					amount_to_sell,
+					0,
+					trades.clone()
+				));
+
+				//Assert
+				let expected_amount_out = 1765376;
+
+				assert_eq!(
+					hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
+					ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell
+				);
+
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(DOT, &AccountId::from(ALICE)),
+					ALICE_INITIAL_DOT_BALANCE + expected_amount_out
+				);
+
+				let spot_price_of_hdx_per_dot = Router::spot_price_with_fee(&trades).unwrap();
+				let calculated_amount_out = spot_price_of_hdx_per_dot
+					.reciprocal()
+					.unwrap()
+					.checked_mul_int(amount_to_sell)
+					.unwrap();
+				let difference = if calculated_amount_out > expected_amount_out {
+					calculated_amount_out - expected_amount_out
+				} else {
+					expected_amount_out - calculated_amount_out
+				};
+				let relative_difference = FixedU128::from_rational(difference, expected_amount_out);
+				let tolerated_difference = FixedU128::from_rational(1, 100);
+				// The difference of the amount out calculated with spot price should be less than 1%
+				assert!(relative_difference < tolerated_difference);
+				//assert_eq!(relative_difference, FixedU128::from_float(0.002541101725638051)); //TEMP assertion
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn route_should_have_spot_price_when_stable_share_asset_included() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, _) =
+					init_stableswap_with_details(1_000_000_000_000_000_000u128, 300_000_000_000_000_000u128, 12)
+						.unwrap();
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					pool_id,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					pool_id,
+					FixedU128::from_inner(25_650_000_000_000_000),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: pool_id,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: pool_id,
+						asset_out: stable_asset_1,
+					},
+				];
+				let amount_to_sell = 1 * UNITS;
+
+				//Act
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					stable_asset_1,
+					amount_to_sell,
+					0,
+					trades.clone()
+				));
+
+				//Assert
+				let expected_amount_out = 46467;
+
+				assert_eq!(
+					hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
+					ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell
+				);
+
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)),
+					expected_amount_out
+				);
+
+				let spot_price_of_hdx_per_dot = Router::spot_price_with_fee(&trades).unwrap();
+				let calculated_amount_out = spot_price_of_hdx_per_dot
+					.reciprocal()
+					.unwrap()
+					.checked_mul_int(amount_to_sell)
+					.unwrap();
+				let difference = if expected_amount_out > calculated_amount_out {
+					expected_amount_out - calculated_amount_out
+				} else {
+					calculated_amount_out - expected_amount_out
+				};
+				let relative_difference = FixedU128::from_rational(difference, expected_amount_out);
+				let tolerated_difference = FixedU128::from_rational(1, 100);
+				// The difference of the amount out calculated with spot price should be less than 1%
+				//assert_eq!(relative_difference, FixedU128::from_float(0.002991370219725827)); //TEMP assertion
+				assert!(relative_difference < tolerated_difference);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn route_should_have_spot_price_when_only_stable_share_asset_included() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, _) =
+					init_stableswap_with_details(1_000_000_000_000_000_000u128, 300_000_000_000_000_000u128, 12)
+						.unwrap();
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ALICE.into(),
+					pool_id,
+					3000 * UNITS as i128,
+				));
+
+				let trades = vec![Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: pool_id,
+					asset_out: stable_asset_1,
+				}];
+				let amount_to_sell = 1 * UNITS;
+
+				//Act
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					pool_id,
+					stable_asset_1,
+					amount_to_sell,
+					0,
+					trades.clone()
+				));
+
+				//Assert
+				let expected_amount_out = 994999;
+
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(pool_id, &AccountId::from(ALICE)),
+					3000 * UNITS - amount_to_sell
+				);
+
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)),
+					expected_amount_out
+				);
+
+				let spot_price_of_hdx_per_dot = Router::spot_price_with_fee(&trades).unwrap();
+				let calculated_amount_out = spot_price_of_hdx_per_dot
+					.reciprocal()
+					.unwrap()
+					.checked_mul_int(amount_to_sell)
+					.unwrap();
+				let difference = if expected_amount_out > calculated_amount_out {
+					expected_amount_out - calculated_amount_out
+				} else {
+					calculated_amount_out - expected_amount_out
+				};
+				let relative_difference = FixedU128::from_rational(difference, expected_amount_out);
+				let tolerated_difference = FixedU128::from_rational(1, 100);
+				// The difference of the amount out calculated with spot price should be less than 1%
+				//assert_eq!(relative_difference, FixedU128::from_float(0.003019098511656796)); //TEMP assertion
+				assert!(relative_difference < tolerated_difference);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+}
+
 fn create_lbp_pool(accumulated_asset: u32, distributed_asset: u32) {
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		accumulated_asset,
+		1000 * UNITS as i128,
+	));
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		distributed_asset,
+		1000 * UNITS as i128,
+	));
 	assert_ok!(LBP::create_pool(
 		RuntimeOrigin::root(),
-		ALICE.into(),
+		DAVE.into(),
 		accumulated_asset,
 		100 * UNITS,
 		distributed_asset,
@@ -3934,7 +4265,7 @@ fn create_lbp_pool(accumulated_asset: u32, distributed_asset: u32) {
 	let account_id = get_lbp_pair_account_id(accumulated_asset, distributed_asset);
 
 	assert_ok!(LBP::update_pool_data(
-		RuntimeOrigin::signed(ALICE.into()),
+		RuntimeOrigin::signed(DAVE.into()),
 		account_id,
 		None,
 		Some(LBP_SALE_START),
@@ -4041,12 +4372,13 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let initial_liquidity = 1_000_000_000_000_000u128;
 	let liquidity_added = 300_000_000_000_000u128;
 
-	init_stableswap_with_liquidity(initial_liquidity, liquidity_added)
+	init_stableswap_with_details(initial_liquidity, liquidity_added, 18)
 }
 
-pub fn init_stableswap_with_liquidity(
+pub fn init_stableswap_with_details(
 	initial_liquidity: Balance,
 	liquidity_added: Balance,
+	decimals: u8,
 ) -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let mut initial: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
 	let mut added_liquidity: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> =
@@ -4061,7 +4393,7 @@ pub fn init_stableswap_with_liquidity(
 			AssetKind::Token,
 			1000u128,
 			Some(b"xDUM".to_vec().try_into().unwrap()),
-			Some(18u8),
+			Some(decimals),
 			None,
 			None,
 		)?;

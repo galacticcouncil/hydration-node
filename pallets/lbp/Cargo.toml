@@ -1,6 +1,6 @@
 [package]
 name = "pallet-lbp"
-version = "4.7.5"
+version = "4.8.1"
 description = "HydraDX Liquidity Bootstrapping Pool Pallet"
 authors = ["GalacticCouncil"]
 edition = "2021"

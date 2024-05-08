@@ -3,8 +3,9 @@ use crate::{
 	MathError::{InsufficientOutReserve, Overflow, ZeroReserve},
 };
 use core::convert::TryFrom;
-use num_traits::Zero;
+use num_traits::{CheckedMul, CheckedSub, Zero};
 use primitive_types::U256;
+use sp_arithmetic::{FixedPointNumber, FixedU128};
 
 type Balance = u128;
 
@@ -34,6 +35,38 @@ pub fn calculate_spot_price(in_reserve: Balance, out_reserve: Balance, amount: B
 		.ok_or(Overflow)?;
 
 	to_balance!(spot_price_hp)
+}
+
+/// Calculating spot price including fee
+///
+/// Returns price of asset_in denominated in asset_out (asset_out/asset_in)
+///
+/// - `in_reserve` - reserve amount of selling ass
+/// - `out_reserve` - reserve amount of buying asset
+/// - `fee_rate` - fee rate of the pool
+///
+/// Returns MathError in case of error
+pub fn calculate_spot_price_with_fee(
+	in_reserve: Balance,
+	out_reserve: Balance,
+	fee_rate: Option<(u32, u32)>,
+) -> Result<FixedU128, MathError> {
+	ensure!(in_reserve != 0, ZeroReserve);
+
+	let spot_price_without_fee = FixedU128::from_rational(out_reserve, in_reserve);
+
+	if let Some((n, d)) = fee_rate {
+		// Formula: spot-price-with-fee = BA-spot-price-without-fee * (1 - fee)
+		// Since in the trade the amount out is reduced by fee, it makes asset B/A cheaper, so the spot price should be decreased
+		// We multiply to reflect correct amount out (B) after the fee deduction
+		let fee = FixedU128::checked_from_rational(n, d).ok_or(Overflow)?;
+		let fee_multipiler = FixedU128::from_rational(1, 1).checked_sub(&fee).ok_or(Overflow)?;
+		let spot_price_with_fee = spot_price_without_fee.checked_mul(&fee_multipiler).ok_or(Overflow)?;
+
+		return Ok(spot_price_with_fee);
+	}
+
+	Ok(spot_price_without_fee)
 }
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
