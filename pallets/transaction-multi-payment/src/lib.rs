@@ -70,6 +70,7 @@ pub use pallet::*;
 pub mod pallet {
 	use super::*;
 	use codec::DecodeLimit;
+	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
@@ -387,7 +388,14 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 
-			T::EvmPermit::validate_permit(from, to, data.clone(), value, gas_limit, deadline, v, r, s)?;
+			// dispatch permit should never return error.
+			// validate_unsigned should prevent the transaction getting to this point in case of invalid permit.
+			// In case of any error, we call error handler ( which should pause this transaction) and return ok.
+
+			if T::EvmPermit::validate_permit(from, to, data.clone(), value, gas_limit, deadline, v, r, s).is_err() {
+				T::EvmPermit::on_dispatch_permit_error();
+				return Ok(PostDispatchInfo::default());
+			};
 
 			let (gas_price, _) = T::EvmPermit::gas_price();
 
@@ -413,12 +421,11 @@ pub mod pallet {
 
 			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
-			// dispatch_permit does not fail at this point, as we need to keep the storage updates regarding nonces
-			let result =
-				match T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![]) {
-					Ok(post_info) => post_info,
-					Err(e) => e.post_info,
-				};
+			let result = T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![])
+				.unwrap_or_else(|e| {
+					T::EvmPermit::on_dispatch_permit_error();
+					e.post_info
+				});
 
 			TransactionCurrencyOverride::<T>::remove(account_id.clone());
 

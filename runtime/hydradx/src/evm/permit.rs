@@ -1,7 +1,7 @@
 use crate::evm::precompiles;
 use evm::ExitReason;
 use fp_evm::FeeCalculator;
-use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
+use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo, RawOrigin};
 use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::traits::Time;
@@ -25,6 +25,7 @@ where
 		+ pallet_evm::Config
 		+ pallet_transaction_multi_payment::Config
 		+ pallet_evm_accounts::Config
+		+ pallet_transaction_pause::Config
 		+ pallet_dynamic_evm_fee::Config,
 	R::Nonce: Into<U256>,
 	AccountId: From<R::AccountId>,
@@ -170,5 +171,13 @@ where
 
 	fn permit_nonce(account: H160) -> U256 {
 		NoncesStorage::get(account)
+	}
+
+	fn on_dispatch_permit_error() {
+		let _ = pallet_transaction_pause::Pallet::<R>::pause_transaction(
+			RawOrigin::Root.into(),
+			b"MultiTransactionPayment".to_vec(),
+			b"dispatch_permit".to_vec(),
+		);
 	}
 }
