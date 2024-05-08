@@ -65,7 +65,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::pallet_prelude::Hooks;
-use frame_support::{construct_runtime, parameter_types, weights::Weight};
+use frame_support::{construct_runtime, weights::Weight};
 pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
@@ -719,11 +719,12 @@ impl_runtime_apis! {
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
-			use frame_support::traits::TrackedStorageKey;
+			use frame_support::{parameter_types, traits::TrackedStorageKey};
 			use orml_benchmarking::add_benchmark as orml_add_benchmark;
-
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			use frame_system_benchmarking::Pallet as SystemBench;
+			use cumulus_primitives_core::ParaId;
+
 			impl frame_system_benchmarking::Config for Runtime {
 				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
 					ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
@@ -740,7 +741,6 @@ impl_runtime_apis! {
 				pub const ExistentialDeposit: u128= 0;
 			}
 
-			use cumulus_primitives_core::ParaId;
 			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, ParentThen, Parachain, Parent};
 
 			impl pallet_xcm::benchmarking::Config for Runtime {
