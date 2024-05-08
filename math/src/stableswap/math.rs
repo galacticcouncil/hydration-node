@@ -748,7 +748,7 @@ const SHARE_ASSET: bool = true;
 /// - `min_trade_amount` - min trade amount of stableswap
 /// - `pool_fee` - fee of the pool
 ///
-pub fn calculate_spot_price_all(
+pub fn calculate_spot_price(
 	pool_id: AssetId,
 	asset_reserves: Vec<(AssetId, AssetReserve)>,
 	amplification: Balance,

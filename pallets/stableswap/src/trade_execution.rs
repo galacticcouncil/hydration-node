@@ -228,7 +228,7 @@ where
 				let share_issuance = T::Currency::total_issuance(pool_id);
 				let min_trade_limit = T::MinTradingLimit::get();
 
-				let spot_price = hydra_dx_math::stableswap::calculate_spot_price_all(
+				let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 					pool_id.into(),
 					assets_with_reserves,
 					amp,
