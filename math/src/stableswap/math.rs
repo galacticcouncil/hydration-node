@@ -748,6 +748,7 @@ const SHARE_ASSET: bool = true;
 /// - `min_trade_amount` - min trade amount of stableswap
 /// - `pool_fee` - fee of the pool
 ///
+#[allow(clippy::too_many_arguments)]
 pub fn calculate_spot_price(
 	pool_id: AssetId,
 	asset_reserves: Vec<(AssetId, AssetReserve)>,
@@ -766,7 +767,7 @@ pub fn calculate_spot_price(
 
 	let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amplification)?;
 
-	let spot_price = match (asset_in == pool_id, asset_out == pool_id) {
+	match (asset_in == pool_id, asset_out == pool_id) {
 		(STABLE_ASSET, STABLE_ASSET) => {
 			let asset_in_idx = asset_reserves.iter().position(|r| r.0 == asset_in)?;
 			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
@@ -805,7 +806,7 @@ pub fn calculate_spot_price(
 			let update_reserves: &Vec<AssetReserve> = &updated_reserves.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
 			let shares_for_min_trade = calculate_shares::<MAX_D_ITERATIONS>(
 				&reserves,
-				&update_reserves,
+				update_reserves,
 				amplification,
 				share_issuance,
 				fee.unwrap_or(Permill::zero()),
@@ -813,10 +814,8 @@ pub fn calculate_spot_price(
 
 			FixedU128::checked_from_rational(min_trade_amount, shares_for_min_trade)
 		}
-		_ => return None,
-	};
-
-	spot_price
+		_ => None,
+	}
 }
 
 /// Calculating spot price between two stable asset AB, including the impact of the fee
