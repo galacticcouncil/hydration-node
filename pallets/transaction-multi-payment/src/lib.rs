@@ -70,6 +70,7 @@ pub use pallet::*;
 pub mod pallet {
 	use super::*;
 	use codec::DecodeLimit;
+	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
@@ -206,6 +207,12 @@ pub mod pallet {
 
 		/// EVM permit is invalid.
 		EvmPermitInvalid,
+
+		/// EVM permit call failed.
+		EvmPermitCallExecutionError,
+
+		/// EVM permit call failed.
+		EvmPermitRunnerError,
 	}
 
 	/// Account currency map
@@ -384,7 +391,14 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 
-			T::EvmPermit::validate_permit(from, to, data.clone(), value, gas_limit, deadline, v, r, s)?;
+			// dispatch permit should never return error.
+			// validate_unsigned should prevent the transaction getting to this point in case of invalid permit.
+			// In case of any error, we call error handler ( which should pause this transaction) and return ok.
+
+			if T::EvmPermit::validate_permit(from, to, data.clone(), value, gas_limit, deadline, v, r, s).is_err() {
+				T::EvmPermit::on_dispatch_permit_error();
+				return Ok(PostDispatchInfo::default());
+			};
 
 			let (gas_price, _) = T::EvmPermit::gas_price();
 
@@ -396,22 +410,22 @@ pub mod pallet {
 			let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
 				DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
-			// TODO: Simplify this
 			let currency = if let Ok(call) = maybe_call {
-				let call_currency = T::TryCallCurrency::try_convert(&call);
-				if let Ok(currency) = call_currency {
-					currency
-				} else {
-					Pallet::<T>::account_currency(&account_id)
-				}
+				T::TryCallCurrency::try_convert(&call).unwrap_or_else(|_| Pallet::<T>::account_currency(&account_id))
 			} else {
 				Pallet::<T>::account_currency(&account_id)
 			};
 
 			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
-			let result =
-				T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![])?;
+			let result = T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![])
+				.unwrap_or_else(|e| {
+					// In case of runner error, account has not been charged, so we need to call error handler to pause dispatch error
+					if e.error == Error::<T>::EvmPermitRunnerError.into() {
+						T::EvmPermit::on_dispatch_permit_error();
+					}
+					e.post_info
+				});
 
 			TransactionCurrencyOverride::<T>::remove(account_id.clone());
 
@@ -463,14 +477,9 @@ pub mod pallet {
 						let maybe_call: Result<<T as frame_system::Config>::RuntimeCall, _> =
 							DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
 
-						// TODO: Simplify this
 						let currency = if let Ok(call) = maybe_call {
-							let call_currency = T::TryCallCurrency::try_convert(&call);
-							if let Ok(currency) = call_currency {
-								currency
-							} else {
-								Pallet::<T>::account_currency(&account_id)
-							}
+							T::TryCallCurrency::try_convert(&call)
+								.unwrap_or_else(|_| crate::pallet::Pallet::<T>::account_currency(&account_id))
 						} else {
 							Pallet::<T>::account_currency(&account_id)
 						};
