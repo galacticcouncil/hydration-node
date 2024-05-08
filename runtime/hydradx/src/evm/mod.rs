@@ -187,7 +187,7 @@ impl pallet_evm_accounts::Config for crate::Runtime {
 	type FeeMultiplier = sp_core::ConstU32<50>;
 	type EvmNonceProvider = EvmNonceProvider;
 	type ControllerOrigin = crate::SuperMajorityTechCommittee;
-	type WeightInfo = crate::weights::evm_accounts::HydraWeight<crate::Runtime>;
+	type WeightInfo = crate::weights::pallet_evm_accounts::HydraWeight<crate::Runtime>;
 }
 
 parameter_types! {
@@ -211,5 +211,5 @@ impl pallet_dynamic_evm_fee::Config for crate::Runtime {
 		OracleEvmPeriod,
 	>;
 	type WethAssetId = WethAssetId;
-	type WeightInfo = crate::weights::dynamic_evm_fee::HydraWeight<crate::Runtime>;
+	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<crate::Runtime>;
 }

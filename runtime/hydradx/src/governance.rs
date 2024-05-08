@@ -58,7 +58,7 @@ impl pallet_treasury::Config for Runtime {
 	type Burn = Burn;
 	type PalletId = TreasuryPalletId;
 	type BurnDestination = ();
-	type WeightInfo = weights::treasury::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_treasury::HydraWeight<Runtime>;
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
 	type SpendOrigin = NeverEnsureOrigin<Balance>;
@@ -80,7 +80,7 @@ parameter_types! {
 
 impl pallet_preimage::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::preimage::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_preimage::HydraWeight<Runtime>;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	type Consideration = ();
@@ -132,7 +132,7 @@ impl pallet_scheduler::Config for Runtime {
 	type ScheduleOrigin = MoreThanHalfCouncil;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
-	type WeightInfo = weights::scheduler::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_scheduler::HydraWeight<Runtime>;
 	type Preimages = Preimage;
 }
 
@@ -238,7 +238,7 @@ parameter_types! {
 }
 
 impl pallet_democracy::Config for Runtime {
-	type WeightInfo = weights::democracy::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_democracy::HydraWeight<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type Scheduler = Scheduler;
 	type Preimages = Preimage;
@@ -312,7 +312,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type TermDuration = TermDuration;
 	type MaxCandidates = MaxElectionCandidates;
 	type MaxVoters = MaxElectionVoters;
-	type WeightInfo = weights::elections::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_elections_phragmen::HydraWeight<Runtime>;
 	type MaxVotesPerVoter = MaxVotesPerVoter;
 }
 
@@ -335,5 +335,5 @@ impl pallet_tips::Config for Runtime {
 	type TipReportDepositBase = TipReportDepositBase;
 	type MaxTipAmount = MaxTipAmount;
 	type Tippers = Elections;
-	type WeightInfo = weights::tips::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_tips::HydraWeight<Runtime>;
 }

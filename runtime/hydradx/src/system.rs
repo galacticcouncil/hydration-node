@@ -186,7 +186,7 @@ impl frame_system::Config for Runtime {
 	/// What to do if an account is fully reaped from the system.
 	type OnKilledAccount = ();
 	/// Weight information for the extrinsics of this pallet.
-	type SystemWeightInfo = weights::system::HydraWeight<Runtime>;
+	type SystemWeightInfo = weights::frame_system::HydraWeight<Runtime>;
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
@@ -201,7 +201,7 @@ impl pallet_timestamp::Config for Runtime {
 	type Moment = u64;
 	type OnTimestampSet = ();
 	type MinimumPeriod = MinimumPeriod;
-	type WeightInfo = weights::timestamp::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_timestamp::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -260,7 +260,7 @@ impl pallet_collator_selection::Config for Runtime {
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
 	type ValidatorRegistration = Session;
-	type WeightInfo = weights::collator_selection::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_collator_selection::HydraWeight<Runtime>;
 	type MinEligibleCollators = ConstU32<4>;
 }
 
@@ -288,7 +288,7 @@ impl pallet_utility::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type PalletsOrigin = OriginCaller;
-	type WeightInfo = weights::utility::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_utility::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -321,7 +321,7 @@ impl pallet_identity::Config for Runtime {
 	type PendingUsernameExpiration = PendingUserNameExpiration;
 	type MaxSuffixLength = MaxSuffixLength;
 	type MaxUsernameLength = MaxUsernameLength;
-	type WeightInfo = weights::identity::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_identity::HydraWeight<Runtime>;
 }
 
 /// The type used to represent the kinds of proxying allowed.
@@ -404,7 +404,7 @@ impl pallet_proxy::Config for Runtime {
 	type ProxyDepositBase = ProxyDepositBase;
 	type ProxyDepositFactor = ProxyDepositFactor;
 	type MaxProxies = MaxProxies;
-	type WeightInfo = weights::proxy::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_proxy::HydraWeight<Runtime>;
 	type MaxPending = MaxPending;
 	type CallHasher = BlakeTwo256;
 	type AnnouncementDepositBase = AnnouncementDepositBase;
@@ -494,7 +494,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Currencies = Currencies;
 	type RouteProvider = Router;
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
-	type WeightInfo = weights::payment::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_transaction_multi_payment::HydraWeight<Runtime>;
 	type NativeAssetId = NativeAssetId;
 	type EvmAssetId = evm::WethAssetId;
 	type InspectEvmAccounts = EVMAccounts;
@@ -542,7 +542,7 @@ impl pallet_collator_rewards::Config for Runtime {
 impl pallet_transaction_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type UpdateOrigin = SuperMajorityTechCommittee;
-	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
 
 pub struct TechCommAccounts;
@@ -568,5 +568,5 @@ impl pallet_state_trie_migration::Config for Runtime {
 	type MaxKeyLen = MaxKeyLen;
 	type SignedDepositPerItem = MigrationSignedDepositPerItem;
 	type SignedDepositBase = MigrationSignedDepositBase;
-	type WeightInfo = weights::state_trie::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_state_trie_migration::HydraWeight<Runtime>;
 }

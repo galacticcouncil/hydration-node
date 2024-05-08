@@ -185,7 +185,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ControllerOrigin = MoreThanHalfTechCommittee;
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
 	type PriceForSiblingDelivery = polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery<ParaId>;
-	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
+	type WeightInfo = weights::cumulus_pallet_xcmp_queue::HydraWeight<Runtime>;
 	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
 	type MaxInboundSuspended = MaxInboundSuspended;
 }
@@ -256,7 +256,7 @@ impl pallet_xcm::Config for Runtime {
 	type TrustedLockers = ();
 	type SovereignAccountOf = ();
 	type MaxLockers = ConstU32<8>;
-	type WeightInfo = weights::xcm::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_xcm::HydraWeight<Runtime>;
 	type AdminOrigin = MajorityOfCouncil;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
