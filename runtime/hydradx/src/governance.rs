@@ -152,7 +152,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxProposals = CouncilMaxProposals;
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::council::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_collective_council::HydraWeight<Runtime>;
 	type MaxProposalWeight = MaxProposalWeight;
 	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
@@ -172,7 +172,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxProposals = TechnicalMaxProposals;
 	type MaxMembers = TechnicalMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::technical_committee::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_collective_technical_committee::HydraWeight<Runtime>;
 	type MaxProposalWeight = MaxProposalWeight;
 	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
