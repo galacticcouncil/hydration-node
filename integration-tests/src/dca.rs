@@ -519,7 +519,7 @@ mod omnipool {
 				BOB.into(),
 			));
 
-			polkadot_run_to_block(11);
+			rococo_run_to_block(11);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::force_set_balance(
@@ -565,7 +565,7 @@ mod omnipool {
 				ETH,
 				BOB.into(),
 			));
-			polkadot_run_to_block(12);
+			rococo_run_to_block(12);
 
 			//Assert
 			let schedule_id = 0;
@@ -3447,7 +3447,7 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 	let mut added_liquidity: Vec<AssetAmount<<Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
 
 	let mut asset_ids: Vec<<Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
-	let decimals_for_each_asset = vec![12u8, 6u8, 6u8];
+	let decimals_for_each_asset = [12u8, 6u8, 6u8];
 	for idx in 0u32..3 {
 		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
 

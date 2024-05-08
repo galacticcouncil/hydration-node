@@ -150,7 +150,7 @@ fn extend_externalities_should_work() {
 			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
 			0
 		);
-		assert_ok!(hydradx_runtime::Balances::transfer(
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			BOB.into(),
 			1_000_000_000_000,
@@ -181,7 +181,7 @@ fn save_and_load_externalities_should_work() {
 			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
 			0
 		);
-		assert_ok!(hydradx_runtime::Balances::transfer(
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			BOB.into(),
 			1_000_000_000_000,

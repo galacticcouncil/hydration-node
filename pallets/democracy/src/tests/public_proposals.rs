@@ -94,7 +94,7 @@ fn cancel_proposal_should_work() {
 		assert_ok!(propose_set_balance(1, 2, 2));
 		assert_ok!(propose_set_balance(1, 4, 4));
 		assert_noop!(Democracy::cancel_proposal(RuntimeOrigin::signed(1), 0), BadOrigin);
-		let hash = note_preimage(1);
+		let hash = note_preimage::<Test>(1);
 		assert_ok!(Democracy::set_metadata(
 			RuntimeOrigin::signed(1),
 			MetadataOwner::Proposal(0),

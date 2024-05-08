@@ -19,8 +19,8 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	}
 
 	fn on_runtime_upgrade() -> Weight {
-		let mut weight: Weight = Weight::zero();
 		/*
+		let mut weight: Weight = Weight::zero();
 
 		log::info!("Migrate Collator Selection Pallet to v1 start");
 		weight = weight
@@ -42,7 +42,7 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		weight = weight.saturating_add(pallet_referrals::migration::preregister_parachain_codes::<Runtime>());
 		 */
 
-		weight
+		Weight::zero()
 	}
 
 	#[cfg(feature = "try-runtime")]

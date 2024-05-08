@@ -72,8 +72,7 @@ use frame_support::traits::Contains;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
-	OnLiquidityChangedHandler, OnTradeHandler,
-	Volume,
+	OnLiquidityChangedHandler, OnTradeHandler, Volume,
 };
 use sp_arithmetic::traits::Saturating;
 use sp_std::marker::PhantomData;
@@ -365,7 +364,10 @@ impl<T: Config> Pallet<T> {
 	fn update_oracles_from_accumulator() {
 		for ((src, assets), oracle_entry) in Accumulator::<T>::take().into_iter() {
 			// First we update the non-immediate oracles with the value of the `LastBlock` oracle.
-			for period in T::SupportedPeriods::get().into_iter().filter(|p| *p != OraclePeriod::LastBlock) {
+			for period in T::SupportedPeriods::get()
+				.into_iter()
+				.filter(|p| *p != OraclePeriod::LastBlock)
+			{
 				Self::update_oracle(src, assets, period, oracle_entry.clone());
 			}
 			// As we use (the old value of) the `LastBlock` entry to update the other oracles it

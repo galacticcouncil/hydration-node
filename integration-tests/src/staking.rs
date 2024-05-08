@@ -21,7 +21,7 @@ use sp_runtime::AccountId32;
 use xcm_emulator::TestExt;
 
 type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
-type BoundedCallOf<T> = Bounded<CallOf<T>>;
+type BoundedCallOf<T> = Bounded<CallOf<T>, <T as frame_system::Config>::Hashing>;
 type Schedule = VestingSchedule<BlockNumber, Balance>;
 
 fn vesting_schedule() -> Schedule {

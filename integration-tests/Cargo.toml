@@ -119,12 +119,14 @@ sp-staking = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
 sp-consensus-babe = { workspace = true }
+sp-consensus-beefy = { workspace = true }
 sp-authority-discovery = { workspace = true }
 sc-consensus-grandpa = { workspace = true }
 
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true, features = ["full-node"] }
 polkadot-runtime-parachains = { workspace = true }
+rococo-runtime = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
@@ -172,6 +174,7 @@ std = [
     "sp-block-builder/std",
     "sp-consensus-aura/std",
     "sp-consensus-babe/std",
+    "sp-consensus-beefy/std",
     "sp-core/std",
     "sp-io/std",
     "sp-inherents/std",
@@ -193,6 +196,7 @@ std = [
     "hydradx-traits/std",
     "pallet-relaychain-info/std",
     "hydradx-runtime/std",
+    "rococo-runtime/std",
     "pallet-staking/std",
     "scraper/std",
     "pallet-dynamic-evm-fee/std"
@@ -201,6 +205,7 @@ std = [
 # we don't include integration tests when benchmarking feature is enabled
 runtime-benchmarks = [
     "hydradx-runtime/runtime-benchmarks",
+    "rococo-runtime/runtime-benchmarks",
 ]
 try-runtime = [
 ]

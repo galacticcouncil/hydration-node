@@ -55,14 +55,17 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 use codec::HasCompact;
+use frame_support::pallet_prelude::{
+	Get, Hooks, MaxEncodedLen, MaybeSerializeDeserialize, Member, Parameter, StorageValue, StorageVersion, TypeInfo,
+	ValueQuery,
+};
+use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
 use sp_core::U256;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
-use frame_support::weights::Weight;
-use frame_support::pallet_prelude::{Member, Parameter, MaybeSerializeDeserialize, MaxEncodedLen, TypeInfo, Get, StorageVersion, StorageValue, ValueQuery, Hooks};
 
 pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(8945857934143137845); //Current onchain ETH price on at block #4,534,103
 
@@ -143,7 +146,9 @@ pub mod pallet {
 					return;
 				};
 
-				let Some(price_diff) = FixedU128::checked_from_rational(eth_hdx_price.into_inner(), ETH_HDX_REFERENCE_PRICE.into_inner())  else {
+				let Some(price_diff) =
+					FixedU128::checked_from_rational(eth_hdx_price.into_inner(), ETH_HDX_REFERENCE_PRICE.into_inner())
+				else {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, current price: {}, reference price: {}", eth_hdx_price, ETH_HDX_REFERENCE_PRICE);
 					return;
 				};

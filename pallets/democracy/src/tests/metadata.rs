@@ -23,7 +23,7 @@ use super::*;
 fn set_external_metadata_works() {
 	new_test_ext().execute_with(|| {
 		// invalid preimage hash.
-		let invalid_hash: Test::Hash = [1u8; 32].into();
+		let invalid_hash = [1u8; 32].into();
 		// metadata owner is an external proposal.
 		let owner = MetadataOwner::External;
 		// fails to set metadata if an external proposal does not exist.
@@ -48,7 +48,7 @@ fn set_external_metadata_works() {
 			Error::<Test>::PreimageNotExist,
 		);
 		// set metadata successful.
-		let hash = note_preimage(1);
+		let hash = note_preimage::<Test>(1);
 		assert_ok!(Democracy::set_metadata(
 			RuntimeOrigin::signed(2),
 			owner.clone(),
@@ -70,7 +70,7 @@ fn clear_metadata_works() {
 		));
 		assert!(<NextExternal<Test>>::exists());
 		// set metadata.
-		let hash = note_preimage(1);
+		let hash = note_preimage::<Test>(1);
 		assert_ok!(Democracy::set_metadata(
 			RuntimeOrigin::signed(2),
 			owner.clone(),
@@ -91,7 +91,7 @@ fn clear_metadata_works() {
 fn set_proposal_metadata_works() {
 	new_test_ext().execute_with(|| {
 		// invalid preimage hash.
-		let invalid_hash: Test::Hash = [1u8; 32].into();
+		let invalid_hash = [1u8; 32].into();
 		// create an external proposal.
 		assert_ok!(propose_set_balance(1, 2, 5));
 		// metadata owner is a public proposal.
@@ -102,7 +102,7 @@ fn set_proposal_metadata_works() {
 			Error::<Test>::PreimageNotExist,
 		);
 		// note preimage.
-		let hash = note_preimage(1);
+		let hash = note_preimage::<Test>(1);
 		// fails to set a preimage if an origin is not a proposer.
 		assert_noop!(
 			Democracy::set_metadata(RuntimeOrigin::signed(3), owner.clone(), Some(hash)),
@@ -126,7 +126,7 @@ fn clear_proposal_metadata_works() {
 		// metadata owner is a public proposal.
 		let owner = MetadataOwner::Proposal(Democracy::public_prop_count() - 1);
 		// set metadata.
-		let hash = note_preimage(1);
+		let hash = note_preimage::<Test>(1);
 		assert_ok!(Democracy::set_metadata(
 			RuntimeOrigin::signed(1),
 			owner.clone(),
@@ -150,7 +150,7 @@ fn set_referendum_metadata_by_root() {
 		// metadata owner is a referendum.
 		let owner = MetadataOwner::Referendum(index);
 		// note preimage.
-		let hash = note_preimage(1);
+		let hash = note_preimage::<Test>(1);
 		// fails to set if not a root.
 		assert_noop!(
 			Democracy::set_metadata(RuntimeOrigin::signed(3), owner.clone(), Some(hash)),
@@ -185,7 +185,7 @@ fn clear_referendum_metadata_works() {
 		// metadata owner is a referendum.
 		let owner = MetadataOwner::Referendum(index);
 		// set metadata.
-		let hash = note_preimage(1);
+		let hash = note_preimage::<Test>(1);
 		// referendum finished.
 		MetadataOf::<Test>::insert(owner.clone(), hash);
 		// no permission to clear metadata of an ongoing referendum.

@@ -11,12 +11,14 @@ use hydradx_runtime::AssetRegistry;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::currency::MultiCurrency;
-use polkadot_xcm::{latest::prelude::*, VersionedXcm};
+use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
+use polkadot_xcm::{v4::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
 use primitives::constants::chain::CORE_ASSET_ID;
 use sp_runtime::traits::{Convert, Zero};
 use sp_runtime::DispatchResult;
 use sp_runtime::{FixedU128, Permill, TransactionOutcome};
+use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
 pub const SELL: bool = true;
@@ -60,8 +62,8 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 
 	Acala::execute_with(|| {
 		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
-			MultiAsset::from((GeneralIndex(0), 50 * UNITS)),
-			MultiAsset::from((GeneralIndex(CORE_ASSET_ID.into()), 300 * UNITS)),
+			Asset::from((GeneralIndex(0), 50 * UNITS)),
+			Asset::from((GeneralIndex(CORE_ASSET_ID.into()), 300 * UNITS)),
 			SELL,
 		);
 		//Act
@@ -130,8 +132,8 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 
 	Acala::execute_with(|| {
 		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
-			MultiAsset::from((GeneralIndex(0), 50 * UNITS)),
-			MultiAsset::from((GeneralIndex(CORE_ASSET_ID.into()), 300 * UNITS)),
+			Asset::from((GeneralIndex(0), 50 * UNITS)),
+			Asset::from((GeneralIndex(CORE_ASSET_ID.into()), 300 * UNITS)),
 			BUY,
 		);
 		//Act
@@ -255,8 +257,8 @@ fn transfer_and_swap_should_work_with_4_hops() {
 
 			//Act
 			let give_amount = 1000 * UNITS;
-			let give = MultiAsset::from((hydradx_runtime::CurrencyIdConvert::convert(GLMR).unwrap(), give_amount));
-			let want = MultiAsset::from((hydradx_runtime::CurrencyIdConvert::convert(IBTC).unwrap(), 550 * UNITS));
+			let give = Asset::from((hydradx_runtime::CurrencyIdConvert::convert(GLMR).unwrap(), give_amount));
+			let want = Asset::from((hydradx_runtime::CurrencyIdConvert::convert(IBTC).unwrap(), 550 * UNITS));
 
 			let xcm = craft_transfer_and_swap_xcm_with_4_hops::<hydradx_runtime::RuntimeCall>(give, want, SELL);
 			assert_ok!(hydradx_runtime::PolkadotXcm::execute(
@@ -308,7 +310,7 @@ fn register_glmr() {
 		None,
 		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
 			1,
-			X2(Parachain(MOONBEAM_PARA_ID), GeneralIndex(0))
+			X2(Junction::Parachain(MOONBEAM_PARA_ID), Junction::GeneralIndex(0))
 		))),
 		None,
 	));
@@ -324,7 +326,7 @@ fn register_aca() {
 		None,
 		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
 			1,
-			X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))
+			X2(Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0))
 		))),
 		None,
 	));
@@ -340,7 +342,7 @@ fn register_ibtc() {
 		None,
 		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
 			1,
-			X2(Parachain(INTERLAY_PARA_ID), GeneralIndex(0))
+			X2(Junction::Parachain(INTERLAY_PARA_ID), Junction::GeneralIndex(0))
 		))),
 		None,
 	));
@@ -358,7 +360,7 @@ fn add_currency_price(asset_id: u32, price: FixedU128) {
 }
 
 /// Returns amount if `asset` is fungible, or zero.
-fn fungible_amount(asset: &MultiAsset) -> u128 {
+fn fungible_amount(asset: &Asset) -> u128 {
 	if let Fungible(amount) = &asset.fun {
 		*amount
 	} else {
@@ -366,54 +368,107 @@ fn fungible_amount(asset: &MultiAsset) -> u128 {
 	}
 }
 
-fn half(asset: &MultiAsset) -> MultiAsset {
+fn half(asset: &Asset) -> Asset {
 	let half_amount = fungible_amount(asset)
 		.checked_div(2)
 		.expect("div 2 can't overflow; qed");
-	MultiAsset {
+	Asset {
 		fun: Fungible(half_amount),
-		id: asset.id,
+		id: asset.clone().id,
 	}
 }
 
 fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
-	give_asset: MultiAsset,
-	want_asset: MultiAsset,
+	give_asset: Asset,
+	want_asset: Asset,
 	is_sell: bool,
 ) -> VersionedXcm<RC> {
-	use polkadot_runtime::xcm_config::BaseXcmWeight;
+	use rococo_runtime::xcm_config::BaseXcmWeight;
 	use xcm_builder::FixedWeightBounds;
 	use xcm_executor::traits::WeightBounds;
 
 	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
 
-	let give_reserve_chain = MultiLocation::new(1, Parachain(MOONBEAM_PARA_ID));
-	let want_reserve_chain = MultiLocation::new(1, Parachain(INTERLAY_PARA_ID));
-	let swap_chain = MultiLocation::new(1, Parachain(HYDRA_PARA_ID));
-	let dest = MultiLocation::new(1, Parachain(ACALA_PARA_ID));
-	let beneficiary = Junction::AccountId32 { id: BOB, network: None }.into();
-	let assets: MultiAssets = MultiAsset::from((GeneralIndex(0), 100 * UNITS)).into(); // hardcoded
+	let give_reserve_chain = Location::new(
+		1,
+		cumulus_primitives_core::Junctions::X1(Arc::new(
+			vec![cumulus_primitives_core::Junction::Parachain(MOONBEAM_PARA_ID)]
+				.try_into()
+				.unwrap(),
+		)),
+	);
+	let want_reserve_chain = Location::new(
+		1,
+		cumulus_primitives_core::Junctions::X1(Arc::new(
+			vec![cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID)]
+				.try_into()
+				.unwrap(),
+		)),
+	);
+	let swap_chain = Location::new(
+		1,
+		cumulus_primitives_core::Junctions::X1(Arc::new(
+			vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
+				.try_into()
+				.unwrap(),
+		)),
+	);
+	let dest = Location::new(
+		1,
+		cumulus_primitives_core::Junctions::X1(Arc::new(
+			vec![cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID)]
+				.try_into()
+				.unwrap(),
+		)),
+	);
+	let beneficiary = Location::new(
+		0,
+		cumulus_primitives_core::Junctions::X1(Arc::new(
+			vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
+				.try_into()
+				.unwrap(),
+		)),
+	);
+	let assets: Assets = Asset {
+		id: cumulus_primitives_core::AssetId(Location::new(
+			0,
+			cumulus_primitives_core::Junctions::X1(Arc::new(
+				vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
+					.try_into()
+					.unwrap(),
+			)),
+		)),
+		fun: Fungible(100 * UNITS),
+	}
+	.into();
 	let max_assets = assets.len() as u32 + 1;
-	let origin_context = X2(GlobalConsensus(NetworkId::Polkadot), Parachain(ACALA_PARA_ID));
+	let origin_context = cumulus_primitives_core::Junctions::X2(Arc::new(
+		vec![
+			cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
+			cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+		]
+		.try_into()
+		.unwrap(),
+	));
 	let give = give_asset
 		.clone()
-		.reanchored(&dest, origin_context)
+		.reanchored(&dest, &origin_context)
 		.expect("should reanchor give");
-	let give: MultiAssetFilter = Definite(give.into());
-	let want: MultiAssets = want_asset.clone().into();
+	let give: AssetFilter = Definite(give.into());
+	let want: Assets = want_asset.clone().into();
 
 	let fees = give_asset
 		.clone()
-		.reanchored(&swap_chain, give_reserve_chain.interior)
+		.reanchored(&swap_chain, &give_reserve_chain.interior)
 		.expect("should reanchor");
 
 	let reserve_fees = want_asset
 		.clone()
-		.reanchored(&want_reserve_chain, swap_chain.interior)
+		.reanchored(&want_reserve_chain, &swap_chain.interior)
 		.expect("should reanchor");
 
 	let destination_fee = want_asset
-		.reanchored(&dest, want_reserve_chain.interior)
+		.reanchored(&dest, &want_reserve_chain.interior)
 		.expect("should reanchor");
 
 	let weight_limit = {
@@ -432,7 +487,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 			},
 			InitiateReserveWithdraw {
 				assets: want.clone().into(),
-				reserve: want_reserve_chain,
+				reserve: want_reserve_chain.clone(),
 				xcm: Xcm(vec![
 					BuyExecution {
 						fees: reserve_fees.clone(), //reserve fee
@@ -440,7 +495,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 					},
 					DepositReserveAsset {
 						assets: Wild(AllCounted(max_assets)),
-						dest,
+						dest: dest.clone(),
 						xcm: Xcm(vec![
 							BuyExecution {
 								fees: destination_fee.clone(), //destination fee
@@ -448,7 +503,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 							},
 							DepositAsset {
 								assets: Wild(AllCounted(max_assets)),
-								beneficiary,
+								beneficiary: beneficiary.clone(),
 							},
 						]),
 					},
@@ -501,7 +556,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 
 	let give_reserve_fees = give_asset
 		.clone()
-		.reanchored(&give_reserve_chain, origin_context)
+		.reanchored(&give_reserve_chain, &origin_context)
 		.expect("should reanchor");
 
 	// executed on local (acala)
@@ -524,33 +579,65 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 			]),
 		},
 	]);
-	VersionedXcm::V3(message)
+	VersionedXcm::from(message)
 }
 
-fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
-	give: MultiAsset,
+fn craft_exchange_asset_xcm<M: Into<Assets>, RC: Decode + GetDispatchInfo>(
+	give: Asset,
 	want: M,
 	is_sell: bool,
 ) -> VersionedXcm<RC> {
-	use polkadot_runtime::xcm_config::BaseXcmWeight;
+	use rococo_runtime::xcm_config::BaseXcmWeight;
 	use xcm_builder::FixedWeightBounds;
 	use xcm_executor::traits::WeightBounds;
 
 	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
 
-	let dest = MultiLocation::new(1, Parachain(HYDRA_PARA_ID));
-	let beneficiary = Junction::AccountId32 { id: BOB, network: None }.into();
-	let assets: MultiAssets = MultiAsset::from((GeneralIndex(0), 100 * UNITS)).into(); // hardcoded
+	let dest = Location::new(
+		1,
+		cumulus_primitives_core::Junctions::X1(Arc::new(
+			vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
+				.try_into()
+				.unwrap(),
+		)),
+	);
+	let beneficiary = Location::new(
+		0,
+		cumulus_primitives_core::Junctions::X1(Arc::new(
+			vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
+				.try_into()
+				.unwrap(),
+		)),
+	);
+	let assets: Assets = Asset {
+		id: cumulus_primitives_core::AssetId(Location::new(
+			0,
+			cumulus_primitives_core::Junctions::X1(Arc::new(
+				vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
+					.try_into()
+					.unwrap(),
+			)),
+		)),
+		fun: Fungible(100 * UNITS),
+	}
+	.into();
 	let max_assets = assets.len() as u32 + 1;
-	let context = X2(GlobalConsensus(NetworkId::Polkadot), Parachain(ACALA_PARA_ID));
+	let context = cumulus_primitives_core::Junctions::X2(Arc::new(
+		vec![
+			cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
+			cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+		]
+		.try_into()
+		.unwrap(),
+	));
 	let fees = assets
 		.get(0)
 		.expect("should have at least 1 asset")
 		.clone()
-		.reanchored(&dest, context)
+		.reanchored(&dest, &context)
 		.expect("should reanchor");
-	let give = give.reanchored(&dest, context).expect("should reanchor give");
-	let give: MultiAssetFilter = Definite(give.into());
+	let give = give.reanchored(&dest, &context).expect("should reanchor give");
+	let give: AssetFilter = Definite(give.into());
 	let want = want.into();
 	let weight_limit = {
 		let fees = fees.clone();
@@ -568,7 +655,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 			},
 			DepositAsset {
 				assets: Wild(AllCounted(max_assets)),
-				beneficiary,
+				beneficiary: beneficiary.clone(),
 			},
 		]);
 		// use local weight for remote message and hope for the best.
@@ -593,5 +680,5 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 		SetFeesMode { jit_withdraw: true },
 		TransferReserveAsset { assets, dest, xcm },
 	]);
-	VersionedXcm::V3(message)
+	VersionedXcm::from(message)
 }

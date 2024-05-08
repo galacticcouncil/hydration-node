@@ -160,8 +160,8 @@ use frame_support::{
 	traits::{
 		defensive_prelude::*,
 		schedule::{v3::Named as ScheduleNamed, DispatchTime},
-		Bounded, Currency, EnsureOrigin, Get, LockIdentifier, LockableCurrency, OnUnbalanced,
-		QueryPreimage, ReservableCurrency, StorePreimage, WithdrawReasons,
+		Bounded, Currency, EnsureOrigin, Get, LockIdentifier, LockableCurrency, OnUnbalanced, QueryPreimage,
+		ReservableCurrency, StorePreimage, WithdrawReasons,
 	},
 	weights::Weight,
 };
@@ -202,7 +202,7 @@ type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Con
 type NegativeImbalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 pub type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
-pub type BoundedCallOf<T> = Bounded<CallOf<T>,  <T as frame_system::Config>::Hashing>;
+pub type BoundedCallOf<T> = Bounded<CallOf<T>, <T as frame_system::Config>::Hashing>;
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 #[frame_support::pallet]
@@ -479,7 +479,7 @@ pub mod pallet {
 			until: BlockNumberFor<T>,
 		},
 		/// A proposal_hash has been blacklisted permanently.
-		Blacklisted { proposal_hash: T::Hash},
+		Blacklisted { proposal_hash: T::Hash },
 		/// An account has voted in a referendum
 		Voted {
 			voter: T::AccountId,
@@ -1137,11 +1137,7 @@ pub mod pallet {
 				(MetadataOwner::Referendum(_), None) => T::WeightInfo::clear_referendum_metadata(),
 			}
 		)]
-		pub fn set_metadata(
-			origin: OriginFor<T>,
-			owner: MetadataOwner,
-			maybe_hash: Option<T::Hash>,
-		) -> DispatchResult {
+		pub fn set_metadata(origin: OriginFor<T>, owner: MetadataOwner, maybe_hash: Option<T::Hash>) -> DispatchResult {
 			match owner {
 				MetadataOwner::External => {
 					let (_, threshold) = <NextExternal<T>>::get().ok_or(Error::<T>::NoProposal)?;

@@ -63,7 +63,7 @@ impl<T: frame_system::Config> pallet_identity::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 
-	fn set_identity(r: u32) -> Weight {
+	fn set_identity(_r: u32) -> Weight {
 		todo!()
 	}
 
@@ -108,15 +108,15 @@ impl<T: frame_system::Config> pallet_identity::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(p.into())))
 	}
 
-	fn clear_identity(r: u32, s: u32) -> Weight {
+	fn clear_identity(_r: u32, _s: u32) -> Weight {
 		todo!()
 	}
 
-	fn request_judgement(r: u32) -> Weight {
+	fn request_judgement(_r: u32) -> Weight {
 		todo!()
 	}
 
-	fn cancel_request(r: u32) -> Weight {
+	fn cancel_request(_r: u32) -> Weight {
 		todo!()
 	}
 
@@ -163,11 +163,11 @@ impl<T: frame_system::Config> pallet_identity::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 
-	fn provide_judgement(r: u32) -> Weight {
+	fn provide_judgement(_r: u32) -> Weight {
 		todo!()
 	}
 
-	fn kill_identity(r: u32, s: u32) -> Weight {
+	fn kill_identity(_r: u32, _s: u32) -> Weight {
 		todo!()
 	}
 

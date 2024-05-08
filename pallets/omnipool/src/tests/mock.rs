@@ -529,7 +529,7 @@ where
 
 	fn exists(asset_id: T::AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
-		matches!(asset, Some(_))
+		asset.is_some()
 	}
 
 	fn decimals(_id: Self::AssetId) -> Option<u8> {

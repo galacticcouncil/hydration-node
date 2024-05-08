@@ -113,7 +113,7 @@ impl<
 		if let Some(asset) = payment.fungible_assets_iter().next() {
 			ConvertCurrency::convert(asset.clone())
 				.and_then(|currency| AcceptedCurrencyPrices::price(currency))
-				.and_then(|price| Some((asset.id.0, price)))
+				.map(|price| (asset.id.0, price))
 		} else {
 			None
 		}
@@ -169,7 +169,7 @@ impl<
 				self.paid_assets.insert(key, amount);
 			}
 		}
-		Ok(unused.into())
+		Ok(unused)
 	}
 
 	/// Will refund up to `weight` from the first asset tracked by the trader.
@@ -239,7 +239,7 @@ impl<
 		let a = asset.clone(); // TODO: probably unnecessary but did not want to change the implementation.
 		match asset {
 			Asset {
-				id: asset_id,
+				id: _asset_id,
 				fun: Fungibility::Fungible(amount),
 			} => {
 				C::convert(a).and_then(|id| {

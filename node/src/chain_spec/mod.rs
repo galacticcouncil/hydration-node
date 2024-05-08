@@ -94,7 +94,6 @@ where
 
 #[allow(clippy::type_complexity)]
 pub fn parachain_genesis(
-	wasm_binary: &[u8],
 	_root_key: AccountId,
 	initial_authorities: (Vec<(AccountId, AuraId)>, Balance), // (initial auths, candidacy bond)
 	endowed_accounts: Vec<(AccountId, Balance)>,

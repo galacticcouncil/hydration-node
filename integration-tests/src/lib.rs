@@ -25,8 +25,6 @@ mod router;
 mod staking;
 mod transact_call_filter;
 mod vesting;
-mod xcm_defer;
-mod xcm_rate_limiter;
 mod xyk;
 mod xyk_liquidity_mining;
 

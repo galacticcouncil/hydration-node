@@ -27,11 +27,6 @@ use sp_runtime::{
 	BuildStorage, Perbill,
 };
 
-mod nfc {
-	// Re-export needed for `impl_outer_event!`.
-	pub use super::super::*;
-}
-
 type AccountId = AccountId32;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;

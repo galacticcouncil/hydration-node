@@ -15,6 +15,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 
+	#[allow(deprecated)]
 	Ok(ChainSpec::from_genesis(
 		// Name
 		"HydraDX",
@@ -23,7 +24,6 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		ChainType::Live,
 		move || {
 			parachain_genesis(
-				wasm_binary,
 				// Sudo account
 				// Galactic Council
 				// 7HqdGVRB4MXz1osLR77mfWoo536cWasTYsuAbVuicHdiKQXf
@@ -133,6 +133,6 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 			para_id: PARA_ID,
 			evm_since: 1,
 		},
-		vec![].as_slice(),
+		wasm_binary,
 	))
 }

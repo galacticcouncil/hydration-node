@@ -1,32 +1,33 @@
 #![cfg(test)]
+use crate::polkadot_test_net::Rococo;
 use crate::polkadot_test_net::*;
 
 use frame_support::{assert_noop, assert_ok};
 
-use polkadot_xcm::{latest::prelude::*, v3::WeightLimit, VersionedMultiAssets, VersionedXcm};
+use polkadot_xcm::{v4::prelude::*, VersionedAssets, VersionedXcm};
 
 use cumulus_primitives_core::ParaId;
 use frame_support::weights::Weight;
-use hex_literal::hex;
 use hydradx_traits::registry::Mutate;
 use orml_traits::currency::MultiCurrency;
+use polkadot_xcm::opaque::v3::Junction;
+use polkadot_xcm::opaque::v3::Junctions::{X1, X2};
+use polkadot_xcm::opaque::v3::MultiLocation;
 use pretty_assertions::assert_eq;
 use primitives::AccountId;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};
+use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
 // Determine the hash for assets expected to be have been trapped.
-fn determine_hash<M>(origin: &MultiLocation, assets: M) -> H256
-where
-	M: Into<MultiAssets>,
-{
-	let versioned = VersionedMultiAssets::from(assets.into());
+fn determine_hash(origin: &MultiLocation, assets: Vec<Asset>) -> H256 {
+	let versioned = VersionedAssets::from(Assets::from(assets));
 	BlakeTwo256::hash_of(&(origin, &versioned))
 }
 
 #[test]
-fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
+fn hydra_should_receive_asset_when_transferred_from_rococo_relay_chain() {
 	//Arrange
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
@@ -35,19 +36,19 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		));
 	});
 
-	PolkadotRelay::execute_with(|| {
+	Rococo::execute_with(|| {
 		//Act
-		assert_ok!(polkadot_runtime::XcmPallet::reserve_transfer_assets(
-			polkadot_runtime::RuntimeOrigin::signed(ALICE.into()),
+		assert_ok!(rococo_runtime::XcmPallet::reserve_transfer_assets(
+			rococo_runtime::RuntimeOrigin::signed(ALICE.into()),
 			Box::new(Parachain(HYDRA_PARA_ID).into_versioned()),
-			Box::new(Junction::AccountId32 { id: BOB, network: None }.into()),
+			Box::new(Junction::AccountId32 { id: BOB, network: None }.into_versioned()),
 			Box::new((Here, 300 * UNITS).into()),
 			0,
 		));
 
 		//Assert
 		assert_eq!(
-			polkadot_runtime::Balances::free_balance(AccountIdConversion::<AccountId>::into_account_truncating(
+			rococo_runtime::Balances::free_balance(AccountIdConversion::<AccountId>::into_account_truncating(
 				&ParaId::from(HYDRA_PARA_ID)
 			)),
 			310 * UNITS
@@ -66,9 +67,9 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 }
 
 #[test]
-fn polkadot_should_receive_asset_when_sent_from_hydra() {
+fn rococo_should_receive_asset_when_sent_from_hydra() {
 	//Arrange
-	PolkadotRelay::execute_with(|| {
+	Rococo::execute_with(|| {
 		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), 0);
 	});
 
@@ -83,7 +84,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			1,
 			3 * UNITS,
-			Box::new(MultiLocation::new(1, X1(Junction::AccountId32 { id: BOB, network: None })).into()),
+			Box::new(MultiLocation::new(1, X1(Junction::AccountId32 { id: BOB, network: None })).into_versioned()),
 			WeightLimit::Unlimited,
 		));
 
@@ -94,7 +95,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 		);
 	});
 
-	PolkadotRelay::execute_with(|| {
+	Rococo::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
 			2999978937205 // 3 * HDX - fee
@@ -110,7 +111,10 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			ACA,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+			hydradx_runtime::AssetLocation(MultiLocation::new(
+				1,
+				X2(Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0))
+			))
 		));
 	});
 
@@ -128,7 +132,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 						Junction::AccountId32 { id: BOB, network: None }
 					)
 				)
-				.into()
+				.into_versioned()
 			),
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
@@ -158,7 +162,10 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			ACA,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+			hydradx_runtime::AssetLocation(MultiLocation::new(
+				1,
+				X2(Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0))
+			))
 		));
 	});
 
@@ -180,7 +187,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_eth_address() {
 						}
 					)
 				)
-				.into()
+				.into_versioned()
 			),
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
@@ -209,7 +216,10 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			ACA,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+			hydradx_runtime::AssetLocation(MultiLocation::new(
+				1,
+				X2(Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0))
+			))
 		));
 	});
 
@@ -231,7 +241,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 						}
 					)
 				)
-				.into()
+				.into_versioned()
 			),
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
@@ -252,7 +262,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala_to_same_address_repres
 						}
 					)
 				)
-				.into()
+				.into_versioned()
 			),
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
@@ -281,7 +291,10 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			1,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+			hydradx_runtime::AssetLocation(MultiLocation::new(
+				1,
+				X2(Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0))
+			))
 		));
 	});
 
@@ -299,7 +312,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 							Junction::AccountId32 { id: BOB, network: None }
 						)
 					)
-					.into()
+					.into_versioned()
 				),
 				WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 			),
@@ -331,7 +344,10 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			DAI, // we pretend that the incoming tokens are DAI
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+			hydradx_runtime::AssetLocation(MultiLocation::new(
+				1,
+				X2(Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0))
+			))
 		));
 
 		assert_eq!(
@@ -357,7 +373,7 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 						}
 					)
 				)
-				.into()
+				.into_versioned()
 			),
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
@@ -398,7 +414,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 						Junction::AccountId32 { id: BOB, network: None }
 					)
 				)
-				.into()
+				.into_versioned()
 			),
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
@@ -409,23 +425,22 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 	});
 
 	Hydra::execute_with(|| {
-		expect_hydra_events(vec![
-			cumulus_pallet_xcmp_queue::Event::Fail {
-				message_hash: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
-				message_id: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
-				error: XcmError::AssetNotFound,
-				weight: Weight::from_parts(300_000_000, 0),
-			}
-			.into(),
-			pallet_relaychain_info::Event::CurrentBlockNumbers {
-				parachain_block_number: 3,
-				relaychain_block_number: 7,
-			}
-			.into(),
-		]);
-		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));
-		let loc = MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0)));
-		let asset: MultiAsset = (loc, 30 * UNITS).into();
+		assert_xcm_message_processing_failed();
+		let origin = MultiLocation::new(1, X1(Junction::Parachain(ACALA_PARA_ID)));
+		let asset: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X2(Arc::new(
+					vec![
+						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					]
+					.try_into()
+					.unwrap(),
+				)),
+			)),
+			fun: Fungible(30 * UNITS),
+		};
 		let hash = determine_hash(&origin, vec![asset]);
 		assert_eq!(hydradx_runtime::PolkadotXcm::asset_trap(hash), 1);
 	});
@@ -442,11 +457,23 @@ fn claim_trapped_asset_should_work() {
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			1,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+			hydradx_runtime::AssetLocation(MultiLocation::new(
+				1,
+				X2(Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0))
+			))
 		));
 	});
 
-	claim_asset(asset.clone(), BOB);
+	let bob_loc = Location::new(
+		0,
+		cumulus_primitives_core::Junctions::X1(Arc::new(
+			vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
+				.try_into()
+				.unwrap(),
+		)),
+	);
+
+	claim_asset(asset.clone(), bob_loc);
 
 	Hydra::execute_with(|| {
 		assert_eq!(
@@ -454,13 +481,13 @@ fn claim_trapped_asset_should_work() {
 			1_029_939_717_395_149 //1000 * UNITS + 30 * UNITS - fee
 		);
 
-		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));
+		let origin = MultiLocation::new(1, X1(Junction::Parachain(ACALA_PARA_ID)));
 		let hash = determine_hash(&origin, vec![asset]);
 		assert_eq!(hydradx_runtime::PolkadotXcm::asset_trap(hash), 0);
 	});
 }
 
-fn trap_asset() -> MultiAsset {
+fn trap_asset() -> Asset {
 	Acala::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
@@ -478,7 +505,7 @@ fn trap_asset() -> MultiAsset {
 						Junction::AccountId32 { id: BOB, network: None }
 					)
 				)
-				.into()
+				.into_versioned()
 			),
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
@@ -488,43 +515,33 @@ fn trap_asset() -> MultiAsset {
 		);
 	});
 
-	let loc = MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0)));
-	let asset: MultiAsset = (loc, 30 * UNITS).into();
+	let asset: Asset = Asset {
+		id: cumulus_primitives_core::AssetId(Location::new(
+			1,
+			cumulus_primitives_core::Junctions::X2(Arc::new(
+				vec![
+					cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0),
+				]
+				.try_into()
+				.unwrap(),
+			)),
+		)),
+		fun: Fungible(30 * UNITS),
+	};
 
 	Hydra::execute_with(|| {
-		expect_hydra_events(vec![
-			cumulus_pallet_xcmp_queue::Event::Fail {
-				message_hash: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
-				message_id: hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"],
-				error: XcmError::AssetNotFound,
-				weight: Weight::from_parts(300_000_000, 0),
-			}
-			.into(),
-			pallet_relaychain_info::Event::CurrentBlockNumbers {
-				parachain_block_number: 3,
-				relaychain_block_number: 7,
-			}
-			.into(),
-		]);
-		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));
-		let loc = MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0)));
-		let asset: MultiAsset = (loc, 30 * UNITS).into();
-		let hash = determine_hash(&origin, vec![asset]);
+		assert_xcm_message_processing_failed();
+		let origin = MultiLocation::new(1, X1(Junction::Parachain(ACALA_PARA_ID)));
+		let hash = determine_hash(&origin, vec![asset.clone()]);
 		assert_eq!(hydradx_runtime::PolkadotXcm::asset_trap(hash), 1);
 	});
 
 	asset
 }
 
-fn claim_asset(asset: MultiAsset, recipient: [u8; 32]) {
+fn claim_asset(asset: Asset, recipient: Location) {
 	Acala::execute_with(|| {
-		let recipient = MultiLocation::new(
-			0,
-			X1(Junction::AccountId32 {
-				network: None,
-				id: recipient,
-			}),
-		);
 		let xcm_msg = Xcm(vec![
 			ClaimAsset {
 				assets: vec![asset.clone()].into(),
@@ -541,28 +558,28 @@ fn claim_asset(asset: MultiAsset, recipient: [u8; 32]) {
 		]);
 		assert_ok!(hydradx_runtime::PolkadotXcm::send(
 			hydradx_runtime::RuntimeOrigin::root(),
-			Box::new(MultiLocation::new(1, X1(Parachain(HYDRA_PARA_ID))).into()),
+			Box::new(MultiLocation::new(1, X1(Junction::Parachain(HYDRA_PARA_ID))).into_versioned()),
 			Box::new(VersionedXcm::from(xcm_msg))
 		));
 	});
 }
 
 #[test]
-fn polkadot_xcm_execute_extrinsic_should_be_allowed() {
+fn rococo_xcm_execute_extrinsic_should_be_allowed() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		let message = VersionedXcm::V3(Xcm(vec![
+		let message = Xcm(vec![
 			WithdrawAsset((Here, 410000000000u128).into()),
 			BuyExecution {
 				fees: (Here, 400000000000u128).into(),
 				weight_limit: Unlimited,
 			},
-		]));
+		]);
 
 		assert_ok!(hydradx_runtime::PolkadotXcm::execute(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			Box::new(message),
+			Box::new(VersionedXcm::from(message)),
 			Weight::from_parts(400_000_000_000, 0)
 		),);
 	});

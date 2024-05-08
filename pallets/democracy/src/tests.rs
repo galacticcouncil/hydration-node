@@ -124,6 +124,7 @@ impl pallet_preimage::Config for Test {
 	type WeightInfo = ();
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<u64>;
+	type Consideration = ();
 }
 
 impl pallet_scheduler::Config for Test {
@@ -305,7 +306,7 @@ fn tally(r: ReferendumIndex) -> Tally<u64> {
 }
 
 /// note a new preimage without registering.
-fn note_preimage(who: u64) -> PreimageHash {
+fn note_preimage<T: frame_system::Config>(who: u64) -> sp_core::H256 {
 	use std::sync::atomic::{AtomicU8, Ordering};
 	// note a new preimage on every function invoke.
 	static COUNTER: AtomicU8 = AtomicU8::new(0);

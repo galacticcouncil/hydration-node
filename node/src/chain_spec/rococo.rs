@@ -19,6 +19,7 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 
+	#[allow(deprecated)]
 	Ok(ChainSpec::from_genesis(
 		// Name
 		"HydraDX testnet",
@@ -27,7 +28,6 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 		ChainType::Live,
 		move || {
 			parachain_genesis(
-				wasm_binary,
 				// Sudo account
 				// Galactic Council
 				// 7JcAAB6cXQxVQyVLksPUdthJwcoEGm8SW9hsNgdP6hjme5J1
@@ -138,6 +138,6 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 			para_id: PARA_ID,
 			evm_since: 1,
 		},
-		vec![].as_slice(),
+		wasm_binary,
 	))
 }

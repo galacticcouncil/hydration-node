@@ -4,7 +4,8 @@ use crate::polkadot_test_net::*;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo};
 use sp_runtime::codec::Encode;
 
-use polkadot_xcm::latest::prelude::*;
+use polkadot_xcm::v4::prelude::*;
+use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -13,7 +14,7 @@ fn allowed_transact_call_should_pass_filter() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::Balances::transfer(
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			parachain_reserve_account(),
 			1_000 * UNITS,
@@ -22,30 +23,35 @@ fn allowed_transact_call_should_pass_filter() {
 
 	Acala::execute_with(|| {
 		// allowed by SafeCallFilter and the runtime call filter
-		let call = pallet_balances::Call::<hydradx_runtime::Runtime>::transfer {
+		let call = pallet_balances::Call::<hydradx_runtime::Runtime>::transfer_allow_death {
 			dest: BOB.into(),
 			value: UNITS,
 		};
+
+		let hdx_loc = Location::new(
+			1,
+			cumulus_primitives_core::Junctions::X2(Arc::new(
+				vec![
+					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0),
+				]
+				.try_into()
+				.unwrap(),
+			)),
+		);
+		let asset_to_withdraw: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),
+			fun: Fungible(900 * UNITS),
+		};
+		let asset_for_buy_execution: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(800 * UNITS),
+		};
+
 		let message = Xcm(vec![
-			WithdrawAsset(
-				(
-					MultiLocation {
-						parents: 1,
-						interior: X2(Parachain(HYDRA_PARA_ID), GeneralIndex(0)),
-					},
-					900 * UNITS,
-				)
-					.into(),
-			),
+			WithdrawAsset(asset_to_withdraw.into()),
 			BuyExecution {
-				fees: (
-					MultiLocation {
-						parents: 1,
-						interior: X2(Parachain(HYDRA_PARA_ID), GeneralIndex(0)),
-					},
-					800 * UNITS,
-				)
-					.into(),
+				fees: asset_for_buy_execution,
 				weight_limit: Unlimited,
 			},
 			Transact {
@@ -57,7 +63,7 @@ fn allowed_transact_call_should_pass_filter() {
 			RefundSurplus,
 			DepositAsset {
 				assets: All.into(),
-				beneficiary: Junction::AccountId32 {
+				beneficiary: cumulus_primitives_core::Junction::AccountId32 {
 					id: parachain_reserve_account().into(),
 					network: None,
 				}
@@ -68,17 +74,22 @@ fn allowed_transact_call_should_pass_filter() {
 		// Act
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			Here,
-			MultiLocation::new(1, X1(Parachain(HYDRA_PARA_ID))),
+			Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			),
 			message
 		));
 	});
 
 	Hydra::execute_with(|| {
 		// Assert
-		assert!(hydradx_runtime::System::events().iter().any(|r| matches!(
-			r.event,
-			hydradx_runtime::RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Success { .. })
-		)));
+		assert_xcm_message_processing_passed();
+
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
 			BOB_INITIAL_NATIVE_BALANCE + UNITS
@@ -92,7 +103,7 @@ fn blocked_transact_calls_should_not_pass_filter() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::Balances::transfer(
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			parachain_reserve_account(),
 			1_000 * UNITS,
@@ -105,26 +116,31 @@ fn blocked_transact_calls_should_not_pass_filter() {
 			reason: vec![0, 10],
 			who: BOB.into(),
 		};
+
+		let hdx_loc = Location::new(
+			1,
+			cumulus_primitives_core::Junctions::X2(Arc::new(
+				vec![
+					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0),
+				]
+				.try_into()
+				.unwrap(),
+			)),
+		);
+		let asset_to_withdraw: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),
+			fun: Fungible(900 * UNITS),
+		};
+		let asset_for_buy_execution: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(800 * UNITS),
+		};
+
 		let message = Xcm(vec![
-			WithdrawAsset(
-				(
-					MultiLocation {
-						parents: 1,
-						interior: X2(Parachain(HYDRA_PARA_ID), GeneralIndex(0)),
-					},
-					900 * UNITS,
-				)
-					.into(),
-			),
+			WithdrawAsset(asset_to_withdraw.into()),
 			BuyExecution {
-				fees: (
-					MultiLocation {
-						parents: 1,
-						interior: X2(Parachain(HYDRA_PARA_ID), GeneralIndex(0)),
-					},
-					800 * UNITS,
-				)
-					.into(),
+				fees: asset_for_buy_execution,
 				weight_limit: Unlimited,
 			},
 			Transact {
@@ -136,7 +152,7 @@ fn blocked_transact_calls_should_not_pass_filter() {
 			RefundSurplus,
 			DepositAsset {
 				assets: All.into(),
-				beneficiary: Junction::AccountId32 {
+				beneficiary: cumulus_primitives_core::Junction::AccountId32 {
 					id: parachain_reserve_account().into(),
 					network: None,
 				}
@@ -147,20 +163,21 @@ fn blocked_transact_calls_should_not_pass_filter() {
 		// Act
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			Here,
-			MultiLocation::new(1, X1(Parachain(HYDRA_PARA_ID))),
+			Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			),
 			message
 		));
 	});
 
 	Hydra::execute_with(|| {
 		// Assert
-		assert!(hydradx_runtime::System::events().iter().any(|r| matches!(
-			r.event,
-			hydradx_runtime::RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Fail {
-				error: cumulus_primitives_core::XcmError::NoPermission,
-				..
-			})
-		)));
+		assert_xcm_message_processing_failed();
 	});
 }
 
@@ -170,7 +187,7 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::Balances::transfer(
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			parachain_reserve_account(),
 			1_000 * UNITS,
@@ -179,30 +196,35 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 
 	Acala::execute_with(|| {
 		// transfer to the Omnipool is filtered by the runtime call filter
-		let call = pallet_balances::Call::<hydradx_runtime::Runtime>::transfer {
+		let call = pallet_balances::Call::<hydradx_runtime::Runtime>::transfer_allow_death {
 			dest: hydradx_runtime::Omnipool::protocol_account(),
 			value: UNITS,
 		};
+
+		let hdx_loc = Location::new(
+			1,
+			cumulus_primitives_core::Junctions::X2(Arc::new(
+				vec![
+					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0),
+				]
+				.try_into()
+				.unwrap(),
+			)),
+		);
+		let asset_to_withdraw: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),
+			fun: Fungible(900 * UNITS),
+		};
+		let asset_for_buy_execution: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc),
+			fun: Fungible(800 * UNITS),
+		};
+
 		let message = Xcm(vec![
-			WithdrawAsset(
-				(
-					MultiLocation {
-						parents: 1,
-						interior: X2(Parachain(HYDRA_PARA_ID), GeneralIndex(0)),
-					},
-					900 * UNITS,
-				)
-					.into(),
-			),
+			WithdrawAsset(asset_to_withdraw.into()),
 			BuyExecution {
-				fees: (
-					MultiLocation {
-						parents: 1,
-						interior: X2(Parachain(HYDRA_PARA_ID), GeneralIndex(0)),
-					},
-					800 * UNITS,
-				)
-					.into(),
+				fees: asset_for_buy_execution,
 				weight_limit: Unlimited,
 			},
 			Transact {
@@ -214,7 +236,7 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 			RefundSurplus,
 			DepositAsset {
 				assets: All.into(),
-				beneficiary: Junction::AccountId32 {
+				beneficiary: cumulus_primitives_core::Junction::AccountId32 {
 					id: parachain_reserve_account().into(),
 					network: None,
 				}
@@ -225,19 +247,20 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 		// Act
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
 			Here,
-			MultiLocation::new(1, X1(Parachain(HYDRA_PARA_ID))),
+			Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			),
 			message
 		));
 	});
 
 	Hydra::execute_with(|| {
 		// Assert
-		assert!(hydradx_runtime::System::events().iter().any(|r| matches!(
-			r.event,
-			hydradx_runtime::RuntimeEvent::XcmpQueue(cumulus_pallet_xcmp_queue::Event::Fail {
-				error: cumulus_primitives_core::XcmError::NoPermission,
-				..
-			})
-		)));
+		assert_xcm_message_processing_failed();
 	});
 }

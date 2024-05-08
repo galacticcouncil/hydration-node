@@ -2,9 +2,7 @@ use super::*;
 use sp_std::marker::PhantomData;
 
 use codec::MaxEncodedLen;
-use hydradx_adapters::{
-	MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver,
-};
+use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
@@ -28,8 +26,8 @@ use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
 use primitives::Price;
 use scale_info::TypeInfo;
-use sp_runtime::Perbill;
 use sp_runtime::traits::MaybeEquivalence;
+use sp_runtime::Perbill;
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
 	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset,
@@ -41,21 +39,20 @@ use xcm_executor::{Config, XcmExecutor};
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub polkadot_xcm::v3::Location);
 
-impl Into<Option<Location>> for AssetLocation{
-	fn into(self) -> Option<Location> {
-		xcm_builder::V4V3LocationConverter::convert_back(&self.0)
+impl From<AssetLocation> for Option<Location> {
+	fn from(location: AssetLocation) -> Option<Location> {
+		xcm_builder::V4V3LocationConverter::convert_back(&location.0)
 	}
 }
 
-impl TryFrom<Location> for AssetLocation{
+impl TryFrom<Location> for AssetLocation {
 	type Error = ();
 
 	fn try_from(value: Location) -> Result<Self, Self::Error> {
 		let loc: MultiLocation = value.try_into()?;
-		Ok(AssetLocation(loc.into()))
+		Ok(AssetLocation(loc))
 	}
 }
-
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
@@ -303,19 +300,6 @@ impl pallet_message_queue::Config for Runtime {
 	type ServiceWeight = MessageQueueServiceWeight;
 }
 
-/*
-impl pallet_xcm_rate_limiter::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type AssetId = AssetId;
-	type DeferDuration = DeferDuration;
-	type MaxDeferDuration = MaxDeferDuration;
-	type RelayBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
-	type CurrencyIdConvert = CurrencyIdConvert;
-	type RateLimitFor = pallet_asset_registry::XcmRateLimitsInRegistry<Runtime>;
-}
-
- */
-
 pub struct CurrencyIdConvert;
 use crate::evm::ExtendedAddressMapping;
 use primitives::constants::chain::CORE_ASSET_ID;
@@ -331,10 +315,10 @@ impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 				let loc = AssetRegistry::asset_to_location(id);
 				if let Some(location) = loc {
 					location.into()
-				}else{
+				} else {
 					None
 				}
-			},
+			}
 		}
 	}
 }
@@ -359,7 +343,7 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 				} else {
 					None
 				}
-			},
+			}
 		}
 
 		// Note: keeping the original code for reference until tests are successful
@@ -387,11 +371,7 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 
 impl Convert<Asset, Option<AssetId>> for CurrencyIdConvert {
 	fn convert(asset: Asset) -> Option<AssetId> {
-		if let Asset { id: asset_id, .. } = asset {
-			Self::convert(asset_id.0)
-		} else {
-			None
-		}
+		Self::convert(asset.id.0)
 	}
 }
 

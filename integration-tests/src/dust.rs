@@ -30,7 +30,7 @@ fn balance_should_be_dusted_when_native_balance_is_below_ed() {
 			hdx_ed,
 		));
 
-		assert_ok!(Balances::transfer(
+		assert_ok!(Balances::transfer_allow_death(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			BOB.into(),
 			transfer_amount,

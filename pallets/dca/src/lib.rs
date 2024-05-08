@@ -818,7 +818,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		let Ok(price_from_short_oracle) = Self::get_price_from_short_oracle(route) else {
-   			return true;
+			return true;
 		};
 
 		let max_allowed_diff = schedule
@@ -827,18 +827,12 @@ impl<T: Config> Pallet<T> {
 
 		let max_allowed = FixedU128::from(max_allowed_diff);
 
-		let Some(price_sum) = last_block_price
-			.checked_add(&price_from_short_oracle) else {
+		let Some(price_sum) = last_block_price.checked_add(&price_from_short_oracle) else {
 			return true;
 		};
 
-		let Ok(max_allowed_difference) = max_allowed
-			.checked_mul(
-				&price_sum,
-			)
-			.ok_or(ArithmeticError::Overflow)
-			else {
-				return true;
+		let Ok(max_allowed_difference) = max_allowed.checked_mul(&price_sum).ok_or(ArithmeticError::Overflow) else {
+			return true;
 		};
 
 		let diff = if last_block_price > price_from_short_oracle {

@@ -26,13 +26,16 @@ use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use fc_db::kv::Backend as FrontierBackend;
 pub use fc_rpc::{
-	EthApiServer, EthBlockDataCacheTask, OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
+	EthBlockDataCacheTask, OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
 	SchemaV3Override, StorageOverride,
 };
 use fc_rpc_core::types::CallRequest;
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
-use hydradx_runtime::{opaque::{Block, Hash}, AccountId, Balance, Index};
+use hydradx_runtime::{
+	opaque::{Block, Hash},
+	AccountId, Balance, Index,
+};
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
 	client::BlockchainEvents,
@@ -46,7 +49,6 @@ use sc_transaction_pool_api::TransactionPool;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 
 //TODO: this is probably not correct for hydra.. verify what do

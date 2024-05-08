@@ -616,7 +616,7 @@ impl<T: Config> Pallet<T> {
 		with_transaction::<T::Balance, DispatchError, _>(|| {
 			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
 			let Ok(who) = ensure_signed(origin.clone()) else {
-				return TransactionOutcome::Rollback(Err(Error::<T>::InvalidRoute.into()))
+				return TransactionOutcome::Rollback(Err(Error::<T>::InvalidRoute.into()));
 			};
 			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
 

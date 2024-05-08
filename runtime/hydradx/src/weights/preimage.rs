@@ -202,7 +202,7 @@ impl<T: frame_system::Config> pallet_preimage::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 
-	fn ensure_updated(n: u32) -> Weight {
+	fn ensure_updated(_n: u32) -> Weight {
 		todo!()
 	}
 }
