@@ -47,6 +47,8 @@ pub trait EVMPermit {
 	fn dispatch_weight(gas_limit: u64) -> Weight;
 
 	fn permit_nonce(account: H160) -> U256;
+
+	fn on_dispatch_permit_error();
 }
 
 impl EVMPermit for () {
@@ -89,4 +91,6 @@ impl EVMPermit for () {
 	fn permit_nonce(_account: H160) -> U256 {
 		U256::default()
 	}
+
+	fn on_dispatch_permit_error() {}
 }
