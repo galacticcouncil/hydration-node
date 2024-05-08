@@ -46,7 +46,7 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	}
 
 	#[cfg(feature = "try-runtime")]
-	fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
+	fn post_upgrade(_state: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
 		/*
 		log::info!("PostMigrate Collator Selection Pallet start");
 		let migration_result = pallet_collator_selection::migration::v1::MigrateToV1::<Runtime>::post_upgrade(state);

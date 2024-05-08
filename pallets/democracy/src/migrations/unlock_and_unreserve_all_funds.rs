@@ -187,7 +187,7 @@ where
 			.collect::<BTreeSet<_>>();
 		let account_reserved_before: BTreeMap<T::AccountId, BalanceOf<T>> = account_deposits
 			.keys()
-			.map(|account| (account.clone(), T::Currency::reserved_balance(&account)))
+			.map(|account| (account.clone(), T::Currency::reserved_balance(account)))
 			.collect();
 
 		// Total deposited for each account *should* be less than or equal to the total reserved,
@@ -195,8 +195,8 @@ where
 		let bugged_deposits = all_accounts
 			.iter()
 			.filter(|account| {
-				account_deposits.get(&account).unwrap_or(&Zero::zero())
-					> account_reserved_before.get(&account).unwrap_or(&Zero::zero())
+				account_deposits.get(account).unwrap_or(&Zero::zero())
+					> account_reserved_before.get(account).unwrap_or(&Zero::zero())
 			})
 			.count();
 
@@ -345,11 +345,11 @@ mod test {
 
 			// Sanity check: ensure initial reserved balance was set correctly.
 			assert_eq!(
-				<Test as crate::Config>::Currency::reserved_balance(&depositer_0),
+				<Test as crate::Config>::Currency::reserved_balance(depositer_0),
 				depositer_0_initial_reserved + deposit
 			);
 			assert_eq!(
-				<Test as crate::Config>::Currency::reserved_balance(&depositer_1),
+				<Test as crate::Config>::Currency::reserved_balance(depositer_1),
 				depositer_1_initial_reserved + deposit
 			);
 
@@ -361,11 +361,11 @@ mod test {
 
 			// Assert the reserved balance was reduced by the expected amount.
 			assert_eq!(
-				<Test as crate::Config>::Currency::reserved_balance(&depositer_0),
+				<Test as crate::Config>::Currency::reserved_balance(depositer_0),
 				depositer_0_initial_reserved
 			);
 			assert_eq!(
-				<Test as crate::Config>::Currency::reserved_balance(&depositer_1),
+				<Test as crate::Config>::Currency::reserved_balance(depositer_1),
 				depositer_1_initial_reserved
 			);
 		});
@@ -390,7 +390,7 @@ mod test {
 			let mut voter_all_locks = initial_locks.clone();
 			voter_all_locks.push((&DEMOCRACY_ID, stake));
 			assert_eq!(
-				<Test as crate::Config>::Currency::locks(&voter)
+				<Test as crate::Config>::Currency::locks(voter)
 					.iter()
 					.map(|lock| (&lock.id, lock.amount))
 					.collect::<Vec<_>>(),
@@ -405,7 +405,7 @@ mod test {
 
 			// Assert the voter lock was removed
 			assert_eq!(
-				<Test as crate::Config>::Currency::locks(&voter)
+				<Test as crate::Config>::Currency::locks(voter)
 					.iter()
 					.map(|lock| (&lock.id, lock.amount))
 					.collect::<Vec<_>>(),

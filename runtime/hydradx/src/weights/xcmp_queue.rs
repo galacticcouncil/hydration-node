@@ -61,26 +61,26 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for HydraWei
 	}
 
 	fn enqueue_xcmp_message() -> Weight {
-		todo!()
+		Weight::from_parts(1, 0)
 	}
 
 	fn suspend_channel() -> Weight {
-		todo!()
+		Weight::from_parts(1, 0)
 	}
 
 	fn resume_channel() -> Weight {
-		todo!()
+		Weight::from_parts(1, 0)
 	}
 
 	fn take_first_concatenated_xcm() -> Weight {
-		todo!()
+		Weight::from_parts(1, 0)
 	}
 
 	fn on_idle_good_msg() -> Weight {
-		todo!()
+		Weight::from_parts(1, 0)
 	}
 
 	fn on_idle_large_msg() -> Weight {
-		todo!()
+		Weight::from_parts(1, 0)
 	}
 }

@@ -88,8 +88,7 @@ fn note_preimage<T: Config>() -> T::Hash {
 	// note a new preimage on every function invoke.
 	static COUNTER: AtomicU8 = AtomicU8::new(0);
 	let data = Cow::from(vec![COUNTER.fetch_add(1, Ordering::Relaxed)]);
-	let hash = <T as Config>::Preimages::note(data).unwrap();
-	hash
+	<T as Config>::Preimages::note(data).unwrap()
 }
 
 benchmarks! {
@@ -254,7 +253,6 @@ benchmarks! {
 		// Add proposal to blacklist with block number 0
 
 		let addresses: BoundedVec<_, _> = (0..(T::MaxBlacklisted::get() - 1))
-			.into_iter()
 			.map(|i| account::<T::AccountId>("blacklist", i, SEED))
 			.collect::<Vec<_>>()
 			.try_into()
@@ -340,7 +338,7 @@ benchmarks! {
 	}: _<T::RuntimeOrigin>(origin, proposal_hash)
 	verify {
 		assert!(NextExternal::<T>::get().is_none());
-		let (_, new_vetoers) = <Blacklist<T>>::get(&proposal_hash).ok_or("no blacklist")?;
+		let (_, new_vetoers) = <Blacklist<T>>::get(proposal_hash).ok_or("no blacklist")?;
 		assert_eq!(new_vetoers.len(), T::MaxBlacklisted::get() as usize, "vetoers not added");
 	}
 
