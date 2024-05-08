@@ -501,7 +501,5 @@ impl EVMPermit for PermitDispatchHandler {
 		U256::default()
 	}
 
-	fn on_dispatch_permit_error() -> sp_runtime::DispatchResult {
-		Ok(())
-	}
+	fn on_dispatch_permit_error() {}
 }
