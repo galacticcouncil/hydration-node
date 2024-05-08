@@ -49,7 +49,11 @@ fn fast_track_referendum_works() {
 				proposal: set_balance_proposal(2),
 				threshold: VoteThreshold::SimpleMajority,
 				delay: 0,
-				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
+				tally: Tally {
+					ayes: 0,
+					nays: 0,
+					turnout: 0
+				},
 			})
 		);
 		// metadata reset from the external proposal to the referendum.
@@ -90,7 +94,11 @@ fn instant_referendum_works() {
 				proposal: set_balance_proposal(2),
 				threshold: VoteThreshold::SimpleMajority,
 				delay: 0,
-				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
+				tally: Tally {
+					ayes: 0,
+					nays: 0,
+					turnout: 0
+				},
 			})
 		);
 	});
@@ -133,7 +141,11 @@ fn instant_next_block_referendum_backed() {
 				proposal,
 				threshold: VoteThreshold::SimpleMajority,
 				delay,
-				tally: Tally { ayes: 0, nays: 0, turnout: 0 },
+				tally: Tally {
+					ayes: 0,
+					nays: 0,
+					turnout: 0
+				},
 			})
 		);
 
@@ -145,7 +157,10 @@ fn instant_next_block_referendum_backed() {
 		// the only referendum in the storage is finished and not approved
 		assert_eq!(
 			ReferendumInfoOf::<Test>::get(0).unwrap(),
-			ReferendumInfo::Finished { approved: false, end: start_block_number + voting_period }
+			ReferendumInfo::Finished {
+				approved: false,
+				end: start_block_number + voting_period
+			}
 		);
 	});
 }
@@ -155,7 +170,10 @@ fn fast_track_referendum_fails_when_no_simple_majority() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
 		let h = set_balance_proposal(2).hash();
-		assert_ok!(Democracy::external_propose(RuntimeOrigin::signed(2), set_balance_proposal(2)));
+		assert_ok!(Democracy::external_propose(
+			RuntimeOrigin::signed(2),
+			set_balance_proposal(2)
+		));
 		assert_noop!(
 			Democracy::fast_track(RuntimeOrigin::signed(5), h, 3, 2),
 			Error::<Test>::NotSimpleMajority

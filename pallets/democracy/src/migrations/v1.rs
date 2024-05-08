@@ -34,13 +34,16 @@ mod v0 {
 	#[storage_alias]
 	pub type PublicProps<T: Config> = StorageValue<
 		Pallet<T>,
-		Vec<(PropIndex, <T as frame_system::Config>::Hash, <T as frame_system::Config>::AccountId)>,
+		Vec<(
+			PropIndex,
+			<T as frame_system::Config>::Hash,
+			<T as frame_system::Config>::AccountId,
+		)>,
 		ValueQuery,
 	>;
 
 	#[storage_alias]
-	pub type NextExternal<T: Config> =
-		StorageValue<Pallet<T>, (<T as frame_system::Config>::Hash, VoteThreshold)>;
+	pub type NextExternal<T: Config> = StorageValue<Pallet<T>, (<T as frame_system::Config>::Hash, VoteThreshold)>;
 
 	#[cfg(feature = "try-runtime")]
 	#[storage_alias]
@@ -61,7 +64,10 @@ pub mod v1 {
 	impl<T: Config + frame_system::Config<Hash = H256>> OnRuntimeUpgrade for Migration<T> {
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::TryRuntimeError> {
-			ensure!(StorageVersion::get::<Pallet<T>>() == 0, "can only upgrade from version 0");
+			ensure!(
+				StorageVersion::get::<Pallet<T>>() == 0,
+				"can only upgrade from version 0"
+			);
 
 			let props_count = v0::PublicProps::<T>::get().len();
 			log::info!(target: TARGET, "{} public proposals will be migrated.", props_count,);
@@ -82,27 +88,23 @@ pub mod v1 {
 					"skipping on_runtime_upgrade: executed on wrong storage version.\
 				Expected version 0"
 				);
-				return weight
+				return weight;
 			}
 
-			ReferendumInfoOf::<T>::translate(
-				|index, old: ReferendumInfo<BlockNumberFor<T>, T::Hash, BalanceOf<T>>| {
-					weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
-					log::info!(target: TARGET, "migrating referendum #{:?}", &index);
-					Some(match old {
-						ReferendumInfo::Ongoing(status) =>
-							ReferendumInfo::Ongoing(ReferendumStatus {
-								end: status.end,
-								proposal: Bounded::from_legacy_hash(status.proposal),
-								threshold: status.threshold,
-								delay: status.delay,
-								tally: status.tally,
-							}),
-						ReferendumInfo::Finished { approved, end } =>
-							ReferendumInfo::Finished { approved, end },
-					})
-				},
-			);
+			ReferendumInfoOf::<T>::translate(|index, old: ReferendumInfo<BlockNumberFor<T>, T::Hash, BalanceOf<T>>| {
+				weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
+				log::info!(target: TARGET, "migrating referendum #{:?}", &index);
+				Some(match old {
+					ReferendumInfo::Ongoing(status) => ReferendumInfo::Ongoing(ReferendumStatus {
+						end: status.end,
+						proposal: Bounded::from_legacy_hash(status.proposal),
+						threshold: status.threshold,
+						delay: status.delay,
+						tally: status.tally,
+					}),
+					ReferendumInfo::Finished { approved, end } => ReferendumInfo::Finished { approved, end },
+				})
+			});
 
 			let props = v0::PublicProps::<T>::take()
 				.into_iter()
@@ -177,14 +179,21 @@ mod test {
 				proposal: hash,
 				threshold: VoteThreshold::SuperMajorityApprove,
 				delay: 1u32.into(),
-				tally: Tally { ayes: 1u32.into(), nays: 1u32.into(), turnout: 1u32.into() },
+				tally: Tally {
+					ayes: 1u32.into(),
+					nays: 1u32.into(),
+					turnout: 1u32.into(),
+				},
 			};
 			v0::ReferendumInfoOf::<T>::insert(1u32, ReferendumInfo::Ongoing(status));
 
 			// Case 2: Finished referendum
 			v0::ReferendumInfoOf::<T>::insert(
 				2u32,
-				ReferendumInfo::Finished { approved: true, end: 123u32.into() },
+				ReferendumInfo::Finished {
+					approved: true,
+					end: 123u32.into(),
+				},
 			);
 
 			// Case 3: Public proposals
@@ -208,13 +217,20 @@ mod test {
 					proposal: Bounded::from_legacy_hash(hash),
 					threshold: VoteThreshold::SuperMajorityApprove,
 					delay: 1u32.into(),
-					tally: Tally { ayes: 1u32.into(), nays: 1u32.into(), turnout: 1u32.into() },
+					tally: Tally {
+						ayes: 1u32.into(),
+						nays: 1u32.into(),
+						turnout: 1u32.into()
+					},
 				}))
 			);
 			// Case 2: Finished referendum
 			assert_eq!(
 				ReferendumInfoOf::<T>::get(2u32),
-				Some(ReferendumInfo::Finished { approved: true, end: 123u32.into() })
+				Some(ReferendumInfo::Finished {
+					approved: true,
+					end: 123u32.into()
+				})
 			);
 			// Case 3: Public proposals
 			let props: BoundedVec<_, <Test as Config>::MaxProposals> = bounded_vec![

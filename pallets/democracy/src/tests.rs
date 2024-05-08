@@ -21,10 +21,7 @@ use super::*;
 use crate as pallet_democracy;
 use frame_support::{
 	assert_noop, assert_ok, derive_impl, ord_parameter_types, parameter_types,
-	traits::{
-		ConstU32, ConstU64, Contains, EqualPrivilegeOnly, OnInitialize, SortedMembers,
-		StorePreimage,
-	},
+	traits::{ConstU32, ConstU64, Contains, EqualPrivilegeOnly, OnInitialize, SortedMembers, StorePreimage},
 	weights::Weight,
 };
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy};
@@ -45,10 +42,22 @@ mod public_proposals;
 mod scheduling;
 mod voting;
 
-const AYE: Vote = Vote { aye: true, conviction: Conviction::None };
-const NAY: Vote = Vote { aye: false, conviction: Conviction::None };
-const BIG_AYE: Vote = Vote { aye: true, conviction: Conviction::Locked1x };
-const BIG_NAY: Vote = Vote { aye: false, conviction: Conviction::Locked1x };
+const AYE: Vote = Vote {
+	aye: true,
+	conviction: Conviction::None,
+};
+const NAY: Vote = Vote {
+	aye: false,
+	conviction: Conviction::None,
+};
+const BIG_AYE: Vote = Vote {
+	aye: true,
+	conviction: Conviction::Locked1x,
+};
+const BIG_NAY: Vote = Vote {
+	aye: false,
+	conviction: Conviction::Locked1x,
+};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -67,7 +76,10 @@ frame_support::construct_runtime!(
 pub struct BaseFilter;
 impl Contains<RuntimeCall> for BaseFilter {
 	fn contains(call: &RuntimeCall) -> bool {
-		!matches!(call, &RuntimeCall::Balances(pallet_balances::Call::force_set_balance { .. }))
+		!matches!(
+			call,
+			&RuntimeCall::Balances(pallet_balances::Call::force_set_balance { .. })
+		)
 	}
 }
 
@@ -223,7 +235,10 @@ fn params_should_work() {
 }
 
 fn set_balance_proposal(value: u64) -> BoundedCallOf<Test> {
-	let inner = pallet_balances::Call::force_set_balance { who: 42, new_free: value };
+	let inner = pallet_balances::Call::force_set_balance {
+		who: 42,
+		new_free: value,
+	};
 	let outer = RuntimeCall::Balances(inner);
 	Preimage::bound(outer).unwrap()
 }
@@ -260,19 +275,31 @@ fn begin_referendum() -> ReferendumIndex {
 }
 
 fn aye(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: AYE, balance: Balances::free_balance(who) }
+	AccountVote::Standard {
+		vote: AYE,
+		balance: Balances::free_balance(who),
+	}
 }
 
 fn nay(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: NAY, balance: Balances::free_balance(who) }
+	AccountVote::Standard {
+		vote: NAY,
+		balance: Balances::free_balance(who),
+	}
 }
 
 fn big_aye(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: BIG_AYE, balance: Balances::free_balance(who) }
+	AccountVote::Standard {
+		vote: BIG_AYE,
+		balance: Balances::free_balance(who),
+	}
 }
 
 fn big_nay(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: BIG_NAY, balance: Balances::free_balance(who) }
+	AccountVote::Standard {
+		vote: BIG_NAY,
+		balance: Balances::free_balance(who),
+	}
 }
 
 fn tally(r: ReferendumIndex) -> Tally<u64> {

@@ -62,7 +62,9 @@ fn xcm_exchanger_allows_selling_supported_assets() {
 			let want: Assets = Asset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
 
 			// Act
-			let received: Assets = exchange_asset(None, give, &want, SELL).expect("should return ok").into();
+			let received: Assets = exchange_asset(None, give, &want, SELL)
+				.expect("should return ok")
+				.into();
 
 			// Assert
 			let mut iter = received.inner().iter().filter(|asset| asset.is_fungible(None));
@@ -113,7 +115,9 @@ fn xcm_exchanger_should_work_with_onchain_route() {
 			let want: Assets = Asset::from((GeneralIndex(DOT.into()), wanted_amount)).into();
 
 			// Act
-			let received: Assets = exchange_asset(None, give, &want, SELL).expect("should return ok").into();
+			let received: Assets = exchange_asset(None, give, &want, SELL)
+				.expect("should return ok")
+				.into();
 
 			// Assert
 			let mut iter = received.inner().iter().filter(|asset| asset.is_fungible(None));
@@ -152,7 +156,10 @@ fn xcm_exchanger_allows_buying_supported_assets() {
 			// Assert
 			let mut iter = received.inner().iter().filter(|asset| asset.is_fungible(None));
 			let asset_received = iter.next().expect("there should be at least one asset");
-			let left_over = iter.next().expect("there should be at least some left_over asset_in").clone();
+			let left_over = iter
+				.next()
+				.expect("there should be at least some left_over asset_in")
+				.clone();
 			assert!(iter.next().is_none(), "there should only be two assets returned");
 			let Fungible(left_over_amount) = left_over.fun else {
 				panic!("should be fungible")
@@ -211,7 +218,12 @@ fn xcm_exchanger_works_with_specified_origin() {
 		});
 }
 
-fn exchange_asset(origin: Option<&Location>, give: Assets, want: &Assets, is_sell: bool) -> Result<AssetsInHolding, AssetsInHolding> {
+fn exchange_asset(
+	origin: Option<&Location>,
+	give: Assets,
+	want: &Assets,
+	is_sell: bool,
+) -> Result<AssetsInHolding, AssetsInHolding> {
 	XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
 		origin,
 		give.into(),

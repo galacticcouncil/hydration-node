@@ -26,9 +26,7 @@ use sp_runtime::traits::{IntegerSquareRoot, Zero};
 use sp_std::ops::{Add, Div, Mul, Rem};
 
 /// A means of determining if a vote is past pass threshold.
-#[derive(
-	Clone, Copy, PartialEq, Eq, Encode, MaxEncodedLen, Decode, sp_runtime::RuntimeDebug, TypeInfo,
-)]
+#[derive(Clone, Copy, PartialEq, Eq, Encode, MaxEncodedLen, Decode, sp_runtime::RuntimeDebug, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum VoteThreshold {
 	/// A supermajority of approvals is needed to pass this vote.
@@ -46,9 +44,7 @@ pub trait Approved<Balance> {
 }
 
 /// Return `true` iff `n1 / d1 < n2 / d2`. `d1` and `d2` may not be zero.
-fn compare_rationals<
-	T: Zero + Mul<T, Output = T> + Div<T, Output = T> + Rem<T, Output = T> + Ord + Copy,
->(
+fn compare_rationals<T: Zero + Mul<T, Output = T> + Div<T, Output = T> + Rem<T, Output = T> + Ord + Copy>(
 	mut n1: T,
 	mut d1: T,
 	mut n2: T,
@@ -60,18 +56,18 @@ fn compare_rationals<
 		let q1 = n1 / d1;
 		let q2 = n2 / d2;
 		if q1 < q2 {
-			return true
+			return true;
 		}
 		if q2 < q1 {
-			return false
+			return false;
 		}
 		let r1 = n1 % d1;
 		let r2 = n2 % d2;
 		if r2.is_zero() {
-			return false
+			return false;
 		}
 		if r1.is_zero() {
-			return true
+			return true;
 		}
 		n1 = d2;
 		n2 = d1;
@@ -95,13 +91,15 @@ impl<
 		let sqrt_voters = tally.turnout.integer_sqrt();
 		let sqrt_electorate = electorate.integer_sqrt();
 		if sqrt_voters.is_zero() {
-			return false
+			return false;
 		}
 		match *self {
-			VoteThreshold::SuperMajorityApprove =>
-				compare_rationals(tally.nays, sqrt_voters, tally.ayes, sqrt_electorate),
-			VoteThreshold::SuperMajorityAgainst =>
-				compare_rationals(tally.nays, sqrt_electorate, tally.ayes, sqrt_voters),
+			VoteThreshold::SuperMajorityApprove => {
+				compare_rationals(tally.nays, sqrt_voters, tally.ayes, sqrt_electorate)
+			}
+			VoteThreshold::SuperMajorityAgainst => {
+				compare_rationals(tally.nays, sqrt_electorate, tally.ayes, sqrt_voters)
+			}
 			VoteThreshold::SimpleMajority => tally.ayes > tally.nays,
 		}
 	}
@@ -113,9 +111,21 @@ mod tests {
 
 	#[test]
 	fn should_work() {
-		assert!(!VoteThreshold::SuperMajorityApprove
-			.approved(Tally { ayes: 60, nays: 50, turnout: 110 }, 210));
-		assert!(VoteThreshold::SuperMajorityApprove
-			.approved(Tally { ayes: 100, nays: 50, turnout: 150 }, 210));
+		assert!(!VoteThreshold::SuperMajorityApprove.approved(
+			Tally {
+				ayes: 60,
+				nays: 50,
+				turnout: 110
+			},
+			210
+		));
+		assert!(VoteThreshold::SuperMajorityApprove.approved(
+			Tally {
+				ayes: 100,
+				nays: 50,
+				turnout: 150
+			},
+			210
+		));
 	}
 }

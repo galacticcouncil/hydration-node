@@ -58,19 +58,17 @@ fn add_referendum<T: Config>(n: u32) -> (ReferendumIndex, T::Hash, T::Hash) {
 	let vote_threshold = VoteThreshold::SimpleMajority;
 	let proposal = make_proposal::<T>(n);
 	let hash = proposal.hash();
-	let index = Democracy::<T>::inject_referendum(
-		T::LaunchPeriod::get(),
-		proposal,
-		vote_threshold,
-		0u32.into(),
-	);
+	let index = Democracy::<T>::inject_referendum(T::LaunchPeriod::get(), proposal, vote_threshold, 0u32.into());
 	let preimage_hash = note_preimage::<T>();
 	MetadataOf::<T>::insert(crate::MetadataOwner::Referendum(index), preimage_hash);
 	(index, hash, preimage_hash)
 }
 
 fn account_vote<T: Config>(b: BalanceOf<T>) -> AccountVote<BalanceOf<T>> {
-	let v = Vote { aye: true, conviction: Conviction::Locked1x };
+	let v = Vote {
+		aye: true,
+		conviction: Conviction::Locked1x,
+	};
 
 	AccountVote::Standard { vote: v, balance: b }
 }

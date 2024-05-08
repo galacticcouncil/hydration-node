@@ -33,8 +33,7 @@ use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 const LOG_TARGET: &str = "runtime::democracy::migrations::unlock_and_unreserve_all_funds";
 
-type BalanceOf<T> =
-	<<T as UnlockConfig>::Currency as Currency<<T as UnlockConfig>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as UnlockConfig>::Currency as Currency<<T as UnlockConfig>::AccountId>>::Balance;
 
 /// The configuration for [`UnlockAndUnreserveAllFunds`].
 pub trait UnlockConfig: 'static {
@@ -62,7 +61,10 @@ type DepositOf<T: UnlockConfig> = StorageMap<
 	<T as UnlockConfig>::PalletName,
 	Twox64Concat,
 	PropIndex,
-	(BoundedVec<<T as UnlockConfig>::AccountId, <T as UnlockConfig>::MaxDeposits>, BalanceOf<T>),
+	(
+		BoundedVec<<T as UnlockConfig>::AccountId, <T as UnlockConfig>::MaxDeposits>,
+		BalanceOf<T>,
+	),
 >;
 
 #[storage_alias(dynamic)]
@@ -124,11 +126,16 @@ impl<T: UnlockConfig> UnlockAndUnreserveAllFunds<T> {
 				total_voting_vec_entries.saturating_accrue(accounts.len() as u64);
 
 				// Create a vec of tuples where each account is associated with the given balance
-				accounts.into_iter().map(|account| (account, balance)).collect::<Vec<_>>()
+				accounts
+					.into_iter()
+					.map(|account| (account, balance))
+					.collect::<Vec<_>>()
 			})
 			.fold(BTreeMap::new(), |mut acc, (account, balance)| {
 				// Add the balance to the account's existing balance in the accumulator
-				acc.entry(account.clone()).or_insert(Zero::zero()).saturating_accrue(balance);
+				acc.entry(account.clone())
+					.or_insert(Zero::zero())
+					.saturating_accrue(balance);
 				acc
 			});
 
@@ -141,13 +148,10 @@ impl<T: UnlockConfig> UnlockAndUnreserveAllFunds<T> {
 		(
 			account_deposits,
 			account_stakes,
-			T::DbWeight::get().reads(
-				deposit_of_len.saturating_add(voting_of_len).saturating_add(
-					// Max items in a Voting enum is MaxVotes + 5
-					total_voting_vec_entries
-						.saturating_mul(T::MaxVotes::get().saturating_add(5) as u64),
-				),
-			),
+			T::DbWeight::get().reads(deposit_of_len.saturating_add(voting_of_len).saturating_add(
+				// Max items in a Voting enum is MaxVotes + 5
+				total_voting_vec_entries.saturating_mul(T::MaxVotes::get().saturating_add(5) as u64),
+			)),
 		)
 	}
 }
@@ -191,13 +195,12 @@ where
 		let bugged_deposits = all_accounts
 			.iter()
 			.filter(|account| {
-				account_deposits.get(&account).unwrap_or(&Zero::zero()) >
-					account_reserved_before.get(&account).unwrap_or(&Zero::zero())
+				account_deposits.get(&account).unwrap_or(&Zero::zero())
+					> account_reserved_before.get(&account).unwrap_or(&Zero::zero())
 			})
 			.count();
 
-		let total_deposits_to_unreserve =
-			account_deposits.clone().into_values().sum::<BalanceOf<T>>();
+		let total_deposits_to_unreserve = account_deposits.clone().into_values().sum::<BalanceOf<T>>();
 		let total_stake_to_unlock = account_locks.clone().into_values().sum::<BalanceOf<T>>();
 
 		log::info!(target: LOG_TARGET, "Total accounts: {:?}", all_accounts.len());
@@ -225,14 +228,13 @@ where
 	/// 3. Unlocks the staked funds for each account.
 	fn on_runtime_upgrade() -> frame_support::weights::Weight {
 		// Get staked and deposited balances as reported by this pallet.
-		let (account_deposits, account_stakes, initial_reads) =
-			Self::get_account_deposits_and_locks();
+		let (account_deposits, account_stakes, initial_reads) = Self::get_account_deposits_and_locks();
 
 		// Deposited funds need to be unreserved.
 		for (account, unreserve_amount) in account_deposits.iter() {
 			if unreserve_amount.is_zero() {
 				log::warn!(target: LOG_TARGET, "Unexpected zero amount to unreserve!");
-				continue
+				continue;
 			}
 			T::Currency::unreserve(account, *unreserve_amount);
 		}
@@ -255,9 +257,7 @@ where
 	/// 1. No locks remain for this pallet in Balances.
 	/// 2. The reserved balance for each account has been reduced by the expected amount.
 	#[cfg(feature = "try-runtime")]
-	fn post_upgrade(
-		account_reserved_before_bytes: Vec<u8>,
-	) -> Result<(), sp_runtime::TryRuntimeError> {
+	fn post_upgrade(account_reserved_before_bytes: Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
 		use codec::Decode;
 
 		let account_reserved_before =
@@ -273,8 +273,7 @@ where
 			let expected_amount_deducted = *account_deposits
 				.get(&account)
 				.expect("account deposit must exist to be in pre_migration_data, qed");
-			let expected_reserved_after =
-				actual_reserved_before.saturating_sub(expected_amount_deducted);
+			let expected_reserved_after = actual_reserved_before.saturating_sub(expected_amount_deducted);
 			assert!(
 				actual_reserved_after == expected_reserved_after,
 				"Reserved balance for {:?} is incorrect. actual before: {:?}, actual after, {:?}, expected deducted: {:?}",
@@ -341,10 +340,7 @@ mod test {
 				depositer_1_initial_reserved + deposit
 			));
 			let depositors =
-				BoundedVec::<_, <Test as crate::Config>::MaxDeposits>::truncate_from(vec![
-					depositer_0,
-					depositer_1,
-				]);
+				BoundedVec::<_, <Test as crate::Config>::MaxDeposits>::truncate_from(vec![depositer_0, depositer_1]);
 			DepositOf::<Test>::insert(0, (depositors, deposit));
 
 			// Sanity check: ensure initial reserved balance was set correctly.
@@ -385,20 +381,10 @@ mod test {
 			// Set up initial state.
 			<Test as crate::Config>::Currency::make_free_balance_be(&voter, initial_balance);
 			for lock in initial_locks.clone() {
-				<Test as crate::Config>::Currency::set_lock(
-					*lock.0,
-					&voter,
-					lock.1,
-					WithdrawReasons::all(),
-				);
+				<Test as crate::Config>::Currency::set_lock(*lock.0, &voter, lock.1, WithdrawReasons::all());
 			}
 			VotingOf::<Test>::insert(voter, Voting::default());
-			<Test as crate::Config>::Currency::set_lock(
-				DEMOCRACY_ID,
-				&voter,
-				stake,
-				WithdrawReasons::all(),
-			);
+			<Test as crate::Config>::Currency::set_lock(DEMOCRACY_ID, &voter, stake, WithdrawReasons::all());
 
 			// Sanity check: ensure initial Balance state was set up correctly.
 			let mut voter_all_locks = initial_locks.clone();
