@@ -1,7 +1,8 @@
 use crate::stableswap::types::AssetReserve;
+
 use crate::support::rational::round_to_rational;
 use crate::to_u256;
-use crate::types::Balance;
+use crate::types::{AssetId, Balance};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
@@ -729,6 +730,88 @@ pub fn calculate_share_price<const D: u8>(
 	Some((num, denom))
 }
 
+const STABLE_ASSET: bool = false;
+const SHARE_ASSET: bool = true;
+
+/// Calculating spot price between two assets in stablepool, including the impact of the fee
+///
+/// An asset can be either a stable asset or a share asset
+///
+/// Returns price of asset_out denominated in asset_in (asset_in/asset_out)
+///
+/// - `pool_id` - id of the pool
+/// - `reserves` - reserve balances of assets
+/// - `amplification` - curve AMM pool amplification parameter
+/// - `asset_in` - asset id of asset in
+/// - `asset_out` - asset id of asset out
+/// - `share_issuance` - total issuance of the share
+/// - `min_trade_amount` - min trade amount of stableswap
+/// - `pool_fee` - fee of the pool
+///
+pub fn calculate_spot_price_all(
+	pool_id: AssetId,
+	asset_reserves: Vec<(AssetId, AssetReserve)>,
+	amplification: Balance,
+	asset_in: AssetId,
+	asset_out: AssetId,
+	share_issuance: Balance,
+	min_trade_amount: Balance,
+	fee: Option<Permill>,
+) -> Option<FixedU128> {
+	let reserves = asset_reserves
+		.clone()
+		.into_iter()
+		.map(|(_, v)| v)
+		.collect::<Vec<AssetReserve>>();
+
+	let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amplification)?;
+
+	let spot_price = match (asset_in == pool_id, asset_out == pool_id) {
+		(STABLE_ASSET, STABLE_ASSET) => {
+			let asset_in_idx = asset_reserves.iter().position(|r| r.0 == asset_in)?;
+			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
+			calculate_spot_price(&reserves, amplification, d, asset_in_idx, asset_out_idx, fee)
+		}
+		(SHARE_ASSET, STABLE_ASSET) => {
+			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
+			let shares = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
+				&reserves,
+				asset_out_idx,
+				min_trade_amount,
+				amplification,
+				share_issuance,
+				fee.unwrap_or(Permill::zero()),
+			)?;
+
+			FixedU128::checked_from_rational(shares, min_trade_amount)
+		}
+		(STABLE_ASSET, SHARE_ASSET) => {
+			let added_asset = (asset_in, min_trade_amount);
+
+			let mut updated_reserves = asset_reserves.clone();
+			for reserve in updated_reserves.iter_mut() {
+				if reserve.0 == added_asset.0 {
+					reserve.1.amount += added_asset.1;
+				}
+			}
+
+			let update_reserves: &Vec<AssetReserve> = &updated_reserves.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
+			let shares_for_min_trade = calculate_shares::<MAX_D_ITERATIONS>(
+				&reserves,
+				&update_reserves,
+				amplification,
+				share_issuance,
+				fee.unwrap_or(Permill::zero()),
+			)?;
+
+			FixedU128::checked_from_rational(min_trade_amount, shares_for_min_trade)
+		}
+		_ => return None,
+	};
+
+	spot_price
+}
+
 /// Calculating spot price between two stable asset AB, including the impact of the fee
 ///
 /// Returns price of asset_out denominated in asset_in (asset_in/asset_out)
@@ -781,39 +864,6 @@ pub fn calculate_spot_price(
 	}
 
 	FixedU128::checked_from_rational(spot_price.0, spot_price.1)
-}
-
-/// Calculating spot price when buying stable asset with shares,  including the impact of the fee
-///
-/// Returns price of stable_asset denominated in share_asset (share_asset/stable_asset)
-///
-/// - `reserves` - reserve balances of assets
-/// - `asset_out_idx` - asset out index
-/// - `reference_amount` - a min shares amount to exchange for stable assets
-/// - `amplification` - curve AMM pool amplification parameter
-/// - `share_issuance` - total issuance of the share
-/// - `pool_fee` - fee of the pool
-///
-pub fn calculate_spot_price_between_share_and_stableasset(
-	reserves: &[AssetReserve],
-	asset_out_idx: usize,
-	reference_amount: Balance,
-	amplification: Balance,
-	share_issuance: Balance,
-	pool_fee: Permill,
-) -> Option<FixedU128> {
-	let shares = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
-		reserves,
-		asset_out_idx,
-		reference_amount,
-		amplification,
-		share_issuance,
-		pool_fee,
-	)?;
-
-	let spot_price_with_fee = FixedU128::checked_from_rational(shares, reference_amount)?;
-
-	Some(spot_price_with_fee)
 }
 
 #[cfg(test)]

@@ -244,14 +244,21 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_endowed_accounts(vec![
+			(BOB, 1, 200 * ONE),
+			(ALICE, 1, 200 * ONE),
+			(ALICE, 2, 200 * ONE),
+			(ALICE, 3, 200 * ONE),
+		])
 		.with_registered_asset("one".as_bytes().to_vec(), 1, 12)
 		.with_registered_asset("two".as_bytes().to_vec(), 2, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), 3, 12)
 		.with_pool(
 			ALICE,
 			PoolInfo::<AssetId, u64> {
-				assets: vec![asset_a, asset_b].try_into().unwrap(),
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
 				initial_amplification: NonZeroU16::new(100).unwrap(),
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
@@ -263,6 +270,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 				assets: vec![
 					AssetAmount::new(asset_a, 150 * ONE),
 					AssetAmount::new(asset_b, 150 * ONE),
+					AssetAmount::new(asset_c, 150 * ONE),
 				],
 			},
 		)
@@ -272,7 +280,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 
 			let sell_amount = 1_000;
 			let total_issuance = Tokens::total_issuance(pool_id);
-			let initial_issuance = 300000000000000000000;
+			let initial_issuance = 450000000000000000000;
 			assert_eq!(total_issuance, initial_issuance);
 
 			assert_ok!(Stableswap::execute_sell(
@@ -284,7 +292,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 				0,
 			));
 
-			let expected = 985999999;
+			let expected = 986999999;
 
 			assert_balance!(BOB, asset_a, 200 * ONE - sell_amount);
 			assert_balance!(BOB, pool_id, expected);

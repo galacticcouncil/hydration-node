@@ -1,5 +1,6 @@
 use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
+use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
 use sp_core::Get;
@@ -7,7 +8,11 @@ use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 use sp_std::vec;
 
-impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
+impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T>
+where
+	u32: From<T::AssetId>,
+	sp_std::vec::Vec<(u32, AssetReserve)>: FromIterator<(T::AssetId, AssetReserve)>,
+{
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -213,63 +218,30 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 				let balances = pool
 					.reserves_with_decimals::<T>(&pool_account)
 					.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+
+				let assets_with_reserves = pool
+					.assets
+					.iter()
+					.zip(balances.iter())
+					.map(|(asset_id, reserve)| (*asset_id, *reserve))
+					.collect();
 				let amp = Pallet::<T>::get_amplification(&pool);
+				let share_issuance = T::Currency::total_issuance(pool_id);
+				let min_trade_limit = T::MinTradingLimit::get();
 
-				if asset_a != pool_id && asset_b != pool_id {
-					let asset_in_idx = pool
-						.find_asset(asset_a)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
-					let asset_out_idx = pool
-						.find_asset(asset_b)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
-					let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
-					let spot_price_with_fee = hydra_dx_math::stableswap::calculate_spot_price(
-						&balances,
-						amp,
-						d,
-						asset_in_idx,
-						asset_out_idx,
-						Some(pool.fee),
-					)
-					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+				let spot_price = hydra_dx_math::stableswap::calculate_spot_price_all(
+					pool_id.into(),
+					assets_with_reserves,
+					amp,
+					asset_a.into(),
+					asset_b.into(),
+					share_issuance,
+					min_trade_limit,
+					Some(pool.fee),
+				)
+				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
-					Ok(spot_price_with_fee)
-				} else if asset_a == pool_id {
-					let amount = T::MinTradingLimit::get();
-					let share_issuance = T::Currency::total_issuance(pool_id);
-					let asset_out_idx = pool
-						.find_asset(asset_b)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
-
-					let spot_price_with_fee =
-						hydra_dx_math::stableswap::calculate_spot_price_between_share_and_stableasset(
-							&balances,
-							asset_out_idx,
-							amount,
-							amp,
-							share_issuance,
-							pool.fee,
-						)
-						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
-
-					Ok(spot_price_with_fee)
-				} else {
-					let amount_in = T::MinTradingLimit::get();
-
-					let assets = vec![AssetAmount {
-						asset_id: asset_a,
-						amount: amount_in,
-					}];
-
-					let share_amount = Self::calculate_shares(pool_id, &assets)
-						.map_err(|_| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
-
-					let spot_price_with_fee = FixedU128::checked_from_rational(amount_in, share_amount)
-						.ok_or(ExecutorError::Error(Corruption))?;
-
-					Ok(spot_price_with_fee)
-				}
+				Ok(spot_price)
 			}
 			_ => Err(ExecutorError::NotSupported),
 		}
