@@ -33,14 +33,14 @@ use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider, RouteSpotPriceProvider};
+use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, TransactionOutcome};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -57,7 +57,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::router::ExecutorError;
+	use hydradx_traits::router::{ExecutorError, RefundEdCalculator};
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
 
@@ -103,6 +103,8 @@ pub mod pallet {
 			Self::Balance,
 			Error = DispatchError,
 		>;
+
+		type EdToRefundCalculator: RefundEdCalculator<Self::Balance>;
 
 		/// Pool type used in the default route
 		type DefaultRoutePoolType: Get<PoolType<Self::AssetId>>;
@@ -198,14 +200,8 @@ pub mod pallet {
 			let route = Self::get_route_or_default(route, asset_pair)?;
 			Self::ensure_route_arguments(&asset_pair, &route)?;
 
-			let user_balance_of_asset_in_before_trade =
-				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
 			let user_balance_of_asset_out_before_trade =
-				T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
-			ensure!(
-				user_balance_of_asset_in_before_trade >= amount_in,
-				Error::<T>::InsufficientBalance
-			);
+				T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 
 			let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
 
@@ -240,6 +236,7 @@ pub mod pallet {
 
 			Self::ensure_that_user_received_asset_out_at_most(
 				who,
+				asset_in,
 				asset_out,
 				user_balance_of_asset_out_before_trade,
 				last_trade_amount.amount_out,
@@ -298,7 +295,7 @@ pub mod pallet {
 
 			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
 				let user_balance_of_asset_out_before_trade =
-					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Expendable, Fortitude::Polite);
+					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
 					trade.pool,
@@ -312,6 +309,7 @@ pub mod pallet {
 
 				Self::ensure_that_user_received_asset_out_at_most(
 					who.clone(),
+					trade.asset_in,
 					trade.asset_out,
 					user_balance_of_asset_out_before_trade,
 					trade_amount.amount_out,
@@ -513,21 +511,31 @@ impl<T: Config> Pallet<T> {
 
 	fn ensure_that_user_received_asset_out_at_most(
 		who: T::AccountId,
+		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		user_balance_of_asset_out_before_trade: T::Balance,
 		expected_received_amount: T::Balance,
 	) -> Result<(), DispatchError> {
 		let user_balance_of_asset_out_after_trade =
-			T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
+			T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 
 		let actual_received_amount = user_balance_of_asset_out_after_trade
 			.checked_sub(&user_balance_of_asset_out_before_trade)
 			.ok_or(Error::<T>::InvalidRouteExecution)?;
 
-		ensure!(
-			actual_received_amount <= expected_received_amount,
-			Error::<T>::InvalidRouteExecution
-		);
+		if !T::InspectRegistry::is_sufficient(asset_in) && asset_out == T::NativeAssetId::get() {
+			// In case of selling all insufficient asset, ED in HDX is refund to user, so end-balance will be more with ED
+			// In this case we check if the user does not receive more than ED
+			let diff = actual_received_amount.saturating_sub(expected_received_amount);
+			let ed_to_refund = T::EdToRefundCalculator::calculate();
+
+			ensure!(diff <= ed_to_refund, Error::<T>::InvalidRouteExecution);
+		} else {
+			ensure!(
+				actual_received_amount <= expected_received_amount,
+				Error::<T>::InvalidRouteExecution
+			);
+		}
 
 		Ok(())
 	}
@@ -539,7 +547,7 @@ impl<T: Config> Pallet<T> {
 		expected_spent_amount: T::Balance,
 	) -> Result<(), DispatchError> {
 		let user_balance_of_asset_in_after_trade =
-			T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+			T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
 		let actual_spent_amount = user_balance_of_asset_in_before_trade
 			.checked_sub(&user_balance_of_asset_in_after_trade)
