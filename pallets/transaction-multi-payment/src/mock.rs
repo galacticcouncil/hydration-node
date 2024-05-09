@@ -500,4 +500,6 @@ impl EVMPermit for PermitDispatchHandler {
 	fn permit_nonce(_account: H160) -> U256 {
 		U256::default()
 	}
+
+	fn on_dispatch_permit_error() {}
 }
