@@ -834,7 +834,7 @@ impl RouterWeightInfo {
 		Weight::from_parts(
 			weights::route_executor::HydraWeight::<Runtime>::calculate_spot_price_in_lbp()
 				.ref_time()
-				.saturating_sub(weights::lbp::HydraWeight::<Runtime>::calculate_spot_price().ref_time()),
+				.saturating_sub(weights::lbp::HydraWeight::<Runtime>::calculate_spot_price_with_fee().ref_time()),
 			weights::route_executor::HydraWeight::<Runtime>::calculate_spot_price_in_lbp().proof_size(),
 		)
 	}
@@ -1030,15 +1030,15 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	}
 
 	// Used in OtcSettlements::settle_otc_order extrinsic
-	fn calculate_spot_price_weight(route: &[Trade<AssetId>]) -> Weight {
+	fn calculate_spot_price_with_fee_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Self::calculate_spot_price_overweight();
 
 		for trade in route {
 			let amm_weight = match trade.pool {
-				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::calculate_spot_price(),
-				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::calculate_spot_price(),
-				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::calculate_spot_price(),
-				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::calculate_spot_price(),
+				PoolType::Omnipool => weights::omnipool::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
+				PoolType::LBP => weights::lbp::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
+				PoolType::Stableswap(_) => weights::stableswap::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
+				PoolType::XYK => weights::xyk::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}

@@ -265,7 +265,7 @@ runtime_benchmarks! {
 		}
 	}
 
-	calculate_spot_price {
+	calculate_spot_price_with_fee {
 		let asset_a = register_external_asset(b"TKNA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_b = register_external_asset(b"TKNB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let fee_asset = register_asset(b"FEE".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -288,7 +288,7 @@ runtime_benchmarks! {
 
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
 	}: {
-		assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_spot_price(PoolType::XYK, asset_a, asset_b).is_ok());
+		assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_spot_price_with_fee(PoolType::XYK, asset_a, asset_b).is_ok());
 	}
 }
 

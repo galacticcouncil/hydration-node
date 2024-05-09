@@ -515,7 +515,7 @@ runtime_benchmarks! {
 		}
 	}
 
-	calculate_spot_price {
+	calculate_spot_price_with_fee {
 		init()?;
 
 		let acc = Omnipool::protocol_account();
@@ -555,7 +555,7 @@ runtime_benchmarks! {
 		let sell_max_limit = 2_000_000_000_000_u128;
 
 	}: {
-		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_spot_price(PoolType::Omnipool, token_id, DAI).is_ok());
+		assert!(<Omnipool as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_spot_price_with_fee(PoolType::Omnipool, token_id, DAI).is_ok());
 	}
 
 }

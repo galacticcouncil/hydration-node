@@ -345,8 +345,8 @@ runtime_benchmarks! {
 		Router::get_route(AssetPair::new(HDX, DAI))
 	}
 
-	// Calculates the weight of LBP spot price calculation. Used in the calculation to determine the weight of the overhead.
-	calculate_spot_price_in_lbp {
+	// Calculates the weight of LBP spot price with fee calculation. Used in the calculation to determine the weight of the overhead.
+	calculate_spot_price_with_fee_in_lbp {
 		let asset_in = register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_out = register_external_asset(b"FCB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let caller: AccountId = funded_account("caller", 7, &[asset_in, asset_out]);
@@ -361,10 +361,10 @@ runtime_benchmarks! {
 		}];
 
 	}: {
-		Router::spot_price(trades.as_slice());
+		Router::spot_price_with_fee(trades.as_slice());
 	}
 	verify {
-		assert!(Router::spot_price(trades.as_slice()).is_some());
+		assert!(Router::spot_price_with_fee(trades.as_slice()).is_some());
 	}
 }
 

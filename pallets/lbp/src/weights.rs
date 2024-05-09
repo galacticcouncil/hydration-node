@@ -59,7 +59,7 @@ pub trait WeightInfo {
 	fn router_execution_sell(c: u32, e: u32) -> Weight;
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
 	fn calculate_buy() -> Weight;
-	fn calculate_spot_price() -> Weight;
+	fn calculate_spot_price_with_fee() -> Weight;
 }
 
 /// Weights for pallet_lbp using the hydraDX node and recommended hardware.
@@ -279,7 +279,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Locks` (r:1 w:0)
 	/// Proof: `Tokens::Locks` (`max_values`: None, `max_size`: Some(1261), added: 3736, mode: `MaxEncodedLen`)
-	fn calculate_spot_price() -> Weight {
+	fn calculate_spot_price_with_fee() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `789`
 		//  Estimated: `6156`
@@ -503,7 +503,7 @@ impl WeightInfo for () {
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Locks` (r:1 w:0)
 	/// Proof: `Tokens::Locks` (`max_values`: None, `max_size`: Some(1261), added: 3736, mode: `MaxEncodedLen`)
-	fn calculate_spot_price() -> Weight {
+	fn calculate_spot_price_with_fee() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `789`
 		//  Estimated: `6156`

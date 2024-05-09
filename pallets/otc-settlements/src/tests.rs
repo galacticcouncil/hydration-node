@@ -202,7 +202,7 @@ fn existing_arb_opportunity_should_trigger_trade() {
 			asset_in: otc.asset_out,
 			asset_out: otc.asset_in,
 		});
-		let router_price = Router::spot_price(&route).unwrap();
+		let router_price = Router::spot_price_with_fee(&route).unwrap();
 
 		// verify that there's an arb opportunity
 		assert!(otc_price > router_price);
@@ -256,7 +256,7 @@ fn existing_arb_opportunity_of_insufficient_asset_should_trigger_trade() {
 			asset_in: otc.asset_out,
 			asset_out: otc.asset_in,
 		});
-		let router_price = Router::spot_price(&route).unwrap();
+		let router_price = Router::spot_price_with_fee(&route).unwrap();
 
 		// verify that there's an arb opportunity
 		assert!(otc_price > router_price);
@@ -345,7 +345,7 @@ fn trade_should_be_triggered_when_arb_opportunity_appears() {
 			asset_in: otc.asset_out,
 			asset_out: otc.asset_in,
 		});
-		let router_price = Router::spot_price(&route).unwrap();
+		let router_price = Router::spot_price_with_fee(&route).unwrap();
 
 		// verify that there's no arb opportunity yet
 		assert!(otc_price < router_price);
@@ -365,7 +365,7 @@ fn trade_should_be_triggered_when_arb_opportunity_appears() {
 			asset_in: otc.asset_out,
 			asset_out: otc.asset_in,
 		});
-		let router_price = Router::spot_price(&route).unwrap();
+		let router_price = Router::spot_price_with_fee(&route).unwrap();
 
 		// verify that there's an arb opportunity
 		assert!(otc_price > router_price);
@@ -416,7 +416,7 @@ fn trade_should_not_be_triggered_when_there_is_no_arb_opportunity() {
 			asset_in: otc.asset_out,
 			asset_out: otc.asset_in,
 		});
-		let router_price = Router::spot_price(&route).unwrap();
+		let router_price = Router::spot_price_with_fee(&route).unwrap();
 
 		// verify that there's no arb opportunity
 		assert!(otc_price < router_price);
@@ -463,7 +463,7 @@ fn trade_should_not_be_triggered_when_optimal_amount_not_found() {
 			asset_in: otc.asset_out,
 			asset_out: otc.asset_in,
 		});
-		let router_price = Router::spot_price(&route).unwrap();
+		let router_price = Router::spot_price_with_fee(&route).unwrap();
 
 		// verify that there's an arb opportunity
 		assert!(otc_price > router_price);

@@ -609,7 +609,7 @@ benchmarks! {
 		}
 	}
 
-	calculate_spot_price {
+	calculate_spot_price_with_fee {
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let initial_liquidity = 1_000_000_000_000_000_000u128;
@@ -658,7 +658,7 @@ benchmarks! {
 		)?;
 		System::<T>::set_block_number(500u32.into());
 	}: {
-		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_spot_price(PoolType::Stableswap(pool_id), asset_in, asset_out).is_ok());
+		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), asset_in, asset_out).is_ok());
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);

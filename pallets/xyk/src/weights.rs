@@ -57,7 +57,7 @@ pub trait WeightInfo {
 	fn buy() -> Weight;
 	fn router_execution_sell(c: u32, e: u32) -> Weight;
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
-	fn calculate_spot_price() -> Weight;
+	fn calculate_spot_price_with_fee() -> Weight;
 }
 
 /// Weights for amm using the hydraDX node and recommended hardware.
@@ -337,7 +337,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `XYK::ShareToken` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:2 w:0)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	fn calculate_spot_price() -> Weight {
+	fn calculate_spot_price_with_fee() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1187`
 		//  Estimated: `6156`
@@ -621,7 +621,7 @@ impl WeightInfo for () {
 	/// Proof: `XYK::ShareToken` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:2 w:0)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	fn calculate_spot_price() -> Weight {
+	fn calculate_spot_price_with_fee() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1187`
 		//  Estimated: `6156`

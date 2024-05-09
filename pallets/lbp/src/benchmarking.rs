@@ -258,7 +258,7 @@ benchmarks! {
 	}
 	verify{}
 
-	calculate_spot_price {
+	calculate_spot_price_with_fee {
 		let caller = funded_account::<T>("caller", 0);
 		let fee_collector = funded_account::<T>("fee_collector", 0);
 		let asset_in: AssetId = ASSET_A_ID;
@@ -279,7 +279,7 @@ benchmarks! {
 		frame_system::Pallet::<T>::set_block_number(BlockNumberFor::<T>::from(2u32));
 
 	}: {
-		assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_spot_price(PoolType::LBP, asset_in, asset_out).is_ok());
+		assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_spot_price_with_fee(PoolType::LBP, asset_in, asset_out).is_ok());
 	}
 }
 

@@ -203,7 +203,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::settle_otc_order()
 			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
 		.saturating_add(<T as Config>::RouterWeightInfo::get_route_weight())
-		.saturating_add(<T as Config>::RouterWeightInfo::calculate_spot_price_weight(route))
+		.saturating_add(<T as Config>::RouterWeightInfo::calculate_spot_price_with_fee_weight(route))
 		.saturating_add(<T as pallet_otc::Config>::WeightInfo::fill_order().max(<T as pallet_otc::Config>::WeightInfo::partial_fill_order()))
 		)]
 		pub fn settle_otc_order(
@@ -312,7 +312,7 @@ impl<T: Config> Pallet<T> {
 		// some other error - we can't handle this one properly.
 
 		// // Compare OTC and Router price
-		let router_price_after = T::Router::spot_price(&route).unwrap();
+		let router_price_after = T::Router::spot_price_with_fee(&route).unwrap();
 		log::debug!(
 			target: "offchain_worker::settle_otc",
 			"final router price: {:?}   otc_price: {:?} ",
@@ -410,7 +410,7 @@ impl<T: Config> Pallet<T> {
 						asset_in: otc.asset_out,
 						asset_out: otc.asset_in,
 					});
-					let router_price_before = T::Router::spot_price(&route.clone());
+					let router_price_before = T::Router::spot_price_with_fee(&route.clone());
 
 					if let (Some(otc_price), Some(router_price)) = (otc_price, router_price_before) {
 						// otc's with no arb opportunity are at the end of the list and are not sorted

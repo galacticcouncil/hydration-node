@@ -552,7 +552,7 @@ impl<T: frame_system::Config> pallet_omnipool::WeightInfo for HydraWeight<T> {
 	/// Proof: `Omnipool::Assets` (`max_values`: None, `max_size`: Some(85), added: 2560, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:2 w:0)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	fn calculate_spot_price() -> Weight {
+	fn calculate_spot_price_with_fee() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1933`
 		//  Estimated: `6156`

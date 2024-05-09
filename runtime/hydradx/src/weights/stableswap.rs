@@ -369,7 +369,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
 	/// Storage: `AssetRegistry::Assets` (r:5 w:0)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	fn calculate_spot_price() -> Weight {
+	fn calculate_spot_price_with_fee() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1587`
 		//  Estimated: `13990`

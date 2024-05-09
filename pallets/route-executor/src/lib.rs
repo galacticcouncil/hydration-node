@@ -820,7 +820,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 }
 
 impl<T: Config> RouteSpotPriceProvider<T::AssetId> for DummyRouter<T> {
-	fn spot_price(_route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
+	fn spot_price_with_fee(_route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
 		Some(FixedU128::from_u32(2))
 	}
 }
