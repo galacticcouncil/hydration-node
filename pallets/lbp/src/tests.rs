@@ -25,8 +25,8 @@ use crate::mock::{
 	SAMPLE_AMM_TRANSFER, SAMPLE_POOL_DATA,
 };
 pub use crate::mock::{
-	set_block_number, Currency, ExtBuilder, LBPPallet, RuntimeEvent as TestEvent, RuntimeOrigin as Origin, Test, ALICE,
-	BOB, BSX, CHARLIE, ETH, HDX, KUSD,
+	set_block_number, Currency, ExtBuilder, LBPPallet, RuntimeOrigin as Origin, Test, ALICE, BOB, BSX, CHARLIE, ETH,
+	HDX, KUSD,
 };
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_traits::{AMMTransfer, LockedBalance};
@@ -3920,7 +3920,8 @@ mod spot_price_calculation {
 			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
-			let spot_price_with_fee = LBPPallet::calculate_spot_price(PoolType::LBP, asset_a, asset_b).unwrap();
+			let spot_price_with_fee =
+				LBPPallet::calculate_spot_price_with_fee(PoolType::LBP, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()
@@ -3995,8 +3996,14 @@ mod spot_price_calculation {
 			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
-			let spot_price_with_fee = LBPPallet::calculate_spot_price(PoolType::LBP, asset_a, asset_b).unwrap();
-			assert_eq!(spot_price_without_fee, spot_price_with_fee);
+			let spot_price_with_fee =
+				LBPPallet::calculate_spot_price_with_fee(PoolType::LBP, asset_a, asset_b).unwrap();
+			assert_eq_approx!(
+				spot_price_without_fee,
+				spot_price_with_fee,
+				FixedU128::from((2, (ONE / 10_000))),
+				"the relative difference is not as expected"
+			);
 		})
 	}
 
@@ -4045,7 +4052,8 @@ mod spot_price_calculation {
 			);
 
 			//Check spot price with fee
-			let spot_price_with_fee = LBPPallet::calculate_spot_price(PoolType::LBP, asset_a, asset_b).unwrap();
+			let spot_price_with_fee =
+				LBPPallet::calculate_spot_price_with_fee(PoolType::LBP, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()

@@ -42,13 +42,28 @@ members = [
   'pallets/evm-accounts',
   'pallets/dynamic-evm-fee',
   'pallets/xyk-liquidity-mining',
+  'precompiles/call-permit',
 ]
+
+resolver = "2"
 
 [workspace.dependencies]
 log = "0.4.20"
 async-trait = "0.1"
 futures = "0.3.25"
 hex-literal = "0.4.1"
+paste = "1.0.6"
+slices = "0.2.0"
+derive_more = "0.99"
+affix = "0.1.2"
+similar-asserts = "1.1.0"
+impl-trait-for-tuples = "0.2.1"
+environmental = {version = "1.1.2", default-features = false}
+hex = {version = "0.4.3", default-features = false}
+sha3 = {version = "0.10", default-features = false}
+serde = {version = "1.0.101", default-features = false}
+libsecp256k1 = {version = "0.7", default-features = false}
+num_enum = {version = "0.5.3", default-features = false}
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
 hydradx-traits = { path = "traits", default-features = false }
@@ -96,6 +111,9 @@ scraper = { path = "scraper", default-features = false }
 test-utils = { path = "utils/test-utils", default-features = false }
 
 integration-tests = { path = "integration-tests", default-features = false }
+
+pallet-evm-precompile-call-permit = { path ="precompiles/call-permit", default-features = false }
+precompile-utils = { path ="precompiles/utils", default-features = false }
 
 # Codec
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
@@ -161,6 +179,7 @@ sc-tracing = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d225
 sc-transaction-pool = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 sc-transaction-pool-api = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 sc-sysinfo = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
+sp-weights = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }
 
 # Substrate Pallets
 pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901", default-features = false }

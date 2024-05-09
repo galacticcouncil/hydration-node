@@ -1,8 +1,9 @@
 use crate::stableswap::types::AssetReserve;
+
 use crate::support::rational::round_to_rational;
 use crate::to_u256;
-use crate::types::Balance;
-use num_traits::{CheckedDiv, CheckedMul, One, Zero};
+use crate::types::{AssetId, Balance};
+use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::Div;
@@ -729,13 +730,113 @@ pub fn calculate_share_price<const D: u8>(
 	Some((num, denom))
 }
 
+const STABLE_ASSET: bool = false;
+const SHARE_ASSET: bool = true;
+
+/// Calculating spot price between two assets in stablepool, including the impact of the fee
+///
+/// An asset can be either a stable asset or a share asset
+///
+/// Returns price of asset_out denominated in asset_in (asset_in/asset_out)
+///
+/// - `pool_id` - id of the pool
+/// - `reserves` - reserve balances of assets
+/// - `amplification` - curve AMM pool amplification parameter
+/// - `asset_in` - asset id of asset in
+/// - `asset_out` - asset id of asset out
+/// - `share_issuance` - total issuance of the share
+/// - `min_trade_amount` - min trade amount of stableswap
+/// - `pool_fee` - fee of the pool
+///
+#[allow(clippy::too_many_arguments)]
 pub fn calculate_spot_price(
+	pool_id: AssetId,
+	asset_reserves: Vec<(AssetId, AssetReserve)>,
+	amplification: Balance,
+	asset_in: AssetId,
+	asset_out: AssetId,
+	share_issuance: Balance,
+	min_trade_amount: Balance,
+	fee: Option<Permill>,
+) -> Option<FixedU128> {
+	let reserves = asset_reserves
+		.clone()
+		.into_iter()
+		.map(|(_, v)| v)
+		.collect::<Vec<AssetReserve>>();
+
+	let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amplification)?;
+
+	match (asset_in == pool_id, asset_out == pool_id) {
+		(STABLE_ASSET, STABLE_ASSET) => {
+			let asset_in_idx = asset_reserves.iter().position(|r| r.0 == asset_in)?;
+			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
+			calculate_spot_price_between_two_stable_assets(
+				&reserves,
+				amplification,
+				d,
+				asset_in_idx,
+				asset_out_idx,
+				fee,
+			)
+		}
+		(SHARE_ASSET, STABLE_ASSET) => {
+			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
+			let shares = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
+				&reserves,
+				asset_out_idx,
+				min_trade_amount,
+				amplification,
+				share_issuance,
+				fee.unwrap_or(Permill::zero()),
+			)?;
+
+			FixedU128::checked_from_rational(shares, min_trade_amount)
+		}
+		(STABLE_ASSET, SHARE_ASSET) => {
+			let added_asset = (asset_in, min_trade_amount);
+
+			let mut updated_reserves = asset_reserves.clone();
+			for reserve in updated_reserves.iter_mut() {
+				if reserve.0 == added_asset.0 {
+					reserve.1.amount += added_asset.1;
+				}
+			}
+
+			let update_reserves: &Vec<AssetReserve> = &updated_reserves.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
+			let shares_for_min_trade = calculate_shares::<MAX_D_ITERATIONS>(
+				&reserves,
+				update_reserves,
+				amplification,
+				share_issuance,
+				fee.unwrap_or(Permill::zero()),
+			)?;
+
+			FixedU128::checked_from_rational(min_trade_amount, shares_for_min_trade)
+		}
+		_ => None,
+	}
+}
+
+/// Calculating spot price between two stable asset AB, including the impact of the fee
+///
+/// Returns price of asset_out denominated in asset_in (asset_in/asset_out)
+///
+/// - `reserves` - reserve balances of assets
+/// - `amplification` - curve AMM pool amplification parameter
+/// - `d` - D invariant
+/// - `asset_in_idx` - asset in index
+/// - `asset_out_idx` - asset out index
+/// - `fee` - fee of the pool
+///
+pub fn calculate_spot_price_between_two_stable_assets(
 	reserves: &[AssetReserve],
 	amplification: Balance,
 	d: Balance,
 	asset_in_idx: usize,
 	asset_out_idx: usize,
-) -> Option<(Balance, Balance)> {
+	fee: Option<Permill>,
+) -> Option<FixedU128> {
 	let n = reserves.len();
 	if n <= 1 || asset_in_idx >= n || asset_out_idx >= n {
 		return None;
@@ -758,15 +859,23 @@ pub fn calculate_spot_price(
 	let num = x0.checked_mul(ann.checked_mul(xi)?.checked_add(c)?)?;
 	let denom = xi.checked_mul(ann.checked_mul(x0)?.checked_add(c)?)?;
 
-	Some(round_to_rational(
-		(num, denom),
-		crate::support::rational::Rounding::Down,
-	))
+	let mut spot_price = round_to_rational((num, denom), crate::support::rational::Rounding::Down);
+
+	if let Some(fee) = fee {
+		// Amount_out is reduced by fee in SELL, making asset_out more expensive, so the asset_in/asset_out spot price should be increased.
+		// So divide spot-price-without-fee by (1-fee) to reflect correct amount out after the fee deduction
+		let fee_multiplier = Permill::from_percent(100).checked_sub(&fee)?;
+
+		spot_price.1 = fee_multiplier.mul_floor(spot_price.1);
+	}
+
+	FixedU128::checked_from_rational(spot_price.0, spot_price.1)
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::assert_approx_eq;
 
 	#[test]
 	fn test_normalize_value_same_decimals() {
@@ -808,15 +917,16 @@ mod tests {
 		];
 		let amp = 319u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
-		let p = calculate_spot_price(&reserves, amp, d, 0, 1).unwrap();
-		assert_eq!(
+		let p = calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 0, 1, None).unwrap();
+		assert_approx_eq!(
 			p,
-			(
+			FixedU128::from_rational(
 				259416830506303392284340673024338472588,
 				259437723055509887749072196895052016056
-			)
+			),
+			FixedU128::from((2, (1_000_000_000_000u128 / 10_000))),
+			"the relative difference is not as expected"
 		);
-
 		let reserves = vec![
 			AssetReserve::new(1_001_000_000_000_000_000, 12),
 			AssetReserve::new(1_000_000_000_000_000_000, 12),
@@ -825,13 +935,15 @@ mod tests {
 		];
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
-		let p = calculate_spot_price(&reserves, amp, d, 0, 1).unwrap();
-		assert_eq!(
+		let p = calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 0, 1, None).unwrap();
+		assert_approx_eq!(
 			p,
-			(
+			FixedU128::from_rational(
 				320469570070413807187663384895131457597,
 				320440458954331380180651678529102355242
-			)
+			),
+			FixedU128::from((2, (1_000_000_000_000u128 / 10_000))),
+			"the relative difference is not as expected"
 		);
 	}
 
@@ -846,8 +958,8 @@ mod tests {
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp).unwrap();
 
-		assert!(calculate_spot_price(&reserves, amp, d, 4, 1).is_none());
-		assert!(calculate_spot_price(&reserves, amp, d, 1, 4).is_none());
+		assert!(calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 4, 1, None).is_none());
+		assert!(calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 1, 4, None).is_none());
 	}
 
 	#[test]

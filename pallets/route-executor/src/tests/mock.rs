@@ -424,7 +424,7 @@ macro_rules! impl_fake_executor {
 				Ok(100)
 			}
 
-			fn calculate_spot_price(
+			fn calculate_spot_price_with_fee(
 				_pool_type: PoolType<AssetId>,
 				_asset_a: AssetId,
 				_asset_b: AssetId,

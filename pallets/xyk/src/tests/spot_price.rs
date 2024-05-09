@@ -145,7 +145,7 @@ fn compare_sell_spot_price_with_and_without_fee() {
 			assert!(relative_difference_without_fee < tolerated_difference);
 
 			//Check spot price with fee
-			let spot_price_with_fee = XYK::calculate_spot_price(PoolType::XYK, asset_a, asset_b).unwrap();
+			let spot_price_with_fee = XYK::calculate_spot_price_with_fee(PoolType::XYK, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()

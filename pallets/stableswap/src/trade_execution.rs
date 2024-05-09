@@ -1,17 +1,17 @@
 use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
-use frame_support::storage::with_transaction;
-use frame_system::pallet_prelude::OriginFor;
-use frame_system::Origin;
+use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
 use sp_core::Get;
-use sp_runtime::traits::{CheckedDiv, CheckedSub};
-use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill, TransactionOutcome};
+use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
 use sp_std::vec;
 
-impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
+impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T>
+where
+	u32: sp_std::convert::From<T::AssetId>,
+	sp_std::vec::Vec<(u32, AssetReserve)>: FromIterator<(T::AssetId, AssetReserve)>,
+{
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -204,133 +204,43 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 		}
 	}
 
-	fn calculate_spot_price(
+	fn calculate_spot_price_with_fee(
 		pool_type: PoolType<T::AssetId>,
 		asset_a: T::AssetId,
 		asset_b: T::AssetId,
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
-				if asset_a != pool_id && asset_b != pool_id {
-					let pool_account = Self::pool_account(pool_id);
-					let pool = Pools::<T>::get(pool_id)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
-					let balances = pool
-						.reserves_with_decimals::<T>(&pool_account)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
-					let amp = Pallet::<T>::get_amplification(&pool);
-					let asset_in_idx = pool
-						.find_asset(asset_a)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
-					let asset_out_idx = pool
-						.find_asset(asset_b)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
-					let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp)
-						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
-					let p =
-						hydra_dx_math::stableswap::calculate_spot_price(&balances, amp, d, asset_in_idx, asset_out_idx)
-							.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
+				let pool_account = Self::pool_account(pool_id);
+				let pool =
+					Pools::<T>::get(pool_id).ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+				let balances = pool
+					.reserves_with_decimals::<T>(&pool_account)
+					.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 
-					let fee_multiplier = Permill::from_percent(100)
-						.checked_sub(&pool.fee)
-						.ok_or(ExecutorError::Error(Corruption))?;
-					let fee_multiplier =
-						FixedU128::checked_from_rational(fee_multiplier.deconstruct() as u128, 1_000_000)
-							.ok_or(ExecutorError::Error(Corruption))?;
+				let assets_with_reserves = pool
+					.assets
+					.iter()
+					.zip(balances.iter())
+					.map(|(asset_id, reserve)| (*asset_id, *reserve))
+					.collect();
+				let amp = Pallet::<T>::get_amplification(&pool);
+				let share_issuance = T::Currency::total_issuance(pool_id);
+				let min_trade_limit = T::MinTradingLimit::get();
 
-					let spot_price_without_fee = FixedU128::from_rational(p.0, p.1);
-					let spot_price_with_fee = spot_price_without_fee
-						.checked_div(&fee_multiplier)
-						.ok_or(ExecutorError::Error(Corruption))?;
+				let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+					pool_id.into(),
+					assets_with_reserves,
+					amp,
+					asset_a.into(),
+					asset_b.into(),
+					share_issuance,
+					min_trade_limit,
+					Some(pool.fee),
+				)
+				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
-					Ok(spot_price_with_fee)
-				} else if asset_a == pool_id {
-					//We need to buy an exact amount of stable asset to prevent too low share amount in calculations
-					let spot_price = with_transaction::<_, DispatchError, _>(|| {
-						let amount_out = T::MinTradingLimit::get();
-
-						let origin: OriginFor<T> = Origin::<T>::Signed(Self::pallet_account()).into();
-
-						//We mint amount in to dry-run buy. We need such big amount to make it work with all decimals up to 18
-						let amount_in_balance = 1_000_000_000_000_000_000;
-						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), amount_in_balance);
-
-						//We need to mint some asset_out balance otherwise we can have ED error triggered when transfer happens from trade
-						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), amount_out);
-
-						if let Err(err) = Self::execute_buy(
-							origin,
-							PoolType::Stableswap(pool_id),
-							asset_a,
-							asset_b,
-							amount_out,
-							Balance::MAX,
-						) {
-							return match err {
-								ExecutorError::Error(dispatch_err) => TransactionOutcome::Rollback(Err(dispatch_err)),
-								_ => TransactionOutcome::Rollback(Err(Corruption)),
-							};
-						}
-
-						let Some(spent_amount_in) =
-							amount_in_balance.checked_sub(T::Currency::free_balance(asset_a, &Self::pallet_account())) else {
-							return TransactionOutcome::Rollback(Err(Corruption));
-						};
-
-						let Some(spot_price) =
-							FixedU128::checked_from_rational(spent_amount_in, amount_out) else {
-							return TransactionOutcome::Rollback(Err(Corruption));
-						};
-
-						TransactionOutcome::Rollback(Ok(spot_price))
-					})
-					.map_err(ExecutorError::Error)?;
-
-					Ok(spot_price)
-				} else {
-					//We need to sell an exact amount of stable asset to prevent too low share amount in calculations
-					let spot_price = with_transaction::<_, DispatchError, _>(|| {
-						let sell_amount = T::MinTradingLimit::get();
-
-						let origin: OriginFor<T> = Origin::<T>::Signed(Self::pallet_account()).into();
-
-						//We need to mint MinPoolLiquidity to dry-run sell, otherwise we can have issues with too low shares
-						let asset_balance = T::MinPoolLiquidity::get();
-
-						let _ = T::Currency::deposit(asset_a, &Self::pallet_account(), asset_balance);
-
-						//We need to mint some asset_out balance otherwise we can have ED error triggered when transfer happens from sell trade
-						let _ = T::Currency::deposit(asset_b, &Self::pallet_account(), asset_balance);
-						if let Err(err) = Self::execute_sell(
-							origin,
-							PoolType::Stableswap(pool_id),
-							asset_a,
-							asset_b,
-							sell_amount,
-							Balance::MIN,
-						) {
-							return match err {
-								ExecutorError::Error(dispatch_err) => TransactionOutcome::Rollback(Err(dispatch_err)),
-								_ => TransactionOutcome::Rollback(Err(Corruption)),
-							};
-						}
-
-						let Some(amount_out) =
-							T::Currency::free_balance(asset_b, &Self::pallet_account()).checked_sub(asset_balance) else {
-							return TransactionOutcome::Rollback(Err(Corruption));
-						};
-
-						let Some(spot_price) =
-							FixedU128::checked_from_rational(sell_amount, amount_out) else {
-							return TransactionOutcome::Rollback(Err(Corruption));
-						};
-
-						TransactionOutcome::Rollback(Ok(spot_price))
-					})
-					.map_err(ExecutorError::Error)?;
-
-					Ok(spot_price)
-				}
+				Ok(spot_price)
 			}
 			_ => Err(ExecutorError::NotSupported),
 		}

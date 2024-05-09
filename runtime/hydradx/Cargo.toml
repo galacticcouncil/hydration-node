@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "229.0.0"
+version = "234.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -153,6 +153,8 @@ pallet-evm-precompile-simple = { workspace = true }
 pallet-evm-precompile-modexp = { workspace = true }
 pallet-evm-precompile-bn128 = { workspace = true }
 pallet-evm-precompile-blake2 = { workspace = true }
+pallet-evm-precompile-call-permit = { workspace = true }
+precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { version = "18.0.0", default-features = false }
 
@@ -305,6 +307,7 @@ std = [
     "pallet-evm-precompile-modexp/std",
     "pallet-evm-precompile-bn128/std",
     "pallet-evm-precompile-blake2/std",
+    "pallet-xyk/std",
     "pallet-referrals/std",
     "pallet-evm-accounts/std",
     "pallet-evm-accounts-rpc-runtime-api/std",

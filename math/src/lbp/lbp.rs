@@ -1,7 +1,7 @@
 use core::convert::{TryFrom, TryInto};
 use primitive_types::U256;
 
-use crate::types::{Balance, LBPWeight};
+use crate::types::{AssetId, Balance, LBPWeight};
 use crate::{
 	ensure, to_balance, to_lbp_weight, to_u256, MathError,
 	MathError::{Overflow, ZeroDuration, ZeroReserve},
@@ -9,10 +9,10 @@ use crate::{
 
 use core::convert::From;
 use fixed::types::U32F96;
-use num_traits::Zero;
+use num_traits::{CheckedMul, CheckedSub, Zero};
 use sp_arithmetic;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_arithmetic::Rounding;
+use sp_arithmetic::{FixedPointNumber, FixedU128, Rounding};
 
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
@@ -52,6 +52,60 @@ pub fn calculate_spot_price(
 	to_balance!(spot_price)
 }
 
+/// Calculating spot price given reserve of selling asset and reserve of buying asset.
+/// The calculation includes the fee of the pool
+///
+/// Returns price of asset_in denominated in asset_out (asset_out/asset_in)
+///
+/// - `in_reserve` - reserve amount of selling asset
+/// - `out_reserve` - reserve amount of buying asset
+/// - `in_weight` - pool weight of selling asset
+/// - `out_Weight` - pool weight of buying asset
+/// - `fee_asset` - the fee asset of the pool (it is usually the asset at the first index within the pool)
+/// - `asset_out` - the asset id of the buying asset
+/// - `fee` - fee rate of the pool.
+///
+/// NOTE: the fee should be passed based on the fact if repay fee should be applied or not.
+///
+/// Returns MathError in case of error
+pub fn calculate_spot_price_with_fee(
+	in_reserve: Balance,
+	out_reserve: Balance,
+	in_weight: LBPWeight,
+	out_weight: LBPWeight,
+	fee_asset: AssetId,
+	asset_out: AssetId,
+	fee: Option<(u32, u32)>,
+) -> Result<FixedU128, MathError> {
+	ensure!(in_reserve != 0 || out_reserve != 0, ZeroReserve);
+
+	let n = out_reserve.checked_mul(in_weight.into()).ok_or(Overflow)?;
+	let d = in_reserve.checked_mul(out_weight.into()).ok_or(Overflow)?;
+
+	let spot_price_without_fee = FixedU128::checked_from_rational(n, d).ok_or(DivisionByZero)?;
+
+	if let Some((fee_n, fee_d)) = fee {
+		let spot_price_with_fee = if fee_asset == asset_out {
+			//Buyer bears fee, the fee is deducted from asset out, making the asset_out/asset_in price cheaper
+			//So we decrease the price by multipling with (1-f) to reflect correct amount out after the fee deduction
+			let fee = FixedU128::checked_from_rational(fee_n, fee_d).ok_or(DivisionByZero)?;
+			let fee_multiplier = FixedU128::from_rational(1, 1).checked_sub(&fee).ok_or(Overflow)?;
+
+			spot_price_without_fee.checked_mul(&fee_multiplier).ok_or(Overflow)?
+		} else {
+			//Pool bears repay fee
+			//Fee does not change spot price as user receives the whole amount out based on whole amount in.
+			//For the trade, amount_in minus fee is transferred from the user, then in the end the fee is transferred to fee-collector
+			spot_price_without_fee
+		};
+
+		return Ok(spot_price_with_fee);
+	}
+
+	Ok(spot_price_without_fee)
+}
+
+use crate::MathError::DivisionByZero;
 use num_traits::One;
 
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.

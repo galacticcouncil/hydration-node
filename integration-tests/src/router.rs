@@ -3959,7 +3959,7 @@ mod route_spot_price {
 			assert_balance!(BOB.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DOT, amount_out);
 
-			let spot_price_of_hdx_per_dot = Router::spot_price(&trades).unwrap();
+			let spot_price_of_hdx_per_dot = Router::spot_price_with_fee(&trades).unwrap();
 			let calculated_amount_out = spot_price_of_hdx_per_dot
 				.reciprocal()
 				.unwrap()
@@ -4054,7 +4054,7 @@ mod route_spot_price {
 					ALICE_INITIAL_DOT_BALANCE + expected_amount_out
 				);
 
-				let spot_price_of_hdx_per_dot = Router::spot_price(&trades).unwrap();
+				let spot_price_of_hdx_per_dot = Router::spot_price_with_fee(&trades).unwrap();
 				let calculated_amount_out = spot_price_of_hdx_per_dot
 					.reciprocal()
 					.unwrap()
@@ -4140,7 +4140,7 @@ mod route_spot_price {
 					expected_amount_out
 				);
 
-				let spot_price_of_hdx_per_dot = Router::spot_price(&trades).unwrap();
+				let spot_price_of_hdx_per_dot = Router::spot_price_with_fee(&trades).unwrap();
 				let calculated_amount_out = spot_price_of_hdx_per_dot
 					.reciprocal()
 					.unwrap()
@@ -4211,7 +4211,7 @@ mod route_spot_price {
 					expected_amount_out
 				);
 
-				let spot_price_of_hdx_per_dot = Router::spot_price(&trades).unwrap();
+				let spot_price_of_hdx_per_dot = Router::spot_price_with_fee(&trades).unwrap();
 				let calculated_amount_out = spot_price_of_hdx_per_dot
 					.reciprocal()
 					.unwrap()

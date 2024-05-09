@@ -1,3 +1,4 @@
+#![cfg(test)]
 // DCA pallet uses dummy router for benchmarks and some tests fail when benchmarking feature is enabled
 #![cfg(not(feature = "runtime-benchmarks"))]
 mod asset_registry;
@@ -10,6 +11,7 @@ mod dust;
 mod dust_removal_whitelist;
 mod dynamic_fees;
 mod evm;
+mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
 mod global_account_derivation;
@@ -24,6 +26,7 @@ mod referrals;
 mod router;
 mod staking;
 mod transact_call_filter;
+mod utils;
 mod vesting;
 mod xcm_defer;
 mod xcm_rate_limiter;

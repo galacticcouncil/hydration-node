@@ -72,9 +72,7 @@ use frame_support::traits::Contains;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
-	OnLiquidityChangedHandler, OnTradeHandler,
-	OraclePeriod::{self, *},
-	Volume,
+	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod::*, Volume,
 };
 use sp_arithmetic::traits::Saturating;
 use sp_std::marker::PhantomData;

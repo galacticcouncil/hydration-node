@@ -3,13 +3,11 @@ use crate::{Config, Error, HubAssetImbalance, Pallet};
 use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::omnipool::types::I129;
 
-use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::{GetByKey, MultiCurrency};
 use sp_runtime::traits::Get;
-use sp_runtime::traits::{CheckedDiv, CheckedSub};
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 
 // dev note: The code is calculate sell and buy is copied from the corresponding functions.
 // This is not ideal and should be refactored to avoid code duplication.
@@ -170,7 +168,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		Ok(asset_state.reserve)
 	}
 
-	fn calculate_spot_price(
+	fn calculate_spot_price_with_fee(
 		pool_type: PoolType<T::AssetId>,
 		asset_a: T::AssetId,
 		asset_b: T::AssetId,
@@ -179,40 +177,32 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			return Err(ExecutorError::NotSupported);
 		}
 
+		if asset_b == T::HubAssetId::get() {
+			return Err(ExecutorError::Error(Error::<T>::NotAllowed.into()));
+		}
+
 		let (_, protocol_fee) = T::Fee::get(&asset_a);
 		let (asset_fee, _) = T::Fee::get(&asset_b);
 
-		let protocol_fee_multipiler = Permill::from_percent(100)
-			.checked_sub(&protocol_fee)
-			.ok_or(ExecutorError::Error(Corruption))?;
-		let protocol_fee_multiplier =
-			FixedU128::checked_from_rational(protocol_fee_multipiler.deconstruct() as u128, 1_000_000)
-				.ok_or(ExecutorError::Error(Corruption))?;
-
-		let asset_fee_multiplier = Permill::from_percent(100)
-			.checked_sub(&asset_fee)
-			.ok_or(ExecutorError::Error(Corruption))?;
-		let asset_fee_multiplier =
-			FixedU128::checked_from_rational(asset_fee_multiplier.deconstruct() as u128, 1_000_000)
-				.ok_or(ExecutorError::Error(Corruption))?;
-
-		let spot_price_without_fee = Self::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
-
 		let spot_price = if asset_a == T::HubAssetId::get() {
-			// No protocol fee involved when LRNA is sold
-			// Fee is taken from asset out, so we need to increase the spot price
-			// We divide by (1-asset_fee) to reflect correct amount out after the fee deduction
-			spot_price_without_fee
-				.checked_div(&asset_fee_multiplier)
+			let asset_b_state = Self::load_asset_state(asset_b).map_err(ExecutorError::Error)?;
+
+			hydra_dx_math::omnipool::calculate_lrna_spot_price(&asset_b_state.into(), Some(asset_fee))
+				.ok_or(ExecutorError::Error(Corruption))?
+				.reciprocal()
 				.ok_or(ExecutorError::Error(Corruption))?
 		} else {
-			// Both protocol fee and asset fee reduce the asset_out amount received, both making the A/B price higher
-			// So we increase the spot price with dividing by (1-protocol_fee)*(1-asset_fee) to reflect correct amount out after the fee deduction
-			spot_price_without_fee
-				.checked_div(&protocol_fee_multiplier)
-				.ok_or(ExecutorError::Error(Corruption))?
-				.checked_div(&asset_fee_multiplier)
-				.ok_or(ExecutorError::Error(Corruption))?
+			let asset_a_state = Self::load_asset_state(asset_a).map_err(ExecutorError::Error)?;
+			let asset_b_state = Self::load_asset_state(asset_b).map_err(ExecutorError::Error)?;
+
+			hydra_dx_math::omnipool::calculate_spot_price(
+				&asset_a_state.into(),
+				&asset_b_state.into(),
+				Some((protocol_fee, asset_fee)),
+			)
+			.ok_or(ExecutorError::Error(Corruption))?
+			.reciprocal()
+			.ok_or(ExecutorError::Error(Corruption))?
 		};
 
 		Ok(spot_price)

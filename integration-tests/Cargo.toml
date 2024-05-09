@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.20.3"
+version = "1.21.4"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -46,6 +46,7 @@ pallet-scheduler = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-tips = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
+pallet-transaction-pause = { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }
@@ -61,6 +62,9 @@ orml-xcm = { workspace = true }
 orml-xtokens = { workspace = true }
 orml-xcm-support = { workspace = true }
 orml-unknown-tokens = { workspace = true }
+
+precompile-utils = { workspace = true }
+pallet-evm-precompile-call-permit = { workspace = true }
 
 # Evm
 pallet-evm = { workspace = true }
@@ -132,6 +136,9 @@ pretty_assertions = "1.2.1"
 pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 test-utils = { workspace = true }
+libsecp256k1 = { workspace = true }
+
+
 [features]
 default = ["std"]
 std = [
@@ -197,7 +204,9 @@ std = [
     "hydradx-runtime/std",
     "pallet-staking/std",
     "scraper/std",
-    "pallet-dynamic-evm-fee/std"
+    "pallet-dynamic-evm-fee/std",
+    "precompile-utils/std",
+    "pallet-transaction-pause/std",
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

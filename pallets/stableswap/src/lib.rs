@@ -68,8 +68,6 @@ mod trade_execution;
 pub mod types;
 pub mod weights;
 
-pub use trade_execution::*;
-
 use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, Tradability};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;

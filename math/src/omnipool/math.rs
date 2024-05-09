@@ -441,17 +441,70 @@ pub fn calculate_delta_imbalance(
 	to_balance!(delta_imbalance_hp).ok()
 }
 
-pub fn calculate_spot_sprice(
+/// Calculate spot price between two omnipool assets, with incorporating the fee
+///
+/// Returns price of asset_in denominated in asset_out (asset_out/asset_in)
+///
+/// - `asset_a` - selling asset reserve
+/// - `asset_b` - buying asset reserve
+/// - `fee` - protocol fee and asset fee in a tuple
+///
+/// NOTE: If you want price with LRNA, use `calculate_lrna_spot_sprice`
+///
+pub fn calculate_spot_price(
 	asset_a: &AssetReserveState<Balance>,
 	asset_b: &AssetReserveState<Balance>,
+	fee: Option<(Permill, Permill)>,
 ) -> Option<FixedU128> {
 	let price_a = FixedU128::checked_from_rational(asset_a.hub_reserve, asset_a.reserve)?;
 	let price_b = FixedU128::checked_from_rational(asset_b.reserve, asset_b.hub_reserve)?;
-	price_a.checked_mul(&price_b)
+	let spot_price_without_fee = price_a.checked_mul(&price_b)?;
+
+	if let Some((protocol_fee, asset_fee)) = fee {
+		let protocol_fee_multipiler = Permill::from_percent(100).checked_sub(&protocol_fee)?;
+		let protocol_fee_multiplier =
+			FixedU128::checked_from_rational(protocol_fee_multipiler.deconstruct() as u128, 1_000_000)?;
+
+		let asset_fee_multiplier = Permill::from_percent(100).checked_sub(&asset_fee)?;
+		let asset_fee_multiplier =
+			FixedU128::checked_from_rational(asset_fee_multiplier.deconstruct() as u128, 1_000_000)?;
+
+		// Both protocol fee and asset fee reduce the asset_out amount received, both making the B/A price smaller
+		// So we decrease the spot price with multiplying by (1-protocol_fee)*(1-asset_fee) to reflect correct amount out after the fee deduction
+		let spot_price_with_fee = spot_price_without_fee
+			.checked_mul(&protocol_fee_multiplier)?
+			.checked_mul(&asset_fee_multiplier)?;
+
+		return Some(spot_price_with_fee);
+	}
+
+	Some(spot_price_without_fee)
 }
 
-pub fn calculate_lrna_spot_sprice(asset: &AssetReserveState<Balance>) -> Option<FixedU128> {
-	FixedU128::checked_from_rational(asset.reserve, asset.hub_reserve)
+/// Calculate LRNA spot price
+///
+/// Returns price of LRNA denominated in asset (asset/LRNA)
+///
+/// - `asset` - selling asset reserve
+/// - `fee` - asset fee
+///
+pub fn calculate_lrna_spot_price(asset: &AssetReserveState<Balance>, fee: Option<Permill>) -> Option<FixedU128> {
+	let spot_price_without_fee = FixedU128::checked_from_rational(asset.reserve, asset.hub_reserve)?;
+
+	if let Some(asset_fee) = fee {
+		let asset_fee_multiplier = Permill::from_percent(100).checked_sub(&asset_fee)?;
+		let asset_fee_multiplier =
+			FixedU128::checked_from_rational(asset_fee_multiplier.deconstruct() as u128, 1_000_000)?;
+
+		// No protocol fee involved when LRNA is sold
+		// Fee is taken from TKN asset out, making the TKN/LRNA price smaller
+		// We multiple by (1-asset_fee) to reflect correct amount out after the fee deduction
+		let spot_price_with_fee = spot_price_without_fee.checked_mul(&asset_fee_multiplier)?;
+
+		return Some(spot_price_with_fee);
+	}
+
+	Some(spot_price_without_fee)
 }
 
 pub fn calculate_cap_difference(

@@ -58,6 +58,25 @@ fn add_non_registered_asset_fails() {
 }
 
 #[test]
+fn add_asset_without_ed_fails() {
+	ExtBuilder::default()
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::add_token(
+					RuntimeOrigin::root(),
+					ASSET_WITHOUT_ED,
+					FixedU128::from_float(0.5),
+					Permill::from_percent(100),
+					LP1
+				),
+				Error::<Test>::ExistentialDepositNotAvailable
+			);
+		});
+}
+
+#[test]
 fn add_token_with_zero_price_fails() {
 	ExtBuilder::default()
 		.with_registered_asset(1000)

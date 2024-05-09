@@ -1,15 +1,12 @@
 use crate::types::{AssetId, AssetPair, Balance};
-use crate::{Config, Error, Pallet, XYKSpotPrice};
+use crate::{Config, Error, Pallet};
 use frame_support::ensure;
 use frame_support::traits::Get;
-use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use sp_runtime::traits::CheckedDiv;
-use sp_runtime::traits::CheckedSub;
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
@@ -145,7 +142,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		Ok(liquidty)
 	}
 
-	fn calculate_spot_price(
+	fn calculate_spot_price_with_fee(
 		pool_type: PoolType<AssetId>,
 		asset_a: AssetId,
 		asset_b: AssetId,
@@ -154,20 +151,23 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 			return Err(ExecutorError::NotSupported);
 		}
 
-		// Formula: spot-price-with-fee = spot-price-without-fee / (1 - fee)
-		// Since in the trade the amount out is reduced by fee, it makes asset B more expensive, so the spot price should be increased
-		// We divide to reflect correct amount out after the fee deduction
-		let fee = T::GetExchangeFee::get();
-		let fee = FixedU128::checked_from_rational(fee.0, fee.1).ok_or(ExecutorError::Error(Corruption))?;
-		let fee_multipiler = FixedU128::from_rational(1, 1)
-			.checked_sub(&fee)
-			.ok_or(ExecutorError::Error(Corruption))?;
+		let pair_account = <crate::Pallet<T>>::get_pair_id(AssetPair {
+			asset_out: asset_a,
+			asset_in: asset_b,
+		});
 
-		let spot_price_without_fee =
-			XYKSpotPrice::<T>::spot_price(asset_a, asset_b).ok_or(ExecutorError::Error(Corruption))?;
+		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
+		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-		spot_price_without_fee
-			.checked_div(&fee_multipiler)
-			.ok_or(ExecutorError::Error(Corruption))
+		let spot_price_with_fee = hydra_dx_math::xyk::calculate_spot_price_with_fee(
+			asset_a_reserve,
+			asset_b_reserve,
+			Some(T::GetExchangeFee::get()),
+		)
+		.map_err(|_| ExecutorError::Error(ArithmeticError::Overflow.into()))?
+		.reciprocal()
+		.ok_or(ExecutorError::Error(Corruption))?;
+
+		Ok(spot_price_with_fee)
 	}
 }

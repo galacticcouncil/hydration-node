@@ -67,7 +67,8 @@ fn compare_spot_price_with_and_without_fee_between_two_new_tokens() {
 			);
 
 			//Check spot price with fee
-			let spot_price_with_fee = Omnipool::calculate_spot_price(PoolType::Omnipool, asset_a, asset_b).unwrap();
+			let spot_price_with_fee =
+				Omnipool::calculate_spot_price_with_fee(PoolType::Omnipool, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()
@@ -157,7 +158,8 @@ fn compare_spot_price_with_and_without_fee_when_hdx_sold() {
 			);
 
 			//Check spot price with fee
-			let spot_price_with_fee = Omnipool::calculate_spot_price(PoolType::Omnipool, asset_a, asset_b).unwrap();
+			let spot_price_with_fee =
+				Omnipool::calculate_spot_price_with_fee(PoolType::Omnipool, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()
@@ -247,7 +249,8 @@ fn compare_spot_price_with_and_without_fee_when_lrna_sold() {
 			);
 
 			//Check spot price with fee
-			let spot_price_with_fee = Omnipool::calculate_spot_price(PoolType::Omnipool, asset_a, asset_b).unwrap();
+			let spot_price_with_fee =
+				Omnipool::calculate_spot_price_with_fee(PoolType::Omnipool, asset_a, asset_b).unwrap();
 			let calculated_amount_out_with_fee = spot_price_with_fee
 				.reciprocal()
 				.unwrap()

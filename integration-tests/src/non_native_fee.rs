@@ -331,7 +331,7 @@ fn fee_currency_on_evm_account_lifecycle() {
 		assert_eq!(Tokens::free_balance(DAI, &truncated_account), 50_000_000_000_000);
 		assert_eq!(
 			MultiTransactionPayment::get_currency(truncated_account.clone()),
-			Some(WETH)
+			Some(DAI)
 		);
 
 		// ------------ remove on delete ------------
