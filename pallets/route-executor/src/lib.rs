@@ -530,13 +530,12 @@ impl<T: Config> Pallet<T> {
 			let ed_to_refund = T::EdToRefundCalculator::calculate();
 
 			ensure!(diff <= ed_to_refund, Error::<T>::InvalidRouteExecution);
-			return Ok(());
+		} else {
+			ensure!(
+				actual_received_amount <= expected_received_amount,
+				Error::<T>::InvalidRouteExecution
+			);
 		}
-
-		ensure!(
-			actual_received_amount <= expected_received_amount,
-			Error::<T>::InvalidRouteExecution
-		);
 
 		Ok(())
 	}
