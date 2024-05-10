@@ -713,7 +713,9 @@ mod router_different_pools_tests {
 					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
 					))
 					.unwrap()
-					.checked_add(&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1))
+					.checked_add(
+						&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1)
+					)
 					.unwrap()
 					.checked_add(
 						&RouterWeightInfo::sell_and_calculate_sell_trade_amounts_overhead_weight(0, 1)
@@ -741,7 +743,9 @@ mod router_different_pools_tests {
 					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
 					))
 					.unwrap()
-					.checked_add(&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1))
+					.checked_add(
+						&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1)
+					)
 					.unwrap()
 					.checked_add(
 						&RouterWeightInfo::buy_and_calculate_buy_trade_amounts_overhead_weight(0, 1)
