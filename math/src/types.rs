@@ -2,6 +2,7 @@ use sp_arithmetic::FixedU128;
 
 pub use crate::ratio::Ratio;
 
+pub type AssetId = u32;
 pub type Balance = u128;
 pub type Price = FixedU128;
 pub type Fraction = fixed::types::U1F127;

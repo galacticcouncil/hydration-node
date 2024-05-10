@@ -1,10 +1,11 @@
 use crate::evm::precompiles;
+use evm::ExitReason;
 use fp_evm::FeeCalculator;
-use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
+use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo, RawOrigin};
 use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::traits::Time;
-use pallet_evm::{GasWeightMapping, Runner};
+use pallet_evm::{AddressMapping, GasWeightMapping, Runner};
 use pallet_evm_precompile_call_permit::NoncesStorage;
 use pallet_genesis_history::migration::Weight;
 use pallet_transaction_multi_payment::EVMPermit;
@@ -12,7 +13,7 @@ use primitive_types::{H160, H256, U256};
 use primitives::AccountId;
 use sp_core::crypto::AccountId32;
 use sp_io::hashing::keccak_256;
-use sp_runtime::traits::UniqueSaturatedInto;
+use sp_runtime::traits::{One, UniqueSaturatedInto};
 use sp_runtime::DispatchResult;
 use sp_std::vec::Vec;
 
@@ -24,6 +25,7 @@ where
 		+ pallet_evm::Config
 		+ pallet_transaction_multi_payment::Config
 		+ pallet_evm_accounts::Config
+		+ pallet_transaction_pause::Config
 		+ pallet_dynamic_evm_fee::Config,
 	R::Nonce: Into<U256>,
 	AccountId: From<R::AccountId>,
@@ -88,6 +90,11 @@ where
 		_nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
 	) -> DispatchResultWithPostInfo {
+		// Dispatching permit should not increase account nonce, as TX is not signed by the account.
+		// Therefore, we need to manually reset it back to current value after execution.
+		let account_id = <R as pallet_evm::Config>::AddressMapping::into_account_id(source);
+		let source_nonce = frame_system::Account::<R>::get(&account_id).nonce;
+
 		let is_transactional = true;
 		let validate = true;
 		let info = match <R as pallet_evm::Config>::Runner::call(
@@ -113,29 +120,42 @@ where
 						actual_weight: Some(e.weight),
 						pays_fee: Pays::Yes,
 					},
-					error: e.error.into(),
+					error: pallet_transaction_multi_payment::Error::<R>::EvmPermitRunnerError.into(),
 				})
 			}
 		};
+		let account_source_nonce = frame_system::Account::<R>::get(&account_id).nonce;
+		debug_assert_eq!(
+			account_source_nonce,
+			source_nonce + <R as frame_system::Config>::Nonce::one()
+		);
+		frame_system::Account::<R>::mutate(account_id, |a| a.nonce -= <R as frame_system::Config>::Nonce::one());
 
 		let permit_nonce = NoncesStorage::get(source);
 		NoncesStorage::insert(source, permit_nonce + U256::one());
 
-		Ok(PostDispatchInfo {
-			actual_weight: {
-				let mut gas_to_weight = <R as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
-					info.used_gas.standard.unique_saturated_into(),
-					true,
-				);
-				if let Some(weight_info) = info.weight_info {
-					if let Some(proof_size_usage) = weight_info.proof_size_usage {
-						*gas_to_weight.proof_size_mut() = proof_size_usage;
-					}
-				}
-				Some(gas_to_weight)
-			},
+		let mut gas_to_weight = <R as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
+			info.used_gas.standard.unique_saturated_into(),
+			true,
+		);
+		if let Some(weight_info) = info.weight_info {
+			if let Some(proof_size_usage) = weight_info.proof_size_usage {
+				*gas_to_weight.proof_size_mut() = proof_size_usage;
+			}
+		}
+		let actual_weight = gas_to_weight;
+		let post_info = PostDispatchInfo {
+			actual_weight: Some(actual_weight),
 			pays_fee: Pays::No,
-		})
+		};
+
+		match info.exit_reason {
+			ExitReason::Succeed(_) => Ok(post_info),
+			_ => Err(DispatchErrorWithPostInfo {
+				post_info,
+				error: pallet_transaction_multi_payment::Error::<R>::EvmPermitCallExecutionError.into(),
+			}),
+		}
 	}
 
 	fn gas_price() -> (U256, Weight) {
@@ -149,5 +169,13 @@ where
 
 	fn permit_nonce(account: H160) -> U256 {
 		NoncesStorage::get(account)
+	}
+
+	fn on_dispatch_permit_error() {
+		let _ = pallet_transaction_pause::Pallet::<R>::pause_transaction(
+			RawOrigin::Root.into(),
+			b"MultiTransactionPayment".to_vec(),
+			b"dispatch_permit".to_vec(),
+		);
 	}
 }

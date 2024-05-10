@@ -5,7 +5,8 @@ use frame_support::traits::Get;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use sp_runtime::DispatchError;
+use sp_runtime::DispatchError::Corruption;
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
@@ -139,5 +140,34 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		let liquidty = T::Currency::free_balance(asset_a, &pair_account);
 
 		Ok(liquidty)
+	}
+
+	fn calculate_spot_price_with_fee(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<FixedU128, ExecutorError<Self::Error>> {
+		if pool_type != PoolType::XYK {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		let pair_account = <crate::Pallet<T>>::get_pair_id(AssetPair {
+			asset_out: asset_a,
+			asset_in: asset_b,
+		});
+
+		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
+		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
+
+		let spot_price_with_fee = hydra_dx_math::xyk::calculate_spot_price_with_fee(
+			asset_a_reserve,
+			asset_b_reserve,
+			Some(T::GetExchangeFee::get()),
+		)
+		.map_err(|_| ExecutorError::Error(ArithmeticError::Overflow.into()))?
+		.reciprocal()
+		.ok_or(ExecutorError::Error(Corruption))?;
+
+		Ok(spot_price_with_fee)
 	}
 }

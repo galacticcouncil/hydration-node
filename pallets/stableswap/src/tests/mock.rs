@@ -134,7 +134,7 @@ impl orml_tokens::Config for Test {
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const DAIAssetId: AssetId = DAI;
-	pub const MinimumLiquidity: Balance = 1000;
+	pub const MinimumLiquidity: Balance = 1_000_000;
 	pub const MinimumTradingLimit: Balance = 1000;
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 }
