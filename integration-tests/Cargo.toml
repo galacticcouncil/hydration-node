@@ -30,6 +30,7 @@ pallet-duster = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
+pallet-otc-settlements = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 pallet-route-executor = { workspace = true}
 pallet-dca = { workspace = true}

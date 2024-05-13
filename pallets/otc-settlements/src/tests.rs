@@ -18,6 +18,7 @@
 // we don't need to run tests with benchmarking feature
 #![cfg(not(feature = "runtime-benchmarks"))]
 #![allow(clippy::bool_assert_comparison)]
+
 use super::*;
 pub use crate::mock::*;
 use frame_support::{assert_ok, assert_storage_noop};
@@ -522,6 +523,35 @@ fn test_offchain_worker_unsigned_transaction_submission() {
 				route,
 			})
 		);
+	})
+}
+
+#[test]
+fn test_offchain_worker_signed_transaction_submission() {
+	let (mut ext, _pool_state) = ExtBuilder::default().build();
+	ext.execute_with(|| {
+		assert_ok!(OTC::place_order(
+			RuntimeOrigin::signed(ALICE),
+			HDX, // otc asset_in
+			DAI, // otc asset_out
+			100_000 * ONE,
+			200_001 * ONE,
+			true,
+		));
+
+		let otc_id = 0;
+		let otc = <pallet_otc::Orders<Test>>::get(otc_id).unwrap();
+		let route = Router::get_route(AssetPair {
+			asset_in: otc.asset_out,
+			asset_out: otc.asset_in,
+		});
+
+		assert_ok!(OtcSettlements::settle_otc_order(
+			RuntimeOrigin::signed(ALICE),
+			 0,
+			 762_939_453_125,
+			 route,
+		));
 	})
 }
 

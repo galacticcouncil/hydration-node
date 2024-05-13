@@ -17,7 +17,6 @@
 
 use frame_support::{pallet_prelude::*, PalletId};
 use frame_system::{
-	ensure_none,
 	offchain::{SendTransactionTypes, SubmitTransaction},
 	pallet_prelude::{BlockNumberFor, OriginFor},
 	RawOrigin,
@@ -192,7 +191,8 @@ pub mod pallet {
 		/// The profit made by closing the arbitrage is transferred to `FeeReceiver`.
 		///
 		/// Parameters:
-		/// - `origin`: Unsigned origin.
+		/// - `origin`: Signed or unsigned origin. Unsigned origin doesn't pay the TX fee,
+		/// 			but can be submitted only by a collator.
 		/// - `otc_id`: ID of the OTC order with existing arbitrage opportunity.
 		/// - `amount`: Amount necessary to clone the arb.
 		/// - `route`: The route we trade against. Required for the fee calculation.
@@ -207,13 +207,11 @@ pub mod pallet {
 		.saturating_add(<T as pallet_otc::Config>::WeightInfo::fill_order().max(<T as pallet_otc::Config>::WeightInfo::partial_fill_order()))
 		)]
 		pub fn settle_otc_order(
-			origin: OriginFor<T>,
+			_origin: OriginFor<T>,
 			otc_id: OrderId,
 			amount: Balance,
 			route: Vec<Trade<AssetIdOf<T>>>,
 		) -> DispatchResult {
-			ensure_none(origin)?;
-
 			Self::settle_otc(otc_id, amount, route)
 		}
 	}
