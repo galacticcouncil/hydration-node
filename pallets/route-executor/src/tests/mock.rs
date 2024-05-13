@@ -23,7 +23,7 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, TradeExecution};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pretty_assertions::assert_eq;
@@ -149,9 +149,18 @@ impl Config for Test {
 	type Currency = FungibleCurrencies<Test>;
 	type InspectRegistry = MockedAssetRegistry;
 	type AMM = Pools;
+	type EdToRefundCalculator = MockedEdCalculator;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
+}
+
+pub struct MockedEdCalculator;
+
+impl RefundEdCalculator<Balance> for MockedEdCalculator {
+	fn calculate() -> Balance {
+		1_000_000_000_000
+	}
 }
 
 use hydradx_traits::AssetKind;

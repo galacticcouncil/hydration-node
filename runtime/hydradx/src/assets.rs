@@ -242,18 +242,9 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			return;
 		}
 
-		let locked_ed = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
-			.iter()
-			.find(|x| x.id == SUFFICIENCY_LOCK)
-			.map(|p| p.amount)
-			.unwrap_or_default();
-
+		let (ed_to_refund, locked_ed) = RefundAndLockedEdCalculator::calculate();
 		let paid_counts = pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get();
-		let ed_to_refund = if paid_counts != 0 {
-			locked_ed.saturating_div(paid_counts)
-		} else {
-			0
-		};
+
 		let to_lock = locked_ed.saturating_sub(ed_to_refund);
 
 		if to_lock.is_zero() {
@@ -282,6 +273,34 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 
 		frame_system::Pallet::<Runtime>::dec_sufficients(who);
 		pallet_asset_registry::ExistentialDepositCounter::<Runtime>::set(paid_counts.saturating_sub(1));
+	}
+}
+pub struct RefundAndLockedEdCalculator;
+
+impl RefundAndLockedEdCalculator {
+	fn calculate() -> (Balance, Balance) {
+		let locked_ed = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
+			.iter()
+			.find(|x| x.id == SUFFICIENCY_LOCK)
+			.map(|p| p.amount)
+			.unwrap_or_default();
+
+		let paid_counts = pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get();
+		let ed_to_refund = if paid_counts != 0 {
+			locked_ed.saturating_div(paid_counts)
+		} else {
+			0
+		};
+
+		(ed_to_refund, locked_ed)
+	}
+}
+
+impl RefundEdCalculator<Balance> for RefundAndLockedEdCalculator {
+	fn calculate() -> Balance {
+		let (ed_to_refund, _ed_to_lock) = Self::calculate();
+
+		ed_to_refund
 	}
 }
 
@@ -1066,6 +1085,7 @@ impl pallet_route_executor::Config for Runtime {
 	type NativeAssetId = NativeAssetId;
 	type InspectRegistry = AssetRegistry;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 }
 
 parameter_types! {
@@ -1163,12 +1183,14 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+use hydradx_traits::router::RefundEdCalculator;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
+
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
 

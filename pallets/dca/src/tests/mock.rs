@@ -364,6 +364,15 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type EdToRefundCalculator = MockedEdCalculator;
+}
+
+pub struct MockedEdCalculator;
+
+impl RefundEdCalculator<Balance> for MockedEdCalculator {
+	fn calculate() -> Balance {
+		1_000_000_000_000
+	}
 }
 
 type OriginForRuntime = OriginFor<Test>;
@@ -702,7 +711,7 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
@@ -769,7 +778,7 @@ where
 	}
 
 	fn is_sufficient(_id: Self::AssetId) -> bool {
-		unimplemented!()
+		true
 	}
 
 	fn decimals(_id: Self::AssetId) -> Option<u8> {
