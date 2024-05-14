@@ -7979,7 +7979,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.8.1"
+version = "4.8.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8555,7 +8555,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.6.1"
+version = "3.6.2"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
