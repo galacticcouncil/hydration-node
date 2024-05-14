@@ -65,7 +65,6 @@ pub const OFFCHAIN_WORKER_DATA: &[u8] = b"hydradx/otc-settlements/data/";
 pub const OFFCHAIN_WORKER_DATA_LAST_UPDATE: &[u8] = b"hydradx/otc-settlements/data-last-update/";
 pub const SORTED_ORDERS_LOCK: &[u8] = b"hydradx/otc-settlements/lock/";
 pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
-/// The number of iterations in the binary search algorithm
 pub const FILL_SEARCH_ITERATIONS: u32 = 40;
 
 pub type AssetIdOf<T> = <T as pallet_otc::Config>::AssetId;
@@ -83,10 +82,10 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Named reservable multi currency
+		/// Named reservable multi currency.
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetIdOf<Self>, Balance = Balance>;
 
-		/// Router implementation
+		/// Router implementation.
 		type Router: RouteProvider<AssetIdOf<Self>>
 			+ RouterT<Self::RuntimeOrigin, AssetIdOf<Self>, Balance, Trade<AssetIdOf<Self>>, AmountInAndOut<Balance>>
 			+ RouteSpotPriceProvider<AssetIdOf<Self>>;
@@ -94,7 +93,7 @@ pub mod pallet {
 		/// Provider of existential deposits.
 		type ExistentialDeposits: GetByKey<AssetIdOf<Self>, Balance>;
 
-		/// Determines the minimum profit
+		/// Determines the minimum profit.
 		#[pallet::constant]
 		type ExistentialDepositMultiplier: Get<u8>;
 
@@ -106,9 +105,13 @@ pub mod pallet {
 		#[pallet::constant]
 		type PricePrecision: Get<FixedU128>;
 
-		/// Minimum trading limit
+		/// Minimum trading limit.
 		#[pallet::constant]
 		type MinTradingLimit: Get<Balance>;
+
+		/// Maximum number of iterations used in the binary search algorithm to find the trade amount.
+		#[pallet::constant]
+		type MaxIterations: Get<u32>;
 
 		/// Router weight information.
 		type RouterWeightInfo: AmmTradeWeights<Trade<AssetIdOf<Self>>>;
@@ -486,7 +489,7 @@ impl<T: Config> Pallet<T> {
 		let mut sell_amt_down = T::MinTradingLimit::get();
 
 		let iters = if otc.partially_fillable {
-			FILL_SEARCH_ITERATIONS
+			T::MaxIterations::get()
 		} else {
 			1
 		};

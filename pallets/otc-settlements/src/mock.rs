@@ -95,6 +95,7 @@ impl pallet_otc_settlements::Config for Test {
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type PricePrecision = PricePrecision;
 	type MinTradingLimit = MinTradingLimit;
+	type MaxIterations = ConstU32<40>;
 	type WeightInfo = ();
 	type RouterWeightInfo = ();
 }
