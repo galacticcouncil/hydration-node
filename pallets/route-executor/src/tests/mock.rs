@@ -23,11 +23,12 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, TradeExecution};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pretty_assertions::assert_eq;
 use sp_core::H256;
+use sp_runtime::FixedU128;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError,
@@ -148,9 +149,18 @@ impl Config for Test {
 	type Currency = FungibleCurrencies<Test>;
 	type InspectRegistry = MockedAssetRegistry;
 	type AMM = Pools;
+	type EdToRefundCalculator = MockedEdCalculator;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
+}
+
+pub struct MockedEdCalculator;
+
+impl RefundEdCalculator<Balance> for MockedEdCalculator {
+	fn calculate() -> Balance {
+		1_000_000_000_000
+	}
 }
 
 use hydradx_traits::AssetKind;
@@ -421,6 +431,14 @@ macro_rules! impl_fake_executor {
 				_asset_b: AssetId,
 			) -> Result<Balance, ExecutorError<Self::Error>> {
 				Ok(100)
+			}
+
+			fn calculate_spot_price_with_fee(
+				_pool_type: PoolType<AssetId>,
+				_asset_a: AssetId,
+				_asset_b: AssetId,
+			) -> Result<FixedU128, ExecutorError<Self::Error>> {
+				Ok(FixedU128::from_rational(1, 10))
 			}
 		}
 	};

@@ -60,6 +60,7 @@ pub mod weights;
 #[cfg(test)]
 mod invariants;
 
+mod provider;
 mod trade_execution;
 pub mod types;
 
