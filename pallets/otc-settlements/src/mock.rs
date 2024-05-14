@@ -15,28 +15,28 @@
 
 use crate as pallet_otc_settlements;
 use crate::*;
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::{
 	assert_ok, parameter_types,
-	traits::{Everything, Nothing},
+	sp_runtime::{
+		traits::{BlakeTwo256, IdentityLookup},
+		BuildStorage, Permill,
+	},
+	traits::{
+		tokens::nonfungibles::{Create, Inspect, Mutate},
+		Everything, Nothing,
+	},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::router::PoolType;
+use hydradx_traits::router::{PoolType, RefundEdCalculator};
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use sp_core::offchain::{
 	testing::PoolState, testing::TestOffchainExt, testing::TestTransactionPoolExt, OffchainDbExt, OffchainWorkerExt,
 	TransactionPoolExt,
 };
 use sp_core::H256;
-use sp_runtime::Permill;
-use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage,
-};
 use sp_std::sync::Arc;
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -94,6 +94,7 @@ impl pallet_otc_settlements::Config for Test {
 	type ProfitReceiver = TreasuryAccount;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type PricePrecision = PricePrecision;
+	type MinTradingLimit = MinTradingLimit;
 	type WeightInfo = ();
 	type RouterWeightInfo = ();
 }
@@ -112,6 +113,14 @@ parameter_types! {
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 }
 
+pub struct MockedEdCalculator;
+
+impl RefundEdCalculator<Balance> for MockedEdCalculator {
+	fn calculate() -> Balance {
+		1_000_000_000_000
+	}
+}
+
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -123,6 +132,7 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type WeightInfo = ();
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type EdToRefundCalculator = MockedEdCalculator;
 }
 
 parameter_types! {

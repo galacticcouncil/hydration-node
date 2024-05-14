@@ -1114,6 +1114,7 @@ impl pallet_otc_settlements::Config for Runtime {
 	type ProfitReceiver = TreasuryAccount;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type PricePrecision = PricePrecision;
+	type MinTradingLimit = MinTradingLimit;
 	type WeightInfo = weights::otc_settlements::HydraWeight<Runtime>;
 	type RouterWeightInfo = RouterWeightInfo;
 }

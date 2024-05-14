@@ -279,7 +279,7 @@ fn existing_arb_opportunity_of_insufficient_asset_should_trigger_trade() {
 
 		expect_last_events(vec![Event::Executed {
 			asset_id: BTC,
-			profit: 16_547_522,
+			profit: 16_547_521,
 		}
 		.into()]);
 	});
@@ -316,7 +316,7 @@ fn multiple_arb_opportunities_should_trigger_trades() {
 			.into(),
 			Event::Executed {
 				asset_id: DOT,
-				profit: 12_436_704,
+				profit: 12_436_705,
 			}
 			.into(),
 		]);
@@ -519,7 +519,7 @@ fn test_offchain_worker_unsigned_transaction_submission() {
 			tx.call,
 			crate::mock::RuntimeCall::OtcSettlements(crate::Call::settle_otc_order {
 				otc_id: 0,
-				amount: 762_939_453_125,
+				amount: 762_939_454_124,
 				route,
 			})
 		);
@@ -548,9 +548,9 @@ fn test_offchain_worker_signed_transaction_submission() {
 
 		assert_ok!(OtcSettlements::settle_otc_order(
 			RuntimeOrigin::signed(ALICE),
-			 0,
-			 762_939_453_125,
-			 route,
+			0,
+			762_939_453_125,
+			route,
 		));
 	})
 }

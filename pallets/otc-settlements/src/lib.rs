@@ -1,4 +1,4 @@
-// This file is part of galacticcouncil/warehouse.
+// This file is part of HydraDX.
 // Copyright (C) 2020-2023  Intergalactic, Limited (GIB). SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -105,6 +105,10 @@ pub mod pallet {
 		/// Determines when we consider an arbitrage as closed.
 		#[pallet::constant]
 		type PricePrecision: Get<FixedU128>;
+
+		/// Minimum trading limit
+		#[pallet::constant]
+		type MinTradingLimit: Get<Balance>;
 
 		/// Router weight information.
 		type RouterWeightInfo: AmmTradeWeights<Trade<AssetIdOf<Self>>>;
@@ -479,7 +483,7 @@ impl<T: Config> Pallet<T> {
 		// use binary search to determine the correct sell amount
 		let mut sell_amt = otc.amount_in; // start by trying to fill the whole order
 		let mut sell_amt_up = sell_amt;
-		let mut sell_amt_down = 0; // TODO: set to some min trade amount
+		let mut sell_amt_down = T::MinTradingLimit::get();
 
 		let iters = if otc.partially_fillable {
 			FILL_SEARCH_ITERATIONS
