@@ -18,6 +18,7 @@ fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 		//Arrange
 		init_omnipool();
 
+
 		let dai_balance_in_omnipool = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 		let trade_volume_limit = CircuitBreaker::trade_volume_limit_per_asset(DAI);
 		let num_of_sells = 4;
