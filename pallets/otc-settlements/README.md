@@ -3,7 +3,7 @@
 The pallet provides implementation of the offchain worker for closing existing arbitrage opportunities between OTC 
 orders and the Omnipool.
 Two main parts of this pallet are methods to find the correct amount in order to close an existing arbitrage opportunity 
-and an extrinsic. The extrinsic is mainly called by the offchain worker as unsigned extrinsic, but can by also called 
+and an extrinsic. The extrinsic is mainly called by the offchain worker as unsigned extrinsic, but can be also called 
 by any user using signed origin. In the former case, the block producer doesn't pay the fee.
 
 ## Notes
