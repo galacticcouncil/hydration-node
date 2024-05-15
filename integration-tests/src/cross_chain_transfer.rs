@@ -449,8 +449,8 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 				hash: hash,
 				origin: origin.try_into().unwrap(),
 				assets: vec![asset].into(),
-			})]
-		);
+			},
+		)]);
 	});
 }
 
