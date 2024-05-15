@@ -1091,7 +1091,7 @@ impl pallet_route_executor::Config for Runtime {
 parameter_types! {
 	pub const ExistentialDepositMultiplier: u8 = 5;
 	pub const PricePrecision: FixedU128 = FixedU128::from_rational(1, 100);
-	pub MinProfitPercentage: Perbill = Perbill::from_rational(1u32, 1_000_00u32); // 0.001%
+	pub MinProfitPercentage: Perbill = Perbill::from_rational(1u32, 100_000_u32); // 0.001%
 }
 
 impl pallet_otc::Config for Runtime {
