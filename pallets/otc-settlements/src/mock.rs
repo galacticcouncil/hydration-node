@@ -29,7 +29,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::router::{PoolType, RefundEdCalculator};
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use sp_core::offchain::{
@@ -78,6 +78,7 @@ parameter_types! {
 	pub ExistentialDepositMultiplier: u8 = 5;
 	pub MinProfitLimit: Balance = 10_000_000_000_000;
 	pub PricePrecision: FixedU128 = FixedU128::from_rational(1, 1_000_000);
+	pub MinProfitPercentage: Perbill = Perbill::from_rational(1u32, 1_000_00u32); // 0.001%
 }
 
 parameter_type_with_key! {
@@ -90,9 +91,8 @@ impl pallet_otc_settlements::Config for Test {
 	type Currency = Currencies;
 	type RuntimeEvent = RuntimeEvent;
 	type Router = Router;
-	type ExistentialDeposits = ExistentialDeposits;
 	type ProfitReceiver = TreasuryAccount;
-	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
+	type MinProfitPercentage = MinProfitPercentage;
 	type PricePrecision = PricePrecision;
 	type MinTradingLimit = MinTradingLimit;
 	type MaxIterations = ConstU32<40>;

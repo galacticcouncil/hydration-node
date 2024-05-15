@@ -1091,6 +1091,7 @@ impl pallet_route_executor::Config for Runtime {
 parameter_types! {
 	pub const ExistentialDepositMultiplier: u8 = 5;
 	pub const PricePrecision: FixedU128 = FixedU128::from_rational(1, 100);
+	pub MinProfitPercentage: Perbill = Perbill::from_rational(1u32, 1_000_00u32); // 0.001%
 }
 
 impl pallet_otc::Config for Runtime {
@@ -1106,13 +1107,12 @@ impl pallet_otc::Config for Runtime {
 impl pallet_otc_settlements::Config for Runtime {
 	type Currency = Currencies;
 	type RuntimeEvent = RuntimeEvent;
-	type ExistentialDeposits = AssetRegistry;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Router = Router;
 	#[cfg(feature = "runtime-benchmarks")]
 	type Router = pallet_route_executor::DummyRouter<Runtime>;
 	type ProfitReceiver = TreasuryAccount;
-	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
+	type MinProfitPercentage = MinProfitPercentage;
 	type PricePrecision = PricePrecision;
 	type MinTradingLimit = MinTradingLimit;
 	type MaxIterations = ConstU32<40>;

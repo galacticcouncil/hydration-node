@@ -24,15 +24,22 @@ use frame_system::{
 use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouteSpotPriceProvider, RouterT, Trade,
 };
-use orml_traits::{GetByKey, MultiCurrency};
+use orml_traits::MultiCurrency;
 use pallet_otc::weights::WeightInfo as OtcWeightInfo;
 pub use pallet_otc::OrderId;
-use sp_arithmetic::traits::{CheckedMul, Saturating};
-use sp_arithmetic::{ArithmeticError, FixedPointNumber, FixedU128};
-use sp_runtime::offchain::storage::StorageValueRef;
-use sp_runtime::offchain::storage_lock::{StorageLock, Time};
-use sp_runtime::offchain::Duration;
-use sp_runtime::traits::AccountIdConversion;
+use sp_arithmetic::{
+	traits::{CheckedMul, Saturating},
+	ArithmeticError, FixedPointNumber, FixedU128,
+};
+use sp_runtime::{
+	offchain::{
+		storage::StorageValueRef,
+		storage_lock::{StorageLock, Time},
+		Duration,
+	},
+	traits::AccountIdConversion,
+	Perbill,
+};
 use sp_std::vec;
 use sp_std::vec::Vec;
 
@@ -90,16 +97,13 @@ pub mod pallet {
 			+ RouterT<Self::RuntimeOrigin, AssetIdOf<Self>, Balance, Trade<AssetIdOf<Self>>, AmountInAndOut<Balance>>
 			+ RouteSpotPriceProvider<AssetIdOf<Self>>;
 
-		/// Provider of existential deposits.
-		type ExistentialDeposits: GetByKey<AssetIdOf<Self>, Balance>;
-
-		/// Determines the minimum profit.
-		#[pallet::constant]
-		type ExistentialDepositMultiplier: Get<u8>;
-
 		/// Account who receives the profit.
 		#[pallet::constant]
 		type ProfitReceiver: Get<Self::AccountId>;
+
+		/// Minimum profit in terms of percentage.
+		#[pallet::constant]
+		type MinProfitPercentage: Get<Perbill>;
 
 		/// Determines when we consider an arbitrage as closed.
 		#[pallet::constant]
@@ -230,15 +234,13 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Ensure that the profit is more than some minimum amount.
-	fn ensure_min_profit(asset: T::AssetId, _profit: Balance) -> DispatchResult {
-		let _min_amount = <T as Config>::ExistentialDeposits::get(&asset)
-			.checked_mul(<T as Config>::ExistentialDepositMultiplier::get().into())
-			.ok_or(ArithmeticError::Overflow)?;
+	fn ensure_min_profit(otc_amount_in: Balance, _profit: Balance) -> DispatchResult {
+		let _min_expected_profit = T::MinProfitPercentage::get().mul_floor(otc_amount_in);
 
 		// In the benchmark we doesn't make any trade, so this check would fail.
 		#[cfg(not(feature = "runtime-benchmarks"))]
 		// tell the binary search algorithm to find higher values
-		ensure!(_profit >= _min_amount, Error::<T>::TradeAmountTooLow);
+		ensure!(_profit >= _min_expected_profit, Error::<T>::TradeAmountTooLow);
 
 		Ok(())
 	}
@@ -350,7 +352,7 @@ impl<T: Config> Pallet<T> {
 			.checked_sub(amount)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		Self::ensure_min_profit(asset_a, profit)?;
+		Self::ensure_min_profit(otc.amount_in, profit)?;
 
 		<T as Config>::Currency::transfer(asset_a, &pallet_acc, &T::ProfitReceiver::get(), profit)?;
 
