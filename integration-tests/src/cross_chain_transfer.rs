@@ -441,8 +441,16 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 			)),
 			fun: Fungible(30 * UNITS),
 		};
-		let hash = determine_hash(&origin, vec![asset]);
+		let hash = determine_hash(&origin, vec![asset.clone()]);
 		assert_eq!(hydradx_runtime::PolkadotXcm::asset_trap(hash), 1);
+
+		expect_hydra_events(vec![hydradx_runtime::RuntimeEvent::PolkadotXcm(
+			pallet_xcm::Event::AssetsTrapped {
+				hash: hash,
+				origin: origin.try_into().unwrap(),
+				assets: vec![asset].into(),
+			})]
+		);
 	});
 }
 

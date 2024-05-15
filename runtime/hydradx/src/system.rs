@@ -293,7 +293,7 @@ impl pallet_utility::Config for Runtime {
 
 parameter_types! {
 	pub const BasicDeposit: Balance = 5 * DOLLARS;
-	pub const FieldDeposit: Balance = DOLLARS;
+	pub const ByteDeposit: Balance = DOLLARS / 10;
 	pub const SubAccountDeposit: Balance = 5 * DOLLARS;
 	pub const MaxSubAccounts: u32 = 100;
 	pub const MaxAdditionalFields: u32 = 100;
@@ -307,7 +307,7 @@ impl pallet_identity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type BasicDeposit = BasicDeposit;
-	type ByteDeposit = FieldDeposit; //TODO: correct?
+	type ByteDeposit = ByteDeposit;
 	type SubAccountDeposit = SubAccountDeposit;
 	type MaxSubAccounts = MaxSubAccounts;
 	type IdentityInformation = pallet_identity::legacy::IdentityInfo<MaxAdditionalFields>;
