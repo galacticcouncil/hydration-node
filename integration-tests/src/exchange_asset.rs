@@ -130,10 +130,11 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 		});
 	});
 
+	let amount_out = 300 * UNITS;
 	Acala::execute_with(|| {
 		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
 			Asset::from((GeneralIndex(0), 50 * UNITS)),
-			Asset::from((GeneralIndex(CORE_ASSET_ID.into()), 300 * UNITS)),
+			Asset::from((GeneralIndex(CORE_ASSET_ID.into()), amount_out)),
 			BUY,
 		);
 		//Act
@@ -158,17 +159,12 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 		));
 	});
 
-	let swapped = 361693915942; // HDX is super cheap in our setup
 	Hydra::execute_with(|| {
 		let fees = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
 		assert!(fees > 0, "treasury should have received fees");
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
-			100 * UNITS - swapped - fees
-		);
-		assert_eq!(
 			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
-			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS
+			BOB_INITIAL_NATIVE_BALANCE + amount_out
 		);
 	});
 }

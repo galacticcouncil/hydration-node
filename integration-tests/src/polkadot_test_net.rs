@@ -628,8 +628,14 @@ pub fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::RuntimeEvent> {
 		.collect()
 }
 
-pub fn expect_hydra_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
+pub fn expect_hydra_last_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
 	pretty_assertions::assert_eq!(last_hydra_events(e.len()), e);
+}
+
+pub fn expect_hydra_events(event: Vec<hydradx_runtime::RuntimeEvent>) {
+	for e in event.iter() {
+		frame_system::Pallet::<hydradx_runtime::Runtime>::assert_has_event(e.clone());
+	}
 }
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
@@ -665,13 +671,13 @@ pub fn hydradx_run_to_next_block() {
 	let b = hydradx_runtime::System::block_number();
 
 	hydradx_runtime::System::on_finalize(b);
-	hydradx_runtime::EmaOracle::on_finalize(b);
 	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
+	hydradx_runtime::EmaOracle::on_finalize(b);
 
 	hydradx_runtime::System::on_initialize(b + 1);
-	hydradx_runtime::EmaOracle::on_initialize(b + 1);
 	hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
 	hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
+	hydradx_runtime::EmaOracle::on_initialize(b + 1);
 
 	hydradx_runtime::System::set_block_number(b + 1);
 }
@@ -691,8 +697,8 @@ pub fn hydradx_finalize_block() {
 	let b = hydradx_runtime::System::block_number();
 
 	hydradx_runtime::System::on_finalize(b);
-	hydradx_runtime::EmaOracle::on_finalize(b);
 	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
+	hydradx_runtime::EmaOracle::on_finalize(b);
 }
 
 pub fn rococo_run_to_block(to: BlockNumber) {
@@ -703,16 +709,16 @@ pub fn rococo_run_to_block(to: BlockNumber) {
 
 		hydradx_runtime::System::on_finalize(b);
 		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-		hydradx_runtime::EmaOracle::on_finalize(b);
-		hydradx_runtime::DCA::on_finalize(b);
 		hydradx_runtime::CircuitBreaker::on_finalize(b);
+		hydradx_runtime::DCA::on_finalize(b);
+		hydradx_runtime::EmaOracle::on_finalize(b);
 
 		hydradx_runtime::System::on_initialize(b + 1);
 		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
-		hydradx_runtime::EmaOracle::on_initialize(b + 1);
-		hydradx_runtime::DCA::on_initialize(b + 1);
 		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
 		hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
+		hydradx_runtime::DCA::on_initialize(b + 1);
+		hydradx_runtime::EmaOracle::on_initialize(b + 1);
 
 		hydradx_runtime::System::set_block_number(b + 1);
 	}

@@ -64,7 +64,7 @@ mod omnipool {
 			let next_block_id = block_id + 1;
 			let schedule = DCA::schedule_ids_per_block(next_block_id);
 			assert!(!schedule.is_empty());
-			expect_hydra_events(vec![pallet_dca::Event::Scheduled {
+			expect_hydra_last_events(vec![pallet_dca::Event::Scheduled {
 				id: 0,
 				who: ALICE.into(),
 				period: schedule1.period,

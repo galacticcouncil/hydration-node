@@ -98,7 +98,7 @@ fn rococo_should_receive_asset_when_sent_from_hydra() {
 	Rococo::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
-			2999978937205 // 3 * HDX - fee
+			2_999_989_698_923 // 3 * HDX - fee
 		);
 	});
 }
@@ -146,7 +146,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 
 	Hydra::execute_with(|| {
 		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
-		assert!(fee > 0, "Fees is not sent to treasury");
+		assert!(fee > 0, "Fee is not sent to treasury");
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
 			30 * UNITS - fee
@@ -446,7 +446,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 
 		expect_hydra_events(vec![hydradx_runtime::RuntimeEvent::PolkadotXcm(
 			pallet_xcm::Event::AssetsTrapped {
-				hash: hash,
+				hash,
 				origin: origin.try_into().unwrap(),
 				assets: vec![asset].into(),
 			},

@@ -339,7 +339,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 			u128::MAX,
 		));
 
-		expect_hydra_events(vec![pallet_omnipool::Event::BuyExecuted {
+		expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
 			who: BOB.into(),
 			asset_in: DAI,
 			asset_out: HDX,
@@ -376,7 +376,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 			u128::MAX,
 		));
 
-		expect_hydra_events(vec![pallet_omnipool::Event::BuyExecuted {
+		expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
 			who: BOB.into(),
 			asset_in: HDX,
 			asset_out: DAI,
@@ -434,7 +434,7 @@ fn transfer_using_mutate_should_emit_event() {
 			Preservation::Preserve
 		));
 
-		expect_hydra_events(vec![pallet_balances::Event::Transfer {
+		expect_hydra_last_events(vec![pallet_balances::Event::Transfer {
 			from: ALICE.into(),
 			to: BOB.into(),
 			amount: 1_000_000_000_000,

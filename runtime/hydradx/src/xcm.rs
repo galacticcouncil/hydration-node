@@ -76,8 +76,9 @@ parameter_types! {
 	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
 }
 
+use sp_std::sync::Arc;
 parameter_types! {
-	pub SelfLocation: Location = Location::here();
+	pub SelfLocation: Location = Location::new(1, cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(ParachainInfo::get().into());1])));
 }
 
 parameter_types! {
@@ -335,7 +336,11 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 			{
 				Some(CORE_ASSET_ID)
 			}
-			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) => Some(CORE_ASSET_ID),
+			Junctions::X1(a)
+				if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) =>
+			{
+				Some(CORE_ASSET_ID)
+			},
 			_ => {
 				let location: Option<AssetLocation> = location.try_into().ok();
 				if let Some(location) = location {

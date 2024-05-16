@@ -1216,7 +1216,7 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 		));
 
 		//EVM call passes even when the substrate tx fails, so we need to check if the tx is executed
-		expect_hydra_events(vec![pallet_evm::Event::Executed { address: DISPATCH_ADDR }.into()]);
+		expect_hydra_last_events(vec![pallet_evm::Event::Executed { address: DISPATCH_ADDR }.into()]);
 		let new_balance = Tokens::free_balance(altcoin, &currency_precompile::alice_substrate_evm_addr());
 		assert_eq!(new_balance, UNITS);
 	});
