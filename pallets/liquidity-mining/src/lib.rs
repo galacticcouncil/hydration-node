@@ -1189,10 +1189,16 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 							farm_entry.updated_at = current_period;
 
 							let pot = Self::pot_account_id().ok_or(Error::<T, I>::ErrorGetAccountId)?;
-							let ed = T::AssetRegistry::existential_deposit(global_farm.reward_currency).ok_or(Error::<T, I>::NoExistentialDepositForAsset)?;
+							let ed = T::AssetRegistry::existential_deposit(global_farm.reward_currency)
+								.ok_or(Error::<T, I>::NoExistentialDepositForAsset)?;
 
 							if rewards < ed {
-								T::MultiCurrency::transfer(global_farm.reward_currency, &pot, &T::TreasuryAccountId::get(), rewards)?;
+								T::MultiCurrency::transfer(
+									global_farm.reward_currency,
+									&pot,
+									&T::TreasuryAccountId::get(),
+									rewards,
+								)?;
 							} else {
 								T::MultiCurrency::transfer(global_farm.reward_currency, &pot, &who, rewards)?;
 							}

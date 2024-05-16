@@ -322,7 +322,8 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
-		let treasury_balance_after_farms_creation = hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get());
+		let treasury_balance_after_farms_creation =
+			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get());
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -440,7 +441,8 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
-		let treasury_balance_after_farms_creation = hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get());
+		let treasury_balance_after_farms_creation =
+			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get());
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -594,7 +596,6 @@ fn withdraw_shares_should_should_return_reward_to_user_when_bigger_than_ed() {
 		create_global_farm(None);
 		create_global_farm(None);
 
-
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
@@ -656,7 +657,6 @@ fn withdraw_shares_should_should_return_reward_to_user_when_bigger_than_ed() {
 	});
 }
 
-
 #[test]
 fn withdraw_shares_should_work_reward_is_less_than_ed() {
 	TestNet::reset();
@@ -680,12 +680,12 @@ fn withdraw_shares_should_work_reward_is_less_than_ed() {
 		create_global_farm(None);
 		create_global_farm(None);
 
-
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 
-		let treasury_balance_after_farms_creation = hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get());
+		let treasury_balance_after_farms_creation =
+			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get());
 
 		set_relaychain_block_number(300);
 
@@ -1089,7 +1089,8 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
-		let treasury_balance_after_farms_creation = hydradx_runtime::Currencies::free_balance(bond_id, &TreasuryAccount::get());
+		let treasury_balance_after_farms_creation =
+			hydradx_runtime::Currencies::free_balance(bond_id, &TreasuryAccount::get());
 
 		set_relaychain_block_number(300);
 
@@ -1138,7 +1139,8 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		set_relaychain_block_number(700);
 		let charlie_bonds_balance_0 = hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into());
-		let treasury_balance_before_withdraw = hydradx_runtime::Currencies::free_balance(bond_id, &TreasuryAccount::get());
+		let treasury_balance_before_withdraw =
+			hydradx_runtime::Currencies::free_balance(bond_id, &TreasuryAccount::get());
 
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
