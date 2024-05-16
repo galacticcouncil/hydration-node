@@ -185,6 +185,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
+		/// Treasury account to receive claimed rewards lower than ED
+		#[pallet::constant]
+		type TreasuryAccountId: Get<Self::AccountId>;
+
 		/// Minimum total rewards to distribute from global farm during liquidity mining.
 		#[pallet::constant]
 		type MinTotalFarmRewards: Get<Balance>;
@@ -310,6 +314,9 @@ pub mod pallet {
 
 		/// `incentivized_asset` is not registered in asset registry.
 		IncentivizedAssetNotRegistered,
+
+		/// No existential deposit configured for asset in registry.
+		NoExistentialDepositForAsset,
 
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
@@ -1182,7 +1189,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 							farm_entry.updated_at = current_period;
 
 							let pot = Self::pot_account_id().ok_or(Error::<T, I>::ErrorGetAccountId)?;
-							T::MultiCurrency::transfer(global_farm.reward_currency, &pot, &who, rewards)?;
+							let ed = T::AssetRegistry::existential_deposit(global_farm.reward_currency).ok_or(Error::<T, I>::NoExistentialDepositForAsset)?;
+
+							if rewards < ed {
+								T::MultiCurrency::transfer(global_farm.reward_currency, &pot, &T::TreasuryAccountId::get(), rewards)?;
+							} else {
+								T::MultiCurrency::transfer(global_farm.reward_currency, &pot, &who, rewards)?;
+							}
 						}
 
 						Ok((
