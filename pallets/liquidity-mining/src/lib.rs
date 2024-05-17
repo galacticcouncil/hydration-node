@@ -116,7 +116,7 @@ use sp_runtime::ArithmeticError;
 
 use hydra_dx_math::liquidity_mining as math;
 use hydradx_traits::{liquidity_mining::PriceAdjustment, pools::DustRemovalAccountWhitelist, registry::Inspect};
-use orml_traits::{GetByKey, MultiCurrency, rewards};
+use orml_traits::{rewards, GetByKey, MultiCurrency};
 use scale_info::TypeInfo;
 use sp_arithmetic::{
 	fixed_point::FixedU128,
@@ -1189,8 +1189,9 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 							farm_entry.updated_at = current_period;
 
 							let pot = Self::pot_account_id().ok_or(Error::<T, I>::ErrorGetAccountId)?;
-							let ed = T::AssetRegistry::existential_deposit(global_farm.reward_currency)
-								.ok_or(Error::<T, I>::InconsistentState(InconsistentStateError::NoExistentialDepositForAsset))?;
+							let ed = T::AssetRegistry::existential_deposit(global_farm.reward_currency).ok_or(
+								Error::<T, I>::InconsistentState(InconsistentStateError::NoExistentialDepositForAsset),
+							)?;
 
 							//If the rewards is smaller than ED and the user has less balance than ED, then we send to treasury to prevent ED error
 							if rewards < ed && T::MultiCurrency::free_balance(global_farm.reward_currency, &who) < ed {
