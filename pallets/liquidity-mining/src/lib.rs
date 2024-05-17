@@ -315,9 +315,6 @@ pub mod pallet {
 		/// `incentivized_asset` is not registered in asset registry.
 		IncentivizedAssetNotRegistered,
 
-		/// No existential deposit configured for asset in registry.
-		NoExistentialDepositForAsset,
-
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
 		InconsistentState(InconsistentStateError),
@@ -373,6 +370,9 @@ pub mod pallet {
 
 		/// Loyalty multiplier can't be greater than one.
 		InvalidLoyaltyMultiplier,
+
+		/// No existential deposit configured for asset in registry.
+		NoExistentialDepositForAsset,
 	}
 
 	impl<T, I> From<InconsistentStateError> for Error<T, I> {
@@ -1190,7 +1190,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 
 							let pot = Self::pot_account_id().ok_or(Error::<T, I>::ErrorGetAccountId)?;
 							let ed = T::AssetRegistry::existential_deposit(global_farm.reward_currency)
-								.ok_or(Error::<T, I>::NoExistentialDepositForAsset)?;
+								.ok_or(Error::<T, I>::InconsistentState(InconsistentStateError::NoExistentialDepositForAsset))?;
 
 							//If the rewards is smaller than ED and the user has less balance than ED, then we send to treasury to prevent ED error
 							if rewards < ed && T::MultiCurrency::free_balance(global_farm.reward_currency, &who) < ed {
