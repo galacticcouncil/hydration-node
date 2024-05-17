@@ -191,12 +191,6 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type MaxInboundSuspended = MaxInboundSuspended;
 }
 
-impl cumulus_pallet_dmp_queue::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type DmpSink = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
-	type WeightInfo = ();
-}
-
 const ASSET_HUB_PARA_ID: u32 = 1000;
 
 parameter_type_with_key! {
@@ -336,11 +330,7 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 			{
 				Some(CORE_ASSET_ID)
 			}
-			Junctions::X1(a)
-				if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) =>
-			{
-				Some(CORE_ASSET_ID)
-			},
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) => Some(CORE_ASSET_ID),
 			_ => {
 				let location: Option<AssetLocation> = location.try_into().ok();
 				if let Some(location) = location {

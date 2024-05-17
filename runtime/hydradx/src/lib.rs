@@ -65,7 +65,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::pallet_prelude::Hooks;
-use frame_support::{construct_runtime, weights::Weight};
+use frame_support::{construct_runtime, parameter_types, weights::Weight};
 pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
@@ -210,7 +210,7 @@ construct_runtime!(
 		PolkadotXcm: pallet_xcm = 107,
 		CumulusXcm: cumulus_pallet_xcm = 109,
 		XcmpQueue: cumulus_pallet_xcmp_queue exclude_parts { Call } = 111,
-		DmpQueue: cumulus_pallet_dmp_queue = 113,
+		// 113 was used by DmpQueue which is now replaced by MessageQueue
 		MessageQueue: pallet_message_queue = 114,
 
 		// ORML XCM
@@ -265,8 +265,19 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	(migrations::OnRuntimeUpgradeMigration,),
+	(
+		frame_support::migrations::RemovePallet<DmpQueuePalletName, <Runtime as frame_system::Config>::DbWeight>,
+		frame_support::migrations::RemovePallet<XcmRateLimiterPalletName, <Runtime as frame_system::Config>::DbWeight>,
+		cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
+		pallet_identity::migration::versioned::V0ToV1<Runtime, 450u64>, // We have currently 379 identities in basllisk, so limit of 450 should be enough
+	),
 >;
+
+// TODO: Remove after the upgrade
+parameter_types! {
+	pub const DmpQueuePalletName: &'static str = "DmpQueue";
+	pub const XcmRateLimiterPalletName: &'static str = "XcmRateLimiter";
+}
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -719,7 +730,7 @@ impl_runtime_apis! {
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
-			use frame_support::{parameter_types, traits::TrackedStorageKey};
+			use frame_support::traits::TrackedStorageKey;
 			use orml_benchmarking::add_benchmark as orml_add_benchmark;
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			use frame_system_benchmarking::Pallet as SystemBench;

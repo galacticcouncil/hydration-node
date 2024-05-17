@@ -101,7 +101,6 @@ cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
-cumulus-pallet-dmp-queue = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
@@ -353,7 +352,6 @@ try-runtime= [
     "pallet-preimage/try-runtime",
     "pallet-identity/try-runtime",
     "pallet-xcm/try-runtime",
-    "cumulus-pallet-dmp-queue/try-runtime",
     "pallet-asset-registry/try-runtime",
     "pallet-transaction-multi-payment/try-runtime",
     "pallet-relaychain-info/try-runtime",
