@@ -143,6 +143,8 @@ construct_runtime!(
 		//NOTE: 5 - is used by Scheduler which must be after cumulus_pallet_parachain_system
 		Balances: pallet_balances = 7,
 		TransactionPayment: pallet_transaction_payment exclude_parts { Config } = 9,
+		// due to multi payment pallet prices, this needs to be initialized at the very beginning
+		MultiTransactionPayment: pallet_transaction_multi_payment = 203,
 		Treasury: pallet_treasury = 11,
 		Utility: pallet_utility = 13,
 		Preimage: pallet_preimage = 15,
@@ -195,17 +197,17 @@ construct_runtime!(
 		XYKLiquidityMining: pallet_xyk_liquidity_mining = 95,
 		XYKWarehouseLM: warehouse_liquidity_mining::<Instance2> = 96,
 
-		// Parachain
-		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
-		ParachainInfo: staging_parachain_info = 105,
-
-		//NOTE: Scheduler must be after ParachainSystem otherwise RelayChainBlockNumberProvider
+		RelayChainInfo: pallet_relaychain_info = 201,
+		//NOTE: DCA pallet should be declared before ParachainSystem pallet,
+		//otherwise there is no data about relay chain parent hash
+		DCA: pallet_dca = 66,
+		//NOTE: Scheduler must be before ParachainSystem otherwise RelayChainBlockNumberProvider
 		//will return 0 as current block number when used with Scheduler(democracy).
 		Scheduler: pallet_scheduler = 5,
 
-		//NOTE: DCA pallet should be declared after ParachainSystem pallet,
-		//otherwise there is no data about relay chain parent hash
-		DCA: pallet_dca = 66,
+		// Parachain
+		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
+		ParachainInfo: staging_parachain_info = 105,
 
 		PolkadotXcm: pallet_xcm = 107,
 		CumulusXcm: cumulus_pallet_xcm = 109,
@@ -226,9 +228,7 @@ construct_runtime!(
 		AuraExt: cumulus_pallet_aura_ext = 169,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
-		RelayChainInfo: pallet_relaychain_info = 201,
 		EmaOracle: pallet_ema_oracle = 202,
-		MultiTransactionPayment: pallet_transaction_multi_payment = 203,
 	}
 );
 
