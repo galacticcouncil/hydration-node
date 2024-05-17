@@ -577,8 +577,24 @@ fn rococo_xcm_execute_extrinsic_should_be_allowed() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		let hdx_loc = Location::new(
+			1,
+			cumulus_primitives_core::Junctions::X2(Arc::new(
+				vec![
+					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0),
+				]
+				.try_into()
+				.unwrap(),
+			)),
+		);
+		let asset_to_withdraw: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),
+			fun: Fungible(410000000000u128),
+		};
+
 		let message = Xcm(vec![
-			WithdrawAsset((Here, 410000000000u128).into()),
+			WithdrawAsset(asset_to_withdraw.into()),
 			BuyExecution {
 				fees: (Here, 400000000000u128).into(),
 				weight_limit: Unlimited,
