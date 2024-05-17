@@ -74,7 +74,6 @@ pub const BOB_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
 pub const CHARLIE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
-pub const TREASURY_INITIAL_NATIVE_BALANCE: Balance = 10_000_000 * UNITS;
 
 pub fn parachain_reserve_account() -> AccountId {
 	polkadot_parachain::primitives::Sibling::from(ACALA_PARA_ID).into_account_truncating()
@@ -387,7 +386,6 @@ pub mod hydra {
 					(omnipool_account.clone(), native_amount),
 					(vesting_account(), 10_000 * UNITS),
 					(staking_account, UNITS),
-					(Treasury::account_id(), TREASURY_INITIAL_NATIVE_BALANCE),
 				],
 			},
 			collator_selection: hydradx_runtime::CollatorSelectionConfig {

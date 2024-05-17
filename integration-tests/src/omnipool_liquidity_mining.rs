@@ -33,7 +33,7 @@ use sp_runtime::{
 };
 use xcm_emulator::TestExt;
 
-use hydradx_runtime::{AssetRegistry, Balance, Bonds, RuntimeOrigin, TreasuryAccount};
+use hydradx_runtime::{AssetRegistry, Balance, Bonds, RuntimeOrigin, Treasury, TreasuryAccount};
 use pallet_asset_registry::AssetType;
 use pretty_assertions::assert_eq;
 use primitives::constants::time::unix_time::MONTH;
@@ -662,9 +662,6 @@ fn withdraw_shares_should_work_reward_is_less_than_ed() {
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
 
-		let treasury_balance_after_farms_creation =
-			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get());
-
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -706,9 +703,10 @@ fn withdraw_shares_should_work_reward_is_less_than_ed() {
 		);
 
 		//We make sure that charlie has 0 HDX so reward (which is less than ED) can not be sent to him
+		//We also make sure that treasury has some balance so we don't trigger another ED problem
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(CHARLIE.into()),
-			ALICE.into(),
+			Treasury::account_id().into(),
 			HDX,
 			1000 * UNITS,
 		));
@@ -730,7 +728,7 @@ fn withdraw_shares_should_work_reward_is_less_than_ed() {
 		let expected_claimed_amount = 184_024_112_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get()),
-			treasury_balance_after_farms_creation + expected_claimed_amount
+			1000 * UNITS + expected_claimed_amount
 		);
 	});
 }
@@ -795,6 +793,12 @@ fn init_omnipool() {
 }
 fn create_global_farm(rewards_currency: Option<AssetId>) {
 	let total_rewards = 1_000_000 * UNITS;
+
+	assert_ok!(hydradx_runtime::Balances::force_set_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		Treasury::account_id(),
+		total_rewards,
+	));
 
 	assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::create_global_farm(
 		hydradx_runtime::RuntimeOrigin::root(),
