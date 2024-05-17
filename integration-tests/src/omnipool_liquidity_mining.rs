@@ -322,6 +322,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
+
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
