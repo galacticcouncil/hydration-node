@@ -792,6 +792,7 @@ fn init_omnipool() {
 		AccountId::from(BOB),
 	));
 }
+
 fn create_global_farm(rewards_currency: Option<AssetId>) {
 	let total_rewards = 1_000_000 * UNITS;
 
