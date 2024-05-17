@@ -322,8 +322,6 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
-		let treasury_balance_after_farms_creation =
-			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get());
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -371,13 +369,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		let expected_claimed_amount = 184_024_112_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
-			bob_hdx_balance_0
-		);
-
-		//Treasury should receive the rewards as less than ED
-		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get()),
-			treasury_balance_after_farms_creation + expected_claimed_amount
+			bob_hdx_balance_0 + expected_claimed_amount
 		);
 
 		//Act & assert 2 - claim rewards in the same period for same yield-farm-entry should not work.
@@ -390,7 +382,6 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 			warehouse_liquidity_mining::Error::<hydradx_runtime::Runtime, Instance1>::DoubleClaimInPeriod
 		);
 
-		let treasury_balance_before_claiming = hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get());
 		let bob_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
 		//Act 3 - claim rewards for differnt yield-farm-entry in the same period should work.
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
@@ -404,13 +395,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		let expected_claimed_amount = 393_607_131_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
-			bob_hdx_balance_0
-		);
-
-		//Treasury should receive the rewards as less than ED
-		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get()),
-			treasury_balance_before_claiming + expected_claimed_amount
+			bob_hdx_balance_0 + expected_claimed_amount
 		);
 	});
 }
@@ -441,8 +426,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
-		let treasury_balance_after_farms_creation =
-			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get());
+
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -497,13 +481,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		let expected_claimed_amount = 184_024_112_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
-			bob_hdx_balance_0
-		);
-
-		//Treasury should receive the rewards as less than ED
-		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get()),
-			treasury_balance_after_farms_creation + expected_claimed_amount
+			bob_hdx_balance_0 + expected_claimed_amount
 		);
 
 		//NOTE:	omnipool position should not be unlocked because deposit wasn't destroyed(it has 1
@@ -1089,8 +1067,6 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
-		let treasury_balance_after_farms_creation =
-			hydradx_runtime::Currencies::free_balance(bond_id, &TreasuryAccount::get());
 
 		set_relaychain_block_number(300);
 
@@ -1129,18 +1105,11 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 		let expected_claimed_amount = 393_607_131_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into()),
-			charlie_bonds_balance_0
-		);
-		//Treasury should receive the rewards as less than ED
-		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(bond_id, &TreasuryAccount::get()),
-			treasury_balance_after_farms_creation + expected_claimed_amount
+			charlie_bonds_balance_0 + expected_claimed_amount
 		);
 
 		set_relaychain_block_number(700);
 		let charlie_bonds_balance_0 = hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into());
-		let treasury_balance_before_withdraw =
-			hydradx_runtime::Currencies::free_balance(bond_id, &TreasuryAccount::get());
 
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -1151,13 +1120,7 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 		let expected_claimed_amount = 229_243_713_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into()),
-			charlie_bonds_balance_0
-		);
-
-		//Treasury should receive the rewards as less than ED
-		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(bond_id, &TreasuryAccount::get()),
-			treasury_balance_before_withdraw + expected_claimed_amount
+			charlie_bonds_balance_0 + expected_claimed_amount
 		);
 
 		// NOTE: make sure oracle's price adjustment was used.
