@@ -1193,7 +1193,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 								Error::<T, I>::InconsistentState(InconsistentStateError::NoExistentialDepositForAsset),
 							)?;
 
-							//If the rewards is smaller than ED and the user has less balance than ED, then we send to treasury to prevent ED error
+							//In case of low rewards and insufficient balance, we send rewards to treasury to prevent ED error
 							if rewards < ed && T::MultiCurrency::free_balance(global_farm.reward_currency, &who) < ed {
 								T::MultiCurrency::transfer(
 									global_farm.reward_currency,
