@@ -715,7 +715,7 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 }
 
 #[test]
-fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_but_user_has_no_balance() {
+fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_and_user_has_no_balance() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
