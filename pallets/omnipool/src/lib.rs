@@ -423,6 +423,10 @@ pub mod pallet {
 		ZeroAmountOut,
 		/// Existential deposit of asset is not available.
 		ExistentialDepositNotAvailable,
+		/// Liquidity limit is not reached while removing liquidity
+		LiquidityLimitNotReached,
+		/// Shares limit is not reached while adding liquidity
+		SharesLimitNotReached,
 	}
 
 	#[pallet::call]
@@ -693,6 +697,162 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Add liquidity of asset `asset` in quantity `amount` to Omnipool.
+		///
+		/// Limit protection is applied.
+		///
+		/// `add_liquidity` adds specified asset amount to Omnipool and in exchange gives the origin
+		/// corresponding shares amount in form of NFT at current price.
+		///
+		/// Asset's tradable state must contain ADD_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
+		///
+		/// NFT is minted using NTFHandler which implements non-fungibles traits from frame_support.
+		///
+		/// Asset weight cap must be respected, otherwise `AssetWeightExceeded` error is returned.
+		/// Asset weight is ratio between new HubAsset reserve and total reserve of Hub asset in Omnipool.
+		///
+		/// Add liquidity fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
+		///
+		/// Parameters:
+		/// - `asset`: The identifier of the new asset added to the pool. Must be already in the pool
+		/// - `amount`: Amount of asset added to omnipool
+		/// - `min_shares_limit`: The min amount of delta share asset the user should receive in the position
+		///
+		/// Emits `LiquidityAdded` event when successful.
+		///
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
+		.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()
+		.saturating_add(T::ExternalPriceOracle::get_price_weight()))
+		)]
+		#[transactional]
+		pub fn add_liquidity_with_limit(
+			origin: OriginFor<T>,
+			asset: T::AssetId,
+			amount: Balance,
+			min_shares_limit: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+
+			ensure!(
+				amount >= T::MinimumPoolLiquidity::get(),
+				Error::<T>::InsufficientLiquidity
+			);
+
+			ensure!(
+				T::Currency::ensure_can_withdraw(asset, &who, amount).is_ok(),
+				Error::<T>::InsufficientBalance
+			);
+
+			let asset_state = Self::load_asset_state(asset)?;
+
+			ensure!(
+				asset_state.tradable.contains(Tradability::ADD_LIQUIDITY),
+				Error::<T>::NotAllowed
+			);
+
+			T::PriceBarrier::ensure_price(
+				&who,
+				T::HubAssetId::get(),
+				asset,
+				EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
+			)
+			.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
+
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+			//
+			// Calculate add liquidity state changes
+			//
+			let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
+				&(&asset_state).into(),
+				amount,
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(
+				*state_changes.asset.delta_shares >= min_shares_limit,
+				Error::<T>::SharesLimitNotReached
+			);
+
+			let new_asset_state = asset_state
+				.clone()
+				.delta_update(&state_changes.asset)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			let hub_reserve_ratio = FixedU128::checked_from_rational(
+				new_asset_state.hub_reserve,
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
+					.checked_add(*state_changes.asset.delta_hub_reserve)
+					.ok_or(ArithmeticError::Overflow)?,
+			)
+			.ok_or(ArithmeticError::DivisionByZero)?;
+
+			ensure!(
+				hub_reserve_ratio <= new_asset_state.weight_cap(),
+				Error::<T>::AssetWeightCapExceeded
+			);
+
+			// Create LP position with given shares
+			let lp_position = Position::<Balance, T::AssetId> {
+				asset_id: asset,
+				amount,
+				shares: *state_changes.asset.delta_shares,
+				// Note: position needs price after asset state is updated.
+				price: (new_asset_state.hub_reserve, new_asset_state.reserve),
+			};
+
+			let instance_id = Self::create_and_mint_position_instance(&who)?;
+
+			<Positions<T>>::insert(instance_id, lp_position);
+
+			Self::deposit_event(Event::PositionCreated {
+				position_id: instance_id,
+				owner: who.clone(),
+				asset,
+				amount,
+				shares: *state_changes.asset.delta_shares,
+				price: new_asset_state.price().ok_or(ArithmeticError::DivisionByZero)?,
+			});
+
+			T::Currency::transfer(
+				asset,
+				&who,
+				&Self::protocol_account(),
+				*state_changes.asset.delta_reserve,
+			)?;
+
+			debug_assert_eq!(*state_changes.asset.delta_reserve, amount);
+
+			// Callback hook info
+			let info: AssetInfo<T::AssetId, Balance> =
+				AssetInfo::new(asset, &asset_state, &new_asset_state, &state_changes.asset, false);
+
+			Self::update_imbalance(state_changes.delta_imbalance)?;
+
+			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
+
+			Self::set_asset_state(asset, new_asset_state);
+
+			Self::deposit_event(Event::LiquidityAdded {
+				who,
+				asset_id: asset,
+				amount,
+				position_id: instance_id,
+			});
+
+			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
+
+			Ok(())
+		}
+
 		/// Remove liquidity of asset `asset` in quantity `amount` from Omnipool
 		///
 		/// `remove_liquidity` removes specified shares amount from given PositionId (NFT instance).
@@ -784,6 +944,190 @@ pub mod pallet {
 				withdrawal_fee,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
+
+			let new_asset_state = asset_state
+				.clone()
+				.delta_update(&state_changes.asset)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			// Update position state
+			let updated_position = position
+				.delta_update(
+					&state_changes.delta_position_reserve,
+					&state_changes.delta_position_shares,
+				)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			T::Currency::transfer(
+				asset_id,
+				&Self::protocol_account(),
+				&who,
+				*state_changes.asset.delta_reserve,
+			)?;
+
+			Self::update_imbalance(state_changes.delta_imbalance)?;
+
+			// burn only difference between delta hub and lp hub amount.
+			Self::update_hub_asset_liquidity(
+				&state_changes
+					.asset
+					.delta_hub_reserve
+					.merge(BalanceUpdate::Increase(state_changes.lp_hub_amount))
+					.ok_or(ArithmeticError::Overflow)?,
+			)?;
+
+			// LP receives some hub asset
+			Self::process_hub_amount(state_changes.lp_hub_amount, &who)?;
+
+			if updated_position.shares == Balance::zero() {
+				// All liquidity removed, remove position and burn NFT instance
+
+				<Positions<T>>::remove(position_id);
+				T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
+
+				Self::deposit_event(Event::PositionDestroyed {
+					position_id,
+					owner: who.clone(),
+				});
+			} else {
+				Self::deposit_event(Event::PositionUpdated {
+					position_id,
+					owner: who.clone(),
+					asset: asset_id,
+					amount: updated_position.amount,
+					shares: updated_position.shares,
+					price: updated_position
+						.price_from_rational()
+						.ok_or(ArithmeticError::DivisionByZero)?,
+				});
+
+				<Positions<T>>::insert(position_id, updated_position);
+			}
+
+			// Callback hook info
+			let info: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				asset_id,
+				&asset_state,
+				&new_asset_state,
+				&state_changes.asset,
+				safe_withdrawal,
+			);
+
+			Self::set_asset_state(asset_id, new_asset_state);
+
+			Self::deposit_event(Event::LiquidityRemoved {
+				who,
+				position_id,
+				asset_id,
+				shares_removed: amount,
+				fee: withdrawal_fee,
+			});
+
+			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
+
+			Ok(())
+		}
+
+		/// Remove liquidity of asset `asset` in quantity `amount` from Omnipool
+		///
+		/// Limit protection is applied.
+		///
+		/// `remove_liquidity` removes specified shares amount from given PositionId (NFT instance).
+		///
+		/// Asset's tradable state must contain REMOVE_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
+		///
+		/// if all shares from given position are removed, position is destroyed and NFT is burned.
+		///
+		/// Remove liquidity fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
+		///
+		/// Dynamic withdrawal fee is applied if withdrawal is not safe. It is calculated using spot price and external price oracle.
+		/// Withdrawal is considered safe when trading is disabled.
+		///
+		/// Parameters:
+		/// - `position_id`: The identifier of position which liquidity is removed from.
+		/// - `amount`: Amount of shares removed from omnipool
+		/// - `min_limit`: The min amount of asset to be removed for the user
+		///
+		/// Emits `LiquidityRemoved` event when successful.
+		///
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
+		#[transactional]
+		pub fn remove_liquidity_with_limit(
+			origin: OriginFor<T>,
+			position_id: T::PositionItemId,
+			amount: Balance,
+			min_limit: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+
+			ensure!(amount > Balance::zero(), Error::<T>::InvalidSharesAmount);
+
+			ensure!(
+				T::NFTHandler::owner(&T::NFTCollectionId::get(), &position_id) == Some(who.clone()),
+				Error::<T>::Forbidden
+			);
+
+			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
+
+			ensure!(position.shares >= amount, Error::<T>::InsufficientShares);
+
+			let asset_id = position.asset_id;
+
+			let asset_state = Self::load_asset_state(asset_id)?;
+
+			ensure!(
+				asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),
+				Error::<T>::NotAllowed
+			);
+
+			let safe_withdrawal = asset_state.tradable.is_safe_withdrawal();
+			// Skip price check if safe withdrawal - trading disabled.
+			if !safe_withdrawal {
+				T::PriceBarrier::ensure_price(
+					&who,
+					T::HubAssetId::get(),
+					asset_id,
+					EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
+				)
+				.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
+			}
+			let ext_asset_price = T::ExternalPriceOracle::get_price(T::HubAssetId::get(), asset_id)?;
+
+			if ext_asset_price.is_zero() {
+				return Err(Error::<T>::InvalidOraclePrice.into());
+			}
+			let withdrawal_fee = hydra_dx_math::omnipool::calculate_withdrawal_fee(
+				asset_state.price().ok_or(ArithmeticError::DivisionByZero)?,
+				FixedU128::checked_from_rational(ext_asset_price.n, ext_asset_price.d)
+					.defensive_ok_or(Error::<T>::InvalidOraclePrice)?,
+				T::MinWithdrawalFee::get(),
+			);
+
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+			//
+			// calculate state changes of remove liquidity
+			//
+			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
+				&(&asset_state).into(),
+				amount,
+				&(&position).into(),
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
+				withdrawal_fee,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(
+				*state_changes.asset.delta_reserve >= min_limit,
+				Error::<T>::LiquidityLimitNotReached
+			);
 
 			let new_asset_state = asset_state
 				.clone()

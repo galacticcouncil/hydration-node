@@ -10,11 +10,13 @@ mod invariants;
 mod remove_liquidity;
 mod sell;
 
+mod add_liquidity_with_limit;
 mod barrier;
 mod imbalance;
 pub(crate) mod mock;
 mod positions;
 mod refund;
+mod remove_liquidity_with_limit;
 mod remove_token;
 mod spot_price;
 mod tradability;
