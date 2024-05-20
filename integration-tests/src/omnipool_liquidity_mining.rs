@@ -539,24 +539,10 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 }
 
 #[test]
-fn withdraw_shares_should_should_return_reward_to_user_when_bigger_than_ed() {
+fn withdraw_shares_should_send_reward_to_user_when_bigger_than_ed_but_user_has_no_reward_balance() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		//We reduce the ED so the user can quickly accumulate rewawrd bigger than ED
-		assert_ok!(hydradx_runtime::AssetRegistry::update(
-			hydradx_runtime::RuntimeOrigin::root(),
-			HDX,
-			None,
-			None,
-			Some(1_000_000),
-			None,
-			None,
-			None,
-			None,
-			None
-		));
-
 		let global_farm_1_id = 1;
 		let global_farm_2_id = 2;
 		let yield_farm_1_id = 3;
@@ -572,8 +558,8 @@ fn withdraw_shares_should_should_return_reward_to_user_when_bigger_than_ed() {
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
 
-		create_global_farm(None);
-		create_global_farm(None);
+		create_global_farm_with_yield_percentage(None, Perquintill::from_percent(40));
+		create_global_farm_with_yield_percentage(None, Perquintill::from_percent(40));
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
@@ -619,8 +605,17 @@ fn withdraw_shares_should_should_return_reward_to_user_when_bigger_than_ed() {
 				.is_some()
 		);
 
+		//We make sure that charlie has 0 HDX so reward (which is less than ED) can not be sent to him
+		//We also make sure that treasury has some balance so we don't trigger BelowMinimum error because treasury balance is below ED
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			Treasury::account_id().into(),
+			HDX,
+			1000 * UNITS,
+		));
+
 		//Act
-		set_relaychain_block_number(600);
+		set_relaychain_block_number(1000);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
@@ -628,16 +623,16 @@ fn withdraw_shares_should_should_return_reward_to_user_when_bigger_than_ed() {
 		));
 
 		//Assert
-		let expected_claimed_amount = 184_024_112_u128;
+		let expected_claimed_amount = 33_333_333_333_331;
 		std::assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
-			CHARLIE_INITIAL_NATIVE_BALANCE + expected_claimed_amount
+			expected_claimed_amount
 		);
 	});
 }
 
 #[test]
-fn withdraw_shares_should_work_reward_is_less_than_ed() {
+fn withdraw_shares_should_work_when_reward_is_less_than_ed() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -704,7 +699,7 @@ fn withdraw_shares_should_work_reward_is_less_than_ed() {
 		);
 
 		//We make sure that charlie has 0 HDX so reward (which is less than ED) can not be sent to him
-		//We also make sure that treasury has some balance so we don't trigger another ED problem
+		//We also make sure that treasury has some balance so we don't trigger BelowMinimum error because treasury balance is below ED
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			Treasury::account_id().into(),
@@ -794,6 +789,10 @@ fn init_omnipool() {
 }
 
 fn create_global_farm(rewards_currency: Option<AssetId>) {
+	create_global_farm_with_yield_percentage(rewards_currency, Perquintill::from_parts(570_776_255_707));
+}
+
+fn create_global_farm_with_yield_percentage(rewards_currency: Option<AssetId>, yield_percentage: Perquintill) {
 	let total_rewards = 1_000_000 * UNITS;
 
 	assert_ok!(hydradx_runtime::Balances::force_set_balance(
@@ -809,7 +808,7 @@ fn create_global_farm(rewards_currency: Option<AssetId>) {
 		10,
 		rewards_currency.unwrap_or(HDX),
 		Treasury::account_id(),
-		Perquintill::from_parts(570_776_255_707),
+		yield_percentage,
 		1_000,
 		FixedU128::one()
 	));
