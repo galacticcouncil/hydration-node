@@ -116,7 +116,7 @@ use sp_runtime::ArithmeticError;
 
 use hydra_dx_math::liquidity_mining as math;
 use hydradx_traits::{liquidity_mining::PriceAdjustment, pools::DustRemovalAccountWhitelist, registry::Inspect};
-use orml_traits::{rewards, GetByKey, MultiCurrency};
+use orml_traits::{GetByKey, MultiCurrency};
 use scale_info::TypeInfo;
 use sp_arithmetic::{
 	fixed_point::FixedU128,
