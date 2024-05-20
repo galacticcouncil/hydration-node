@@ -632,7 +632,90 @@ fn withdraw_shares_should_send_reward_to_user_when_bigger_than_ed_but_user_has_n
 }
 
 #[test]
-fn withdraw_shares_should_work_when_reward_is_less_than_ed() {
+fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_user_has_balance() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_1_id = 1;
+		let global_farm_2_id = 2;
+		let yield_farm_1_id = 3;
+		let yield_farm_2_id = 4;
+
+		//Arrange
+		init_omnipool();
+
+		seed_lm_pot();
+		//necessary for oracle to have a price.
+		do_lrna_hdx_trade();
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
+		set_relaychain_block_number(100);
+
+		create_global_farm(None);
+		create_global_farm(None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, ETH);
+		create_yield_farm(global_farm_2_id, ETH);
+
+		set_relaychain_block_number(300);
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CHARLIE.into(),
+			ETH,
+			10_000 * UNITS as i128,
+		));
+
+		let position_id = omnipool_add_liquidity(CHARLIE.into(), ETH, 1_000 * UNITS);
+		assert_nft_owner!(
+			hydradx_runtime::OmnipoolCollectionId::get(),
+			position_id,
+			CHARLIE.into()
+		);
+
+		set_relaychain_block_number(400);
+		let deposit_id = 1;
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			global_farm_1_id,
+			yield_farm_1_id,
+			position_id
+		));
+
+		set_relaychain_block_number(500);
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			global_farm_2_id,
+			yield_farm_2_id,
+			deposit_id
+		));
+
+		assert!(
+			warehouse_liquidity_mining::Deposit::<hydradx_runtime::Runtime, Instance1>::get(deposit_id)
+				.unwrap()
+				.get_yield_farm_entry(yield_farm_2_id)
+				.is_some()
+		);
+
+		//Act
+		set_relaychain_block_number(600);
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			deposit_id,
+			yield_farm_2_id
+		));
+
+		let expected_claimed_amount = 184_024_112_u128;
+		assert_eq!(
+			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
+			1000 * UNITS + expected_claimed_amount
+		);
+	});
+}
+
+#[test]
+fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_but_user_has_no_balance() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
