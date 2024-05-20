@@ -236,16 +236,8 @@ fn add_liquidity_should_fail_when_doesnt_reach_min_limit() {
 		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-
 			//Do some trade not to have parity between liquidity and shares
-			assert_ok!(Omnipool::sell(
-				RuntimeOrigin::signed(LP1),
-				1_000,
-				DAI,
-				20 * ONE,
-				0
-			));
-
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 1_000, DAI, 20 * ONE, 0));
 
 			// ACT
 			assert_noop!(
