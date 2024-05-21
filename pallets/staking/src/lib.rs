@@ -286,8 +286,8 @@ pub mod pallet {
 		/// Signer is not an owner of the staking position.
 		Forbidden,
 
-		/// Remove vote is not allowed when referendum is finished and staking position exists.
-		RemoveVoteNotAllowed,
+		/// Position contains registered votes.
+		ExistingVotes,
 
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
@@ -644,7 +644,9 @@ pub mod pallet {
 						.as_mut()
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
 
-					Self::process_votes(position_id, position)?;
+					let voting = PositionVotes::<T>::get(position_id);
+
+					ensure!(voting.votes.is_empty(), Error::<T>::ExistingVotes);
 
 					let current_period = Self::get_current_period()
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;

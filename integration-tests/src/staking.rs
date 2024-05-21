@@ -1070,7 +1070,7 @@ fn staking_should_not_allow_to_remove_vote_when_referendum_is_finished_and_staki
 		.unwrap();
 		assert_noop!(
 			Democracy::remove_vote(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), r),
-			pallet_staking::Error::<hydradx_runtime::Runtime>::RemoveVoteNotAllowed
+			pallet_staking::Error::<hydradx_runtime::Runtime>::ExistingVotes
 		);
 		assert_ok!(Democracy::unlock(
 			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
@@ -1326,6 +1326,31 @@ fn staking_should_allow_to_remove_vote_when_user_lost_with_no_conviction() {
 	});
 }
 
+#[test]
+fn remove_vote_should_work_correctly_when_no_position() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn remove_vote_should_extend_lock_when_vote_not_in_favor() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn remove_vote_should_extend_lock_for_partial_amount_when_vote_not_in_favor() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn unstake_should_fail_when_position_has_existing_votes() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn remove_vote_should_not_lock_or_assign_rewards_when_referendum_was_cancelled() {
+	assert_eq!(0, 1);
+}
+
 const DEMOCRACY_ID: LockIdentifier = *b"democrac";
 fn assert_lock(who: &AccountId, amount: Balance, lock_id: LockIdentifier) {
 	let locks = Balances::locks(who);
@@ -1347,117 +1372,3 @@ fn assert_no_lock(who: &AccountId, lock_id: LockIdentifier) {
 
 	assert_eq!(lock, None);
 }
-
-#[test]
-fn staking_mess() {
-	TestNet::reset();
-	Hydra::execute_with(|| {
-		init_omnipool();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
-		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_ok!(Currencies::update_balance(
-			RawOrigin::Root.into(),
-			staking_account,
-			HDX,
-			(100_000_000 * UNITS) as i128,
-		));
-
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			ALICE.into(),
-			1_000_000 * UNITS,
-		));
-		assert_ok!(Balances::force_set_balance(
-			RawOrigin::Root.into(),
-			BOB.into(),
-			1_000_000 * UNITS,
-		));
-
-		let r = begin_referendum();
-		assert_ok!(Staking::stake(
-			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
-			1_000_000 * UNITS
-		));
-		assert_ok!(Staking::stake(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			1_000_000 * UNITS
-		));
-
-		assert_ok!(Democracy::vote(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			r,
-			AccountVote::Standard {
-				vote: Vote {
-					aye: true,
-					conviction: Conviction::Locked6x,
-				},
-				balance: 1_000_000 * UNITS,
-			}
-		));
-
-		assert_ok!(Democracy::vote(
-			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
-			r,
-			AccountVote::Standard {
-				vote: Vote {
-					aye: false,
-					conviction: Conviction::Locked6x,
-				},
-				balance: 900_000 * UNITS,
-			}
-		));
-		end_referendum();
-
-		fast_forward_to(100 * DAYS);
-
-		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
-			&sp_runtime::AccountId32::from(ALICE),
-		)
-		.unwrap()
-		.unwrap();
-
-		assert_eq!(stake_position_id, 1);
-		assert_ok!(Staking::unstake(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			stake_position_id
-		));
-
-		let trans_balance = Balances::free_balance(&ALICE.into());
-		dbg!(trans_balance);
-		//assert_eq!(trans_balance, 0);
-		assert_ok!(Democracy::remove_vote(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			r
-		));
-
-		/*
-		assert_noop!(
-			Democracy::remove_vote(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), r),
-			pallet_staking::Error::<hydradx_runtime::Runtime>::RemoveVoteNotAllowed
-		);
-
-		 */
-		assert_ok!(Democracy::unlock(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			ALICE.into()
-		),);
-		//let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
-		//assert!(!stake_voting.votes.is_empty());
-		//let position = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
-		//assert_eq!(position.get_action_points(), 0);
-
-		//assert_lock(&ALICE.into(), 1_000_000* UNITS, DEMOCRACY_ID);
-
-		let trans_balance = Balances::free_balance(&ALICE.into());
-		//assert_eq!(trans_balance, 0);
-		dbg!(trans_balance);
-		assert_ok!(Balances::transfer(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			BOB.into(),
-			500_000 * UNITS
-		));
-	});
-}
-
-use frame_support::traits::fungible::Inspect;
-use frame_support::traits::tokens::{Fortitude, Preservation};
