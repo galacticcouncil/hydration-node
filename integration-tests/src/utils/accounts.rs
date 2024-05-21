@@ -5,21 +5,22 @@ use orml_traits::MultiCurrency;
 use primitives::{AccountId, AssetId, Balance};
 use sp_core::H160;
 
-// Private key: 42d8d953e4f9246093a33e9ca6daa078501012f784adfe4bbed57918ff13be14
-// Address: 	0x222222ff7Be76052e023Ec1a306fCca8F9659D80
-// Account Id: 	45544800222222ff7be76052e023ec1a306fcca8f9659d800000000000000000
-// SS58(63): 	7KATdGakyhfBGnAt3XVgXTL7cYjzRXeSZHezKNtENcbwWibb
+// subkey inspect --network hydradx //Alice
+// Private key: e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a
+// EVM Address: d43593c715fdd31c61141abd04a99fd6822c8558
+// Account Id: 	d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
+// SS58(63): 	7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba
 pub(crate) fn alith_evm_address() -> H160 {
-	hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"].into()
+	hex!["d43593c715fdd31c61141abd04a99fd6822c8558"].into()
 }
 pub(crate) fn alith_evm_account() -> AccountId {
-	hex!["45544800222222ff7be76052e023ec1a306fcca8f9659d800000000000000000"].into()
+	hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"].into()
 }
 pub(crate) fn alith_truncated_account() -> AccountId {
 	hydradx_runtime::EVMAccounts::truncated_account_id(alith_evm_address())
 }
 pub(crate) fn alith_secret_key() -> [u8; 32] {
-	hex!("42d8d953e4f9246093a33e9ca6daa078501012f784adfe4bbed57918ff13be14")
+	hex!("e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a")
 }
 
 pub(crate) struct MockAccount(AccountId);
