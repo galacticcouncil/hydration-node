@@ -13,9 +13,6 @@ use sp_core::H160;
 pub(crate) fn alith_evm_address() -> H160 {
 	hex!["d43593c715fdd31c61141abd04a99fd6822c8558"].into()
 }
-pub(crate) fn alith_evm_account() -> AccountId {
-	hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"].into()
-}
 pub(crate) fn alith_truncated_account() -> AccountId {
 	hydradx_runtime::EVMAccounts::truncated_account_id(alith_evm_address())
 }

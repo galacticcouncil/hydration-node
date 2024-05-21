@@ -34,7 +34,7 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
-	let user_acc = MockAccount::new(alith_evm_account());
+	let user_acc = MockAccount::new(alith_truncated_account());
 	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	Hydra::execute_with(|| {
@@ -148,7 +148,7 @@ fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
-	let user_acc = MockAccount::new(alith_evm_account());
+	let user_acc = MockAccount::new(alith_truncated_account());
 	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	Hydra::execute_with(|| {
@@ -239,7 +239,7 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_bounded() 
 	TestNet::reset();
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
-	let user_acc = MockAccount::new(alith_evm_account());
+	let user_acc = MockAccount::new(alith_truncated_account());
 	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	Hydra::execute_with(|| {
