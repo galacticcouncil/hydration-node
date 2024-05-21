@@ -1173,6 +1173,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 						)
 						.map_err(|_| ArithmeticError::Overflow)?;
 
+						//In case of low rewards and insufficient balance, we send rewards to treasury to prevent ED error
+						let ed = T::AssetRegistry::existential_deposit(global_farm.reward_currency).ok_or(
+							Error::<T, I>::InconsistentState(InconsistentStateError::NoExistentialDepositForAsset),
+						)?;
+						let should_send_reward_to_treasury =
+							rewards < ed && T::MultiCurrency::free_balance(global_farm.reward_currency, &who) < ed;
+
 						if !rewards.is_zero() {
 							yield_farm.left_to_distribute = yield_farm
 								.left_to_distribute
@@ -1189,12 +1196,8 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 							farm_entry.updated_at = current_period;
 
 							let pot = Self::pot_account_id().ok_or(Error::<T, I>::ErrorGetAccountId)?;
-							let ed = T::AssetRegistry::existential_deposit(global_farm.reward_currency).ok_or(
-								Error::<T, I>::InconsistentState(InconsistentStateError::NoExistentialDepositForAsset),
-							)?;
 
-							//In case of low rewards and insufficient balance, we send rewards to treasury to prevent ED error
-							if rewards < ed && T::MultiCurrency::free_balance(global_farm.reward_currency, &who) < ed {
+							if should_send_reward_to_treasury {
 								T::MultiCurrency::transfer(
 									global_farm.reward_currency,
 									&pot,
@@ -1206,10 +1209,11 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 							}
 						}
 
+						let rewards_sent_for_user = if should_send_reward_to_treasury { 0 } else { rewards };
 						Ok((
 							global_farm.id,
 							global_farm.reward_currency,
-							rewards,
+							rewards_sent_for_user,
 							unclaimable_rewards,
 						))
 					})

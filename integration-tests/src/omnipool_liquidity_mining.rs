@@ -33,7 +33,7 @@ use sp_runtime::{
 };
 use xcm_emulator::TestExt;
 
-use hydradx_runtime::{AssetRegistry, Balance, Bonds, RuntimeOrigin, Treasury, TreasuryAccount};
+use hydradx_runtime::{AssetRegistry, Balance, Bonds, RuntimeEvent, RuntimeOrigin, Treasury, TreasuryAccount};
 use pallet_asset_registry::AssetType;
 use pretty_assertions::assert_eq;
 use primitives::constants::time::unix_time::MONTH;
@@ -628,6 +628,16 @@ fn withdraw_shares_should_send_reward_to_user_when_bigger_than_ed_but_user_has_n
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			expected_claimed_amount
 		);
+
+		expect_reward_claimed_events(vec![pallet_omnipool_liquidity_mining::Event::RewardClaimed {
+			global_farm_id: global_farm_2_id,
+			yield_farm_id: yield_farm_2_id,
+			who: AccountId::from(CHARLIE),
+			claimed: expected_claimed_amount,
+			reward_currency: HDX,
+			deposit_id: 1,
+		}
+		.into()]);
 	});
 }
 
@@ -711,6 +721,16 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			1000 * UNITS + expected_claimed_amount
 		);
+
+		expect_reward_claimed_events(vec![pallet_omnipool_liquidity_mining::Event::RewardClaimed {
+			global_farm_id: global_farm_2_id,
+			yield_farm_id: yield_farm_2_id,
+			who: AccountId::from(CHARLIE),
+			claimed: expected_claimed_amount,
+			reward_currency: HDX,
+			deposit_id: 1,
+		}
+		.into()]);
 	});
 }
 
@@ -809,6 +829,8 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get()),
 			1000 * UNITS + expected_claimed_amount
 		);
+
+		expect_reward_claimed_events(vec![]);
 	});
 }
 
@@ -1218,4 +1240,24 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 			FixedU128::from_inner(830_817_151_946_084_689_817_u128)
 		);
 	});
+}
+
+pub fn expect_reward_claimed_events(e: Vec<RuntimeEvent>) {
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
+
+	let mut reward_claimed_events = vec![];
+
+	for event in &last_events {
+		let e = event.clone();
+		if matches!(
+			e,
+			RuntimeEvent::OmnipoolLiquidityMining(
+				pallet_omnipool_liquidity_mining::Event::<hydradx_runtime::Runtime>::RewardClaimed { .. }
+			)
+		) {
+			reward_claimed_events.push(e);
+		}
+	}
+
+	pretty_assertions::assert_eq!(reward_claimed_events, e);
 }
