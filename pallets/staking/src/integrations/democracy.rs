@@ -1,4 +1,4 @@
-use crate::pallet::{PositionVotes, Positions};
+use crate::pallet::{PositionVotes, Positions, ProcessedVotes};
 use crate::traits::{DemocracyReferendum, VestingDetails};
 use crate::types::{Action, Balance, Conviction, Vote};
 use crate::{Config, Error, Pallet};
@@ -36,7 +36,7 @@ where
 				}
 			};
 
-			Pallet::<T>::process_votes(position_id, position)?;
+			Pallet::<T>::process_votes(who, position_id, position)?;
 
 			let amount = vote.balance();
 			let conviction = if let AccountVote::Standard { vote, .. } = vote {
@@ -85,46 +85,56 @@ where
 	}
 
 	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex, is_finished: Option<bool>) {
-		//TODO: what a mess with all the maybe and if let..please do something, Howard!
-		if let Some(maybe_position_id) = Pallet::<T>::get_user_position_id(who).ok() {
-			if let Some(position_id) = maybe_position_id {
-				let _ = Positions::<T>::try_mutate(position_id, |maybe_position| -> DispatchResult {
-					if let Some(position) = maybe_position.as_mut() {
-						let max_position_vote = Conviction::max_multiplier().saturating_mul_int(position.stake);
+		let Some(maybe_position_id) = Pallet::<T>::get_user_position_id(who).ok() else {
+			return;
+		};
 
-						if let Some(vote_idx) = PositionVotes::<T>::get(position_id)
-							.votes
-							.iter()
-							.position(|(idx, _)| *idx == ref_index)
-						{
-							let (ref_idx, vote) = PositionVotes::<T>::get(position_id).votes[vote_idx];
-							debug_assert_eq!(ref_idx, ref_index, "Referendum index mismatch");
-							let points = Pallet::<T>::calculate_points_for_action(
-								Action::DemocracyVote,
-								vote,
-								max_position_vote,
-							);
-							// Add points only if referendum is finished
-							if let Some(is_finished) = is_finished {
-								if is_finished {
-									position.action_points = position.action_points.saturating_add(points);
-								}
-							}
-							PositionVotes::<T>::mutate(position_id, |voting| {
-								voting.votes.remove(vote_idx);
-							});
+		let Some(position_id) = maybe_position_id else {
+			return;
+		};
+
+		let entry = ProcessedVotes::<T>::take(&who, ref_index);
+		if entry.is_some() {
+			// this vote was already processed, just remove it
+			return;
+		}
+
+		let _ = Positions::<T>::try_mutate(position_id, |maybe_position| -> DispatchResult {
+			if let Some(position) = maybe_position.as_mut() {
+				let max_position_vote = Conviction::max_multiplier().saturating_mul_int(position.stake);
+
+				if let Some(vote_idx) = PositionVotes::<T>::get(position_id)
+					.votes
+					.iter()
+					.position(|(idx, _)| *idx == ref_index)
+				{
+					let (ref_idx, vote) = PositionVotes::<T>::get(position_id).votes[vote_idx];
+					debug_assert_eq!(ref_idx, ref_index, "Referendum index mismatch");
+					let points =
+						Pallet::<T>::calculate_points_for_action(Action::DemocracyVote, vote, max_position_vote);
+					// Add points only if referendum is finished
+					if let Some(is_finished) = is_finished {
+						if is_finished {
+							position.action_points = position.action_points.saturating_add(points);
 						}
 					}
-					Ok(())
-				});
+					PositionVotes::<T>::mutate(position_id, |voting| {
+						voting.votes.remove(vote_idx);
+					});
+				}
 			}
-		};
+			Ok(())
+		});
 	}
 
 	fn remove_vote_locks_if_needed(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
 		let Some(position_id) = Pallet::<T>::get_user_position_id(who).ok()? else {
 			return None;
 		};
+
+		if let Some(vote) = ProcessedVotes::<T>::get(who, ref_index) {
+			return Some(vote.amount);
+		}
 
 		let Some(vote_idx) = PositionVotes::<T>::get(position_id)
 			.votes

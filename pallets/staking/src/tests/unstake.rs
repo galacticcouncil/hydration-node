@@ -532,3 +532,46 @@ fn unstake_should_fail_when_position_has_existing_votes() {
 			);
 		});
 }
+
+#[test]
+fn unstake_should_fail_when_position_has_existing_processed_votes() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
+		.start_at_block(1_452_987)
+		.with_stakes(vec![(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE)])
+		.with_votings(vec![(
+			0,
+			vec![(
+				2_u32,
+				Vote {
+					amount: 10_000 * ONE,
+					conviction: Conviction::Locked4x,
+				},
+			)],
+		)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_pending_rewards(10_000 * ONE);
+			set_block_number(1_700_000);
+			let alice_position_id = 0;
+
+			assert!(crate::PositionVotes::<Test>::contains_key(alice_position_id));
+
+			assert_ok!(Staking::increase_stake(
+				RuntimeOrigin::signed(ALICE),
+				alice_position_id,
+				10_000 * ONE
+			));
+
+			let voting = PositionVotes::<Test>::get(alice_position_id);
+			assert!(voting.votes.is_empty());
+
+			//Act
+			assert_noop!(
+				Staking::unstake(RuntimeOrigin::signed(ALICE), alice_position_id),
+				Error::<Test>::ExistingVotes
+			);
+		});
+}

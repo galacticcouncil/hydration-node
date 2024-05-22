@@ -205,6 +205,19 @@ pub mod pallet {
 	pub(super) type PositionVotes<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Voting<T::MaxVotes>, ValueQuery>;
 
+	#[pallet::storage]
+	/// List of processed vote. Used to determine if the vote should be locked in case of voting not in favor.
+	#[pallet::getter(fn processed_votes)]
+	pub(super) type ProcessedVotes<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		pallet_democracy::ReferendumIndex,
+		crate::types::Vote,
+		OptionQuery,
+	>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -439,7 +452,7 @@ pub mod pallet {
 
 					Self::ensure_stakeable_balance(&who, amount, Some(position))?;
 
-					Self::process_votes(position_id, position)?;
+					Self::process_votes(&who, position_id, position)?;
 
 					let current_period = Self::get_current_period()
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
@@ -545,7 +558,7 @@ pub mod pallet {
 						.as_mut()
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
 
-					Self::process_votes(position_id, position)?;
+					Self::process_votes(&who, position_id, position)?;
 
 					let current_period = Self::get_current_period()
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
@@ -646,7 +659,11 @@ pub mod pallet {
 
 					let voting = PositionVotes::<T>::get(position_id);
 
-					ensure!(voting.votes.is_empty(), Error::<T>::ExistingVotes);
+					use frame_support::StorageDoubleMap;
+					ensure!(
+						voting.votes.is_empty() && !ProcessedVotes::<T>::contains_prefix(&who),
+						Error::<T>::ExistingVotes
+					);
 
 					let current_period = Self::get_current_period()
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::Arithmetic.into())?;
@@ -923,6 +940,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub(crate) fn process_votes(
+		who: &T::AccountId,
 		position_id: T::PositionItemId,
 		position: &mut Position<BlockNumberFor<T>>,
 	) -> DispatchResult {
@@ -933,6 +951,8 @@ impl<T: Config> Pallet<T> {
 				if T::ReferendumInfo::is_referendum_finished(*ref_idx) {
 					let points = Self::calculate_points_for_action(Action::DemocracyVote, vote, max_position_vote);
 					position.action_points = position.action_points.saturating_add(points);
+					// We need to keep the vote info to determine if the vote should be locked when removed.
+					ProcessedVotes::<T>::insert(who, *ref_idx, vote.clone());
 					false
 				} else {
 					true

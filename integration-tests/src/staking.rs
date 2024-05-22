@@ -1347,7 +1347,32 @@ fn unstake_should_fail_when_position_has_existing_votes() {
 }
 
 #[test]
+fn unstake_should_fail_when_position_has_existing_processed_votes() {
+	assert_eq!(0, 1);
+}
+
+#[test]
 fn remove_vote_should_not_lock_or_assign_rewards_when_referendum_was_cancelled() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn remove_vote_should_extend_lock_when_votes_are_already_processed() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn unstake_should_work_when_votes_are_processed_and_then_removed() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn increase_stake_should_when_position_has_existing_processed_votes() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn claim_should_when_position_has_existing_processed_votes() {
 	assert_eq!(0, 1);
 }
 
