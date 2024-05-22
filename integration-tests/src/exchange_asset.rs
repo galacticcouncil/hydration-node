@@ -15,6 +15,7 @@ use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
 use polkadot_xcm::{v4::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
 use primitives::constants::chain::CORE_ASSET_ID;
+use primitives::AccountId;
 use sp_runtime::traits::{Convert, Zero};
 use sp_runtime::DispatchResult;
 use sp_runtime::{FixedU128, Permill, TransactionOutcome};

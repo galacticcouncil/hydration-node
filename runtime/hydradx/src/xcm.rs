@@ -11,7 +11,7 @@ use frame_support::traits::TransformOrigin;
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::{AccountIdConversion, Convert},
-	traits::{ConstU32, Contains, Everything, Get, Nothing},
+	traits::{ConstU32, Contains, ContainsPair, Everything, Get, Nothing},
 	PalletId,
 };
 use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
@@ -121,7 +121,33 @@ parameter_types! {
 	pub const MaxNumberOfInstructions: u16 = 100;
 
 	pub UniversalLocation: InteriorLocation = [GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into())].into();
+	pub AssetHubLocation: Location = (Parent, Parachain(1000)).into();
 }
+
+/// Matches foreign assets from a given origin.
+/// Foreign assets are assets bridged from other consensus systems. i.e parents > 1.
+pub struct IsForeignNativeAssetFrom<Origin>(PhantomData<Origin>);
+impl<Origin> ContainsPair<Asset, Location> for IsForeignNativeAssetFrom<Origin>
+where
+	Origin: Get<Location>,
+{
+	fn contains(asset: &Asset, origin: &Location) -> bool {
+		let loc = Origin::get();
+		&loc == origin
+			&& matches!(
+				asset,
+				Asset {
+					id: AssetId(Location { parents: 2, .. }),
+					fun: Fungible(_),
+				},
+			)
+	}
+}
+
+pub type Reserves = (
+	IsForeignNativeAssetFrom<AssetHubLocation>,
+	MultiNativeAsset<AbsoluteReserveProvider>,
+);
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
@@ -130,7 +156,7 @@ impl Config for XcmConfig {
 
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToCallOrigin;
-	type IsReserve = MultiNativeAsset<AbsoluteReserveProvider>;
+	type IsReserve = Reserves;
 
 	type IsTeleporter = (); // disabled
 	type UniversalLocation = UniversalLocation;

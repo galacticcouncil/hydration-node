@@ -61,6 +61,7 @@ pub fn to_ether(b: Balance) -> Balance {
 
 pub const UNITS: Balance = 1_000_000_000_000;
 
+pub const ASSET_HUB_PARA_ID: u32 = 1_000;
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 pub const MOONBEAM_PARA_ID: u32 = 2_004;
@@ -87,6 +88,7 @@ pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
 pub const WETH: AssetId = 20;
+pub const FOREIGN_ASSET: AssetId = 21;
 pub const PEPE: AssetId = 420;
 pub const INSUFFICIENT_ASSET: AssetId = 500;
 
@@ -97,6 +99,7 @@ pub type Hydra = HydraParachain<TestNet>;
 pub type Acala = AcalaParachain<TestNet>;
 pub type Moonbeam = MoonbeamParachain<TestNet>;
 pub type Interlay = InterlayParachain<TestNet>;
+pub type AssetHub = AssetHubParachain<TestNet>;
 
 decl_test_networks! {
 	pub struct TestNet {
@@ -106,6 +109,7 @@ decl_test_networks! {
 			AcalaParachain,
 			MoonbeamParachain,
 			InterlayParachain,
+			AssetHubParachain,
 		],
 		bridge = ()
 	},
@@ -202,7 +206,24 @@ decl_test_parachains! {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
 			Balances: hydradx_runtime::Balances,
 		}
-	}
+	},
+	pub struct AssetHubParachain {
+		genesis = para::genesis(ASSET_HUB_PARA_ID),
+		on_init = {
+			hydradx_runtime::System::set_block_number(1);
+		},
+		runtime = hydradx_runtime,
+		core = {
+			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
+			ParachainInfo: hydradx_runtime::ParachainInfo,
+			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
+		},
+		pallets = {
+			PolkadotXcm: hydradx_runtime::PolkadotXcm,
+			Balances: hydradx_runtime::Balances,
+		}
+	},
 }
 
 pub mod rococo {
