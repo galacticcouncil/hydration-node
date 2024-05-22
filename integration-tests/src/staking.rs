@@ -15,7 +15,7 @@ use orml_traits::currency::MultiCurrency;
 use orml_vesting::VestingSchedule;
 use pallet_democracy::{AccountVote, Conviction, ReferendumIndex, Vote};
 use pretty_assertions::assert_eq;
-use primitives::constants::time::{DAYS, HOURS};
+use primitives::constants::time::DAYS;
 use primitives::AccountId;
 use sp_runtime::AccountId32;
 use xcm_emulator::TestExt;
@@ -264,6 +264,11 @@ fn staking_should_transfer_rewards_when_claimed() {
 			1_000 * UNITS
 		));
 
+		assert_ok!(Democracy::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r
+		));
+
 		assert_ok!(Staking::claim(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			alice_position_id
@@ -314,6 +319,11 @@ fn staking_should_not_reward_when_double_claimed() {
 			aye(2 * UNITS)
 		));
 		end_referendum();
+
+		assert_ok!(Democracy::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r
+		));
 
 		let alice_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
 			&sp_runtime::AccountId32::from(ALICE),
@@ -384,6 +394,11 @@ fn staking_should_not_reward_when_increase_stake_again_and_no_vote_activity() {
 			1_000 * UNITS
 		));
 
+		assert_ok!(Democracy::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r
+		));
+
 		// second increase
 		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert_ok!(Staking::increase_stake(
@@ -448,6 +463,16 @@ fn increase_should_slash_min_amount_when_increase_is_low() {
 		));
 		fast_forward_to(17 * DAYS);
 
+		assert_ok!(Democracy::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r
+		));
+
+		assert_ok!(Democracy::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			1
+		));
+
 		let alice_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
 			&sp_runtime::AccountId32::from(ALICE),
 		)
@@ -511,12 +536,18 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 			1_000 * UNITS
 		));
 
+		assert_ok!(Democracy::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r
+		));
+
 		assert_ok!(Staking::unstake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			alice_position_id
 		));
 		let alice_balance_after_claim = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert!(alice_balance_after_claim > alice_balance);
+		assert_eq!(alice_balance_after_claim, 1000000001920799631);
 
 		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
 			&sp_runtime::AccountId32::from(ALICE),
@@ -1005,7 +1036,8 @@ fn staking_should_assign_less_action_points_when_portion_of_staking_lock_is_vest
 }
 
 #[test]
-fn staking_should_not_allow_to_remove_vote_when_referendum_is_finished_and_staking_position_exists_and_user_lost() {
+fn staking_should_allow_to_remove_vote_and_lock_when_referendum_is_finished_and_staking_position_exists_and_user_lost()
+{
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool();
@@ -1068,19 +1100,19 @@ fn staking_should_not_allow_to_remove_vote_when_referendum_is_finished_and_staki
 		)
 		.unwrap()
 		.unwrap();
-		assert_noop!(
-			Democracy::remove_vote(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), r),
-			pallet_staking::Error::<hydradx_runtime::Runtime>::ExistingVotes
-		);
+		assert_ok!(Democracy::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			r
+		),);
 		assert_ok!(Democracy::unlock(
 			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 			BOB.into()
 		),);
 		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
-		assert!(!stake_voting.votes.is_empty());
+		assert!(stake_voting.votes.is_empty());
 		let position = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
-		assert_eq!(position.get_action_points(), 0);
-		assert_lock(&BOB.into(), 222 * UNITS, DEMOCRACY_ID);
+		assert_eq!(position.get_action_points(), 100);
+		assert_lock(&BOB.into(), 1_000_000 * UNITS, DEMOCRACY_ID);
 	});
 }
 
@@ -1327,7 +1359,7 @@ fn staking_should_allow_to_remove_vote_when_user_lost_with_no_conviction() {
 }
 
 #[test]
-fn remove_vote_should_work_correctly_when_no_position() {
+fn remove_vote_should_not_lock_when_no_stake_and_lost() {
 	assert_eq!(0, 1);
 }
 
@@ -1367,12 +1399,27 @@ fn unstake_should_work_when_votes_are_processed_and_then_removed() {
 }
 
 #[test]
-fn increase_stake_should_when_position_has_existing_processed_votes() {
+fn increase_stake_should_fail_when_position_has_existing_processed_votes() {
 	assert_eq!(0, 1);
 }
 
 #[test]
-fn claim_should_when_position_has_existing_processed_votes() {
+fn claim_should_fail_when_position_has_existing_processed_votes() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn claim_should_work_when_processed_votes_are_removed() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn increase_stake_should_work_when_processed_votes_are_removed() {
+	assert_eq!(0, 1);
+}
+
+#[test]
+fn increase_stake_should_work_when_referendum_ongoing_and_votes_processed() {
 	assert_eq!(0, 1);
 }
 

@@ -302,6 +302,9 @@ pub mod pallet {
 		/// Position contains registered votes.
 		ExistingVotes,
 
+		/// Position contains processed votes. Removed these votes first before increasing stake or claiming.
+		ExistingProcessedVotes,
+
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
 		InconsistentState(InconsistentStateError),
@@ -442,6 +445,12 @@ pub mod pallet {
 
 			ensure!(Self::is_owner(&who, position_id), Error::<T>::Forbidden);
 
+			use frame_support::StorageDoubleMap;
+			ensure!(
+				!ProcessedVotes::<T>::contains_prefix(&who),
+				Error::<T>::ExistingProcessedVotes
+			);
+
 			Staking::<T>::try_mutate(|staking| {
 				Self::update_rewards(staking)?;
 
@@ -549,6 +558,12 @@ pub mod pallet {
 			ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
 
 			ensure!(Self::is_owner(&who, position_id), Error::<T>::Forbidden);
+
+			use frame_support::StorageDoubleMap;
+			ensure!(
+				!ProcessedVotes::<T>::contains_prefix(&who),
+				Error::<T>::ExistingProcessedVotes
+			);
 
 			Staking::<T>::try_mutate(|staking| {
 				Self::update_rewards(staking)?;
