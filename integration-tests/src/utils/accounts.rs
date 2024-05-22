@@ -6,10 +6,11 @@ use primitives::{AccountId, AssetId, Balance};
 use sp_core::H160;
 
 // subkey inspect --network hydradx //Alice
-// Private key: e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a
-// EVM Address: d43593c715fdd31c61141abd04a99fd6822c8558
-// Account Id: 	d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
-// SS58(63): 	7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba
+// Private key: 			e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a
+// EVM Address: 			d43593c715fdd31c61141abd04a99fd6822c8558
+// Account Id: 				d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
+// Truncated Account Id: 	45544800d43593c715fdd31c61141abd04a99fd6822c85580000000000000000
+// SS58(63):			 	7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba
 pub(crate) fn alith_evm_address() -> H160 {
 	hex!["d43593c715fdd31c61141abd04a99fd6822c8558"].into()
 }
@@ -34,5 +35,3 @@ impl MockAccount {
 		Currencies::free_balance(asset, &self.0)
 	}
 }
-
-//pub(crate) static TreasuryAccount: MockAccount = MockAccount::new(Treasury::account_id());
