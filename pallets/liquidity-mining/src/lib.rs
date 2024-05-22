@@ -1209,7 +1209,11 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 							}
 						}
 
-						let rewards_sent_for_user = if should_send_reward_to_treasury { Zero::zero() } else { rewards };
+						let rewards_sent_for_user = if should_send_reward_to_treasury {
+							Zero::zero()
+						} else {
+							rewards
+						};
 						Ok((
 							global_farm.id,
 							global_farm.reward_currency,
