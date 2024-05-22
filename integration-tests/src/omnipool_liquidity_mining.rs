@@ -115,7 +115,7 @@ fn create_yield_farm_should_work_when_asset_is_in_omnipool() {
 		init_omnipool();
 
 		set_relaychain_block_number(100);
-		create_global_farm(None);
+		create_global_farm(None, None);
 
 		set_relaychain_block_number(200);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::create_yield_farm(
@@ -154,7 +154,7 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
-		create_global_farm(None);
+		create_global_farm(None, None);
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_id, ETH);
@@ -225,8 +225,8 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
-		create_global_farm(None);
-		create_global_farm(None);
+		create_global_farm(None, None);
+		create_global_farm(None, None);
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
@@ -316,8 +316,8 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
-		create_global_farm(None);
-		create_global_farm(None);
+		create_global_farm(None, None);
+		create_global_farm(None, None);
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
@@ -421,8 +421,8 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
-		create_global_farm(None);
-		create_global_farm(None);
+		create_global_farm(None, None);
+		create_global_farm(None, None);
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
@@ -558,8 +558,8 @@ fn withdraw_shares_should_send_reward_to_user_when_bigger_than_ed_but_user_has_n
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
 
-		create_global_farm_with_yield_percentage(None, Perquintill::from_percent(40));
-		create_global_farm_with_yield_percentage(None, Perquintill::from_percent(40));
+		create_global_farm(None, Some(Perquintill::from_percent(40)));
+		create_global_farm(None, Some(Perquintill::from_percent(40)));
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
@@ -661,8 +661,8 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
 
-		create_global_farm(None);
-		create_global_farm(None);
+		create_global_farm(None, None);
+		create_global_farm(None, None);
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
@@ -754,8 +754,8 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
 
-		create_global_farm(None);
-		create_global_farm(None);
+		create_global_farm(None, None);
+		create_global_farm(None, None);
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
@@ -893,11 +893,7 @@ fn init_omnipool() {
 	));
 }
 
-fn create_global_farm(rewards_currency: Option<AssetId>) {
-	create_global_farm_with_yield_percentage(rewards_currency, Perquintill::from_parts(570_776_255_707));
-}
-
-fn create_global_farm_with_yield_percentage(rewards_currency: Option<AssetId>, yield_percentage: Perquintill) {
+fn create_global_farm(rewards_currency: Option<AssetId>, yield_percentage: Option<Perquintill>) {
 	let total_rewards = 1_000_000 * UNITS;
 
 	assert_ok!(hydradx_runtime::Balances::force_set_balance(
@@ -913,7 +909,7 @@ fn create_global_farm_with_yield_percentage(rewards_currency: Option<AssetId>, y
 		10,
 		rewards_currency.unwrap_or(HDX),
 		Treasury::account_id(),
-		yield_percentage,
+		yield_percentage.unwrap_or(Perquintill::from_parts(570_776_255_707)),
 		1_000,
 		FixedU128::one()
 	));
@@ -990,7 +986,7 @@ fn position_should_be_valued_correctly_when_oracle_is_used() {
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
-		create_global_farm(None);
+		create_global_farm(None, None);
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_id, ETH);
@@ -1069,7 +1065,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
-		create_global_farm(None);
+		create_global_farm(None, None);
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
@@ -1173,7 +1169,7 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
-		create_global_farm(Some(bond_id));
+		create_global_farm(Some(bond_id), None);
 
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
