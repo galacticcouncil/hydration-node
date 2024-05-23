@@ -702,10 +702,7 @@ fn transfer_dot_reserve_from_asset_hub_to_hydra_should_not_work() {
 		));
 
 		let dot: Asset = Asset {
-			id: cumulus_primitives_core::AssetId(Location::new(
-				1,
-				cumulus_primitives_core::Junctions::Here
-			)),
+			id: cumulus_primitives_core::AssetId(Location::new(1, cumulus_primitives_core::Junctions::Here)),
 			fun: Fungible(100 * UNITS),
 		};
 
@@ -782,10 +779,7 @@ fn transfer_dot_reserve_from_non_asset_hub_chain_to_hydra_should_not_work() {
 		));
 
 		let dot: Asset = Asset {
-			id: cumulus_primitives_core::AssetId(Location::new(
-				1,
-				cumulus_primitives_core::Junctions::Here
-			)),
+			id: cumulus_primitives_core::AssetId(Location::new(1, cumulus_primitives_core::Junctions::Here)),
 			fun: Fungible(100 * UNITS),
 		};
 
