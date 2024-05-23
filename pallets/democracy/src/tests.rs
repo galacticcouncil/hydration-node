@@ -370,7 +370,7 @@ impl DemocracyHooks<u64, u64> for HooksHandler {
 		Ok(())
 	}
 
-	fn on_remove_vote(who: &u64, ref_index: ReferendumIndex) {
+	fn on_remove_vote(who: &u64, ref_index: ReferendumIndex, _is_finished: Option<bool>) {
 		let data = OnRemoveVoteData { who: *who, ref_index };
 		ON_REMOVE_VOTE_DATA.with(|v| v.borrow_mut().push(data));
 	}

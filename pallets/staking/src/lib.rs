@@ -967,7 +967,7 @@ impl<T: Config> Pallet<T> {
 					let points = Self::calculate_points_for_action(Action::DemocracyVote, vote, max_position_vote);
 					position.action_points = position.action_points.saturating_add(points);
 					// We need to keep the vote info to determine if the vote should be locked when removed.
-					ProcessedVotes::<T>::insert(who, *ref_idx, vote.clone());
+					ProcessedVotes::<T>::insert(who, *ref_idx, vote);
 					false
 				} else {
 					true

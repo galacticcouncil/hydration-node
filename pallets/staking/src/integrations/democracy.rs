@@ -93,7 +93,7 @@ where
 			return;
 		};
 
-		let entry = ProcessedVotes::<T>::take(&who, ref_index);
+		let entry = ProcessedVotes::<T>::take(who, ref_index);
 		if entry.is_some() {
 			// this vote was already processed, just remove it
 			return;

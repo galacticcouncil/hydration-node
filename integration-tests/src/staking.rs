@@ -1420,7 +1420,7 @@ fn remove_vote_should_not_lock_when_no_stake_and_lost() {
 		));
 		end_referendum();
 
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 
 		assert_ok!(Democracy::remove_vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -1493,7 +1493,7 @@ fn remove_vote_should_extend_lock_when_vote_not_in_favor() {
 		));
 		end_referendum();
 
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 
 		assert_ok!(Democracy::remove_vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -1566,7 +1566,7 @@ fn remove_vote_should_extend_lock_for_partial_amount_when_vote_not_in_favor() {
 		));
 		end_referendum();
 
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 
 		assert_ok!(Democracy::remove_vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -1638,7 +1638,7 @@ fn unstake_should_fail_when_position_has_existing_votes() {
 			}
 		));
 		end_referendum();
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 		assert_noop!(
 			Staking::unstake(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), 1),
 			pallet_staking::Error::<hydradx_runtime::Runtime>::ExistingVotes
@@ -1704,7 +1704,7 @@ fn unstake_should_fail_when_position_has_existing_processed_votes() {
 			}
 		));
 		end_referendum();
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			1,
@@ -1776,7 +1776,7 @@ fn unstake_should_work_when_processed_votes_are_removed() {
 			}
 		));
 		end_referendum();
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 		// Votes are processed
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -1861,7 +1861,7 @@ fn remove_vote_should_not_lock_nor_assign_rewards_when_referendum_was_cancelled(
 			}
 		));
 		assert_ok!(Democracy::cancel_referendum(RawOrigin::Root.into(), r,));
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			1,
@@ -1966,7 +1966,7 @@ fn remove_vote_should_extend_lock_when_votes_are_already_processed() {
 			}
 		));
 		end_referendum();
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 		// Votes are processed
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -2055,7 +2055,7 @@ fn increase_stake_should_fail_when_position_has_existing_processed_votes() {
 			}
 		));
 		end_referendum();
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 		// Votes are processed
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -2127,7 +2127,7 @@ fn claim_should_fail_when_position_has_existing_processed_votes() {
 			}
 		));
 		end_referendum();
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 		// Votes are processed
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -2209,7 +2209,7 @@ fn claim_should_work_when_processed_votes_are_removed() {
 			}
 		);
 
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 		// Votes are processed
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -2295,7 +2295,7 @@ fn increase_stake_should_work_when_processed_votes_are_removed() {
 			}
 		));
 		end_referendum();
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 		// Votes are processed
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -2371,7 +2371,7 @@ fn increase_stake_should_work_when_referendum_ongoing_and_votes_processed() {
 				balance: 1_000_000 * UNITS,
 			}
 		));
-		fast_forward_to(1 * DAYS);
+		fast_forward_to(DAYS);
 		// Votes are processed
 		assert_ok!(Staking::increase_stake(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
