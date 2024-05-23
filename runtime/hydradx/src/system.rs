@@ -22,7 +22,7 @@ use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
 	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
 	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
-	time::{HOURS, SLOT_DURATION},
+	time::{DAYS, HOURS, SLOT_DURATION},
 };
 
 use codec::{Decode, Encode, MaxEncodedLen};
@@ -42,7 +42,6 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
-use primitives::constants::time::DAYS;
 use scale_info::TypeInfo;
 
 pub struct CallFilter;

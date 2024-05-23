@@ -21,11 +21,10 @@ use primitives::constants::{
 	time::{DAYS, HOURS},
 };
 
-use frame_support::traits::tokens::{PayFromAccount, UnityAssetBalanceConversion};
 use frame_support::{
 	parameter_types,
 	sp_runtime::{Perbill, Percent, Permill},
-	traits::{ConstU32, EitherOfDiverse, LockIdentifier, PrivilegeCmp},
+	traits::{tokens::UnityAssetBalanceConversion, ConstU32, EitherOfDiverse, LockIdentifier, PrivilegeCmp},
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -92,7 +91,11 @@ impl frame_support::traits::tokens::Pay for PayFromTreasuryAccount {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn ensure_successful(_: &Self::Beneficiary, _: Self::AssetKind, amount: Self::Balance) {
-		<Balances as frame_support::traits::fungible::Mutate<_>>::mint_into(&TreasuryAccount::get(), amount * 1_000_000_000_000).unwrap();
+		<Balances as frame_support::traits::fungible::Mutate<_>>::mint_into(
+			&TreasuryAccount::get(),
+			amount * 1_000_000_000_000,
+		)
+		.unwrap();
 	}
 	#[cfg(feature = "runtime-benchmarks")]
 	fn ensure_concluded(_: Self::Id) {}
