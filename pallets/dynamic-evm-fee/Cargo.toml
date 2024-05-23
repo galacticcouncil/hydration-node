@@ -1,6 +1,6 @@
 [package]
 name = "pallet-dynamic-evm-fee"
-version = "1.0.1"
+version = "1.0.2"
 description = "Storing and mutating the dynamic fee for EVM transactions."
 authors = ["GalacticCoucil"]
 edition = "2021"
