@@ -28,12 +28,15 @@ function help {
     echo "  ${0} --check               " "list all benchmarks and provide a selection to choose from, runs in 'check' mode (reduced steps and repetitions)"
     echo "  ${0} foo bar               " "run a benchmark for pallet 'foo' and benchmark 'bar'"
     echo "  ${0} foo bar --check       " "run a benchmark for pallet 'foo' and benchmark 'bar' in 'check' mode (reduced steps and repetitions)"
-    echo "  ${0} foo bar --all         " "run a benchmark for all pallets"
-    echo "  ${0} foo bar --all --check " "run a benchmark for all pallets in 'check' mode (reduced steps and repetitions)"
+    echo "  ${0} --all         " "run a benchmark for all pallets"
+    echo "  ${0} --all --check " "run a benchmark for all pallets in 'check' mode (reduced steps and repetitions)"
 }
 
 function choose_and_bench {
-    readarray -t options < <(${BINARY} benchmark pallet --list | sed 1d)
+    while read benchmark; do
+        options+=("$benchmark")
+    done < <(${BINARY} benchmark pallet --list | sed 1d)
+
     options+=('EXIT')
 
     select opt in "${options[@]}"; do
