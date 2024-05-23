@@ -558,7 +558,6 @@ pub mod hydra {
 					(AccountId::from(CHARLIE), LRNA, CHARLIE_INITIAL_LRNA_BALANCE),
 					(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
 					(AccountId::from(DAVE), DAI, 1_000_000_000 * UNITS),
-					(evm_account(), WETH, to_ether(1_000)),
 					(omnipool_account.clone(), DAI, stable_amount),
 					(omnipool_account.clone(), ETH, eth_amount),
 					(omnipool_account.clone(), BTC, btc_amount),

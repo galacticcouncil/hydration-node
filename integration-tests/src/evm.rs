@@ -322,6 +322,7 @@ mod account_conversion {
 
 mod standard_precompiles {
 	use super::*;
+	use frame_support::assert_ok;
 	use pretty_assertions::assert_eq;
 	use sp_runtime::traits::UniqueSaturatedInto;
 
@@ -329,6 +330,13 @@ mod standard_precompiles {
 		to: EvmAddress,
 		data: Vec<u8>,
 	) -> Result<CallInfo, RunnerError<pallet_evm::Error<hydradx_runtime::Runtime>>> {
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			evm_account(),
+			WETH,
+			to_ether(1_000),
+			0,
+		));
 		<hydradx_runtime::Runtime as pallet_evm::Config>::Runner::call(
 			evm_address(),
 			to,
