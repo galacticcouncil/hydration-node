@@ -589,6 +589,7 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type AssetId = AssetId;
 	type MultiCurrency = Currencies;
 	type PalletId = OmniWarehouseLMPalletId;
+	type TreasuryAccountId = TreasuryAccount;
 	type MinTotalFarmRewards = MinTotalFarmRewards;
 	type MinPlannedYieldingPeriods = MinPlannedYieldingPeriods;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
@@ -637,6 +638,7 @@ impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime 
 	type AssetId = AssetId;
 	type MultiCurrency = Currencies;
 	type PalletId = XYKWarehouseLMPalletId;
+	type TreasuryAccountId = TreasuryAccount;
 	type MinTotalFarmRewards = XYKLmMinTotalFarmRewards;
 	type MinPlannedYieldingPeriods = XYKLmMinPlannedYieldingPeriods;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
