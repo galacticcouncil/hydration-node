@@ -40,7 +40,7 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSignedBy};
+use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use primitives::constants::time::DAYS;
 use scale_info::TypeInfo;
@@ -253,7 +253,10 @@ impl pallet_collator_selection::Config for Runtime {
 	type Currency = Balances;
 	type UpdateOrigin = MoreThanHalfCouncil;
 	type PotId = PotId;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxCandidates = MaxCandidates;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MaxCandidates = ConstU32<20>;
 	type MaxInvulnerables = MaxInvulnerables;
 	// should be a multiple of session or things will get inconsistent
 	type KickThreshold = Period;
@@ -561,7 +564,10 @@ parameter_types! {
 
 impl pallet_state_trie_migration::Config for Runtime {
 	type ControlOrigin = SuperMajorityTechCommittee;
-	type SignedFilter = EnsureSignedBy<TechCommAccounts, AccountId>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SignedFilter = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SignedFilter = frame_system::EnsureSigned<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RuntimeHoldReason = RuntimeHoldReason;

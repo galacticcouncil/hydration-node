@@ -267,7 +267,10 @@ impl pallet_xcm::Config for Runtime {
 	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Nothing;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type XcmReserveTransferFilter = Everything;
+	#[cfg(feature = "runtime-benchmarks")]
+	type XcmReserveTransferFilter = Nothing;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
 	type UniversalLocation = UniversalLocation;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -312,6 +315,10 @@ parameter_types! {
 impl pallet_message_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type MessageProcessor =
+	pallet_message_queue::mock_helpers::NoopMessageProcessor<cumulus_primitives_core::AggregateMessageOrigin>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MessageProcessor = xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, XcmExecutor<XcmConfig>, RuntimeCall>;
 	type Size = u32;
 	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;

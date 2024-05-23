@@ -25,7 +25,7 @@ use frame_support::traits::tokens::{PayFromAccount, UnityAssetBalanceConversion}
 use frame_support::{
 	parameter_types,
 	sp_runtime::{Perbill, Percent, Permill},
-	traits::{ConstU32, EitherOfDiverse, LockIdentifier, NeverEnsureOrigin, PrivilegeCmp},
+	traits::{ConstU32, EitherOfDiverse, LockIdentifier, PrivilegeCmp},
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -45,6 +45,59 @@ parameter_types! {
 	pub const TreasuryPayoutPeriod: u32 = 30 * DAYS;
 }
 
+pub struct PayFromTreasuryAccount;
+
+impl frame_support::traits::tokens::Pay for PayFromTreasuryAccount {
+	type Balance = Balance;
+	type Beneficiary = AccountId;
+	type AssetKind = ();
+	type Id = ();
+	type Error = sp_runtime::DispatchError;
+
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	fn pay(
+		who: &Self::Beneficiary,
+		_asset_kind: Self::AssetKind,
+		amount: Self::Balance,
+	) -> Result<Self::Id, Self::Error> {
+		let _ = <Balances as frame_support::traits::fungible::Mutate<_>>::transfer(
+			&TreasuryAccount::get(),
+			who,
+			amount,
+			frame_support::traits::tokens::Preservation::Expendable,
+		)?;
+		Ok(())
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn pay(
+		who: &Self::Beneficiary,
+		_asset_kind: Self::AssetKind,
+		amount: Self::Balance,
+	) -> Result<Self::Id, Self::Error> {
+		// In case of benchmarks, we adjust the value by multiplying it by 1_000_000_000_000, otherwise it fails with BelowMinimum limit error, because
+		// treasury benchmarks uses only 100 as the amount.
+		let _ = <Balances as frame_support::traits::fungible::Mutate<_>>::transfer(
+			&TreasuryAccount::get(),
+			who,
+			amount * 1_000_000_000_000,
+			frame_support::traits::tokens::Preservation::Expendable,
+		)?;
+		Ok(())
+	}
+
+	fn check_payment(_id: Self::Id) -> frame_support::traits::tokens::PaymentStatus {
+		frame_support::traits::tokens::PaymentStatus::Success
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn ensure_successful(_: &Self::Beneficiary, _: Self::AssetKind, amount: Self::Balance) {
+		<Balances as frame_support::traits::fungible::Mutate<_>>::mint_into(&TreasuryAccount::get(), amount * 1_000_000_000_000).unwrap();
+	}
+	#[cfg(feature = "runtime-benchmarks")]
+	fn ensure_concluded(_: Self::Id) {}
+}
+
 impl pallet_treasury::Config for Runtime {
 	type Currency = Balances;
 	type ApproveOrigin = TreasuryApproveOrigin;
@@ -61,11 +114,15 @@ impl pallet_treasury::Config for Runtime {
 	type WeightInfo = weights::pallet_treasury::HydraWeight<Runtime>;
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
-	type SpendOrigin = NeverEnsureOrigin<Balance>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SpendOrigin =
+		frame_system::EnsureWithSuccess<EnsureRoot<AccountId>, AccountId, crate::benches::BenchmarkMaxBalance>;
 	type AssetKind = ();
 	type Beneficiary = AccountId;
 	type BeneficiaryLookup = IdentityLookup<AccountId>;
-	type Paymaster = PayFromAccount<Balances, TreasuryAccount>; // TODO: check what this means
+	type Paymaster = PayFromTreasuryAccount; // TODO: check what this means
 	type BalanceConverter = UnityAssetBalanceConversion; //TODO: check this
 	type PayoutPeriod = TreasuryPayoutPeriod;
 	#[cfg(feature = "runtime-benchmarks")]
