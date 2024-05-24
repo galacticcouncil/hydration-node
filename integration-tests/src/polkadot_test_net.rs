@@ -60,6 +60,7 @@ pub fn to_ether(b: Balance) -> Balance {
 
 pub const UNITS: Balance = 1_000_000_000_000;
 
+pub const ASSET_HUB_PARA_ID: u32 = 1_000;
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 pub const MOONBEAM_PARA_ID: u32 = 2_004;
@@ -72,6 +73,7 @@ pub const ALICE_INITIAL_DOT_BALANCE: Balance = 2_000 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const BOB_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
+pub const CHARLIE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
 pub fn parachain_reserve_account() -> AccountId {
@@ -86,6 +88,7 @@ pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
 pub const WETH: AssetId = 20;
+pub const FOREIGN_ASSET: AssetId = 21;
 pub const PEPE: AssetId = 420;
 pub const INSUFFICIENT_ASSET: AssetId = 500;
 
@@ -183,7 +186,24 @@ decl_test_parachains! {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
 			Balances: hydradx_runtime::Balances,
 		}
-	}
+	},
+	pub struct AssetHub {
+		genesis = para::genesis(ASSET_HUB_PARA_ID),
+		on_init = {
+			hydradx_runtime::System::set_block_number(1);
+		},
+		runtime = hydradx_runtime,
+		core = {
+			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			DmpMessageHandler: hydradx_runtime::DmpQueue,
+			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
+			ParachainInfo: hydradx_runtime::ParachainInfo,
+		},
+		pallets = {
+			PolkadotXcm: hydradx_runtime::PolkadotXcm,
+			Balances: hydradx_runtime::Balances,
+		}
+	},
 }
 
 decl_test_networks! {
@@ -194,6 +214,7 @@ decl_test_networks! {
 			Moonbeam,
 			Interlay,
 			Hydra,
+			AssetHub,
 		],
 		bridge = ()
 	},
@@ -380,7 +401,7 @@ pub mod hydra {
 				balances: vec![
 					(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE),
 					(AccountId::from(BOB), BOB_INITIAL_NATIVE_BALANCE),
-					(AccountId::from(CHARLIE), 1_000 * UNITS),
+					(AccountId::from(CHARLIE), CHARLIE_INITIAL_NATIVE_BALANCE),
 					(AccountId::from(DAVE), 1_000 * UNITS),
 					(omnipool_account.clone(), native_amount),
 					(vesting_account(), 10_000 * UNITS),
