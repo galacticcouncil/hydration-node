@@ -28,6 +28,9 @@ pub const BUY: bool = false;
 pub const ACA: u32 = 1234;
 pub const GLMR: u32 = 4567;
 pub const IBTC: u32 = 7890;
+pub const ZTG: u32 = 5001;
+
+pub const HDX_ON_OTHER_PARACHAIN: u32 = 5002;
 
 #[test]
 fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
@@ -281,7 +284,6 @@ fn transfer_and_swap_should_work_with_4_hops() {
 		});
 	});
 
-
 	//We need these executions to trigger the processing of horizontal messages of each parachain
 	Moonbeam::execute_with(|| {});
 	Hydra::execute_with(|| {});
@@ -298,6 +300,188 @@ fn transfer_and_swap_should_work_with_4_hops() {
 
 		assert!(fee > 0, "treasury should have received fees, but it didn't");
 	});
+}
+
+pub mod zeitgeist_use_cases {
+	use super::*;
+
+	use primitives::constants::chain::CORE_ASSET_ID;
+
+	#[test]
+	fn remote_swap_sell_ztg_for_hdx_on_hydra() {
+		//Register tokens and init omnipool on hydra
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				crate::exchange_asset::register_ztg();
+				crate::exchange_asset::add_currency_price(crate::exchange_asset::ZTG, FixedU128::from(1));
+
+				init_omnipool();
+				let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+
+				let token_price = FixedU128::from_float(1.0);
+				assert_ok!(hydradx_runtime::Tokens::deposit(
+					ZTG,
+					&omnipool_account,
+					1000000 * UNITS
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ZTG,
+					token_price,
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+
+		//Construct and send XCM zeitgeist -> hydra
+		Zeitgeist::execute_with(|| {
+			let _ = with_transaction(|| {
+				crate::exchange_asset::register_hdx_in_sibling_chain();
+				crate::exchange_asset::add_currency_price(HDX_ON_OTHER_PARACHAIN, FixedU128::from(1));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+
+			let give_reserve_chain = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let swap_chain = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let want_reserve_chain = swap_chain.clone();
+			let dest = give_reserve_chain.clone();
+
+			let beneficiary = Location::new(
+				0,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let assets: Assets = Asset {
+				id: cumulus_primitives_core::AssetId(Location::new(
+					0,
+					cumulus_primitives_core::Junctions::X1(Arc::new(
+						vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
+							.try_into()
+							.unwrap(),
+					)),
+				)),
+				fun: Fungible(100 * UNITS),
+			}
+			.into();
+			let max_assets = assets.len() as u32 + 1;
+
+			let give_amount = 10 * UNITS;
+			let give_asset = Asset::from((hydradx_runtime::CurrencyIdConvert::convert(0).unwrap(), give_amount));
+			let want_asset = Asset::from((
+				Location::new(
+					1,
+					cumulus_primitives_core::Junctions::X2(Arc::new(
+						vec![
+							cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+							cumulus_primitives_core::Junction::GeneralIndex(0),
+						]
+						.try_into()
+						.unwrap(),
+					)),
+				),
+				100 * UNITS,
+			));
+
+			let want: Assets = want_asset.clone().into();
+
+			let fees = give_asset
+				.clone()
+				.reanchored(&swap_chain, &give_reserve_chain.interior)
+				.expect("should reanchor");
+
+			let destination_fee = want_asset
+				.reanchored(&dest, &want_reserve_chain.interior)
+				.expect("should reanchor");
+
+			let weight_limit = Limited(Weight::from_parts(u64::MAX, u64::MAX));
+
+			// executed on local (zeitgeist)
+			let message = Xcm(vec![
+				WithdrawAsset(give_asset.clone().into()),
+				DepositReserveAsset {
+					assets: AllCounted(max_assets).into(),
+					dest: swap_chain,
+					// executed on remote (on hydra)
+					xcm: Xcm(vec![
+						BuyExecution {
+							fees: crate::exchange_asset::half(&fees),
+							weight_limit: weight_limit.clone(),
+						},
+						ExchangeAsset {
+							give: give_asset.into(),
+							want: want.clone(),
+							maximal: true,
+						},
+						DepositReserveAsset {
+							assets: Wild(AllCounted(max_assets)),
+							dest,
+							xcm: Xcm(vec![
+								//Executed on Zeitgeist
+								BuyExecution {
+									fees: crate::exchange_asset::half(&destination_fee),
+									weight_limit: weight_limit.clone(),
+								},
+								DepositAsset {
+									assets: Wild(AllCounted(max_assets)),
+									beneficiary,
+								},
+							]),
+						},
+					]),
+				},
+			]);
+			let xcm = VersionedXcm::from(message);
+
+			assert_ok!(hydradx_runtime::PolkadotXcm::execute(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				Box::new(xcm),
+				Weight::from_parts(899_600_000_000, 0),
+			));
+
+			//Assert
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Currencies::free_balance(CORE_ASSET_ID, &AccountId::from(ALICE)),
+				1000 * UNITS - give_amount
+			);
+
+			assert!(matches!(
+				last_hydra_events(2).first(),
+				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+					cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+				))
+			));
+		});
+
+		//Trigger the processing of horizontal xcm messages
+		Hydra::execute_with(|| {});
+
+		//Assert that swap amount out is sent back to Zeitgeist
+		Zeitgeist::execute_with(|| {
+			pretty_assertions::assert_eq!(hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(BOB)), 8142821444432895);
+		});
+	}
 }
 
 fn register_glmr() {
@@ -348,6 +532,38 @@ fn register_ibtc() {
 	));
 }
 
+fn register_ztg() {
+	assert_ok!(AssetRegistry::register_sufficient_asset(
+		Some(ZTG),
+		Some(b"ZTG".to_vec().try_into().unwrap()),
+		AssetKind::Token,
+		1_000_000,
+		None,
+		None,
+		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+			1,
+			X2(Junction::Parachain(ZEITGEIST_PARA_ID), Junction::GeneralIndex(0))
+		))),
+		None,
+	));
+}
+
+fn register_hdx_in_sibling_chain() {
+	assert_ok!(AssetRegistry::register_sufficient_asset(
+		Some(HDX_ON_OTHER_PARACHAIN),
+		Some(b"vHDX".to_vec().try_into().unwrap()),
+		AssetKind::Token,
+		1_000_000,
+		None,
+		None,
+		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+			1,
+			X2(Junction::Parachain(HYDRA_PARA_ID), Junction::GeneralIndex(0))
+		))),
+		None,
+	));
+}
+
 fn add_currency_price(asset_id: u32, price: FixedU128) {
 	assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 		hydradx_runtime::RuntimeOrigin::root(),
@@ -377,15 +593,15 @@ fn half(asset: &Asset) -> Asset {
 		id: asset.clone().id,
 	}
 }
+use rococo_runtime::xcm_config::BaseXcmWeight;
+use xcm_builder::FixedWeightBounds;
+use xcm_executor::traits::WeightBounds;
 
 fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	give_asset: Asset,
 	want_asset: Asset,
 	is_sell: bool,
 ) -> VersionedXcm<RC> {
-	use rococo_runtime::xcm_config::BaseXcmWeight;
-	use xcm_builder::FixedWeightBounds;
-	use xcm_executor::traits::WeightBounds;
 
 	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
 
@@ -587,10 +803,6 @@ fn craft_exchange_asset_xcm<M: Into<Assets>, RC: Decode + GetDispatchInfo>(
 	want: M,
 	is_sell: bool,
 ) -> VersionedXcm<RC> {
-	use rococo_runtime::xcm_config::BaseXcmWeight;
-	use xcm_builder::FixedWeightBounds;
-	use xcm_executor::traits::WeightBounds;
-
 	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
 
 	let dest = Location::new(

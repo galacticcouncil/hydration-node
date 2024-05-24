@@ -66,6 +66,7 @@ pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 pub const MOONBEAM_PARA_ID: u32 = 2_004;
 pub const INTERLAY_PARA_ID: u32 = 2_032;
+pub const ZEITGEIST_PARA_ID: u32 = 2_092;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const ALICE_INITIAL_DAI_BALANCE: Balance = 2_000 * UNITS;
@@ -100,6 +101,7 @@ pub type Acala = AcalaParachain<TestNet>;
 pub type Moonbeam = MoonbeamParachain<TestNet>;
 pub type Interlay = InterlayParachain<TestNet>;
 pub type AssetHub = AssetHubParachain<TestNet>;
+pub type Zeitgeist = ZeitgeistParachain<TestNet>;
 
 decl_test_networks! {
 	pub struct TestNet {
@@ -110,6 +112,7 @@ decl_test_networks! {
 			MoonbeamParachain,
 			InterlayParachain,
 			AssetHubParachain,
+			ZeitgeistParachain,
 		],
 		bridge = ()
 	},
@@ -224,6 +227,23 @@ decl_test_parachains! {
 			Balances: hydradx_runtime::Balances,
 		}
 	},
+	pub struct ZeitgeistParachain {
+		genesis = para::genesis(ZEITGEIST_PARA_ID),
+		on_init = {
+			hydradx_runtime::System::set_block_number(1);
+		},
+		runtime = hydradx_runtime,
+		core = {
+			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
+			ParachainInfo: hydradx_runtime::ParachainInfo,
+			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
+		},
+		pallets = {
+			PolkadotXcm: hydradx_runtime::PolkadotXcm,
+			Balances: hydradx_runtime::Balances,
+		}
+	}
 }
 
 pub mod rococo {
