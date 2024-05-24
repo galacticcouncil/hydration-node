@@ -218,7 +218,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type ReservedXcmpWeight = ReservedXcmpWeight;
 	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>; // TODO: what to set here ?!
-	type WeightInfo = ();
+	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -426,7 +426,7 @@ impl pallet_multisig::Config for Runtime {
 	type DepositBase = DepositBase;
 	type DepositFactor = DepositFactor;
 	type MaxSignatories = MaxSignatories;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_multisig::HydraWeight<Runtime>;
 }
 
 impl pallet_genesis_history::Config for Runtime {}

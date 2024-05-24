@@ -77,7 +77,7 @@ impl NftPermission<CollectionType> for NftTestPermissions {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_nft::weights::BasiliskWeight<Test>;
+	type WeightInfo = ();
 	type NftCollectionId = CollectionId;
 	type NftItemId = ItemId;
 	type CollectionType = CollectionType;

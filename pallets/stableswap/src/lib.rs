@@ -73,7 +73,7 @@ use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
-use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 #[cfg(test)]
 pub(crate) mod tests;

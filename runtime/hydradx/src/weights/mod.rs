@@ -1,3 +1,4 @@
+pub mod cumulus_pallet_parachain_system;
 pub mod cumulus_pallet_xcmp_queue;
 pub mod frame_system;
 pub mod orml_tokens;
@@ -21,6 +22,7 @@ pub mod pallet_evm_accounts;
 pub mod pallet_identity;
 pub mod pallet_lbp;
 pub mod pallet_message_queue;
+pub mod pallet_multisig;
 pub mod pallet_omnipool;
 pub mod pallet_omnipool_liquidity_mining;
 pub mod pallet_otc;
