@@ -73,6 +73,7 @@ pub const ALICE_INITIAL_DOT_BALANCE: Balance = 2_000 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const BOB_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
+pub const CHARLIE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
 pub fn parachain_reserve_account() -> AccountId {
@@ -400,7 +401,7 @@ pub mod hydra {
 				balances: vec![
 					(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE),
 					(AccountId::from(BOB), BOB_INITIAL_NATIVE_BALANCE),
-					(AccountId::from(CHARLIE), 1_000 * UNITS),
+					(AccountId::from(CHARLIE), CHARLIE_INITIAL_NATIVE_BALANCE),
 					(AccountId::from(DAVE), 1_000 * UNITS),
 					(omnipool_account.clone(), native_amount),
 					(vesting_account(), 10_000 * UNITS),
