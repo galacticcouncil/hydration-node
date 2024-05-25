@@ -21,8 +21,8 @@ mod tradability;
 mod types;
 mod verification;
 
-use mock::*;
 use crate::Balance;
+use mock::*;
 
 #[macro_export]
 macro_rules! assert_eq_approx {
