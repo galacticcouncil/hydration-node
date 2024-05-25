@@ -380,12 +380,8 @@ impl DemocracyHooks<u64, u64> for HooksHandler {
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn on_vote_worst_case(_who: &u64) {
-		unimplemented!()
-	}
+	fn on_vote_worst_case(_who: &u64) {}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn on_remove_vote_worst_case(_who: &u64) {
-		unimplemented!()
-	}
+	fn on_remove_vote_worst_case(_who: &u64) {}
 }
