@@ -1924,7 +1924,7 @@ dependencies = [
  "sp-inherents",
  "sp-keystore",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-timestamp",
  "substrate-prometheus-endpoint",
  "tracing",
@@ -1970,7 +1970,7 @@ dependencies = [
  "sp-consensus",
  "sp-inherents",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "thiserror",
 ]
 
@@ -1993,7 +1993,7 @@ dependencies = [
  "sp-consensus",
  "sp-core",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "tracing",
 ]
 
@@ -2113,7 +2113,7 @@ dependencies = [
  "sp-inherents",
  "sp-io",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
  "sp-trie",
  "sp-version",
@@ -2217,7 +2217,7 @@ dependencies = [
  "sp-core",
  "sp-inherents",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
  "sp-storage",
  "sp-trie",
@@ -2276,7 +2276,7 @@ dependencies = [
  "sp-consensus",
  "sp-core",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -2293,7 +2293,7 @@ dependencies = [
  "sc-client-api",
  "sp-api",
  "sp-blockchain",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "thiserror",
 ]
 
@@ -2361,7 +2361,7 @@ dependencies = [
  "sp-consensus-babe",
  "sp-core",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-storage",
  "thiserror",
  "tokio",
@@ -2379,7 +2379,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadot-primitives",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
  "sp-trie",
 ]
@@ -3376,7 +3376,7 @@ dependencies = [
  "sp-inherents",
  "sp-io",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-storage",
  "sp-timestamp",
  "substrate-prometheus-endpoint",
@@ -3638,7 +3638,7 @@ dependencies = [
  "sp-api",
  "sp-core",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
 ]
 
@@ -3734,7 +3734,7 @@ dependencies = [
  "sp-io",
  "sp-keystore",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-storage",
  "sp-trie",
  "sp-wasm-interface",
@@ -3815,7 +3815,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "spinners",
  "substrate-rpc-client",
  "tokio",
@@ -3854,7 +3854,7 @@ dependencies = [
  "sp-metadata-ir",
  "sp-runtime",
  "sp-staking",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
  "sp-tracing",
  "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
@@ -7264,7 +7264,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
 ]
 
@@ -7331,11 +7331,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-<<<<<<< HEAD
-version = "1.1.21"
-=======
-version = "1.1.23"
->>>>>>> master
+version = "1.1.24"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7983,11 +7979,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-<<<<<<< HEAD
-version = "4.7.5"
-=======
-version = "4.8.1"
->>>>>>> master
+version = "4.8.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8012,11 +8004,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-<<<<<<< HEAD
-version = "4.3.1"
-=======
-version = "4.3.2"
->>>>>>> master
+version = "4.3.3"
 dependencies = [
  "fixed",
  "frame-support",
@@ -8238,11 +8226,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-<<<<<<< HEAD
-version = "4.1.5"
-=======
-version = "4.2.1"
->>>>>>> master
+version = "4.2.2"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8296,11 +8280,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-<<<<<<< HEAD
-version = "1.1.1"
-=======
-version = "1.1.2"
->>>>>>> master
+version = "1.1.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8500,7 +8480,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
  "sp-trie",
 ]
@@ -8542,11 +8522,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-<<<<<<< HEAD
-version = "3.4.5"
-=======
-version = "3.6.1"
->>>>>>> master
+version = "3.6.2"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8927,11 +8903,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm-rate-limiter"
-<<<<<<< HEAD
-version = "0.1.6"
-=======
-version = "0.1.7"
->>>>>>> master
+version = "0.1.8"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-benchmarking",
@@ -10530,7 +10502,7 @@ dependencies = [
  "sp-offchain",
  "sp-runtime",
  "sp-session",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-storage",
  "sp-timestamp",
  "sp-transaction-pool",
@@ -11998,7 +11970,7 @@ dependencies = [
  "sp-blockchain",
  "sp-core",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -12071,7 +12043,7 @@ dependencies = [
  "sp-database",
  "sp-externalities",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-statement-store",
  "sp-storage",
  "substrate-prometheus-endpoint",
@@ -12099,7 +12071,7 @@ dependencies = [
  "sp-core",
  "sp-database",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-trie",
 ]
 
@@ -12123,7 +12095,7 @@ dependencies = [
  "sp-consensus",
  "sp-core",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "substrate-prometheus-endpoint",
  "thiserror",
 ]
@@ -12362,7 +12334,7 @@ dependencies = [
  "sp-core",
  "sp-inherents",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -12800,7 +12772,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-session",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-storage",
  "sp-transaction-pool",
  "sp-transaction-storage-proof",
@@ -13611,7 +13583,7 @@ dependencies = [
  "sp-externalities",
  "sp-metadata-ir",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
  "sp-trie",
  "sp-version",
@@ -13697,7 +13669,7 @@ dependencies = [
  "sp-consensus",
  "sp-database",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "thiserror",
 ]
 
@@ -13712,7 +13684,7 @@ dependencies = [
  "sp-core",
  "sp-inherents",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "thiserror",
 ]
 
@@ -13952,7 +13924,7 @@ dependencies = [
  "sp-externalities",
  "sp-keystore",
  "sp-runtime-interface",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
  "sp-tracing",
  "sp-trie",
@@ -14159,10 +14131,7 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-externalities",
-<<<<<<< HEAD
  "sp-panic-handler",
-=======
- "sp-panic-handler 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
  "sp-trie",
  "thiserror",
@@ -14178,17 +14147,11 @@ dependencies = [
  "hash-db 0.16.0",
  "log",
  "parity-scale-codec",
- "parking_lot 0.12.1",
- "rand 0.8.5",
  "smallvec",
  "sp-core",
  "sp-externalities",
- "sp-panic-handler 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901)",
->>>>>>> master
  "sp-std",
  "sp-trie",
- "thiserror",
- "tracing",
  "trie-db 0.27.1",
 ]
 
@@ -14763,7 +14726,7 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-trie",
  "trie-db 0.27.1",
 ]
@@ -15564,7 +15527,7 @@ dependencies = [
  "sp-keystore",
  "sp-rpc",
  "sp-runtime",
- "sp-state-machine",
+ "sp-state-machine 0.28.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-timestamp",
  "sp-transaction-storage-proof",
  "sp-version",
