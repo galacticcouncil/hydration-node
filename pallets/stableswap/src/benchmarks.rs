@@ -40,7 +40,9 @@ benchmarks! {
 	 where_clause {  where T::AssetId: From<u32> + Into<u32>,
 		T::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
 		T: crate::pallet::Config,
-		T::AssetId: From<u32>
+		T::AssetId: From<u32>,
+		sp_std::vec::Vec<(u32, AssetReserve)>: FromIterator<(T::AssetId, AssetReserve)>,
+		u32: sp_std::convert::From<T::AssetId>
 	}
 
 	create_pool {

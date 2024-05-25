@@ -54,11 +54,11 @@
 extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::{ensure, require_transactional, transactional};
+use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{registry::Inspect, AccountIdFor};
 pub use pallet::*;
-use sp_runtime::traits::{BlockNumberProvider, Zero};
+use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
@@ -67,8 +67,6 @@ use sp_std::vec;
 mod trade_execution;
 pub mod types;
 pub mod weights;
-
-pub use trade_execution::*;
 
 use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, Tradability};
 use hydra_dx_math::stableswap::types::AssetReserve;
@@ -727,6 +725,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
+
 			ensure!(
 				Self::is_asset_allowed(pool_id, asset_in, Tradability::SELL)
 					&& Self::is_asset_allowed(pool_id, asset_out, Tradability::BUY),
@@ -799,6 +799,8 @@ pub mod pallet {
 			max_sell_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
 
 			ensure!(
 				Self::is_asset_allowed(pool_id, asset_in, Tradability::SELL)
@@ -883,6 +885,11 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Account address to be used to dry-run sell for determining spot price of stable assets
+	pub fn pallet_account() -> T::AccountId {
+		PalletId(*b"stblpool").into_account_truncating()
+	}
+
 	/// Calculates out amount given in amount.
 	/// Returns (out_amount, fee_amount) on success. Note that fee amount is already subtracted from the out amount.
 	fn calculate_out_amount(

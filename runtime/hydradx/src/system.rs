@@ -33,13 +33,14 @@ use frame_support::{
 		traits::{ConstU32, IdentityLookup},
 		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
 	},
-	traits::{ConstBool, Contains, InstanceFilter},
+	traits::{ConstBool, Contains, InstanceFilter, SortedMembers},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 	PalletId,
 };
+use frame_system::EnsureSignedBy;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use scale_info::TypeInfo;
 
@@ -482,8 +483,12 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type RouteProvider = Router;
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type WeightInfo = weights::payment::HydraWeight<Runtime>;
-	type WeightToFee = WeightToFee;
 	type NativeAssetId = NativeAssetId;
+	type EvmAssetId = evm::WethAssetId;
+	type InspectEvmAccounts = EVMAccounts;
+	type WeightToFee = WeightToFee;
+	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
+	type TryCallCurrency<'a> = pallet_transaction_multi_payment::TryCallCurrency<Runtime>;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
@@ -526,4 +531,29 @@ impl pallet_transaction_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type UpdateOrigin = SuperMajorityTechCommittee;
 	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
+}
+
+pub struct TechCommAccounts;
+impl SortedMembers<AccountId> for TechCommAccounts {
+	fn sorted_members() -> Vec<AccountId> {
+		TechnicalCommittee::members()
+	}
+}
+
+parameter_types! {
+	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
+	pub const MigrationSignedDepositPerItem: Balance = CENTS;
+	pub const MigrationSignedDepositBase: Balance = 20 * DOLLARS;
+	pub const MaxKeyLen: u32 = 512;	// 144, but use the default value
+}
+
+impl pallet_state_trie_migration::Config for Runtime {
+	type ControlOrigin = SuperMajorityTechCommittee;
+	type SignedFilter = EnsureSignedBy<TechCommAccounts, AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type MaxKeyLen = MaxKeyLen;
+	type SignedDepositPerItem = MigrationSignedDepositPerItem;
+	type SignedDepositBase = MigrationSignedDepositBase;
+	type WeightInfo = weights::state_trie::HydraWeight<Runtime>;
 }

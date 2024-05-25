@@ -31,6 +31,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::router::RefundEdCalculator;
 use hydradx_traits::{
 	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
 	Inspect as InspectRegistry,
@@ -318,50 +319,26 @@ parameter_types! {
 
 type Pools = (Omnipool, XYK);
 
-pub struct MockedAssetRegistry;
-
-impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
-	type AssetId = AssetId;
-	type Location = ();
-
-	fn is_sufficient(_id: Self::AssetId) -> bool {
-		true
-	}
-
-	fn exists(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn decimals(_id: Self::AssetId) -> Option<u8> {
-		unimplemented!()
-	}
-
-	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
-		unimplemented!()
-	}
-
-	fn is_banned(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-
-	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-}
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = MockedAssetRegistry;
+	type InspectRegistry = DummyRegistry<Test>;
 	type AMM = Pools;
+	type EdToRefundCalculator = MockedEdCalculator;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
+}
+
+pub struct MockedEdCalculator;
+
+impl RefundEdCalculator<Balance> for MockedEdCalculator {
+	fn calculate() -> Balance {
+		1_000_000_000_000
+	}
 }
 
 pub struct ExtBuilder {
@@ -627,7 +604,7 @@ where
 	}
 
 	fn is_sufficient(_id: Self::AssetId) -> bool {
-		unimplemented!()
+		true
 	}
 
 	fn exists(asset_id: AssetId) -> bool {
@@ -645,6 +622,10 @@ where
 
 	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		Some(1u128)
 	}
 }
 

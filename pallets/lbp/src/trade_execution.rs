@@ -3,8 +3,8 @@ use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::BlockNumberProvider;
-use sp_runtime::DispatchError;
-
+use sp_runtime::DispatchError::Corruption;
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
@@ -148,5 +148,51 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		let liquidty = T::MultiCurrency::free_balance(asset_a, &pair_account);
 
 		Ok(liquidty)
+	}
+
+	fn calculate_spot_price_with_fee(
+		pool_type: PoolType<AssetId>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+	) -> Result<FixedU128, ExecutorError<Self::Error>> {
+		if pool_type != PoolType::LBP {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		let assets = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		let pool_id = Self::get_pair_id(assets);
+		let pool_data =
+			<PoolData<T>>::try_get(&pool_id).map_err(|_| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+		let now = T::BlockNumberProvider::current_block_number();
+
+		let (weight_in, weight_out) =
+			Self::get_sorted_weight(asset_a, now, &pool_data).map_err(|err| ExecutorError::Error(err.into()))?;
+		let fee_asset = pool_data.assets.0;
+
+		let fee = if Self::is_repay_fee_applied(&pool_data) {
+			Self::repay_fee()
+		} else {
+			pool_data.fee
+		};
+
+		let asset_in_reserve = T::MultiCurrency::free_balance(asset_a, &pool_id);
+		let asset_out_reserve = T::MultiCurrency::free_balance(asset_b, &pool_id);
+		let spot_price_with_fee = hydra_dx_math::lbp::calculate_spot_price_with_fee(
+			asset_in_reserve,
+			asset_out_reserve,
+			weight_in,
+			weight_out,
+			fee_asset,
+			asset_b,
+			Some(fee),
+		)
+		.map_err(|_| ExecutorError::Error(ArithmeticError::Overflow.into()))?
+		.reciprocal()
+		.ok_or(ExecutorError::Error(Corruption))?;
+
+		Ok(spot_price_with_fee)
 	}
 }

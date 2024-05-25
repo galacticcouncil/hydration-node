@@ -20,37 +20,42 @@ pub use crate as multi_payment;
 use crate::{Config, TransferFees};
 use hydra_dx_math::types::Ratio;
 
+use frame_support::dispatch::{DispatchResultWithPostInfo, PostDispatchInfo};
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
+	sp_runtime::{
+		traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+		BuildStorage, MultiSignature, Perbill,
+	},
 	traits::{Everything, Get, Nothing},
 	weights::{IdentityFee, Weight},
 };
 use frame_system as system;
-use hydradx_traits::router::{RouteProvider, Trade};
-use hydradx_traits::{AssetPairAccountIdFor, OraclePeriod, PriceOracle};
-use orml_traits::currency::MutationHooks;
-use orml_traits::parameter_type_with_key;
-use pallet_currencies::BasicCurrencyAdapter;
-use sp_core::H256;
-use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, Perbill,
+use hydradx_traits::{
+	router::{RouteProvider, Trade},
+	AssetPairAccountIdFor, OraclePeriod, PriceOracle,
 };
+use orml_traits::{currency::MutationHooks, parameter_type_with_key};
+use pallet_currencies::BasicCurrencyAdapter;
+use sp_core::{H160, H256, U256};
 use sp_std::cell::RefCell;
 
-pub type AccountId = u64;
+pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
 pub type Balance = u128;
 pub type AssetId = u32;
 pub type Amount = i128;
 
 pub const INITIAL_BALANCE: Balance = 1_000_000_000_000_000u128;
 
-pub const ALICE: AccountId = 1;
-pub const BOB: AccountId = 2;
-pub const FEE_RECEIVER: AccountId = 300;
+pub const ALICE: AccountId = AccountId::new([1; 32]);
+pub const BOB: AccountId = AccountId::new([2; 32]);
+pub const CHARLIE: AccountId = AccountId::new([3; 32]);
+pub const DAVE: AccountId = AccountId::new([4; 32]);
+pub const FEE_RECEIVER: AccountId = AccountId::new([5; 32]);
 
 pub const HDX: AssetId = 0;
+pub const WETH: AssetId = 20;
 pub const SUPPORTED_CURRENCY: AssetId = 2000;
 pub const SUPPORTED_CURRENCY_WITH_PRICE: AssetId = 3000;
 pub const UNSUPPORTED_CURRENCY: AssetId = 4000;
@@ -85,6 +90,8 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 Tokens: orml_tokens,
+		 EVMAccounts: pallet_evm_accounts,
+		 Utility: pallet_utility,
 	 }
 
 );
@@ -94,6 +101,7 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 63;
 
 	pub const HdxAssetId: u32 = HDX;
+	pub const EvmAssetId: u32 = WETH;
 	pub const ExistentialDeposit: u128 = 2;
 	pub const MaxLocks: u32 = 50;
 	pub const RegistryStringLimit: u32 = 100;
@@ -129,7 +137,7 @@ impl system::Config for Test {
 	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
@@ -147,13 +155,17 @@ impl system::Config for Test {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type AcceptedCurrencyOrigin = frame_system::EnsureRoot<u64>;
+	type AcceptedCurrencyOrigin = frame_system::EnsureRoot<AccountId>;
 	type Currencies = Currencies;
 	type RouteProvider = DefaultRouteProvider;
 	type OraclePriceProvider = PriceProviderMock;
 	type WeightInfo = ();
 	type WeightToFee = IdentityFee<Balance>;
 	type NativeAssetId = HdxAssetId;
+	type EvmAssetId = EvmAssetId;
+	type InspectEvmAccounts = EVMAccounts;
+	type EvmPermit = PermitDispatchHandler;
+	type TryCallCurrency<'a> = NoCallCurrency<Test>;
 }
 
 pub struct DefaultRouteProvider;
@@ -202,14 +214,17 @@ impl pallet_transaction_payment::Config for Test {
 }
 pub struct AssetPairAccountIdTest();
 
-impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
-	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> u64 {
+impl AssetPairAccountIdFor<AssetId, AccountId> for AssetPairAccountIdTest {
+	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> AccountId {
 		let mut a = asset_a as u128;
 		let mut b = asset_b as u128;
 		if a > b {
 			std::mem::swap(&mut a, &mut b)
 		}
-		(a * 1000 + b) as u64
+
+		let mut data: [u8; 32] = [0u8; 32];
+		data[28..32].copy_from_slice(&(a * 1000 * b).to_be_bytes());
+		AccountId::new(data)
 	}
 }
 
@@ -258,6 +273,28 @@ impl pallet_currencies::Config for Test {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type GetNativeCurrencyId = HdxAssetId;
+	type WeightInfo = ();
+}
+
+pub struct EvmNonceProvider;
+impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
+	fn get_nonce(_: sp_core::H160) -> sp_core::U256 {
+		sp_core::U256::zero()
+	}
+}
+
+impl pallet_evm_accounts::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type EvmNonceProvider = EvmNonceProvider;
+	type FeeMultiplier = frame_support::traits::ConstU32<10>;
+	type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
+	type WeightInfo = ();
+}
+
+impl pallet_utility::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type PalletsOrigin = OriginCaller;
 	type WeightInfo = ();
 }
 
@@ -354,4 +391,115 @@ impl ExtBuilder {
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PermitDispatchData {
+	pub source: H160,
+	pub target: H160,
+	pub input: Vec<u8>,
+	pub value: U256,
+	pub gas_limit: u64,
+	pub max_fee_per_gas: U256,
+	pub max_priority_fee_per_gas: Option<U256>,
+	pub nonce: Option<U256>,
+	pub access_list: Vec<(H160, Vec<H256>)>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ValidationData {
+	pub source: H160,
+	pub target: H160,
+	pub input: Vec<u8>,
+	pub value: U256,
+	pub gas_limit: u64,
+	pub deadline: U256,
+	pub v: u8,
+	pub r: H256,
+	pub s: H256,
+}
+
+thread_local! {
+	static PERMIT_VALIDATION: RefCell<Vec<ValidationData>> = RefCell::new(vec![]);
+	static PERMIT_DISPATCH: RefCell<Vec<PermitDispatchData>> = RefCell::new(vec![]);
+}
+
+pub struct PermitDispatchHandler;
+
+impl PermitDispatchHandler {
+	pub fn last_validation_call_data() -> ValidationData {
+		PERMIT_VALIDATION.with(|v| v.borrow().last().unwrap().clone())
+	}
+
+	pub fn last_dispatch_call_data() -> PermitDispatchData {
+		PERMIT_DISPATCH.with(|v| v.borrow().last().unwrap().clone())
+	}
+}
+
+impl EVMPermit for PermitDispatchHandler {
+	fn validate_permit(
+		source: H160,
+		target: H160,
+		input: Vec<u8>,
+		value: U256,
+		gas_limit: u64,
+		deadline: U256,
+		v: u8,
+		r: H256,
+		s: H256,
+	) -> sp_runtime::DispatchResult {
+		let data = ValidationData {
+			source,
+			target,
+			input,
+			value,
+			gas_limit,
+			deadline,
+			v,
+			r,
+			s,
+		};
+		PERMIT_VALIDATION.with(|v| v.borrow_mut().push(data));
+		Ok(())
+	}
+
+	fn dispatch_permit(
+		source: H160,
+		target: H160,
+		input: Vec<u8>,
+		value: U256,
+		gas_limit: u64,
+		max_fee_per_gas: U256,
+		max_priority_fee_per_gas: Option<U256>,
+		nonce: Option<U256>,
+		access_list: Vec<(H160, Vec<H256>)>,
+	) -> DispatchResultWithPostInfo {
+		let data = PermitDispatchData {
+			source,
+			target,
+			input,
+			value,
+			gas_limit,
+			max_fee_per_gas,
+			max_priority_fee_per_gas,
+			nonce,
+			access_list,
+		};
+		PERMIT_DISPATCH.with(|v| v.borrow_mut().push(data));
+		Ok(PostDispatchInfo::default())
+	}
+
+	fn gas_price() -> (U256, Weight) {
+		(U256::from(222u128), Weight::zero())
+	}
+
+	fn dispatch_weight(_gas_limit: u64) -> Weight {
+		todo!()
+	}
+
+	fn permit_nonce(_account: H160) -> U256 {
+		U256::default()
+	}
+
+	fn on_dispatch_permit_error() {}
 }

@@ -7,18 +7,16 @@ use frame_support::{
 	},
 	traits::{GetCallMetadata, OnInitialize},
 };
-pub use hydradx_runtime::{
-	evm::ExtendedAddressMapping, AccountId, Currencies, NativeExistentialDeposit, Treasury, VestingPalletId,
-};
+pub use hydradx_runtime::{AccountId, Currencies, NativeExistentialDeposit, Treasury, VestingPalletId};
 use pallet_transaction_multi_payment::Price;
 pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};
 
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
-pub use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
+pub use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeOrigin};
-use hydradx_traits::registry::Mutate;
+pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 use pallet_referrals::{FeeDistribution, Level};
 pub use polkadot_primitives::v5::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
@@ -62,6 +60,7 @@ pub fn to_ether(b: Balance) -> Balance {
 
 pub const UNITS: Balance = 1_000_000_000_000;
 
+pub const ASSET_HUB_PARA_ID: u32 = 1_000;
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 pub const MOONBEAM_PARA_ID: u32 = 2_004;
@@ -74,6 +73,7 @@ pub const ALICE_INITIAL_DOT_BALANCE: Balance = 2_000 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const BOB_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000_000_000 * UNITS;
+pub const CHARLIE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
 pub fn parachain_reserve_account() -> AccountId {
@@ -88,6 +88,7 @@ pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
 pub const WETH: AssetId = 20;
+pub const FOREIGN_ASSET: AssetId = 21;
 pub const PEPE: AssetId = 420;
 pub const INSUFFICIENT_ASSET: AssetId = 500;
 
@@ -185,7 +186,24 @@ decl_test_parachains! {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
 			Balances: hydradx_runtime::Balances,
 		}
-	}
+	},
+	pub struct AssetHub {
+		genesis = para::genesis(ASSET_HUB_PARA_ID),
+		on_init = {
+			hydradx_runtime::System::set_block_number(1);
+		},
+		runtime = hydradx_runtime,
+		core = {
+			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			DmpMessageHandler: hydradx_runtime::DmpQueue,
+			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
+			ParachainInfo: hydradx_runtime::ParachainInfo,
+		},
+		pallets = {
+			PolkadotXcm: hydradx_runtime::PolkadotXcm,
+			Balances: hydradx_runtime::Balances,
+		}
+	},
 }
 
 decl_test_networks! {
@@ -196,6 +214,7 @@ decl_test_networks! {
 			Moonbeam,
 			Interlay,
 			Hydra,
+			AssetHub,
 		],
 		bridge = ()
 	},
@@ -382,7 +401,7 @@ pub mod hydra {
 				balances: vec![
 					(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE),
 					(AccountId::from(BOB), BOB_INITIAL_NATIVE_BALANCE),
-					(AccountId::from(CHARLIE), 1_000 * UNITS),
+					(AccountId::from(CHARLIE), CHARLIE_INITIAL_NATIVE_BALANCE),
 					(AccountId::from(DAVE), 1_000 * UNITS),
 					(omnipool_account.clone(), native_amount),
 					(vesting_account(), 10_000 * UNITS),
@@ -429,7 +448,7 @@ pub mod hydra {
 					(
 						Some(DOT),
 						Some(b"DOT".to_vec().try_into().unwrap()),
-						1_000u128,
+						1_000_000u128,
 						None,
 						None,
 						None,
@@ -660,6 +679,16 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 	while hydradx_runtime::System::block_number() < to {
 		hydradx_run_to_next_block();
 	}
+}
+
+pub fn hydradx_finalize_block() {
+	use frame_support::traits::OnFinalize;
+
+	let b = hydradx_runtime::System::block_number();
+
+	hydradx_runtime::System::on_finalize(b);
+	hydradx_runtime::EmaOracle::on_finalize(b);
+	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
 }
 
 pub fn polkadot_run_to_block(to: BlockNumber) {

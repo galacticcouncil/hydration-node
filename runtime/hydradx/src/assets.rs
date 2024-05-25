@@ -242,18 +242,9 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			return;
 		}
 
-		let locked_ed = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
-			.iter()
-			.find(|x| x.id == SUFFICIENCY_LOCK)
-			.map(|p| p.amount)
-			.unwrap_or_default();
-
+		let (ed_to_refund, locked_ed) = RefundAndLockedEdCalculator::calculate();
 		let paid_counts = pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get();
-		let ed_to_refund = if paid_counts != 0 {
-			locked_ed.saturating_div(paid_counts)
-		} else {
-			0
-		};
+
 		let to_lock = locked_ed.saturating_sub(ed_to_refund);
 
 		if to_lock.is_zero() {
@@ -282,6 +273,34 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 
 		frame_system::Pallet::<Runtime>::dec_sufficients(who);
 		pallet_asset_registry::ExistentialDepositCounter::<Runtime>::set(paid_counts.saturating_sub(1));
+	}
+}
+pub struct RefundAndLockedEdCalculator;
+
+impl RefundAndLockedEdCalculator {
+	fn calculate() -> (Balance, Balance) {
+		let locked_ed = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
+			.iter()
+			.find(|x| x.id == SUFFICIENCY_LOCK)
+			.map(|p| p.amount)
+			.unwrap_or_default();
+
+		let paid_counts = pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get();
+		let ed_to_refund = if paid_counts != 0 {
+			locked_ed.saturating_div(paid_counts)
+		} else {
+			0
+		};
+
+		(ed_to_refund, locked_ed)
+	}
+}
+
+impl RefundEdCalculator<Balance> for RefundAndLockedEdCalculator {
+	fn calculate() -> Balance {
+		let (ed_to_refund, _ed_to_lock) = Self::calculate();
+
+		ed_to_refund
 	}
 }
 
@@ -497,25 +516,31 @@ parameter_types! {
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 
-pub struct SufficientAssetsFilter;
-impl Contains<(Source, AssetId, AssetId)> for SufficientAssetsFilter {
+pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
+impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist<Runtime>
+where
+	Runtime: pallet_ema_oracle::Config + pallet_asset_registry::Config,
+	AssetId: From<<Runtime as pallet_asset_registry::Config>::AssetId>,
+{
 	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
-		AssetRegistry::is_sufficient(t.1) && AssetRegistry::is_sufficient(t.2)
+		pallet_asset_registry::OracleWhitelist::<Runtime>::contains(t)
+			|| pallet_ema_oracle::OracleWhitelist::<Runtime>::contains(t)
 	}
 }
 
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
+	type AuthorityOrigin = SuperMajorityTechCommittee;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
-	type OracleWhitelist = SufficientAssetsFilter;
+	type OracleWhitelist = OracleWhitelist<Runtime>;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 40 seems a decent upper bound for the foreseeable future.
 	type MaxUniqueEntries = ConstU32<40>;
+	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	/// Should take care of the overhead introduced by `OracleWhitelist`.
 	type BenchmarkHelper = RegisterAsset<Runtime>;
@@ -553,6 +578,7 @@ parameter_types! {
 	pub const MaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms, TODO:
 	pub const MinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks, TODO:
 	pub const MinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT * 100; //TODO:
+	pub const OmnipoolLmOracle: [u8; 8] = OMNIPOOL_SOURCE;
 }
 
 type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
@@ -561,6 +587,7 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type AssetId = AssetId;
 	type MultiCurrency = Currencies;
 	type PalletId = OmniWarehouseLMPalletId;
+	type TreasuryAccountId = TreasuryAccount;
 	type MinTotalFarmRewards = MinTotalFarmRewards;
 	type MinPlannedYieldingPeriods = MinPlannedYieldingPeriods;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
@@ -569,7 +596,7 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
-	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance>;
+	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance, OmnipoolLmOracle>;
 }
 
 parameter_types! {
@@ -591,6 +618,53 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type OraclePeriod = OmnipoolLMOraclePeriod;
 	type PriceOracle = EmaOracle;
 	type WeightInfo = weights::omnipool_lm::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const XYKWarehouseLMPalletId: PalletId = PalletId(*b"xykLMpID");
+	#[derive(PartialEq, Eq)]
+	pub const XYKLmMaxEntriesPerDeposit: u8 = 5; //NOTE: Rebenchmark when this change
+	pub const XYKLmMaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms
+	pub const XYKLmMinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks
+	pub const XYKLmMinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT * 100;
+	pub const XYKLmOracle: [u8; 8] = XYK_SOURCE;
+}
+
+type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
+impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type MultiCurrency = Currencies;
+	type PalletId = XYKWarehouseLMPalletId;
+	type TreasuryAccountId = TreasuryAccount;
+	type MinTotalFarmRewards = XYKLmMinTotalFarmRewards;
+	type MinPlannedYieldingPeriods = XYKLmMinPlannedYieldingPeriods;
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type AmmPoolId = AccountId;
+	type MaxFarmEntriesPerDeposit = XYKLmMaxEntriesPerDeposit;
+	type MaxYieldFarmsPerGlobalFarm = XYKLmMaxYieldFarmsPerGlobalFarm;
+	type AssetRegistry = AssetRegistry;
+	type NonDustableWhitelistHandler = Duster;
+	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, XYKLiquidityMiningInstance, XYKLmOracle>;
+}
+
+parameter_types! {
+	pub const XYKLmPalletId: PalletId = PalletId(*b"XYK///LM");
+	pub const XYKLmCollectionId: CollectionId = 5389_u128;
+}
+
+impl pallet_xyk_liquidity_mining::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currencies = Currencies;
+	type CreateOrigin = AllTechnicalCommitteeMembers;
+	type PalletId = XYKLmPalletId;
+	type NFTCollectionId = XYKLmCollectionId;
+	type NFTHandler = Uniques;
+	type LiquidityMiningHandler = XYKWarehouseLM;
+	type NonDustableWhitelistHandler = Duster;
+	type AMM = XYK;
+	type AssetRegistry = AssetRegistry;
+	type WeightInfo = weights::xyk_lm::HydraWeight<Runtime>;
 }
 
 // The reason why there is difference between PROD and benchmark is that it is not possible
@@ -961,6 +1035,11 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 		weight
 	}
+
+	fn force_insert_route_weight() -> Weight {
+		//Since we don't have any AMM specific thing in the extrinsic, we just return the plain weight
+		weights::route_executor::HydraWeight::<Runtime>::force_insert_route()
+	}
 }
 
 parameter_types! {
@@ -977,6 +1056,8 @@ impl pallet_route_executor::Config for Runtime {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 	type InspectRegistry = AssetRegistry;
+	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 }
 
 parameter_types! {
@@ -1058,12 +1139,14 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+use hydradx_traits::router::RefundEdCalculator;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
+
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
 

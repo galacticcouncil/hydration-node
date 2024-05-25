@@ -20,7 +20,7 @@ use crate::*;
 pub type Bonds = Pallet<Test>;
 use frame_support::sp_runtime::traits::Zero;
 use frame_support::{assert_noop, assert_ok};
-pub use pretty_assertions::{assert_eq, assert_ne};
+pub use pretty_assertions::assert_eq;
 
 #[test]
 fn issue_bonds_should_work_when_fee_is_zero() {

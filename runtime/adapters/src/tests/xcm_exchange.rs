@@ -122,7 +122,9 @@ fn xcm_exchanger_should_work_with_onchain_route() {
 			let mut iter = received.fungible_assets_iter();
 			let asset_received = iter.next().expect("there should be at least one asset");
 			assert!(iter.next().is_none(), "there should only be one asset returned");
-			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
+			let Fungible(received_amount) = asset_received.fun else {
+				panic!("should be fungible")
+			};
 			assert!(received_amount >= wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
 			assert_eq!(Balances::free_balance(ExchangeTempAccount::get()), 0);

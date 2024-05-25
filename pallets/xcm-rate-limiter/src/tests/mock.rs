@@ -18,8 +18,8 @@
 pub use crate as pallet_xcm_rate_limiter;
 
 use frame_support::traits::Contains;
-pub use frame_support::traits::{Everything, OnFinalize};
-pub use frame_support::{assert_noop, assert_ok, parameter_types};
+pub use frame_support::traits::Everything;
+pub use frame_support::{assert_ok, parameter_types};
 use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
 use orml_traits::GetByKey;
@@ -343,6 +343,10 @@ where
 	}
 
 	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
 		unimplemented!()
 	}
 }

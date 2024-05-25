@@ -185,6 +185,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
+		/// Treasury account to receive claimed rewards lower than ED
+		#[pallet::constant]
+		type TreasuryAccountId: Get<Self::AccountId>;
+
 		/// Minimum total rewards to distribute from global farm during liquidity mining.
 		#[pallet::constant]
 		type MinTotalFarmRewards: Get<Balance>;
@@ -366,6 +370,9 @@ pub mod pallet {
 
 		/// Loyalty multiplier can't be greater than one.
 		InvalidLoyaltyMultiplier,
+
+		/// No existential deposit configured for asset in registry.
+		NoExistentialDepositForAsset,
 	}
 
 	impl<T, I> From<InconsistentStateError> for Error<T, I> {
@@ -1166,6 +1173,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 						)
 						.map_err(|_| ArithmeticError::Overflow)?;
 
+						//In case of low rewards and insufficient balance, we send rewards to treasury to prevent ED error
+						let ed = T::AssetRegistry::existential_deposit(global_farm.reward_currency).ok_or(
+							Error::<T, I>::InconsistentState(InconsistentStateError::NoExistentialDepositForAsset),
+						)?;
+						let should_send_reward_to_treasury =
+							rewards < ed && T::MultiCurrency::free_balance(global_farm.reward_currency, &who) < ed;
+
 						if !rewards.is_zero() {
 							yield_farm.left_to_distribute = yield_farm
 								.left_to_distribute
@@ -1182,13 +1196,28 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 							farm_entry.updated_at = current_period;
 
 							let pot = Self::pot_account_id().ok_or(Error::<T, I>::ErrorGetAccountId)?;
-							T::MultiCurrency::transfer(global_farm.reward_currency, &pot, &who, rewards)?;
+
+							if should_send_reward_to_treasury {
+								T::MultiCurrency::transfer(
+									global_farm.reward_currency,
+									&pot,
+									&T::TreasuryAccountId::get(),
+									rewards,
+								)?;
+							} else {
+								T::MultiCurrency::transfer(global_farm.reward_currency, &pot, &who, rewards)?;
+							}
 						}
 
+						let rewards_sent_for_user = if should_send_reward_to_treasury {
+							Zero::zero()
+						} else {
+							rewards
+						};
 						Ok((
 							global_farm.id,
 							global_farm.reward_currency,
-							rewards,
+							rewards_sent_for_user,
 							unclaimable_rewards,
 						))
 					})
@@ -1909,5 +1938,11 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 
 	fn get_global_farm_id(deposit_id: DepositId, yield_farm_id: YieldFarmId) -> Option<u32> {
 		Self::get_global_farm_id(deposit_id, yield_farm_id)
+	}
+}
+
+impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Inspect<T::AccountId> for Pallet<T, I> {
+	fn pot_account() -> Option<T::AccountId> {
+		Self::pot_account_id()
 	}
 }

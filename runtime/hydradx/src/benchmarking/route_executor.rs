@@ -17,24 +17,21 @@
 #![allow(clippy::result_large_err)]
 
 use crate::{
-	AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeOrigin, System,
-	LBP, XYK,
+	AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System, LBP, XYK,
 };
 
 use super::*;
 use crate::benchmarking::dca::HDX;
-use crate::benchmarking::tokens::update_balance;
 use frame_benchmarking::{account, BenchmarkError};
 use frame_support::dispatch::DispatchResult;
 use frame_support::{assert_ok, ensure};
 use frame_system::RawOrigin;
+use hydradx_traits::router::inverse_route;
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::{PoolType, RouterT, Trade};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::constants::currency::UNITS;
-use sp_runtime::FixedU128;
-use sp_runtime::Permill;
 use sp_std::vec;
 pub const INITIAL_BALANCE: Balance = 10_000_000 * UNITS;
 
@@ -224,23 +221,20 @@ runtime_benchmarks! {
 		create_xyk_pool(asset_3, asset_4);
 		create_xyk_pool(asset_4, asset_5);
 		create_xyk_pool(asset_5, asset_6);
+		create_xyk_pool(HDX, asset_6);
 
 		//INIT OMNIPOOL
-		let acc = Omnipool::protocol_account();
+		/*let acc = Omnipool::protocol_account();
 		crate::benchmarking::omnipool::init()?;
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
-
 		let token_price = FixedU128::from((5,1));
 		let token_amount = 100000 * UNITS;
-		//1000000000000000
-
 		update_balance(asset_6, &acc, token_amount);
-
 		// Add the token to the pool
-		Omnipool::add_token(RawOrigin::Root.into(), asset_6, token_price, Permill::from_percent(100), owner)?;
+		Omnipool::add_token(RawOrigin::Root.into(), asset_6, token_price, Permill::from_percent(100), owner)?;*/
 
-		let better_route = vec![Trade {
+		let route = vec![Trade {
 			pool: PoolType::XYK,
 			asset_in: HDX,
 			asset_out: asset_2
@@ -261,6 +255,18 @@ runtime_benchmarks! {
 			asset_in: asset_5,
 			asset_out: asset_6
 		}];
+		Router::set_route(
+			RawOrigin::Signed(caller.clone()).into(),
+			AssetPair::new(HDX, asset_6),
+			route,
+		)?;
+
+		let better_route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: asset_6
+		},];
+
 	}: {
 		Router::set_route(
 			RawOrigin::Signed(caller.clone()).into(),
@@ -271,6 +277,56 @@ runtime_benchmarks! {
 	verify {
 		let stored_route = Router::route(AssetPair::new(HDX, asset_6)).unwrap();
 		assert_eq!(stored_route, better_route);
+	}
+
+	force_insert_route {
+		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		let caller: AccountId = funded_account("caller", 0, &[asset_1, asset_2,asset_3]);
+		create_xyk_pool(HDX, asset_2);
+		create_xyk_pool(asset_2, asset_3);
+		create_xyk_pool(asset_3, asset_4);
+		create_xyk_pool(asset_4, asset_5);
+		create_xyk_pool(asset_5, asset_6);
+		create_xyk_pool(HDX, asset_6);
+
+		let route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_6,
+			asset_out: asset_5
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_5,
+			asset_out: asset_4
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_4,
+			asset_out: asset_3
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_3,
+			asset_out: asset_2
+		},Trade {
+			pool: PoolType::XYK,
+			asset_in: asset_2,
+			asset_out: HDX
+		}];
+	}: {
+		Router::force_insert_route(
+			RawOrigin::Root.into(),
+			AssetPair::new(asset_6, HDX),
+			route.clone(),
+		)?;
+	}
+	verify {
+
+		let stored_route = Router::route(AssetPair::new(HDX, asset_6)).unwrap();
+		assert_eq!(inverse_route(stored_route.to_vec()), route);
 	}
 }
 

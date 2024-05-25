@@ -133,7 +133,7 @@ impl orml_tokens::Config for Test {
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const DAIAssetId: AssetId = DAI;
-	pub const MinimumLiquidity: Balance = 1000;
+	pub const MinimumLiquidity: Balance = 1_000_000;
 	pub const MinimumTradingLimit: Balance = 1000;
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 }
@@ -348,6 +348,10 @@ impl Inspect for DummyRegistry {
 	}
 
 	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
 		unimplemented!()
 	}
 }

@@ -28,17 +28,19 @@ use frame_support::{
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
+use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider};
+use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, TransactionOutcome};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TransactionOutcome};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -50,14 +52,12 @@ pub use pallet::*;
 
 pub const MAX_NUMBER_OF_TRADES: u32 = 5;
 
-//TODO: rebenchmark on reference machine
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::router::ExecutorError;
+	use hydradx_traits::router::{ExecutorError, RefundEdCalculator};
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
 
@@ -104,8 +104,13 @@ pub mod pallet {
 			Error = DispatchError,
 		>;
 
+		type EdToRefundCalculator: RefundEdCalculator<Self::Balance>;
+
 		/// Pool type used in the default route
 		type DefaultRoutePoolType: Get<PoolType<Self::AssetId>>;
+
+		/// Origin able to set route without validation
+		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
@@ -145,6 +150,8 @@ pub mod pallet {
 		InsufficientAssetNotSupported,
 		///The route execution failed in the underlying AMM
 		InvalidRouteExecution,
+		/// Trading same assets is not allowed.
+		NotAllowed,
 	}
 
 	/// Storing routes for asset pairs
@@ -184,20 +191,17 @@ pub mod pallet {
 			route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
+
+			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
+
 			Self::ensure_route_size(route.len())?;
 
 			let asset_pair = AssetPair::new(asset_in, asset_out);
 			let route = Self::get_route_or_default(route, asset_pair)?;
 			Self::ensure_route_arguments(&asset_pair, &route)?;
 
-			let user_balance_of_asset_in_before_trade =
-				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
 			let user_balance_of_asset_out_before_trade =
-				T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
-			ensure!(
-				user_balance_of_asset_in_before_trade >= amount_in,
-				Error::<T>::InsufficientBalance
-			);
+				T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 
 			let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
 
@@ -232,6 +236,7 @@ pub mod pallet {
 
 			Self::ensure_that_user_received_asset_out_at_most(
 				who,
+				asset_in,
 				asset_out,
 				user_balance_of_asset_out_before_trade,
 				last_trade_amount.amount_out,
@@ -273,6 +278,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
+			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
 			Self::ensure_route_size(route.len())?;
 
 			let asset_pair = AssetPair::new(asset_in, asset_out);
@@ -289,7 +295,7 @@ pub mod pallet {
 
 			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
 				let user_balance_of_asset_out_before_trade =
-					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Expendable, Fortitude::Polite);
+					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
 					trade.pool,
@@ -303,6 +309,7 @@ pub mod pallet {
 
 				Self::ensure_that_user_received_asset_out_at_most(
 					who.clone(),
+					trade.asset_in,
 					trade.asset_out,
 					user_balance_of_asset_out_before_trade,
 					trade_amount.amount_out,
@@ -369,17 +376,29 @@ pub mod pallet {
 
 			match Self::validate_route(&existing_route) {
 				Ok((reference_amount_in, reference_amount_in_for_inverse)) => {
-					let inverse_new_route = inverse_route(new_route.to_vec());
-					let inverse_existing_route = inverse_route(existing_route.to_vec());
+					let new_route_validation = Self::validate_sell(new_route.clone(), reference_amount_in);
 
-					Self::validate_sell(new_route.clone(), reference_amount_in)?;
-					Self::validate_sell(inverse_new_route.clone(), reference_amount_in_for_inverse)?;
+					let inverse_new_route = inverse_route(new_route.to_vec());
+					let inverse_new_route_validation =
+						Self::validate_sell(inverse_new_route.clone(), reference_amount_in_for_inverse);
+
+					match (new_route_validation, inverse_new_route_validation) {
+						(Ok(_), Ok(_)) => (),
+						(Err(_), Ok(amount_out)) => {
+							Self::validate_sell(new_route.to_vec(), amount_out).map(|_| ())?;
+						}
+						(Ok(amount_out), Err(_)) => {
+							Self::validate_sell(inverse_new_route.clone(), amount_out).map(|_| ())?;
+						}
+						(Err(err), Err(_)) => return Err(err.into()),
+					}
 
 					let amount_out_for_existing_route =
 						Self::calculate_expected_amount_out(&existing_route, reference_amount_in)?;
 					let amount_out_for_new_route =
 						Self::calculate_expected_amount_out(&new_route, reference_amount_in)?;
 
+					let inverse_existing_route = inverse_route(existing_route.to_vec());
 					let amount_out_for_existing_inversed_route =
 						Self::calculate_expected_amount_out(&inverse_existing_route, reference_amount_in_for_inverse)?;
 					let amount_out_for_new_inversed_route =
@@ -399,6 +418,38 @@ pub mod pallet {
 			}
 
 			Err(Error::<T>::RouteUpdateIsNotSuccessful.into())
+		}
+
+		/// Force inserts the on-chain route for a given asset pair, so there is no any validation for the route
+		///
+		/// Can only be called by technical origin
+		///
+		/// The route is stored in an ordered manner, based on the oder of the ids in the asset pair.
+		///
+		/// If the route is set successfully, then the fee is payed back.
+		///
+		/// - `origin`: The origin of the route setter
+		/// - `asset_pair`: The identifier of the asset-pair for which the route is set
+		/// - `new_route`: Series of [`Trade<AssetId>`] to be executed. A [`Trade<AssetId>`] specifies the asset pair (`asset_in`, `asset_out`) and the AMM (`pool`) in which the trade is executed.
+		///
+		/// Emits `RouteUpdated` when successful.
+		///
+		#[pallet::call_index(3)]
+		#[pallet::weight(T::WeightInfo::force_insert_route_weight())]
+		#[transactional]
+		pub fn force_insert_route(
+			origin: OriginFor<T>,
+			mut asset_pair: AssetPair<T::AssetId>,
+			mut new_route: Vec<Trade<T::AssetId>>,
+		) -> DispatchResultWithPostInfo {
+			T::TechnicalOrigin::ensure_origin(origin)?;
+
+			if !asset_pair.is_ordered() {
+				asset_pair = asset_pair.ordered_pair();
+				new_route = inverse_route(new_route)
+			}
+
+			Self::insert_route(asset_pair, new_route)
 		}
 	}
 }
@@ -431,6 +482,13 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InvalidRoute
 		);
 
+		for i in 0..route.len().saturating_sub(1) {
+			let asset_out = route.get(i).ok_or(Error::<T>::InvalidRoute)?.asset_out;
+			let next_trade_asset_in = route.get(i.saturating_add(1)).ok_or(Error::<T>::InvalidRoute)?.asset_in;
+
+			ensure!(asset_out == next_trade_asset_in, Error::<T>::InvalidRoute)
+		}
+
 		Ok(())
 	}
 
@@ -453,21 +511,31 @@ impl<T: Config> Pallet<T> {
 
 	fn ensure_that_user_received_asset_out_at_most(
 		who: T::AccountId,
+		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		user_balance_of_asset_out_before_trade: T::Balance,
 		expected_received_amount: T::Balance,
 	) -> Result<(), DispatchError> {
 		let user_balance_of_asset_out_after_trade =
-			T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
+			T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 
 		let actual_received_amount = user_balance_of_asset_out_after_trade
 			.checked_sub(&user_balance_of_asset_out_before_trade)
 			.ok_or(Error::<T>::InvalidRouteExecution)?;
 
-		ensure!(
-			actual_received_amount <= expected_received_amount,
-			Error::<T>::InvalidRouteExecution
-		);
+		if !T::InspectRegistry::is_sufficient(asset_in) && asset_out == T::NativeAssetId::get() {
+			// In case of selling all insufficient asset, ED in HDX is refund to user, so end-balance will be more with ED
+			// In this case we check if the user does not receive more than ED
+			let diff = actual_received_amount.saturating_sub(expected_received_amount);
+			let ed_to_refund = T::EdToRefundCalculator::calculate();
+
+			ensure!(diff <= ed_to_refund, Error::<T>::InvalidRouteExecution);
+		} else {
+			ensure!(
+				actual_received_amount <= expected_received_amount,
+				Error::<T>::InvalidRouteExecution
+			);
+		}
 
 		Ok(())
 	}
@@ -479,7 +547,7 @@ impl<T: Config> Pallet<T> {
 		expected_spent_amount: T::Balance,
 	) -> Result<(), DispatchError> {
 		let user_balance_of_asset_in_after_trade =
-			T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+			T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
 		let actual_spent_amount = user_balance_of_asset_in_before_trade
 			.checked_sub(&user_balance_of_asset_in_after_trade)
@@ -507,13 +575,22 @@ impl<T: Config> Pallet<T> {
 
 	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<(T::Balance, T::Balance), DispatchError> {
 		let reference_amount_in = Self::calculate_reference_amount_in(route)?;
-		Self::validate_sell(route.to_vec(), reference_amount_in)?;
+		let route_validation = Self::validate_sell(route.to_vec(), reference_amount_in);
 
 		let inverse_route = inverse_route(route.to_vec());
 		let reference_amount_in_for_inverse_route = Self::calculate_reference_amount_in(&inverse_route)?;
-		Self::validate_sell(inverse_route, reference_amount_in_for_inverse_route)?;
+		let inverse_route_validation =
+			Self::validate_sell(inverse_route.clone(), reference_amount_in_for_inverse_route);
 
-		Ok((reference_amount_in, reference_amount_in_for_inverse_route))
+		match (route_validation, inverse_route_validation) {
+			(Ok(_), Ok(_)) => Ok((reference_amount_in, reference_amount_in_for_inverse_route)),
+			(Err(_), Ok(amount_out)) => Self::validate_sell(route.to_vec(), amount_out)
+				.map(|_| (amount_out, reference_amount_in_for_inverse_route)),
+			(Ok(amount_out), Err(_)) => {
+				Self::validate_sell(inverse_route, amount_out).map(|_| (reference_amount_in, amount_out))
+			}
+			(Err(err), Err(_)) => Err(err),
+		}
 	}
 
 	fn calculate_reference_amount_in(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
@@ -540,19 +617,23 @@ impl<T: Config> Pallet<T> {
 		Ok(one_percent_asset_in_liquidity)
 	}
 
-	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> DispatchResult {
+	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> Result<T::Balance, DispatchError> {
 		let asset_in = route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
 		let asset_out = route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
 
-		with_transaction(|| {
+		with_transaction::<T::Balance, DispatchError, _>(|| {
 			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
+			let Ok(who) = ensure_signed(origin.clone()) else {
+				return TransactionOutcome::Rollback(Err(Error::<T>::InvalidRoute.into()));
+			};
 			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
 
 			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());
+			let amount_out =
+				T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 
-			TransactionOutcome::Rollback(sell_result)
+			TransactionOutcome::Rollback(sell_result.map(|_| amount_out))
 		})
-		.map_err(|_| Error::<T>::InvalidRoute.into())
 	}
 
 	fn calculate_expected_amount_out(
@@ -673,6 +754,14 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 	) -> DispatchResultWithPostInfo {
 		Pallet::<T>::set_route(origin, asset_pair, route)
 	}
+
+	fn force_insert_route(
+		origin: T::RuntimeOrigin,
+		asset_pair: AssetPair<T::AssetId>,
+		route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResultWithPostInfo {
+		Pallet::<T>::force_insert_route(origin, asset_pair, route)
+	}
 }
 
 pub struct DummyRouter<T>(PhantomData<T>);
@@ -728,6 +817,14 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 	) -> DispatchResultWithPostInfo {
 		Ok(Pays::Yes.into())
 	}
+
+	fn force_insert_route(
+		_origin: T::RuntimeOrigin,
+		_asset_pair: AssetPair<T::AssetId>,
+		_route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResultWithPostInfo {
+		Ok(Pays::Yes.into())
+	}
 }
 
 #[macro_export]
@@ -762,5 +859,45 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 			}
 			None => default_route,
 		}
+	}
+}
+impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
+	fn spot_price_with_fee(route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
+		if route.is_empty() {
+			return None;
+		}
+
+		let mut nominator = U512::from(1u128);
+		let mut denominator = U512::from(1u128);
+
+		// We aggregate the prices after every 4 hops to prevent overflow of U512
+		for chunk_with_4_hops in route.chunks(4) {
+			let mut prices: Vec<FixedU128> = Vec::with_capacity(chunk_with_4_hops.len());
+			for trade in chunk_with_4_hops {
+				let spot_price_result =
+					T::AMM::calculate_spot_price_with_fee(trade.pool, trade.asset_in, trade.asset_out);
+				match spot_price_result {
+					Ok(spot_price) => prices.push(spot_price),
+					Err(_) => return None,
+				}
+			}
+
+			// Calculate the nominator and denominator for the current chunk
+			let chunk_nominator = prices.iter().try_fold(U512::from(1u128), |acc, price| {
+				acc.checked_mul(U512::from(price.into_inner()))
+			})?;
+
+			let chunk_denominator = prices.iter().try_fold(U512::from(1u128), |acc, _price| {
+				acc.checked_mul(U512::from(FixedU128::DIV))
+			})?;
+
+			// Combine the chunk results with the final results
+			nominator = nominator.checked_mul(chunk_nominator)?;
+			denominator = denominator.checked_mul(chunk_denominator)?;
+		}
+
+		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
+
+		FixedU128::checked_from_rational(rat_as_u128.0, rat_as_u128.1)
 	}
 }

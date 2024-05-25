@@ -113,8 +113,8 @@ impl BenchmarkHelper<AssetId> for () {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::BoundedBTreeMap;
-	use frame_system::pallet_prelude::BlockNumberFor;
+	use frame_support::{BoundedBTreeMap, BoundedBTreeSet};
+	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -125,6 +125,9 @@ pub mod pallet {
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
+
+		/// Origin that can enable oracle for assets that would be rejected by `OracleWhitelist` otherwise.
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Provider for the current block number.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
@@ -147,10 +150,17 @@ pub mod pallet {
 	pub enum Error<T> {
 		TooManyUniqueEntries,
 		OnTradeValueZero,
+		OracleNotFound,
 	}
 
 	#[pallet::event]
-	pub enum Event<T: Config> {}
+	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	pub enum Event<T: Config> {
+		/// Oracle was added to the whitelist.
+		AddedToWhitelist { source: Source, assets: (AssetId, AssetId) },
+		/// Oracle was removed from the whitelist.
+		RemovedFromWhitelist { source: Source, assets: (AssetId, AssetId) },
+	}
 
 	/// Accumulator for oracle data in current block that will be recorded at the end of the block.
 	#[pallet::storage]
@@ -161,7 +171,7 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
-	/// Orace storage keyed by data source, involved asset ids and the period length of the oracle.
+	/// Oracle storage keyed by data source, involved asset ids and the period length of the oracle.
 	///
 	/// Stores the data entry as well as the block number when the oracle was first initialized.
 	#[pallet::storage]
@@ -176,6 +186,11 @@ pub mod pallet {
 		(OracleEntry<BlockNumberFor<T>>, BlockNumberFor<T>),
 		OptionQuery,
 	>;
+
+	/// Assets that are whitelisted and tracked by the pallet.
+	#[pallet::storage]
+	pub type WhitelistedAssets<T: Config> =
+		StorageValue<_, BoundedBTreeSet<(Source, (AssetId, AssetId)), T::MaxUniqueEntries>, ValueQuery>;
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
@@ -230,7 +245,51 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {}
+	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_oracle())]
+		pub fn add_oracle(origin: OriginFor<T>, source: Source, assets: (AssetId, AssetId)) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			let assets = ordered_pair(assets.0, assets.1);
+
+			WhitelistedAssets::<T>::mutate(|list| {
+				list.try_insert((source, (assets)))
+					.map_err(|_| Error::<T>::TooManyUniqueEntries)
+			})?;
+
+			Self::deposit_event(Event::AddedToWhitelist { source, assets });
+
+			Ok(())
+		}
+
+		#[pallet::call_index(1)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_oracle())]
+		pub fn remove_oracle(origin: OriginFor<T>, source: Source, assets: (AssetId, AssetId)) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			let assets = ordered_pair(assets.0, assets.1);
+
+			WhitelistedAssets::<T>::mutate(|list| {
+				ensure!(list.remove(&(source, (assets))), Error::<T>::OracleNotFound);
+
+				Ok::<(), DispatchError>(())
+			})?;
+
+			// remove oracle from the storage
+			for period in T::SupportedPeriods::get().into_iter() {
+				let _ = Accumulator::<T>::mutate(|accumulator| {
+					accumulator.remove(&(source, assets));
+					Ok::<(), ()>(())
+				});
+				Oracles::<T>::remove((source, assets, period));
+			}
+
+			Self::deposit_event(Event::RemovedFromWhitelist { source, assets });
+
+			Ok(())
+		}
+	}
 }
 
 impl<T: Config> Pallet<T> {
@@ -242,6 +301,7 @@ impl<T: Config> Pallet<T> {
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), ()> {
 		if !T::OracleWhitelist::contains(&(src, assets.0, assets.1)) {
+			// if we don't track oracle for given asset pair, don't throw error
 			return Ok(());
 		}
 
@@ -588,5 +648,13 @@ impl<T: Config> AggregatedPriceOracle<AssetId, BlockNumberFor<T>, Price> for Pal
 
 	fn get_price_weight() -> Weight {
 		Self::get_entry_weight()
+	}
+}
+
+/// Oracle whitelist based on the pallet's storage.
+pub struct OracleWhitelist<T>(PhantomData<T>);
+impl<T: Config> Contains<(Source, AssetId, AssetId)> for OracleWhitelist<T> {
+	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
+		WhitelistedAssets::<T>::get().contains(&(t.0, (t.1, t.2)))
 	}
 }

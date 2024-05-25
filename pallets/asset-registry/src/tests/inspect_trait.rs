@@ -267,3 +267,27 @@ fn asset_symbol_should_work() {
 			assert_eq!(<Registry as Inspect>::asset_name(non_existing_id), None);
 		});
 }
+
+#[test]
+fn existential_deposit_should_work() {
+	let non_existing_id = 543_u32;
+	let asset_one_symbol = b"TKN".to_vec();
+
+	ExtBuilder::default()
+		.with_assets(vec![(
+			Some(1),
+			Some(b"Tkn1".to_vec().try_into().unwrap()),
+			2 * UNIT,
+			Some(asset_one_symbol.try_into().unwrap()),
+			None,
+			None,
+			true,
+		)])
+		.build()
+		.execute_with(|| {
+			//Act & assert
+			assert_eq!(<Registry as Inspect>::existential_deposit(1), Some(2 * UNIT));
+
+			assert_eq!(<Registry as Inspect>::existential_deposit(non_existing_id), None);
+		});
+}

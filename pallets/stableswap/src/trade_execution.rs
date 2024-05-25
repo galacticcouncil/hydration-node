@@ -1,11 +1,17 @@
 use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
+use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
-use sp_runtime::{ArithmeticError, DispatchError};
+use sp_core::Get;
+use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
 use sp_std::vec;
 
-impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
+impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T>
+where
+	u32: sp_std::convert::From<T::AssetId>,
+	sp_std::vec::Vec<(u32, AssetReserve)>: FromIterator<(T::AssetId, AssetReserve)>,
+{
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -193,6 +199,48 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balan
 			PoolType::Stableswap(pool_id) => {
 				let pool_account = Self::pool_account(pool_id);
 				Ok(T::Currency::free_balance(asset_a, &pool_account))
+			}
+			_ => Err(ExecutorError::NotSupported),
+		}
+	}
+
+	fn calculate_spot_price_with_fee(
+		pool_type: PoolType<T::AssetId>,
+		asset_a: T::AssetId,
+		asset_b: T::AssetId,
+	) -> Result<FixedU128, ExecutorError<Self::Error>> {
+		match pool_type {
+			PoolType::Stableswap(pool_id) => {
+				let pool_account = Self::pool_account(pool_id);
+				let pool =
+					Pools::<T>::get(pool_id).ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+				let balances = pool
+					.reserves_with_decimals::<T>(&pool_account)
+					.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+
+				let assets_with_reserves = pool
+					.assets
+					.iter()
+					.zip(balances.iter())
+					.map(|(asset_id, reserve)| (*asset_id, *reserve))
+					.collect();
+				let amp = Pallet::<T>::get_amplification(&pool);
+				let share_issuance = T::Currency::total_issuance(pool_id);
+				let min_trade_limit = T::MinTradingLimit::get();
+
+				let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+					pool_id.into(),
+					assets_with_reserves,
+					amp,
+					asset_a.into(),
+					asset_b.into(),
+					share_issuance,
+					min_trade_limit,
+					Some(pool.fee),
+				)
+				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+
+				Ok(spot_price)
 			}
 			_ => Err(ExecutorError::NotSupported),
 		}

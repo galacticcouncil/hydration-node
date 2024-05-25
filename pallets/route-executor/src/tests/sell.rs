@@ -21,8 +21,8 @@ use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;
-use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
+use sp_runtime::{DispatchError, TokenError};
 
 #[test]
 fn sell_should_work_when_route_has_single_trade() {
@@ -469,7 +469,7 @@ fn sell_should_fail_when_caller_has_not_enough_balance() {
 		//Act and Assert
 		assert_noop!(
 			Router::sell(RuntimeOrigin::signed(ALICE), HDX, AUSD, amount_to_sell, limit, trades),
-			Error::<Test>::InsufficientBalance
+			TokenError::FundsUnavailable
 		);
 	});
 }
@@ -520,4 +520,35 @@ fn sell_should_fail_when_assets_dont_correspond_to_route() {
 				Error::<Test>::InvalidRoute
 			);
 		});
+}
+
+#[test]
+fn sell_should_fail_when_intermediare_assets_are_inconsistent() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let amount_to_sell = 10;
+		let limit = 5;
+		let trade1 = Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: AUSD,
+		};
+		let trade2 = Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: MOVR,
+		};
+		let trade3 = Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: KSM,
+		};
+		let trades = vec![trade1, trade2, trade3];
+
+		//Act
+		assert_noop!(
+			Router::sell(RuntimeOrigin::signed(ALICE), HDX, KSM, amount_to_sell, limit, trades),
+			Error::<Test>::InvalidRoute
+		);
+	});
 }

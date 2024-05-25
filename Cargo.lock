@@ -72,6 +72,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "affix"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50e7ea84d3fa2009f355f8429a0b418a96849135a4188fadf384f59127d5d4bc"
+dependencies = [
+ "convert_case 0.5.0",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -797,6 +806,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
+name = "basic-toml"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f2139706359229bfa8f19142ac1155b4b80beafb7a60471ac5dd109d4a19778"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "beef"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1045,6 +1063,17 @@ dependencies = [
 
 [[package]]
 name = "bstr"
+version = "0.2.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba3569f383e8f1598449f1a423e72e99569137b47740b1da11ef19af3d5c3223"
+dependencies = [
+ "lazy_static",
+ "memchr",
+ "regex-automata 0.1.10",
+]
+
+[[package]]
+name = "bstr"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "542f33a8835a0884b006a0c3df3dadd99c0c3f296ed26c2fdc8028e01ad6230c"
@@ -1152,6 +1181,12 @@ dependencies = [
  "serde_json",
  "thiserror",
 ]
+
+[[package]]
+name = "case"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd6c0e7b807d60291f42f33f58480c0bfafe28ed08286446f45e463728cf9c1c"
 
 [[package]]
 name = "cast"
@@ -1511,6 +1546,12 @@ name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+
+[[package]]
+name = "convert_case"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb4a24b1aaf0fd0ce8b45161144d6f42cd91677fd5940fd431183eb023b3a2b8"
 
 [[package]]
 name = "core-foundation"
@@ -2077,7 +2118,7 @@ dependencies = [
  "sp-trie",
  "sp-version",
  "staging-xcm",
- "trie-db",
+ "trie-db 0.27.1",
 ]
 
 [[package]]
@@ -2541,7 +2582,7 @@ version = "0.99.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fb810d30a7c1953f91334de7244731fc3f3c10d7fe163338a35b9f640960321"
 dependencies = [
- "convert_case",
+ "convert_case 0.4.0",
  "proc-macro2",
  "quote",
  "rustc_version",
@@ -3186,6 +3227,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
 
 [[package]]
+name = "faster-hex"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51e2ce894d53b295cf97b05685aa077950ff3e8541af83217fc720a6437169f8"
+
+[[package]]
 name = "fastrand"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3800,7 +3847,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-core-hashing-proc-macro",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-genesis-builder",
  "sp-inherents",
  "sp-io",
@@ -3810,7 +3857,7 @@ dependencies = [
  "sp-state-machine",
  "sp-std",
  "sp-tracing",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "static_assertions",
  "tt-call",
 ]
@@ -3871,7 +3918,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-version",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -4181,7 +4228,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57da3b9b5b85bd66f31093f8c408b90a74431672542466497dcbdfdc02034be1"
 dependencies = [
  "aho-corasick",
- "bstr",
+ "bstr 1.8.0",
  "log",
  "regex-automata 0.4.3",
  "regex-syntax 0.8.2",
@@ -4461,7 +4508,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "8.0.0"
+version = "8.1.1"
 dependencies = [
  "approx",
  "criterion",
@@ -4482,7 +4529,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "12.1.0"
+version = "12.3.0"
 dependencies = [
  "async-trait",
  "clap 4.4.11",
@@ -4561,17 +4608,20 @@ dependencies = [
  "sp-offchain",
  "sp-runtime",
  "sp-session",
+ "sp-state-machine 0.28.0 (git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901)",
  "sp-storage",
  "sp-timestamp",
  "sp-transaction-pool",
  "sp-trie",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
+ "substrate-state-trie-migration-rpc",
+ "trie-db 0.28.0",
 ]
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.2.4"
+version = "1.3.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4621,7 +4671,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "222.0.0"
+version = "236.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4685,6 +4735,7 @@ dependencies = [
  "pallet-evm-chain-id",
  "pallet-evm-precompile-blake2",
  "pallet-evm-precompile-bn128",
+ "pallet-evm-precompile-call-permit",
  "pallet-evm-precompile-dispatch",
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
@@ -4705,6 +4756,7 @@ dependencies = [
  "pallet-session",
  "pallet-stableswap",
  "pallet-staking 3.0.0",
+ "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -4717,9 +4769,11 @@ dependencies = [
  "pallet-xcm",
  "pallet-xcm-rate-limiter",
  "pallet-xyk",
+ "pallet-xyk-liquidity-mining",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain-primitives",
+ "precompile-utils",
  "primitive-types",
  "primitives",
  "scale-info",
@@ -4748,7 +4802,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.0.1"
+version = "3.3.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -5384,7 +5438,7 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -6115,6 +6169,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "macrotest"
+version = "1.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "119d028d9d69a00b737d6af1081a690cee15df8ef75b3f71c86bcc48b301528e"
+dependencies = [
+ "basic-toml",
+ "diff",
+ "glob",
+ "prettyplease 0.2.15",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "syn 2.0.42",
+]
+
+[[package]]
 name = "maplit"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6829,7 +6899,7 @@ dependencies = [
 [[package]]
 name = "orml-benchmarking"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6848,8 +6918,8 @@ dependencies = [
 
 [[package]]
 name = "orml-tokens"
-version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+version = "0.4.2-dev"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6866,7 +6936,7 @@ dependencies = [
 [[package]]
 name = "orml-traits"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6886,7 +6956,7 @@ dependencies = [
 [[package]]
 name = "orml-unknown-tokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6901,7 +6971,7 @@ dependencies = [
 [[package]]
 name = "orml-utilities"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -6916,7 +6986,7 @@ dependencies = [
 [[package]]
 name = "orml-vesting"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6931,7 +7001,7 @@ dependencies = [
 [[package]]
 name = "orml-xcm"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6945,7 +7015,7 @@ dependencies = [
 [[package]]
 name = "orml-xcm-support"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "frame-support",
  "orml-traits",
@@ -6959,7 +7029,7 @@ dependencies = [
 [[package]]
 name = "orml-xtokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=b3694e631df7f1ca16b1973122937753fcdee9d4#b3694e631df7f1ca16b1973122937753fcdee9d4"
+source = "git+https://github.com/galacticcouncil/open-runtime-module-library?rev=f36a0abefd8e6b929bee3cc2420f7c4fbe459c99#f36a0abefd8e6b929bee3cc2420f7c4fbe459c99"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -6986,7 +7056,7 @@ checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 
 [[package]]
 name = "pallet-asset-registry"
-version = "3.1.1"
+version = "3.2.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7200,7 +7270,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-bonds"
-version = "2.2.0"
+version = "2.2.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7261,7 +7331,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
+<<<<<<< HEAD
 version = "1.1.21"
+=======
+version = "1.1.23"
+>>>>>>> master
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7404,7 +7478,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.4.0"
+version = "1.4.7"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7504,7 +7578,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-evm-fee"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7606,7 +7680,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.2.1"
+version = "1.3.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7625,6 +7699,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -7678,12 +7753,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hex-literal 0.4.1",
+ "hydradx-traits",
  "orml-tokens",
  "orml-traits",
  "parity-scale-codec",
@@ -7730,6 +7806,35 @@ dependencies = [
  "fp-evm",
  "sp-core",
  "substrate-bn",
+]
+
+[[package]]
+name = "pallet-evm-precompile-call-permit"
+version = "0.1.0"
+dependencies = [
+ "derive_more",
+ "evm 0.39.1",
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "hex-literal 0.4.1",
+ "libsecp256k1",
+ "log",
+ "num_enum 0.5.11",
+ "pallet-balances",
+ "pallet-evm",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils",
+ "scale-info",
+ "serde",
+ "sha3",
+ "slices",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -7878,7 +7983,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
+<<<<<<< HEAD
 version = "4.7.5"
+=======
+version = "4.8.1"
+>>>>>>> master
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7903,7 +8012,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
+<<<<<<< HEAD
 version = "4.3.1"
+=======
+version = "4.3.2"
+>>>>>>> master
 dependencies = [
  "fixed",
  "frame-support",
@@ -7959,7 +8072,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -7998,7 +8111,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-nft"
-version = "7.1.2"
+version = "7.1.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8125,7 +8238,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
+<<<<<<< HEAD
 version = "4.1.5"
+=======
+version = "4.2.1"
+>>>>>>> master
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8152,7 +8269,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.1.2"
+version = "2.1.7"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8179,7 +8296,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
+<<<<<<< HEAD
 version = "1.1.1"
+=======
+version = "1.1.2"
+>>>>>>> master
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8285,7 +8406,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-referrals"
-version = "1.2.3"
+version = "1.2.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8321,11 +8442,12 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.1.0"
+version = "2.3.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
  "orml-tokens",
@@ -8358,7 +8480,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -8420,7 +8542,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
+<<<<<<< HEAD
 version = "3.4.5"
+=======
+version = "3.6.1"
+>>>>>>> master
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8440,6 +8566,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-tracing",
+ "test-utils",
 ]
 
 [[package]]
@@ -8590,7 +8717,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "9.3.1"
+version = "10.0.3"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8601,7 +8728,9 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "pallet-evm",
+ "pallet-evm-accounts",
  "pallet-transaction-payment",
+ "pallet-utility",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -8663,7 +8792,7 @@ dependencies = [
  "sp-core",
  "sp-rpc",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -8675,7 +8804,7 @@ dependencies = [
  "parity-scale-codec",
  "sp-api",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -8798,7 +8927,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm-rate-limiter"
+<<<<<<< HEAD
 version = "0.1.6"
+=======
+version = "0.1.7"
+>>>>>>> master
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-benchmarking",
@@ -8825,7 +8958,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.4.0"
+version = "6.4.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8847,6 +8980,30 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-xyk-liquidity-mining"
+version = "1.1.10"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-liquidity-mining",
+ "pallet-xyk",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitives",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -10205,7 +10362,7 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -10378,7 +10535,7 @@ dependencies = [
  "sp-timestamp",
  "sp-transaction-pool",
  "sp-version",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "staging-kusama-runtime",
  "substrate-prometheus-endpoint",
  "thiserror",
@@ -10490,6 +10647,58 @@ name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
+
+[[package]]
+name = "precompile-utils"
+version = "0.1.0"
+dependencies = [
+ "affix",
+ "derive_more",
+ "environmental",
+ "evm 0.39.1",
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "hex-literal 0.4.1",
+ "impl-trait-for-tuples",
+ "log",
+ "num_enum 0.5.11",
+ "pallet-evm",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils-macro",
+ "scale-info",
+ "serde",
+ "sha3",
+ "similar-asserts",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-weights 20.0.0 (git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901)",
+ "staging-xcm",
+]
+
+[[package]]
+name = "precompile-utils-macro"
+version = "0.1.0"
+dependencies = [
+ "case",
+ "fp-evm",
+ "frame-support",
+ "macrotest",
+ "num_enum 0.5.11",
+ "precompile-utils",
+ "prettyplease 0.1.25",
+ "proc-macro2",
+ "quote",
+ "sha3",
+ "sp-core",
+ "sp-std",
+ "syn 1.0.109",
+ "trybuild",
+]
 
 [[package]]
 name = "predicates"
@@ -11310,7 +11519,7 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -11364,7 +11573,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.19.7"
+version = "1.21.6"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -11389,6 +11598,7 @@ dependencies = [
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
+ "libsecp256k1",
  "orml-tokens",
  "orml-traits",
  "orml-unknown-tokens",
@@ -11414,6 +11624,7 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-evm",
  "pallet-evm-accounts",
+ "pallet-evm-precompile-call-permit",
  "pallet-im-online",
  "pallet-lbp",
  "pallet-liquidity-mining",
@@ -11430,6 +11641,7 @@ dependencies = [
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
+ "pallet-transaction-pause",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
@@ -11437,12 +11649,14 @@ dependencies = [
  "pallet-utility",
  "pallet-xcm",
  "pallet-xyk",
+ "pallet-xyk-liquidity-mining",
  "parachain-info",
  "polkadot-parachain-primitives",
  "polkadot-primitives",
  "polkadot-runtime",
  "polkadot-runtime-parachains",
  "polkadot-service",
+ "precompile-utils",
  "pretty_assertions",
  "primitives",
  "sc-consensus-grandpa",
@@ -13137,6 +13351,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "similar"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa42c91313f1d05da9b26f267f931cf178d4aba455b4c4622dd7355eb80c6640"
+dependencies = [
+ "bstr 0.2.17",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "similar-asserts"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e041bb827d1bfca18f213411d51b665309f1afb37a04a5d1464530e13779fc0f"
+dependencies = [
+ "console",
+ "similar",
+]
+
+[[package]]
 name = "siphasher"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13156,6 +13390,18 @@ name = "slice-group-by"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
+
+[[package]]
+name = "slices"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2086e458a369cdca838e9f6ed04b4cc2e3ce636d99abb80c9e2eada107749cf"
+dependencies = [
+ "faster-hex",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "slot-range-helper"
@@ -13589,7 +13835,7 @@ dependencies = [
  "secrecy",
  "serde",
  "sp-core-hashing",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-externalities",
  "sp-runtime-interface",
  "sp-std",
@@ -13638,6 +13884,16 @@ dependencies = [
 name = "sp-debug-derive"
 version = "8.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3#062d92eae0f3bb9908faf2d4e241eef17368b9d3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.42",
+]
+
+[[package]]
+name = "sp-debug-derive"
+version = "8.0.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -13759,7 +14015,7 @@ dependencies = [
  "serde",
  "sp-api",
  "sp-core",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-runtime",
  "sp-std",
  "thiserror",
@@ -13828,7 +14084,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-std",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]
@@ -13903,12 +14159,37 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-externalities",
+<<<<<<< HEAD
  "sp-panic-handler",
+=======
+ "sp-panic-handler 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
  "sp-trie",
  "thiserror",
  "tracing",
- "trie-db",
+ "trie-db 0.27.1",
+]
+
+[[package]]
+name = "sp-state-machine"
+version = "0.28.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
+dependencies = [
+ "hash-db 0.16.0",
+ "log",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "rand 0.8.5",
+ "smallvec",
+ "sp-core",
+ "sp-externalities",
+ "sp-panic-handler 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901)",
+>>>>>>> master
+ "sp-std",
+ "sp-trie",
+ "thiserror",
+ "tracing",
+ "trie-db 0.27.1",
 ]
 
 [[package]]
@@ -13949,7 +14230,7 @@ dependencies = [
  "parity-scale-codec",
  "ref-cast",
  "serde",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-std",
 ]
 
@@ -14021,7 +14302,7 @@ dependencies = [
  "sp-std",
  "thiserror",
  "tracing",
- "trie-db",
+ "trie-db 0.27.1",
  "trie-root",
 ]
 
@@ -14077,7 +14358,21 @@ dependencies = [
  "smallvec",
  "sp-arithmetic",
  "sp-core",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
+ "sp-std",
+]
+
+[[package]]
+name = "sp-weights"
+version = "20.0.0"
+source = "git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "smallvec",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-debug-derive 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901)",
  "sp-std",
 ]
 
@@ -14254,7 +14549,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "xcm-procedural",
 ]
 
@@ -14275,7 +14570,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "staging-xcm",
  "staging-xcm-executor",
 ]
@@ -14296,7 +14591,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "staging-xcm",
 ]
 
@@ -14470,7 +14765,7 @@ dependencies = [
  "sp-runtime",
  "sp-state-machine",
  "sp-trie",
- "trie-db",
+ "trie-db 0.27.1",
 ]
 
 [[package]]
@@ -15160,6 +15455,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "trie-db"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff28e0f815c2fea41ebddf148e008b077d2faddb026c9555b29696114d602642"
+dependencies = [
+ "hash-db 0.16.0",
+ "hashbrown 0.13.2",
+ "log",
+ "rustc-hex",
+ "smallvec",
+]
+
+[[package]]
 name = "trie-root"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15249,7 +15557,7 @@ dependencies = [
  "sp-consensus-aura",
  "sp-consensus-babe",
  "sp-core",
- "sp-debug-derive",
+ "sp-debug-derive 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "sp-externalities",
  "sp-inherents",
  "sp-io",
@@ -15260,9 +15568,24 @@ dependencies = [
  "sp-timestamp",
  "sp-transaction-storage-proof",
  "sp-version",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
  "substrate-rpc-client",
  "zstd 0.12.4",
+]
+
+[[package]]
+name = "trybuild"
+version = "1.0.86"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8419ecd263363827c5730386f418715766f584e2f874d32c23c5b00bd9727e7e"
+dependencies = [
+ "basic-toml",
+ "glob",
+ "once_cell",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "termcolor",
 ]
 
 [[package]]
@@ -15342,6 +15665,12 @@ checksum = "5c5713f0fc4b5db668a2ac63cdb7bb4469d8c9fed047b1d0292cc7b0ce2ba921"
 dependencies = [
  "tinyvec",
 ]
+
+[[package]]
+name = "unicode-segmentation"
+version = "1.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
 
 [[package]]
 name = "unicode-width"
@@ -15996,7 +16325,7 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-runtime",
- "sp-weights",
+ "sp-weights 20.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
 ]
 
 [[package]]

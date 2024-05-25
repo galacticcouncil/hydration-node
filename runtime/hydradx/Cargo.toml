@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "222.0.0"
+version = "236.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -40,6 +40,7 @@ pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
+pallet-xyk-liquidity-mining = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -62,6 +63,7 @@ pallet-democracy = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-uniques = { workspace = true }
 pallet-xcm-rate-limiter = { workspace = true }
+pallet-state-trie-migration = { workspace = true }
 
 # Warehouse dependencies
 hydradx-adapters = { workspace = true }
@@ -151,6 +153,8 @@ pallet-evm-precompile-simple = { workspace = true }
 pallet-evm-precompile-modexp = { workspace = true }
 pallet-evm-precompile-bn128 = { workspace = true }
 pallet-evm-precompile-blake2 = { workspace = true }
+pallet-evm-precompile-call-permit = { workspace = true }
+precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { version = "18.0.0", default-features = false }
 
@@ -203,6 +207,7 @@ runtime-benchmarks = [
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
+    "pallet-state-trie-migration/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -304,6 +309,8 @@ std = [
     "pallet-referrals/std",
     "pallet-evm-accounts/std",
     "pallet-evm-accounts-rpc-runtime-api/std",
+    "pallet-xyk-liquidity-mining/std",
+    "pallet-state-trie-migration/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -373,4 +380,6 @@ try-runtime= [
     "pallet-xyk/try-runtime",
     "pallet-referrals/try-runtime",
     "pallet-evm-accounts/try-runtime",
+    "pallet-xyk-liquidity-mining/try-runtime",
+    "pallet-state-trie-migration/try-runtime",
 ]

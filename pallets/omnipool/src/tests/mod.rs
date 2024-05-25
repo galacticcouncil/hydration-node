@@ -16,6 +16,7 @@ pub(crate) mod mock;
 mod positions;
 mod refund;
 mod remove_token;
+mod spot_price;
 mod tradability;
 mod types;
 mod verification;

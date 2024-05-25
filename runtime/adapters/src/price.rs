@@ -55,8 +55,8 @@ where
 		// if this gets removed (eg. Convert returns weight), the constraint on T and ema-oracle is not necessary
 		price_weight.saturating_accrue(pallet_ema_oracle::Pallet::<T>::get_price_weight().saturating_mul(2));
 
-		let Some((converted, _ )) = C::convert((from_currency, to_currency, account_balance)) else{
-			return (0,price_weight);
+		let Some((converted, _)) = C::convert((from_currency, to_currency, account_balance)) else {
+			return (0, price_weight);
 		};
 		(converted, price_weight)
 	}

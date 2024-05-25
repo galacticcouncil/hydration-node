@@ -403,6 +403,10 @@ where
 	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
 		unimplemented!()
 	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		Some(1u128)
+	}
 }
 
 pub struct ExtBuilder {
