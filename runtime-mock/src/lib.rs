@@ -137,6 +137,8 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			},
 			ethereum: Default::default(),
 			evm: Default::default(),
+			xyk_warehouse_lm: Default::default(),
+			xyk_liquidity_mining: Default::default(),
 		}
 		.build_storage()
 		.unwrap()
