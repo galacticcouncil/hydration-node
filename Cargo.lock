@@ -4712,6 +4712,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-aura",
  "pallet-authorship",
+ "pallet-bags-list",
  "pallet-balances",
  "pallet-bonds",
  "pallet-circuit-breaker",
@@ -7331,7 +7332,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.23"
+version = "1.1.24"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8004,7 +8005,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.3.2"
+version = "4.3.3"
 dependencies = [
  "fixed",
  "frame-support",
@@ -8936,7 +8937,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm-rate-limiter"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-benchmarking",
@@ -11693,6 +11694,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "runtime-mock"
+version = "1.0.0"
+dependencies = [
+ "frame-remote-externalities",
+ "frame-support",
+ "frame-system",
+ "hydradx-runtime",
+ "orml-tokens",
+ "pallet-asset-registry",
+ "pallet-omnipool",
+ "pallet-stableswap",
+ "pallet-staking 3.0.0",
+ "primitives",
+ "scraper",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-rpc",
+ "sp-runtime",
+ "toml 0.5.11",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12026,7 +12050,7 @@ dependencies = [
  "sp-core",
  "sp-keyring",
  "sp-keystore",
- "sp-panic-handler 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
+ "sp-panic-handler",
  "sp-runtime",
  "sp-version",
  "thiserror",
@@ -12362,7 +12386,7 @@ dependencies = [
  "sp-core",
  "sp-externalities",
  "sp-io",
- "sp-panic-handler 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
+ "sp-panic-handler",
  "sp-runtime-interface",
  "sp-trie",
  "sp-version",
@@ -13065,7 +13089,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scraper"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "clap 3.2.25",
  "frame-remote-externalities",
@@ -13077,8 +13101,8 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-core",
+ "sp-io",
  "sp-rpc",
- "sp-state-machine 0.28.0 (git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901)",
  "substrate-rpc-client",
  "tokio",
 ]
@@ -14039,16 +14063,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-panic-handler"
-version = "8.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
-dependencies = [
- "backtrace",
- "lazy_static",
- "regex",
-]
-
-[[package]]
 name = "sp-rpc"
 version = "6.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3#062d92eae0f3bb9908faf2d4e241eef17368b9d3"
@@ -14152,7 +14166,7 @@ dependencies = [
  "smallvec",
  "sp-core",
  "sp-externalities",
- "sp-panic-handler 8.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?rev=062d92eae0f3bb9908faf2d4e241eef17368b9d3)",
+ "sp-panic-handler",
  "sp-std",
  "sp-trie",
  "thiserror",
@@ -14168,16 +14182,11 @@ dependencies = [
  "hash-db 0.16.0",
  "log",
  "parity-scale-codec",
- "parking_lot 0.12.1",
- "rand 0.8.5",
  "smallvec",
  "sp-core",
  "sp-externalities",
- "sp-panic-handler 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?rev=c8d2251cafadc108ba2f1f8a3208dc547ff38901)",
  "sp-std",
  "sp-trie",
- "thiserror",
- "tracing",
  "trie-db 0.27.1",
 ]
 

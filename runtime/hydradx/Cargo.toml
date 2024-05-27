@@ -43,6 +43,7 @@ pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 
 # pallets
+pallet-bags-list = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
@@ -330,6 +331,7 @@ try-runtime= [
     "cumulus-pallet-xcmp-queue/try-runtime",
     "parachain-info/try-runtime",
     "pallet-aura/try-runtime",
+    "pallet-bags-list/try-runtime",
     "pallet-balances/try-runtime",
     "pallet-elections-phragmen/try-runtime",
     "pallet-session/try-runtime",
