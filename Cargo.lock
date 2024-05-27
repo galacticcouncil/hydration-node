@@ -4911,7 +4911,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "238.0.0"
+version = "239.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -7822,7 +7822,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-collator-rewards"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9185,7 +9185,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-pause"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
