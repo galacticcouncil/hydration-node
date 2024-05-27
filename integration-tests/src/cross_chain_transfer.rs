@@ -805,9 +805,9 @@ fn xcm_for_deposit_reserve_asset_to_hydra<RC: Decode + GetDispatchInfo>(
 
 	// executed on local (AssetHub)
 	let message = Xcm(vec![
-		WithdrawAsset(vec![fee_asset.clone(), assets.clone().into()].into()),
+		WithdrawAsset(vec![fee_asset.clone(), assets.clone()].into()),
 		DepositReserveAsset {
-			assets: Definite(vec![fee_asset.clone(), assets.clone().into()].into()),
+			assets: Definite(vec![fee_asset.clone(), assets.clone()].into()),
 			dest,
 			xcm: Xcm(vec![
 				// executed on remote (on hydra)

@@ -1305,12 +1305,12 @@ mod omnipool_router_tests {
 
 				//We need to do this because this setup leads to different behaviour of reducable_balance in the post balance check in router
 				hydradx_runtime::System::inc_consumers(&AccountId::from(ALICE)).unwrap();
-				let acc = hydradx_runtime::System::account(&AccountId::from(ALICE));
+				let acc = hydradx_runtime::System::account(AccountId::from(ALICE));
 				assert_eq!(acc.consumers, 1);
 				hydradx_runtime::System::dec_providers(&AccountId::from(ALICE)).unwrap();
 				hydradx_runtime::System::dec_providers(&AccountId::from(ALICE)).unwrap();
 				hydradx_runtime::System::dec_providers(&AccountId::from(ALICE)).unwrap();
-				let acc = hydradx_runtime::System::account(&AccountId::from(ALICE));
+				let acc = hydradx_runtime::System::account(AccountId::from(ALICE));
 				assert_eq!(acc.providers, 1);
 
 				//Act and assert
@@ -1381,12 +1381,12 @@ mod omnipool_router_tests {
 
 				//We need to do this because this setup leads to different behaviour of reducable_balance in the post balance check in router
 				hydradx_runtime::System::inc_consumers(&AccountId::from(ALICE)).unwrap();
-				let acc = hydradx_runtime::System::account(&AccountId::from(ALICE));
+				let acc = hydradx_runtime::System::account(AccountId::from(ALICE));
 				assert_eq!(acc.consumers, 1);
 				hydradx_runtime::System::dec_providers(&AccountId::from(ALICE)).unwrap();
 				hydradx_runtime::System::dec_providers(&AccountId::from(ALICE)).unwrap();
 				hydradx_runtime::System::dec_providers(&AccountId::from(ALICE)).unwrap();
-				let acc = hydradx_runtime::System::account(&AccountId::from(ALICE));
+				let acc = hydradx_runtime::System::account(AccountId::from(ALICE));
 				assert_eq!(acc.providers, 1);
 
 				//Act and assert
