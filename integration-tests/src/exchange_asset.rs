@@ -350,6 +350,11 @@ pub mod zeitgeist_use_cases {
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE)),
+				0
+			);
+
 			let give_reserve_chain = Location::new(
 				1,
 				cumulus_primitives_core::Junctions::X1(Arc::new(
@@ -372,7 +377,7 @@ pub mod zeitgeist_use_cases {
 			let beneficiary = Location::new(
 				0,
 				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
+					vec![cumulus_primitives_core::Junction::AccountId32 { id: ALICE, network: None }]
 						.try_into()
 						.unwrap(),
 				)),
@@ -484,7 +489,7 @@ pub mod zeitgeist_use_cases {
 		//Assert that swap amount out is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
 			pretty_assertions::assert_eq!(
-				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(BOB)),
+				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE)),
 				8142821444432895
 			);
 		});
@@ -550,12 +555,11 @@ pub mod zeitgeist_use_cases {
 
 			crate::exchange_asset::add_currency_price(HDX_ON_OTHER_PARACHAIN, FixedU128::from(1));
 			crate::exchange_asset::add_currency_price(IBTC, FixedU128::from(1));
-			let alice_init_ibtc_balance = 3000 * UNITS;
-			assert_ok!(hydradx_runtime::Tokens::deposit(
-				IBTC,
-				&ALICE.into(),
-				alice_init_ibtc_balance
-			));
+
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
+				0
+			);
 
 			let give_reserve_chain = Location::new(
 				1,
@@ -586,7 +590,7 @@ pub mod zeitgeist_use_cases {
 			let beneficiary = Location::new(
 				0,
 				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
+					vec![cumulus_primitives_core::Junction::AccountId32 { id: ALICE, network: None }]
 						.try_into()
 						.unwrap(),
 				)),
@@ -716,7 +720,7 @@ pub mod zeitgeist_use_cases {
 		//Assert that swap amount out of IBTC is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
 			pretty_assertions::assert_eq!(
-				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(BOB)),
+				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
 				9839246387064
 			);
 		});
@@ -840,7 +844,7 @@ pub mod zeitgeist_use_cases {
 			let beneficiary = Location::new(
 				0,
 				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
+					vec![cumulus_primitives_core::Junction::AccountId32 { id: ALICE, network: None }]
 						.try_into()
 						.unwrap(),
 				)),
@@ -1008,7 +1012,7 @@ pub mod zeitgeist_use_cases {
 		//Assert that swap amount out of IBTC is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
 			pretty_assertions::assert_eq!(
-				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(BOB)),
+				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
 				9839246387064
 			);
 		});
