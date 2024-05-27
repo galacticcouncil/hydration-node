@@ -609,7 +609,7 @@ fn withdraw_shares_should_send_reward_to_user_when_bigger_than_ed_but_user_has_n
 		//We also make sure that treasury has some balance so we don't trigger BelowMinimum error because treasury balance is below ED
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(CHARLIE.into()),
-			Treasury::account_id().into(),
+			Treasury::account_id(),
 			HDX,
 			1000 * UNITS,
 		));
@@ -805,7 +805,7 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 		//We also make sure that treasury has some balance so we don't trigger BelowMinimum error because treasury balance is below ED
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(CHARLIE.into()),
-			Treasury::account_id().into(),
+			Treasury::account_id(),
 			HDX,
 			1000 * UNITS,
 		));
