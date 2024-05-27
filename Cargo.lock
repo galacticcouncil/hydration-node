@@ -11545,7 +11545,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.21.6"
+version = "1.21.7"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
