@@ -4951,6 +4951,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-aura",
  "pallet-authorship",
+ "pallet-bags-list",
  "pallet-balances",
  "pallet-bonds",
  "pallet-circuit-breaker",
@@ -12026,6 +12027,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "runtime-mock"
+version = "1.0.0"
+dependencies = [
+ "frame-remote-externalities",
+ "frame-support",
+ "frame-system",
+ "hydradx-runtime",
+ "orml-tokens",
+ "pallet-asset-registry",
+ "pallet-omnipool",
+ "pallet-stableswap",
+ "pallet-staking 3.0.1",
+ "primitives",
+ "scraper",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-rpc",
+ "sp-runtime",
+ "toml 0.5.11",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13484,8 +13508,8 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-core",
+ "sp-io",
  "sp-rpc",
- "sp-state-machine",
  "substrate-rpc-client",
  "tokio",
 ]
