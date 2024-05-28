@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "239.0.0"
+version = "240.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -311,7 +311,6 @@ std = [
     "pallet-evm-accounts-rpc-runtime-api/std",
     "pallet-xyk-liquidity-mining/std",
     "pallet-state-trie-migration/std",
-    "pallet-evm-precompile-call-permit/std",
 ]
 try-runtime= [
     "frame-try-runtime",

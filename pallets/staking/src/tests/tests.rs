@@ -46,7 +46,7 @@ fn process_votes_should_work_when_referendum_is_finished() {
 			let mut position = Staking::positions(position_id).unwrap();
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(
@@ -95,7 +95,7 @@ fn process_votes_should_do_nothing_when_referendum_is_not_finished() {
 			let mut position = Staking::positions(position_id).unwrap();
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(position_before, position);
@@ -137,7 +137,7 @@ fn process_votes_should_work_when_referendum_is_finished_with_conviction() {
 			let mut position = Staking::positions(position_id).unwrap();
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(
@@ -222,7 +222,7 @@ fn process_votes_should_work_when_multiple_votes_exists() {
 			let mut position = Staking::positions(position_id).unwrap();
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(
@@ -260,7 +260,7 @@ fn process_votes_should_do_nothing_when_referendum_doesnt_exists() {
 			let mut position = Staking::positions(position_id).unwrap();
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(position_before, position);
@@ -547,7 +547,7 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 			let mut position = Staking::positions(position_id).unwrap();
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(
@@ -578,7 +578,7 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 			PositionVotes::<Test>::insert(position_id, v);
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(
@@ -609,7 +609,7 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 			PositionVotes::<Test>::insert(position_id, v);
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(
@@ -640,7 +640,7 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 			PositionVotes::<Test>::insert(position_id, v);
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(
@@ -671,7 +671,7 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 			PositionVotes::<Test>::insert(position_id, v);
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(
@@ -702,7 +702,7 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 			PositionVotes::<Test>::insert(position_id, v);
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(
@@ -733,7 +733,7 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 			PositionVotes::<Test>::insert(position_id, v);
 
 			//Act
-			assert_ok!(Staking::process_votes(position_id, &mut position));
+			assert_ok!(Staking::process_votes(&BOB, position_id, &mut position));
 
 			//Assert
 			assert_eq!(
