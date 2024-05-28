@@ -194,12 +194,9 @@ benchmarks! {
 		Pallet::<T>::stake(RawOrigin::Signed(caller_1.clone()).into(), 50_000 * UNIT)?;
 
 		let position_id = Pallet::<T>::get_user_position_id(&caller_1).unwrap().unwrap();
-		generate_votes::<T>(position_id, 1u32);
 
 		add_staking_rewards::<T>(20_000 * UNIT)?;
 		run_periods::<T>(<u128 as TryInto<u32>>::try_into(T::UnclaimablePeriods::get()).unwrap() + 1_u32);
-
-		process_and_remove_votes::<T>(&caller_1, position_id);
 
 		let old_caller_1_balance = T::Currency::free_balance(hdx, &caller_1);
 	}: _(RawOrigin::Signed(caller_1.clone()), position_id)
