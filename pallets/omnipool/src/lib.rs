@@ -786,7 +786,6 @@ pub mod pallet {
 			);
 
 			let new_asset_state = asset_state
-				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1135,7 +1134,6 @@ pub mod pallet {
 			);
 
 			let new_asset_state = asset_state
-				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
