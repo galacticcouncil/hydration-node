@@ -69,12 +69,6 @@ fn generate_votes<T: Config>(position_id: T::PositionItemId, count: u32) {
 	crate::PositionVotes::<T>::insert(position_id, voting);
 }
 
-fn process_and_remove_votes<T: Config>(who: &T::AccountId, position_id: T::PositionItemId) {
-	let mut position = crate::Pallet::<T>::positions(position_id).unwrap();
-	Pallet::<T>::process_votes(who, position_id, &mut position).unwrap();
-	let _ = ProcessedVotes::<T>::clear_prefix(who, u32::MAX, None);
-}
-
 fn run_periods<T: Config>(periods: u32) {
 	let to = T::PeriodLength::get() * periods.into() + System::<T>::block_number();
 
