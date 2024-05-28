@@ -315,6 +315,7 @@ std = [
     "parachains-common/std",
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",
+    "pallet-evm-precompile-call-permit/std",
 ]
 try-runtime= [
     "frame-try-runtime",
