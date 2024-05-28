@@ -21,6 +21,7 @@ mod tradability;
 mod types;
 mod verification;
 
+use crate::Balance;
 use mock::*;
 
 #[macro_export]
