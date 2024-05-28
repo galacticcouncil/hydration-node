@@ -237,7 +237,8 @@ impl<T: Config> Pallet<T> {
 	fn ensure_min_profit(otc_amount_in: Balance, _profit: Balance) -> DispatchResult {
 		let _min_expected_profit = T::MinProfitPercentage::get().mul_floor(otc_amount_in);
 
-		// In the benchmark we doesn't make any trade, so this check would fail.
+		// In the benchmark we calculate the overhead of extrinsic and we doesn't make any trade.
+		// We disable this check because otherwise it would fail.
 		#[cfg(not(feature = "runtime-benchmarks"))]
 		// tell the binary search algorithm to find higher values
 		ensure!(_profit >= _min_expected_profit, Error::<T>::TradeAmountTooLow);
@@ -248,8 +249,8 @@ impl<T: Config> Pallet<T> {
 	/// Executes two trades: asset_a -> OTC -> asset_b, and asset_b -> Router -> asset_a.
 	///
 	/// If the OTC order is partially fillable, the extrinsic fails if the existing arbitrage
-	/// opportunity is not closed after the trade.
-	/// If the OTC order is not partially fillable, fails if there is no profit after the trade.
+	/// opportunity is not closed after the trade and if there is no profit after the trade.
+	/// If the OTC order is not partially fillable, fails only if there is no profit after the trade.
 	pub fn settle_otc(otc_id: OrderId, amount: Balance, route: Vec<Trade<AssetIdOf<T>>>) -> DispatchResult {
 		let pallet_acc = Self::account_id();
 
