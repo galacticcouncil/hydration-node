@@ -97,6 +97,8 @@ use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
+#[cfg(feature = "try-runtime")]
+use primitive_types::U256;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
@@ -145,6 +147,7 @@ pub mod pallet {
 			+ Parameter
 			+ Default
 			+ Copy
+			+ Ord
 			+ HasCompact
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
@@ -627,7 +630,6 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let new_asset_state = asset_state
-				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -693,6 +695,9 @@ pub mod pallet {
 			});
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_liquidity_invariant((asset, asset_state, new_asset_state));
 
 			Ok(())
 		}
@@ -946,7 +951,6 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let new_asset_state = asset_state
-				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1024,6 +1028,9 @@ pub mod pallet {
 			});
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_liquidity_invariant((asset_id, asset_state, new_asset_state));
 
 			Ok(())
 		}
@@ -1360,11 +1367,9 @@ pub mod pallet {
 			);
 
 			let new_asset_in_state = asset_in_state
-				.clone()
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
 			let new_asset_out_state = asset_out_state
-				.clone()
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1457,6 +1462,12 @@ pub mod pallet {
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_trade_invariant(
+				(asset_in, asset_in_state, new_asset_in_state),
+				(asset_out, asset_out_state, new_asset_out_state),
+			);
 
 			Ok(())
 		}
@@ -1561,11 +1572,9 @@ pub mod pallet {
 			);
 
 			let new_asset_in_state = asset_in_state
-				.clone()
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
 			let new_asset_out_state = asset_out_state
-				.clone()
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1631,7 +1640,6 @@ pub mod pallet {
 			);
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
-
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
 
@@ -1658,6 +1666,12 @@ pub mod pallet {
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_trade_invariant(
+				(asset_in, asset_in_state, new_asset_in_state),
+				(asset_out, asset_out_state, new_asset_out_state),
+			);
 
 			Ok(())
 		}
@@ -1825,7 +1839,6 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let mut new_asset_state = asset_state
-				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1935,6 +1948,36 @@ pub mod pallet {
 			);
 			assert_ne!(T::MaxInRatio::get(), Balance::zero(), "MaxInRatio is 0.");
 			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn try_state(_n: BlockNumberFor<T>) -> Result<(), DispatchError> {
+			use sp_std::collections::btree_map::BTreeMap;
+			let asset_hub_amount: Balance = Assets::<T>::iter_values().map(|v| v.hub_reserve).sum();
+			let account_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+			assert_eq!(
+				account_balance, asset_hub_amount,
+				"LRNA amount in assets != amount in account"
+			);
+
+			let mut shares: BTreeMap<T::AssetId, u128> = BTreeMap::new();
+			for position in Positions::<T>::iter_values() {
+				if let Some(current) = shares.get(&position.asset_id) {
+					shares.insert(position.asset_id, position.shares + current);
+				} else {
+					shares.insert(position.asset_id, position.shares);
+				}
+			}
+			for (asset_id, total) in shares.into_iter() {
+				let state = Assets::<T>::get(asset_id).unwrap();
+				assert_eq!(
+					state.shares - state.protocol_shares,
+					total,
+					"Asset {:?} shares in positions is not equal to shares in asset state",
+					asset_id
+				);
+			}
+			Ok(())
 		}
 	}
 }
@@ -2098,7 +2141,6 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let new_asset_out_state = asset_state
-			.clone()
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -2207,7 +2249,6 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let new_asset_out_state = asset_state
-			.clone()
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -2376,5 +2417,81 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 		Ok(())
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn ensure_trade_invariant(
+		asset_in: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
+		asset_out: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
+	) {
+		let new_in_state = asset_in.2;
+		let new_out_state = asset_out.2;
+
+		let old_in_state = asset_in.1;
+		let old_out_state = asset_out.1;
+		assert!(new_in_state.reserve > old_in_state.reserve);
+		assert!(new_out_state.reserve < old_out_state.reserve);
+
+		let in_new_reserve = U256::from(new_in_state.reserve);
+		let in_new_hub_reserve = U256::from(new_in_state.hub_reserve);
+		let in_old_reserve = U256::from(old_in_state.reserve);
+		let in_old_hub_reserve = U256::from(old_in_state.hub_reserve);
+
+		let rq = in_old_reserve.checked_mul(in_old_hub_reserve).unwrap();
+		let rq_plus = in_new_reserve.checked_mul(in_new_hub_reserve).unwrap();
+		assert!(
+			rq_plus >= rq,
+			"Asset IN trade invariant, {:?}, {:?}",
+			new_in_state,
+			old_in_state
+		);
+		/*
+		   let out_new_reserve = U256::from(new_out_state.reserve);
+		   let out_new_hub_reserve = U256::from(new_out_state.hub_reserve);
+		   let out_old_reserve = U256::from(old_out_state.reserve);
+		   let out_old_hub_reserve = U256::from(old_out_state.hub_reserve);
+
+		   let left = rq + sp_std::cmp::max(in_new_reserve, in_new_hub_reserve);
+		   let right = rq_plus;
+		   assert!(left >= right, "Asset IN margin {:?} >= {:?}", left,right);
+
+		   let rq = out_old_reserve.checked_mul(out_old_hub_reserve).unwrap();
+		   let rq_plus = out_new_reserve.checked_mul(out_new_hub_reserve).unwrap();
+		   assert!(rq_plus >= rq, "Asset OUT trade invariant, {:?}, {:?}", new_out_state, old_out_state);
+		   let left = rq + sp_std::cmp::max(out_new_reserve, out_new_hub_reserve);
+		   let right = rq_plus;
+		   assert!(left >= right, "Asset OUT margin {:?} >= {:?}", left,right);
+
+		*/
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn ensure_liquidity_invariant(asset: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>)) {
+		let old_state = asset.1;
+		let new_state = asset.2;
+
+		let new_reserve = U256::from(new_state.reserve);
+		let new_hub_reserve = U256::from(new_state.hub_reserve);
+		let old_reserve = U256::from(old_state.reserve);
+		let old_hub_reserve = U256::from(old_state.hub_reserve);
+
+		let one = U256::from(1_000_000_000_000u128);
+
+		let left = new_hub_reserve.saturating_sub(one).checked_mul(old_reserve).unwrap();
+		let middle = old_hub_reserve.checked_mul(new_reserve).unwrap();
+		let right = new_hub_reserve
+			.checked_add(one)
+			.unwrap()
+			.checked_mul(old_reserve)
+			.unwrap();
+
+		assert!(left <= middle, "Add liquidity first part");
+		assert!(
+			middle <= right,
+			"Add liquidity second part - {:?} <= {:?} <= {:?}",
+			left,
+			middle,
+			right
+		);
 	}
 }

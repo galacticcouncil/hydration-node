@@ -285,9 +285,12 @@ impl Config<Instance1> for Test {
 	type NonDustableWhitelistHandler = Whitelist;
 	type AssetRegistry = DummyRegistry;
 	type PriceAdjustment = DefaultPriceAdjustment;
+	type TreasuryAccountId = TreasuryAccount;
 }
 
 parameter_types! {
+	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 	pub const LMPalletId2: PalletId = PalletId(*b"TEST_lm2");
 	pub const MinPlannedYieldingPeriods2: BlockNumber = 10;
 	pub const MinTotalFarmRewards2: Balance = 100_000;
@@ -309,6 +312,7 @@ impl Config<Instance2> for Test {
 	type NonDustableWhitelistHandler = Whitelist;
 	type AssetRegistry = DummyRegistry;
 	type PriceAdjustment = DefaultPriceAdjustment;
+	type TreasuryAccountId = TreasuryAccount;
 }
 
 parameter_types! {
@@ -329,6 +333,7 @@ impl Config<Instance3> for Test {
 	type NonDustableWhitelistHandler = Whitelist;
 	type AssetRegistry = DummyRegistry;
 	type PriceAdjustment = DummyOraclePriceAdjustment;
+	type TreasuryAccountId = TreasuryAccount;
 }
 
 parameter_types! {
@@ -458,7 +463,7 @@ impl Inspect for DummyRegistry {
 	}
 
 	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
-		unimplemented!()
+		Some(1u128)
 	}
 }
 

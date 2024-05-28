@@ -178,6 +178,8 @@ impl omnipool_liquidity_mining::Config for Test {
 }
 
 parameter_types! {
+	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 	pub const WarehouseLMPalletId: PalletId = PalletId(*b"TEST_lm_");
 	pub const MinTotalFarmRewards: Balance = 1_000_000 * ONE;
 	pub const MinPlannedYieldingPeriods: BlockNumber  = 100;
@@ -191,6 +193,7 @@ impl warehouse_liquidity_mining::Config<Instance1> for Test {
 	type AssetId = AssetId;
 	type MultiCurrency = Tokens;
 	type PalletId = WarehouseLMPalletId;
+	type TreasuryAccountId = TreasuryAccount;
 	type MinTotalFarmRewards = MinTotalFarmRewards;
 	type MinPlannedYieldingPeriods = MinPlannedYieldingPeriods;
 	type BlockNumberProvider = MockBlockNumberProvider;

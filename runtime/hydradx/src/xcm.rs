@@ -12,7 +12,7 @@ use cumulus_primitives_core::ParaId;
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::{AccountIdConversion, Convert},
-	traits::{ConstU32, Contains, Everything, Get, Nothing},
+	traits::{ConstU32, Contains, ContainsPair, Everything, Get, Nothing},
 	PalletId,
 };
 use frame_system::EnsureRoot;
@@ -99,7 +99,34 @@ parameter_types! {
 	pub const MaxNumberOfInstructions: u16 = 100;
 
 	pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+
+	pub AssetHubLocation: MultiLocation = (Parent, Parachain(1000)).into();
 }
+
+/// Matches foreign assets from a given origin.
+/// Foreign assets are assets bridged from other consensus systems. i.e parents > 1.
+pub struct IsForeignNativeAssetFrom<Origin>(PhantomData<Origin>);
+impl<Origin> ContainsPair<MultiAsset, MultiLocation> for IsForeignNativeAssetFrom<Origin>
+where
+	Origin: Get<MultiLocation>,
+{
+	fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
+		let loc = Origin::get();
+		&loc == origin
+			&& matches!(
+				asset,
+				MultiAsset {
+					id: Concrete(MultiLocation { parents: 2, .. }),
+					fun: Fungible(_),
+				},
+			)
+	}
+}
+
+pub type Reserves = (
+	IsForeignNativeAssetFrom<AssetHubLocation>,
+	MultiNativeAsset<AbsoluteReserveProvider>,
+);
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
@@ -108,7 +135,7 @@ impl Config for XcmConfig {
 
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToCallOrigin;
-	type IsReserve = MultiNativeAsset<AbsoluteReserveProvider>;
+	type IsReserve = Reserves;
 
 	type IsTeleporter = (); // disabled
 	type UniversalLocation = UniversalLocation;
