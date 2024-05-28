@@ -214,7 +214,7 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for Simp
 }
 
 /// Asset state representation including asset pool reserve.
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub struct AssetReserveState<Balance> {
 	/// Quantity of asset in omnipool
 	pub reserve: Balance,

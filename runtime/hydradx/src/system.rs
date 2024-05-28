@@ -22,7 +22,7 @@ use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
 	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
 	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
-	time::{HOURS, SLOT_DURATION},
+	time::{DAYS, HOURS, SLOT_DURATION},
 };
 
 use codec::{Decode, Encode, MaxEncodedLen};
@@ -40,9 +40,8 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSignedBy};
+use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
-use primitives::constants::time::DAYS;
 use scale_info::TypeInfo;
 
 pub struct CallFilter;
@@ -219,7 +218,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type ReservedXcmpWeight = ReservedXcmpWeight;
 	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>; // TODO: what to set here ?!
-	type WeightInfo = ();
+	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -253,7 +252,10 @@ impl pallet_collator_selection::Config for Runtime {
 	type Currency = Balances;
 	type UpdateOrigin = MoreThanHalfCouncil;
 	type PotId = PotId;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxCandidates = MaxCandidates;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MaxCandidates = ConstU32<20>;
 	type MaxInvulnerables = MaxInvulnerables;
 	// should be a multiple of session or things will get inconsistent
 	type KickThreshold = Period;
@@ -424,7 +426,7 @@ impl pallet_multisig::Config for Runtime {
 	type DepositBase = DepositBase;
 	type DepositFactor = DepositFactor;
 	type MaxSignatories = MaxSignatories;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_multisig::HydraWeight<Runtime>;
 }
 
 impl pallet_genesis_history::Config for Runtime {}
@@ -561,7 +563,10 @@ parameter_types! {
 
 impl pallet_state_trie_migration::Config for Runtime {
 	type ControlOrigin = SuperMajorityTechCommittee;
-	type SignedFilter = EnsureSignedBy<TechCommAccounts, AccountId>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SignedFilter = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SignedFilter = frame_system::EnsureSigned<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type RuntimeHoldReason = RuntimeHoldReason;

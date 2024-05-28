@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "235.0.0"
+version = "239.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -43,6 +43,7 @@ pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 
 # pallets
+pallet-bags-list = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
@@ -314,6 +315,7 @@ std = [
     "parachains-common/std",
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",
+    "pallet-evm-precompile-call-permit/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -331,6 +333,7 @@ try-runtime= [
     "cumulus-pallet-xcmp-queue/try-runtime",
     "staging-parachain-info/try-runtime",
     "pallet-aura/try-runtime",
+    "pallet-bags-list/try-runtime",
     "pallet-balances/try-runtime",
     "pallet-elections-phragmen/try-runtime",
     "pallet-session/try-runtime",

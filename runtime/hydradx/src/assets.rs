@@ -18,13 +18,12 @@
 use super::*;
 use crate::system::NativeAssetId;
 
-use frame_support::traits::Defensive;
 use hydradx_adapters::{
 	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, PriceAdjustmentAdapter, StableswapHooksAdapter, VestingInfo,
+	OracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider,
+	StableswapHooksAdapter, VestingInfo,
 };
 
-use hydradx_adapters::{RelayChainBlockHashProvider, RelayChainBlockNumberProvider};
 use hydradx_traits::{
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
@@ -38,11 +37,10 @@ use pallet_omnipool::{
 use pallet_otc::NamedReserveIdentifier;
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
-use primitives::constants::chain::XYK_SOURCE;
-use primitives::constants::time::DAYS;
 use primitives::constants::{
-	chain::OMNIPOOL_SOURCE,
+	chain::{OMNIPOOL_SOURCE, XYK_SOURCE},
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
+	time::DAYS,
 };
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedPointNumber};
 
@@ -53,19 +51,23 @@ use frame_support::{
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, EnsureOrigin, Imbalance, LockIdentifier,
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EnsureOrigin, Imbalance, LockIdentifier,
 		NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use orml_traits::currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer};
-use orml_traits::{GetByKey, Happened};
+use orml_traits::{
+	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
+	GetByKey, Happened,
+};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES};
-use pallet_staking::types::{Action, Point};
-use pallet_staking::SigmoidPercentage;
+use pallet_staking::{
+	types::{Action, Point},
+	SigmoidPercentage,
+};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use sp_std::num::NonZeroU16;
 
@@ -587,6 +589,7 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type AssetId = AssetId;
 	type MultiCurrency = Currencies;
 	type PalletId = OmniWarehouseLMPalletId;
+	type TreasuryAccountId = TreasuryAccount;
 	type MinTotalFarmRewards = MinTotalFarmRewards;
 	type MinPlannedYieldingPeriods = MinPlannedYieldingPeriods;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
@@ -635,6 +638,7 @@ impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime 
 	type AssetId = AssetId;
 	type MultiCurrency = Currencies;
 	type PalletId = XYKWarehouseLMPalletId;
+	type TreasuryAccountId = TreasuryAccount;
 	type MinTotalFarmRewards = XYKLmMinTotalFarmRewards;
 	type MinPlannedYieldingPeriods = XYKLmMinPlannedYieldingPeriods;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;

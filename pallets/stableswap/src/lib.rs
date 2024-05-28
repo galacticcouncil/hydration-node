@@ -73,7 +73,7 @@ use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
-use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -614,6 +614,9 @@ pub mod pallet {
 				fee,
 			});
 
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
+
 			Ok(())
 		}
 
@@ -765,6 +768,9 @@ pub mod pallet {
 				fee: fee_amount,
 			});
 
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
+
 			Ok(())
 		}
 
@@ -839,6 +845,9 @@ pub mod pallet {
 				amount_out,
 				fee: fee_amount,
 			});
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
 
 			Ok(())
 		}
@@ -1083,6 +1092,9 @@ impl<T: Config> Pallet<T> {
 		// All done and updated. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
+		#[cfg(feature = "try-runtime")]
+		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves);
+
 		Ok(share_amount)
 	}
 
@@ -1291,5 +1303,71 @@ impl<T: Config> Pallet<T> {
 		};
 
 		Ok(state)
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn ensure_add_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
+		let pool = Pools::<T>::get(pool_id).unwrap();
+		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
+		debug_assert_ne!(
+			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+			"Reserves are not changed"
+		);
+		let amplification = Self::get_amplification(&pool);
+		let initial_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification).unwrap();
+		let final_d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification).unwrap();
+		assert!(
+			final_d >= initial_d,
+			"Add liquidity Invariant broken: D+ is less than initial D; {:?} <= {:?}",
+			initial_d,
+			final_d
+		);
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn ensure_remove_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
+		let pool = Pools::<T>::get(pool_id).unwrap();
+		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
+		debug_assert_ne!(
+			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+			"Reserves are not changed"
+		);
+		let amplification = Self::get_amplification(&pool);
+		let initial_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification).unwrap();
+		let final_d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification).unwrap();
+		assert!(
+			final_d <= initial_d,
+			"Remove liquidity Invariant broken: D+ is more than initial D; {:?} >= {:?}",
+			initial_d,
+			final_d
+		);
+	}
+	#[cfg(feature = "try-runtime")]
+	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], fee: Permill) {
+		let pool = Pools::<T>::get(pool_id).unwrap();
+		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
+		debug_assert_ne!(
+			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
+			"Reserves are not changed"
+		);
+		let amplification = Self::get_amplification(&pool);
+		let initial_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification).unwrap();
+		let final_d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification).unwrap();
+		assert!(
+			final_d >= initial_d,
+			"Trade Invariant broken: D+ is less than initial D; {:?} <= {:?}",
+			initial_d,
+			final_d
+		);
+		if fee.is_zero() {
+			let diff = final_d - initial_d;
+			assert!(diff <= 5000, "Trade D difference is too big: {:?}", diff);
+		}
 	}
 }

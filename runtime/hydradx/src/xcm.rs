@@ -1,21 +1,19 @@
 use super::*;
-use sp_std::marker::PhantomData;
 
 use codec::MaxEncodedLen;
 use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
-use primitives::AssetId; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
+use primitives::{AssetId, Price};
+use sp_std::marker::PhantomData; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
-use frame_support::traits::TransformOrigin;
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::{AccountIdConversion, Convert},
-	traits::{ConstU32, Contains, ContainsPair, Everything, Get, Nothing},
+	traits::{ConstU32, Contains, ContainsPair, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
-use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
-use hydradx_adapters::xcm_execute_filter::AllowTransferAndSwap;
+use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::AllowTransferAndSwap};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
@@ -24,10 +22,8 @@ use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::{RelayChainBlockNumber, Sibling};
 use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
-use primitives::Price;
 use scale_info::TypeInfo;
-use sp_runtime::traits::MaybeEquivalence;
-use sp_runtime::Perbill;
+use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
 	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset,
@@ -267,7 +263,10 @@ impl pallet_xcm::Config for Runtime {
 	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Nothing;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type XcmReserveTransferFilter = Everything;
+	#[cfg(feature = "runtime-benchmarks")]
+	type XcmReserveTransferFilter = Nothing;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
 	type UniversalLocation = UniversalLocation;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -311,7 +310,11 @@ parameter_types! {
 
 impl pallet_message_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_message_queue::HydraWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MessageProcessor =
+		pallet_message_queue::mock_helpers::NoopMessageProcessor<cumulus_primitives_core::AggregateMessageOrigin>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MessageProcessor = xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, XcmExecutor<XcmConfig>, RuntimeCall>;
 	type Size = u32;
 	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;

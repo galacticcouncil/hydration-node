@@ -58,14 +58,12 @@ use sp_runtime::{
 	ApplyExtrinsicResult, Permill,
 };
 
-use sp_std::convert::From;
-use sp_std::prelude::*;
+use sp_std::{convert::From, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
-use frame_support::pallet_prelude::Hooks;
-use frame_support::{construct_runtime, parameter_types, weights::Weight};
+use frame_support::{construct_runtime, pallet_prelude::Hooks, parameter_types, weights::Weight};
 pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
@@ -109,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 235,
+	spec_version: 239,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
