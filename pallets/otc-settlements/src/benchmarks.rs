@@ -15,8 +15,8 @@
 use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::assert_ok;
-use frame_system::RawOrigin;
 use frame_support::traits::fungibles::Mutate;
+use frame_system::RawOrigin;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const HDX: u32 = 0;
