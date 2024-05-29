@@ -88,7 +88,7 @@ parameter_type_with_key! {
 }
 
 impl pallet_otc_settlements::Config for Test {
-	type Currency = Currencies;
+	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Test>;
 	type RuntimeEvent = RuntimeEvent;
 	type Router = Router;
 	type ProfitReceiver = TreasuryAccount;

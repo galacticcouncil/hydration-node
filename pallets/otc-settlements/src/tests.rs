@@ -23,6 +23,7 @@ use super::*;
 pub use crate::mock::*;
 use frame_support::{assert_ok, assert_storage_noop};
 use hydradx_traits::Inspect;
+use orml_traits::MultiCurrency;
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
@@ -133,9 +134,37 @@ fn otcs_list_storage_should_be_sorted_on_new_block() {
 		assert!(!sorted_list_of_otcs.is_empty());
 
 		// the list should be sorted
-		let mut copy_of_list = sorted_list_of_otcs.clone();
-		copy_of_list.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap());
-		assert!(sorted_list_of_otcs == copy_of_list);
+		// create tuples of adjacent elements
+		let result = sorted_list_of_otcs
+			.iter()
+			.zip(sorted_list_of_otcs.iter().skip(1))
+			.collect::<Vec<_>>();
+
+		// for all adjacent tuples (a,b) should be true that price_diff_a >= price_diff_b
+		for (otc_id_a, otc_id_b) in result.iter() {
+			// calculate price diff for the first otc id
+			let otc = <pallet_otc::Orders<Test>>::get(otc_id_a).unwrap();
+			let otc_price = FixedU128::checked_from_rational(otc.amount_out, otc.amount_in).unwrap();
+
+			let route = Router::get_route(AssetPair {
+				asset_in: otc.asset_out,
+				asset_out: otc.asset_in,
+			});
+			let router_price = Router::spot_price_with_fee(&route.clone()).unwrap();
+			let price_diff_a = otc_price.saturating_sub(router_price);
+
+			// calculate price diff for the second otc id
+			let otc = <pallet_otc::Orders<Test>>::get(otc_id_b).unwrap();
+			let otc_price = FixedU128::checked_from_rational(otc.amount_out, otc.amount_in).unwrap();
+
+			let route = Router::get_route(AssetPair {
+				asset_in: otc.asset_out,
+				asset_out: otc.asset_in,
+			});
+			let router_price = Router::spot_price_with_fee(&route.clone()).unwrap();
+			let price_diff_b = otc_price.saturating_sub(router_price);
+			assert!(price_diff_a >= price_diff_b);
+		}
 
 		// place new order and verify that the list is not updated again in the same block
 		assert_ok!(OTC::place_order(

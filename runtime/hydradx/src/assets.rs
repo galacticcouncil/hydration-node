@@ -1107,7 +1107,7 @@ impl pallet_otc::Config for Runtime {
 }
 
 impl pallet_otc_settlements::Config for Runtime {
-	type Currency = Currencies;
+	type Currency = FungibleCurrencies<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Router = Router;

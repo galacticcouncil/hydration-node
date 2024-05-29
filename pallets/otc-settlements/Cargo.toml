@@ -28,8 +28,6 @@ frame-system = { workspace = true }
 hydradx-traits = { workspace = true }
 pallet-otc = { workspace = true }
 
-# ORML dependencies
-orml-traits = { workspace = true }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
@@ -42,6 +40,7 @@ pallet-route-executor = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-currencies = { workspace = true }
 sp-api = { workspace = true }
+orml-traits = { workspace = true }
 orml-tokens = { workspace = true, features=["std"] }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"

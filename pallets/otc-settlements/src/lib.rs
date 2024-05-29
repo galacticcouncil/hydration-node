@@ -15,7 +15,12 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{pallet_prelude::*, PalletId};
+use frame_support::{pallet_prelude::*, PalletId,
+	traits::{
+		fungibles::{Inspect, Mutate},
+		tokens::{Fortitude, Preservation, Precision},
+	},
+};
 use frame_system::{
 	offchain::{SendTransactionTypes, SubmitTransaction},
 	pallet_prelude::{BlockNumberFor, OriginFor},
@@ -24,7 +29,6 @@ use frame_system::{
 use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouteSpotPriceProvider, RouterT, Trade,
 };
-use orml_traits::MultiCurrency;
 use pallet_otc::weights::WeightInfo as OtcWeightInfo;
 pub use pallet_otc::OrderId;
 use sp_arithmetic::{
@@ -57,6 +61,7 @@ use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+use pallet_otc::Order;
 
 pub type Balance = u128;
 pub type NamedReserveIdentifier = [u8; 8];
@@ -75,7 +80,7 @@ pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
 pub const FILL_SEARCH_ITERATIONS: u32 = 40;
 
 pub type AssetIdOf<T> = <T as pallet_otc::Config>::AssetId;
-type SortedOtcsStorageType = (OrderId, FixedU128, FixedU128, FixedU128);
+type SortedOtcsStorageType = OrderId;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -90,7 +95,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Named reservable multi currency.
-		type Currency: MultiCurrency<Self::AccountId, CurrencyId = AssetIdOf<Self>, Balance = Balance>;
+		type Currency: Mutate<Self::AccountId, AssetId = AssetIdOf<Self>, Balance = Balance>;
 
 		/// Router implementation.
 		type Router: RouteProvider<AssetIdOf<Self>>
@@ -186,6 +191,8 @@ pub mod pallet {
 		TradeAmountTooHigh,
 		/// Trade amount lower than necessary
 		TradeAmountTooLow,
+		/// Price for a route is not available
+		PriceNotAvailable,
 	}
 
 	#[pallet::call]
@@ -234,15 +241,16 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Ensure that the profit is more than some minimum amount.
-	fn ensure_min_profit(otc_amount_in: Balance, _profit: Balance) -> DispatchResult {
-		let _min_expected_profit = T::MinProfitPercentage::get().mul_floor(otc_amount_in);
-
+	fn ensure_min_profit(otc_amount_in: Balance, profit: Balance) -> DispatchResult {
 		// In the benchmark we calculate the overhead of extrinsic and we doesn't make any trade.
 		// We disable this check because otherwise it would fail.
-		#[cfg(not(feature = "runtime-benchmarks"))]
-		// tell the binary search algorithm to find higher values
-		ensure!(_profit >= _min_expected_profit, Error::<T>::TradeAmountTooLow);
+		if cfg!(feature = "runtime-benchmarks") {
+			return Ok(());
+		}
 
+		let min_expected_profit = T::MinProfitPercentage::get().mul_floor(otc_amount_in);
+		// tell the binary search algorithm to find higher values
+		ensure!(profit >= min_expected_profit, Error::<T>::TradeAmountTooLow);
 		Ok(())
 	}
 
@@ -257,12 +265,6 @@ impl<T: Config> Pallet<T> {
 		let otc = <pallet_otc::Orders<T>>::get(otc_id).ok_or(Error::<T>::OrderNotFound)?;
 		let (asset_a, asset_b) = (otc.asset_in, otc.asset_out);
 
-		// get initial account balances
-		let asset_a_balance_before = <T as Config>::Currency::free_balance(asset_a, &pallet_acc);
-		let asset_b_balance_before = <T as Config>::Currency::free_balance(asset_b, &pallet_acc);
-
-		<T as Config>::Currency::deposit(asset_a, &pallet_acc, amount)?;
-
 		if !otc.partially_fillable {
 			ensure!(otc.amount_out == amount, Error::<T>::NotPartiallyFillable);
 		}
@@ -275,6 +277,12 @@ impl<T: Config> Pallet<T> {
 				}),
 			Error::<T>::InvalidRoute
 		);
+
+		// get initial account balances
+		let asset_a_balance_before = <T as Config>::Currency::balance(asset_a, &pallet_acc);
+		let asset_b_balance_before = <T as Config>::Currency::balance(asset_b, &pallet_acc);
+
+		<T as Config>::Currency::mint_into(asset_a, &pallet_acc, amount)?;
 
 		// get initial otc and router price
 		let otc_price =
@@ -295,9 +303,8 @@ impl<T: Config> Pallet<T> {
 			pallet_otc::Pallet::<T>::fill_order(RawOrigin::Signed(pallet_acc.clone()).into(), otc_id)?;
 		};
 
-		let otc_amount_out = <T as Config>::Currency::free_balance(asset_b, &pallet_acc)
-			.checked_sub(asset_b_balance_before)
-			.unwrap();
+		let otc_amount_out =
+			<T as Config>::Currency::balance(asset_b, &pallet_acc).saturating_sub(asset_b_balance_before);
 
 		log::debug!(
 			target: "offchain_worker::settle_otc",
@@ -320,7 +327,7 @@ impl<T: Config> Pallet<T> {
 		// some other error - we can't handle this one properly.
 
 		// // Compare OTC and Router price
-		let router_price_after = T::Router::spot_price_with_fee(&route).unwrap();
+		let router_price_after = T::Router::spot_price_with_fee(&route).ok_or(Error::<T>::PriceNotAvailable)?;
 		log::debug!(
 			target: "offchain_worker::settle_otc",
 			"final router price: {:?}   otc_price: {:?} ",
@@ -347,7 +354,7 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		let asset_a_balance_after_router_trade = <T as Config>::Currency::free_balance(asset_a, &pallet_acc);
+		let asset_a_balance_after_router_trade = <T as Config>::Currency::balance(asset_a, &pallet_acc);
 
 		let profit = asset_a_balance_after_router_trade
 			.checked_sub(amount)
@@ -355,12 +362,12 @@ impl<T: Config> Pallet<T> {
 
 		Self::ensure_min_profit(otc.amount_in, profit)?;
 
-		<T as Config>::Currency::transfer(asset_a, &pallet_acc, &T::ProfitReceiver::get(), profit)?;
+		<T as Config>::Currency::transfer(asset_a, &pallet_acc, &T::ProfitReceiver::get(), profit, Preservation::Expendable)?;
 
-		<T as Config>::Currency::withdraw(asset_a, &pallet_acc, amount)?;
+		<T as Config>::Currency::burn_from(asset_a, &pallet_acc, amount, Precision::Exact, Fortitude::Force)?;
 
-		let asset_a_balance_after = <T as Config>::Currency::free_balance(asset_a, &pallet_acc);
-		let asset_b_balance_after = <T as Config>::Currency::free_balance(asset_b, &pallet_acc);
+		let asset_a_balance_after = <T as Config>::Currency::balance(asset_a, &pallet_acc);
+		let asset_b_balance_after = <T as Config>::Currency::balance(asset_b, &pallet_acc);
 
 		ensure!(
 			asset_a_balance_after == asset_a_balance_before,
@@ -415,6 +422,8 @@ impl<T: Config> Pallet<T> {
 					let otc_price = FixedU128::checked_from_rational(otc.amount_out, otc.amount_in);
 
 					let route = T::Router::get_route(AssetPair {
+						// To get the correct price, we need to switch the assets, otherwise
+						// the price is inverted and not directly comparable to the OTC price.
 						asset_in: otc.asset_out,
 						asset_out: otc.asset_in,
 					});
@@ -427,10 +436,22 @@ impl<T: Config> Pallet<T> {
 					}
 				}
 
-				// sort the list by the price diff
+				// sort the list by the price diff. OTCs with higher price diff are at the beginning of the list.
 				list.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap());
 
-				sorted_otcs.set(&list);
+				// remove OTCs without arbitrage opportunity
+				list.retain(|&(otc_id, otc_price, router_price_before, _)| {
+					log::debug!(
+						target: "offchain_worker::settle_otcs",
+						  "no arb, skipping OTC: {:?}", otc_id);
+					router_price_before <= otc_price
+				});
+
+				// keep just the OTC ids
+				let sorted_otc_ids: Vec<SortedOtcsStorageType> =
+					list.into_iter().map(|(otc_id, _, _, _)| otc_id).collect();
+
+				sorted_otcs.set(&sorted_otc_ids);
 			};
 		}
 	}
@@ -447,24 +468,17 @@ impl<T: Config> Pallet<T> {
 			.unwrap_or_default()
 			.unwrap_or_default();
 
-		for (otc_id, otc_price, router_price_before, _price_diff) in sorted_otcs.iter() {
+		for otc_id in sorted_otcs.iter() {
 			log::debug!(
 			target: "offchain_worker::settle_otcs",
 				"test OTC id {:?} ", otc_id);
-
-			if router_price_before > otc_price {
-				log::debug!(
-			target: "offchain_worker::settle_otcs",
-					"no arb, skipping OTC: {:?}", otc_id);
-				continue;
-			}
 
 			let otc = <pallet_otc::Orders<T>>::get(otc_id).unwrap();
 			let route = T::Router::get_route(AssetPair {
 				asset_in: otc.asset_out,
 				asset_out: otc.asset_in,
 			});
-			let maybe_amount = Self::try_find_trade_amount(*otc_id, route.clone());
+			let maybe_amount = Self::try_find_trade_amount(*otc_id, &otc, &route);
 			if let Some(sell_amt) = maybe_amount {
 				log::debug!(
 				target: "offchain_worker::settle_otcs",
@@ -483,9 +497,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Try to find the correct amount to close the arbitrage opportunity.
-	fn try_find_trade_amount(otc_id: OrderId, route: Vec<Trade<AssetIdOf<T>>>) -> Option<Balance> {
-		let otc = <pallet_otc::Orders<T>>::get(otc_id).unwrap();
-
+	fn try_find_trade_amount(otc_id: OrderId, otc: &Order<T::AccountId, T::AssetId>, route: &[Trade<AssetIdOf<T>>]) -> Option<Balance> {
 		// use binary search to determine the correct sell amount
 		let mut sell_amt = otc.amount_in; // start by trying to fill the whole order
 		let mut sell_amt_up = sell_amt;
@@ -503,7 +515,7 @@ impl<T: Config> Pallet<T> {
 			log::debug!(
 			target: "offchain_worker::settle_otcs::binary_search",
 				"\nsell_amt: {:?}\nsell_amt_up: {:?}\nsell_amt_down: {:?}", sell_amt, sell_amt_up, sell_amt_down);
-			match Self::settle_otc_order(RawOrigin::None.into(), otc_id, sell_amt, route.clone()) {
+			match Self::settle_otc_order(RawOrigin::None.into(), otc_id, sell_amt, route.to_vec()) {
 				Ok(_) => {
 					log::debug!(
 					target: "offchain_worker::settle_otcs",
