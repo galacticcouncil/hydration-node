@@ -737,6 +737,9 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_liquidity_invariant((asset, asset_state, new_asset_state));
+
 			Ok(())
 		}
 
@@ -949,6 +952,9 @@ pub mod pallet {
 			});
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_liquidity_invariant((asset_id, asset_state, new_asset_state));
 
 			Ok(())
 		}
