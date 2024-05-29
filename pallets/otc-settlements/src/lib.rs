@@ -15,11 +15,13 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{pallet_prelude::*, PalletId,
+use frame_support::{
+	pallet_prelude::*,
 	traits::{
 		fungibles::{Inspect, Mutate},
-		tokens::{Fortitude, Preservation, Precision},
+		tokens::{Fortitude, Precision, Preservation},
 	},
+	PalletId,
 };
 use frame_system::{
 	offchain::{SendTransactionTypes, SubmitTransaction},
@@ -362,7 +364,13 @@ impl<T: Config> Pallet<T> {
 
 		Self::ensure_min_profit(otc.amount_in, profit)?;
 
-		<T as Config>::Currency::transfer(asset_a, &pallet_acc, &T::ProfitReceiver::get(), profit, Preservation::Expendable)?;
+		<T as Config>::Currency::transfer(
+			asset_a,
+			&pallet_acc,
+			&T::ProfitReceiver::get(),
+			profit,
+			Preservation::Expendable,
+		)?;
 
 		<T as Config>::Currency::burn_from(asset_a, &pallet_acc, amount, Precision::Exact, Fortitude::Force)?;
 
@@ -497,7 +505,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Try to find the correct amount to close the arbitrage opportunity.
-	fn try_find_trade_amount(otc_id: OrderId, otc: &Order<T::AccountId, T::AssetId>, route: &[Trade<AssetIdOf<T>>]) -> Option<Balance> {
+	fn try_find_trade_amount(
+		otc_id: OrderId,
+		otc: &Order<T::AccountId, T::AssetId>,
+		route: &[Trade<AssetIdOf<T>>],
+	) -> Option<Balance> {
 		// use binary search to determine the correct sell amount
 		let mut sell_amt = otc.amount_in; // start by trying to fill the whole order
 		let mut sell_amt_up = sell_amt;
