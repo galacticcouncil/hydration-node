@@ -16,7 +16,7 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use orml_traits::MultiCurrency;
+use frame_support::traits::fungibles::Mutate;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const HDX: u32 = 0;
@@ -25,14 +25,14 @@ pub const DAI: u32 = 2;
 benchmarks! {
 	where_clause { where
 		AssetIdOf<T>: From<u32>,
-		<T as crate::Config>::Currency: MultiCurrency<T::AccountId>,
+		<T as crate::Config>::Currency: Mutate<T::AccountId, AssetId = AssetIdOf<T>, Balance = Balance>,
 		T: crate::Config + pallet_otc::Config,
 	}
 	settle_otc_order {
 		let account: T::AccountId = account("acc", 1, 1);
 
-		<T as crate::Config>::Currency::deposit(HDX.into(), &account, 1_000_000_000 * ONE)?;
-		<T as crate::Config>::Currency::deposit(DAI.into(), &account, 1_000_000_000 * ONE)?;
+		<T as crate::Config>::Currency::mint_into(HDX.into(), &account, 1_000_000_000 * ONE)?;
+		<T as crate::Config>::Currency::mint_into(DAI.into(), &account, 1_000_000_000 * ONE)?;
 
 		assert_ok!(
 			pallet_otc::Pallet::<T>::place_order(RawOrigin::Signed(account).into(), HDX.into(), DAI.into(), 100_000_000 * ONE, 200_000_001 * ONE, true)
