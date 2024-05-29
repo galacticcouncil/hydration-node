@@ -1,6 +1,6 @@
-use crate::pallet::{PositionVotes, Positions};
+use crate::pallet::{PositionVotes, Positions, ProcessedVotes};
 use crate::traits::{DemocracyReferendum, VestingDetails};
-use crate::types::{Balance, Conviction, Vote};
+use crate::types::{Action, Balance, Conviction, Vote};
 use crate::{Config, Error, Pallet};
 use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
@@ -8,6 +8,7 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_democracy::traits::DemocracyHooks;
 use pallet_democracy::{AccountVote, ReferendumIndex, ReferendumInfo};
 use sp_core::Get;
+use sp_runtime::FixedPointNumber;
 
 pub struct StakingDemocracy<T>(sp_std::marker::PhantomData<T>);
 
@@ -35,7 +36,7 @@ where
 				}
 			};
 
-			Pallet::<T>::process_votes(position_id, position)?;
+			Pallet::<T>::process_votes(who, position_id, position)?;
 
 			let amount = vote.balance();
 			let conviction = if let AccountVote::Standard { vote, .. } = vote {
@@ -83,41 +84,68 @@ where
 		})
 	}
 
-	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex, should_lock: bool) -> DispatchResult {
-		let position_id = if let Some(position_id) = Pallet::<T>::get_user_position_id(who)? {
-			position_id
-		} else {
-			return Ok(());
+	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex, is_finished: Option<bool>) {
+		let Some(maybe_position_id) = Pallet::<T>::get_user_position_id(who).ok() else {
+			return;
 		};
 
-		// This handles a case when user removes vote on finished referendum and the vote was in opposition to the referendum result
-		// If user has a staking position, we keep the amount locked
-		if should_lock {
-			return Err(Error::<T>::RemoveVoteNotAllowed.into());
+		let Some(position_id) = maybe_position_id else {
+			return;
+		};
+
+		let entry = ProcessedVotes::<T>::take(who, ref_index);
+		if entry.is_some() {
+			// this vote was already processed, just remove it
+			return;
 		}
 
-		let mut position = Positions::<T>::get(position_id).unwrap();
-		Pallet::<T>::process_votes(position_id, &mut position).unwrap();
-		Positions::<T>::insert(position_id, position);
+		let _ = Positions::<T>::try_mutate(position_id, |maybe_position| -> DispatchResult {
+			if let Some(position) = maybe_position.as_mut() {
+				let max_position_vote = Conviction::max_multiplier().saturating_mul_int(position.stake);
 
-		PositionVotes::<T>::try_mutate_exists(position_id, |value| -> DispatchResult {
-			let voting = match value.as_mut() {
-				Some(voting) => voting,
-				None => {
-					let e = crate::Error::<T>::InconsistentState(crate::InconsistentStateError::PositionNotFound);
-					defensive!(e);
-
-					//NOTE: This is intentional, user can't recover from this state and we don't want
-					//to block voting.
-					return Ok(());
+				if let Some(vote_idx) = PositionVotes::<T>::get(position_id)
+					.votes
+					.iter()
+					.position(|(idx, _)| *idx == ref_index)
+				{
+					let (ref_idx, vote) = PositionVotes::<T>::get(position_id).votes[vote_idx];
+					debug_assert_eq!(ref_idx, ref_index, "Referendum index mismatch");
+					let points =
+						Pallet::<T>::calculate_points_for_action(Action::DemocracyVote, vote, max_position_vote);
+					// Add points only if referendum is finished
+					if let Some(is_finished) = is_finished {
+						if is_finished {
+							position.action_points = position.action_points.saturating_add(points);
+						}
+					}
+					PositionVotes::<T>::mutate(position_id, |voting| {
+						voting.votes.remove(vote_idx);
+					});
 				}
-			};
-
-			voting.votes.retain(|(idx, _)| *idx != ref_index);
+			}
 			Ok(())
-		})?;
+		});
+	}
 
-		Ok(())
+	fn remove_vote_locks_if_needed(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
+		let Some(position_id) = Pallet::<T>::get_user_position_id(who).ok()? else {
+			return None;
+		};
+
+		if let Some(vote) = ProcessedVotes::<T>::get(who, ref_index) {
+			return Some(vote.amount);
+		}
+
+		let Some(vote_idx) = PositionVotes::<T>::get(position_id)
+			.votes
+			.iter()
+			.position(|(idx, _)| *idx == ref_index)
+		else {
+			return None;
+		};
+		let (ref_idx, vote) = PositionVotes::<T>::get(position_id).votes[vote_idx];
+		debug_assert_eq!(ref_idx, ref_index, "Referendum index mismatch");
+		Some(vote.amount)
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
