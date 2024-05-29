@@ -49,10 +49,10 @@ where
 	T::Currency::update_balance(hdx, &pot, rewards as i128)
 }
 
-fn generate_max_votes<T: Config>(position_id: T::PositionItemId) {
+fn generate_votes<T: Config>(position_id: T::PositionItemId, count: u32) {
 	let mut votes = Vec::<(u32, Vote)>::new();
 
-	for i in 0..T::MaxVotes::get() {
+	for i in 0..count {
 		votes.push((
 			i,
 			Vote {
@@ -138,7 +138,7 @@ benchmarks! {
 		Pallet::<T>::stake(RawOrigin::Signed(caller_1.clone()).into(), 50_000 * UNIT)?;
 
 		let position_id = Pallet::<T>::get_user_position_id(&caller_1).unwrap().unwrap();
-		generate_max_votes::<T>(position_id);
+		generate_votes::<T>(position_id, T::MaxVotes::get());
 
 		add_staking_rewards::<T>(20_000 * UNIT)?;
 		run_periods::<T>(2);
@@ -163,7 +163,7 @@ benchmarks! {
 		Pallet::<T>::stake(RawOrigin::Signed(caller_1.clone()).into(), 50_000 * UNIT)?;
 
 		let position_id = Pallet::<T>::get_user_position_id(&caller_1).unwrap().unwrap();
-		generate_max_votes::<T>(position_id);
+		generate_votes::<T>(position_id, T::MaxVotes::get());
 
 		add_staking_rewards::<T>(20_000 * UNIT)?;
 		run_periods::<T>(<u128 as TryInto<u32>>::try_into(T::UnclaimablePeriods::get()).unwrap() + 1_u32);
@@ -188,7 +188,6 @@ benchmarks! {
 		Pallet::<T>::stake(RawOrigin::Signed(caller_1.clone()).into(), 50_000 * UNIT)?;
 
 		let position_id = Pallet::<T>::get_user_position_id(&caller_1).unwrap().unwrap();
-		generate_max_votes::<T>(position_id);
 
 		add_staking_rewards::<T>(20_000 * UNIT)?;
 		run_periods::<T>(<u128 as TryInto<u32>>::try_into(T::UnclaimablePeriods::get()).unwrap() + 1_u32);

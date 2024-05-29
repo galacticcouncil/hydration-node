@@ -31,11 +31,14 @@ use sp_runtime::{
 	traits::{BadOrigin, BlakeTwo256, Hash, IdentityLookup},
 	BuildStorage, Perbill,
 };
+use std::cell::RefCell;
+use std::collections::HashMap;
 mod cancellation;
 mod decoders;
 mod delegation;
 mod external_proposing;
 mod fast_tracking;
+mod hooks;
 mod lock_voting;
 mod metadata;
 mod public_proposals;
@@ -206,7 +209,7 @@ impl Config for Test {
 	type WeightInfo = ();
 	type MaxProposals = ConstU32<100>;
 	type Preimages = Preimage;
-	type DemocracyHooks = ();
+	type DemocracyHooks = HooksHandler;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -315,4 +318,70 @@ fn note_preimage(who: u64) -> PreimageHash {
 	let hash = BlakeTwo256::hash(&data);
 	assert!(!Preimage::is_requested(&hash));
 	hash
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct OnVoteData {
+	who: u64,
+	ref_index: ReferendumIndex,
+	vote: AccountVote<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct OnRemoveVoteData {
+	who: u64,
+	ref_index: ReferendumIndex,
+}
+
+thread_local! {
+	static ON_VOTE_DATA: RefCell<Vec<OnVoteData>> = RefCell::new(vec![]);
+	static ON_REMOVE_VOTE_DATA: RefCell<Vec<OnRemoveVoteData>> = RefCell::new(vec![]);
+	pub static REMOVE_VOTE_LOCKED_AMOUNT: RefCell<HashMap<u64, u64>> = RefCell::new(HashMap::default());
+}
+
+pub struct HooksHandler;
+
+impl HooksHandler {
+	pub fn last_on_vote_data() -> OnVoteData {
+		ON_VOTE_DATA.with(|v| v.borrow().last().unwrap().clone())
+	}
+
+	pub fn last_on_remove_vote_data() -> OnRemoveVoteData {
+		ON_REMOVE_VOTE_DATA.with(|v| v.borrow().last().unwrap().clone())
+	}
+
+	pub fn with_remove_vote_locked_amount(who: u64, amount: u64) {
+		REMOVE_VOTE_LOCKED_AMOUNT.with(|v| v.borrow_mut().insert(who, amount));
+	}
+}
+
+impl DemocracyHooks<u64, u64> for HooksHandler {
+	fn on_vote(
+		who: &u64,
+		ref_index: ReferendumIndex,
+		vote: AccountVote<u64>,
+	) -> frame_support::dispatch::DispatchResult {
+		let data = OnVoteData {
+			who: *who,
+			ref_index,
+			vote,
+		};
+		ON_VOTE_DATA.with(|v| v.borrow_mut().push(data));
+		Ok(())
+	}
+
+	fn on_remove_vote(who: &u64, ref_index: ReferendumIndex, _is_finished: Option<bool>) {
+		let data = OnRemoveVoteData { who: *who, ref_index };
+		ON_REMOVE_VOTE_DATA.with(|v| v.borrow_mut().push(data));
+	}
+
+	fn remove_vote_locks_if_needed(who: &u64, _ref_index: ReferendumIndex) -> Option<u64> {
+		REMOVE_VOTE_LOCKED_AMOUNT.with(|v| v.borrow().get(who).copied())
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn on_vote_worst_case(_who: &u64) {}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn on_remove_vote_worst_case(_who: &u64) {}
 }

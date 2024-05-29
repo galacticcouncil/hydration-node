@@ -4650,7 +4650,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 3.0.0",
+ "pallet-staking 3.1.0",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -4671,7 +4671,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "239.0.0"
+version = "240.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -4722,7 +4722,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.1.0",
+ "pallet-democracy 4.2.0",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -4755,7 +4755,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 3.0.0",
+ "pallet-staking 3.1.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -7530,7 +7530,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.1.0"
+version = "4.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8226,7 +8226,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.2.3"
+version = "4.2.2"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8547,7 +8547,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "3.0.0"
+version = "3.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8557,7 +8557,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-democracy 4.1.0",
+ "pallet-democracy 4.2.0",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -11545,7 +11545,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.21.7"
+version = "1.21.8"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -11588,7 +11588,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.1.0",
+ "pallet-democracy 4.2.0",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -11609,7 +11609,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 3.0.0",
+ "pallet-staking 3.1.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -11670,7 +11670,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 3.0.0",
+ "pallet-staking 3.1.0",
  "primitives",
  "scraper",
  "serde",
