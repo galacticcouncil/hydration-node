@@ -26,8 +26,6 @@ jobs:
         uses: codota/toolchain@00a8bf2bdcfe93aefd70422d3dec07337959d3a4
         with:
           profile: minimal
-      - name: Install m4
-        run: sudo apt install m4
       - name: Run tests
         run: make test-release
       - name: Build release
