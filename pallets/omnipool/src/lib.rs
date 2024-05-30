@@ -427,7 +427,7 @@ pub mod pallet {
 		/// Existential deposit of asset is not available.
 		ExistentialDepositNotAvailable,
 		/// Slippage protection
-		SlippageLimitReached,
+		SlippageLimit,
 	}
 
 	#[pallet::call]
@@ -667,7 +667,7 @@ pub mod pallet {
 
 			ensure!(
 				*state_changes.asset.delta_shares >= min_shares_limit,
-				Error::<T>::SlippageLimitReached
+				Error::<T>::SlippageLimit
 			);
 
 			let new_asset_state = asset_state
@@ -871,7 +871,7 @@ pub mod pallet {
 
 			ensure!(
 				*state_changes.asset.delta_reserve >= min_limit,
-				Error::<T>::SlippageLimitReached
+				Error::<T>::SlippageLimit
 			);
 
 			let new_asset_state = asset_state

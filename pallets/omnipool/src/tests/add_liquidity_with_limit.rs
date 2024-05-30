@@ -242,7 +242,7 @@ fn add_liquidity_should_fail_when_doesnt_reach_min_limit() {
 			// ACT
 			assert_noop!(
 				Omnipool::add_liquidity_with_limit(RuntimeOrigin::signed(LP1), 1_000, 500 * ONE, 496 * ONE), //user received 495, so below limit
-				Error::<Test>::SlippageLimitReached
+				Error::<Test>::SlippageLimit
 			);
 		});
 }

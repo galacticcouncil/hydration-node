@@ -1111,7 +1111,7 @@ fn remove_liquidity_should_fail_when_min_limit_not_reached() {
 					liq_added,
 					250 * ONE // user would receive 240, which is below limit
 				),
-				Error::<Test>::SlippageLimitReached
+				Error::<Test>::SlippageLimit
 			);
 		});
 }
