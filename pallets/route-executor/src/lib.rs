@@ -28,12 +28,13 @@ use frame_support::{
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
+use frame_support::traits::Contains;
 use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
+use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider, IsInMiddleOfRouteCheck};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
@@ -60,6 +61,7 @@ pub mod pallet {
 	use hydradx_traits::router::{ExecutorError, RefundEdCalculator};
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
+	use hydradx_traits::pools::DustRemovalAccountWhitelist;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -114,6 +116,9 @@ pub mod pallet {
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
+
+		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
+
 	}
 
 	#[pallet::event]
@@ -153,6 +158,12 @@ pub mod pallet {
 		/// Trading same assets is not allowed.
 		NotAllowed,
 	}
+
+	/// Flag to indicate if the route execution is in the middle of the route
+	/// Mainly used for disabling ED charging for the trades in the middle of the route
+	#[pallet::storage]
+	#[pallet::getter(fn next_schedule_id)]
+	pub type InMiddleOfRoute<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	/// Storing routes for asset pairs
 	#[pallet::storage]
@@ -211,7 +222,19 @@ pub mod pallet {
 				Error::<T>::TradingLimitReached
 			);
 
-			for (trade_amount, trade) in trade_amounts.iter().zip(route) {
+			let route_length = route.len().checked_sub(1).ok_or(Error::<T>::InvalidRoute)?;
+
+			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
+				//We whitelist account for ED charging except the last trade because there we want ED charged for insufficient asset
+				if trade_index != route_length && !T::InspectRegistry::is_sufficient(trade.asset_out) {
+					T::NonDustableWhitelistHandler::add_account(&who)?;
+				}
+
+				//We want use this flag to disable ED refund except for the first trade because in case of selling all insufficient asset_in, ED should be refunded to user
+				if trade_index != 0 && !T::InspectRegistry::is_sufficient(trade.asset_in) {
+					InMiddleOfRoute::<T>::put(true); //TODO: disable it on on init
+				}
+
 				let user_balance_of_asset_in_before_trade =
 					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
 
@@ -223,6 +246,11 @@ pub mod pallet {
 					trade_amount.amount_in,
 					trade_amount.amount_out,
 				);
+
+				if trade_index != route_length && !T::InspectRegistry::is_sufficient(trade.asset_out) {
+					T::NonDustableWhitelistHandler::remove_account(&who)?;
+				}
+				InMiddleOfRoute::<T>::put(false);
 
 				handle_execution_error!(execution_result);
 
@@ -293,6 +321,7 @@ pub mod pallet {
 			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
+			//TODO: enable and disable the ED charging and refund
 			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
 				let user_balance_of_asset_out_before_trade =
 					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Preserve, Fortitude::Polite);
@@ -899,5 +928,13 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
 
 		FixedU128::checked_from_rational(rat_as_u128.0, rat_as_u128.1)
+	}
+}
+
+pub struct IsInMiddleOfRoute<T>(PhantomData<T>);
+
+impl<T: Config> IsInMiddleOfRouteCheck for IsInMiddleOfRoute<T> {
+	fn IsTrue() -> bool {
+		InMiddleOfRoute::<T>::get()
 	}
 }

@@ -331,6 +331,28 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
+	type NonDustableWhitelistHandler = WhitelistHandler;
+}
+
+
+pub struct WhitelistHandler;
+
+impl Contains<AccountId> for WhitelistHandler {
+	fn contains(account: &AccountId) -> bool {
+		false
+	}
+}
+
+impl DustRemovalAccountWhitelist<AccountId> for WhitelistHandler {
+	type Error = DispatchError;
+
+	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn remove_account(account: &AccountId) -> Result<(), Self::Error> {
+		Ok(())
+	}
 }
 
 pub struct MockedEdCalculator;

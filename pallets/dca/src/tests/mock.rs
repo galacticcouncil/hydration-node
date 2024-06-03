@@ -18,7 +18,7 @@
 use crate as dca;
 use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
-use frame_support::traits::{Everything, Nothing};
+use frame_support::traits::{Contains, Everything, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
@@ -365,6 +365,27 @@ impl pallet_route_executor::Config for Test {
 	type WeightInfo = ();
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type EdToRefundCalculator = MockedEdCalculator;
+	type NonDustableWhitelistHandler = Whitelist;
+}
+
+pub struct Whitelist;
+
+impl Contains<AccountId> for Whitelist {
+	fn contains(account: &AccountId) -> bool {
+		false
+	}
+}
+
+impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
+	type Error = DispatchError;
+
+	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn remove_account(account: &AccountId) -> Result<(), Self::Error> {
+		Ok(())
+	}
 }
 
 pub struct MockedEdCalculator;
@@ -717,6 +738,7 @@ use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
 use rand::SeedableRng;
 use smallvec::smallvec;
+use hydradx_traits::pools::DustRemovalAccountWhitelist;
 
 pub struct DummyNFT;
 

@@ -219,9 +219,17 @@ impl SufficiencyCheck {
 
 impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 	fn on_transfer(asset: AssetId, from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
+		let from_is_whitelisted = <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(from);
+		let to_is_whitelisted = <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(to);
+
+		//If both is whitelisted, we don't charge ED. It can happen for example when are transferring insufficient tokens between accounts in a route execution
+		if from_is_whitelisted && to_is_whitelisted {
+			return Ok(());
+		}
+
 		//NOTE: `to` is paying ED if `from` is whitelisted.
 		//This can happen if pallet's account transfers insufficient tokens to another account.
-		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(from) {
+		if from_is_whitelisted{
 			Self::on_funds(asset, to, to)
 		} else {
 			Self::on_funds(asset, from, to)
@@ -238,7 +246,8 @@ impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
 pub struct OnKilledTokenAccount;
 impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 	fn happened((who, asset): &(AccountId, AssetId)) {
-		if AssetRegistry::is_sufficient(*asset) || frame_system::Pallet::<Runtime>::account(who).sufficients.is_zero() {
+		let is_middle_of_route = pallet_route_executor::IsInMiddleOfRoute::<Runtime>::IsTrue();
+		if AssetRegistry::is_sufficient(*asset) || frame_system::Pallet::<Runtime>::account(who).sufficients.is_zero() || is_middle_of_route {
 			return;
 		}
 
@@ -1058,6 +1067,7 @@ impl pallet_route_executor::Config for Runtime {
 	type InspectRegistry = AssetRegistry;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
+	type NonDustableWhitelistHandler = Duster;
 }
 
 parameter_types! {
@@ -1139,7 +1149,7 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
-use hydradx_traits::router::RefundEdCalculator;
+use hydradx_traits::router::{IsInMiddleOfRouteCheck, RefundEdCalculator};
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
