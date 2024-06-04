@@ -231,9 +231,8 @@ pub mod pallet {
 				Error::<T>::TradingLimitReached
 			);
 
-			let route_length = route.len().checked_sub(1).ok_or(Error::<T>::InvalidRoute)?;
-
 			let mut skip_ed_disabling: bool = false;
+			let route_length = route.len();
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(
 					&mut skip_ed_disabling,
@@ -327,9 +326,8 @@ pub mod pallet {
 			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
-			let route_length = route.len().checked_sub(1).ok_or(Error::<T>::InvalidRoute)?;
-
 			let mut skip_ed_disabling: bool = false;
+			let route_length = route.len();
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(
 					&mut skip_ed_disabling,
@@ -626,14 +624,14 @@ impl<T: Config> Pallet<T> {
 		trade_index: usize,
 		trade: Trade<T::AssetId>,
 	) {
-		if route_length > 0
+		if route_length > 1
 			&& (!T::InspectRegistry::is_sufficient(trade.asset_in)
 				|| !T::InspectRegistry::is_sufficient(trade.asset_out))
 		{
 			*skip_ed_disabling = true;
 			match trade_index {
 				0 => SkipEd::<T>::put(SkipEdState::SkipEdLock),
-				trade_index if trade_index == route_length => SkipEd::<T>::put(SkipEdState::SkipEdUnlock),
+				trade_index if trade_index.saturating_add(1) == route_length => SkipEd::<T>::put(SkipEdState::SkipEdUnlock),
 				_ => SkipEd::<T>::put(SkipEdState::SkipEdLockAndUnlock),
 			}
 		}
