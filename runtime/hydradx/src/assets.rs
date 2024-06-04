@@ -219,10 +219,8 @@ impl SufficiencyCheck {
 
 impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 	fn on_transfer(asset: AssetId, from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
-		if let Some(state) = pallet_route_executor::SkipEd::<Runtime>::get() {
-			if matches!(state, SkipEdState::SkipEdLock | SkipEdState::SkipEdLockAndUnlock) {
-				return Ok(());
-			}
+		if pallet_route_executor::Pallet::<Runtime>::skip_ed_lock() {
+			return Ok(());
 		}
 
 		//NOTE: `to` is paying ED if `from` is whitelisted.
@@ -244,10 +242,8 @@ impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
 pub struct OnKilledTokenAccount;
 impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 	fn happened((who, asset): &(AccountId, AssetId)) {
-		if let Some(state) = pallet_route_executor::SkipEd::<Runtime>::get() {
-			if matches!(state, SkipEdState::SkipEdUnlock | SkipEdState::SkipEdLockAndUnlock) {
-				return;
-			}
+		if pallet_route_executor::Pallet::<Runtime>::skip_ed_unlock() {
+			return;
 		}
 
 		if AssetRegistry::is_sufficient(*asset) || frame_system::Pallet::<Runtime>::account(who).sufficients.is_zero() {

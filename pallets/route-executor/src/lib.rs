@@ -632,11 +632,29 @@ impl<T: Config> Pallet<T> {
 			//We optimize to set the state for middle trades only once at the first middle trade, then we change no state till the last trade
 			match trade_index {
 				0 => SkipEd::<T>::put(SkipEdState::SkipEdLock),
-				trade_index if trade_index.saturating_add(1) == route_length => SkipEd::<T>::put(SkipEdState::SkipEdUnlock),
+				trade_index if trade_index.saturating_add(1) == route_length => {
+					SkipEd::<T>::put(SkipEdState::SkipEdUnlock)
+				}
 				1 => SkipEd::<T>::put(SkipEdState::SkipEdLockAndUnlock),
 				_ => (),
 			}
 		}
+	}
+
+	pub fn skip_ed_lock() -> bool {
+		if let Ok(v) = SkipEd::<T>::try_get() {
+			return matches!(v, SkipEdState::SkipEdLock | SkipEdState::SkipEdLockAndUnlock)
+		}
+
+		return false;
+	}
+
+	pub fn skip_ed_unlock() -> bool {
+		if let Ok(v) = SkipEd::<T>::try_get() {
+			return matches!(v, SkipEdState::SkipEdUnlock | SkipEdState::SkipEdLockAndUnlock)
+		}
+
+		return false;
 	}
 
 	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<(T::Balance, T::Balance), DispatchError> {
