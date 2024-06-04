@@ -1369,6 +1369,134 @@ mod omnipool_router_tests {
 		});
 	}
 
+	#[test]
+	fn buy_should_work_with_only_insufficient_assets() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset1 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+					.unwrap();
+
+				let name = b"INSUF2".to_vec();
+				let insufficient_asset2 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+					.unwrap();
+
+				let name = b"INSUF3".to_vec();
+				let insufficient_asset3 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+					.unwrap();
+
+				let name = b"INSUF4".to_vec();
+				let insufficient_asset4 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+					.unwrap();
+
+				assert_ok!(Currencies::deposit(insufficient_asset1, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset2, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset3, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset4, &DAVE.into(), 100000 * UNITS,));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset1,
+					10000 * UNITS,
+					insufficient_asset2,
+					10000 * UNITS,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset2,
+					10000 * UNITS,
+					insufficient_asset3,
+					10000 * UNITS,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset3,
+					10000 * UNITS,
+					insufficient_asset4,
+					10000 * UNITS,
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset1,
+						asset_out: insufficient_asset2,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset2,
+						asset_out: insufficient_asset3,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset3,
+						asset_out: insufficient_asset4,
+					},
+				];
+
+				assert_ok!(Currencies::deposit(insufficient_asset1, &ALICE.into(), 1500 * UNITS,));
+
+				let ed = UNITS * 11 / 10;
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
+
+				let amount_to_buy = 20 * UNITS;
+				assert_ok!(Router::buy(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					insufficient_asset1,
+					insufficient_asset4,
+					amount_to_buy,
+					u128::MAX,
+					trades
+				));
+
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 2 * ed);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
 	#[ignore] //TODO: Continue as it does not fail, BUT SHOULD?!
 	#[test]
 	fn sell_should_work_when_trade_amount_is_low() {

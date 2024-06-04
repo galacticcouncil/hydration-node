@@ -21,7 +21,6 @@ use codec::MaxEncodedLen;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::{Fortitude, Preservation};
-use frame_support::traits::Contains;
 use frame_support::PalletId;
 use frame_support::{
 	ensure,
@@ -67,7 +66,6 @@ pub mod pallet {
 	use super::*;
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::pools::DustRemovalAccountWhitelist;
 	use hydradx_traits::router::{ExecutorError, RefundEdCalculator};
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
@@ -235,17 +233,9 @@ pub mod pallet {
 
 			let route_length = route.len().checked_sub(1).ok_or(Error::<T>::InvalidRoute)?;
 
+			let mut skip_ed_disabling: bool = false;
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
-				if route_length > 0
-					&& (!T::InspectRegistry::is_sufficient(trade.asset_in)
-						|| !T::InspectRegistry::is_sufficient(trade.asset_out))
-				{
-					match trade_index {
-						0 => SkipEd::<T>::put(SkipEdState::SkipEdLock),
-						trade_index if trade_index == route_length => SkipEd::<T>::put(SkipEdState::SkipEdUnlock),
-						_ => SkipEd::<T>::put(SkipEdState::SkipEdLockAndUnlock),
-					}
-				}
+				Self::disable_ed_handling_for_insufficient_assets(&mut skip_ed_disabling, route_length, trade_index, trade);
 
 				let user_balance_of_asset_in_before_trade =
 					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
@@ -259,8 +249,6 @@ pub mod pallet {
 					trade_amount.amount_out,
 				);
 
-				SkipEd::<T>::kill();
-
 				handle_execution_error!(execution_result);
 
 				Self::ensure_that_user_spent_asset_in_at_least(
@@ -269,6 +257,10 @@ pub mod pallet {
 					user_balance_of_asset_in_before_trade,
 					trade_amount.amount_in,
 				)?;
+			}
+
+			if skip_ed_disabling {
+				SkipEd::<T>::kill();
 			}
 
 			Self::ensure_that_user_received_asset_out_at_most(
@@ -330,8 +322,11 @@ pub mod pallet {
 			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
-			//TODO: enable and disable the ED charging and refund
-			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
+			let route_length = route.len().checked_sub(1).ok_or(Error::<T>::InvalidRoute)?;
+
+			let mut skip_ed_disabling: bool = false;
+			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
+				Self::disable_ed_handling_for_insufficient_assets(&mut skip_ed_disabling, route_length, trade_index, trade);
 				let user_balance_of_asset_out_before_trade =
 					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 				let execution_result = T::AMM::execute_buy(
@@ -352,6 +347,10 @@ pub mod pallet {
 					user_balance_of_asset_out_before_trade,
 					trade_amount.amount_out,
 				)?;
+			}
+
+			if skip_ed_disabling {
+				SkipEd::<T>::kill();
 			}
 
 			Self::ensure_that_user_spent_asset_in_at_least(
@@ -609,6 +608,20 @@ impl<T: Config> Pallet<T> {
 			<Pallet<T> as RouteProvider<T::AssetId>>::get_route(asset_pair)
 		};
 		Ok(route)
+	}
+
+	fn disable_ed_handling_for_insufficient_assets(skip_ed_disabling: &mut bool, route_length: usize, trade_index: usize, trade: Trade<T::AssetId>) {
+		if route_length > 0
+			&& (!T::InspectRegistry::is_sufficient(trade.asset_in)
+			|| !T::InspectRegistry::is_sufficient(trade.asset_out))
+		{
+			*skip_ed_disabling = true;
+			match trade_index {
+				0 => SkipEd::<T>::put(SkipEdState::SkipEdLock),
+				trade_index if trade_index == route_length => SkipEd::<T>::put(SkipEdState::SkipEdUnlock),
+				_ => SkipEd::<T>::put(SkipEdState::SkipEdLockAndUnlock),
+			}
+		}
 	}
 
 	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<(T::Balance, T::Balance), DispatchError> {
