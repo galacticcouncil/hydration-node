@@ -365,28 +365,8 @@ impl pallet_route_executor::Config for Test {
 	type WeightInfo = ();
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type EdToRefundCalculator = MockedEdCalculator;
-	type NonDustableWhitelistHandler = Whitelist;
 }
 
-pub struct Whitelist;
-
-impl Contains<AccountId> for Whitelist {
-	fn contains(account: &AccountId) -> bool {
-		false
-	}
-}
-
-impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
-	type Error = DispatchError;
-
-	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
-		Ok(())
-	}
-
-	fn remove_account(account: &AccountId) -> Result<(), Self::Error> {
-		Ok(())
-	}
-}
 
 pub struct MockedEdCalculator;
 

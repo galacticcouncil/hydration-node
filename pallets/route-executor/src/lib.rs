@@ -21,6 +21,7 @@ use codec::MaxEncodedLen;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::{Fortitude, Preservation};
+use frame_support::traits::Contains;
 use frame_support::PalletId;
 use frame_support::{
 	ensure,
@@ -28,13 +29,14 @@ use frame_support::{
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
-use frame_support::traits::Contains;
 use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider, IsInMiddleOfRouteCheck};
+use hydradx_traits::router::{
+	inverse_route, AssetPair, IsInMiddleOfRouteCheck, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider,
+};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
@@ -53,15 +55,22 @@ pub use pallet::*;
 
 pub const MAX_NUMBER_OF_TRADES: u32 = 5;
 
+#[derive(Debug, Encode, Decode, Copy, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+pub enum SkipEdState {
+	SkipEdLock,
+	SkipEdLockAndUnlock,
+	SkipEdUnlock,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
+	use hydradx_traits::pools::DustRemovalAccountWhitelist;
 	use hydradx_traits::router::{ExecutorError, RefundEdCalculator};
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
-	use hydradx_traits::pools::DustRemovalAccountWhitelist;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -116,9 +125,6 @@ pub mod pallet {
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
-
-		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
-
 	}
 
 	#[pallet::event]
@@ -164,6 +170,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn next_schedule_id)]
 	pub type InMiddleOfRoute<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+	//TODO: add doc
+	#[pallet::storage]
+	#[pallet::getter(fn last_trade_position)]
+	pub type SkipEd<T: Config> = StorageValue<_, SkipEdState, OptionQuery>;
 
 	/// Storing routes for asset pairs
 	#[pallet::storage]
@@ -225,14 +236,15 @@ pub mod pallet {
 			let route_length = route.len().checked_sub(1).ok_or(Error::<T>::InvalidRoute)?;
 
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
-				//We whitelist account for ED charging except the last trade because there we want ED charged for insufficient asset
-				if trade_index != route_length && !T::InspectRegistry::is_sufficient(trade.asset_out) {
-					T::NonDustableWhitelistHandler::add_account(&who)?;
-				}
-
-				//We want use this flag to disable ED refund except for the first trade because in case of selling all insufficient asset_in, ED should be refunded to user
-				if trade_index != 0 && !T::InspectRegistry::is_sufficient(trade.asset_in) {
-					InMiddleOfRoute::<T>::put(true); //TODO: disable it on on init
+				if route_length > 0
+					&& (!T::InspectRegistry::is_sufficient(trade.asset_in)
+						|| !T::InspectRegistry::is_sufficient(trade.asset_out))
+				{
+					match trade_index {
+						0 => SkipEd::<T>::put(SkipEdState::SkipEdLock),
+						trade_index if trade_index == route_length => SkipEd::<T>::put(SkipEdState::SkipEdUnlock),
+						_ => SkipEd::<T>::put(SkipEdState::SkipEdLockAndUnlock),
+					}
 				}
 
 				let user_balance_of_asset_in_before_trade =
@@ -247,10 +259,7 @@ pub mod pallet {
 					trade_amount.amount_out,
 				);
 
-				if trade_index != route_length && !T::InspectRegistry::is_sufficient(trade.asset_out) {
-					T::NonDustableWhitelistHandler::remove_account(&who)?;
-				}
-				InMiddleOfRoute::<T>::put(false);
+				SkipEd::<T>::kill();
 
 				handle_execution_error!(execution_result);
 

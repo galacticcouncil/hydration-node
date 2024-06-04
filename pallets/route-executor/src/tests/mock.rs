@@ -17,6 +17,7 @@
 
 use crate as router;
 use crate::{Config, Trade};
+use frame_support::traits::Contains;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
@@ -35,7 +36,6 @@ use sp_runtime::{
 };
 use std::cell::RefCell;
 use std::ops::Deref;
-use frame_support::traits::Contains;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -154,7 +154,6 @@ impl Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
-	type NonDustableWhitelistHandler = Whitelist;
 }
 
 pub struct Whitelist;
@@ -162,18 +161,6 @@ pub struct Whitelist;
 impl Contains<AccountId> for Whitelist {
 	fn contains(account: &AccountId) -> bool {
 		false
-	}
-}
-
-impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
-	type Error = DispatchError;
-
-	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
-		Ok(())
-	}
-
-	fn remove_account(account: &AccountId) -> Result<(), Self::Error> {
-		Ok(())
 	}
 }
 
@@ -185,8 +172,8 @@ impl RefundEdCalculator<Balance> for MockedEdCalculator {
 	}
 }
 
-use hydradx_traits::AssetKind;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::AssetKind;
 
 pub struct MockedAssetRegistry;
 

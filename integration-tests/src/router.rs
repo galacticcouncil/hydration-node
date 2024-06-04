@@ -1081,7 +1081,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				let name = b"INSUF2".to_vec();
 				let insufficient_asset2 = AssetRegistry::register_insufficient_asset(
@@ -1094,7 +1094,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				let name = b"INSUF3".to_vec();
 				let insufficient_asset3 = AssetRegistry::register_insufficient_asset(
@@ -1107,7 +1107,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				let name = b"INSUF4".to_vec();
 				let insufficient_asset4 = AssetRegistry::register_insufficient_asset(
@@ -1120,7 +1120,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				assert_ok!(Currencies::deposit(insufficient_asset1, &DAVE.into(), 100000 * UNITS,));
 				assert_ok!(Currencies::deposit(insufficient_asset2, &DAVE.into(), 100000 * UNITS,));
@@ -1166,7 +1166,7 @@ mod omnipool_router_tests {
 						pool: PoolType::XYK,
 						asset_in: insufficient_asset3,
 						asset_out: insufficient_asset4,
-					}
+					},
 				];
 
 				assert_ok!(Currencies::deposit(insufficient_asset1, &ALICE.into(), 1500 * UNITS,));
@@ -1209,7 +1209,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				let name = b"INSUF2".to_vec();
 				let insufficient_asset2 = AssetRegistry::register_insufficient_asset(
@@ -1222,7 +1222,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				assert_ok!(Currencies::deposit(insufficient_asset1, &DAVE.into(), 100000 * UNITS,));
 				assert_ok!(Currencies::deposit(insufficient_asset2, &DAVE.into(), 100000 * UNITS,));
@@ -1244,7 +1244,6 @@ mod omnipool_router_tests {
 					10000 * UNITS,
 				));
 
-
 				let trades = vec![
 					Trade {
 						pool: PoolType::XYK,
@@ -1255,13 +1254,17 @@ mod omnipool_router_tests {
 						pool: PoolType::XYK,
 						asset_in: insufficient_asset2,
 						asset_out: ETH,
-					}
+					},
 				];
 
 				let alice_balance_before_trade = Balances::free_balance(AccountId::from(ALICE));
 
 				let insufficient_asset1_balance = 100 * UNITS;
-				assert_ok!(Currencies::deposit(insufficient_asset1, &ALICE.into(), insufficient_asset1_balance,));
+				assert_ok!(Currencies::deposit(
+					insufficient_asset1,
+					&ALICE.into(),
+					insufficient_asset1_balance,
+				));
 
 				let extra_ed_charge = UNITS / 10;
 
@@ -1283,6 +1286,8 @@ mod omnipool_router_tests {
 			});
 		});
 	}
+
+	//TODO: add test when we have only one trade, so ed should be charged
 
 	#[ignore] //TODO: Continue as it does not fail, BUT SHOULD?!
 	#[test]
