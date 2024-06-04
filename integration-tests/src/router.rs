@@ -1287,7 +1287,87 @@ mod omnipool_router_tests {
 		});
 	}
 
-	//TODO: add test when we have only one trade, so ed should be charged
+	#[test]
+	fn should_no_ed_charging_disabled_when_only_one_route_with_insufficient_assets() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset_1 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+					.unwrap();
+
+				let name = b"INSUF12".to_vec();
+				let insufficient_asset_2 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+					.unwrap();
+				assert_ok!(Currencies::deposit(insufficient_asset_1, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset_2, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DAVE.into(),
+					HDX,
+					100000 * UNITS as i128,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset_1,
+					100000 * UNITS,
+					insufficient_asset_2,
+					100000 * UNITS,
+				));
+
+				let trades = vec![Trade {
+					pool: PoolType::XYK,
+					asset_in: insufficient_asset_1,
+					asset_out: insufficient_asset_2,
+				}];
+
+				//Act
+				let amount_to_sell = 10 * UNITS;
+				assert_ok!(Currencies::deposit(insufficient_asset_1, &ALICE.into(), amount_to_sell,));
+				let ed = UNITS * 11 / 10;
+				let extra_ed_charge = UNITS / 10;
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 1 * ed);
+
+				let amount_to_sell = amount_to_sell;
+				assert_ok!(
+					Router::sell(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						insufficient_asset_1,
+						insufficient_asset_2,
+						amount_to_sell,
+						0,
+						trades
+					),
+				);
+
+				//ED for insufficient_asset_1 is refunded, but ED for insufficient_asset_2 is charged plus extra 10%
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 1 * ed - extra_ed_charge);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
 
 	#[ignore] //TODO: Continue as it does not fail, BUT SHOULD?!
 	#[test]
