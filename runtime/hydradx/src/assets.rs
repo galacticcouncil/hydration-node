@@ -582,10 +582,10 @@ impl pallet_duster::Config for Runtime {
 parameter_types! {
 	pub const OmniWarehouseLMPalletId: PalletId = PalletId(*b"OmniWhLM");
 	#[derive(PartialEq, Eq)]
-	pub const MaxEntriesPerDeposit: u8 = 5; //NOTE: Rebenchmark when this change, TODO:
-	pub const MaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms, TODO:
-	pub const MinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks, TODO:
-	pub const MinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT * 100; //TODO:
+	pub const MaxEntriesPerDeposit: u8 = 5; //NOTE: Rebenchmark when this change
+	pub const MaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms
+	pub const MinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks
+	pub const MinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT;
 	pub const OmnipoolLmOracle: [u8; 8] = OMNIPOOL_SOURCE;
 }
 
