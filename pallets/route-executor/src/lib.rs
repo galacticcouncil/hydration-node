@@ -235,7 +235,12 @@ pub mod pallet {
 
 			let mut skip_ed_disabling: bool = false;
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
-				Self::disable_ed_handling_for_insufficient_assets(&mut skip_ed_disabling, route_length, trade_index, trade);
+				Self::disable_ed_handling_for_insufficient_assets(
+					&mut skip_ed_disabling,
+					route_length,
+					trade_index,
+					trade,
+				);
 
 				let user_balance_of_asset_in_before_trade =
 					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
@@ -326,7 +331,12 @@ pub mod pallet {
 
 			let mut skip_ed_disabling: bool = false;
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
-				Self::disable_ed_handling_for_insufficient_assets(&mut skip_ed_disabling, route_length, trade_index, trade);
+				Self::disable_ed_handling_for_insufficient_assets(
+					&mut skip_ed_disabling,
+					route_length,
+					trade_index,
+					trade,
+				);
 				let user_balance_of_asset_out_before_trade =
 					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 				let execution_result = T::AMM::execute_buy(
@@ -610,10 +620,15 @@ impl<T: Config> Pallet<T> {
 		Ok(route)
 	}
 
-	fn disable_ed_handling_for_insufficient_assets(skip_ed_disabling: &mut bool, route_length: usize, trade_index: usize, trade: Trade<T::AssetId>) {
+	fn disable_ed_handling_for_insufficient_assets(
+		skip_ed_disabling: &mut bool,
+		route_length: usize,
+		trade_index: usize,
+		trade: Trade<T::AssetId>,
+	) {
 		if route_length > 0
 			&& (!T::InspectRegistry::is_sufficient(trade.asset_in)
-			|| !T::InspectRegistry::is_sufficient(trade.asset_out))
+				|| !T::InspectRegistry::is_sufficient(trade.asset_out))
 		{
 			*skip_ed_disabling = true;
 			match trade_index {
