@@ -307,6 +307,7 @@ std = [
     "pallet-evm-precompile-modexp/std",
     "pallet-evm-precompile-bn128/std",
     "pallet-evm-precompile-blake2/std",
+    "pallet-evm-precompile-call-permit/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
     "pallet-evm-accounts/std",
