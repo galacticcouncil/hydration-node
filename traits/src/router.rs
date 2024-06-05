@@ -340,7 +340,3 @@ impl<Trade> AmmTradeWeights<Trade> for () {
 pub trait RefundEdCalculator<Balance> {
 	fn calculate() -> Balance;
 }
-
-pub trait IsInMiddleOfRouteCheck {
-	fn IsTrue() -> bool;
-}

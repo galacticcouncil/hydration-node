@@ -34,7 +34,7 @@ use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::{
-	inverse_route, AssetPair, IsInMiddleOfRouteCheck, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider,
+	inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider,
 };
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
@@ -983,13 +983,5 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
 
 		FixedU128::checked_from_rational(rat_as_u128.0, rat_as_u128.1)
-	}
-}
-
-pub struct IsInMiddleOfRoute<T>(PhantomData<T>);
-
-impl<T: Config> IsInMiddleOfRouteCheck for IsInMiddleOfRoute<T> {
-	fn IsTrue() -> bool {
-		InMiddleOfRoute::<T>::get()
 	}
 }
