@@ -33,9 +33,7 @@ use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{
-	inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider,
-};
+use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
@@ -618,7 +616,7 @@ impl<T: Config> Pallet<T> {
 		Ok(route)
 	}
 
-	fn disable_ed_handling_for_insufficient_assets(
+	pub fn disable_ed_handling_for_insufficient_assets(
 		skip_ed_disabling: &mut bool,
 		route_length: usize,
 		trade_index: usize,
@@ -643,7 +641,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn skip_ed_lock() -> bool {
 		if let Ok(v) = SkipEd::<T>::try_get() {
-			return matches!(v, SkipEdState::SkipEdLock | SkipEdState::SkipEdLockAndUnlock)
+			return matches!(v, SkipEdState::SkipEdLock | SkipEdState::SkipEdLockAndUnlock);
 		}
 
 		return false;
@@ -651,7 +649,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn skip_ed_unlock() -> bool {
 		if let Ok(v) = SkipEd::<T>::try_get() {
-			return matches!(v, SkipEdState::SkipEdUnlock | SkipEdState::SkipEdLockAndUnlock)
+			return matches!(v, SkipEdState::SkipEdUnlock | SkipEdState::SkipEdLockAndUnlock);
 		}
 
 		return false;

@@ -63,7 +63,9 @@ use orml_traits::currency::{MultiCurrency, MultiLockableCurrency, MutationHooks,
 use orml_traits::{GetByKey, Happened};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
-use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES, SkipEd, SkipEdState};
+use pallet_route_executor::{
+	weights::WeightInfo as RouterWeights, AmmTradeWeights, SkipEd, SkipEdState, MAX_NUMBER_OF_TRADES,
+};
 use pallet_staking::types::{Action, Point};
 use pallet_staking::SigmoidPercentage;
 use pallet_xyk::weights::WeightInfo as XykWeights;
@@ -225,7 +227,7 @@ impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 
 		//NOTE: `to` is paying ED if `from` is whitelisted.
 		//This can happen if pallet's account transfers insufficient tokens to another account.
-		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(from){
+		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(from) {
 			Self::on_funds(asset, to, to)
 		} else {
 			Self::on_funds(asset, from, to)
@@ -858,6 +860,10 @@ impl RouterWeightInfo {
 			number_of_times_execute_sell_amounts_executed,
 		))
 	}
+
+	pub fn skip_ed_handling_overweight() -> Weight {
+		weights::route_executor::HydraWeight::<Runtime>::skip_ed_handling_for_trade_with_insufficient_assets()
+	}
 }
 
 impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
@@ -896,6 +902,20 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			weight.saturating_accrue(amm_weight);
 		}
 
+		//We add the overweight for skipping ED handling if we have any insufficient asset
+		let mut unique_assets = sp_std::collections::btree_set::BTreeSet::new();
+		for trade in route.iter() {
+			unique_assets.insert(trade.asset_in);
+			unique_assets.insert(trade.asset_out);
+		}
+		if unique_assets
+			.iter()
+			.filter(|asset| !AssetRegistry::is_sufficient(**asset))
+			.count() > 0
+		{
+			weight.saturating_accrue(Self::skip_ed_handling_overweight());
+		}
+
 		weight
 	}
 
@@ -932,6 +952,20 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 			};
 			weight.saturating_accrue(amm_weight);
+		}
+
+		//We add the overweight for skipping ED handling if we have any insufficient asset
+		let mut unique_assets = sp_std::collections::btree_set::BTreeSet::new();
+		for trade in route.iter() {
+			unique_assets.insert(trade.asset_in);
+			unique_assets.insert(trade.asset_out);
+		}
+		if unique_assets
+			.iter()
+			.filter(|asset| !AssetRegistry::is_sufficient(**asset))
+			.count() > 0
+		{
+			weight.saturating_accrue(Self::skip_ed_handling_overweight());
 		}
 
 		weight
@@ -1147,7 +1181,7 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
-use hydradx_traits::router::{RefundEdCalculator};
+use hydradx_traits::router::RefundEdCalculator;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]

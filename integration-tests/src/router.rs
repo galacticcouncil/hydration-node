@@ -1305,7 +1305,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				let name = b"INSUF12".to_vec();
 				let insufficient_asset_2 = AssetRegistry::register_insufficient_asset(
@@ -1318,7 +1318,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 				assert_ok!(Currencies::deposit(insufficient_asset_1, &DAVE.into(), 100000 * UNITS,));
 				assert_ok!(Currencies::deposit(insufficient_asset_2, &DAVE.into(), 100000 * UNITS,));
 				assert_ok!(Currencies::update_balance(
@@ -1350,16 +1350,14 @@ mod omnipool_router_tests {
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 1 * ed);
 
 				let amount_to_sell = amount_to_sell;
-				assert_ok!(
-					Router::sell(
-						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-						insufficient_asset_1,
-						insufficient_asset_2,
-						amount_to_sell,
-						0,
-						trades
-					),
-				);
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					insufficient_asset_1,
+					insufficient_asset_2,
+					amount_to_sell,
+					0,
+					trades
+				),);
 
 				//ED for insufficient_asset_1 is refunded, but ED for insufficient_asset_2 is charged plus extra 10%
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 1 * ed - extra_ed_charge);
@@ -1387,7 +1385,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				let name = b"INSUF2".to_vec();
 				let insufficient_asset2 = AssetRegistry::register_insufficient_asset(
@@ -1400,7 +1398,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				let name = b"INSUF3".to_vec();
 				let insufficient_asset3 = AssetRegistry::register_insufficient_asset(
@@ -1413,7 +1411,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				let name = b"INSUF4".to_vec();
 				let insufficient_asset4 = AssetRegistry::register_insufficient_asset(
@@ -1426,7 +1424,7 @@ mod omnipool_router_tests {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				assert_ok!(Currencies::deposit(insufficient_asset1, &DAVE.into(), 100000 * UNITS,));
 				assert_ok!(Currencies::deposit(insufficient_asset2, &DAVE.into(), 100000 * UNITS,));
@@ -1494,38 +1492,6 @@ mod omnipool_router_tests {
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
-		});
-	}
-
-	#[ignore] //TODO: Continue as it does not fail, BUT SHOULD?!
-	#[test]
-	fn sell_should_work_when_trade_amount_is_low() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool();
-
-			let amount_to_sell = 1_000_000_000;
-			let limit = 0;
-			let trades = vec![Trade {
-				pool: PoolType::Omnipool,
-				asset_in: HDX,
-				asset_out: DAI,
-			}];
-
-			//Act
-			assert_ok!(Router::sell(
-				RuntimeOrigin::signed(BOB.into()),
-				HDX,
-				DAI,
-				amount_to_sell,
-				limit,
-				trades
-			));
-
-			//Assert
-			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 		});
 	}
 
