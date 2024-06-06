@@ -367,7 +367,6 @@ impl pallet_route_executor::Config for Test {
 	type EdToRefundCalculator = MockedEdCalculator;
 }
 
-
 pub struct MockedEdCalculator;
 
 impl RefundEdCalculator<Balance> for MockedEdCalculator {

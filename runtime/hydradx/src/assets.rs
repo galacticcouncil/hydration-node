@@ -908,10 +908,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			unique_assets.insert(trade.asset_in);
 			unique_assets.insert(trade.asset_out);
 		}
-		if unique_assets
-			.iter()
-			.any(|asset| !AssetRegistry::is_sufficient(*asset))
-		{
+		if unique_assets.iter().any(|asset| !AssetRegistry::is_sufficient(*asset)) {
 			weight.saturating_accrue(Self::skip_ed_handling_overweight());
 		}
 
@@ -959,10 +956,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			unique_assets.insert(trade.asset_in);
 			unique_assets.insert(trade.asset_out);
 		}
-		if unique_assets
-			.iter()
-			.any(|asset| !AssetRegistry::is_sufficient(*asset))
-		{
+		if unique_assets.iter().any(|asset| !AssetRegistry::is_sufficient(*asset)) {
 			weight.saturating_accrue(Self::skip_ed_handling_overweight());
 		}
 

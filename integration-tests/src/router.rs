@@ -1057,7 +1057,6 @@ mod omnipool_router_tests {
 
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - amount_to_sell);
 
-
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
