@@ -24,10 +24,10 @@ use hydradx_adapters::{
 	StableswapHooksAdapter, VestingInfo,
 };
 
-use hydradx_traits::{
+pub use hydradx_traits::{
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
-	AccountIdFor, AssetKind, AssetPairAccountIdFor, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
+	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
 };
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{
