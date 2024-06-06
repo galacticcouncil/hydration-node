@@ -64,7 +64,7 @@ use orml_traits::{GetByKey, Happened};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_route_executor::{
-	weights::WeightInfo as RouterWeights, AmmTradeWeights, SkipEd, SkipEdState, MAX_NUMBER_OF_TRADES,
+	weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES,
 };
 use pallet_staking::types::{Action, Point};
 use pallet_staking::SigmoidPercentage;

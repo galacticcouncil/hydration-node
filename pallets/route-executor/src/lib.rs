@@ -644,7 +644,7 @@ impl<T: Config> Pallet<T> {
 			return matches!(v, SkipEdState::SkipEdLock | SkipEdState::SkipEdLockAndUnlock);
 		}
 
-		return false;
+		false
 	}
 
 	pub fn skip_ed_unlock() -> bool {
@@ -652,7 +652,7 @@ impl<T: Config> Pallet<T> {
 			return matches!(v, SkipEdState::SkipEdUnlock | SkipEdState::SkipEdLockAndUnlock);
 		}
 
-		return false;
+		false
 	}
 
 	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<(T::Balance, T::Balance), DispatchError> {

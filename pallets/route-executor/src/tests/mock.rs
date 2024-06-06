@@ -17,7 +17,6 @@
 
 use crate as router;
 use crate::{Config, Trade};
-use frame_support::traits::Contains;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
@@ -156,14 +155,6 @@ impl Config for Test {
 	type WeightInfo = ();
 }
 
-pub struct Whitelist;
-
-impl Contains<AccountId> for Whitelist {
-	fn contains(account: &AccountId) -> bool {
-		false
-	}
-}
-
 pub struct MockedEdCalculator;
 
 impl RefundEdCalculator<Balance> for MockedEdCalculator {
@@ -172,7 +163,6 @@ impl RefundEdCalculator<Balance> for MockedEdCalculator {
 	}
 }
 
-use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::AssetKind;
 
 pub struct MockedAssetRegistry;
