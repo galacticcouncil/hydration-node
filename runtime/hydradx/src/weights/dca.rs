@@ -64,8 +64,8 @@ impl<T: frame_system::Config> pallet_dca::weights::WeightInfo for HydraWeight<T>
 		// Proof Size summary in bytes:
 		//  Measured:  `54519`
 		//  Estimated: `31902`
-		// Minimum execution time: 228_102_000 picoseconds.
-		Weight::from_parts(231_081_000, 31902)
+		// Minimum execution time: 227_216_000 picoseconds.
+		Weight::from_parts(230_873_000, 31902)
 			.saturating_add(T::DbWeight::get().reads(17))
 			.saturating_add(T::DbWeight::get().writes(7))
 	}
@@ -85,8 +85,8 @@ impl<T: frame_system::Config> pallet_dca::weights::WeightInfo for HydraWeight<T>
 		// Proof Size summary in bytes:
 		//  Measured:  `54627`
 		//  Estimated: `31902`
-		// Minimum execution time: 229_043_000 picoseconds.
-		Weight::from_parts(234_068_000, 31902)
+		// Minimum execution time: 227_818_000 picoseconds.
+		Weight::from_parts(233_360_000, 31902)
 			.saturating_add(T::DbWeight::get().reads(17))
 			.saturating_add(T::DbWeight::get().writes(7))
 	}
@@ -96,8 +96,8 @@ impl<T: frame_system::Config> pallet_dca::weights::WeightInfo for HydraWeight<T>
 		// Proof Size summary in bytes:
 		//  Measured:  `1075`
 		//  Estimated: `3566`
-		// Minimum execution time: 17_006_000 picoseconds.
-		Weight::from_parts(17_344_000, 3566)
+		// Minimum execution time: 17_448_000 picoseconds.
+		Weight::from_parts(17_848_000, 3566)
 			.saturating_add(T::DbWeight::get().reads(1))
 	}
 	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
@@ -126,8 +126,8 @@ impl<T: frame_system::Config> pallet_dca::weights::WeightInfo for HydraWeight<T>
 		// Proof Size summary in bytes:
 		//  Measured:  `52618`
 		//  Estimated: `29326`
-		// Minimum execution time: 163_015_000 picoseconds.
-		Weight::from_parts(166_162_000, 29326)
+		// Minimum execution time: 163_228_000 picoseconds.
+		Weight::from_parts(166_489_000, 29326)
 			.saturating_add(T::DbWeight::get().reads(17))
 			.saturating_add(T::DbWeight::get().writes(8))
 	}
@@ -149,8 +149,8 @@ impl<T: frame_system::Config> pallet_dca::weights::WeightInfo for HydraWeight<T>
 		// Proof Size summary in bytes:
 		//  Measured:  `2526`
 		//  Estimated: `4714`
-		// Minimum execution time: 76_076_000 picoseconds.
-		Weight::from_parts(76_844_000, 4714)
+		// Minimum execution time: 76_262_000 picoseconds.
+		Weight::from_parts(76_953_000, 4714)
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(7))
 	}
