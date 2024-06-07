@@ -4769,7 +4769,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "13.0.0"
+version = "13.1.0"
 dependencies = [
  "async-trait",
  "clap 4.5.4",
@@ -4849,6 +4849,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-state-machine",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
  "sp-storage 19.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
  "sp-timestamp",
  "sp-transaction-pool",
@@ -4911,7 +4912,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "242.0.0"
+version = "243.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5024,6 +5025,7 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core",
  "sp-externalities 0.25.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
+ "sp-genesis-builder",
  "sp-inherents",
  "sp-io",
  "sp-offchain",

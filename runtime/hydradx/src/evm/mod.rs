@@ -27,6 +27,7 @@ pub use crate::{
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
 use crate::{NativeAssetId, LRNA};
+pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
 	traits::{Defensive, FindAuthor},

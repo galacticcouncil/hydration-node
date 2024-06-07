@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "242.0.0"
+version = "243.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -127,6 +127,7 @@ frame-system-rpc-runtime-api = { workspace = true }
 frame-try-runtime = { workspace = true, optional = true }
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
+sp-genesis-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }
 sp-inherents = { workspace = true }
@@ -284,6 +285,7 @@ std = [
     "warehouse-liquidity-mining/std",
     "sp-api/std",
     "sp-block-builder/std",
+    "sp-genesis-builder/std",
     "sp-consensus-aura/std",
     "sp-core/std",
     "sp-io/std",
