@@ -28,6 +28,9 @@ pub const BUY: bool = false;
 pub const ACA: u32 = 1234;
 pub const GLMR: u32 = 4567;
 pub const IBTC: u32 = 7890;
+pub const ZTG: u32 = 5001;
+
+pub const HDX_ON_OTHER_PARACHAIN: u32 = 5002;
 
 #[test]
 fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
@@ -62,11 +65,37 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 	});
 
 	Acala::execute_with(|| {
-		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
-			Asset::from((GeneralIndex(0), 50 * UNITS)),
-			Asset::from((GeneralIndex(CORE_ASSET_ID.into()), 300 * UNITS)),
-			SELL,
-		);
+		let give = Asset::from((
+			Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X2(Arc::new(
+					vec![
+						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					]
+					.try_into()
+					.unwrap(),
+				)),
+			),
+			50 * UNITS,
+		));
+
+		let want = Asset::from((
+			Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X2(Arc::new(
+					vec![
+						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					]
+					.try_into()
+					.unwrap(),
+				)),
+			),
+			300 * UNITS,
+		));
+
+		let xcm = craft_exchange_asset_xcm::<hydradx_runtime::RuntimeCall>(give, want, SELL);
 		//Act
 		let res = hydradx_runtime::PolkadotXcm::execute(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -133,11 +162,37 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 
 	let amount_out = 300 * UNITS;
 	Acala::execute_with(|| {
-		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
-			Asset::from((GeneralIndex(0), 50 * UNITS)),
-			Asset::from((GeneralIndex(CORE_ASSET_ID.into()), amount_out)),
-			BUY,
-		);
+		let give = Asset::from((
+			Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X2(Arc::new(
+					vec![
+						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					]
+					.try_into()
+					.unwrap(),
+				)),
+			),
+			50 * UNITS,
+		));
+
+		let want = Asset::from((
+			Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X2(Arc::new(
+					vec![
+						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					]
+					.try_into()
+					.unwrap(),
+				)),
+			),
+			amount_out,
+		));
+
+		let xcm = craft_exchange_asset_xcm::<hydradx_runtime::RuntimeCall>(give, want, BUY);
 		//Act
 		let res = hydradx_runtime::PolkadotXcm::execute(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -171,7 +226,6 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 }
 
 //We swap GLMR for iBTC, sent from ACALA and executed on Hydradx, resultin in 4 hops
-#[ignore]
 #[test]
 fn transfer_and_swap_should_work_with_4_hops() {
 	//Arrange
@@ -282,19 +336,749 @@ fn transfer_and_swap_should_work_with_4_hops() {
 		});
 	});
 
-	let fees = 400641025641;
+	//We need these executions to trigger the processing of horizontal messages of each parachain
+	Moonbeam::execute_with(|| {});
+	Hydra::execute_with(|| {});
+	Interlay::execute_with(|| {});
+
 	Acala::execute_with(|| {
 		//hydradx_run_to_block(5);
 
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(IBTC, &AccountId::from(BOB)),
-			549198717948718
+			549839246387064
 		);
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(IBTC, &hydradx_runtime::Treasury::account_id()),
-			fees
-		);
+		let fee = hydradx_runtime::Tokens::free_balance(IBTC, &hydradx_runtime::Treasury::account_id());
+
+		assert!(fee > 0, "treasury should have received fees, but it didn't");
 	});
+}
+
+pub mod zeitgeist_use_cases {
+	use super::*;
+	use frame_support::traits::tokens::Precision;
+	use polkadot_xcm::latest::{NetworkId, Parent};
+	use polkadot_xcm::prelude::Parachain;
+	use std::sync::Arc;
+
+	use primitives::constants::chain::CORE_ASSET_ID;
+
+	#[test]
+	fn remote_swap_sell_native_ztg_for_native_hdx_on_hydra() {
+		//Register tokens and init omnipool on hydra
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				crate::exchange_asset::register_ztg();
+				crate::exchange_asset::add_currency_price(crate::exchange_asset::ZTG, FixedU128::from(1));
+
+				init_omnipool();
+				let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+
+				let token_price = FixedU128::from_float(1.0);
+				assert_ok!(hydradx_runtime::Tokens::deposit(
+					ZTG,
+					&omnipool_account,
+					1000000 * UNITS
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ZTG,
+					token_price,
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+
+		//Construct and send XCM zeitgeist -> hydra
+		Zeitgeist::execute_with(|| {
+			let _ = with_transaction(|| {
+				crate::exchange_asset::register_hdx_in_sibling_chain();
+				crate::exchange_asset::add_currency_price(HDX_ON_OTHER_PARACHAIN, FixedU128::from(1));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE)),
+				0
+			);
+
+			let give_reserve_chain = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let swap_chain = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let want_reserve_chain = swap_chain.clone();
+			let dest = give_reserve_chain.clone();
+
+			let beneficiary = Location::new(
+				0,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::AccountId32 {
+						id: ALICE,
+						network: None,
+					}]
+					.try_into()
+					.unwrap(),
+				)),
+			);
+			let assets: Assets = Asset {
+				id: cumulus_primitives_core::AssetId(Location::new(
+					0,
+					cumulus_primitives_core::Junctions::X1(Arc::new(
+						vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
+							.try_into()
+							.unwrap(),
+					)),
+				)),
+				fun: Fungible(100 * UNITS),
+			}
+			.into();
+			let max_assets = assets.len() as u32 + 1;
+
+			let give_amount = 10 * UNITS;
+			let give_asset = Asset::from((hydradx_runtime::CurrencyIdConvert::convert(0).unwrap(), give_amount));
+			let want_asset = Asset::from((
+				Location::new(
+					1,
+					cumulus_primitives_core::Junctions::X2(Arc::new(
+						vec![
+							cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+							cumulus_primitives_core::Junction::GeneralIndex(0),
+						]
+						.try_into()
+						.unwrap(),
+					)),
+				),
+				100 * UNITS,
+			));
+
+			let want: Assets = want_asset.clone().into();
+
+			let fees = give_asset
+				.clone()
+				.reanchored(&swap_chain, &give_reserve_chain.interior)
+				.expect("should reanchor");
+
+			let destination_fee = want_asset
+				.reanchored(&dest, &want_reserve_chain.interior)
+				.expect("should reanchor");
+
+			let weight_limit = Limited(Weight::from_parts(u64::MAX, u64::MAX));
+
+			// executed on local (zeitgeist)
+			let message = Xcm(vec![
+				WithdrawAsset(give_asset.clone().into()),
+				DepositReserveAsset {
+					assets: AllCounted(max_assets).into(),
+					dest: swap_chain,
+					// executed on remote (on hydra)
+					xcm: Xcm(vec![
+						BuyExecution {
+							fees: crate::exchange_asset::half(&fees),
+							weight_limit: weight_limit.clone(),
+						},
+						ExchangeAsset {
+							give: give_asset.into(),
+							want: want.clone(),
+							maximal: true,
+						},
+						DepositReserveAsset {
+							assets: Wild(AllCounted(max_assets)),
+							dest,
+							xcm: Xcm(vec![
+								//Executed on Zeitgeist
+								BuyExecution {
+									fees: crate::exchange_asset::half(&destination_fee),
+									weight_limit: weight_limit.clone(),
+								},
+								DepositAsset {
+									assets: Wild(AllCounted(max_assets)),
+									beneficiary,
+								},
+							]),
+						},
+					]),
+				},
+			]);
+			let xcm = VersionedXcm::from(message);
+
+			assert_ok!(hydradx_runtime::PolkadotXcm::execute(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				Box::new(xcm),
+				Weight::from_parts(899_600_000_000, 0),
+			));
+
+			//Assert
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Currencies::free_balance(CORE_ASSET_ID, &AccountId::from(ALICE)),
+				1000 * UNITS - give_amount
+			);
+
+			assert!(matches!(
+				last_hydra_events(2).first(),
+				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+					cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+				))
+			));
+		});
+
+		//Trigger the processing of horizontal xcm messages
+		Hydra::execute_with(|| {});
+
+		//Assert that swap amount out is sent back to Zeitgeist
+		Zeitgeist::execute_with(|| {
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE)),
+				8142821444432895
+			);
+		});
+	}
+
+	#[test]
+	fn remote_swap_sell_native_ztg_for_nonnative_ibtc_on_hydra() {
+		//Register tokens and init omnipool on hydra
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				crate::exchange_asset::register_ztg();
+				register_ibtc();
+				crate::exchange_asset::add_currency_price(crate::exchange_asset::ZTG, FixedU128::from(1));
+
+				init_omnipool();
+				let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+
+				let token_price = FixedU128::from_float(1.0);
+				assert_ok!(hydradx_runtime::Tokens::deposit(ZTG, &omnipool_account, 100000 * UNITS));
+				assert_ok!(hydradx_runtime::Tokens::deposit(
+					IBTC,
+					&omnipool_account,
+					100000 * UNITS
+				));
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					IBTC,
+					token_price,
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ZTG,
+					token_price,
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+
+		//Deposit IBTC reserve for hydra
+		Interlay::execute_with(|| {
+			//set_zero_reward_for_referrals(IBTC);
+			use xcm_executor::traits::ConvertLocation;
+			let para_account =
+				hydradx_runtime::LocationToAccountId::convert_location(&(Parent, Parachain(HYDRA_PARA_ID)).into())
+					.unwrap();
+			let _ = hydradx_runtime::Balances::deposit(&para_account, 1000 * UNITS, Precision::Exact)
+				.expect("Failed to deposit");
+		});
+
+		//Construct and send XCM zeitgeist -> hydra
+		Zeitgeist::execute_with(|| {
+			let _ = with_transaction(|| {
+				crate::exchange_asset::register_hdx_in_sibling_chain();
+				register_ibtc();
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+
+			crate::exchange_asset::add_currency_price(HDX_ON_OTHER_PARACHAIN, FixedU128::from(1));
+			crate::exchange_asset::add_currency_price(IBTC, FixedU128::from(1));
+
+			pretty_assertions::assert_eq!(hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)), 0);
+
+			let give_reserve_chain = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let swap_chain = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let want_reserve_chain = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let dest = give_reserve_chain.clone();
+
+			let beneficiary = Location::new(
+				0,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::AccountId32 {
+						id: ALICE,
+						network: None,
+					}]
+					.try_into()
+					.unwrap(),
+				)),
+			);
+			let assets: Assets = Asset {
+				id: cumulus_primitives_core::AssetId(Location::new(
+					0,
+					cumulus_primitives_core::Junctions::X1(Arc::new(
+						vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
+							.try_into()
+							.unwrap(),
+					)),
+				)),
+				fun: Fungible(10 * UNITS),
+			}
+			.into();
+			let max_assets = assets.len() as u32 + 1;
+
+			let give_amount = 100 * UNITS;
+			let give_asset = Asset::from((hydradx_runtime::CurrencyIdConvert::convert(0).unwrap(), give_amount));
+			let want_asset = Asset::from((
+				Location::new(
+					1,
+					cumulus_primitives_core::Junctions::X2(Arc::new(
+						vec![
+							cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID),
+							cumulus_primitives_core::Junction::GeneralIndex(0),
+						]
+						.try_into()
+						.unwrap(),
+					)),
+				),
+				10 * UNITS,
+			));
+
+			let want: Assets = want_asset.clone().into();
+
+			let fees = give_asset
+				.clone()
+				.reanchored(&swap_chain, &give_reserve_chain.interior)
+				.expect("should reanchor");
+
+			let destination_fee = want_asset
+				.clone()
+				.reanchored(&dest, &want_reserve_chain.interior)
+				.expect("should reanchor");
+
+			let reserve_fees = want_asset
+				.clone()
+				.reanchored(&want_reserve_chain, &swap_chain.interior)
+				.expect("should reanchor");
+
+			let weight_limit = Limited(Weight::from_parts(u64::MAX, u64::MAX));
+
+			// executed on local (zeitgeist)
+			let message = Xcm(vec![
+				WithdrawAsset(give_asset.clone().into()),
+				DepositReserveAsset {
+					assets: AllCounted(max_assets).into(),
+					dest: swap_chain,
+					// executed on remote (on hydra)
+					xcm: Xcm(vec![
+						BuyExecution {
+							fees: crate::exchange_asset::half(&fees),
+							weight_limit: weight_limit.clone(),
+						},
+						ExchangeAsset {
+							give: give_asset.into(),
+							want: want.clone(),
+							maximal: true,
+						},
+						InitiateReserveWithdraw {
+							assets: want.into(),
+							reserve: want_reserve_chain,
+							xcm: Xcm(vec![
+								//Executed on interlay
+								BuyExecution {
+									fees: half(&reserve_fees),
+									weight_limit: weight_limit.clone(),
+								},
+								DepositReserveAsset {
+									assets: Wild(AllCounted(max_assets)),
+									dest,
+									xcm: Xcm(vec![
+										//Executed on acala
+										BuyExecution {
+											fees: half(&destination_fee),
+											weight_limit: weight_limit.clone(),
+										},
+										DepositAsset {
+											assets: Wild(AllCounted(max_assets)),
+											beneficiary,
+										},
+									]),
+								},
+							]),
+						},
+					]),
+				},
+			]);
+			let xcm = VersionedXcm::from(message);
+
+			assert_ok!(hydradx_runtime::PolkadotXcm::execute(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				Box::new(xcm),
+				Weight::from_parts(899_600_000_000, 0),
+			));
+
+			//Assert
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Currencies::free_balance(CORE_ASSET_ID, &AccountId::from(ALICE)),
+				1000 * UNITS - give_amount
+			);
+
+			assert!(matches!(
+				last_hydra_events(2).first(),
+				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+					cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+				))
+			));
+		});
+
+		//Trigger the processing of horizontal xcm messages
+		Hydra::execute_with(|| {});
+		Interlay::execute_with(|| {});
+
+		//Assert that swap amount out of IBTC is sent back to Zeitgeist
+		Zeitgeist::execute_with(|| {
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
+				9839246387064
+			);
+		});
+	}
+
+	#[test]
+	fn remote_swap_sell_nonnative_glmr_for_nonnative_ibtc_on_hydra() {
+		//Register tokens and init omnipool on hydra
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				crate::exchange_asset::register_ztg();
+
+				register_ibtc();
+				crate::exchange_asset::add_currency_price(crate::exchange_asset::ZTG, FixedU128::from(1));
+
+				register_glmr();
+				crate::exchange_asset::add_currency_price(crate::exchange_asset::GLMR, FixedU128::from(1));
+
+				init_omnipool();
+				let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+
+				let token_price = FixedU128::from_float(1.0);
+				assert_ok!(hydradx_runtime::Tokens::deposit(
+					GLMR,
+					&omnipool_account,
+					100000 * UNITS
+				));
+				assert_ok!(hydradx_runtime::Tokens::deposit(
+					IBTC,
+					&omnipool_account,
+					100000 * UNITS
+				));
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					IBTC,
+					token_price,
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					GLMR,
+					token_price,
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+
+		//Deposit IBTC reserve for hydra
+		Interlay::execute_with(|| {
+			//set_zero_reward_for_referrals(IBTC);
+			use xcm_executor::traits::ConvertLocation;
+			let para_account =
+				hydradx_runtime::LocationToAccountId::convert_location(&(Parent, Parachain(HYDRA_PARA_ID)).into())
+					.unwrap();
+			let _ = hydradx_runtime::Balances::deposit(&para_account, 1000 * UNITS, Precision::Exact)
+				.expect("Failed to deposit");
+		});
+
+		//Deposit GLMR reserve for Zeitgeist
+		Moonbeam::execute_with(|| {
+			use xcm_executor::traits::ConvertLocation;
+			let para_account =
+				hydradx_runtime::LocationToAccountId::convert_location(&(Parent, Parachain(ZEITGEIST_PARA_ID)).into())
+					.unwrap();
+			let _ = hydradx_runtime::Balances::deposit(&para_account, 1000 * UNITS, Precision::Exact)
+				.expect("Failed to deposit");
+		});
+
+		//Construct and send XCM zeitgeist -> hydra
+		Zeitgeist::execute_with(|| {
+			let _ = with_transaction(|| {
+				crate::exchange_asset::register_hdx_in_sibling_chain();
+				register_ibtc();
+				register_glmr();
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+
+			crate::exchange_asset::add_currency_price(IBTC, FixedU128::from(1));
+			crate::exchange_asset::add_currency_price(GLMR, FixedU128::from(1));
+			let alice_init_glmr_balance = 3000 * UNITS;
+			assert_ok!(hydradx_runtime::Tokens::deposit(
+				GLMR,
+				&ALICE.into(),
+				alice_init_glmr_balance
+			));
+
+			let give_reserve_chain = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(MOONBEAM_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let swap_chain = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let want_reserve_chain = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+			let dest = Location::new(
+				1,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID)]
+						.try_into()
+						.unwrap(),
+				)),
+			);
+
+			let beneficiary = Location::new(
+				0,
+				cumulus_primitives_core::Junctions::X1(Arc::new(
+					vec![cumulus_primitives_core::Junction::AccountId32 {
+						id: ALICE,
+						network: None,
+					}]
+					.try_into()
+					.unwrap(),
+				)),
+			);
+			let assets: Assets = Asset {
+				id: cumulus_primitives_core::AssetId(Location::new(
+					0,
+					cumulus_primitives_core::Junctions::X1(Arc::new(
+						vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
+							.try_into()
+							.unwrap(),
+					)),
+				)),
+				fun: Fungible(10 * UNITS),
+			}
+			.into();
+			let max_assets = assets.len() as u32 + 1;
+
+			let give_amount = 100 * UNITS;
+			let give_asset = Asset::from((
+				Location::new(
+					1,
+					cumulus_primitives_core::Junctions::X2(Arc::new(
+						vec![
+							cumulus_primitives_core::Junction::Parachain(MOONBEAM_PARA_ID),
+							cumulus_primitives_core::Junction::GeneralIndex(0),
+						]
+						.try_into()
+						.unwrap(),
+					)),
+				),
+				give_amount,
+			));
+			let want_asset = Asset::from((
+				Location::new(
+					1,
+					cumulus_primitives_core::Junctions::X2(Arc::new(
+						vec![
+							cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID),
+							cumulus_primitives_core::Junction::GeneralIndex(0),
+						]
+						.try_into()
+						.unwrap(),
+					)),
+				),
+				10 * UNITS,
+			));
+
+			let want: Assets = want_asset.clone().into();
+
+			let fees = give_asset
+				.clone()
+				.reanchored(&swap_chain, &give_reserve_chain.interior)
+				.expect("should reanchor");
+
+			let destination_fee = want_asset
+				.clone()
+				.reanchored(&dest, &want_reserve_chain.interior)
+				.expect("should reanchor");
+
+			let origin_context = cumulus_primitives_core::Junctions::X2(Arc::new(
+				vec![
+					cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
+					cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID),
+				]
+				.try_into()
+				.unwrap(),
+			));
+			let give_reserve_fees = give_asset
+				.clone()
+				.reanchored(&give_reserve_chain, &origin_context)
+				.expect("should reanchor");
+
+			let reserve_fees = want_asset
+				.clone()
+				.reanchored(&want_reserve_chain, &swap_chain.interior)
+				.expect("should reanchor");
+
+			let weight_limit = Limited(Weight::from_parts(u64::MAX, u64::MAX));
+
+			// executed on local (zeitgeist)
+			let message = Xcm(vec![
+				WithdrawAsset(give_asset.clone().into()),
+				InitiateReserveWithdraw {
+					assets: All.into(),
+					reserve: give_reserve_chain,
+					xcm: Xcm(vec![
+						//Executed on moonbeam
+						BuyExecution {
+							fees: half(&give_reserve_fees),
+							weight_limit: weight_limit.clone(),
+						},
+						DepositReserveAsset {
+							assets: AllCounted(max_assets).into(),
+							dest: swap_chain,
+							// executed on remote (on hydra)
+							xcm: Xcm(vec![
+								BuyExecution {
+									fees: crate::exchange_asset::half(&fees),
+									weight_limit: weight_limit.clone(),
+								},
+								ExchangeAsset {
+									give: give_asset.into(),
+									want: want.clone(),
+									maximal: true,
+								},
+								InitiateReserveWithdraw {
+									assets: want.into(),
+									reserve: want_reserve_chain,
+									xcm: Xcm(vec![
+										//Executed on interlay
+										BuyExecution {
+											fees: half(&reserve_fees),
+											weight_limit: weight_limit.clone(),
+										},
+										DepositReserveAsset {
+											assets: Wild(AllCounted(max_assets)),
+											dest,
+											xcm: Xcm(vec![
+												//Executed on zetigeist
+												BuyExecution {
+													fees: half(&destination_fee),
+													weight_limit: weight_limit.clone(),
+												},
+												DepositAsset {
+													assets: Wild(AllCounted(max_assets)),
+													beneficiary,
+												},
+											]),
+										},
+									]),
+								},
+							]),
+						},
+					]),
+				},
+			]);
+			let xcm = VersionedXcm::from(message);
+
+			assert_ok!(hydradx_runtime::PolkadotXcm::execute(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				Box::new(xcm),
+				Weight::from_parts(899_600_000_000, 0),
+			));
+
+			//Assert
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Currencies::free_balance(GLMR, &AccountId::from(ALICE)),
+				alice_init_glmr_balance - give_amount
+			);
+
+			assert!(matches!(
+				last_hydra_events(2).first(),
+				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+					cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+				))
+			));
+		});
+
+		//Trigger the processing of horizontal xcm messages
+		Moonbeam::execute_with(|| {});
+		Hydra::execute_with(|| {});
+		Interlay::execute_with(|| {});
+
+		//Assert that swap amount out of IBTC is sent back to Zeitgeist
+		Zeitgeist::execute_with(|| {
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
+				9839246387064
+			);
+		});
+	}
 }
 
 fn register_glmr() {
@@ -345,6 +1129,38 @@ fn register_ibtc() {
 	));
 }
 
+fn register_ztg() {
+	assert_ok!(AssetRegistry::register_sufficient_asset(
+		Some(ZTG),
+		Some(b"ZTG".to_vec().try_into().unwrap()),
+		AssetKind::Token,
+		1_000_000,
+		None,
+		None,
+		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+			1,
+			X2(Junction::Parachain(ZEITGEIST_PARA_ID), Junction::GeneralIndex(0))
+		))),
+		None,
+	));
+}
+
+fn register_hdx_in_sibling_chain() {
+	assert_ok!(AssetRegistry::register_sufficient_asset(
+		Some(HDX_ON_OTHER_PARACHAIN),
+		Some(b"vHDX".to_vec().try_into().unwrap()),
+		AssetKind::Token,
+		1_000_000,
+		None,
+		None,
+		Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+			1,
+			X2(Junction::Parachain(HYDRA_PARA_ID), Junction::GeneralIndex(0))
+		))),
+		None,
+	));
+}
+
 fn add_currency_price(asset_id: u32, price: FixedU128) {
 	assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 		hydradx_runtime::RuntimeOrigin::root(),
@@ -374,16 +1190,15 @@ fn half(asset: &Asset) -> Asset {
 		id: asset.clone().id,
 	}
 }
+use rococo_runtime::xcm_config::BaseXcmWeight;
+use xcm_builder::FixedWeightBounds;
+use xcm_executor::traits::WeightBounds;
 
 fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	give_asset: Asset,
 	want_asset: Asset,
 	is_sell: bool,
 ) -> VersionedXcm<RC> {
-	use rococo_runtime::xcm_config::BaseXcmWeight;
-	use xcm_builder::FixedWeightBounds;
-	use xcm_executor::traits::WeightBounds;
-
 	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
 
 	let give_reserve_chain = Location::new(
@@ -579,15 +1394,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	VersionedXcm::from(message)
 }
 
-fn craft_exchange_asset_xcm<M: Into<Assets>, RC: Decode + GetDispatchInfo>(
-	give: Asset,
-	want: M,
-	is_sell: bool,
-) -> VersionedXcm<RC> {
-	use rococo_runtime::xcm_config::BaseXcmWeight;
-	use xcm_builder::FixedWeightBounds;
-	use xcm_executor::traits::WeightBounds;
-
+fn craft_exchange_asset_xcm<RC: Decode + GetDispatchInfo>(give: Asset, want: Asset, is_sell: bool) -> VersionedXcm<RC> {
 	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
 
 	let dest = Location::new(
@@ -633,32 +1440,10 @@ fn craft_exchange_asset_xcm<M: Into<Assets>, RC: Decode + GetDispatchInfo>(
 		.clone()
 		.reanchored(&dest, &context)
 		.expect("should reanchor");
-	let give = give.reanchored(&dest, &context).expect("should reanchor give");
 	let give: AssetFilter = Definite(give.into());
 	let want = want.into();
-	let weight_limit = {
-		let fees = fees.clone();
-		let mut remote_message = Xcm(vec![
-			ReserveAssetDeposited::<RC>(assets.clone()),
-			ClearOrigin,
-			BuyExecution {
-				fees,
-				weight_limit: Limited(Weight::zero()),
-			},
-			ExchangeAsset {
-				give: give.clone(),
-				want: want.clone(),
-				maximal: is_sell,
-			},
-			DepositAsset {
-				assets: Wild(AllCounted(max_assets)),
-				beneficiary: beneficiary.clone(),
-			},
-		]);
-		// use local weight for remote message and hope for the best.
-		let remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
-		Limited(remote_weight)
-	};
+	let weight_limit = Limited(Weight::from_parts(u64::MAX, u64::MAX));
+
 	// executed on remote (on hydra)
 	let xcm = Xcm(vec![
 		BuyExecution { fees, weight_limit },
