@@ -32,6 +32,8 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 pallet-democracy = { workspace = true }
+pallet-conviction-voting= { workspace = true }
+pallet-referenda = { workspace = true }
 
 [dev-dependencies]
 pallet-uniques = { workspace = true }
@@ -56,6 +58,7 @@ std = [
 	"pallet-uniques/std",
 	"orml-tokens/std",
 	"pallet-democracy/std",
+	"pallet-conviction-voting/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

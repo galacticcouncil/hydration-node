@@ -1,18 +1,18 @@
 use crate::pallet::{PositionVotes, Positions, ProcessedVotes};
 use crate::traits::{GetReferendumState, VestingDetails};
-use crate::types::{Action, Balance, Conviction, Vote};
+use crate::types::{Action, Balance, Conviction, ReferendumIndex, Vote};
 use crate::{Config, Error, Pallet};
 use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use pallet_democracy::traits::DemocracyHooks;
-use pallet_democracy::{AccountVote, ReferendumIndex, ReferendumInfo};
+use pallet_conviction_voting::traits::VotingHooks;
+use pallet_conviction_voting::AccountVote;
 use sp_core::Get;
 use sp_runtime::FixedPointNumber;
 
-pub struct StakingDemocracy<T>(sp_std::marker::PhantomData<T>);
+pub struct StakingConvictionVoting<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T>
+impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for StakingConvictionVoting<T>
 where
 	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 {
@@ -41,13 +41,13 @@ where
 			let amount = vote.balance();
 			let conviction = if let AccountVote::Standard { vote, .. } = vote {
 				match vote.conviction {
-					pallet_democracy::Conviction::None => Conviction::None,
-					pallet_democracy::Conviction::Locked1x => Conviction::Locked1x,
-					pallet_democracy::Conviction::Locked2x => Conviction::Locked2x,
-					pallet_democracy::Conviction::Locked3x => Conviction::Locked3x,
-					pallet_democracy::Conviction::Locked4x => Conviction::Locked4x,
-					pallet_democracy::Conviction::Locked5x => Conviction::Locked5x,
-					pallet_democracy::Conviction::Locked6x => Conviction::Locked6x,
+					pallet_conviction_voting::Conviction::None => Conviction::None,
+					pallet_conviction_voting::Conviction::Locked1x => Conviction::Locked1x,
+					pallet_conviction_voting::Conviction::Locked2x => Conviction::Locked2x,
+					pallet_conviction_voting::Conviction::Locked3x => Conviction::Locked3x,
+					pallet_conviction_voting::Conviction::Locked4x => Conviction::Locked4x,
+					pallet_conviction_voting::Conviction::Locked5x => Conviction::Locked5x,
+					pallet_conviction_voting::Conviction::Locked6x => Conviction::Locked6x,
 				}
 			} else {
 				Conviction::default()
@@ -213,9 +213,10 @@ where
 
 pub struct ReferendumStatus<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: pallet_democracy::Config> GetReferendumState<pallet_democracy::ReferendumIndex> for ReferendumStatus<T> {
-	fn is_referendum_finished(index: pallet_democracy::ReferendumIndex) -> bool {
-		let maybe_info = pallet_democracy::Pallet::<T>::referendum_info(index);
-		matches!(maybe_info, Some(ReferendumInfo::Finished { .. }))
+impl<T: pallet_referenda::Config> GetReferendumState<ReferendumIndex> for ReferendumStatus<T> {
+	fn is_referendum_finished(_index: ReferendumIndex) -> bool {
+		todo!()
+		//let maybe_info = pallet_democracy::Pallet::<T>::referendum_info(index);
+		//matches!(maybe_info, Some(ReferendumInfo::Finished { .. }))
 	}
 }
