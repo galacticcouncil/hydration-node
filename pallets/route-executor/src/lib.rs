@@ -161,13 +161,7 @@ pub mod pallet {
 		NotAllowed,
 	}
 
-	/// Flag to indicate if the route execution is in the middle of the route
-	/// Mainly used for disabling ED charging for the trades in the middle of the route
-	#[pallet::storage]
-	#[pallet::getter(fn next_schedule_id)]
-	pub type InMiddleOfRoute<T: Config> = StorageValue<_, bool, ValueQuery>;
-
-	//TODO: add doc
+	///Flag to indicate when to skip ED handling
 	#[pallet::storage]
 	#[pallet::getter(fn last_trade_position)]
 	pub type SkipEd<T: Config> = StorageValue<_, SkipEdState, OptionQuery>;
