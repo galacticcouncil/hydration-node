@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "239.0.0"
+version = "242.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -307,6 +307,7 @@ std = [
     "pallet-evm-precompile-modexp/std",
     "pallet-evm-precompile-bn128/std",
     "pallet-evm-precompile-blake2/std",
+    "pallet-evm-precompile-call-permit/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
     "pallet-evm-accounts/std",
@@ -315,7 +316,6 @@ std = [
     "parachains-common/std",
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",
-    "pallet-evm-precompile-call-permit/std",
 ]
 try-runtime= [
     "frame-try-runtime",

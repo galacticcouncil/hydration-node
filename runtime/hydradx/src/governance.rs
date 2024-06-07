@@ -24,7 +24,10 @@ use primitives::constants::{
 use frame_support::{
 	parameter_types,
 	sp_runtime::{Perbill, Percent, Permill},
-	traits::{tokens::UnityAssetBalanceConversion, ConstU32, EitherOfDiverse, LockIdentifier, PrivilegeCmp},
+	traits::{
+		fungible::HoldConsideration, tokens::UnityAssetBalanceConversion, ConstU32, EitherOfDiverse,
+		LinearStoragePrice, LockIdentifier, PrivilegeCmp,
+	},
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -143,17 +146,12 @@ impl pallet_preimage::Config for Runtime {
 	type WeightInfo = weights::pallet_preimage::HydraWeight<Runtime>;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
-	type Consideration = ();
-	//TODO: check this - this does not compile for some reason
-	/*
 	type Consideration = HoldConsideration<
 		AccountId,
 		Balances,
 		PreimageHoldReason,
 		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
 	>;
-
-	 */
 }
 
 /// Used the compare the privilege of an origin inside the scheduler.
