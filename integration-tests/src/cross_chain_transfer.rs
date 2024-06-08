@@ -437,14 +437,10 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 		let asset: Asset = Asset {
 			id: cumulus_primitives_core::AssetId(Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new(
-					vec![
-						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-						cumulus_primitives_core::Junction::GeneralIndex(0),
-					]
-					.try_into()
-					.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X2(Arc::new([
+					cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0),
+				])),
 			)),
 			fun: Fungible(30 * UNITS),
 		};
@@ -482,11 +478,10 @@ fn claim_trapped_asset_should_work() {
 
 	let bob_loc = Location::new(
 		0,
-		cumulus_primitives_core::Junctions::X1(Arc::new(
-			vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
-				.try_into()
-				.unwrap(),
-		)),
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+			id: BOB,
+			network: None,
+		}])),
 	);
 
 	claim_asset(asset.clone(), bob_loc);
@@ -533,24 +528,19 @@ fn transfer_foreign_asset_from_asset_hub_to_hydra_should_work() {
 		let foreign_asset: Asset = Asset {
 			id: cumulus_primitives_core::AssetId(Location::new(
 				2,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::GlobalConsensus(
-						cumulus_primitives_core::NetworkId::BitcoinCash,
-					)]
-					.try_into()
-					.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GlobalConsensus(
+					cumulus_primitives_core::NetworkId::BitcoinCash,
+				)])),
 			)),
 			fun: Fungible(100 * UNITS),
 		};
 
 		let bob_beneficiary = Location::new(
 			0,
-			cumulus_primitives_core::Junctions::X1(Arc::new(
-				vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
-					.try_into()
-					.unwrap(),
-			)),
+			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+				id: BOB,
+				network: None,
+			}])),
 		);
 
 		let xcm =
@@ -617,24 +607,19 @@ fn transfer_foreign_asset_from_acala_to_hydra_should_not_work() {
 		let foreign_asset: Asset = Asset {
 			id: cumulus_primitives_core::AssetId(Location::new(
 				2,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::GlobalConsensus(
-						cumulus_primitives_core::NetworkId::BitcoinCash,
-					)]
-					.try_into()
-					.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GlobalConsensus(
+					cumulus_primitives_core::NetworkId::BitcoinCash,
+				)])),
 			)),
 			fun: Fungible(100 * UNITS),
 		};
 
 		let bob_beneficiary = Location::new(
 			0,
-			cumulus_primitives_core::Junctions::X1(Arc::new(
-				vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
-					.try_into()
-					.unwrap(),
-			)),
+			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+				id: BOB,
+				network: None,
+			}])),
 		);
 
 		let xcm =
@@ -708,11 +693,10 @@ fn transfer_dot_reserve_from_asset_hub_to_hydra_should_not_work() {
 
 		let bob_beneficiary = Location::new(
 			0,
-			cumulus_primitives_core::Junctions::X1(Arc::new(
-				vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
-					.try_into()
-					.unwrap(),
-			)),
+			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+				id: BOB,
+				network: None,
+			}])),
 		);
 
 		let xcm = xcm_for_deposit_reserve_asset_to_hydra::<hydradx_runtime::RuntimeCall>(dot, bob_beneficiary);
@@ -785,11 +769,10 @@ fn transfer_dot_reserve_from_non_asset_hub_chain_to_hydra_should_not_work() {
 
 		let bob_beneficiary = Location::new(
 			0,
-			cumulus_primitives_core::Junctions::X1(Arc::new(
-				vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
-					.try_into()
-					.unwrap(),
-			)),
+			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+				id: BOB,
+				network: None,
+			}])),
 		);
 
 		let xcm = xcm_for_deposit_reserve_asset_to_hydra::<hydradx_runtime::RuntimeCall>(dot, bob_beneficiary);
@@ -828,21 +811,13 @@ fn xcm_for_deposit_reserve_asset_to_hydra<RC: Decode + GetDispatchInfo>(
 
 	let dest = Location::new(
 		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new(
-			vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
-				.try_into()
-				.unwrap(),
-		)),
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)])),
 	);
 
-	let context = cumulus_primitives_core::Junctions::X2(Arc::new(
-		vec![
-			cumulus_primitives_core::Junction::GlobalConsensus(cumulus_primitives_core::NetworkId::Polkadot),
-			cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-		]
-		.try_into()
-		.unwrap(),
-	));
+	let context = cumulus_primitives_core::Junctions::X2(Arc::new([
+		cumulus_primitives_core::Junction::GlobalConsensus(cumulus_primitives_core::NetworkId::Polkadot),
+		cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+	]));
 
 	let fee_asset = assets.clone().reanchored(&dest, &context).expect("should reanchor");
 	let weight_limit = {
@@ -961,14 +936,10 @@ fn trap_asset() -> Asset {
 	let asset: Asset = Asset {
 		id: cumulus_primitives_core::AssetId(Location::new(
 			1,
-			cumulus_primitives_core::Junctions::X2(Arc::new(
-				vec![
-					cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-					cumulus_primitives_core::Junction::GeneralIndex(0),
-				]
-				.try_into()
-				.unwrap(),
-			)),
+			cumulus_primitives_core::Junctions::X2(Arc::new([
+				cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			])),
 		)),
 		fun: Fungible(30 * UNITS),
 	};
@@ -1015,14 +986,10 @@ fn rococo_xcm_execute_extrinsic_should_be_allowed() {
 	Hydra::execute_with(|| {
 		let hdx_loc = Location::new(
 			1,
-			cumulus_primitives_core::Junctions::X2(Arc::new(
-				vec![
-					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
-					cumulus_primitives_core::Junction::GeneralIndex(0),
-				]
-				.try_into()
-				.unwrap(),
-			)),
+			cumulus_primitives_core::Junctions::X2(Arc::new([
+				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			])),
 		);
 		let asset_to_withdraw: Asset = Asset {
 			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),

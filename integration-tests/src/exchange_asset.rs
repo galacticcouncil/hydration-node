@@ -68,14 +68,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		let give = Asset::from((
 			Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new(
-					vec![
-						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-						cumulus_primitives_core::Junction::GeneralIndex(0),
-					]
-					.try_into()
-					.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X2(Arc::new([
+					cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0),
+				])),
 			),
 			50 * UNITS,
 		));
@@ -83,14 +79,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		let want = Asset::from((
 			Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new(
-					vec![
-						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
-						cumulus_primitives_core::Junction::GeneralIndex(0),
-					]
-					.try_into()
-					.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X2(Arc::new([
+					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0),
+				])),
 			),
 			300 * UNITS,
 		));
@@ -165,14 +157,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 		let give = Asset::from((
 			Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new(
-					vec![
-						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-						cumulus_primitives_core::Junction::GeneralIndex(0),
-					]
-					.try_into()
-					.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X2(Arc::new([
+					cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0),
+				])),
 			),
 			50 * UNITS,
 		));
@@ -180,14 +168,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 		let want = Asset::from((
 			Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new(
-					vec![
-						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
-						cumulus_primitives_core::Junction::GeneralIndex(0),
-					]
-					.try_into()
-					.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X2(Arc::new([
+					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0),
+				])),
 			),
 			amount_out,
 		));
@@ -409,42 +393,32 @@ pub mod zeitgeist_use_cases {
 
 			let give_reserve_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID)]
-						.try_into()
-						.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+					ZEITGEIST_PARA_ID,
+				)])),
 			);
 			let swap_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
-						.try_into()
-						.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+					HYDRA_PARA_ID,
+				)])),
 			);
 			let want_reserve_chain = swap_chain.clone();
 			let dest = give_reserve_chain.clone();
 
 			let beneficiary = Location::new(
 				0,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::AccountId32 {
-						id: ALICE,
-						network: None,
-					}]
-					.try_into()
-					.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+					id: ALICE,
+					network: None,
+				}])),
 			);
 			let assets: Assets = Asset {
 				id: cumulus_primitives_core::AssetId(Location::new(
 					0,
-					cumulus_primitives_core::Junctions::X1(Arc::new(
-						vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
-							.try_into()
-							.unwrap(),
-					)),
+					cumulus_primitives_core::Junctions::X1(Arc::new([
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					])),
 				)),
 				fun: Fungible(100 * UNITS),
 			}
@@ -456,14 +430,10 @@ pub mod zeitgeist_use_cases {
 			let want_asset = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new(
-						vec![
-							cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
-							cumulus_primitives_core::Junction::GeneralIndex(0),
-						]
-						.try_into()
-						.unwrap(),
-					)),
+					cumulus_primitives_core::Junctions::X2(Arc::new([
+						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					])),
 				),
 				100 * UNITS,
 			));
@@ -615,49 +585,37 @@ pub mod zeitgeist_use_cases {
 
 			let give_reserve_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID)]
-						.try_into()
-						.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+					ZEITGEIST_PARA_ID,
+				)])),
 			);
 			let swap_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
-						.try_into()
-						.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+					HYDRA_PARA_ID,
+				)])),
 			);
 			let want_reserve_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID)]
-						.try_into()
-						.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+					INTERLAY_PARA_ID,
+				)])),
 			);
 			let dest = give_reserve_chain.clone();
 
 			let beneficiary = Location::new(
 				0,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::AccountId32 {
-						id: ALICE,
-						network: None,
-					}]
-					.try_into()
-					.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+					id: ALICE,
+					network: None,
+				}])),
 			);
 			let assets: Assets = Asset {
 				id: cumulus_primitives_core::AssetId(Location::new(
 					0,
-					cumulus_primitives_core::Junctions::X1(Arc::new(
-						vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
-							.try_into()
-							.unwrap(),
-					)),
+					cumulus_primitives_core::Junctions::X1(Arc::new([
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					])),
 				)),
 				fun: Fungible(10 * UNITS),
 			}
@@ -669,14 +627,10 @@ pub mod zeitgeist_use_cases {
 			let want_asset = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new(
-						vec![
-							cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID),
-							cumulus_primitives_core::Junction::GeneralIndex(0),
-						]
-						.try_into()
-						.unwrap(),
-					)),
+					cumulus_primitives_core::Junctions::X2(Arc::new([
+						cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					])),
 				),
 				10 * UNITS,
 			));
@@ -869,56 +823,42 @@ pub mod zeitgeist_use_cases {
 
 			let give_reserve_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::Parachain(MOONBEAM_PARA_ID)]
-						.try_into()
-						.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+					MOONBEAM_PARA_ID,
+				)])),
 			);
 			let swap_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
-						.try_into()
-						.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+					HYDRA_PARA_ID,
+				)])),
 			);
 			let want_reserve_chain = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID)]
-						.try_into()
-						.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+					INTERLAY_PARA_ID,
+				)])),
 			);
 			let dest = Location::new(
 				1,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID)]
-						.try_into()
-						.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+					ZEITGEIST_PARA_ID,
+				)])),
 			);
 
 			let beneficiary = Location::new(
 				0,
-				cumulus_primitives_core::Junctions::X1(Arc::new(
-					vec![cumulus_primitives_core::Junction::AccountId32 {
-						id: ALICE,
-						network: None,
-					}]
-					.try_into()
-					.unwrap(),
-				)),
+				cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+					id: ALICE,
+					network: None,
+				}])),
 			);
 			let assets: Assets = Asset {
 				id: cumulus_primitives_core::AssetId(Location::new(
 					0,
-					cumulus_primitives_core::Junctions::X1(Arc::new(
-						vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
-							.try_into()
-							.unwrap(),
-					)),
+					cumulus_primitives_core::Junctions::X1(Arc::new([
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					])),
 				)),
 				fun: Fungible(10 * UNITS),
 			}
@@ -929,28 +869,20 @@ pub mod zeitgeist_use_cases {
 			let give_asset = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new(
-						vec![
-							cumulus_primitives_core::Junction::Parachain(MOONBEAM_PARA_ID),
-							cumulus_primitives_core::Junction::GeneralIndex(0),
-						]
-						.try_into()
-						.unwrap(),
-					)),
+					cumulus_primitives_core::Junctions::X2(Arc::new([
+						cumulus_primitives_core::Junction::Parachain(MOONBEAM_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					])),
 				),
 				give_amount,
 			));
 			let want_asset = Asset::from((
 				Location::new(
 					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new(
-						vec![
-							cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID),
-							cumulus_primitives_core::Junction::GeneralIndex(0),
-						]
-						.try_into()
-						.unwrap(),
-					)),
+					cumulus_primitives_core::Junctions::X2(Arc::new([
+						cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					])),
 				),
 				10 * UNITS,
 			));
@@ -967,14 +899,10 @@ pub mod zeitgeist_use_cases {
 				.reanchored(&dest, &want_reserve_chain.interior)
 				.expect("should reanchor");
 
-			let origin_context = cumulus_primitives_core::Junctions::X2(Arc::new(
-				vec![
-					cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
-					cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID),
-				]
-				.try_into()
-				.unwrap(),
-			));
+			let origin_context = cumulus_primitives_core::Junctions::X2(Arc::new([
+				cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
+				cumulus_primitives_core::Junction::Parachain(ZEITGEIST_PARA_ID),
+			]));
 			let give_reserve_fees = give_asset
 				.clone()
 				.reanchored(&give_reserve_chain, &origin_context)
@@ -1203,65 +1131,44 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 
 	let give_reserve_chain = Location::new(
 		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new(
-			vec![cumulus_primitives_core::Junction::Parachain(MOONBEAM_PARA_ID)]
-				.try_into()
-				.unwrap(),
-		)),
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+			MOONBEAM_PARA_ID,
+		)])),
 	);
 	let want_reserve_chain = Location::new(
 		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new(
-			vec![cumulus_primitives_core::Junction::Parachain(INTERLAY_PARA_ID)]
-				.try_into()
-				.unwrap(),
-		)),
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+			INTERLAY_PARA_ID,
+		)])),
 	);
 	let swap_chain = Location::new(
 		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new(
-			vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
-				.try_into()
-				.unwrap(),
-		)),
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)])),
 	);
 	let dest = Location::new(
 		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new(
-			vec![cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID)]
-				.try_into()
-				.unwrap(),
-		)),
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID)])),
 	);
 	let beneficiary = Location::new(
 		0,
-		cumulus_primitives_core::Junctions::X1(Arc::new(
-			vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
-				.try_into()
-				.unwrap(),
-		)),
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+			id: BOB,
+			network: None,
+		}])),
 	);
 	let assets: Assets = Asset {
 		id: cumulus_primitives_core::AssetId(Location::new(
 			0,
-			cumulus_primitives_core::Junctions::X1(Arc::new(
-				vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
-					.try_into()
-					.unwrap(),
-			)),
+			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(0)])),
 		)),
 		fun: Fungible(100 * UNITS),
 	}
 	.into();
 	let max_assets = assets.len() as u32 + 1;
-	let origin_context = cumulus_primitives_core::Junctions::X2(Arc::new(
-		vec![
-			cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
-			cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-		]
-		.try_into()
-		.unwrap(),
-	));
+	let origin_context = cumulus_primitives_core::Junctions::X2(Arc::new([
+		cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
+		cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+	]));
 	let give = give_asset
 		.clone()
 		.reanchored(&dest, &origin_context)
@@ -1395,45 +1302,30 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 }
 
 fn craft_exchange_asset_xcm<RC: Decode + GetDispatchInfo>(give: Asset, want: Asset, is_sell: bool) -> VersionedXcm<RC> {
-	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
-
 	let dest = Location::new(
 		1,
-		cumulus_primitives_core::Junctions::X1(Arc::new(
-			vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
-				.try_into()
-				.unwrap(),
-		)),
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)])),
 	);
 	let beneficiary = Location::new(
 		0,
-		cumulus_primitives_core::Junctions::X1(Arc::new(
-			vec![cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }]
-				.try_into()
-				.unwrap(),
-		)),
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+			id: BOB,
+			network: None,
+		}])),
 	);
 	let assets: Assets = Asset {
 		id: cumulus_primitives_core::AssetId(Location::new(
 			0,
-			cumulus_primitives_core::Junctions::X1(Arc::new(
-				vec![cumulus_primitives_core::Junction::GeneralIndex(0)]
-					.try_into()
-					.unwrap(),
-			)),
+			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(0)])),
 		)),
 		fun: Fungible(100 * UNITS),
 	}
 	.into();
 	let max_assets = assets.len() as u32 + 1;
-	let context = cumulus_primitives_core::Junctions::X2(Arc::new(
-		vec![
-			cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
-			cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-		]
-		.try_into()
-		.unwrap(),
-	));
+	let context = cumulus_primitives_core::Junctions::X2(Arc::new([
+		cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
+		cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+	]));
 	let fees = assets
 		.get(0)
 		.expect("should have at least 1 asset")

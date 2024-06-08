@@ -19,28 +19,21 @@ fn other_chain_remote_account_should_work_on_hydra() {
 	// Arrange
 	TestNet::reset();
 
-	let xcm_interior_at_acala = cumulus_primitives_core::Junctions::X1(Arc::new(
-		vec![cumulus_primitives_core::Junction::AccountId32 {
+	let xcm_interior_at_acala =
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
 			network: None,
 			id: evm_account().into(),
-		}]
-		.try_into()
-		.unwrap(),
-	));
+		}]));
 
 	let xcm_origin_at_hydra = Location {
 		parents: 1,
-		interior: cumulus_primitives_core::Junctions::X2(Arc::new(
-			vec![
-				cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-				cumulus_primitives_core::Junction::AccountId32 {
-					network: None,
-					id: evm_account().into(),
-				},
-			]
-			.try_into()
-			.unwrap(),
-		)),
+		interior: cumulus_primitives_core::Junctions::X2(Arc::new([
+			cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+			cumulus_primitives_core::Junction::AccountId32 {
+				network: None,
+				id: evm_account().into(),
+			},
+		])),
 	};
 
 	let acala_account_id_at_hydra: AccountId =
@@ -74,14 +67,10 @@ fn other_chain_remote_account_should_work_on_hydra() {
 
 		let hdx_loc = Location::new(
 			1,
-			cumulus_primitives_core::Junctions::X2(Arc::new(
-				vec![
-					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
-					cumulus_primitives_core::Junction::GeneralIndex(0),
-				]
-				.try_into()
-				.unwrap(),
-			)),
+			cumulus_primitives_core::Junctions::X2(Arc::new([
+				cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+				cumulus_primitives_core::Junction::GeneralIndex(0),
+			])),
 		);
 		let asset_to_withdraw: Asset = Asset {
 			id: cumulus_primitives_core::AssetId(hdx_loc.clone()),
@@ -117,11 +106,9 @@ fn other_chain_remote_account_should_work_on_hydra() {
 
 		let dest_hydradx = Location::new(
 			1,
-			cumulus_primitives_core::Junctions::X1(Arc::new(
-				vec![cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)]
-					.try_into()
-					.unwrap(),
-			)),
+			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				HYDRA_PARA_ID,
+			)])),
 		);
 
 		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
