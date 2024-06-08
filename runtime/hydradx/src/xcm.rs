@@ -118,7 +118,7 @@ parameter_types! {
 	pub const MaxNumberOfInstructions: u16 = 100;
 
 	pub UniversalLocation: InteriorLocation = [GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into())].into();
-	pub AssetHubLocation: Location = (Parent, Parachain(1000)).into();
+	pub AssetHubLocation: Location = (Parent, Parachain(ASSET_HUB_PARA_ID)).into();
 }
 
 /// Matches foreign assets from a given origin.
