@@ -426,6 +426,8 @@ pub mod pallet {
 		ZeroAmountOut,
 		/// Existential deposit of asset is not available.
 		ExistentialDepositNotAvailable,
+		/// Slippage protection
+		SlippageLimit,
 	}
 
 	#[pallet::call]
@@ -580,6 +582,44 @@ pub mod pallet {
 		)]
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
+			Self::add_liquidity_with_limit(origin, asset, amount, Balance::MIN)
+		}
+
+		/// Add liquidity of asset `asset` in quantity `amount` to Omnipool.
+		///
+		/// Limit protection is applied.
+		///
+		/// `add_liquidity` adds specified asset amount to Omnipool and in exchange gives the origin
+		/// corresponding shares amount in form of NFT at current price.
+		///
+		/// Asset's tradable state must contain ADD_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
+		///
+		/// NFT is minted using NTFHandler which implements non-fungibles traits from frame_support.
+		///
+		/// Asset weight cap must be respected, otherwise `AssetWeightExceeded` error is returned.
+		/// Asset weight is ratio between new HubAsset reserve and total reserve of Hub asset in Omnipool.
+		///
+		/// Add liquidity fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
+		///
+		/// Parameters:
+		/// - `asset`: The identifier of the new asset added to the pool. Must be already in the pool
+		/// - `amount`: Amount of asset added to omnipool
+		/// - `min_shares_limit`: The min amount of delta share asset the user should receive in the position
+		///
+		/// Emits `LiquidityAdded` event when successful.
+		///
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
+		.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()
+		.saturating_add(T::ExternalPriceOracle::get_price_weight()))
+		)]
+		#[transactional]
+		pub fn add_liquidity_with_limit(
+			origin: OriginFor<T>,
+			asset: T::AssetId,
+			amount: Balance,
+			min_shares_limit: Balance,
+		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
 			ensure!(
@@ -624,6 +664,11 @@ pub mod pallet {
 				current_hub_asset_liquidity,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(
+				*state_changes.asset.delta_shares >= min_shares_limit,
+				Error::<T>::SlippageLimit
+			);
 
 			let new_asset_state = asset_state
 				.delta_update(&state_changes.asset)
@@ -725,6 +770,40 @@ pub mod pallet {
 			position_id: T::PositionItemId,
 			amount: Balance,
 		) -> DispatchResult {
+			Self::remove_liquidity_with_limit(origin, position_id, amount, Balance::MIN)
+		}
+
+		/// Remove liquidity of asset `asset` in quantity `amount` from Omnipool
+		///
+		/// Limit protection is applied.
+		///
+		/// `remove_liquidity` removes specified shares amount from given PositionId (NFT instance).
+		///
+		/// Asset's tradable state must contain REMOVE_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
+		///
+		/// if all shares from given position are removed, position is destroyed and NFT is burned.
+		///
+		/// Remove liquidity fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
+		///
+		/// Dynamic withdrawal fee is applied if withdrawal is not safe. It is calculated using spot price and external price oracle.
+		/// Withdrawal is considered safe when trading is disabled.
+		///
+		/// Parameters:
+		/// - `position_id`: The identifier of position which liquidity is removed from.
+		/// - `amount`: Amount of shares removed from omnipool
+		/// - `min_limit`: The min amount of asset to be removed for the user
+		///
+		/// Emits `LiquidityRemoved` event when successful.
+		///
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
+		#[transactional]
+		pub fn remove_liquidity_with_limit(
+			origin: OriginFor<T>,
+			position_id: T::PositionItemId,
+			amount: Balance,
+			min_limit: Balance,
+		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
 			ensure!(amount > Balance::zero(), Error::<T>::InvalidSharesAmount);
@@ -789,6 +868,11 @@ pub mod pallet {
 				withdrawal_fee,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(
+				*state_changes.asset.delta_reserve >= min_limit,
+				Error::<T>::SlippageLimit
+			);
 
 			let new_asset_state = asset_state
 				.delta_update(&state_changes.asset)
