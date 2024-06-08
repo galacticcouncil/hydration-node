@@ -29,7 +29,6 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod tests;
 
 mod benchmarking;
-mod migrations;
 pub mod weights;
 
 mod assets;
