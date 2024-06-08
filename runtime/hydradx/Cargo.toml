@@ -45,6 +45,7 @@ pallet-xyk-liquidity-mining = { workspace = true }
 # pallets
 pallet-bags-list = { workspace = true }
 pallet-balances = { workspace = true }
+pallet-conviction-voting = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
@@ -59,9 +60,11 @@ pallet-collective = { workspace = true }
 pallet-tips = { workspace = true }
 pallet-proxy = { workspace = true }
 pallet-multisig = { workspace = true }
+pallet-referenda = { workspace = true }
 pallet-democracy = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-uniques = { workspace = true }
+pallet-whitelist = { workspace = true }
 pallet-xcm-rate-limiter = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
 
@@ -125,6 +128,7 @@ frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api = { workspace = true }
 frame-try-runtime = { workspace = true, optional = true }
 sp-api = { workspace = true }
+sp-arithmetic = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }
@@ -208,6 +212,9 @@ runtime-benchmarks = [
     "pallet-referrals/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-state-trie-migration/runtime-benchmarks",
+    "pallet-conviction-voting/runtime-benchmarks",
+    "pallet-referenda/runtime-benchmarks",
+    "pallet-whitelist/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -281,6 +288,7 @@ std = [
     "pallet-duster/std",
     "warehouse-liquidity-mining/std",
     "sp-api/std",
+    "sp-arithmetic/std",
     "sp-block-builder/std",
     "sp-consensus-aura/std",
     "sp-core/std",
@@ -311,6 +319,9 @@ std = [
     "pallet-evm-accounts-rpc-runtime-api/std",
     "pallet-xyk-liquidity-mining/std",
     "pallet-state-trie-migration/std",
+    "pallet-conviction-voting/std",
+    "pallet-referenda/std",
+    "pallet-whitelist/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -382,4 +393,7 @@ try-runtime= [
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",
     "pallet-state-trie-migration/try-runtime",
+    "pallet-conviction-voting/try-runtime",
+    "pallet-referenda/try-runtime",
+    "pallet-whitelist/try-runtime",
 ]
