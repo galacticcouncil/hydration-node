@@ -370,27 +370,6 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 				}
 			}
 		}
-
-		// Note: keeping the original code for reference until tests are successful
-		/*
-		match location {
-			Location {
-				parents: p,
-				interior: [Parachain(id), GeneralIndex(index)].into(),
-			} if p == 1 && ParaId::from(id) == ParachainInfo::get() && (index as u32) == CORE_ASSET_ID => {
-				// Handling native asset for this parachain
-				Some(CORE_ASSET_ID)
-			}
-			// handle reanchor canonical location: https://github.com/paritytech/polkadot/pull/4470
-			Location {
-				parents: 0,
-				interior: [GeneralIndex(index)].into(),
-			} if (index as u32) == CORE_ASSET_ID => Some(CORE_ASSET_ID),
-			// delegate to asset-registry
-			_ => AssetRegistry::location_to_asset(AssetLocation(location)),
-		}
-
-		 */
 	}
 }
 
