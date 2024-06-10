@@ -276,7 +276,7 @@ pub type Executive = frame_executive::Executive<
 	),
 >;
 
-// TODO: Remove after the upgrade
+// TODO: Remove after the v1.7.2 upgrade
 parameter_types! {
 	pub const DmpQueuePalletName: &'static str = "DmpQueue";
 	pub const XcmRateLimiterPalletName: &'static str = "XcmRateLimiter";
