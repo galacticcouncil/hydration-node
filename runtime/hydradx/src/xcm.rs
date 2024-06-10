@@ -434,19 +434,6 @@ impl<Network: Get<Option<NetworkId>>> ConvertLocation<AccountId> for EvmAddressC
 			}
 			_ => None,
 		}
-		// Note: keeping the original code for reference until tests are successful
-		/*
-		match location {
-			Location {
-				parents: 0,
-				interior: (AccountKey20 { network: _, key })
-			} => {
-				let account_32 = ExtendedAddressMapping::into_account_id(H160::from(key));
-				Some(account_32)
-			}
-			_ => None,
-		}
-		 */
 	}
 }
 
