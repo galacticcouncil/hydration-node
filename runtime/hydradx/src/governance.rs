@@ -128,11 +128,11 @@ impl pallet_treasury::Config for Runtime {
 	type AssetKind = ();
 	type Beneficiary = AccountId;
 	type BeneficiaryLookup = IdentityLookup<AccountId>;
-	type Paymaster = PayFromTreasuryAccount; // TODO: check what this means
-	type BalanceConverter = UnityAssetBalanceConversion; //TODO: check this
+	type Paymaster = PayFromTreasuryAccount;
+	type BalanceConverter = UnityAssetBalanceConversion;
 	type PayoutPeriod = TreasuryPayoutPeriod;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = (); //TODO: implement helper!
+	type BenchmarkHelper = ();
 }
 
 parameter_types! {
