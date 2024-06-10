@@ -236,13 +236,12 @@ impl<
 	> TakeRevenue for ToFeeReceiver<AccountId, AssetId, Balance, Price, C, D, F>
 {
 	fn take_revenue(asset: Asset) {
-		let a = asset.clone(); // TODO: probably unnecessary but did not want to change the implementation.
-		match asset {
+		match asset.clone() {
 			Asset {
 				id: _asset_id,
 				fun: Fungibility::Fungible(amount),
 			} => {
-				C::convert(a).and_then(|id| {
+				C::convert(asset).and_then(|id| {
 					let receiver = F::get();
 					D::deposit_fee(&receiver, id, amount.saturated_into::<Balance>())
 						.map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {:?}", e))
