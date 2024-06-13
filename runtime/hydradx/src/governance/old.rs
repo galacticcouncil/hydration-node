@@ -1,160 +1,43 @@
-// This file is part of HydraDX-node.
-
-// Copyright (C) 2020-2023  Intergalactic, Limited (GIB).
-// SPDX-License-Identifier: Apache-2.0
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// This file is part of https://github.com/galacticcouncil/*
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+//                $$$$$$$      Licensed under the Apache License, Version 2.0 (the "License")
+//             $$$$$$$$$$$$$        you may only use this file in compliance with the License
+//          $$$$$$$$$$$$$$$$$$$
+//                      $$$$$$$$$       Copyright (C) 2021-2024  Intergalactic, Limited (GIB)
+//         $$$$$$$$$$$   $$$$$$$$$$                       SPDX-License-Identifier: Apache-2.0
+//      $$$$$$$$$$$$$$$$$$$$$$$$$$
+//   $$$$$$$$$$$$$$$$$$$$$$$        $                      Built with <3 for decentralisation
+//  $$$$$$$$$$$$$$$$$$$        $$$$$$$
+//  $$$$$$$         $$$$$$$$$$$$$$$$$$      Unless required by applicable law or agreed to in
+//   $       $$$$$$$$$$$$$$$$$$$$$$$       writing, software distributed under the License is
+//      $$$$$$$$$$$$$$$$$$$$$$$$$$        distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
+//      $$$$$$$$$   $$$$$$$$$$$         OR CONDITIONS OF ANY KIND, either express or implied.
+//        $$$$$$$$
+//          $$$$$$$$$$$$$$$$$$            See the License for the specific language governing
+//             $$$$$$$$$$$$$                   permissions and limitations under the License.
+//                $$$$$$$
+//                                                                 $$
+//  $$$$$   $$$$$                    $$                       $
+//   $$$     $$$  $$$     $$   $$$$$ $$  $$$ $$$$  $$$$$$$  $$$$  $$$    $$$$$$   $$ $$$$$$
+//   $$$     $$$   $$$   $$  $$$    $$$   $$$  $  $$     $$  $$    $$  $$     $$   $$$   $$$
+//   $$$$$$$$$$$    $$  $$   $$$     $$   $$        $$$$$$$  $$    $$  $$     $$$  $$     $$
+//   $$$     $$$     $$$$    $$$     $$   $$     $$$     $$  $$    $$   $$     $$  $$     $$
+//  $$$$$   $$$$$     $$      $$$$$$$$ $ $$$      $$$$$$$$   $$$  $$$$   $$$$$$$  $$$$   $$$$
+//                  $$$
 
 use super::*;
 use primitives::constants::{
-	currency::{deposit, CENTS, DOLLARS},
+	currency::{CENTS, DOLLARS},
 	time::{DAYS, HOURS},
 };
 
 use frame_support::{
 	parameter_types,
-	sp_runtime::{Perbill, Percent, Permill},
-	traits::{ConstU32, EitherOfDiverse, LockIdentifier, NeverEnsureOrigin, PrivilegeCmp},
-	PalletId,
+	sp_runtime::{Perbill, Percent},
+	traits::{ConstU32, EitherOfDiverse, LockIdentifier},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 use sp_staking::currency_to_vote::U128CurrencyToVote;
-use sp_std::cmp::Ordering;
-
-parameter_types! {
-	pub TreasuryAccount: AccountId = Treasury::account_id();
-	pub const ProposalBond: Permill = Permill::from_percent(3);
-	pub const ProposalBondMinimum: Balance = 100 * DOLLARS;
-	pub const ProposalBondMaximum: Balance = 500 * DOLLARS;
-	pub const SpendPeriod: BlockNumber = DAYS;
-	pub const Burn: Permill = Permill::from_percent(0);
-	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-	pub const MaxApprovals: u32 =  100;
-}
-
-impl pallet_treasury::Config for Runtime {
-	type Currency = Balances;
-	type ApproveOrigin = TreasuryApproveOrigin;
-	type RejectOrigin = MoreThanHalfCouncil;
-	type RuntimeEvent = RuntimeEvent;
-	type OnSlash = Treasury;
-	type ProposalBond = ProposalBond;
-	type ProposalBondMinimum = ProposalBondMinimum;
-	type ProposalBondMaximum = ProposalBondMaximum;
-	type SpendPeriod = SpendPeriod;
-	type Burn = Burn;
-	type PalletId = TreasuryPalletId;
-	type BurnDestination = ();
-	type WeightInfo = weights::treasury::HydraWeight<Runtime>;
-	type SpendFunds = ();
-	type MaxApprovals = MaxApprovals;
-	type SpendOrigin = NeverEnsureOrigin<Balance>;
-}
-
-parameter_types! {
-	pub PreimageBaseDeposit: Balance = deposit(2, 64);
-	pub PreimageByteDeposit: Balance = deposit(0, 1);
-}
-
-impl pallet_preimage::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::preimage::HydraWeight<Runtime>;
-	type Currency = Balances;
-	type ManagerOrigin = EnsureRoot<AccountId>;
-	type BaseDeposit = PreimageBaseDeposit;
-	type ByteDeposit = PreimageByteDeposit;
-}
-
-/// Used the compare the privilege of an origin inside the scheduler.
-pub struct OriginPrivilegeCmp;
-
-impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
-	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
-		if left == right {
-			return Some(Ordering::Equal);
-		}
-
-		match (left, right) {
-			// Root is greater than anything.
-			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
-			// Check which one has more yes votes.
-			(
-				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
-				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
-			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
-			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
-			_ => None,
-		}
-	}
-}
-
-parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
-	pub const MaxScheduledPerBlock: u32 = 50;
-}
-impl pallet_scheduler::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeOrigin = RuntimeOrigin;
-	type PalletsOrigin = OriginCaller;
-	type RuntimeCall = RuntimeCall;
-	type MaximumWeight = MaximumSchedulerWeight;
-	type ScheduleOrigin = MoreThanHalfCouncil;
-	type OriginPrivilegeCmp = OriginPrivilegeCmp;
-	type MaxScheduledPerBlock = MaxScheduledPerBlock;
-	type WeightInfo = weights::scheduler::HydraWeight<Runtime>;
-	type Preimages = Preimage;
-}
-
-parameter_types! {
-	pub const CouncilMaxProposals: u32 = 30;
-	pub const CouncilMaxMembers: u32 = 13;
-	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
-	pub MaxProposalWeight: Weight = Perbill::from_percent(50) * BlockWeights::get().max_block;
-}
-
-pub type CouncilCollective = pallet_collective::Instance1;
-impl pallet_collective::Config<CouncilCollective> for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type MotionDuration = CouncilMotionDuration;
-	type MaxProposals = CouncilMaxProposals;
-	type MaxMembers = CouncilMaxMembers;
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::council::HydraWeight<Runtime>;
-	type MaxProposalWeight = MaxProposalWeight;
-	type SetMembersOrigin = EnsureRoot<AccountId>;
-}
-
-parameter_types! {
-	pub const TechnicalMaxProposals: u32 = 20;
-	pub const TechnicalMaxMembers: u32 = 10;
-	pub const TechnicalMotionDuration: BlockNumber = 5 * DAYS;
-}
-
-pub type TechnicalCollective = pallet_collective::Instance2;
-impl pallet_collective::Config<TechnicalCollective> for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type MotionDuration = TechnicalMotionDuration;
-	type MaxProposals = TechnicalMaxProposals;
-	type MaxMembers = TechnicalMaxMembers;
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::technical_committee::HydraWeight<Runtime>;
-	type MaxProposalWeight = MaxProposalWeight;
-	type SetMembersOrigin = EnsureRoot<AccountId>;
-}
 
 #[cfg(test)]
 mod tests {
@@ -201,6 +84,27 @@ pub type AllTechnicalCommitteeMembers = EitherOfDiverse<
 	pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
 	EnsureRoot<AccountId>,
 >;
+
+parameter_types! {
+	pub const CouncilMaxProposals: u32 = 30;
+	pub const CouncilMaxMembers: u32 = 13;
+	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
+	pub MaxProposalWeight: Weight = Perbill::from_percent(50) * BlockWeights::get().max_block;
+}
+
+pub type CouncilCollective = pallet_collective::Instance1;
+impl pallet_collective::Config<CouncilCollective> for Runtime {
+	type RuntimeOrigin = RuntimeOrigin;
+	type Proposal = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type MotionDuration = CouncilMotionDuration;
+	type MaxProposals = CouncilMaxProposals;
+	type MaxMembers = CouncilMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = weights::council::HydraWeight<Runtime>;
+	type MaxProposalWeight = MaxProposalWeight;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
+}
 
 parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 3 * DAYS;

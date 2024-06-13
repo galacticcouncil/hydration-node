@@ -1,4 +1,6 @@
 use super::*;
+
+use crate::old::{MajorityOfCouncil, MoreThanHalfCouncil, MoreThanHalfTechCommittee};
 use sp_std::marker::PhantomData;
 
 use codec::MaxEncodedLen;

@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use super::*;
+use crate::old::{AllTechnicalCommitteeMembers, MajorityOfCouncil, MaxVotes, SuperMajorityTechCommittee};
 use crate::system::NativeAssetId;
 
 use frame_support::traits::Defensive;
