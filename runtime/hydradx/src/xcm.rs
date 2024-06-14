@@ -264,10 +264,7 @@ impl pallet_xcm::Config for Runtime {
 	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Nothing;
-	#[cfg(not(feature = "runtime-benchmarks"))]
 	type XcmReserveTransferFilter = Everything;
-	#[cfg(feature = "runtime-benchmarks")]
-	type XcmReserveTransferFilter = Nothing;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
 	type UniversalLocation = UniversalLocation;
 	type RuntimeOrigin = RuntimeOrigin;

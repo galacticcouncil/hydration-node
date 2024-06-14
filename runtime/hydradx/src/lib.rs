@@ -751,11 +751,11 @@ impl_runtime_apis! {
 			}
 
 			parameter_types! {
-				pub const RandomParaId: ParaId = ParaId::new(22222222);
-				pub const ExistentialDeposit: u128= 0;
+				pub const RandomParaId: ParaId = ParaId::new(22_222_222);
+				pub const ExistentialDeposit: u128 = 0;
 			}
 
-			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, ParentThen, Parachain, Parent};
+			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Parent};
 
 			impl pallet_xcm::benchmarking::Config for Runtime {
 				fn reachable_dest() -> Option<Location> {
@@ -773,13 +773,7 @@ impl_runtime_apis! {
 				}
 
 				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
-					Some((
-						Asset {
-							fun: Fungible(ExistentialDeposit::get()),
-							id: AssetId(Parent.into())
-						},
-						ParentThen(Parachain(RandomParaId::get().into()).into()).into(),
-					))
+					None
 				}
 			}
 
