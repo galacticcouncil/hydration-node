@@ -189,6 +189,7 @@ fn otcs_list_storage_should_be_sorted_on_new_block() {
 
 #[test]
 fn profit_should_be_transferred_to_treasury() {
+	// test case with zero initial pallet balance
 	let (mut ext, _) = ExtBuilder::default().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
@@ -200,9 +201,47 @@ fn profit_should_be_transferred_to_treasury() {
 			true,
 		));
 
+		let pallet_acc = OtcSettlements::account_id();
+
+		assert!(Currencies::free_balance(HDX, &pallet_acc) == 0);
+		assert!(Currencies::free_balance(DAI, &pallet_acc) == 0);
+
 		let balance_before = Currencies::free_balance(HDX, &TreasuryAccount::get());
 
 		<OtcSettlements as Hooks<BlockNumberFor<Test>>>::offchain_worker(System::block_number());
+
+		assert!(Currencies::free_balance(HDX, &pallet_acc) == 0);
+		assert!(Currencies::free_balance(DAI, &pallet_acc) == 0);
+
+		let balance_after = Currencies::free_balance(HDX, &TreasuryAccount::get());
+		assert!(balance_after > balance_before);
+	});
+
+	// test case with non-zero initial pallet balance
+	let (mut ext, _) = ExtBuilder::default().build();
+	ext.execute_with(|| {
+		assert_ok!(OTC::place_order(
+			RuntimeOrigin::signed(ALICE),
+			HDX,
+			DAI,
+			100_000 * ONE,
+			201_000 * ONE,
+			true,
+		));
+
+		let pallet_acc = OtcSettlements::account_id();
+		let initial_amount = 1_000 * ONE;
+		<Test as Config>::Currency::mint_into(HDX, &pallet_acc, initial_amount).unwrap();
+
+		assert!(Currencies::free_balance(HDX, &pallet_acc) == initial_amount);
+		assert!(Currencies::free_balance(DAI, &pallet_acc) == 0);
+
+		let balance_before = Currencies::free_balance(HDX, &TreasuryAccount::get());
+
+		<OtcSettlements as Hooks<BlockNumberFor<Test>>>::offchain_worker(System::block_number());
+
+		assert!(Currencies::free_balance(HDX, &pallet_acc) == initial_amount);
+		assert!(Currencies::free_balance(DAI, &pallet_acc) == 0);
 
 		let balance_after = Currencies::free_balance(HDX, &TreasuryAccount::get());
 		assert!(balance_after > balance_before);
