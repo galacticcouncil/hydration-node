@@ -359,7 +359,9 @@ impl<T: Config> Pallet<T> {
 		let asset_a_balance_after_router_trade = <T as Config>::Currency::balance(asset_a, &pallet_acc);
 
 		let profit = asset_a_balance_after_router_trade
-			.checked_sub(amount)
+			// subtract the initial balance
+			.checked_sub(asset_a_balance_before)
+			.and_then(|value| value.checked_sub(amount))
 			.ok_or(ArithmeticError::Overflow)?;
 
 		Self::ensure_min_profit(otc.amount_in, profit)?;
