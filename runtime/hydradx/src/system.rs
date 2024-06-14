@@ -252,6 +252,7 @@ parameter_types! {
 impl pallet_collator_selection::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
+	// TODO origin
 	type UpdateOrigin = MoreThanHalfCouncil;
 	type PotId = PotId;
 	type MaxCandidates = MaxCandidates;
@@ -274,6 +275,7 @@ impl pallet_preimage::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::preimage::HydraWeight<Runtime>;
 	type Currency = Balances;
+	// TODO origin
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	type BaseDeposit = PreimageBaseDeposit;
 	type ByteDeposit = PreimageByteDeposit;
@@ -289,6 +291,7 @@ impl pallet_scheduler::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type RuntimeCall = RuntimeCall;
 	type MaximumWeight = MaximumSchedulerWeight;
+	// TODO origin
 	type ScheduleOrigin = MoreThanHalfCouncil;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
@@ -365,7 +368,9 @@ impl pallet_identity::Config for Runtime {
 	type MaxAdditionalFields = MaxAdditionalFields;
 	type MaxRegistrars = MaxRegistrars;
 	type Slashed = Treasury;
+	// TODO origin
 	type ForceOrigin = MoreThanHalfCouncil;
+	// TODO origin
 	type RegistrarOrigin = MoreThanHalfCouncil;
 	type WeightInfo = weights::identity::HydraWeight<Runtime>;
 }
@@ -536,6 +541,7 @@ impl pallet_transaction_payment::Config for Runtime {
 
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	// TODO origin
 	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
 	type Currencies = Currencies;
 	type RouteProvider = Router;
@@ -587,6 +593,7 @@ impl pallet_collator_rewards::Config for Runtime {
 
 impl pallet_transaction_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	// TODO origin
 	type UpdateOrigin = SuperMajorityTechCommittee;
 	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
 }
@@ -606,6 +613,7 @@ parameter_types! {
 }
 
 impl pallet_state_trie_migration::Config for Runtime {
+	// TODO origin
 	type ControlOrigin = SuperMajorityTechCommittee;
 	type SignedFilter = EnsureSignedBy<TechCommAccounts, AccountId>;
 	type RuntimeEvent = RuntimeEvent;

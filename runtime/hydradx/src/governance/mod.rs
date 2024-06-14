@@ -70,7 +70,9 @@ parameter_types! {
 
 impl pallet_treasury::Config for Runtime {
 	type Currency = Balances;
+	// TODO origin
 	type ApproveOrigin = TreasuryApproveOrigin;
+	// TODO origin
 	type RejectOrigin = MoreThanHalfCouncil;
 	type RuntimeEvent = RuntimeEvent;
 	type OnSlash = Treasury;
@@ -84,5 +86,6 @@ impl pallet_treasury::Config for Runtime {
 	type WeightInfo = weights::treasury::HydraWeight<Runtime>;
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
+	// TODO origin
 	type SpendOrigin = NeverEnsureOrigin<Balance>;
 }
