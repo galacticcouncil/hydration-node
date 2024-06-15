@@ -282,13 +282,6 @@ pub fn run() -> sc_cli::Result<()> {
 					return Err("It is not allowed to run a collator node with the benchmarking runtime.".into());
 				};
 
-				let hwbench = (!cli.no_hardware_benchmarks)
-					.then_some(config.database.path().map(|database_path| {
-						let _ = std::fs::create_dir_all(database_path);
-						sc_sysinfo::gather_hwbench(Some(database_path))
-					}))
-					.flatten();
-
 				let polkadot_cli = RelayChainCli::new(
 					&config,
 					[RelayChainCli::executable_name()]
@@ -325,7 +318,7 @@ pub fn run() -> sc_cli::Result<()> {
 					if config.role.is_authority() { "yes" } else { "no" }
 				);
 
-				crate::service::start_node(config, polkadot_config, cli.ethereum_config, collator_options, id, hwbench)
+				crate::service::start_node(config, polkadot_config, cli.ethereum_config, collator_options, id)
 					.await
 					.map(|r| r.0)
 					.map_err(Into::into)
