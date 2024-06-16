@@ -241,8 +241,8 @@ impl orml_xtokens::Config for Runtime {
 	type ReserveProvider = AbsoluteReserveProvider;
 	type MinXcmFee = ParachainMinFee;
 	type UniversalLocation = UniversalLocation;
-	type RateLimiter = (); //TODO: what do ?
-	type RateLimiterId = (); //TODO: what do ?
+	type RateLimiter = (); // do not use rate limiter
+	type RateLimiterId = ();
 }
 
 impl orml_unknown_tokens::Config for Runtime {

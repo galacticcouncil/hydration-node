@@ -773,6 +773,7 @@ impl_runtime_apis! {
 				}
 
 				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
+					// TODO: https://github.com/galacticcouncil/HydraDX-node/issues/840
 					None
 				}
 			}
