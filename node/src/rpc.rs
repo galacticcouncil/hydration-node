@@ -51,7 +51,6 @@ use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 
-//TODO: this is probably not correct for hydra.. verify what do
 pub struct HydraDxEGA;
 
 impl fc_rpc::EstimateGasAdapter for HydraDxEGA {
