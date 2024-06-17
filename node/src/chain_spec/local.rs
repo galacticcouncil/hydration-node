@@ -12,7 +12,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"HydraDX Local Testnet",
+		"Hydration Local Testnet",
 		// ID
 		"local_testnet",
 		ChainType::Local,

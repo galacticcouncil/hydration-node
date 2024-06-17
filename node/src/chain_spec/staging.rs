@@ -17,7 +17,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"HydraDX",
+		"Hydration",
 		// ID
 		"hydra",
 		ChainType::Live,

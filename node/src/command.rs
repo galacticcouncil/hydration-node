@@ -49,7 +49,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"HydraDX".into()
+		"Hydration".into()
 	}
 
 	fn impl_version() -> String {
@@ -88,7 +88,7 @@ impl SubstrateCli for Cli {
 
 impl SubstrateCli for RelayChainCli {
 	fn impl_name() -> String {
-		"HydraDX".into()
+		"Hydration".into()
 	}
 
 	fn impl_version() -> String {
