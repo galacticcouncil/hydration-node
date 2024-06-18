@@ -4621,7 +4621,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4671,7 +4671,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "241.0.0"
+version = "242.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7474,7 +7474,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.4.7"
+version = "1.4.8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8422,7 +8422,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.3.2"
+version = "2.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11545,7 +11545,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.21.8"
+version = "1.21.9"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
