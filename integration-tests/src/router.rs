@@ -3604,7 +3604,7 @@ mod set_route {
 								Pair::new(DOT, insufficient_asset),
 								route1.clone()
 							),
-							pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
+							pallet_route_executor::Error::<hydradx_runtime::Runtime>::InsufficientAssetNotSupported
 						);
 
 						TransactionOutcome::Commit(DispatchResult::Ok(()))

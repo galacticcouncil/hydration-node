@@ -35,6 +35,7 @@ use sp_runtime::{
 };
 use std::cell::RefCell;
 use std::ops::Deref;
+use hydra_dx_math::ratio::Ratio;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -150,6 +151,7 @@ impl Config for Test {
 	type InspectRegistry = MockedAssetRegistry;
 	type AMM = Pools;
 	type EdToRefundCalculator = MockedEdCalculator;
+	type OraclePriceProvider = PriceProviderMock;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
@@ -163,7 +165,22 @@ impl RefundEdCalculator<Balance> for MockedEdCalculator {
 	}
 }
 
-use hydradx_traits::AssetKind;
+pub struct PriceProviderMock {}
+
+impl PriceOracle<AssetId> for PriceProviderMock {
+	type Price = Ratio;
+
+	fn price(route: &[Trade<AssetId>], _: OraclePeriod) -> Option<Ratio> {
+		let has_insufficient_asset = route.iter().any(|t| t.asset_in > 2000 || t.asset_out > 2000);
+		if has_insufficient_asset {
+			return None;
+		}
+		Some(Ratio::new(88, 100))
+	}
+}
+
+
+use hydradx_traits::{AssetKind, OraclePeriod, PriceOracle};
 pub struct MockedAssetRegistry;
 
 impl hydradx_traits::registry::Inspect for MockedAssetRegistry {

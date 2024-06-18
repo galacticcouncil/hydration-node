@@ -152,7 +152,7 @@ pub mod pallet {
 		InvalidRoute,
 		///The route update was not successful
 		RouteUpdateIsNotSuccessful,
-		///Insufficient asset is not supported for on chain routing
+		///Insufficient asset without oracle is not supported for on chain routing
 		InsufficientAssetNotSupported,
 		///The route execution failed in the underlying AMM
 		InvalidRouteExecution,
@@ -371,7 +371,7 @@ pub mod pallet {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(new_route.len())?;
 			Self::ensure_route_arguments(&asset_pair, &new_route)?;
-			T::OraclePriceProvider::price(&new_route, OraclePeriod::TenMinutes).ok_or(Error::<T>::InvalidRoute)?;
+			T::OraclePriceProvider::price(&new_route, OraclePeriod::TenMinutes).ok_or(Error::<T>::InsufficientAssetNotSupported)?;
 
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();

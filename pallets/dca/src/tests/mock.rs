@@ -365,6 +365,7 @@ impl pallet_route_executor::Config for Test {
 	type WeightInfo = ();
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type EdToRefundCalculator = MockedEdCalculator;
+	type OraclePriceProvider = PriceProviderMock;
 }
 
 pub struct MockedEdCalculator;
@@ -372,6 +373,19 @@ pub struct MockedEdCalculator;
 impl RefundEdCalculator<Balance> for MockedEdCalculator {
 	fn calculate() -> Balance {
 		1_000_000_000_000
+	}
+}
+
+pub struct PriceProviderMock {}
+
+impl PriceOracle<AssetId> for crate::tests::mock::PriceProviderMock {
+	type Price = Ratio;
+
+	fn price(_: &[Trade<AssetId>], period: OraclePeriod) -> Option<Ratio> {
+		if period == OraclePeriod::Short {
+			return Some(Ratio::new(80, 100));
+		}
+		Some(Ratio::new(88, 100))
 	}
 }
 
@@ -621,19 +635,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 		_asset_b: AssetId,
 	) -> Result<FixedU128, ExecutorError<Self::Error>> {
 		todo!("No need to implement it as this is not used directly in DCA")
-	}
-}
-
-pub struct PriceProviderMock {}
-
-impl PriceOracle<AssetId> for PriceProviderMock {
-	type Price = Ratio;
-
-	fn price(_: &[Trade<AssetId>], period: OraclePeriod) -> Option<Ratio> {
-		if period == OraclePeriod::Short {
-			return Some(Ratio::new(80, 100));
-		}
-		Some(Ratio::new(88, 100))
 	}
 }
 
