@@ -60,6 +60,8 @@ pub mod pallet {
 	use hydradx_traits::router::{ExecutorError, RefundEdCalculator};
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
+	use hydra_dx_math::ema::EmaPrice;
+	use hydradx_traits::{OraclePeriod, PriceOracle};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -104,7 +106,11 @@ pub mod pallet {
 			Error = DispatchError,
 		>;
 
+		///Calculate ED for tolerating currency balance difference
 		type EdToRefundCalculator: RefundEdCalculator<Self::Balance>;
+
+		///Oracle price provider to validate if new route has oracle price data
+		type OraclePriceProvider: PriceOracle<Self::AssetId, Price = EmaPrice>;
 
 		/// Pool type used in the default route
 		type DefaultRoutePoolType: Get<PoolType<Self::AssetId>>;
@@ -365,7 +371,7 @@ pub mod pallet {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(new_route.len())?;
 			Self::ensure_route_arguments(&asset_pair, &new_route)?;
-			Self::ensure_route_has_no_insufficient_asset(&new_route)?;
+			T::OraclePriceProvider::price(&new_route, OraclePeriod::TenMinutes).ok_or(Error::<T>::InvalidRoute)?;
 
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();
@@ -492,22 +498,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn ensure_route_has_no_insufficient_asset(new_route: &[Trade<T::AssetId>]) -> DispatchResult {
-		let mut unique_assets = sp_std::collections::btree_set::BTreeSet::new();
 
-		for trade in new_route.iter() {
-			unique_assets.insert(trade.asset_in);
-			unique_assets.insert(trade.asset_out);
-		}
-		for asset in unique_assets.iter() {
-			ensure!(
-				T::InspectRegistry::is_sufficient(*asset),
-				Error::<T>::InsufficientAssetNotSupported
-			);
-		}
-
-		Ok(())
-	}
 
 	fn ensure_that_user_received_asset_out_at_most(
 		who: T::AccountId,
@@ -626,6 +617,13 @@ impl<T: Config> Pallet<T> {
 			let Ok(who) = ensure_signed(origin.clone()) else {
 				return TransactionOutcome::Rollback(Err(Error::<T>::InvalidRoute.into()));
 			};
+			//NOTE: This is necessary so router's account can pay ED for insufficient assets in the
+			//route. Value is 10K to make sure we can pay ED for really long routes.
+			let _ = T::Currency::mint_into(
+				T::NativeAssetId::get(),
+				&Self::router_account(),
+				10_000_000_000_000_000_u128.into(),
+			);
 			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
 
 			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());

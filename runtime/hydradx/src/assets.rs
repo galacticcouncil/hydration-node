@@ -1058,6 +1058,7 @@ impl pallet_route_executor::Config for Runtime {
 	type InspectRegistry = AssetRegistry;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
+	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 }
 
 parameter_types! {
