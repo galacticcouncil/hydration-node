@@ -18,12 +18,13 @@ use hex_literal::hex;
 use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeOrigin};
 pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 use pallet_referrals::{FeeDistribution, Level};
-pub use polkadot_primitives::v5::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
+pub use polkadot_primitives::v6::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
+use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::storage::Storage;
 use sp_core::H160;
 pub use xcm_emulator::Network;
-use xcm_emulator::{decl_test_networks, decl_test_parachains, decl_test_relay_chains, DefaultMessageProcessor};
+use xcm_emulator::{decl_test_networks, decl_test_parachains, decl_test_relay_chains};
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
@@ -65,6 +66,7 @@ pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 pub const MOONBEAM_PARA_ID: u32 = 2_004;
 pub const INTERLAY_PARA_ID: u32 = 2_032;
+pub const ZEITGEIST_PARA_ID: u32 = 2_092;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const ALICE_INITIAL_DAI_BALANCE: Balance = 2_000 * UNITS;
@@ -94,28 +96,50 @@ pub const INSUFFICIENT_ASSET: AssetId = 500;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
+pub type Rococo = RococoRelayChain<TestNet>;
+pub type Hydra = HydraParachain<TestNet>;
+pub type Acala = AcalaParachain<TestNet>;
+pub type Moonbeam = MoonbeamParachain<TestNet>;
+pub type Interlay = InterlayParachain<TestNet>;
+pub type AssetHub = AssetHubParachain<TestNet>;
+pub type Zeitgeist = ZeitgeistParachain<TestNet>;
+
+decl_test_networks! {
+	pub struct TestNet {
+		relay_chain = RococoRelayChain,
+		parachains = vec![
+			HydraParachain,
+			AcalaParachain,
+			MoonbeamParachain,
+			InterlayParachain,
+			AssetHubParachain,
+			ZeitgeistParachain,
+		],
+		bridge = ()
+	},
+}
+
 decl_test_relay_chains! {
-	#[api_version(5)]
-	pub struct PolkadotRelay {
-		genesis = polkadot::genesis(),
+	#[api_version(10)]
+	pub struct RococoRelayChain {
+		genesis = rococo::genesis(),
 		on_init = {
-			polkadot_runtime::System::set_block_number(1);
+			rococo_runtime::System::set_block_number(1);
 		},
-		runtime = polkadot_runtime,
+		runtime = rococo_runtime,
 		core = {
-			MessageProcessor: DefaultMessageProcessor<PolkadotRelay>,
-			SovereignAccountOf: polkadot_runtime::xcm_config::SovereignAccountOf,
+			SovereignAccountOf: rococo_runtime::xcm_config::LocationConverter,
 		},
 		pallets = {
-			XcmPallet: polkadot_runtime::XcmPallet,
-			Balances: polkadot_runtime::Balances,
-			Hrmp: polkadot_runtime::Hrmp,
+			XcmPallet: rococo_runtime::XcmPallet,
+			Balances: rococo_runtime::Balances,
+			Hrmp: rococo_runtime::Hrmp,
 		}
 	}
 }
 
 decl_test_parachains! {
-	pub struct Hydra {
+	pub struct HydraParachain {
 		genesis = hydra::genesis(),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
@@ -127,16 +151,16 @@ decl_test_parachains! {
 		runtime = hydradx_runtime,
 		core = {
 			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
-			DmpMessageHandler: hydradx_runtime::DmpQueue,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
+			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
-	pub struct Acala {
+	pub struct AcalaParachain {
 		genesis = para::genesis(ACALA_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
@@ -144,16 +168,16 @@ decl_test_parachains! {
 		runtime = hydradx_runtime,
 		core = {
 			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
-			DmpMessageHandler: hydradx_runtime::DmpQueue,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
+			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
-	pub struct Moonbeam {
+	pub struct MoonbeamParachain {
 		genesis = para::genesis(MOONBEAM_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
@@ -161,16 +185,16 @@ decl_test_parachains! {
 		runtime = hydradx_runtime,
 		core = {
 			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
-			DmpMessageHandler: hydradx_runtime::DmpQueue,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
+			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
-	pub struct Interlay {
+	pub struct InterlayParachain {
 		genesis = para::genesis(INTERLAY_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
@@ -178,16 +202,16 @@ decl_test_parachains! {
 		runtime = hydradx_runtime,
 		core = {
 			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
-			DmpMessageHandler: hydradx_runtime::DmpQueue,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
+			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
-	pub struct AssetHub {
+	pub struct AssetHubParachain {
 		genesis = para::genesis(ASSET_HUB_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
@@ -195,32 +219,35 @@ decl_test_parachains! {
 		runtime = hydradx_runtime,
 		core = {
 			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
-			DmpMessageHandler: hydradx_runtime::DmpQueue,
 			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
 			ParachainInfo: hydradx_runtime::ParachainInfo,
+			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
 		},
 		pallets = {
 			PolkadotXcm: hydradx_runtime::PolkadotXcm,
 			Balances: hydradx_runtime::Balances,
 		}
 	},
+	pub struct ZeitgeistParachain {
+		genesis = para::genesis(ZEITGEIST_PARA_ID),
+		on_init = {
+			hydradx_runtime::System::set_block_number(1);
+		},
+		runtime = hydradx_runtime,
+		core = {
+			XcmpMessageHandler: hydradx_runtime::XcmpQueue,
+			LocationToAccountId: hydradx_runtime::xcm::LocationToAccountId,
+			ParachainInfo: hydradx_runtime::ParachainInfo,
+			MessageOrigin: cumulus_primitives_core::AggregateMessageOrigin,
+		},
+		pallets = {
+			PolkadotXcm: hydradx_runtime::PolkadotXcm,
+			Balances: hydradx_runtime::Balances,
+		}
+	}
 }
 
-decl_test_networks! {
-	pub struct TestNet {
-		relay_chain = PolkadotRelay,
-		parachains = vec![
-			Acala,
-			Moonbeam,
-			Interlay,
-			Hydra,
-			AssetHub,
-		],
-		bridge = ()
-	},
-}
-
-pub mod polkadot {
+pub mod rococo {
 	use super::*;
 
 	fn get_host_configuration() -> HostConfiguration<BlockNumber> {
@@ -257,12 +284,20 @@ pub mod polkadot {
 		}
 	}
 
-	use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+	use sp_core::{Pair, Public};
+
 	use polkadot_primitives::{AssignmentId, ValidatorId};
 	use polkadot_service::chain_spec::get_authority_keys_from_seed_no_beefy;
 	use sc_consensus_grandpa::AuthorityId as GrandpaId;
 	use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 	use sp_consensus_babe::AuthorityId as BabeId;
+
+	/// Helper function to generate a crypto pair from seed
+	fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+		TPublic::Pair::from_string(&format!("//{}", seed), None)
+			.expect("static values are valid; qed")
+			.public()
+	}
 
 	#[allow(clippy::type_complexity)]
 	pub fn initial_authorities() -> Vec<(
@@ -270,48 +305,59 @@ pub mod polkadot {
 		AccountId,
 		BabeId,
 		GrandpaId,
-		ImOnlineId,
 		ValidatorId,
 		AssignmentId,
 		AuthorityDiscoveryId,
+		BeefyId,
 	)> {
-		vec![get_authority_keys_from_seed_no_beefy("Alice")]
+		let no_beefy = get_authority_keys_from_seed_no_beefy("Alice");
+		let with_beefy = (
+			no_beefy.0,
+			no_beefy.1,
+			no_beefy.2,
+			no_beefy.3,
+			no_beefy.4,
+			no_beefy.5,
+			no_beefy.6,
+			get_from_seed::<BeefyId>("Alice"),
+		);
+		vec![with_beefy]
 	}
 
 	fn session_keys(
 		babe: BabeId,
 		grandpa: GrandpaId,
-		im_online: ImOnlineId,
 		para_validator: ValidatorId,
 		para_assignment: AssignmentId,
 		authority_discovery: AuthorityDiscoveryId,
-	) -> polkadot_runtime::SessionKeys {
-		polkadot_runtime::SessionKeys {
+		beefy: BeefyId,
+	) -> rococo_runtime::SessionKeys {
+		rococo_runtime::SessionKeys {
 			babe,
 			grandpa,
-			im_online,
 			para_validator,
 			para_assignment,
 			authority_discovery,
+			beefy,
 		}
 	}
 
 	pub fn genesis() -> Storage {
-		let genesis_config = polkadot_runtime::RuntimeGenesisConfig {
-			balances: polkadot_runtime::BalancesConfig {
+		let genesis_config = rococo_runtime::RuntimeGenesisConfig {
+			balances: rococo_runtime::BalancesConfig {
 				balances: vec![
 					(AccountId::from(ALICE), 2_002 * UNITS),
 					(ParaId::from(HYDRA_PARA_ID).into_account_truncating(), 10 * UNITS),
 				],
 			},
-			session: polkadot_runtime::SessionConfig {
+			session: rococo_runtime::SessionConfig {
 				keys: initial_authorities()
 					.iter()
 					.map(|x| {
 						(
 							x.0.clone(),
 							x.0.clone(),
-							polkadot::session_keys(
+							session_keys(
 								x.2.clone(),
 								x.3.clone(),
 								x.4.clone(),
@@ -323,16 +369,16 @@ pub mod polkadot {
 					})
 					.collect::<Vec<_>>(),
 			},
-			configuration: polkadot_runtime::ConfigurationConfig {
+			configuration: rococo_runtime::ConfigurationConfig {
 				config: get_host_configuration(),
 			},
-			xcm_pallet: polkadot_runtime::XcmPalletConfig {
+			xcm_pallet: rococo_runtime::XcmPalletConfig {
 				safe_xcm_version: Some(3),
 				..Default::default()
 			},
-			babe: polkadot_runtime::BabeConfig {
+			babe: rococo_runtime::BabeConfig {
 				authorities: Default::default(),
-				epoch_config: Some(polkadot_runtime::BABE_GENESIS_EPOCH_CONFIG),
+				epoch_config: Some(rococo_runtime::BABE_GENESIS_EPOCH_CONFIG),
 				..Default::default()
 			},
 			..Default::default()
@@ -533,7 +579,6 @@ pub mod hydra {
 					(AccountId::from(CHARLIE), LRNA, CHARLIE_INITIAL_LRNA_BALANCE),
 					(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
 					(AccountId::from(DAVE), DAI, 1_000_000_000 * UNITS),
-					(evm_account(), WETH, to_ether(1_000)),
 					(omnipool_account.clone(), DAI, stable_amount),
 					(omnipool_account.clone(), ETH, eth_amount),
 					(omnipool_account.clone(), BTC, btc_amount),
@@ -624,8 +669,14 @@ pub fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::RuntimeEvent> {
 		.collect()
 }
 
-pub fn expect_hydra_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
+pub fn expect_hydra_last_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
 	pretty_assertions::assert_eq!(last_hydra_events(e.len()), e);
+}
+
+pub fn expect_hydra_events(event: Vec<hydradx_runtime::RuntimeEvent>) {
+	for e in event.iter() {
+		frame_system::Pallet::<hydradx_runtime::Runtime>::assert_has_event(e.clone());
+	}
 }
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
@@ -633,7 +684,7 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 
 	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
 	// how we set the block number with `cumulus-test-relay-sproof-builder` package
-	polkadot_run_to_block(number);
+	rococo_run_to_block(number);
 
 	ParachainSystem::on_initialize(number);
 
@@ -661,13 +712,13 @@ pub fn hydradx_run_to_next_block() {
 	let b = hydradx_runtime::System::block_number();
 
 	hydradx_runtime::System::on_finalize(b);
-	hydradx_runtime::EmaOracle::on_finalize(b);
 	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
+	hydradx_runtime::EmaOracle::on_finalize(b);
 
 	hydradx_runtime::System::on_initialize(b + 1);
-	hydradx_runtime::EmaOracle::on_initialize(b + 1);
 	hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
 	hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
+	hydradx_runtime::EmaOracle::on_initialize(b + 1);
 
 	hydradx_runtime::System::set_block_number(b + 1);
 }
@@ -687,11 +738,11 @@ pub fn hydradx_finalize_block() {
 	let b = hydradx_runtime::System::block_number();
 
 	hydradx_runtime::System::on_finalize(b);
-	hydradx_runtime::EmaOracle::on_finalize(b);
 	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
+	hydradx_runtime::EmaOracle::on_finalize(b);
 }
 
-pub fn polkadot_run_to_block(to: BlockNumber) {
+pub fn rococo_run_to_block(to: BlockNumber) {
 	use frame_support::traits::OnFinalize;
 
 	while hydradx_runtime::System::block_number() < to {
@@ -699,16 +750,16 @@ pub fn polkadot_run_to_block(to: BlockNumber) {
 
 		hydradx_runtime::System::on_finalize(b);
 		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-		hydradx_runtime::EmaOracle::on_finalize(b);
-		hydradx_runtime::DCA::on_finalize(b);
 		hydradx_runtime::CircuitBreaker::on_finalize(b);
+		hydradx_runtime::DCA::on_finalize(b);
+		hydradx_runtime::EmaOracle::on_finalize(b);
 
 		hydradx_runtime::System::on_initialize(b + 1);
 		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
-		hydradx_runtime::EmaOracle::on_initialize(b + 1);
-		hydradx_runtime::DCA::on_initialize(b + 1);
 		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
 		hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
+		hydradx_runtime::DCA::on_initialize(b + 1);
+		hydradx_runtime::EmaOracle::on_initialize(b + 1);
 
 		hydradx_runtime::System::set_block_number(b + 1);
 	}
@@ -803,4 +854,20 @@ pub fn set_zero_reward_for_referrals(asset_id: AssetId) {
 		Level::None,
 		FeeDistribution::default(),
 	));
+}
+
+use xcm_emulator::pallet_message_queue;
+
+pub fn assert_xcm_message_processing_failed() {
+	assert!(hydradx_runtime::System::events().iter().any(|r| matches!(
+		r.event,
+		hydradx_runtime::RuntimeEvent::MessageQueue(pallet_message_queue::Event::Processed { success: false, .. })
+	)));
+}
+
+pub fn assert_xcm_message_processing_passed() {
+	assert!(hydradx_runtime::System::events().iter().any(|r| matches!(
+		r.event,
+		hydradx_runtime::RuntimeEvent::MessageQueue(pallet_message_queue::Event::Processed { success: true, .. })
+	)));
 }

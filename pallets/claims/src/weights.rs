@@ -55,22 +55,6 @@ pub trait WeightInfo {
 }
 
 /// Weights for claims using the hydraDX node and recommended hardware.
-pub struct HydraWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	/// Storage: `Claims::Claims` (r:1 w:1)
-	/// Proof: `Claims::Claims` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn claim() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `382`
-		//  Estimated: `3593`
-		// Minimum execution time: 82_736_000 picoseconds.
-		Weight::from_parts(83_275_000, 3593)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(2_u64))
-	}
-}
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
@@ -82,8 +66,8 @@ impl WeightInfo for () {
 		// Proof Size summary in bytes:
 		//  Measured:  `382`
 		//  Estimated: `3593`
-		// Minimum execution time: 82_736_000 picoseconds.
-		Weight::from_parts(83_275_000, 3593)
+		// Minimum execution time: 69_254_000 picoseconds.
+		Weight::from_parts(69_849_000, 3593)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}

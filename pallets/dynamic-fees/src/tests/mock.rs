@@ -29,7 +29,6 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 };
 use orml_traits::GetByKey;
-
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One, Zero},
@@ -77,6 +76,7 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
+	type RuntimeTask = RuntimeTask;
 	type Nonce = u64;
 	type Block = Block;
 	type Hash = H256;
