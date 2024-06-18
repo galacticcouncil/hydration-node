@@ -125,7 +125,7 @@ impl pallet_treasury::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type SpendOrigin =
 		frame_system::EnsureWithSuccess<EnsureRoot<AccountId>, AccountId, crate::benches::BenchmarkMaxBalance>;
-	type AssetKind = (); // support only the native currency
+	type AssetKind = (); // set to () to support only the native currency
 	type Beneficiary = AccountId;
 	type BeneficiaryLookup = IdentityLookup<AccountId>;
 	type Paymaster = PayFromTreasuryAccount;
