@@ -1061,7 +1061,8 @@ impl pallet_route_executor::Config for Runtime {
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	#[cfg(feature = "runtime-benchmarks")]
-	type OraclePriceProvider = DummyOraclePriceProvider;}
+	type OraclePriceProvider = DummyOraclePriceProvider;
+}
 
 parameter_types! {
 	pub const ExistentialDepositMultiplier: u8 = 5;

@@ -28,11 +28,15 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydra_dx_math::ema::EmaPrice;
+use hydra_dx_math::ratio::Ratio;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::router::{RefundEdCalculator, Trade};
-use hydradx_traits::{router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry, Inspect as InspectRegistry, PriceOracle, OraclePeriod};
+use hydradx_traits::{
+	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
+	Inspect as InspectRegistry, OraclePeriod, PriceOracle,
+};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::BasicCurrencyAdapter;
@@ -49,7 +53,6 @@ use sp_runtime::{
 use sp_runtime::{BoundedVec, Permill};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use hydra_dx_math::ratio::Ratio;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -352,7 +355,6 @@ impl PriceOracle<AssetId> for PriceProviderMock {
 		Some(Ratio::new(88, 100))
 	}
 }
-
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,

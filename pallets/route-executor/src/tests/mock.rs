@@ -23,6 +23,7 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, TradeExecution};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
@@ -35,7 +36,6 @@ use sp_runtime::{
 };
 use std::cell::RefCell;
 use std::ops::Deref;
-use hydra_dx_math::ratio::Ratio;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -178,7 +178,6 @@ impl PriceOracle<AssetId> for PriceProviderMock {
 		Some(Ratio::new(88, 100))
 	}
 }
-
 
 use hydradx_traits::{AssetKind, OraclePeriod, PriceOracle};
 pub struct MockedAssetRegistry;

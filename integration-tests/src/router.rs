@@ -2965,12 +2965,9 @@ mod set_route {
 				Hydra::execute_with(|| {
 					let _ = with_transaction(|| {
 						//Arrange
-						let (pool_id, stable_asset_1, _) = init_stableswap_with_details(
-							1_000_000_000_000_000u128,
-							300_000_000_000_000u128,
-							18,
-						)
-						.unwrap();
+						let (pool_id, stable_asset_1, _) =
+							init_stableswap_with_details(1_000_000_000_000_000u128, 300_000_000_000_000u128, 18)
+								.unwrap();
 
 						init_omnipool();
 
@@ -3010,13 +3007,11 @@ mod set_route {
 							},
 						];
 
-						let route2_cheaper = vec![
-							Trade {
-								pool: PoolType::XYK,
-								asset_in: HDX,
-								asset_out: DOT,
-							},
-						];
+						let route2_cheaper = vec![Trade {
+							pool: PoolType::XYK,
+							asset_in: HDX,
+							asset_out: DOT,
+						}];
 
 						let asset_pair = Pair::new(HDX, DOT);
 
@@ -3106,7 +3101,6 @@ mod set_route {
 							route1.clone()
 						));
 						assert_eq!(Router::route(asset_pair).unwrap(), route1);
-
 
 						//We set the cheaper one so it should replace existing one
 						populate_oracle(HDX, DOT, route2_cheaper.clone(), Some(11), None);
@@ -3219,7 +3213,6 @@ mod set_route {
 
 				populate_oracle(HDX, BTC, route.clone(), None, None);
 
-
 				//Act and assert
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -3269,7 +3262,6 @@ mod set_route {
 				];
 
 				populate_oracle(HDX, BTC, route1.clone(), None, None);
-
 
 				let asset_pair = Pair::new(HDX, BTC);
 
@@ -3407,7 +3399,6 @@ mod set_route {
 
 				populate_oracle(HDX, BTC, route.clone(), None, None);
 
-
 				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
 					hydradx_runtime::RuntimeOrigin::root(),
 					DOT,
@@ -3462,15 +3453,14 @@ mod set_route {
 					},
 				];
 
-
 				//To prevent ED error
 				assert_ok!(hydradx_runtime::Tokens::set_balance(
-							RawOrigin::Root.into(),
-							DAVE.into(),
-							BTC,
-							1 * UNITS,
-							0,
-						));
+					RawOrigin::Root.into(),
+					DAVE.into(),
+					BTC,
+					1 * UNITS,
+					0,
+				));
 
 				populate_oracle(DAI, BTC, route.clone(), None, Some(90 * UNITS));
 
@@ -3524,7 +3514,6 @@ mod set_route {
 				];
 
 				populate_oracle(HDX, BTC, route.clone(), None, None);
-
 
 				//Act and assert
 				assert_ok!(Router::set_route(
@@ -3943,7 +3932,6 @@ mod set_route {
 
 				populate_oracle(HDX, BTC, prestored_route.clone(), None, None);
 
-
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
@@ -4152,8 +4140,8 @@ mod set_route {
 }
 
 mod with_on_chain_and_default_route {
-	use frame_support::assert_ok;
 	use super::*;
+	use frame_support::assert_ok;
 
 	#[test]
 	fn buy_should_work_with_onchain_route() {
@@ -4202,7 +4190,6 @@ mod with_on_chain_and_default_route {
 				];
 
 				populate_oracle(HDX, DOT, route1.clone(), None, None);
-
 
 				let asset_pair = Pair::new(HDX, DOT);
 				let amount_to_buy = 100 * UNITS;
@@ -4943,21 +4930,27 @@ pub fn init_stableswap_with_details(
 	Ok((pool_id, asset_in, asset_out))
 }
 
-fn populate_oracle(asset_in: AssetId, asset_out: AssetId, route: Vec<Trade<u32>>, block: Option<BlockNumber>, amount: Option<u128>) {
+fn populate_oracle(
+	asset_in: AssetId,
+	asset_out: AssetId,
+	route: Vec<Trade<u32>>,
+	block: Option<BlockNumber>,
+	amount: Option<u128>,
+) {
 	assert_ok!(hydradx_runtime::Tokens::set_balance(
-							RawOrigin::Root.into(),
-							DAVE.into(),
-							asset_in,
-							amount.unwrap_or(100 * UNITS),
-							0,
-						));
+		RawOrigin::Root.into(),
+		DAVE.into(),
+		asset_in,
+		amount.unwrap_or(100 * UNITS),
+		0,
+	));
 	assert_ok!(Router::sell(
-					hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
-					asset_in,
-					asset_out,
-					amount.unwrap_or(1 * UNITS),
-					0,
-					route.clone()
-				));
+		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
+		asset_in,
+		asset_out,
+		amount.unwrap_or(1 * UNITS),
+		0,
+		route.clone()
+	));
 	set_relaychain_block_number(block.unwrap_or(10));
 }

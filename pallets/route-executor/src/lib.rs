@@ -57,11 +57,11 @@ pub mod pallet {
 	use super::*;
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
+	use hydra_dx_math::ema::EmaPrice;
 	use hydradx_traits::router::{ExecutorError, RefundEdCalculator};
+	use hydradx_traits::{OraclePeriod, PriceOracle};
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
-	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{OraclePeriod, PriceOracle};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -497,8 +497,6 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
-
-
 
 	fn ensure_that_user_received_asset_out_at_most(
 		who: T::AccountId,
