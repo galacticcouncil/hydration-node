@@ -322,6 +322,7 @@ mod account_conversion {
 
 mod standard_precompiles {
 	use super::*;
+	use frame_support::assert_ok;
 	use pretty_assertions::assert_eq;
 	use sp_runtime::traits::UniqueSaturatedInto;
 
@@ -329,6 +330,13 @@ mod standard_precompiles {
 		to: EvmAddress,
 		data: Vec<u8>,
 	) -> Result<CallInfo, RunnerError<pallet_evm::Error<hydradx_runtime::Runtime>>> {
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			evm_account(),
+			WETH,
+			to_ether(1_000),
+			0,
+		));
 		<hydradx_runtime::Runtime as pallet_evm::Config>::Runner::call(
 			evm_address(),
 			to,
@@ -1140,9 +1148,9 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 		)));
 
 		//Create inssufficient asset
-		let shitcoin = with_transaction::<u32, DispatchError, _>(|| {
-			let name = b"SHITCO".to_vec();
-			let shitcoin = AssetRegistry::register_insufficient_asset(
+		let altcoin = with_transaction::<u32, DispatchError, _>(|| {
+			let name = b"ALTTKN".to_vec();
+			let altcoin = AssetRegistry::register_insufficient_asset(
 				None,
 				Some(name.try_into().unwrap()),
 				AssetKind::External,
@@ -1154,11 +1162,11 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 			)
 			.unwrap();
 
-			TransactionOutcome::Commit(Ok(shitcoin))
+			TransactionOutcome::Commit(Ok(altcoin))
 		})
 		.unwrap();
 
-		create_xyk_pool_with_amounts(shitcoin, 1000000 * UNITS, HDX, 1000000 * UNITS);
+		create_xyk_pool_with_amounts(altcoin, 1000000 * UNITS, HDX, 1000000 * UNITS);
 		init_omnipool_with_oracle_for_block_10();
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1181,12 +1189,12 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 			Trade {
 				pool: PoolType::XYK,
 				asset_in: HDX,
-				asset_out: shitcoin,
+				asset_out: altcoin,
 			},
 		];
 		let router_swap = RuntimeCall::Router(pallet_route_executor::Call::buy {
 			asset_in: WETH,
-			asset_out: shitcoin,
+			asset_out: altcoin,
 			amount_out: UNITS,
 			max_amount_in: u128::MAX,
 			route: swap_route,
@@ -1198,7 +1206,7 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 
 		hydradx_finalize_block(); //We do this to simulate that we don't have any prices in multi-payment-pallet, but the prices can be still calculated based on onchain route
 
-		let init_balance = Tokens::free_balance(shitcoin, &currency_precompile::alice_substrate_evm_addr());
+		let init_balance = Tokens::free_balance(altcoin, &currency_precompile::alice_substrate_evm_addr());
 		assert_eq!(init_balance, 0);
 
 		// Act
@@ -1216,8 +1224,8 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 		));
 
 		//EVM call passes even when the substrate tx fails, so we need to check if the tx is executed
-		expect_hydra_events(vec![pallet_evm::Event::Executed { address: DISPATCH_ADDR }.into()]);
-		let new_balance = Tokens::free_balance(shitcoin, &currency_precompile::alice_substrate_evm_addr());
+		expect_hydra_last_events(vec![pallet_evm::Event::Executed { address: DISPATCH_ADDR }.into()]);
+		let new_balance = Tokens::free_balance(altcoin, &currency_precompile::alice_substrate_evm_addr());
 		assert_eq!(new_balance, UNITS);
 	});
 }

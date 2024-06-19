@@ -55,7 +55,11 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 use codec::HasCompact;
-use frame_support::pallet_prelude::*;
+use frame_support::pallet_prelude::{
+	Get, Hooks, MaxEncodedLen, MaybeSerializeDeserialize, Member, Parameter, StorageValue, StorageVersion, TypeInfo,
+	ValueQuery,
+};
+use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;

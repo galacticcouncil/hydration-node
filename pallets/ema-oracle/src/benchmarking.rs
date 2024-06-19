@@ -105,7 +105,7 @@ benchmarks! {
 	}: { EmaOracle::<T>::on_finalize(block_num); }
 	verify {
 		assert!(Accumulator::<T>::get().is_empty());
-		assert_eq!(Oracles::<T>::get((SOURCE, ordered_pair(HDX, DOT), LastBlock)).unwrap(), (entry, block_num));
+		assert_eq!(Oracles::<T>::get((SOURCE, ordered_pair(HDX, DOT), OraclePeriod::LastBlock)).unwrap(), (entry, block_num));
 	}
 
 	#[extra]
@@ -148,7 +148,7 @@ benchmarks! {
 	}: { EmaOracle::<T>::on_finalize(block_num); }
 	verify {
 		assert!(Accumulator::<T>::get().is_empty());
-		assert_eq!(Oracles::<T>::get((SOURCE, ordered_pair(HDX, DOT), LastBlock)).unwrap(), (entry, initial_data_block));
+		assert_eq!(Oracles::<T>::get((SOURCE, ordered_pair(HDX, DOT), OraclePeriod::LastBlock)).unwrap(), (entry, initial_data_block));
 	}
 
 	on_finalize_multiple_tokens {
@@ -198,7 +198,7 @@ benchmarks! {
 		for i in 0 .. b {
 			let asset_a = i * 1_000;
 			let asset_b = asset_a + 500;
-			assert_eq!(Oracles::<T>::get((SOURCE, ordered_pair(asset_a, asset_b), LastBlock)).unwrap(), (entry.clone(), initial_data_block));
+			assert_eq!(Oracles::<T>::get((SOURCE, ordered_pair(asset_a, asset_b), OraclePeriod::LastBlock)).unwrap(), (entry.clone(), initial_data_block));
 		}
 	}
 
@@ -367,7 +367,7 @@ benchmarks! {
 		let res = core::cell::RefCell::new(Err(OracleError::NotPresent));
 
 		// aim to find a period that is not `LastBlock`, falling back to `LastBlock` if none is found.
-		let period = T::SupportedPeriods::get().into_iter().find(|p| p != &LastBlock).unwrap_or(LastBlock);
+		let period = T::SupportedPeriods::get().into_iter().find(|p| p != &OraclePeriod::LastBlock).unwrap_or(OraclePeriod::LastBlock);
 
 	}: { let _ = res.replace(EmaOracle::<T>::get_entry(asset_a, asset_b, period, SOURCE)); }
 	verify {

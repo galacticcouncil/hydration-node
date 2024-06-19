@@ -68,6 +68,7 @@ std = [
     'sp-std/std',
     "orml-tokens/std",
     "frame-benchmarking/std",
+    'orml-traits/std',
     "hydra-dx-math/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

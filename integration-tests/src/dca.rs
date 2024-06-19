@@ -64,7 +64,7 @@ mod omnipool {
 			let next_block_id = block_id + 1;
 			let schedule = DCA::schedule_ids_per_block(next_block_id);
 			assert!(!schedule.is_empty());
-			expect_hydra_events(vec![pallet_dca::Event::Scheduled {
+			expect_hydra_last_events(vec![pallet_dca::Event::Scheduled {
 				id: 0,
 				who: ALICE.into(),
 				period: schedule1.period,
@@ -519,7 +519,7 @@ mod omnipool {
 				BOB.into(),
 			));
 
-			polkadot_run_to_block(11);
+			rococo_run_to_block(11);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::force_set_balance(
@@ -565,7 +565,7 @@ mod omnipool {
 				ETH,
 				BOB.into(),
 			));
-			polkadot_run_to_block(12);
+			rococo_run_to_block(12);
 
 			//Assert
 			let schedule_id = 0;

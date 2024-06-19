@@ -54,10 +54,10 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1375305000;
-pub const BUY_DCA_FEE_IN_DAI: Balance = 1210268400;
-pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1380918000;
-pub const SELL_DCA_FEE_IN_DAI: Balance = 1215207840;
+pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1334471000;
+pub const BUY_DCA_FEE_IN_DAI: Balance = 1174334480;
+pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1335115000;
+pub const SELL_DCA_FEE_IN_DAI: Balance = 1174901200;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -175,6 +175,7 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
+	type RuntimeTask = RuntimeTask;
 	type Nonce = u64;
 	type Block = Block;
 	type Hash = H256;
@@ -332,8 +333,8 @@ impl pallet_balances::Config for Test {
 	type ReserveIdentifier = NamedReserveIdentifier;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ();
-	type MaxHolds = ();
 	type RuntimeHoldReason = ();
+	type RuntimeFreezeReason = ();
 }
 
 impl pallet_currencies::Config for Test {

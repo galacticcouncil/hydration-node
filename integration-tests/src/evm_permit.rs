@@ -746,7 +746,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		let user_dai_balance = user_acc.balance(DAI);
 		assert!(user_dai_balance < initial_user_dai_balance);
 		let dai_diff = initial_user_dai_balance - user_dai_balance;
-		assert_eq!(dai_diff, 1_651_665_230_644_991);
+		assert_eq!(dai_diff, 1_636_422_440_118_273);
 	})
 }
 

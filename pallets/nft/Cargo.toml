@@ -1,6 +1,6 @@
 [package]
 name = "pallet-nft"
-version = "7.1.3"
+version = "7.1.4"
 description = "A generic NFT pallet for managing non-fungible tokens"
 authors = ["GalacticCoucil"]
 edition = "2021"

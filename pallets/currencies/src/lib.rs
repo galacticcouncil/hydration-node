@@ -893,6 +893,7 @@ impl<T: Config, AccountId, Currency, Amount, Moment> Unbalanced<AccountId>
 	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
 where
 	Currency: Mutate<AccountId>,
+	AccountId: Eq,
 {
 	fn handle_dust(dust: Dust<AccountId, Self>) {
 		<Currency as Unbalanced<AccountId>>::handle_dust(Dust(dust.0))
@@ -919,6 +920,7 @@ impl<T: Config, AccountId, Currency, Amount, Moment> Mutate<AccountId>
 	for BasicCurrencyAdapter<T, Currency, Amount, Moment>
 where
 	Currency: Mutate<AccountId>,
+	AccountId: Eq,
 {
 	fn done_mint_into(who: &AccountId, amount: Self::Balance) {
 		<Currency as Mutate<AccountId>>::done_mint_into(who, amount)

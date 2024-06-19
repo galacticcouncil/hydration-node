@@ -2,7 +2,7 @@ use sp_std::cell::Cell;
 use sp_std::marker::PhantomData;
 
 use frame_support::traits::Contains;
-use polkadot_xcm::v3::prelude::*;
+use polkadot_xcm::v4::prelude::*;
 use sp_core::Get;
 use sp_runtime::Either;
 
@@ -12,15 +12,15 @@ pub struct AllowTransferAndSwap<MaxXcmDepth, MaxInstructions, RuntimeCall>(
 	PhantomData<(MaxXcmDepth, MaxInstructions, RuntimeCall)>,
 );
 
-impl<MaxXcmDepth, MaxInstructions, RuntimeCall> Contains<(MultiLocation, Xcm<RuntimeCall>)>
+impl<MaxXcmDepth, MaxInstructions, RuntimeCall> Contains<(Location, Xcm<RuntimeCall>)>
 	for AllowTransferAndSwap<MaxXcmDepth, MaxInstructions, RuntimeCall>
 where
 	MaxXcmDepth: Get<u16>,
 	MaxInstructions: Get<u16>,
 {
-	fn contains((loc, xcm): &(MultiLocation, Xcm<RuntimeCall>)) -> bool {
+	fn contains((loc, xcm): &(Location, Xcm<RuntimeCall>)) -> bool {
 		// allow root to execute XCM
-		if loc == &MultiLocation::here() {
+		if loc == &Location::here() {
 			return true;
 		}
 

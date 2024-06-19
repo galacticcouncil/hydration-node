@@ -17,17 +17,21 @@
 
 use super::*;
 use primitives::constants::{
-	currency::{deposit, CENTS, DOLLARS},
+	currency::{deposit, CENTS, DOLLARS, UNITS},
 	time::{DAYS, HOURS},
 };
 
 use frame_support::{
 	parameter_types,
 	sp_runtime::{Perbill, Percent, Permill},
-	traits::{ConstU32, EitherOfDiverse, LockIdentifier, NeverEnsureOrigin, PrivilegeCmp},
+	traits::{
+		fungible::HoldConsideration, tokens::UnityAssetBalanceConversion, ConstU32, EitherOfDiverse,
+		LinearStoragePrice, LockIdentifier, PrivilegeCmp,
+	},
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
+use sp_runtime::traits::IdentityLookup;
 use sp_staking::currency_to_vote::U128CurrencyToVote;
 use sp_std::cmp::Ordering;
 
@@ -40,6 +44,64 @@ parameter_types! {
 	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const MaxApprovals: u32 =  100;
+	pub const TreasuryPayoutPeriod: u32 = 30 * DAYS;
+}
+
+pub struct PayFromTreasuryAccount;
+
+impl frame_support::traits::tokens::Pay for PayFromTreasuryAccount {
+	type Balance = Balance;
+	type Beneficiary = AccountId;
+	type AssetKind = ();
+	type Id = ();
+	type Error = sp_runtime::DispatchError;
+
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	fn pay(
+		who: &Self::Beneficiary,
+		_asset_kind: Self::AssetKind,
+		amount: Self::Balance,
+	) -> Result<Self::Id, Self::Error> {
+		let _ = <Balances as frame_support::traits::fungible::Mutate<_>>::transfer(
+			&TreasuryAccount::get(),
+			who,
+			amount,
+			frame_support::traits::tokens::Preservation::Expendable,
+		)?;
+		Ok(())
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn pay(
+		who: &Self::Beneficiary,
+		_asset_kind: Self::AssetKind,
+		amount: Self::Balance,
+	) -> Result<Self::Id, Self::Error> {
+		// In case of benchmarks, we adjust the value by multiplying it by 1_000_000_000_000, otherwise it fails with BelowMinimum limit error, because
+		// treasury benchmarks uses only 100 as the amount.
+		let _ = <Balances as frame_support::traits::fungible::Mutate<_>>::transfer(
+			&TreasuryAccount::get(),
+			who,
+			amount * 1_000_000_000_000,
+			frame_support::traits::tokens::Preservation::Expendable,
+		)?;
+		Ok(())
+	}
+
+	fn check_payment(_id: Self::Id) -> frame_support::traits::tokens::PaymentStatus {
+		frame_support::traits::tokens::PaymentStatus::Success
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn ensure_successful(_: &Self::Beneficiary, _: Self::AssetKind, amount: Self::Balance) {
+		<Balances as frame_support::traits::fungible::Mutate<_>>::mint_into(
+			&TreasuryAccount::get(),
+			amount * 1_000_000_000_000,
+		)
+		.unwrap();
+	}
+	#[cfg(feature = "runtime-benchmarks")]
+	fn ensure_concluded(_: Self::Id) {}
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -55,24 +117,41 @@ impl pallet_treasury::Config for Runtime {
 	type Burn = Burn;
 	type PalletId = TreasuryPalletId;
 	type BurnDestination = ();
-	type WeightInfo = weights::treasury::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_treasury::HydraWeight<Runtime>;
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
-	type SpendOrigin = NeverEnsureOrigin<Balance>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SpendOrigin =
+		frame_system::EnsureWithSuccess<EnsureRoot<AccountId>, AccountId, crate::benches::BenchmarkMaxBalance>;
+	type AssetKind = (); // set to () to support only the native currency
+	type Beneficiary = AccountId;
+	type BeneficiaryLookup = IdentityLookup<AccountId>;
+	type Paymaster = PayFromTreasuryAccount;
+	type BalanceConverter = UnityAssetBalanceConversion;
+	type PayoutPeriod = TreasuryPayoutPeriod;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = (); // default impl is enough because we support only the native currency
 }
 
 parameter_types! {
 	pub PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub PreimageByteDeposit: Balance = deposit(0, 1);
+	pub const PreimageHoldReason: RuntimeHoldReason = RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
 }
 
 impl pallet_preimage::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::preimage::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_preimage::HydraWeight<Runtime>;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
-	type BaseDeposit = PreimageBaseDeposit;
-	type ByteDeposit = PreimageByteDeposit;
+	type Consideration = HoldConsideration<
+		AccountId,
+		Balances,
+		PreimageHoldReason,
+		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
+	>;
 }
 
 /// Used the compare the privilege of an origin inside the scheduler.
@@ -111,7 +190,7 @@ impl pallet_scheduler::Config for Runtime {
 	type ScheduleOrigin = MoreThanHalfCouncil;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
-	type WeightInfo = weights::scheduler::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_scheduler::HydraWeight<Runtime>;
 	type Preimages = Preimage;
 }
 
@@ -131,7 +210,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxProposals = CouncilMaxProposals;
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::council::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_collective_council::HydraWeight<Runtime>;
 	type MaxProposalWeight = MaxProposalWeight;
 	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
@@ -151,7 +230,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxProposals = TechnicalMaxProposals;
 	type MaxMembers = TechnicalMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::technical_committee::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_collective_technical_committee::HydraWeight<Runtime>;
 	type MaxProposalWeight = MaxProposalWeight;
 	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
@@ -217,7 +296,7 @@ parameter_types! {
 }
 
 impl pallet_democracy::Config for Runtime {
-	type WeightInfo = weights::democracy::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_democracy::HydraWeight<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type Scheduler = Scheduler;
 	type Preimages = Preimage;
@@ -291,7 +370,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type TermDuration = TermDuration;
 	type MaxCandidates = MaxElectionCandidates;
 	type MaxVoters = MaxElectionVoters;
-	type WeightInfo = weights::elections::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_elections_phragmen::HydraWeight<Runtime>;
 	type MaxVotesPerVoter = MaxVotesPerVoter;
 }
 
@@ -302,6 +381,7 @@ parameter_types! {
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
 	pub const MaximumReasonLength: u32 = 1024;
+	pub const MaxTipAmount: u128 = 5_000_000 * UNITS; // ~$100k
 }
 
 impl pallet_tips::Config for Runtime {
@@ -311,6 +391,7 @@ impl pallet_tips::Config for Runtime {
 	type TipCountdown = TipCountdown;
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
+	type MaxTipAmount = MaxTipAmount;
 	type Tippers = Elections;
-	type WeightInfo = weights::tips::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_tips::HydraWeight<Runtime>;
 }

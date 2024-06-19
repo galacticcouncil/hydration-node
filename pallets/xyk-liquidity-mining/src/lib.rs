@@ -43,6 +43,7 @@ mod tests;
 pub mod migration;
 pub mod weights;
 
+pub use crate::weights::WeightInfo;
 pub use pallet::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
@@ -71,7 +72,6 @@ type PeriodOf<T> = BlockNumberFor<T>;
 #[allow(clippy::too_many_arguments)]
 pub mod pallet {
 	use super::*;
-	use crate::weights::WeightInfo;
 	use frame_system::pallet_prelude::BlockNumberFor;
 	use hydradx_traits::pools::DustRemovalAccountWhitelist;
 

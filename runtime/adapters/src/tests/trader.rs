@@ -21,6 +21,7 @@ use frame_support::{weights::IdentityFee, BoundedVec};
 use sp_runtime::{traits::One, DispatchResult, FixedU128};
 use sp_std::cell::RefCell;
 use sp_std::collections::btree_set::BTreeSet;
+use sp_std::sync::Arc;
 
 type AccountId = u32;
 type AssetId = u32;
@@ -47,33 +48,41 @@ impl NativePriceOracle<AssetId, Price> for MockOracle {
 }
 
 struct MockConvert;
-impl Convert<AssetId, Option<MultiLocation>> for MockConvert {
-	fn convert(id: AssetId) -> Option<MultiLocation> {
+impl Convert<AssetId, Option<Location>> for MockConvert {
+	fn convert(id: AssetId) -> Option<Location> {
 		match id {
 			CORE_ASSET_ID | TEST_ASSET_ID | CHEAP_ASSET_ID | OVERFLOW_ASSET_ID => {
 				let junction = Junction::from(BoundedVec::try_from(id.encode()).unwrap());
-				Some(polkadot_xcm::v3::MultiLocation::new(0, X1(junction)))
+				Some(Location::new(0, Junctions::X1(Arc::new([junction]))))
 			}
 			_ => None,
 		}
 	}
 }
 
-impl Convert<MultiLocation, Option<AssetId>> for MockConvert {
-	fn convert(location: MultiLocation) -> Option<AssetId> {
+impl Convert<Location, Option<AssetId>> for MockConvert {
+	fn convert(location: Location) -> Option<AssetId> {
 		match location {
-			MultiLocation {
+			Location {
 				parents: 0,
-				interior: X1(GeneralKey { data, .. }),
+				interior: Junctions::X1(a),
 			} => {
-				if let Ok(currency_id) = AssetId::decode(&mut &data[..]) {
-					// we currently have only one native asset
-					match currency_id {
-						CORE_ASSET_ID | TEST_ASSET_ID | CHEAP_ASSET_ID | OVERFLOW_ASSET_ID => Some(currency_id),
-						_ => None,
+				match (*a)[0] {
+					GeneralKey { data, .. } => {
+						match AssetId::decode(&mut &data[..]) {
+							Ok(currency_id) => {
+								// we currently have only one native asset
+								match currency_id {
+									CORE_ASSET_ID | TEST_ASSET_ID | CHEAP_ASSET_ID | OVERFLOW_ASSET_ID => {
+										Some(currency_id)
+									}
+									_ => None,
+								}
+							}
+							_ => None,
+						}
 					}
-				} else {
-					None
+					_ => None,
 				}
 			}
 			_ => None,
@@ -81,28 +90,22 @@ impl Convert<MultiLocation, Option<AssetId>> for MockConvert {
 	}
 }
 
-impl Convert<MultiAsset, Option<AssetId>> for MockConvert {
-	fn convert(asset: MultiAsset) -> Option<AssetId> {
-		if let MultiAsset {
-			id: Concrete(location), ..
-		} = asset
-		{
-			Self::convert(location)
-		} else {
-			None
-		}
+impl Convert<Asset, Option<AssetId>> for MockConvert {
+	fn convert(asset: Asset) -> Option<AssetId> {
+		let Asset { id: asset_id, .. } = asset;
+		Self::convert(asset_id.0)
 	}
 }
 
 thread_local! {
-	pub static TAKEN_REVENUE: RefCell<BTreeSet<MultiAsset>> = RefCell::new(BTreeSet::new());
-	pub static EXPECTED_REVENUE: RefCell<BTreeSet<MultiAsset>> = RefCell::new(BTreeSet::new());
+	pub static TAKEN_REVENUE: RefCell<BTreeSet<Asset>> = RefCell::new(BTreeSet::new());
+	pub static EXPECTED_REVENUE: RefCell<BTreeSet<Asset>> = RefCell::new(BTreeSet::new());
 }
 
 struct ExpectRevenue;
 impl ExpectRevenue {
 	/// Register an asset to be expected.
-	fn register_expected_asset(asset: MultiAsset) {
+	fn register_expected_asset(asset: Asset) {
 		EXPECTED_REVENUE.with(|e| e.borrow_mut().insert(asset));
 	}
 
@@ -134,7 +137,7 @@ impl ExpectRevenue {
 }
 
 impl TakeRevenue for ExpectRevenue {
-	fn take_revenue(asset: MultiAsset) {
+	fn take_revenue(asset: Asset) {
 		TAKEN_REVENUE.with(|t| t.borrow_mut().insert(asset));
 	}
 }
@@ -187,21 +190,21 @@ fn can_buy_weight() {
 			topic: None,
 		};
 
-		let core_payment: MultiAsset = (Concrete(core_id), 1_000_000).into();
+		let core_payment: Asset = (core_id, Fungible(1_000_000)).into();
 		let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), core_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == weight")
 			.is_empty());
 		ExpectRevenue::register_expected_asset(core_payment);
 
-		let test_payment: MultiAsset = (Concrete(test_id), 500_000).into();
+		let test_payment: Asset = (test_id, Fungible(500_000)).into();
 		let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), test_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == 0.5 * weight")
 			.is_empty());
 		ExpectRevenue::register_expected_asset(test_payment);
 
-		let cheap_payment: MultiAsset = (Concrete(cheap_id), 4_000_000).into();
+		let cheap_payment: Asset = (cheap_id, Fungible(4_000_000)).into();
 		let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), cheap_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == 4 * weight")
@@ -227,17 +230,17 @@ fn can_buy_twice() {
 			topic: None,
 		};
 
-		let payment1: MultiAsset = (Concrete(core_id), 1_000_000).into();
+		let payment1: Asset = (core_id.clone(), Fungible(1_000_000)).into();
 		let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), payment1.into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == weight")
 			.is_empty());
-		let payment2: MultiAsset = (Concrete(core_id), 1_000_000).into();
+		let payment2: Asset = (core_id.clone(), Fungible(1_000_000)).into();
 		let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), payment2.into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == weight")
 			.is_empty());
-		let total_payment: MultiAsset = (Concrete(core_id), 2_000_000).into();
+		let total_payment: Asset = (core_id, Fungible(2_000_000)).into();
 		ExpectRevenue::register_expected_asset(total_payment);
 	}
 	ExpectRevenue::expect_revenue();
@@ -255,7 +258,7 @@ fn cannot_buy_with_too_few_tokens() {
 		message_id: XcmHash::default(),
 		topic: None,
 	};
-	let payment: MultiAsset = (Concrete(core_id), 69).into();
+	let payment: Asset = (core_id, Fungible(69)).into();
 
 	let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), payment.into(), &ctx));
 	assert_eq!(res, Err(XcmError::TooExpensive));
@@ -273,7 +276,7 @@ fn cannot_buy_with_unknown_token() {
 		message_id: XcmHash::default(),
 		topic: None,
 	};
-	let payment: MultiAsset = (Concrete(unknown_token.into()), 1_000_000).into();
+	let payment: Asset = (unknown_token, Fungible(1_000_000)).into();
 	let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), payment.into(), &ctx));
 	assert_eq!(res, Err(XcmError::AssetNotFound));
 }
@@ -290,7 +293,7 @@ fn cannot_buy_with_non_fungible() {
 		message_id: XcmHash::default(),
 		topic: None,
 	};
-	let payment: MultiAsset = (Concrete(unknown_token.into()), NonFungible(AssetInstance::Undefined)).into();
+	let payment: Asset = (unknown_token, NonFungible(AssetInstance::Undefined)).into();
 
 	let res = dbg!(trader.buy_weight(Weight::from_parts(1_000_000, 0), payment.into(), &ctx));
 	assert_eq!(res, Err(XcmError::AssetNotFound));
@@ -321,7 +324,7 @@ fn overflow_errors() {
 	};
 
 	let amount = 1_000;
-	let payment: MultiAsset = (Concrete(overflow_id), amount).into();
+	let payment: Asset = (overflow_id, Fungible(amount)).into();
 	let weight = Weight::from_parts(1_000, 0);
 	let res = dbg!(trader.buy_weight(weight, payment.into(), &ctx));
 	assert_eq!(res, Err(XcmError::Overflow));
@@ -346,7 +349,7 @@ fn refunds_first_asset_completely() {
 
 		let weight = Weight::from_parts(1_000_000, 0);
 		let tokens = 1_000_000;
-		let core_payment: MultiAsset = (Concrete(core_id), tokens).into();
+		let core_payment: Asset = (core_id, Fungible(tokens)).into();
 		let res = dbg!(trader.buy_weight(weight, core_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == weight")
@@ -389,13 +392,13 @@ fn needs_multiple_refunds_for_multiple_currencies() {
 		};
 
 		let weight = Weight::from_parts(1_000_000, 0);
-		let core_payment: MultiAsset = (Concrete(core_id), 1_000_000).into();
+		let core_payment: Asset = (core_id, Fungible(1_000_000)).into();
 		let res = dbg!(trader.buy_weight(weight, core_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == weight")
 			.is_empty());
 
-		let test_payment: MultiAsset = (Concrete(test_id), 500_000).into();
+		let test_payment: Asset = (test_id, Fungible(500_000)).into();
 		let res = dbg!(trader.buy_weight(weight, test_payment.clone().into(), &ctx));
 		assert!(res
 			.expect("buy_weight should succeed because payment == 0.5 * weight")
