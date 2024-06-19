@@ -13,6 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # OTC Settlements pallet
+//!
+//! ## Description
+//! The pallet provides implementation of the offchain worker for closing existing arbitrage opportunities between OTC
+//! orders and the Omnipool.
+//! Two main parts of this pallet are methods to find the correct amount in order to close an existing arbitrage opportunity
+//! and an extrinsic. The extrinsic is mainly called by the offchain worker as unsigned extrinsic, but can be also called
+//! by any user using signed origin. In the former case, the block producer doesn't pay the fee.
+//!
+//! ## Notes
+//! If the OTC order is partially fillable, the pallet tries to close the arbitrage opportunity by finding the amount that
+//! aligns the OTC and the Omnipool prices. Executing this trade needs to be profitable, but we are not trying to maximize
+//! the profit.
+//! In the case of not partially fillable OTC orders, the pallet tries to maximize the profit.
+//!
+//! ## Dispatachable functions
+//! * `settle_otc_order` -  Executes a trade between an OTC order and some route.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{
@@ -251,11 +269,15 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let min_expected_profit = T::MinProfitPercentage::get().mul_floor(otc_amount_in);
-		// tell the binary search algorithm to find higher values
+		// if the next condition is not met, tell the binary search algorithm to find higher values
+		// by throwing the error.
 		ensure!(profit >= min_expected_profit, Error::<T>::TradeAmountTooLow);
 		Ok(())
 	}
 
+	/// Because asset_in in a OTC order becomes asset_out in a router trade, we name
+	/// this asset just asset_a to make it less confusing.
+	///
 	/// Executes two trades: asset_a -> OTC -> asset_b, and asset_b -> Router -> asset_a.
 	///
 	/// If the OTC order is partially fillable, the extrinsic fails if the existing arbitrage
@@ -286,7 +308,7 @@ impl<T: Config> Pallet<T> {
 
 		<T as Config>::Currency::mint_into(asset_a, &pallet_acc, amount)?;
 
-		// get initial otc and router price
+		// get initial otc price
 		let otc_price =
 			FixedU128::checked_from_rational(otc.amount_out, otc.amount_in).ok_or(ArithmeticError::Overflow)?;
 
@@ -322,11 +344,10 @@ impl<T: Config> Pallet<T> {
 			1,
 			route.clone(),
 		)
-		.map_err(|_| Error::<T>::TradeAmountTooHigh)?;
-		// There are 3 possible types of error:
-		// min trade limit not reached - we start with the largest possible amount, so we can't increase it more.
-		// max trade limit reached - we are interested in this one. We can decrease the amount and try again.
-		// some other error - we can't handle this one properly.
+		// This can fail for different reason, but because we start with the largest possible amount,
+		// all we can do is to return `TradeAmountTooHigh` to tell the binary search algorithm to
+		// try again with smaller amount.
+			.map_err(|_| Error::<T>::TradeAmountTooHigh)?;
 
 		// Compare OTC and Router price
 		let router_price_after = T::Router::spot_price_with_fee(&route).ok_or(Error::<T>::PriceNotAvailable)?;
@@ -563,7 +584,7 @@ impl<T: Config> Pallet<T> {
 			if sell_amt_down == sell_amt_up {
 				return None;
 			}
-			sell_amt = (sell_amt_up + sell_amt_down) / 2;
+			sell_amt = (sell_amt_up.checked_add(sell_amt_down)).and_then(|value| value.checked_div(2))?;
 		}
 		None
 	}

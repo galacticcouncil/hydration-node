@@ -188,8 +188,7 @@ fn otcs_list_storage_should_be_sorted_on_new_block() {
 }
 
 #[test]
-fn profit_should_be_transferred_to_treasury() {
-	// test case with zero initial pallet balance
+fn profit_should_be_transferred_to_treasury_when_zero_initial_pallet_balance() {
 	let (mut ext, _) = ExtBuilder::default().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
@@ -216,8 +215,10 @@ fn profit_should_be_transferred_to_treasury() {
 		let balance_after = Currencies::free_balance(HDX, &TreasuryAccount::get());
 		assert!(balance_after > balance_before);
 	});
+}
 
-	// test case with non-zero initial pallet balance
+#[test]
+fn profit_should_be_transferred_to_treasury_when_nonzero_initial_pallet_balance() {
 	let (mut ext, _) = ExtBuilder::default().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
