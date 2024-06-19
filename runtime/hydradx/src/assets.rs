@@ -862,7 +862,7 @@ impl RouterWeightInfo {
 	}
 
 	pub fn skip_ed_handling_overweight() -> Weight {
-		weights::route_executor::HydraWeight::<Runtime>::skip_ed_handling_for_trade_with_insufficient_assets()
+		weights::pallet_route_executor::HydraWeight::<Runtime>::skip_ed_handling_for_trade_with_insufficient_assets()
 	}
 }
 
