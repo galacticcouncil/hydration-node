@@ -11,7 +11,7 @@ use pretty_assertions::assert_eq;
 use sp_runtime::traits::Convert;
 use sp_runtime::{FixedU128, SaturatedConversion};
 use xcm_executor::traits::AssetExchange;
-use xcm_executor::Assets;
+use xcm_executor::AssetsInHolding;
 
 parameter_types! {
 	pub ExchangeTempAccount: AccountId = 12345;
@@ -24,28 +24,25 @@ const UNITS: u128 = 1_000_000_000_000;
 
 pub struct CurrencyIdConvert;
 
-impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
-	fn convert(location: MultiLocation) -> Option<CurrencyId> {
+impl Convert<Location, Option<CurrencyId>> for CurrencyIdConvert {
+	fn convert(location: Location) -> Option<CurrencyId> {
 		match location {
-			MultiLocation {
+			Location {
 				parents: 0,
-				interior: X1(GeneralIndex(index)),
-			} => Some(index.saturated_into()),
+				interior: Junctions::X1(a),
+			} => match (*a)[0] {
+				GeneralIndex(index) => Some(index.saturated_into()),
+				_ => None,
+			},
 			_ => None,
 		}
 	}
 }
 
-impl Convert<MultiAsset, Option<CurrencyId>> for CurrencyIdConvert {
-	fn convert(asset: MultiAsset) -> Option<CurrencyId> {
-		if let MultiAsset {
-			id: Concrete(location), ..
-		} = asset
-		{
-			Self::convert(location)
-		} else {
-			None
-		}
+impl Convert<Asset, Option<CurrencyId>> for CurrencyIdConvert {
+	fn convert(asset: Asset) -> Option<CurrencyId> {
+		let Asset { id: asset_id, .. } = asset;
+		Self::convert(asset_id.0)
 	}
 }
 
@@ -60,15 +57,17 @@ fn xcm_exchanger_allows_selling_supported_assets() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			let give = MultiAsset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
+			let give: Assets = Asset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
-			let want: MultiAssets = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
+			let want: Assets = Asset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
 
 			// Act
-			let received = exchange_asset(None, give, &want, SELL).expect("should return ok");
+			let received: Assets = exchange_asset(None, give, &want, SELL)
+				.expect("should return ok")
+				.into();
 
 			// Assert
-			let mut iter = received.fungible_assets_iter();
+			let mut iter = received.inner().iter().filter(|asset| asset.is_fungible(None));
 			let asset_received = iter.next().expect("there should be at least one asset");
 			assert!(iter.next().is_none(), "there should only be one asset returned");
 			let Fungible(received_amount) = asset_received.fun else {
@@ -111,15 +110,17 @@ fn xcm_exchanger_should_work_with_onchain_route() {
 				],
 			));
 
-			let give = MultiAsset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
+			let give = Asset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
 			let wanted_amount = 40 * UNITS; // 50 - 10 to cover fees
-			let want: MultiAssets = MultiAsset::from((GeneralIndex(DOT.into()), wanted_amount)).into();
+			let want: Assets = Asset::from((GeneralIndex(DOT.into()), wanted_amount)).into();
 
 			// Act
-			let received = exchange_asset(None, give, &want, SELL).expect("should return ok");
+			let received: Assets = exchange_asset(None, give, &want, SELL)
+				.expect("should return ok")
+				.into();
 
 			// Assert
-			let mut iter = received.fungible_assets_iter();
+			let mut iter = received.inner().iter().filter(|asset| asset.is_fungible(None));
 			let asset_received = iter.next().expect("there should be at least one asset");
 			assert!(iter.next().is_none(), "there should only be one asset returned");
 			let Fungible(received_amount) = asset_received.fun else {
@@ -143,29 +144,37 @@ fn xcm_exchanger_allows_buying_supported_assets() {
 		.build()
 		.execute_with(|| {
 			let given_amount = 100 * UNITS;
-			let give_asset = MultiAsset::from((GeneralIndex(DAI.into()), given_amount));
+			let give_asset = Asset::from((GeneralIndex(DAI.into()), given_amount));
 			let give = give_asset.into();
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
-			let want_asset = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount));
-			let want: MultiAssets = want_asset.clone().into();
+			let want_asset = Asset::from((GeneralIndex(HDX.into()), wanted_amount));
+			let want: Assets = want_asset.clone().into();
 
 			// Act
-			let received = exchange_asset(None, give, &want, BUY).expect("should return ok");
+			let received: Assets = exchange_asset(None, give, &want, BUY).expect("should return ok").into();
 
 			// Assert
-			let mut iter = received.fungible_assets_iter();
+			let mut iter = received.inner().iter().filter(|asset| asset.is_fungible(None));
 			let asset_received = iter.next().expect("there should be at least one asset");
-			let left_over = iter.next().expect("there should be at least some left_over asset_in");
+			let left_over = iter
+				.next()
+				.expect("there should be at least some left_over asset_in")
+				.clone();
+
 			assert!(iter.next().is_none(), "there should only be two assets returned");
+
 			let Fungible(left_over_amount) = left_over.fun else {
 				panic!("should be fungible")
 			};
+
 			assert_eq!(left_over, (GeneralIndex(DAI.into()), left_over_amount).into());
 			assert!(left_over_amount < given_amount);
-			assert_eq!(asset_received, want_asset);
+			assert_eq!(*asset_received, want_asset);
+
 			let Fungible(received_amount) = asset_received.fun else {
 				panic!("should be fungible")
 			};
+
 			assert!(received_amount == wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
 			assert_eq!(Balances::free_balance(ExchangeTempAccount::get()), 0);
@@ -183,14 +192,14 @@ fn xcm_exchanger_should_not_allow_trading_for_multiple_assets() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			let give: MultiAssets = MultiAsset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
+			let give: Assets = Asset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
-			let want1: MultiAsset = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount));
-			let want2: MultiAsset = MultiAsset::from((GeneralIndex(DAI.into()), wanted_amount));
-			let want: MultiAssets = vec![want1, want2].into();
+			let want1: Asset = Asset::from((GeneralIndex(HDX.into()), wanted_amount));
+			let want2: Asset = Asset::from((GeneralIndex(DAI.into()), wanted_amount));
+			let want: Assets = vec![want1, want2].into();
 
 			// Act and assert
-			assert_noop!(exchange_asset(None, give.clone().into(), &want, SELL), give);
+			assert_noop!(exchange_asset(None, give.clone(), &want, SELL), give);
 		});
 }
 
@@ -205,23 +214,26 @@ fn xcm_exchanger_works_with_specified_origin() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			let give = MultiAsset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
+			let give = Asset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
-			let want = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
+			let want = Asset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
 
 			// Act and assert
-			assert_ok!(exchange_asset(Some(&MultiLocation::here()), give, &want, SELL));
+			assert_ok!(exchange_asset(Some(&Location::here()), give, &want, SELL));
 		});
 }
 
 fn exchange_asset(
-	origin: Option<&MultiLocation>,
+	origin: Option<&Location>,
 	give: Assets,
-	want: &MultiAssets,
+	want: &Assets,
 	is_sell: bool,
-) -> Result<Assets, Assets> {
+) -> Result<AssetsInHolding, AssetsInHolding> {
 	XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::exchange_asset(
-		origin, give, want, is_sell,
+		origin,
+		give.into(),
+		want,
+		is_sell,
 	)
 }
 

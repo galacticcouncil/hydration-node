@@ -27,10 +27,6 @@ use sp_runtime::{
 	BuildStorage, Perbill,
 };
 
-mod nfc {
-	// Re-export needed for `impl_outer_event!`.
-}
-
 type AccountId = AccountId32;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
@@ -81,7 +77,7 @@ impl NftPermission<CollectionType> for NftTestPermissions {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_nft::weights::BasiliskWeight<Test>;
+	type WeightInfo = ();
 	type NftCollectionId = CollectionId;
 	type NftItemId = ItemId;
 	type CollectionType = CollectionType;
@@ -135,6 +131,7 @@ impl frame_system::Config for Test {
 	type DbWeight = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
+	type RuntimeTask = RuntimeTask;
 	type Nonce = u64;
 	type Block = Block;
 	type Hash = H256;
@@ -170,8 +167,8 @@ impl pallet_balances::Config for Test {
 	type ReserveIdentifier = ();
 	type FreezeIdentifier = ();
 	type MaxFreezes = ();
-	type MaxHolds = ();
 	type RuntimeHoldReason = ();
+	type RuntimeFreezeReason = ();
 }
 
 pub const ALICE: AccountId = AccountId::new([1u8; 32]);

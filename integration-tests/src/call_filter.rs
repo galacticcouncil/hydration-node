@@ -7,7 +7,7 @@ use frame_support::{
 	traits::Contains,
 	weights::Weight,
 };
-use polkadot_xcm::latest::prelude::*;
+use polkadot_xcm::v3::prelude::*;
 use polkadot_xcm::VersionedXcm;
 use xcm_emulator::TestExt;
 
@@ -35,11 +35,11 @@ fn transfer_should_not_work_when_transfering_omnipool_assets_to_omnipool_account
 
 		// Balances::transfer
 		// transfer to Alice should not be filtered
-		let successful_call = hydradx_runtime::RuntimeCall::Balances(pallet_balances::Call::transfer {
+		let successful_call = hydradx_runtime::RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
 			dest: ALICE.into(),
 			value: 10 * UNITS,
 		});
-		let filtered_call = hydradx_runtime::RuntimeCall::Balances(pallet_balances::Call::transfer {
+		let filtered_call = hydradx_runtime::RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
 			dest: omnipool_account.clone(),
 			value: 10 * UNITS,
 		});
@@ -230,7 +230,7 @@ fn calling_pallet_xcm_send_extrinsic_should_not_be_filtered_by_call_filter() {
 	Hydra::execute_with(|| {
 		// the values here don't need to make sense, all we need is a valid Call
 		let call = hydradx_runtime::RuntimeCall::PolkadotXcm(pallet_xcm::Call::send {
-			dest: Box::new(MultiLocation::parent().into()),
+			dest: Box::new(MultiLocation::parent().into_versioned()),
 			message: Box::new(VersionedXcm::from(Xcm(vec![]))),
 		});
 
@@ -260,7 +260,7 @@ fn calling_orml_xcm_extrinsic_should_be_filtered_by_call_filter() {
 	Hydra::execute_with(|| {
 		// the values here don't need to make sense, all we need is a valid Call
 		let call = hydradx_runtime::RuntimeCall::OrmlXcm(orml_xcm::Call::send_as_sovereign {
-			dest: Box::new(MultiLocation::parent().into()),
+			dest: Box::new(MultiLocation::parent().into_versioned()),
 			message: Box::new(VersionedXcm::from(Xcm(vec![]))),
 		});
 

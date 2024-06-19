@@ -34,7 +34,7 @@ use sp_runtime::traits::ValidateUnsigned;
 use sp_runtime::transaction_validity::TransactionSource;
 
 const CALL: &<Test as frame_system::Config>::RuntimeCall =
-	&RuntimeCall::Balances(BalancesCall::transfer { dest: BOB, value: 69 });
+	&RuntimeCall::Balances(BalancesCall::transfer_allow_death { dest: BOB, value: 69 });
 
 #[test]
 fn on_initialize_should_fill_storage_with_prices() {

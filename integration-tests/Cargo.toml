@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.21.9"
+version = "1.22.5"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -75,12 +75,11 @@ cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
-cumulus-pallet-dmp-queue = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
 cumulus-primitives-timestamp = { workspace = true }
-parachain-info = { workspace = true }
+staging-parachain-info = { workspace = true }
 cumulus-test-relay-sproof-builder = { workspace = true }
 
 # Polkadot dependencies
@@ -123,13 +122,14 @@ sp-staking = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
 sp-consensus-babe = { workspace = true }
+sp-consensus-beefy = { workspace = true }
 sp-authority-discovery = { workspace = true }
 sc-consensus-grandpa = { workspace = true }
 
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true, features = ["full-node"] }
 polkadot-runtime-parachains = { workspace = true }
-polkadot-runtime = { workspace = true }
+rococo-runtime = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
@@ -162,7 +162,7 @@ std = [
     "xcm-builder/std",
     "xcm-executor/std",
     "pallet-xcm/std",
-    "parachain-info/std",
+    "staging-parachain-info/std",
     "pallet-asset-registry/std",
     "pallet-aura/std",
     "pallet-balances/std",
@@ -180,6 +180,7 @@ std = [
     "sp-block-builder/std",
     "sp-consensus-aura/std",
     "sp-consensus-babe/std",
+    "sp-consensus-beefy/std",
     "sp-core/std",
     "sp-io/std",
     "sp-inherents/std",
@@ -200,8 +201,8 @@ std = [
     "pallet-authorship/std",
     "hydradx-traits/std",
     "pallet-relaychain-info/std",
-    "polkadot-runtime/std",
     "hydradx-runtime/std",
+    "rococo-runtime/std",
     "pallet-staking/std",
     "scraper/std",
     "pallet-dynamic-evm-fee/std",
@@ -212,8 +213,7 @@ std = [
 # we don't include integration tests when benchmarking feature is enabled
 runtime-benchmarks = [
     "hydradx-runtime/runtime-benchmarks",
-    "polkadot-runtime/runtime-benchmarks",
+    "rococo-runtime/runtime-benchmarks",
 ]
 try-runtime = [
-    "polkadot-runtime/try-runtime",
 ]

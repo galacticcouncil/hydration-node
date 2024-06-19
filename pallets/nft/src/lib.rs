@@ -36,7 +36,7 @@ use sp_runtime::{
 };
 use sp_std::boxed::Box;
 pub use types::*;
-use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 mod benchmarking;
 pub mod migration;

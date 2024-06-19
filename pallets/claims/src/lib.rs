@@ -35,7 +35,7 @@ use scale_info::TypeInfo;
 use sp_runtime::DispatchError;
 use sp_runtime::{traits::Zero, ModuleError};
 use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
-use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 mod benchmarking;
 mod traits;

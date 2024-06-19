@@ -134,7 +134,7 @@ fn lowest_unbaked_should_be_sensible() {
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r1, aye(1)));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r2, aye(1)));
 		// r3 is canceled
-		assert_ok!(Democracy::cancel_referendum(RuntimeOrigin::root(), r3.into()));
+		assert_ok!(Democracy::cancel_referendum(RuntimeOrigin::root(), r3));
 		assert_eq!(Democracy::lowest_unbaked(), 0);
 
 		next_block();

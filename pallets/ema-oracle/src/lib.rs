@@ -72,7 +72,7 @@ use frame_support::traits::Contains;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
-	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod::*, Volume,
+	OnLiquidityChangedHandler, OnTradeHandler, Volume,
 };
 use sp_arithmetic::traits::Saturating;
 use sp_std::marker::PhantomData;
@@ -86,7 +86,7 @@ pub use types::*;
 
 #[allow(clippy::all)]
 pub mod weights;
-use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 mod benchmarking;
 
@@ -350,7 +350,7 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		block: BlockNumberFor<T>,
 	) -> Option<(OracleEntry<BlockNumberFor<T>>, BlockNumberFor<T>)> {
-		Self::oracle((source, assets, LastBlock)).map(|(mut last_block, init)| {
+		Self::oracle((source, assets, OraclePeriod::LastBlock)).map(|(mut last_block, init)| {
 			// update the `LastBlock` oracle to the last block if it hasn't been updated for a while
 			// price and liquidity stay constant, volume becomes zero
 			if last_block.updated_at != block {
@@ -364,12 +364,15 @@ impl<T: Config> Pallet<T> {
 	fn update_oracles_from_accumulator() {
 		for ((src, assets), oracle_entry) in Accumulator::<T>::take().into_iter() {
 			// First we update the non-immediate oracles with the value of the `LastBlock` oracle.
-			for period in T::SupportedPeriods::get().into_iter().filter(|p| *p != LastBlock) {
+			for period in T::SupportedPeriods::get()
+				.into_iter()
+				.filter(|p| *p != OraclePeriod::LastBlock)
+			{
 				Self::update_oracle(src, assets, period, oracle_entry.clone());
 			}
 			// As we use (the old value of) the `LastBlock` entry to update the other oracles it
 			// gets updated last.
-			Self::update_oracle(src, assets, LastBlock, oracle_entry.clone());
+			Self::update_oracle(src, assets, OraclePeriod::LastBlock, oracle_entry.clone());
 		}
 	}
 
@@ -430,7 +433,7 @@ impl<T: Config> Pallet<T> {
 		// First get the `LastBlock` oracle to calculate the updated values for the others.
 		let (last_block, last_block_init) = Self::last_block_oracle(src, assets, parent)?;
 		// If it was requested return it directly.
-		if period == LastBlock {
+		if period == OraclePeriod::LastBlock {
 			return Some((last_block, last_block_init));
 		}
 

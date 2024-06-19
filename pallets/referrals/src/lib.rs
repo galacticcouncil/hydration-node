@@ -75,7 +75,7 @@ pub use crate::traits::BenchmarkHelper;
 
 pub use pallet::*;
 
-use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 pub type Balance = u128;
 pub type ReferralCode<S> = BoundedVec<u8, S>;

@@ -29,9 +29,13 @@ pub use fc_rpc::{
 	EthBlockDataCacheTask, OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
 	SchemaV3Override, StorageOverride,
 };
+use fc_rpc_core::types::CallRequest;
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
-use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
+use hydradx_runtime::{
+	opaque::{Block, Hash},
+	AccountId, Balance, Index,
+};
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
 	client::BlockchainEvents,
@@ -45,8 +49,38 @@ use sc_transaction_pool_api::TransactionPool;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
+
+pub struct HydraDxEGA;
+
+impl fc_rpc::EstimateGasAdapter for HydraDxEGA {
+	fn adapt_request(mut request: CallRequest) -> CallRequest {
+		// Redirect any call to batch precompile:
+		// force usage of batchAll method for estimation
+		use sp_core::H160;
+		const BATCH_PRECOMPILE_ADDRESS: H160 = H160(hex_literal::hex!("0000000000000000000000000000000000000808"));
+		const BATCH_PRECOMPILE_BATCH_ALL_SELECTOR: [u8; 4] = hex_literal::hex!("96e292b8");
+		if request.to == Some(BATCH_PRECOMPILE_ADDRESS) {
+			if let Some(ref mut data) = request.data {
+				if data.0.len() >= 4 {
+					data.0[..4].copy_from_slice(&BATCH_PRECOMPILE_BATCH_ALL_SELECTOR);
+				}
+			}
+		}
+		request
+	}
+}
+
+pub struct HydraDxEthConfig<C, BE>(std::marker::PhantomData<(C, BE)>);
+
+impl<C, BE> fc_rpc::EthConfig<Block, C> for HydraDxEthConfig<C, BE>
+where
+	C: sc_client_api::StorageProvider<Block, BE> + Sync + Send + 'static,
+	BE: Backend<Block> + 'static,
+{
+	type EstimateGasAdapter = HydraDxEGA;
+	type RuntimeStorageOverride = fc_rpc::frontier_backend_client::SystemAccountId20StorageOverride<Block, C, BE>;
+}
 
 /// Full client dependencies.
 pub struct FullDeps<C, P, B> {
@@ -61,7 +95,7 @@ pub struct FullDeps<C, P, B> {
 }
 
 /// Extra dependencies for Ethereum compatibility.
-pub struct Deps<C, P, A: ChainApi, CT, B: BlockT> {
+pub struct Deps<C, P, A: ChainApi, CT> {
 	/// The client instance to use.
 	pub client: Arc<C>,
 	/// Transaction pool instance.
@@ -75,15 +109,15 @@ pub struct Deps<C, P, A: ChainApi, CT, B: BlockT> {
 	/// Whether to enable dev signer
 	pub enable_dev_signer: bool,
 	/// Network service
-	pub network: Arc<NetworkService<B, B::Hash>>,
+	pub network: Arc<NetworkService<Block, Hash>>,
 	/// Chain syncing service
-	pub sync: Arc<SyncingService<B>>,
+	pub sync: Arc<SyncingService<Block>>,
 	/// Frontier Backend.
-	pub frontier_backend: Arc<FrontierBackend<B>>,
+	pub frontier_backend: Arc<FrontierBackend<Block>>,
 	/// Ethereum data access overrides.
-	pub overrides: Arc<OverrideHandle<B>>,
+	pub overrides: Arc<OverrideHandle<Block>>,
 	/// Cache for Ethereum block data.
-	pub block_data_cache: Arc<EthBlockDataCacheTask<B>>,
+	pub block_data_cache: Arc<EthBlockDataCacheTask<Block>>,
 	/// EthFilterApi pool.
 	pub filter_pool: FilterPool,
 	/// Maximum number of logs in a query.
@@ -133,26 +167,25 @@ where
 }
 
 /// Instantiate Ethereum-compatible RPC extensions.
-pub fn create<C, BE, P, A, CT, B>(
+pub fn create<C, BE, P, A, CT>(
 	mut io: RpcExtension,
-	deps: Deps<C, P, A, CT, B>,
+	deps: Deps<C, P, A, CT>,
 	subscription_task_executor: SubscriptionTaskExecutor,
 	pubsub_notification_sinks: Arc<
-		fc_mapping_sync::EthereumBlockNotificationSinks<fc_mapping_sync::EthereumBlockNotification<B>>,
+		fc_mapping_sync::EthereumBlockNotificationSinks<fc_mapping_sync::EthereumBlockNotification<Block>>,
 	>,
 ) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
-	B: BlockT<Hash = H256>,
-	C: ProvideRuntimeApi<B>,
-	C::Api: BlockBuilderApi<B> + EthereumRuntimeRPCApi<B> + ConvertTransactionRuntimeApi<B>,
-	C: BlockchainEvents<B> + 'static,
-	C: HeaderBackend<B> + HeaderMetadata<B, Error = BlockChainError> + StorageProvider<B, BE>,
-	C: CallApiAt<B>,
-	BE: Backend<B> + 'static,
+	C: ProvideRuntimeApi<Block>,
+	C::Api: BlockBuilderApi<Block> + EthereumRuntimeRPCApi<Block> + ConvertTransactionRuntimeApi<Block>,
+	C: BlockchainEvents<Block> + 'static,
+	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + StorageProvider<Block, BE>,
+	C: CallApiAt<Block>,
+	BE: Backend<Block> + 'static,
 	BE::State: StateBackend<BlakeTwo256>,
-	P: TransactionPool<Block = B> + 'static,
-	A: ChainApi<Block = B> + 'static,
-	CT: ConvertTransaction<<B as BlockT>::Extrinsic> + Send + Sync + 'static,
+	P: TransactionPool<Block = Block> + 'static,
+	A: ChainApi<Block = Block> + 'static,
+	CT: ConvertTransaction<<Block as BlockT>::Extrinsic> + Send + Sync + 'static,
 {
 	use fc_rpc::{
 		Eth, EthApiServer, EthDevSigner, EthFilter, EthFilterApiServer, EthPubSub, EthPubSubApiServer, EthSigner, Net,
@@ -207,7 +240,7 @@ where
 	};
 
 	io.merge(
-		Eth::new(
+		Eth::<_, _, _, _, _, _, _, HydraDxEthConfig<_, _>>::new(
 			client.clone(),
 			pool.clone(),
 			graph.clone(),
@@ -225,6 +258,7 @@ where
 			pending_create_inherent_data_providers,
 			None,
 		)
+		.replace_config::<HydraDxEthConfig<C, BE>>()
 		.into_rpc(),
 	)?;
 
@@ -268,7 +302,7 @@ where
 	Ok(io)
 }
 
-impl<C, P, A: ChainApi, CT: Clone, B: BlockT> Clone for Deps<C, P, A, CT, B> {
+impl<C, P, A: ChainApi, CT: Clone> Clone for Deps<C, P, A, CT> {
 	fn clone(&self) -> Self {
 		Self {
 			client: self.client.clone(),
