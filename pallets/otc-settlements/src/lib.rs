@@ -328,7 +328,7 @@ impl<T: Config> Pallet<T> {
 		// max trade limit reached - we are interested in this one. We can decrease the amount and try again.
 		// some other error - we can't handle this one properly.
 
-		// // Compare OTC and Router price
+		// Compare OTC and Router price
 		let router_price_after = T::Router::spot_price_with_fee(&route).ok_or(Error::<T>::PriceNotAvailable)?;
 		log::debug!(
 			target: "offchain_worker::settle_otc",
