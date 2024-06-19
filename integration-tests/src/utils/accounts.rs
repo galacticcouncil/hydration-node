@@ -36,5 +36,3 @@ impl MockAccount {
 		Currencies::free_balance(asset, &self.0)
 	}
 }
-
-//pub(crate) static TreasuryAccount: MockAccount = MockAccount::new(Treasury::account_id());

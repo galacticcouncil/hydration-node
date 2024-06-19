@@ -22,7 +22,7 @@
 
 pub mod weights;
 
-use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 #[cfg(test)]
 mod mock;

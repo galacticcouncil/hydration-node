@@ -31,7 +31,7 @@ use {
 	pallet_evm::Context,
 	sp_core::{H160, H256, U256},
 	sp_std::convert::TryInto,
-	xcm::latest::{Junction, Junctions, NetworkId},
+	xcm::v3::{Junction, Junctions, NetworkId},
 };
 
 fn u256_repeat_byte(byte: u8) -> U256 {

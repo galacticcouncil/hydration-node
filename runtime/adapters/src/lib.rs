@@ -46,7 +46,7 @@ use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use pallet_stableswap::types::{PoolState, StableswapHooks};
 use pallet_transaction_multi_payment::DepositFee;
-use polkadot_xcm::latest::prelude::*;
+use polkadot_xcm::v4::prelude::*;
 use primitive_types::{U128, U512};
 use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
@@ -57,7 +57,7 @@ use warehouse_liquidity_mining::GlobalFarmData;
 use xcm_builder::TakeRevenue;
 use xcm_executor::{
 	traits::{ConvertLocation, MatchesFungible, TransactAsset, WeightTrader},
-	Assets,
+	AssetsInHolding,
 };
 
 pub mod inspect;
@@ -81,11 +81,11 @@ pub struct MultiCurrencyTrader<
 	Price: FixedPointNumber,
 	ConvertWeightToFee: WeightToFee<Balance = Balance>,
 	AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
-	ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
+	ConvertCurrency: Convert<Asset, Option<AssetId>>,
 	Revenue: TakeRevenue,
 > {
 	weight: Weight,
-	paid_assets: BTreeMap<(MultiLocation, Price), u128>,
+	paid_assets: BTreeMap<(Location, Price), u128>,
 	_phantom: PhantomData<(
 		AssetId,
 		Balance,
@@ -103,20 +103,17 @@ impl<
 		Price: FixedPointNumber,
 		ConvertWeightToFee: WeightToFee<Balance = Balance>,
 		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
-		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
+		ConvertCurrency: Convert<Asset, Option<AssetId>>,
 		Revenue: TakeRevenue,
 	> MultiCurrencyTrader<AssetId, Balance, Price, ConvertWeightToFee, AcceptedCurrencyPrices, ConvertCurrency, Revenue>
 {
 	/// Get the asset id of the first asset in `payment` and try to determine its price via the
 	/// price oracle.
-	fn get_asset_and_price(&mut self, payment: &Assets) -> Option<(MultiLocation, Price)> {
+	fn get_asset_and_price(&mut self, payment: &AssetsInHolding) -> Option<(Location, Price)> {
 		if let Some(asset) = payment.fungible_assets_iter().next() {
 			ConvertCurrency::convert(asset.clone())
 				.and_then(|currency| AcceptedCurrencyPrices::price(currency))
-				.and_then(|price| match asset.id {
-					Concrete(location) => Some((location, price)),
-					_ => None,
-				})
+				.map(|price| (asset.id.0, price))
 		} else {
 			None
 		}
@@ -129,7 +126,7 @@ impl<
 		Price: FixedPointNumber,
 		ConvertWeightToFee: WeightToFee<Balance = Balance>,
 		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
-		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
+		ConvertCurrency: Convert<Asset, Option<AssetId>>,
 		Revenue: TakeRevenue,
 	> WeightTrader
 	for MultiCurrencyTrader<AssetId, Balance, Price, ConvertWeightToFee, AcceptedCurrencyPrices, ConvertCurrency, Revenue>
@@ -148,7 +145,12 @@ impl<
 	/// per buy.
 	/// The fee is determined by `ConvertWeightToFee` in combination with the price determined by
 	/// `AcceptedCurrencyPrices`.
-	fn buy_weight(&mut self, weight: Weight, payment: Assets, _context: &XcmContext) -> Result<Assets, XcmError> {
+	fn buy_weight(
+		&mut self,
+		weight: Weight,
+		payment: AssetsInHolding,
+		_context: &XcmContext,
+	) -> Result<AssetsInHolding, XcmError> {
 		log::trace!(
 			target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {:?}, payment: {:?}",
 			weight, payment
@@ -157,7 +159,7 @@ impl<
 		let fee = ConvertWeightToFee::weight_to_fee(&weight);
 		let converted_fee = price.checked_mul_int(fee).ok_or(XcmError::Overflow)?;
 		let amount: u128 = converted_fee.try_into().map_err(|_| XcmError::Overflow)?;
-		let required = (Concrete(asset_loc), amount).into();
+		let required = (asset_loc.clone(), amount).into();
 		let unused = payment.checked_sub(required).map_err(|_| XcmError::TooExpensive)?;
 		self.weight = self.weight.saturating_add(weight);
 		let key = (asset_loc, price);
@@ -171,7 +173,7 @@ impl<
 	}
 
 	/// Will refund up to `weight` from the first asset tracked by the trader.
-	fn refund_weight(&mut self, weight: Weight, _context: &XcmContext) -> Option<MultiAsset> {
+	fn refund_weight(&mut self, weight: Weight, _context: &XcmContext) -> Option<Asset> {
 		log::trace!(
 			target: "xcm::weight", "MultiCurrencyTrader::refund_weight weight: {:?}, paid_assets: {:?}",
 			weight, self.paid_assets
@@ -184,12 +186,12 @@ impl<
 			let refund = converted_fee.min(*amount);
 			*amount -= refund; // Will not underflow because of `min()` above.
 
-			let refund_asset = *asset_loc;
+			let refund_asset = asset_loc.clone();
 			if amount.is_zero() {
-				let key = (*asset_loc, *price);
+				let key = (asset_loc.clone(), *price);
 				self.paid_assets.remove(&key);
 			}
-			Some((Concrete(refund_asset), refund).into())
+			Some((refund_asset, refund).into())
 		} else {
 			None
 		}
@@ -204,14 +206,14 @@ impl<
 		Price: FixedPointNumber,
 		ConvertWeightToFee: WeightToFee<Balance = Balance>,
 		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
-		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
+		ConvertCurrency: Convert<Asset, Option<AssetId>>,
 		Revenue: TakeRevenue,
 	> Drop
 	for MultiCurrencyTrader<AssetId, Balance, Price, ConvertWeightToFee, AcceptedCurrencyPrices, ConvertCurrency, Revenue>
 {
 	fn drop(&mut self) {
 		for ((asset_loc, _), amount) in self.paid_assets.iter() {
-			Revenue::take_revenue((*asset_loc, *amount).into());
+			Revenue::take_revenue((asset_loc.clone(), *amount).into());
 		}
 	}
 }
@@ -228,18 +230,18 @@ impl<
 		AssetId,
 		Balance: AtLeast32BitUnsigned,
 		Price,
-		C: Convert<MultiLocation, Option<AssetId>>,
+		C: Convert<Asset, Option<AssetId>>,
 		D: DepositFee<AccountId, AssetId, Balance>,
 		F: Get<AccountId>,
 	> TakeRevenue for ToFeeReceiver<AccountId, AssetId, Balance, Price, C, D, F>
 {
-	fn take_revenue(asset: MultiAsset) {
-		match asset {
-			MultiAsset {
-				id: Concrete(loc),
+	fn take_revenue(asset: Asset) {
+		match asset.clone() {
+			Asset {
+				id: _asset_id,
 				fun: Fungibility::Fungible(amount),
 			} => {
-				C::convert(loc).and_then(|id| {
+				C::convert(asset).and_then(|id| {
 					let receiver = F::get();
 					D::deposit_fee(&receiver, id, amount.saturated_into::<Balance>())
 						.map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {:?}", e))
@@ -669,7 +671,7 @@ where
 enum Error {
 	/// Failed to match fungible.
 	FailedToMatchFungible,
-	/// `MultiLocation` to `AccountId` Conversion failed.
+	/// `Location` to `AccountId` Conversion failed.
 	AccountIdConversionFailed,
 	/// `CurrencyId` conversion failed.
 	CurrencyIdConversionFailed,
@@ -732,7 +734,7 @@ impl<
 		AccountId: sp_std::fmt::Debug + Clone,
 		AccountIdConvert: ConvertLocation<AccountId>,
 		CurrencyId: FullCodec + Eq + PartialEq + Copy + MaybeSerializeDeserialize + Debug,
-		CurrencyIdConvert: Convert<MultiAsset, Option<CurrencyId>>,
+		CurrencyIdConvert: Convert<Asset, Option<CurrencyId>>,
 		DepositFailureHandler: OnDepositFail<CurrencyId, AccountId, MultiCurrency::Balance>,
 		RerouteFilter: Contains<(CurrencyId, AccountId)>,
 		RerouteDestination: Get<AccountId>,
@@ -750,7 +752,7 @@ impl<
 		RerouteDestination,
 	>
 {
-	fn deposit_asset(asset: &MultiAsset, location: &MultiLocation, _context: &XcmContext) -> Result<(), XcmError> {
+	fn deposit_asset(asset: &Asset, location: &Location, _context: Option<&XcmContext>) -> Result<(), XcmError> {
 		match (
 			AccountIdConvert::convert_location(location),
 			CurrencyIdConvert::convert(asset.clone()),
@@ -773,10 +775,10 @@ impl<
 	}
 
 	fn withdraw_asset(
-		asset: &MultiAsset,
-		location: &MultiLocation,
+		asset: &Asset,
+		location: &Location,
 		_maybe_context: Option<&XcmContext>,
-	) -> Result<Assets, XcmError> {
+	) -> Result<AssetsInHolding, XcmError> {
 		UnknownAsset::withdraw(asset, location).or_else(|_| {
 			let who = AccountIdConvert::convert_location(location)
 				.ok_or_else(|| XcmError::from(Error::AccountIdConversionFailed))?;
@@ -792,11 +794,11 @@ impl<
 	}
 
 	fn transfer_asset(
-		asset: &MultiAsset,
-		from: &MultiLocation,
-		to: &MultiLocation,
+		asset: &Asset,
+		from: &Location,
+		to: &Location,
 		_context: &XcmContext,
-	) -> Result<Assets, XcmError> {
+	) -> Result<AssetsInHolding, XcmError> {
 		let from_account =
 			AccountIdConvert::convert_location(from).ok_or_else(|| XcmError::from(Error::AccountIdConversionFailed))?;
 		let to_account =

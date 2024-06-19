@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "242.0.0"
+version = "244.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -62,7 +62,7 @@ pallet-multisig = { workspace = true }
 pallet-democracy = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-uniques = { workspace = true }
-pallet-xcm-rate-limiter = { workspace = true }
+pallet-message-queue= { workspace = true }
 pallet-state-trie-migration = { workspace = true }
 
 # Warehouse dependencies
@@ -102,12 +102,12 @@ cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
-cumulus-pallet-dmp-queue = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
 cumulus-primitives-timestamp = { workspace = true }
-parachain-info = { workspace = true }
+staging-parachain-info = { workspace = true }
+parachains-common = { workspace = true }
 
 # Polkadot dependencies
 polkadot-parachain = { workspace = true }
@@ -115,6 +115,7 @@ pallet-xcm = { workspace = true }
 polkadot-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
+polkadot-runtime-common= { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -126,6 +127,7 @@ frame-system-rpc-runtime-api = { workspace = true }
 frame-try-runtime = { workspace = true, optional = true }
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
+sp-genesis-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }
 sp-inherents = { workspace = true }
@@ -207,6 +209,7 @@ runtime-benchmarks = [
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
+    "pallet-message-queue/runtime-benchmarks",
     "pallet-state-trie-migration/runtime-benchmarks",
 ]
 std = [
@@ -221,9 +224,10 @@ std = [
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-aura-ext/std",
     "cumulus-primitives-core/std",
+    "cumulus-primitives-utility/std",
     "cumulus-pallet-xcm/std",
     "cumulus-pallet-xcmp-queue/std",
-    "parachain-info/std",
+    "staging-parachain-info/std",
     "pallet-xcm/std",
     "polkadot-xcm/std",
     "xcm-executor/std",
@@ -265,7 +269,6 @@ std = [
     "pallet-currencies/std",
     "pallet-omnipool/std",
     "pallet-circuit-breaker/std",
-    "pallet-xcm-rate-limiter/std",
     "pallet-transaction-pause/std",
     "pallet-dca/std",
     "pallet-ema-oracle/std",
@@ -282,6 +285,7 @@ std = [
     "warehouse-liquidity-mining/std",
     "sp-api/std",
     "sp-block-builder/std",
+    "sp-genesis-builder/std",
     "sp-consensus-aura/std",
     "sp-core/std",
     "sp-io/std",
@@ -305,11 +309,14 @@ std = [
     "pallet-evm-precompile-modexp/std",
     "pallet-evm-precompile-bn128/std",
     "pallet-evm-precompile-blake2/std",
+    "pallet-evm-precompile-call-permit/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
     "pallet-evm-accounts/std",
     "pallet-evm-accounts-rpc-runtime-api/std",
     "pallet-xyk-liquidity-mining/std",
+    "parachains-common/std",
+    "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",
 ]
 try-runtime= [
@@ -326,7 +333,7 @@ try-runtime= [
     "cumulus-pallet-aura-ext/try-runtime",
     "cumulus-pallet-xcm/try-runtime",
     "cumulus-pallet-xcmp-queue/try-runtime",
-    "parachain-info/try-runtime",
+    "staging-parachain-info/try-runtime",
     "pallet-aura/try-runtime",
     "pallet-bags-list/try-runtime",
     "pallet-balances/try-runtime",
@@ -350,7 +357,6 @@ try-runtime= [
     "pallet-preimage/try-runtime",
     "pallet-identity/try-runtime",
     "pallet-xcm/try-runtime",
-    "cumulus-pallet-dmp-queue/try-runtime",
     "pallet-asset-registry/try-runtime",
     "pallet-transaction-multi-payment/try-runtime",
     "pallet-relaychain-info/try-runtime",
@@ -363,7 +369,6 @@ try-runtime= [
     "warehouse-liquidity-mining/try-runtime",
     "pallet-omnipool-liquidity-mining/try-runtime",
     "pallet-circuit-breaker/try-runtime",
-    "pallet-xcm-rate-limiter/try-runtime",
     "pallet-otc/try-runtime",
     "pallet-route-executor/try-runtime",
     "pallet-dynamic-fees/try-runtime",
@@ -381,5 +386,6 @@ try-runtime= [
     "pallet-referrals/try-runtime",
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",
+    "pallet-message-queue/try-runtime",
     "pallet-state-trie-migration/try-runtime",
 ]

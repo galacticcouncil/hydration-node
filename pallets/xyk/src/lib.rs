@@ -52,7 +52,7 @@ pub mod weights;
 
 pub use impls::XYKSpotPrice;
 
-use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
