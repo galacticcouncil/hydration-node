@@ -855,10 +855,10 @@ impl RouterWeightInfo {
 
 	pub fn calculate_spot_price_overweight() -> Weight {
 		Weight::from_parts(
-			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_in_lbp()
+			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_with_fee_in_lbp()
 				.ref_time()
 				.saturating_sub(weights::pallet_lbp::HydraWeight::<Runtime>::calculate_spot_price_with_fee().ref_time()),
-			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_in_lbp().proof_size(),
+			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_with_fee_in_lbp().proof_size(),
 		)
 	}
 }
