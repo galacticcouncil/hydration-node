@@ -88,8 +88,8 @@ impl WeightInfo for () {
 		//  Estimated: `11322`
 		// Minimum execution time: 133_964_000 picoseconds.
 		Weight::from_parts(135_186_000, 11322)
-			.saturating_add(T::DbWeight::get().reads(15_u64))
-			.saturating_add(T::DbWeight::get().writes(8_u64))
+			.saturating_add(RocksDbWeight::get().reads(15_u64))
+			.saturating_add(RocksDbWeight::get().writes(8_u64))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:1)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
@@ -101,8 +101,8 @@ impl WeightInfo for () {
 		//  Estimated: `3628`
 		// Minimum execution time: 25_043_000 picoseconds.
 		Weight::from_parts(25_363_000, 3628)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(3_u64))
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
@@ -122,8 +122,8 @@ impl WeightInfo for () {
 		//  Estimated: `11322`
 		// Minimum execution time: 100_522_000 picoseconds.
 		Weight::from_parts(101_333_000, 11322)
-			.saturating_add(T::DbWeight::get().reads(11_u64))
-			.saturating_add(T::DbWeight::get().writes(4_u64))
+			.saturating_add(RocksDbWeight::get().reads(11_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:1)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
@@ -149,8 +149,8 @@ impl WeightInfo for () {
 		//  Estimated: `11322`
 		// Minimum execution time: 131_548_000 picoseconds.
 		Weight::from_parts(132_825_000, 11322)
-			.saturating_add(T::DbWeight::get().reads(13_u64))
-			.saturating_add(T::DbWeight::get().writes(8_u64))
+			.saturating_add(RocksDbWeight::get().reads(13_u64))
+			.saturating_add(RocksDbWeight::get().writes(8_u64))
 	}
 	/// Storage: `Tokens::Accounts` (r:5 w:5)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
@@ -172,8 +172,8 @@ impl WeightInfo for () {
 		//  Estimated: `13905`
 		// Minimum execution time: 233_172_000 picoseconds.
 		Weight::from_parts(234_278_000, 13905)
-			.saturating_add(T::DbWeight::get().reads(16_u64))
-			.saturating_add(T::DbWeight::get().writes(7_u64))
+			.saturating_add(RocksDbWeight::get().reads(16_u64))
+			.saturating_add(RocksDbWeight::get().writes(7_u64))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
@@ -195,8 +195,8 @@ impl WeightInfo for () {
 		//  Estimated: `13905`
 		// Minimum execution time: 232_521_000 picoseconds.
 		Weight::from_parts(233_949_000, 13905)
-			.saturating_add(T::DbWeight::get().reads(16_u64))
-			.saturating_add(T::DbWeight::get().writes(7_u64))
+			.saturating_add(RocksDbWeight::get().reads(16_u64))
+			.saturating_add(RocksDbWeight::get().writes(7_u64))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
@@ -224,9 +224,9 @@ impl WeightInfo for () {
 			.saturating_add(Weight::from_parts(3_650_240, 0).saturating_mul(c.into()))
 			// Standard Error: 1_985_547
 			.saturating_add(Weight::from_parts(154_967_721, 0).saturating_mul(e.into()))
-			.saturating_add(T::DbWeight::get().reads(3_u64))
-			.saturating_add(T::DbWeight::get().reads((13_u64).saturating_mul(e.into())))
-			.saturating_add(T::DbWeight::get().writes((7_u64).saturating_mul(e.into())))
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().reads((13_u64).saturating_mul(e.into())))
+			.saturating_add(RocksDbWeight::get().writes((7_u64).saturating_mul(e.into())))
 			.saturating_add(Weight::from_parts(0, 7749).saturating_mul(e.into()))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
@@ -255,9 +255,9 @@ impl WeightInfo for () {
 			.saturating_add(Weight::from_parts(5_914_893, 0).saturating_mul(c.into()))
 			// Standard Error: 3_706_588
 			.saturating_add(Weight::from_parts(112_896_249, 0).saturating_mul(e.into()))
-			.saturating_add(T::DbWeight::get().reads(3_u64))
-			.saturating_add(T::DbWeight::get().reads((13_u64).saturating_mul(e.into())))
-			.saturating_add(T::DbWeight::get().writes((7_u64).saturating_mul(e.into())))
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().reads((13_u64).saturating_mul(e.into())))
+			.saturating_add(RocksDbWeight::get().writes((7_u64).saturating_mul(e.into())))
 			.saturating_add(Weight::from_parts(0, 7749).saturating_mul(e.into()))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
@@ -270,7 +270,7 @@ impl WeightInfo for () {
 		//  Estimated: `6156`
 		// Minimum execution time: 89_403_000 picoseconds.
 		Weight::from_parts(90_543_000, 6156)
-			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
@@ -284,6 +284,6 @@ impl WeightInfo for () {
 		//  Estimated: `6156`
 		// Minimum execution time: 24_307_000 picoseconds.
 		Weight::from_parts(24_702_000, 6156)
-			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
 	}
 }
