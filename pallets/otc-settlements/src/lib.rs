@@ -290,7 +290,7 @@ impl<T: Config> Pallet<T> {
 		let (asset_a, asset_b) = (otc.asset_in, otc.asset_out);
 
 		if !otc.partially_fillable {
-			ensure!(otc.amount_out == amount, Error::<T>::NotPartiallyFillable);
+			ensure!(otc.amount_in == amount, Error::<T>::NotPartiallyFillable);
 		}
 
 		ensure!(

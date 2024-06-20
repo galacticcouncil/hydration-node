@@ -8753,7 +8753,6 @@ dependencies = [
 name = "pallet-otc-settlements"
 version = "1.0.0"
 dependencies = [
- "env_logger",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

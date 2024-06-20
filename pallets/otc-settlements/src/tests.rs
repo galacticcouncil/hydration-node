@@ -301,6 +301,59 @@ fn existing_arb_opportunity_should_trigger_trade() {
 }
 
 #[test]
+fn existing_arb_opportunity_should_trigger_trade_when_otc_is_not_partially_fillable() {
+	let (mut ext, _) = ExtBuilder::default().build();
+	ext.execute_with(|| {
+		assert_ok!(OTC::place_order(
+			RuntimeOrigin::signed(ALICE),
+			HDX, // otc asset_in
+			DAI, // otc asset_out
+			// we got following 2 values from the logs of
+			// existing_arb_opportunity_should_trigger_trade test
+			828_170_776_368_178,
+			1_664_623_260_500_037,
+			false, // not partially fillable
+		));
+
+		// get otc price
+		let otc_id = 0;
+		let otc = <pallet_otc::Orders<Test>>::get(otc_id).unwrap();
+		let otc_price = calculate_otc_price(&otc);
+
+		// get trade price
+		let route = Router::get_route(AssetPair {
+			asset_in: otc.asset_out,
+			asset_out: otc.asset_in,
+		});
+		let router_price = Router::spot_price_with_fee(&route).unwrap();
+
+		// verify that there's an arb opportunity
+		assert!(otc_price > router_price);
+
+		let hdx_total_issuance = Currencies::total_issuance(HDX);
+		let dai_total_issuance = Currencies::total_issuance(DAI);
+
+		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
+		assert!(Currencies::free_balance(DAI, &OtcSettlements::account_id()) == 0);
+
+		<OtcSettlements as Hooks<BlockNumberFor<Test>>>::offchain_worker(System::block_number());
+
+		assert_eq!(hdx_total_issuance, Currencies::total_issuance(HDX));
+		assert_eq!(dai_total_issuance, Currencies::total_issuance(DAI));
+
+		// total issuance of tokens should not change
+		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
+		assert!(Currencies::free_balance(DAI, &OtcSettlements::account_id()) == 0);
+
+		expect_last_events(vec![Event::Executed {
+			asset_id: HDX,
+			profit: 2_067_802_207_347,
+		}
+		.into()]);
+	});
+}
+
+#[test]
 fn existing_arb_opportunity_of_insufficient_asset_should_trigger_trade() {
 	let (mut ext, _) = ExtBuilder::default().build();
 	ext.execute_with(|| {

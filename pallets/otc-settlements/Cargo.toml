@@ -46,7 +46,6 @@ proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 test-utils = { workspace = true }
 parking_lot = "0.12.1"
-env_logger = "*"
 
 [features]
 default = ['std']
