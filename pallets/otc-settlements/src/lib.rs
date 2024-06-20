@@ -347,7 +347,7 @@ impl<T: Config> Pallet<T> {
 		// This can fail for different reason, but because we start with the largest possible amount,
 		// all we can do is to return `TradeAmountTooHigh` to tell the binary search algorithm to
 		// try again with smaller amount.
-			.map_err(|_| Error::<T>::TradeAmountTooHigh)?;
+		.map_err(|_| Error::<T>::TradeAmountTooHigh)?;
 
 		// Compare OTC and Router price
 		let router_price_after = T::Router::spot_price_with_fee(&route).ok_or(Error::<T>::PriceNotAvailable)?;

@@ -857,7 +857,9 @@ impl RouterWeightInfo {
 		Weight::from_parts(
 			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_with_fee_in_lbp()
 				.ref_time()
-				.saturating_sub(weights::pallet_lbp::HydraWeight::<Runtime>::calculate_spot_price_with_fee().ref_time()),
+				.saturating_sub(
+					weights::pallet_lbp::HydraWeight::<Runtime>::calculate_spot_price_with_fee().ref_time(),
+				),
 			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_with_fee_in_lbp().proof_size(),
 		)
 	}
@@ -1074,7 +1076,9 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
-				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
+				PoolType::Stableswap(_) => {
+					weights::pallet_stableswap::HydraWeight::<Runtime>::calculate_spot_price_with_fee()
+				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
 			};
 			weight.saturating_accrue(amm_weight);
