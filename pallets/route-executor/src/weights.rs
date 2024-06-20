@@ -53,7 +53,7 @@ pub trait WeightInfo {
 	fn set_route_for_xyk() -> Weight;
 	fn force_insert_route() -> Weight;
 	fn get_route() -> Weight;
-	fn calculate_spot_price_in_lbp() -> Weight;
+	fn calculate_spot_price_with_fee_in_lbp() -> Weight;
 }
 
 /// Weights for `pallet_route_executor` using the HydraDX node and recommended hardware.
