@@ -103,7 +103,7 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 			evm_since: 1,
 		},
 	)
-	.with_name("HydraDX testnet")
+	.with_name("Hydration testnet")
 	.with_id("hydra_rococo")
 	.with_chain_type(ChainType::Live)
 	.with_boot_nodes(vec![
