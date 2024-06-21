@@ -232,7 +232,7 @@ pub mod pallet {
 		/// - `origin`: Signed or unsigned origin. Unsigned origin doesn't pay the TX fee,
 		/// 			but can be submitted only by a collator.
 		/// - `otc_id`: ID of the OTC order with existing arbitrage opportunity.
-		/// - `amount`: Amount necessary to clone the arb.
+		/// - `amount`: Amount necessary to close the arb.
 		/// - `route`: The route we trade against. Required for the fee calculation.
 		///
 		/// Emits `Executed` event when successful.
@@ -283,6 +283,11 @@ impl<T: Config> Pallet<T> {
 	/// If the OTC order is partially fillable, the extrinsic fails if the existing arbitrage
 	/// opportunity is not closed after the trade and if there is no profit after the trade.
 	/// If the OTC order is not partially fillable, fails only if there is no profit after the trade.
+	///
+	/// Parameters:
+	/// - `otc_id`: ID of the OTC order with existing arbitrage opportunity.
+	/// - `amount`: Amount necessary to close the arb.
+	/// - `route`: The route we trade against. Required for the fee calculation.
 	pub fn settle_otc(otc_id: OrderId, amount: Balance, route: Vec<Trade<AssetIdOf<T>>>) -> DispatchResult {
 		let pallet_acc = Self::account_id();
 
@@ -290,6 +295,7 @@ impl<T: Config> Pallet<T> {
 		let (asset_a, asset_b) = (otc.asset_in, otc.asset_out);
 
 		if !otc.partially_fillable {
+			// if the OTC is not partially fillable, we need to trade the whole amount of the OTC
 			ensure!(otc.amount_in == amount, Error::<T>::NotPartiallyFillable);
 		}
 
@@ -349,7 +355,6 @@ impl<T: Config> Pallet<T> {
 		// try again with smaller amount.
 		.map_err(|_| Error::<T>::TradeAmountTooHigh)?;
 
-		// Compare OTC and Router price
 		let router_price_after = T::Router::spot_price_with_fee(&route).ok_or(Error::<T>::PriceNotAvailable)?;
 		log::debug!(
 			target: "offchain_worker::settle_otc",
@@ -358,7 +363,8 @@ impl<T: Config> Pallet<T> {
 			otc_price
 		);
 
-		// in the case of fully fillable orders, the resulting price is not important
+		// Compare OTC and Router price.
+		// In the case of fully fillable orders, the resulting price is not important.
 		if otc.partially_fillable {
 			let price_diff = {
 				if otc_price > router_price_after {
