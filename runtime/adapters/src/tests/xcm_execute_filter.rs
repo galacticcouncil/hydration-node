@@ -15,7 +15,7 @@ fn xcm_execute_filter_should_not_allow_transact() {
 		require_weight_at_most: Weight::from_parts(1, 1),
 		call: call.into(),
 	}]);
-	let loc = MultiLocation::new(
+	let loc = Location::new(
 		0,
 		AccountId32 {
 			network: None,
@@ -28,11 +28,11 @@ fn xcm_execute_filter_should_not_allow_transact() {
 #[test]
 fn xcm_execute_filter_should_allow_a_transfer_and_swap() {
 	//Arrange
-	let fees = MultiAsset::from((MultiLocation::here(), 10));
+	let fees = Asset::from((Location::here(), 10));
 	let weight_limit = WeightLimit::Unlimited;
-	let give: MultiAssetFilter = fees.clone().into();
-	let want: MultiAssets = fees.clone().into();
-	let assets: MultiAssets = fees.clone().into();
+	let give: AssetFilter = fees.clone().into();
+	let want: Assets = fees.clone().into();
+	let assets: Assets = fees.clone().into();
 
 	let max_assets = 2;
 	let beneficiary = Junction::AccountId32 {
@@ -40,7 +40,7 @@ fn xcm_execute_filter_should_allow_a_transfer_and_swap() {
 		network: None,
 	}
 	.into();
-	let dest = MultiLocation::new(1, Parachain(2047));
+	let dest = Location::new(1, Parachain(2047));
 
 	let xcm = Xcm(vec![
 		BuyExecution { fees, weight_limit },
@@ -60,7 +60,7 @@ fn xcm_execute_filter_should_allow_a_transfer_and_swap() {
 		TransferReserveAsset { assets, dest, xcm },
 	]);
 
-	let loc = MultiLocation::new(
+	let loc = Location::new(
 		0,
 		AccountId32 {
 			network: None,
@@ -75,8 +75,8 @@ fn xcm_execute_filter_should_allow_a_transfer_and_swap() {
 #[test]
 fn xcm_execute_filter_should_filter_too_deep_xcm() {
 	//Arrange
-	let fees = MultiAsset::from((MultiLocation::here(), 10));
-	let assets: MultiAssets = fees.into();
+	let fees = Asset::from((Location::here(), 10));
+	let assets: Assets = fees.into();
 
 	let max_assets = 2;
 	let beneficiary = Junction::AccountId32 {
@@ -84,7 +84,7 @@ fn xcm_execute_filter_should_filter_too_deep_xcm() {
 		network: None,
 	}
 	.into();
-	let dest = MultiLocation::new(1, Parachain(2047));
+	let dest = Location::new(1, Parachain(2047));
 
 	let deposit = Xcm(vec![DepositAsset {
 		assets: Wild(AllCounted(max_assets)),
@@ -93,7 +93,7 @@ fn xcm_execute_filter_should_filter_too_deep_xcm() {
 
 	let mut message = Xcm(vec![TransferReserveAsset {
 		assets: assets.clone(),
-		dest,
+		dest: dest.clone(),
 		xcm: deposit,
 	}]);
 
@@ -101,12 +101,12 @@ fn xcm_execute_filter_should_filter_too_deep_xcm() {
 		let xcm = message.clone();
 		message = Xcm(vec![TransferReserveAsset {
 			assets: assets.clone(),
-			dest,
+			dest: dest.clone(),
 			xcm,
 		}]);
 	}
 
-	let loc = MultiLocation::new(
+	let loc = Location::new(
 		0,
 		AccountId32 {
 			network: None,
@@ -121,8 +121,8 @@ fn xcm_execute_filter_should_filter_too_deep_xcm() {
 #[test]
 fn xcm_execute_filter_should_not_filter_message_with_max_deep() {
 	//Arrange
-	let fees = MultiAsset::from((MultiLocation::here(), 10));
-	let assets: MultiAssets = fees.into();
+	let fees = Asset::from((Location::here(), 10));
+	let assets: Assets = fees.into();
 
 	let max_assets = 2;
 	let beneficiary = Junction::AccountId32 {
@@ -130,7 +130,7 @@ fn xcm_execute_filter_should_not_filter_message_with_max_deep() {
 		network: None,
 	}
 	.into();
-	let dest = MultiLocation::new(1, Parachain(2047));
+	let dest = Location::new(1, Parachain(2047));
 
 	let deposit = Xcm(vec![DepositAsset {
 		assets: Wild(AllCounted(max_assets)),
@@ -139,7 +139,7 @@ fn xcm_execute_filter_should_not_filter_message_with_max_deep() {
 
 	let mut message = Xcm(vec![TransferReserveAsset {
 		assets: assets.clone(),
-		dest,
+		dest: dest.clone(),
 		xcm: deposit,
 	}]);
 
@@ -147,12 +147,12 @@ fn xcm_execute_filter_should_not_filter_message_with_max_deep() {
 		let xcm = message.clone();
 		message = Xcm(vec![TransferReserveAsset {
 			assets: assets.clone(),
-			dest,
+			dest: dest.clone(),
 			xcm,
 		}]);
 	}
 
-	let loc = MultiLocation::new(
+	let loc = Location::new(
 		0,
 		AccountId32 {
 			network: None,
@@ -169,25 +169,25 @@ fn xcm_execute_filter_should_not_filter_message_with_max_deep() {
 #[test]
 fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allowed_in_depth() {
 	//Arrange
-	let fees = MultiAsset::from((MultiLocation::here(), 10));
-	let assets: MultiAssets = fees.into();
+	let fees = Asset::from((Location::here(), 10));
+	let assets: Assets = fees.into();
 
 	let max_assets = 2;
-	let beneficiary = Junction::AccountId32 {
+	let beneficiary: Location = Junction::AccountId32 {
 		id: [3; 32],
 		network: None,
 	}
 	.into();
-	let dest = MultiLocation::new(1, Parachain(2047));
+	let dest = Location::new(1, Parachain(2047));
 
 	let deposit = Xcm(vec![DepositAsset {
 		assets: Wild(AllCounted(max_assets)),
-		beneficiary,
+		beneficiary: beneficiary.clone(),
 	}]);
 
 	let mut message = Xcm(vec![TransferReserveAsset {
 		assets: assets.clone(),
-		dest,
+		dest: dest.clone(),
 		xcm: deposit,
 	}]);
 
@@ -195,7 +195,7 @@ fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allo
 		let xcm = message.clone();
 		message = Xcm(vec![TransferReserveAsset {
 			assets: assets.clone(),
-			dest,
+			dest: dest.clone(),
 			xcm: xcm.clone(),
 		}]);
 	}
@@ -203,7 +203,7 @@ fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allo
 	//It has 5 instruction
 	let mut instructions_with_inner_xcms: Vec<cumulus_primitives_core::Instruction<()>> = vec![TransferReserveAsset {
 		assets: assets.clone(),
-		dest,
+		dest: dest.clone(),
 		xcm: message.clone(),
 	}];
 
@@ -223,7 +223,7 @@ fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allo
 		xcm: Xcm(instructions_with_inner_xcms.clone()),
 	}]);
 
-	let loc = MultiLocation::new(
+	let loc = Location::new(
 		0,
 		AccountId32 {
 			network: None,
@@ -253,7 +253,7 @@ fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allo
 		101
 	]);
 
-	let loc = MultiLocation::new(
+	let loc = Location::new(
 		0,
 		AccountId32 {
 			network: None,
@@ -268,10 +268,10 @@ fn xcm_execute_filter_should_filter_messages_with_one_more_instruction_than_allo
 	)));
 }
 
-fn xcm_execute_filter_allows(loc_and_message: &(MultiLocation, Xcm<RuntimeCall>)) -> bool {
+fn xcm_execute_filter_allows(loc_and_message: &(Location, Xcm<RuntimeCall>)) -> bool {
 	AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, RuntimeCall>::contains(loc_and_message)
 }
 
-fn xcm_execute_filter_does_not_allow(loc_and_message: &(MultiLocation, Xcm<()>)) -> bool {
+fn xcm_execute_filter_does_not_allow(loc_and_message: &(Location, Xcm<()>)) -> bool {
 	!AllowTransferAndSwap::<ConstU16<5>, ConstU16<100>, ()>::contains(loc_and_message)
 }

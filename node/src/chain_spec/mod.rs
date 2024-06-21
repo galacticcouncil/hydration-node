@@ -28,10 +28,8 @@ pub mod staging;
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use hydradx_runtime::{
-	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
-	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisHistoryConfig,
-	MultiTransactionPaymentConfig, ParachainInfoConfig, RegistryStrLimit, RuntimeGenesisConfig, SessionConfig,
-	Signature, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
+	pallet_claims::EthereumAddress, AccountId, AuraId, Balance, DusterConfig, RegistryStrLimit, RuntimeGenesisConfig,
+	Signature, WASM_BINARY,
 };
 use primitives::{
 	constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
@@ -94,7 +92,6 @@ where
 
 #[allow(clippy::type_complexity)]
 pub fn parachain_genesis(
-	wasm_binary: &[u8],
 	_root_key: AccountId,
 	initial_authorities: (Vec<(AccountId, AuraId)>, Balance), // (initial auths, candidacy bond)
 	endowed_accounts: Vec<(AccountId, Balance)>,
@@ -116,109 +113,115 @@ pub fn parachain_genesis(
 	elections: Vec<(AccountId, Balance)>,
 	parachain_id: ParaId,
 	duster: DusterConfig,
-) -> RuntimeGenesisConfig {
-	RuntimeGenesisConfig {
-		system: SystemConfig {
-			// Add Wasm runtime to storage.
-			code: wasm_binary.to_vec(),
-			..Default::default()
-		},
-		session: SessionConfig {
-			keys: initial_authorities
-				.0
+) -> serde_json::Value {
+	serde_json::json!({
+	"system": {},
+	"session": {
+		"keys": initial_authorities
+			.0
+			.iter()
+			.cloned()
+			.map(|(acc, aura)| {
+				(
+					acc.clone(),                                   // account id
+					acc,                                           // validator id
+					hydradx_runtime::opaque::SessionKeys { aura }, // session keys
+				)
+			})
+			.collect::<Vec<_>>(),
+	},
+	"aura": {
+		"authorities": Vec::<sp_consensus_aura::sr25519::AuthorityId>::new()
+	},
+	"collatorSelection": {
+		"invulnerables": initial_authorities.0.iter().cloned().map(|(acc, _)| acc).collect::<Vec<_>>(),
+		"candidacyBond": initial_authorities.1,
+		"desiredCandidates": 0u32,
+	},
+	"balances": {
+		"balances": endowed_accounts
+			.iter()
+			.cloned()
+			.map(|k| (k.0.clone(), k.1 * UNITS))
+			.collect::<Vec<_>>(),
+	},
+	"council": {
+		"members": council_members,
+	},
+	"technicalCommittee": {
+		"members": tech_committee_members,
+	},
+	"vesting": { "vesting": vesting_list },
+	"assetRegistry": {
+		"registeredAssets": registered_assets.clone(),
+		"nativeAssetName": <Vec<u8> as TryInto<BoundedVec<u8, hydradx_runtime::RegistryStrLimit>>>::try_into(TOKEN_SYMBOL.as_bytes().to_vec())
+			.expect("Native asset name is too long."),
+		"nativeExistentialDeposit": NATIVE_EXISTENTIAL_DEPOSIT,
+		"nativeSymbol": <Vec<u8> as TryInto<BoundedVec<u8, hydradx_runtime::RegistryStrLimit>>>::try_into(TOKEN_SYMBOL.as_bytes().to_vec())
+			.expect("Native symbol is too long."),
+		"nativeDecimals": TOKEN_DECIMALS,
+	},
+	"multiTransactionPayment": {
+		"currencies": accepted_assets,
+		"accountCurrencies": Vec::<(AccountId, AssetId)>::new(),
+	},
+	"tokens": {
+		"balances": if registered_assets.is_empty() {
+			vec![]
+		} else {
+			token_balances
 				.iter()
-				.cloned()
-				.map(|(acc, aura)| {
-					(
-						acc.clone(),                                   // account id
-						acc,                                           // validator id
-						hydradx_runtime::opaque::SessionKeys { aura }, // session keys
-					)
+				.flat_map(|x| {
+					x.1.clone()
+						.into_iter()
+						.map(|(asset_id, amount)| (x.0.clone(), asset_id, amount))
 				})
-				.collect(),
+			.collect::<Vec<_>>()
 		},
-		// no need to pass anything, it will panic if we do. Session will take care
-		// of this.
-		aura: Default::default(),
-		collator_selection: CollatorSelectionConfig {
-			invulnerables: initial_authorities.0.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: initial_authorities.1,
-			..Default::default()
-		},
-		balances: BalancesConfig {
-			// Configure endowed accounts with initial balance of a lot.
-			balances: endowed_accounts.iter().cloned().map(|k| (k.0, k.1 * UNITS)).collect(),
-		},
-		council: CouncilConfig {
-			// Intergalactic council member
-			members: council_members,
-			phantom: Default::default(),
-		},
-		technical_committee: TechnicalCommitteeConfig {
-			members: tech_committee_members,
-			phantom: Default::default(),
-		},
-		vesting: VestingConfig { vesting: vesting_list },
-		asset_registry: AssetRegistryConfig {
-			registered_assets: registered_assets.clone(),
-			native_asset_name: TOKEN_SYMBOL
-				.as_bytes()
-				.to_vec()
-				.try_into()
-				.expect("Native asset name is too long."),
-			native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
-			native_symbol: TOKEN_SYMBOL
-				.as_bytes()
-				.to_vec()
-				.try_into()
-				.expect("Native symbol is too long."),
-			native_decimals: TOKEN_DECIMALS,
-		},
-		multi_transaction_payment: MultiTransactionPaymentConfig {
-			currencies: accepted_assets,
-			account_currencies: vec![],
-		},
-		tokens: TokensConfig {
-			balances: if registered_assets.is_empty() {
-				vec![]
-			} else {
-				token_balances
-					.iter()
-					.flat_map(|x| {
-						x.1.clone()
-							.into_iter()
-							.map(|(asset_id, amount)| (x.0.clone(), asset_id, amount))
-					})
-					.collect()
-			},
-		},
-		treasury: Default::default(),
-		elections: ElectionsConfig {
-			// Intergalactic elections
-			members: elections,
-		},
-
-		genesis_history: GenesisHistoryConfig::default(),
-		claims: ClaimsConfig { claims: claims_data },
-		parachain_info: ParachainInfoConfig {
-			parachain_id,
-			..Default::default()
-		},
-		aura_ext: Default::default(),
-		polkadot_xcm: Default::default(),
-		ema_oracle: Default::default(),
-		duster,
-		omnipool_warehouse_lm: Default::default(),
-		omnipool_liquidity_mining: Default::default(),
-		evm_chain_id: hydradx_runtime::EVMChainIdConfig {
-			chain_id: 2_222_222u32.into(),
-			..Default::default()
-		},
-		ethereum: Default::default(),
-		evm: Default::default(),
-		xyk_warehouse_lm: Default::default(),
-		xyk_liquidity_mining: Default::default(),
+	},
+	"treasury": {
+	},
+	"elections": {
+		"members": elections,
+	},
+	"genesisHistory": {
+		"previousChain": hydradx_runtime::Chain::default()
+	},
+	"claims": { "claims": claims_data },
+	"parachainInfo": {
+		"parachainId": parachain_id,
+	},
+	"auraExt": {
+	},
+	"polkadotXcm": {
+		"safeXcmVersion": hydradx_runtime::xcm::XcmGenesisConfig::<hydradx_runtime::Runtime>::default().safe_xcm_version
+	},
+	"emaOracle": {
+		"initialData": Vec::<(hydradx_runtime::Source, (AssetId, AssetId), Price, hydradx_runtime::Liquidity<Balance>)>::new()
+	},
+	"duster": {
+		"accountBlacklist": duster.account_blacklist,
+		"rewardAccount": duster.reward_account,
+		"dustAccount": duster.dust_account
+	},
+	"omnipoolWarehouseLm": {
+	},
+	"omnipoolLiquidityMining": {
+	},
+	"evmChainId": {
+		"chainId": 2_222_222u64,
+	},
+	"ethereum": {
+	},
+	"evm": {
+		"accounts": sp_std::collections::btree_map::BTreeMap::<sp_core::H160, hydradx_runtime::evm::EvmGenesisAccount>::new()
+	},
+	"xykWarehouseLm": {
+	},
+	"xykLiquidityMining": {
+	},
 	}
+	)
 }
 
 pub fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {

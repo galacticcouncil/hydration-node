@@ -30,7 +30,7 @@ fn balance_should_be_dusted_when_native_balance_is_below_ed() {
 			hdx_ed,
 		));
 
-		assert_ok!(Balances::transfer(
+		assert_ok!(Balances::transfer_allow_death(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			BOB.into(),
 			transfer_amount,
@@ -42,7 +42,7 @@ fn balance_should_be_dusted_when_native_balance_is_below_ed() {
 			hdx_ed.checked_add(1).unwrap()
 		);
 
-		expect_hydra_events(vec![
+		expect_hydra_last_events(vec![
 			pallet_balances::Event::DustLost {
 				account: ALICE.into(),
 				amount: 1,
@@ -96,7 +96,7 @@ fn balance_should_be_dusted_when_token_balance_is_below_ed() {
 		// Treasury is whitelisted in Tokens
 		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 1);
 
-		expect_hydra_events(vec![
+		expect_hydra_last_events(vec![
 			pallet_currencies::Event::Transferred {
 				currency_id: DAI,
 				from: ALICE.into(),

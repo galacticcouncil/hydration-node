@@ -29,7 +29,6 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod tests;
 
 mod benchmarking;
-mod migrations;
 pub mod weights;
 
 mod assets;
@@ -44,7 +43,6 @@ pub use governance::*;
 pub use system::*;
 pub use xcm::*;
 
-use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::Hooks;
 use codec::{Decode, Encode};
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_api::impl_runtime_apis;
@@ -59,18 +57,24 @@ use sp_runtime::{
 	ApplyExtrinsicResult, Permill,
 };
 
-use sp_std::convert::From;
-use sp_std::prelude::*;
+use sp_std::{convert::From, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
-use frame_support::{construct_runtime, weights::Weight};
+use frame_support::{
+	construct_runtime,
+	genesis_builder_helper::{build_config, create_default_config},
+	pallet_prelude::Hooks,
+	parameter_types,
+	weights::Weight,
+};
 pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
 use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
+pub use pallet_genesis_history::Chain;
 pub use primitives::{
 	AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index, ItemId, Price, Signature,
 };
@@ -109,7 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 241,
+	spec_version: 243,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -143,6 +147,8 @@ construct_runtime!(
 		//NOTE: 5 - is used by Scheduler which must be after cumulus_pallet_parachain_system
 		Balances: pallet_balances = 7,
 		TransactionPayment: pallet_transaction_payment exclude_parts { Config } = 9,
+		// due to multi payment pallet prices, this needs to be initialized at the very beginning
+		MultiTransactionPayment: pallet_transaction_multi_payment = 203,
 		Treasury: pallet_treasury = 11,
 		Utility: pallet_utility = 13,
 		Preimage: pallet_preimage = 15,
@@ -178,7 +184,6 @@ construct_runtime!(
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
-		XcmRateLimiter: pallet_xcm_rate_limiter = 76,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -195,22 +200,23 @@ construct_runtime!(
 		XYKLiquidityMining: pallet_xyk_liquidity_mining = 95,
 		XYKWarehouseLM: warehouse_liquidity_mining::<Instance2> = 96,
 
-		// Parachain
-		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
-		ParachainInfo: parachain_info = 105,
-
-		//NOTE: Scheduler must be after ParachainSystem otherwise RelayChainBlockNumberProvider
+		RelayChainInfo: pallet_relaychain_info = 201,
+		//NOTE: DCA pallet should be declared before ParachainSystem pallet,
+		//otherwise there is no data about relay chain parent hash
+		DCA: pallet_dca = 66,
+		//NOTE: Scheduler must be before ParachainSystem otherwise RelayChainBlockNumberProvider
 		//will return 0 as current block number when used with Scheduler(democracy).
 		Scheduler: pallet_scheduler = 5,
 
-		//NOTE: DCA pallet should be declared after ParachainSystem pallet,
-		//otherwise there is no data about relay chain parent hash
-		DCA: pallet_dca = 66,
+		// Parachain
+		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
+		ParachainInfo: staging_parachain_info = 105,
 
 		PolkadotXcm: pallet_xcm = 107,
 		CumulusXcm: cumulus_pallet_xcm = 109,
 		XcmpQueue: cumulus_pallet_xcmp_queue exclude_parts { Call } = 111,
-		DmpQueue: cumulus_pallet_dmp_queue = 113,
+		// 113 was used by DmpQueue which is now replaced by MessageQueue
+		MessageQueue: pallet_message_queue = 114,
 
 		// ORML XCM
 		OrmlXcm: orml_xcm = 135,
@@ -225,9 +231,7 @@ construct_runtime!(
 		AuraExt: cumulus_pallet_aura_ext = 169,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
-		RelayChainInfo: pallet_relaychain_info = 201,
 		EmaOracle: pallet_ema_oracle = 202,
-		MultiTransactionPayment: pallet_transaction_multi_payment = 203,
 	}
 );
 
@@ -263,9 +267,20 @@ pub type Executive = frame_executive::Executive<
 	Block,
 	frame_system::ChainContext<Runtime>,
 	Runtime,
-	AllPalletsReversedWithSystemFirst,
-	(migrations::OnRuntimeUpgradeMigration,),
+	AllPalletsWithSystem,
+	(
+		frame_support::migrations::RemovePallet<DmpQueuePalletName, <Runtime as frame_system::Config>::DbWeight>,
+		frame_support::migrations::RemovePallet<XcmRateLimiterPalletName, <Runtime as frame_system::Config>::DbWeight>,
+		cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
+		pallet_identity::migration::versioned::V0ToV1<Runtime, 450u64>, // We have currently 379 identities in basllisk, so limit of 450 should be enough
+	),
 >;
+
+// TODO: Remove after the v1.7.2 upgrade
+parameter_types! {
+	pub const DmpQueuePalletName: &'static str = "DmpQueue";
+	pub const XcmRateLimiterPalletName: &'static str = "XcmRateLimiter";
+}
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -687,47 +702,15 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
+			use frame_benchmarking::{Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use orml_benchmarking::list_benchmark as orml_list_benchmark;
+
 			use frame_system_benchmarking::Pallet as SystemBench;
+			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 
 			let mut list = Vec::<BenchmarkList>::new();
-
-			list_benchmark!(list, extra, frame_system, SystemBench::<Runtime>);
-			list_benchmark!(list, extra, pallet_balances, Balances);
-			list_benchmark!(list, extra, pallet_collator_selection, CollatorSelection);
-			list_benchmark!(list, extra, pallet_timestamp, Timestamp);
-			list_benchmark!(list, extra, pallet_treasury, Treasury);
-			list_benchmark!(list, extra, pallet_preimage, Preimage);
-			list_benchmark!(list, extra, pallet_scheduler, Scheduler);
-			list_benchmark!(list, extra, pallet_identity, Identity);
-			list_benchmark!(list, extra, pallet_tips, Tips);
-			list_benchmark!(list, extra, pallet_proxy, Proxy);
-			list_benchmark!(list, extra, pallet_utility, Utility);
-			list_benchmark!(list, extra, pallet_democracy, Democracy);
-			list_benchmark!(list, extra, pallet_elections_phragmen, Elections);
-			list_benchmark!(list, extra, council, Council);
-			list_benchmark!(list, extra, tech, TechnicalCommittee);
-			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
-			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
-			list_benchmark!(list, extra, pallet_bonds, Bonds);
-			list_benchmark!(list, extra, pallet_stableswap, Stableswap);
-			list_benchmark!(list, extra, pallet_state_trie_migration, StateTrieMigration);
-
-			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
-			list_benchmark!(list, extra, pallet_claims, Claims);
-			list_benchmark!(list, extra, pallet_ema_oracle, EmaOracle);
-			list_benchmark!(list, extra, pallet_staking, Staking);
-			list_benchmark!(list, extra, pallet_lbp, LBP);
-			list_benchmark!(list, extra, pallet_referrals, Referrals);
-			list_benchmark!(list, extra, pallet_evm_accounts, EVMAccounts);
-
-			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
-			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
-
-			list_benchmark!(list, extra, pallet_otc, OTC);
-			list_benchmark!(list, extra, pallet_xcm, PolkadotXcm);
+			list_benchmarks!(list, extra);
 
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
@@ -749,10 +732,13 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch, add_benchmark};
+			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
 			use frame_support::traits::TrackedStorageKey;
 			use orml_benchmarking::add_benchmark as orml_add_benchmark;
+			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			use frame_system_benchmarking::Pallet as SystemBench;
+			use cumulus_primitives_core::ParaId;
+
 			impl frame_system_benchmarking::Config for Runtime {
 				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
 					ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
@@ -761,6 +747,35 @@ impl_runtime_apis! {
 
 				fn verify_set_code() {
 					System::assert_last_event(cumulus_pallet_parachain_system::Event::<Runtime>::ValidationFunctionStored.into());
+				}
+			}
+
+			parameter_types! {
+				pub const RandomParaId: ParaId = ParaId::new(22_222_222);
+				pub const ExistentialDeposit: u128 = 0;
+			}
+
+			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Parent};
+
+			impl pallet_xcm::benchmarking::Config for Runtime {
+				fn reachable_dest() -> Option<Location> {
+					Some(Parent.into())
+				}
+
+				fn teleportable_asset_and_dest() -> Option<(Asset, Location)> {
+					Some((
+						Asset {
+							fun: Fungible(ExistentialDeposit::get()),
+							id: AssetId(Parent.into())
+						},
+						Parent.into(),
+					))
+				}
+
+				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
+					// TODO: https://github.com/galacticcouncil/HydraDX-node/issues/840
+					// fix it in next upgrade > 1.7.2
+					None
 				}
 			}
 
@@ -779,41 +794,7 @@ impl_runtime_apis! {
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
-
-			// Substrate pallets
-			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-			add_benchmark!(params, batches, pallet_balances, Balances);
-			add_benchmark!(params, batches, pallet_collator_selection, CollatorSelection);
-			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-			add_benchmark!(params, batches, pallet_treasury, Treasury);
-			add_benchmark!(params, batches, pallet_preimage, Preimage);
-			add_benchmark!(params, batches, pallet_scheduler, Scheduler);
-			add_benchmark!(params, batches, pallet_identity, Identity);
-			add_benchmark!(params, batches, pallet_tips, Tips);
-			add_benchmark!(params, batches, pallet_proxy, Proxy);
-			add_benchmark!(params, batches, pallet_utility, Utility);
-			add_benchmark!(params, batches, pallet_democracy, Democracy);
-			add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
-			add_benchmark!(params, batches, council, Council);
-			add_benchmark!(params, batches, tech, TechnicalCommittee);
-			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
-			add_benchmark!(params, batches, pallet_circuit_breaker, CircuitBreaker);
-			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
-			add_benchmark!(params, batches, pallet_claims, Claims);
-			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);
-			add_benchmark!(params, batches, pallet_bonds, Bonds);
-			add_benchmark!(params, batches, pallet_staking, Staking);
-			add_benchmark!(params, batches, pallet_lbp, LBP);
-			add_benchmark!(params, batches, pallet_stableswap, Stableswap);
-			add_benchmark!(params, batches, pallet_referrals, Referrals);
-			add_benchmark!(params, batches, pallet_evm_accounts, EVMAccounts);
-			add_benchmark!(params, batches, pallet_state_trie_migration, StateTrieMigration);
-
-			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
-			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
-
-			add_benchmark!(params, batches, pallet_otc, OTC);
-			add_benchmark!(params, batches, pallet_xcm, PolkadotXcm);
+			add_benchmarks!(params, batches);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
@@ -831,6 +812,59 @@ impl_runtime_apis! {
 			Ok(batches)
 		}
 	}
+
+	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
+		fn create_default_config() -> Vec<u8> {
+			create_default_config::<RuntimeGenesisConfig>()
+		}
+
+		fn build_config(config: Vec<u8>) -> sp_genesis_builder::Result {
+			build_config::<RuntimeGenesisConfig>(config)
+		}
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benches {
+	frame_support::parameter_types! {
+		pub const BenchmarkMaxBalance: crate::Balance = crate::Balance::max_value();
+	}
+	frame_benchmarking::define_benchmarks!(
+		[pallet_lbp, LBP]
+		[pallet_asset_registry, AssetRegistry]
+		[pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining]
+		[pallet_transaction_pause, TransactionPause]
+		[pallet_ema_oracle, EmaOracle]
+		[pallet_circuit_breaker, CircuitBreaker]
+		[pallet_bonds, Bonds]
+		[pallet_stableswap, Stableswap]
+		[pallet_claims, Claims]
+		[pallet_staking, Staking]
+		[pallet_referrals, Referrals]
+		[pallet_evm_accounts, EVMAccounts]
+		[pallet_otc, OTC]
+		[pallet_state_trie_migration, StateTrieMigration]
+		[frame_system, SystemBench::<Runtime>]
+		[pallet_balances, Balances]
+		[pallet_timestamp, Timestamp]
+		[pallet_democracy, Democracy]
+		[pallet_elections_phragmen, Elections]
+		[pallet_treasury, Treasury]
+		[pallet_scheduler, Scheduler]
+		[pallet_utility, Utility]
+		[pallet_tips, Tips]
+		[pallet_identity, Identity]
+		[pallet_collective_council, Council]
+		[pallet_collective_technical_committee, TechnicalCommittee]
+		[cumulus_pallet_xcmp_queue, XcmpQueue]
+		[pallet_message_queue, MessageQueue]
+		[pallet_preimage, Preimage]
+		[pallet_multisig, Multisig]
+		[pallet_proxy, Proxy]
+		[cumulus_pallet_parachain_system, ParachainSystem]
+		[pallet_collator_selection, CollatorSelection]
+		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+	);
 }
 
 struct CheckInherents;

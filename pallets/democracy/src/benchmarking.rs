@@ -25,7 +25,6 @@ use frame_support::{
 	traits::{Currency, EnsureOrigin, Get, OnInitialize, UnfilteredDispatchable},
 };
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
-use sp_core::H256;
 use sp_runtime::{traits::Bounded, BoundedVec};
 
 use crate::Pallet as Democracy;
@@ -46,7 +45,7 @@ fn make_proposal<T: Config>(n: u32) -> BoundedCallOf<T> {
 	<T as Config>::Preimages::bound(call).unwrap()
 }
 
-fn add_proposal<T: Config>(n: u32) -> Result<H256, &'static str> {
+fn add_proposal<T: Config>(n: u32) -> Result<T::Hash, &'static str> {
 	let other = funded_account::<T>("proposer", n);
 	let value = T::MinimumDeposit::get();
 	let proposal = make_proposal::<T>(n);
@@ -55,13 +54,13 @@ fn add_proposal<T: Config>(n: u32) -> Result<H256, &'static str> {
 }
 
 // add a referendum with a metadata.
-fn add_referendum<T: Config>(n: u32) -> (ReferendumIndex, H256, PreimageHash) {
+fn add_referendum<T: Config>(n: u32) -> (ReferendumIndex, T::Hash, T::Hash) {
 	let vote_threshold = VoteThreshold::SimpleMajority;
 	let proposal = make_proposal::<T>(n);
 	let hash = proposal.hash();
 	let index = Democracy::<T>::inject_referendum(T::LaunchPeriod::get(), proposal, vote_threshold, 0u32.into());
 	let preimage_hash = note_preimage::<T>();
-	MetadataOf::<T>::insert(crate::MetadataOwner::Referendum(index), preimage_hash.clone());
+	MetadataOf::<T>::insert(crate::MetadataOwner::Referendum(index), preimage_hash);
 	(index, hash, preimage_hash)
 }
 
@@ -83,14 +82,13 @@ fn assert_has_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 }
 
 // note a new preimage.
-fn note_preimage<T: Config>() -> PreimageHash {
+fn note_preimage<T: Config>() -> T::Hash {
 	use core::sync::atomic::{AtomicU8, Ordering};
 	use sp_std::borrow::Cow;
 	// note a new preimage on every function invoke.
 	static COUNTER: AtomicU8 = AtomicU8::new(0);
 	let data = Cow::from(vec![COUNTER.fetch_add(1, Ordering::Relaxed)]);
-	let hash = <T as Config>::Preimages::note(data).unwrap();
-	hash
+	<T as Config>::Preimages::note(data).unwrap()
 }
 
 benchmarks! {
@@ -255,7 +253,6 @@ benchmarks! {
 		// Add proposal to blacklist with block number 0
 
 		let addresses: BoundedVec<_, _> = (0..(T::MaxBlacklisted::get() - 1))
-			.into_iter()
 			.map(|i| account::<T::AccountId>("blacklist", i, SEED))
 			.collect::<Vec<_>>()
 			.try_into()
@@ -341,7 +338,7 @@ benchmarks! {
 	}: _<T::RuntimeOrigin>(origin, proposal_hash)
 	verify {
 		assert!(NextExternal::<T>::get().is_none());
-		let (_, new_vetoers) = <Blacklist<T>>::get(&proposal_hash).ok_or("no blacklist")?;
+		let (_, new_vetoers) = <Blacklist<T>>::get(proposal_hash).ok_or("no blacklist")?;
 		assert_eq!(new_vetoers.len(), T::MaxBlacklisted::get() as usize, "vetoers not added");
 	}
 

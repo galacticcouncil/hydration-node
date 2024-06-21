@@ -206,7 +206,6 @@ async fn start_node_impl(
 	ethereum_config: evm::EthereumConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
-	hwbench: Option<sc_sysinfo::HwBench>,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
 	let parachain_config = prepare_node_config(parachain_config);
 
@@ -225,7 +224,7 @@ async fn start_node_impl(
 		telemetry_worker_handle,
 		&mut task_manager,
 		collator_options.clone(),
-		hwbench.clone(),
+		None,
 	)
 	.await
 	.map_err(|e| sc_service::Error::Application(Box::new(e) as Box<_>))?;
@@ -368,28 +367,6 @@ async fn start_node_impl(
 		pubsub_notification_sinks,
 	);
 
-	if let Some(hwbench) = hwbench {
-		sc_sysinfo::print_hwbench(&hwbench);
-		// Here you can check whether the hardware meets your chains' requirements. Putting a link
-		// in there and swapping out the requirements for your own are probably a good idea. The
-		// requirements for a para-chain are dictated by its relay-chain.
-		if !frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench) && validator {
-			log::warn!(
-				"⚠️  The hardware does not meet the minimal requirements for role 'Authority' find out more at:\n\
-			https://wiki.polkadot.network/docs/maintain-guides-how-to-validate-polkadot#reference-hardware"
-			);
-		}
-
-		if let Some(ref mut telemetry) = telemetry {
-			let telemetry_handle = telemetry.handle();
-			task_manager.spawn_handle().spawn(
-				"telemetry_hwbench",
-				None,
-				sc_sysinfo::initialize_hwbench_telemetry(telemetry_handle, hwbench),
-			);
-		}
-	}
-
 	let announce_block = {
 		let sync_service = sync_service.clone();
 		Arc::new(move |hash, data| sync_service.announce_block(hash, data))
@@ -530,6 +507,7 @@ fn start_consensus(
 		collator_service,
 		// Very limited proposal time.
 		authoring_duration: Duration::from_millis(500),
+		collation_request_receiver: None,
 	};
 
 	let fut = basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _>(params);
@@ -545,7 +523,6 @@ pub async fn start_node(
 	ethereum_config: evm::EthereumConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
-	hwbench: Option<sc_sysinfo::HwBench>,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
 	start_node_impl(
 		parachain_config,
@@ -553,7 +530,6 @@ pub async fn start_node(
 		ethereum_config,
 		collator_options,
 		para_id,
-		hwbench,
 	)
 	.await
 }

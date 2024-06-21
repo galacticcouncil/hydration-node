@@ -152,7 +152,7 @@ mod router_different_pools_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: DAI,
 				asset_out: DOT,
 				amount_in: amount_to_sell,
@@ -218,7 +218,7 @@ mod router_different_pools_tests {
 				assert_balance!(BOB.into(), stable_asset_1, 0);
 				assert_balance!(BOB.into(), stable_asset_2, amount_out);
 
-				expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+				expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 					asset_in: DAI,
 					asset_out: stable_asset_2,
 					amount_in: amount_to_sell,
@@ -281,7 +281,7 @@ mod router_different_pools_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: DAI,
 				asset_out: DOT,
 				amount_in,
@@ -347,7 +347,7 @@ mod router_different_pools_tests {
 				assert_balance!(BOB.into(), stable_asset_1, 0);
 				assert_balance!(BOB.into(), stable_asset_2, amount_to_buy);
 
-				expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+				expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 					asset_in: DAI,
 					asset_out: stable_asset_2,
 					amount_in,
@@ -696,7 +696,7 @@ mod router_different_pools_tests {
 			//Act & Assert
 			assert_eq!(
 				RouterWeightInfo::sell_weight(trades.as_slice()),
-				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 1)
+				hydradx_runtime::weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 1)
 					.checked_add(&<OmnipoolHookAdapter<
 						RuntimeOrigin,
 						ConstU32<HDX>,
@@ -713,7 +713,9 @@ mod router_different_pools_tests {
 					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
 					))
 					.unwrap()
-					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1))
+					.checked_add(
+						&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1)
+					)
 					.unwrap()
 					.checked_add(
 						&RouterWeightInfo::sell_and_calculate_sell_trade_amounts_overhead_weight(0, 1)
@@ -724,7 +726,7 @@ mod router_different_pools_tests {
 			);
 			assert_eq!(
 				RouterWeightInfo::buy_weight(trades.as_slice()),
-				hydradx_runtime::weights::omnipool::HydraWeight::<Runtime>::router_execution_buy(1, 1)
+				hydradx_runtime::weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_buy(1, 1)
 					.checked_add(&<OmnipoolHookAdapter<
 						RuntimeOrigin,
 						ConstU32<HDX>,
@@ -741,7 +743,9 @@ mod router_different_pools_tests {
 					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
 					))
 					.unwrap()
-					.checked_add(&hydradx_runtime::weights::lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1))
+					.checked_add(
+						&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1)
+					)
 					.unwrap()
 					.checked_add(
 						&RouterWeightInfo::buy_and_calculate_buy_trade_amounts_overhead_weight(0, 1)
@@ -792,7 +796,7 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: amount_to_sell,
@@ -852,14 +856,14 @@ mod omnipool_router_tests {
 	}
 
 	#[test]
-	fn sell_should_fail_when_all_asset_in_spent_for_shitcoin() {
+	fn sell_should_fail_when_all_asset_in_spent_for_altcoin() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
 				let name = b"SHITCO".to_vec();
-				let shitcoin = AssetRegistry::register_insufficient_asset(
+				let altcoin = AssetRegistry::register_insufficient_asset(
 					None,
 					Some(name.try_into().unwrap()),
 					AssetKind::External,
@@ -870,7 +874,7 @@ mod omnipool_router_tests {
 					None,
 				)
 				.unwrap();
-				assert_ok!(Currencies::deposit(shitcoin, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(altcoin, &DAVE.into(), 100000 * UNITS,));
 				assert_ok!(Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
 					DAVE.into(),
@@ -882,14 +886,14 @@ mod omnipool_router_tests {
 					RuntimeOrigin::signed(DAVE.into()),
 					HDX,
 					100000 * UNITS,
-					shitcoin,
+					altcoin,
 					100000 * UNITS,
 				));
 
 				let trades = vec![Trade {
 					pool: PoolType::XYK,
 					asset_in: HDX,
-					asset_out: shitcoin,
+					asset_out: altcoin,
 				}];
 
 				//Act
@@ -898,7 +902,7 @@ mod omnipool_router_tests {
 					Router::sell(
 						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 						HDX,
-						shitcoin,
+						altcoin,
 						amount_to_sell,
 						0,
 						trades
@@ -912,14 +916,14 @@ mod omnipool_router_tests {
 	}
 
 	#[test]
-	fn sell_should_pass_when_user_has_asset_in_covering_the_fee_for_shitcoin() {
+	fn sell_should_pass_when_user_has_asset_in_covering_the_fee_for_altcoin() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
 				let name = b"SHITCO".to_vec();
-				let shitcoin = AssetRegistry::register_insufficient_asset(
+				let altcoin = AssetRegistry::register_insufficient_asset(
 					None,
 					Some(name.try_into().unwrap()),
 					AssetKind::External,
@@ -931,7 +935,7 @@ mod omnipool_router_tests {
 				)
 				.unwrap();
 
-				assert_ok!(Currencies::deposit(shitcoin, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(altcoin, &DAVE.into(), 100000 * UNITS,));
 				assert_ok!(Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
 					DAVE.into(),
@@ -943,14 +947,14 @@ mod omnipool_router_tests {
 					RuntimeOrigin::signed(DAVE.into()),
 					HDX,
 					100000 * UNITS,
-					shitcoin,
+					altcoin,
 					100000 * UNITS,
 				));
 
 				let trades = vec![Trade {
 					pool: PoolType::XYK,
 					asset_in: HDX,
-					asset_out: shitcoin,
+					asset_out: altcoin,
 				}];
 
 				//Act
@@ -958,7 +962,7 @@ mod omnipool_router_tests {
 				assert_ok!(Router::sell(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					HDX,
-					shitcoin,
+					altcoin,
 					amount_to_sell,
 					0,
 					trades
@@ -1443,7 +1447,7 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), LRNA, 1_000 * UNITS - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: LRNA,
 				asset_out: DAI,
 				amount_in: amount_to_sell,
@@ -1486,7 +1490,7 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: amount_to_sell,
@@ -1511,7 +1515,7 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			expect_hydra_events(vec![pallet_omnipool::Event::SellExecuted {
+			expect_hydra_last_events(vec![pallet_omnipool::Event::SellExecuted {
 				who: BOB.into(),
 				asset_in: HDX,
 				asset_out: DAI,
@@ -1561,7 +1565,7 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in,
@@ -1666,7 +1670,7 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in,
@@ -1691,7 +1695,7 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			expect_hydra_events(vec![pallet_omnipool::Event::BuyExecuted {
+			expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
 				who: BOB.into(),
 				asset_in: HDX,
 				asset_out: DAI,
@@ -1778,7 +1782,7 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: amount_to_sell,
@@ -1821,7 +1825,7 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE + amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: DAI,
 				asset_out: HDX,
 				amount_in: amount_to_sell,
@@ -1873,7 +1877,7 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DOT,
 				amount_in: amount_to_sell,
@@ -1925,7 +1929,7 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DOT,
 				amount_in: amount_to_sell,
@@ -1968,7 +1972,7 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + received_amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: amount_to_sell,
@@ -1994,7 +1998,7 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			expect_hydra_events(vec![pallet_lbp::Event::SellExecuted {
+			expect_hydra_last_events(vec![pallet_lbp::Event::SellExecuted {
 				who: BOB.into(),
 				asset_in: HDX,
 				asset_out: DAI,
@@ -2043,7 +2047,7 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in,
@@ -2086,7 +2090,7 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE + amount_to_buy);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE - amount_in);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: DAI,
 				asset_out: HDX,
 				amount_in,
@@ -2138,7 +2142,7 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DOT,
 				amount_in,
@@ -2190,7 +2194,7 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DOT,
 				amount_in,
@@ -2233,7 +2237,7 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - spent_amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: spent_amount_in,
@@ -2335,7 +2339,7 @@ mod xyk_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DOT, amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DOT,
 				amount_in: amount_to_sell,
@@ -2398,7 +2402,7 @@ mod xyk_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DOT,
 				amount_in: amount_to_sell,
@@ -2563,7 +2567,7 @@ mod xyk_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DOT, amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DOT,
 				amount_in,
@@ -2618,7 +2622,7 @@ mod xyk_router_tests {
 			assert_balance!(BOB.into(), DOT, 0);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in,
@@ -2681,7 +2685,7 @@ mod xyk_router_tests {
 			assert_balance!(BOB.into(), LRNA, BOB_INITIAL_LRNA_BALANCE);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in,
@@ -4274,7 +4278,7 @@ mod with_on_chain_and_default_route {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: amount_to_sell,
@@ -4311,7 +4315,7 @@ mod with_on_chain_and_default_route {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
-			expect_hydra_events(vec![pallet_route_executor::Event::Executed {
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in,
