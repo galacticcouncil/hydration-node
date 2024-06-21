@@ -829,6 +829,22 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 	}
 }
 
+impl<T: Config> RouteSpotPriceProvider<T::AssetId> for DummyRouter<T> {
+	fn spot_price_with_fee(_route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
+		Some(FixedU128::from_u32(2))
+	}
+}
+
+impl<T: Config> RouteProvider<T::AssetId> for DummyRouter<T> {
+	fn get_route(asset_pair: AssetPair<T::AssetId>) -> Vec<Trade<T::AssetId>> {
+		vec![Trade {
+			pool: T::DefaultRoutePoolType::get(),
+			asset_in: asset_pair.asset_in,
+			asset_out: asset_pair.asset_out,
+		}]
+	}
+}
+
 #[macro_export]
 macro_rules! handle_execution_error {
 	($execution_result:expr) => {{
@@ -863,6 +879,7 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 		}
 	}
 }
+
 impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 	fn spot_price_with_fee(route: &[Trade<T::AssetId>]) -> Option<FixedU128> {
 		if route.is_empty() {
