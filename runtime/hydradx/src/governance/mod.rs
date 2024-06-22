@@ -28,6 +28,9 @@
 // Gov V1 (to be deprecated)
 pub mod old;
 
+mod origins;
+mod tracks;
+
 use super::*;
 use crate::old::{MoreThanHalfCouncil, TreasuryApproveOrigin};
 use frame_support::{parameter_types, sp_runtime::Permill, traits::NeverEnsureOrigin, PalletId};
@@ -89,3 +92,5 @@ impl pallet_treasury::Config for Runtime {
 	// TODO origin
 	type SpendOrigin = NeverEnsureOrigin<Balance>;
 }
+
+impl origins::pallet_custom_origins::Config for Runtime {}
