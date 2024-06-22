@@ -46,7 +46,7 @@ const SUP_FAST_RECIP: Curve = Curve::make_reciprocal(3, 7, percent(1), percent(0
 const SUP_WHITELISTED_CALLER: Curve = Curve::make_reciprocal(1, 28, percent(20), percent(1), percent(50));
 
 // TODO OpenGov
-const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 8] = [
+const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9] = [
 	(
 		0,
 		pallet_referenda::TrackInfo {
@@ -159,7 +159,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 8]
 			min_support: SUP_FAST_RECIP,
 		},
 	),
-  (
+	(
 		8,
 		pallet_referenda::TrackInfo {
 			name: "omnipool_admin",

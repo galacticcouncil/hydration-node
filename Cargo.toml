@@ -404,7 +404,7 @@ pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/galacti
 pallet-treasury = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-uniques = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-utility = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
-pallet-whitelist = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "c8d2251cafadc108ba2f1f8a3208dc547ff38901" }
+pallet-whitelist = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 pallet-im-online = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }
 
 substrate-build-script-utils = { git = "https://github.com/galacticcouncil/polkadot-sdk", rev = "062d92eae0f3bb9908faf2d4e241eef17368b9d3" }

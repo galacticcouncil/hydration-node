@@ -40,6 +40,7 @@ pub mod types;
 pub mod xcm;
 
 pub use assets::*;
+pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
 pub use system::*;
 pub use xcm::*;
@@ -156,6 +157,12 @@ construct_runtime!(
 		Multisig: pallet_multisig = 31,
 		Uniques: pallet_uniques = 32,
 		StateTrieMigration: pallet_state_trie_migration = 35,
+
+		// OpenGov
+		ConvictionVoting: pallet_conviction_voting::{Pallet, Call, Storage, Event<T>} = 36,
+		Referenda: pallet_referenda::{Pallet, Call, Storage, Event<T>} = 37,
+		Origins: pallet_custom_origins::{Origin} = 38,
+		Whitelist: pallet_whitelist::{Pallet, Call, Storage, Event<T>} = 39,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry = 51,
@@ -729,6 +736,10 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_otc, OTC);
 			list_benchmark!(list, extra, pallet_xcm, PolkadotXcm);
 
+			list_benchmark!(list, extra, pallet_conviction_voting, ConvictionVoting);
+			list_benchmark!(list, extra, pallet_referenda, Referenda);
+			list_benchmark!(list, extra, pallet_whitelist, Whitelist);
+
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
 			orml_list_benchmark!(list, extra, orml_vesting, benchmarking::vesting);
@@ -814,6 +825,10 @@ impl_runtime_apis! {
 
 			add_benchmark!(params, batches, pallet_otc, OTC);
 			add_benchmark!(params, batches, pallet_xcm, PolkadotXcm);
+
+			add_benchmark!(params, batches, pallet_conviction_voting, ConvictionVoting);
+			add_benchmark!(params, batches, pallet_referenda, Referenda);
+			add_benchmark!(params, batches, pallet_whitelist, Whitelist);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);

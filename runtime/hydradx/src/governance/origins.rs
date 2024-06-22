@@ -50,12 +50,12 @@ pub mod pallet_custom_origins {
 		/// Origin able to kill referenda.
 		ReferendumKiller,
 		/// Origin for managing general stuff such as the registrar and permissioned HRMP
-    /// channel operations.
+		/// channel operations.
 		GeneralAdmin,
-    /// Origin able to perform specific Omnipool-related actions.
-    OmnipoolAdmin,
+		/// Origin able to perform specific Omnipool-related actions.
+		OmnipoolAdmin,
 		/// Origin for spending very high amounts of BSX from the treasury as well as generally
-    /// administering it.
+		/// administering it.
 		Treasurer,
 		/// Origin able to spend up to roughly $5,000 from the treasury at once.
 		Spender,
@@ -95,7 +95,7 @@ pub mod pallet_custom_origins {
 	}
 	decl_unit_ensures!(
 		GeneralAdmin,
-    OmnipoolAdmin,
+		OmnipoolAdmin,
 		WhitelistedCaller,
 		ReferendumCanceller,
 		ReferendumKiller,
@@ -135,7 +135,7 @@ pub mod pallet_custom_origins {
 		}
 	}
 
-  // TODO opengov
+	// TODO opengov
 	decl_ensure! {
 		pub type Spender: EnsureOrigin<Success = Balance> {
 			Tipper = 500_000 * UNITS, // ~= $5,000
