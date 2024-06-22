@@ -134,7 +134,7 @@ where
 		corrected_fee: U256,
 		_base_fee: U256,
 		already_withdrawn: Self::LiquidityInfo,
-	) -> Self::LiquidityInfo {
+	) -> Result<Self::LiquidityInfo, Error<T>> {
 		if let Some(paid) = already_withdrawn {
 			let account_id = T::AddressMapping::into_account_id(*who);
 
@@ -177,9 +177,9 @@ where
 				asset_id: paid.asset_id,
 				price: paid.price,
 			});
-			return None;
+			return Ok(None);
 		}
-		None
+		Ok(None)
 	}
 
 	fn pay_priority_fee(tip: Self::LiquidityInfo) {

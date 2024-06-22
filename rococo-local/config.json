@@ -1,62 +1,59 @@
 {
+  "settings": {
+    "provider": "native"
+  },
   "relaychain": {
-    "bin": "../../polkadot-sdk/target/release/polkadot",
-    "chain": "rococo-local",
+    "default_command": "../../polkadot-sdk/target/release/polkadot",
+    "chain": "rococo-dev",
     "nodes": [
       {
         "name": "alice",
-        "wsPort": 9944,
-        "port": 30444
+        "validator": true,
+        "args": ["--disable-worker-version-check"],
+        "wsPort": 9944
       },
       {
         "name": "bob",
-        "wsPort": 9955,
-        "port": 30555
+        "validator": true,
+        "args": ["--disable-worker-version-check"],
+        "wsPort": 9955
       },
       {
         "name": "charlie",
-        "wsPort": 9966,
-        "port": 30666
+        "validator": true,
+        "args": ["--disable-worker-version-check"],
+        "wsPort": 9966
       },
       {
         "name": "dave",
-        "wsPort": 9977,
-        "port": 30777
+        "validator": true,
+        "args": ["--disable-worker-version-check"],
+        "wsPort": 9977
       }
-    ],
-    "genesis": {
-      "runtime": {
-        "runtime_genesis_config": {
-          "configuration": {
-            "config": {
-              "validation_upgrade_frequency": 1,
-              "validation_upgrade_delay": 10
-            }
-          }
-        }
-      }
-    }
+    ]
   },
   "simpleParachains": [],
   "parachains": [
     {
-      "bin": "../target/release/hydradx",
+      "id": 2032,
+      "cumulus_based": true,
       "chain":"local",
-      "balance": "1000000000000000000000",
-      "nodes": [
+      "collators": [
         {
+          "name": "alice",
+          "command": "../target/release/hydradx",
           "wsPort": 9988,
-          "port": 31200,
           "flags": ["--alice", "--rpc-cors=all", "--", "--execution=wasm"]
         },
         {
+          "name": "bob",
+          "command": "../target/release/hydradx",
           "wsPort": 9989,
-          "port": 31201,
           "flags": ["--bob", "--rpc-cors=all", "--", "--execution=wasm"]
         }
       ]
     }
   ],
-  "hrmpChannels": [],
+  "hrmp_channels": [],
   "types": {}
 }

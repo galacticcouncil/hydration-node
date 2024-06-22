@@ -26,7 +26,7 @@ use {
 	sp_core::H256,
 	sp_std::vec::Vec,
 	sp_weights::Weight,
-	xcm::latest::{Junction, Junctions, MultiLocation, NetworkId},
+	xcm::v3::{Junction, Junctions, MultiLocation, NetworkId},
 };
 
 pub const JUNCTION_SIZE_LIMIT: u32 = 2u32.pow(16);
@@ -104,6 +104,11 @@ pub(crate) fn network_id_to_bytes(network_id: Option<NetworkId>) -> Vec<u8> {
 		Some(NetworkId::BitcoinCash) => {
 			encoded.push(10u8);
 			encoded.push(9u8);
+			encoded
+		}
+		Some(NetworkId::PolkadotBulletin) => {
+			encoded.push(11u8);
+			encoded.push(10u8);
 			encoded
 		}
 	}

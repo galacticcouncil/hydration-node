@@ -24,7 +24,7 @@ fn cancel_referendum_should_work() {
 	new_test_ext().execute_with(|| {
 		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SuperMajorityApprove, 0);
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r, aye(1)));
-		assert_ok!(Democracy::cancel_referendum(RuntimeOrigin::root(), r.into()));
+		assert_ok!(Democracy::cancel_referendum(RuntimeOrigin::root(), r));
 		assert_eq!(Democracy::lowest_unbaked(), 0);
 
 		next_block();

@@ -149,9 +149,9 @@
 //! - `cancel_queued` - Cancels a proposal that is queued for enactment.
 //! - `clear_public_proposal` - Removes all public proposals.
 
-#![allow(clippy::all)]
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::type_complexity)]
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -160,8 +160,8 @@ use frame_support::{
 	traits::{
 		defensive_prelude::*,
 		schedule::{v3::Named as ScheduleNamed, DispatchTime},
-		Bounded, Currency, EnsureOrigin, Get, Hash as PreimageHash, LockIdentifier, LockableCurrency, OnUnbalanced,
-		QueryPreimage, ReservableCurrency, StorePreimage, WithdrawReasons,
+		Bounded, Currency, EnsureOrigin, Get, LockIdentifier, LockableCurrency, OnUnbalanced, QueryPreimage,
+		ReservableCurrency, StorePreimage, WithdrawReasons,
 	},
 	weights::Weight,
 };
@@ -170,7 +170,7 @@ use sp_runtime::{
 	traits::{Bounded as ArithBounded, One, Saturating, StaticLookup, Zero},
 	ArithmeticError, DispatchError, DispatchResult,
 };
-use sp_std::{prelude::*, vec};
+use sp_std::prelude::*;
 
 mod conviction;
 pub mod traits;
@@ -202,16 +202,14 @@ type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Con
 type NegativeImbalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 pub type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
-pub type BoundedCallOf<T> = Bounded<CallOf<T>>;
+pub type BoundedCallOf<T> = Bounded<CallOf<T>, <T as frame_system::Config>::Hashing>;
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::{DispatchResult, *};
-	use crate::traits::DemocracyHooks;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_core::H256;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -226,10 +224,10 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The Scheduler.
-		type Scheduler: ScheduleNamed<BlockNumberFor<Self>, CallOf<Self>, Self::PalletsOrigin>;
+		type Scheduler: ScheduleNamed<BlockNumberFor<Self>, CallOf<Self>, Self::PalletsOrigin, Hasher = Self::Hashing>;
 
 		/// The Preimage provider.
-		type Preimages: QueryPreimage + StorePreimage;
+		type Preimages: QueryPreimage<H = Self::Hashing> + StorePreimage;
 
 		/// Currency type for this pallet.
 		type Currency: ReservableCurrency<Self::AccountId>
@@ -412,20 +410,20 @@ pub mod pallet {
 	/// (until when it may not be resubmitted) and who vetoed it.
 	#[pallet::storage]
 	pub type Blacklist<T: Config> =
-		StorageMap<_, Identity, H256, (BlockNumberFor<T>, BoundedVec<T::AccountId, T::MaxBlacklisted>)>;
+		StorageMap<_, Identity, T::Hash, (BlockNumberFor<T>, BoundedVec<T::AccountId, T::MaxBlacklisted>)>;
 
 	/// Record of all proposals that have been subject to emergency cancellation.
 	#[pallet::storage]
-	pub type Cancellations<T: Config> = StorageMap<_, Identity, H256, bool, ValueQuery>;
+	pub type Cancellations<T: Config> = StorageMap<_, Identity, T::Hash, bool, ValueQuery>;
 
 	/// General information concerning any proposal or referendum.
-	/// The `PreimageHash` refers to the preimage of the `Preimages` provider which can be a JSON
+	/// The `Hash` refers to the preimage of the `Preimages` provider which can be a JSON
 	/// dump or IPFS hash of a JSON file.
 	///
 	/// Consider a garbage collection for a metadata of finished referendums to `unrequest` (remove)
 	/// large preimages.
 	#[pallet::storage]
-	pub type MetadataOf<T: Config> = StorageMap<_, Blake2_128Concat, MetadataOwner, PreimageHash>;
+	pub type MetadataOf<T: Config> = StorageMap<_, Blake2_128Concat, MetadataOwner, T::Hash>;
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
@@ -476,11 +474,11 @@ pub mod pallet {
 		/// An external proposal has been vetoed.
 		Vetoed {
 			who: T::AccountId,
-			proposal_hash: H256,
+			proposal_hash: T::Hash,
 			until: BlockNumberFor<T>,
 		},
 		/// A proposal_hash has been blacklisted permanently.
-		Blacklisted { proposal_hash: H256 },
+		Blacklisted { proposal_hash: T::Hash },
 		/// An account has voted in a referendum
 		Voted {
 			voter: T::AccountId,
@@ -499,14 +497,14 @@ pub mod pallet {
 			/// Metadata owner.
 			owner: MetadataOwner,
 			/// Preimage hash.
-			hash: PreimageHash,
+			hash: T::Hash,
 		},
 		/// Metadata for a proposal or a referendum has been cleared.
 		MetadataCleared {
 			/// Metadata owner.
 			owner: MetadataOwner,
 			/// Preimage hash.
-			hash: PreimageHash,
+			hash: T::Hash,
 		},
 		/// Metadata has been transferred to new owner.
 		MetadataTransferred {
@@ -515,7 +513,7 @@ pub mod pallet {
 			/// New metadata owner.
 			owner: MetadataOwner,
 			/// Preimage hash.
-			hash: PreimageHash,
+			hash: T::Hash,
 		},
 	}
 
@@ -774,7 +772,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::fast_track())]
 		pub fn fast_track(
 			origin: OriginFor<T>,
-			proposal_hash: H256,
+			proposal_hash: T::Hash,
 			voting_period: BlockNumberFor<T>,
 			delay: BlockNumberFor<T>,
 		) -> DispatchResult {
@@ -820,7 +818,7 @@ pub mod pallet {
 		/// Weight: `O(V + log(V))` where V is number of `existing vetoers`
 		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::veto_external())]
-		pub fn veto_external(origin: OriginFor<T>, proposal_hash: H256) -> DispatchResult {
+		pub fn veto_external(origin: OriginFor<T>, proposal_hash: T::Hash) -> DispatchResult {
 			let who = T::VetoOrigin::ensure_origin(origin)?;
 
 			if let Some((ext_proposal, _)) = NextExternal::<T>::get() {
@@ -829,7 +827,7 @@ pub mod pallet {
 				return Err(Error::<T>::NoProposal.into());
 			}
 
-			let mut existing_vetoers = <Blacklist<T>>::get(&proposal_hash)
+			let mut existing_vetoers = <Blacklist<T>>::get(proposal_hash)
 				.map(|pair| pair.1)
 				.unwrap_or_default();
 			let insert_position = existing_vetoers
@@ -841,7 +839,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::TooMany)?;
 
 			let until = <frame_system::Pallet<T>>::block_number().saturating_add(T::CooloffPeriod::get());
-			<Blacklist<T>>::insert(&proposal_hash, (until, existing_vetoers));
+			<Blacklist<T>>::insert(proposal_hash, (until, existing_vetoers));
 
 			Self::deposit_event(Event::<T>::Vetoed {
 				who,
@@ -1045,7 +1043,7 @@ pub mod pallet {
 		#[pallet::weight((T::WeightInfo::blacklist(), DispatchClass::Operational))]
 		pub fn blacklist(
 			origin: OriginFor<T>,
-			proposal_hash: H256,
+			proposal_hash: T::Hash,
 			maybe_ref_index: Option<ReferendumIndex>,
 		) -> DispatchResult {
 			T::BlacklistOrigin::ensure_origin(origin)?;
@@ -1055,7 +1053,7 @@ pub mod pallet {
 				BlockNumberFor::<T>::max_value(),
 				BoundedVec::<T::AccountId, _>::default(),
 			);
-			Blacklist::<T>::insert(&proposal_hash, permanent);
+			Blacklist::<T>::insert(proposal_hash, permanent);
 
 			// Remove the queued proposal, if it's there.
 			PublicProps::<T>::mutate(|props| {
@@ -1138,11 +1136,7 @@ pub mod pallet {
 				(MetadataOwner::Referendum(_), None) => T::WeightInfo::clear_referendum_metadata(),
 			}
 		)]
-		pub fn set_metadata(
-			origin: OriginFor<T>,
-			owner: MetadataOwner,
-			maybe_hash: Option<PreimageHash>,
-		) -> DispatchResult {
+		pub fn set_metadata(origin: OriginFor<T>, owner: MetadataOwner, maybe_hash: Option<T::Hash>) -> DispatchResult {
 			match owner {
 				MetadataOwner::External => {
 					let (_, threshold) = <NextExternal<T>>::get().ok_or(Error::<T>::NoProposal)?;
@@ -1175,15 +1169,16 @@ pub mod pallet {
 }
 
 pub trait EncodeInto: Encode {
-	fn encode_into<T: AsMut<[u8]> + Default>(&self) -> T {
+	fn encode_into<T: AsMut<[u8]> + Default, H: sp_core::Hasher>(&self) -> T {
 		let mut t = T::default();
 		self.using_encoded(|data| {
 			if data.len() <= t.as_mut().len() {
 				t.as_mut()[0..data.len()].copy_from_slice(data);
 			} else {
-				// encoded self is too big to fit into a T. hash it and use the first bytes of that
-				// instead.
-				let hash = sp_io::hashing::blake2_256(data);
+				// encoded self is too big to fit into a T.
+				// hash it and use the first bytes of that instead.
+				let hash = H::hash(data);
+				let hash = hash.as_ref();
 				let l = t.as_mut().len().min(hash.len());
 				t.as_mut()[0..l].copy_from_slice(&hash[0..l]);
 			}
@@ -1609,7 +1604,7 @@ impl<T: Config> Pallet<T> {
 			Self::transfer_metadata(MetadataOwner::External, MetadataOwner::Referendum(ref_index));
 			Ok(())
 		} else {
-			return Err(Error::<T>::NoneWaiting.into());
+			Err(Error::<T>::NoneWaiting.into())
 		}
 	}
 
@@ -1645,7 +1640,7 @@ impl<T: Config> Pallet<T> {
 			}
 			Ok(())
 		} else {
-			return Err(Error::<T>::NoneWaiting.into());
+			Err(Error::<T>::NoneWaiting.into())
 		}
 	}
 
@@ -1663,7 +1658,7 @@ impl<T: Config> Pallet<T> {
 			// Earliest it can be scheduled for is next block.
 			let when = now.saturating_add(status.delay.max(One::one()));
 			if T::Scheduler::schedule_named(
-				(DEMOCRACY_ID, index).encode_into(),
+				(DEMOCRACY_ID, index).encode_into::<_, T::Hashing>(),
 				DispatchTime::At(when),
 				None,
 				63,

@@ -27,6 +27,7 @@ pub use crate::{
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
 use crate::{NativeAssetId, LRNA};
+pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
 	traits::{Defensive, FindAuthor},
@@ -41,10 +42,6 @@ use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::EnsureAddressTruncated;
 use pallet_transaction_payment::Multiplier;
-use polkadot_xcm::{
-	latest::MultiLocation,
-	prelude::{AccountKey20, PalletInstance, Parachain, X3},
-};
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
 
@@ -75,12 +72,12 @@ parameter_types! {
 }
 
 const MOONBEAM_PARA_ID: u32 = 2004;
-pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(MultiLocation {
+pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::MultiLocation {
 	parents: 1,
-	interior: X3(
-		Parachain(MOONBEAM_PARA_ID),
-		PalletInstance(110),
-		AccountKey20 {
+	interior: polkadot_xcm::v3::prelude::X3(
+		polkadot_xcm::v3::prelude::Parachain(MOONBEAM_PARA_ID),
+		polkadot_xcm::v3::prelude::PalletInstance(110),
+		polkadot_xcm::v3::prelude::AccountKey20 {
 			network: None,
 			key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
 		},
@@ -126,6 +123,8 @@ parameter_types! {
 	pub GasLimitStorageGrowthRatio: u64 = 366;
 
 	pub const OracleEvmPeriod: OraclePeriod = OraclePeriod::Short;
+
+	pub const SuicideQuickClearLimit: u32 = 0;
 }
 
 impl pallet_evm::Config for crate::Runtime {
@@ -165,6 +164,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
 	type Timestamp = crate::Timestamp;
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<crate::Runtime>;
+	type SuicideQuickClearLimit = SuicideQuickClearLimit;
 }
 
 impl pallet_evm_chain_id::Config for crate::Runtime {}
@@ -189,7 +189,7 @@ impl pallet_evm_accounts::Config for crate::Runtime {
 	type EvmNonceProvider = EvmNonceProvider;
 	// TODO origin
 	type ControllerOrigin = crate::old::SuperMajorityTechCommittee;
-	type WeightInfo = crate::weights::evm_accounts::HydraWeight<crate::Runtime>;
+	type WeightInfo = crate::weights::pallet_evm_accounts::HydraWeight<crate::Runtime>;
 }
 
 parameter_types! {
@@ -213,5 +213,5 @@ impl pallet_dynamic_evm_fee::Config for crate::Runtime {
 		OracleEvmPeriod,
 	>;
 	type WethAssetId = WethAssetId;
-	type WeightInfo = crate::weights::dynamic_evm_fee::HydraWeight<crate::Runtime>;
+	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<crate::Runtime>;
 }

@@ -24,7 +24,7 @@ use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
 	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
 	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
-	time::{HOURS, SLOT_DURATION},
+	time::{DAYS, HOURS, SLOT_DURATION},
 };
 
 use codec::{Decode, Encode, MaxEncodedLen};
@@ -43,7 +43,7 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::EnsureSignedBy;
+use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use scale_info::TypeInfo;
 
@@ -80,7 +80,7 @@ impl Contains<RuntimeCall> for CallFilter {
 			}
 		}
 		// filter transfers of HDX to the omnipool account
-		if let RuntimeCall::Balances(pallet_balances::Call::transfer { dest, .. })
+		if let RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death { dest, .. })
 		| RuntimeCall::Balances(pallet_balances::Call::transfer_keep_alive { dest, .. })
 		| RuntimeCall::Balances(pallet_balances::Call::transfer_all { dest, .. })
 		| RuntimeCall::Currencies(pallet_currencies::Call::transfer_native_currency { dest, .. }) = call
@@ -147,6 +147,8 @@ parameter_types! {
 }
 
 impl frame_system::Config for Runtime {
+	/// The ubiquitous event type.
+	type RuntimeEvent = RuntimeEvent;
 	/// The basic call filter to use in dispatchable.
 	type BaseCallFilter = CallFilter;
 	type BlockWeights = BlockWeights;
@@ -155,10 +157,9 @@ impl frame_system::Config for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	/// The aggregated dispatch type that is available for extrinsics.
 	type RuntimeCall = RuntimeCall;
+	type RuntimeTask = RuntimeTask;
 	/// The index type for storing how many extrinsics an account has signed.
 	type Nonce = Index;
-	/// The index type for blocks.
-	type Block = Block;
 	/// The type for hashing blocks and tries.
 	type Hash = Hash;
 	/// The hashing algorithm used.
@@ -167,8 +168,8 @@ impl frame_system::Config for Runtime {
 	type AccountId = AccountId;
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
 	type Lookup = IdentityLookup<AccountId>;
-	/// The ubiquitous event type.
-	type RuntimeEvent = RuntimeEvent;
+	/// The index type for blocks.
+	type Block = Block;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
 	type BlockHashCount = BlockHashCount;
 	/// The weight of database operations that the runtime can invoke.
@@ -188,7 +189,7 @@ impl frame_system::Config for Runtime {
 	/// What to do if an account is fully reaped from the system.
 	type OnKilledAccount = ();
 	/// Weight information for the extrinsics of this pallet.
-	type SystemWeightInfo = weights::system::HydraWeight<Runtime>;
+	type SystemWeightInfo = weights::frame_system::HydraWeight<Runtime>;
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
@@ -203,7 +204,7 @@ impl pallet_timestamp::Config for Runtime {
 	type Moment = u64;
 	type OnTimestampSet = ();
 	type MinimumPeriod = MinimumPeriod;
-	type WeightInfo = weights::timestamp::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_timestamp::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -216,11 +217,12 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type OnSystemEvent = pallet_relaychain_info::OnValidationDataHandler<Runtime>;
 	type SelfParaId = ParachainInfo;
 	type OutboundXcmpMessageSource = XcmpQueue;
-	type DmpMessageHandler = DmpQueue;
 	type ReservedDmpWeight = ReservedDmpWeight;
 	type XcmpMessageHandler = XcmpQueue;
 	type ReservedXcmpWeight = ReservedXcmpWeight;
 	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
+	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
+	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -234,7 +236,7 @@ impl pallet_aura::Config for Runtime {
 	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
-impl parachain_info::Config for Runtime {}
+impl staging_parachain_info::Config for Runtime {}
 
 impl cumulus_pallet_aura_ext::Config for Runtime {}
 
@@ -255,14 +257,17 @@ impl pallet_collator_selection::Config for Runtime {
 	// TODO origin
 	type UpdateOrigin = MoreThanHalfCouncil;
 	type PotId = PotId;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxCandidates = MaxCandidates;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MaxCandidates = ConstU32<20>;
 	type MaxInvulnerables = MaxInvulnerables;
 	// should be a multiple of session or things will get inconsistent
 	type KickThreshold = Period;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
 	type ValidatorRegistration = Session;
-	type WeightInfo = weights::collator_selection::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_collator_selection::HydraWeight<Runtime>;
 	type MinEligibleCollators = ConstU32<4>;
 }
 
@@ -346,33 +351,42 @@ impl pallet_utility::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type PalletsOrigin = OriginCaller;
-	type WeightInfo = weights::utility::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_utility::HydraWeight<Runtime>;
 }
 
 parameter_types! {
 	pub const BasicDeposit: Balance = 5 * DOLLARS;
-	pub const FieldDeposit: Balance = DOLLARS;
+	pub const ByteDeposit: Balance = DOLLARS / 10;
 	pub const SubAccountDeposit: Balance = 5 * DOLLARS;
 	pub const MaxSubAccounts: u32 = 100;
 	pub const MaxAdditionalFields: u32 = 100;
 	pub const MaxRegistrars: u32 = 20;
+	pub const PendingUserNameExpiration: u32 = 7 * DAYS;
+	pub const MaxSuffixLength: u32 = 7;
+	pub const MaxUsernameLength: u32 = 32;
 }
 
 impl pallet_identity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type BasicDeposit = BasicDeposit;
-	type FieldDeposit = FieldDeposit;
+	type ByteDeposit = ByteDeposit;
 	type SubAccountDeposit = SubAccountDeposit;
 	type MaxSubAccounts = MaxSubAccounts;
-	type MaxAdditionalFields = MaxAdditionalFields;
+	type IdentityInformation = pallet_identity::legacy::IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
 	type Slashed = Treasury;
 	// TODO origin
 	type ForceOrigin = MoreThanHalfCouncil;
 	// TODO origin
 	type RegistrarOrigin = MoreThanHalfCouncil;
-	type WeightInfo = weights::identity::HydraWeight<Runtime>;
+	type OffchainSignature = Signature;
+	type SigningPublicKey = <Signature as sp_runtime::traits::Verify>::Signer;
+	type UsernameAuthorityOrigin = EnsureRoot<AccountId>;
+	type PendingUsernameExpiration = PendingUserNameExpiration;
+	type MaxSuffixLength = MaxSuffixLength;
+	type MaxUsernameLength = MaxUsernameLength;
+	type WeightInfo = weights::pallet_identity::HydraWeight<Runtime>;
 }
 
 /// The type used to represent the kinds of proxying allowed.
@@ -455,7 +469,7 @@ impl pallet_proxy::Config for Runtime {
 	type ProxyDepositBase = ProxyDepositBase;
 	type ProxyDepositFactor = ProxyDepositFactor;
 	type MaxProxies = MaxProxies;
-	type WeightInfo = weights::proxy::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_proxy::HydraWeight<Runtime>;
 	type MaxPending = MaxPending;
 	type CallHasher = BlakeTwo256;
 	type AnnouncementDepositBase = AnnouncementDepositBase;
@@ -475,7 +489,7 @@ impl pallet_multisig::Config for Runtime {
 	type DepositBase = DepositBase;
 	type DepositFactor = DepositFactor;
 	type MaxSignatories = MaxSignatories;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_multisig::HydraWeight<Runtime>;
 }
 
 impl pallet_genesis_history::Config for Runtime {}
@@ -546,7 +560,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Currencies = Currencies;
 	type RouteProvider = Router;
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
-	type WeightInfo = weights::payment::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_transaction_multi_payment::HydraWeight<Runtime>;
 	type NativeAssetId = NativeAssetId;
 	type EvmAssetId = evm::WethAssetId;
 	type InspectEvmAccounts = EVMAccounts;
@@ -595,7 +609,7 @@ impl pallet_transaction_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// TODO origin
 	type UpdateOrigin = SuperMajorityTechCommittee;
-	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
 
 pub struct TechCommAccounts;
@@ -615,11 +629,15 @@ parameter_types! {
 impl pallet_state_trie_migration::Config for Runtime {
 	// TODO origin
 	type ControlOrigin = SuperMajorityTechCommittee;
-	type SignedFilter = EnsureSignedBy<TechCommAccounts, AccountId>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SignedFilter = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SignedFilter = frame_system::EnsureSigned<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type MaxKeyLen = MaxKeyLen;
 	type SignedDepositPerItem = MigrationSignedDepositPerItem;
 	type SignedDepositBase = MigrationSignedDepositBase;
-	type WeightInfo = weights::state_trie::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_state_trie_migration::HydraWeight<Runtime>;
 }
