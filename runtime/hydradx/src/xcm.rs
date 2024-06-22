@@ -7,7 +7,6 @@ use codec::MaxEncodedLen;
 use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::{AssetId, Price};
-use sp_std::marker::PhantomData; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{

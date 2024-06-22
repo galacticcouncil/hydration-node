@@ -27,7 +27,7 @@
 
 use super::*;
 use primitives::constants::{
-	currency::{CENTS, DOLLARS},
+	currency::{CENTS, DOLLARS, UNITS},
 	time::{DAYS, HOURS},
 };
 
@@ -101,7 +101,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxProposals = CouncilMaxProposals;
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::council::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_collective_council::HydraWeight<Runtime>;
 	type MaxProposalWeight = MaxProposalWeight;
 	type SetMembersOrigin = EnsureRoot<AccountId>;
 }
@@ -121,7 +121,7 @@ parameter_types! {
 }
 
 impl pallet_democracy::Config for Runtime {
-	type WeightInfo = weights::democracy::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_democracy::HydraWeight<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type Scheduler = Scheduler;
 	type Preimages = Preimage;
@@ -195,7 +195,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type TermDuration = TermDuration;
 	type MaxCandidates = MaxElectionCandidates;
 	type MaxVoters = MaxElectionVoters;
-	type WeightInfo = weights::elections::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_elections_phragmen::HydraWeight<Runtime>;
 	type MaxVotesPerVoter = MaxVotesPerVoter;
 }
 
@@ -206,6 +206,7 @@ parameter_types! {
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
 	pub const MaximumReasonLength: u32 = 1024;
+	pub const MaxTipAmount: u128 = 5_000_000 * UNITS; // ~$100k
 }
 
 impl pallet_tips::Config for Runtime {
@@ -215,6 +216,7 @@ impl pallet_tips::Config for Runtime {
 	type TipCountdown = TipCountdown;
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
+	type MaxTipAmount = MaxTipAmount;
 	type Tippers = Elections;
-	type WeightInfo = weights::tips::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_tips::HydraWeight<Runtime>;
 }

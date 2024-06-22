@@ -65,7 +65,6 @@ pallet-democracy = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-uniques = { workspace = true }
 pallet-whitelist = { workspace = true }
-pallet-xcm-rate-limiter = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
 

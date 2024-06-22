@@ -36,7 +36,10 @@ use frame_support::{
 		traits::{ConstU32, IdentityLookup},
 		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
 	},
-	traits::{ConstBool, Contains, InstanceFilter, PrivilegeCmp, SortedMembers},
+	traits::{
+		fungible::HoldConsideration, ConstBool, Contains, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
+		SortedMembers,
+	},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -47,7 +50,6 @@ use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use scale_info::TypeInfo;
 
-use frame_system::EnsureRoot;
 pub struct CallFilter;
 impl Contains<RuntimeCall> for CallFilter {
 	fn contains(call: &RuntimeCall) -> bool {
@@ -274,16 +276,21 @@ impl pallet_collator_selection::Config for Runtime {
 parameter_types! {
 	pub PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub PreimageByteDeposit: Balance = deposit(0, 1);
+	pub const PreimageHoldReason: RuntimeHoldReason = RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
 }
 
 impl pallet_preimage::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::preimage::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_preimage::HydraWeight<Runtime>;
 	type Currency = Balances;
 	// TODO origin
 	type ManagerOrigin = EnsureRoot<AccountId>;
-	type BaseDeposit = PreimageBaseDeposit;
-	type ByteDeposit = PreimageByteDeposit;
+	type Consideration = HoldConsideration<
+		AccountId,
+		Balances,
+		PreimageHoldReason,
+		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
+	>;
 }
 
 parameter_types! {
@@ -300,7 +307,7 @@ impl pallet_scheduler::Config for Runtime {
 	type ScheduleOrigin = MoreThanHalfCouncil;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
-	type WeightInfo = weights::scheduler::HydraWeight<Runtime>;
+	type WeightInfo = weights::pallet_scheduler::HydraWeight<Runtime>;
 	type Preimages = Preimage;
 }
 
