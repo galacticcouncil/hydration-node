@@ -1,7 +1,7 @@
 [package]
 name = "hydradx"
-version = "13.0.0"
-description = "HydraDX node"
+version = "13.1.1"
+description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -54,6 +54,7 @@ sc-transaction-pool = { workspace = true }
 sc-transaction-pool-api = { workspace = true }
 sc-sysinfo = { workspace = true }
 sp-api = { workspace = true }
+sp-std = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-consensus = { workspace = true }

@@ -29,6 +29,7 @@ members = [
   'pallets/dynamic-fees',
   'pallets/duster',
   'pallets/otc',
+  'pallets/otc-settlements',
   'pallets/bonds',
   'pallets/lbp',
   'pallets/nft',
@@ -88,6 +89,7 @@ pallet-nft = { path = "pallets/nft", default-features = false }
 pallet-omnipool = { path = "pallets/omnipool", default-features = false }
 pallet-omnipool-liquidity-mining = { path = "pallets/omnipool-liquidity-mining", default-features = false }
 pallet-otc = { path = "pallets/otc", default-features = false}
+pallet-otc-settlements = { path = "pallets/otc-settlements", default-features = false}
 pallet-relaychain-info = { path = "pallets/relaychain-info", default-features = false }
 pallet-route-executor = { path = "pallets/route-executor", default-features = false }
 pallet-stableswap = { path = "pallets/stableswap", default-features = false }
@@ -134,6 +136,7 @@ sp-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release
 sp-arithmetic = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 sp-authority-discovery = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 sp-block-builder = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
+sp-genesis-builder = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 sp-consensus = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 sp-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
@@ -298,7 +301,6 @@ polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https:/
   "wasm-api",
 ]}
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
-#polkadot-runtime = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 polkadot-service = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 polkadot-xcm = { package = "staging-xcm", git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
@@ -306,7 +308,6 @@ xcm = { package = "staging-xcm", git = "https://github.com/paritytech/polkadot-s
 xcm-builder = { package = "staging-xcm-builder", git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 xcm-executor = { package = "staging-xcm-executor", git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 
-#kusama-runtime = { package = "staging-kusama-runtime", git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 polkadot-client = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 polkadot-node-core-pvf = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 polkadot-node-network-protocol = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
@@ -350,6 +351,7 @@ sp-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release
 sp-arithmetic = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 sp-authority-discovery = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 sp-block-builder = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
+sp-genesis-builder = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 sp-consensus = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 sp-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
@@ -468,14 +470,12 @@ polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", branch = "r
 polkadot-core-primitives = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2"}
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
-#polkadot-runtime = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 polkadot-service = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 xcm = { package = "staging-xcm", git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 xcm-builder = { package = "staging-xcm-builder", git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 xcm-executor = { package = "staging-xcm-executor", git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2"  }
 
-#kusama-runtime = { package = "staging-kusama-runtime", git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 polkadot-node-core-pvf = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 polkadot-node-network-protocol = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 polkadot-node-primitives = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }

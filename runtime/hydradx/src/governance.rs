@@ -17,7 +17,7 @@
 
 use super::*;
 use primitives::constants::{
-	currency::{deposit, CENTS, DOLLARS},
+	currency::{deposit, CENTS, DOLLARS, UNITS},
 	time::{DAYS, HOURS},
 };
 
@@ -125,14 +125,14 @@ impl pallet_treasury::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type SpendOrigin =
 		frame_system::EnsureWithSuccess<EnsureRoot<AccountId>, AccountId, crate::benches::BenchmarkMaxBalance>;
-	type AssetKind = ();
+	type AssetKind = (); // set to () to support only the native currency
 	type Beneficiary = AccountId;
 	type BeneficiaryLookup = IdentityLookup<AccountId>;
-	type Paymaster = PayFromTreasuryAccount; // TODO: check what this means
-	type BalanceConverter = UnityAssetBalanceConversion; //TODO: check this
+	type Paymaster = PayFromTreasuryAccount;
+	type BalanceConverter = UnityAssetBalanceConversion;
 	type PayoutPeriod = TreasuryPayoutPeriod;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = (); //TODO: implement helper!
+	type BenchmarkHelper = (); // default impl is enough because we support only the native currency
 }
 
 parameter_types! {
@@ -381,7 +381,7 @@ parameter_types! {
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
 	pub const MaximumReasonLength: u32 = 1024;
-	pub const MaxTipAmount: u128 = 1_000 * DOLLARS; // TODO: check this
+	pub const MaxTipAmount: u128 = 5_000_000 * UNITS; // ~$100k
 }
 
 impl pallet_tips::Config for Runtime {

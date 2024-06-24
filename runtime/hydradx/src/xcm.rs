@@ -17,6 +17,7 @@ use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::Allo
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
+pub use pallet_xcm::GenesisConfig as XcmGenesisConfig;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::{RelayChainBlockNumber, Sibling};
@@ -117,7 +118,7 @@ parameter_types! {
 	pub const MaxNumberOfInstructions: u16 = 100;
 
 	pub UniversalLocation: InteriorLocation = [GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into())].into();
-	pub AssetHubLocation: Location = (Parent, Parachain(1000)).into();
+	pub AssetHubLocation: Location = (Parent, Parachain(ASSET_HUB_PARA_ID)).into();
 }
 
 /// Matches foreign assets from a given origin.
@@ -240,8 +241,8 @@ impl orml_xtokens::Config for Runtime {
 	type ReserveProvider = AbsoluteReserveProvider;
 	type MinXcmFee = ParachainMinFee;
 	type UniversalLocation = UniversalLocation;
-	type RateLimiter = (); //TODO: what do ?
-	type RateLimiterId = (); //TODO: what do ?
+	type RateLimiter = (); // do not use rate limiter
+	type RateLimiterId = ();
 }
 
 impl orml_unknown_tokens::Config for Runtime {
@@ -263,10 +264,7 @@ impl pallet_xcm::Config for Runtime {
 	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Nothing;
-	#[cfg(not(feature = "runtime-benchmarks"))]
 	type XcmReserveTransferFilter = Everything;
-	#[cfg(feature = "runtime-benchmarks")]
-	type XcmReserveTransferFilter = Nothing;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
 	type UniversalLocation = UniversalLocation;
 	type RuntimeOrigin = RuntimeOrigin;
@@ -369,27 +367,6 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 				}
 			}
 		}
-
-		// Note: keeping the original code for reference until tests are successful
-		/*
-		match location {
-			Location {
-				parents: p,
-				interior: [Parachain(id), GeneralIndex(index)].into(),
-			} if p == 1 && ParaId::from(id) == ParachainInfo::get() && (index as u32) == CORE_ASSET_ID => {
-				// Handling native asset for this parachain
-				Some(CORE_ASSET_ID)
-			}
-			// handle reanchor canonical location: https://github.com/paritytech/polkadot/pull/4470
-			Location {
-				parents: 0,
-				interior: [GeneralIndex(index)].into(),
-			} if (index as u32) == CORE_ASSET_ID => Some(CORE_ASSET_ID),
-			// delegate to asset-registry
-			_ => AssetRegistry::location_to_asset(AssetLocation(location)),
-		}
-
-		 */
 	}
 }
 
@@ -454,19 +431,6 @@ impl<Network: Get<Option<NetworkId>>> ConvertLocation<AccountId> for EvmAddressC
 			}
 			_ => None,
 		}
-		// Note: keeping the original code for reference until tests are successful
-		/*
-		match location {
-			Location {
-				parents: 0,
-				interior: (AccountKey20 { network: _, key })
-			} => {
-				let account_32 = ExtendedAddressMapping::into_account_id(H160::from(key));
-				Some(account_32)
-			}
-			_ => None,
-		}
-		 */
 	}
 }
 

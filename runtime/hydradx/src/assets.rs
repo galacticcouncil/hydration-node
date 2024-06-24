@@ -24,10 +24,10 @@ use hydradx_adapters::{
 	StableswapHooksAdapter, VestingInfo,
 };
 
-use hydradx_traits::{
+pub use hydradx_traits::{
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
-	AccountIdFor, AssetKind, AssetPairAccountIdFor, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
+	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
 };
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{
@@ -852,6 +852,17 @@ impl RouterWeightInfo {
 			number_of_times_execute_sell_amounts_executed,
 		))
 	}
+
+	pub fn calculate_spot_price_overweight() -> Weight {
+		Weight::from_parts(
+			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_with_fee_in_lbp()
+				.ref_time()
+				.saturating_sub(
+					weights::pallet_lbp::HydraWeight::<Runtime>::calculate_spot_price_with_fee().ref_time(),
+				),
+			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_with_fee_in_lbp().proof_size(),
+		)
+	}
 }
 
 impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
@@ -1056,6 +1067,29 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		//Since we don't have any AMM specific thing in the extrinsic, we just return the plain weight
 		weights::pallet_route_executor::HydraWeight::<Runtime>::force_insert_route()
 	}
+
+	// Used in OtcSettlements::settle_otc_order extrinsic
+	fn calculate_spot_price_with_fee_weight(route: &[Trade<AssetId>]) -> Weight {
+		let mut weight = Self::calculate_spot_price_overweight();
+
+		for trade in route {
+			let amm_weight = match trade.pool {
+				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
+				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
+				PoolType::Stableswap(_) => {
+					weights::pallet_stableswap::HydraWeight::<Runtime>::calculate_spot_price_with_fee()
+				}
+				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
+			};
+			weight.saturating_accrue(amm_weight);
+		}
+
+		weight
+	}
+
+	fn get_route_weight() -> Weight {
+		weights::pallet_route_executor::HydraWeight::<Runtime>::get_route()
+	}
 }
 
 parameter_types! {
@@ -1078,6 +1112,8 @@ impl pallet_route_executor::Config for Runtime {
 
 parameter_types! {
 	pub const ExistentialDepositMultiplier: u8 = 5;
+	pub const PricePrecision: FixedU128 = FixedU128::from_rational(1, 100);
+	pub MinProfitPercentage: Perbill = Perbill::from_rational(1u32, 100_000_u32); // 0.001%
 }
 
 impl pallet_otc::Config for Runtime {
@@ -1088,6 +1124,22 @@ impl pallet_otc::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type WeightInfo = weights::pallet_otc::HydraWeight<Runtime>;
+}
+
+impl pallet_otc_settlements::Config for Runtime {
+	type Currency = FungibleCurrencies<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Router = Router;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Router = pallet_route_executor::DummyRouter<Runtime>;
+	type ProfitReceiver = TreasuryAccount;
+	type MinProfitPercentage = MinProfitPercentage;
+	type PricePrecision = PricePrecision;
+	type MinTradingLimit = MinTradingLimit;
+	type MaxIterations = ConstU32<40>;
+	type WeightInfo = weights::pallet_otc_settlements::HydraWeight<Runtime>;
+	type RouterWeightInfo = RouterWeightInfo;
 }
 
 // Dynamic fees

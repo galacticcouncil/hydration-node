@@ -4709,7 +4709,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "8.1.1"
+version = "8.1.2"
 dependencies = [
  "approx",
  "criterion",
@@ -4730,7 +4730,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "13.0.0"
+version = "13.1.1"
 dependencies = [
  "async-trait",
  "clap 4.5.4",
@@ -4810,6 +4810,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-state-machine",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
  "sp-storage 19.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
  "sp-timestamp",
  "sp-transaction-pool",
@@ -4872,7 +4873,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "242.0.0"
+version = "244.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4948,6 +4949,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
+ "pallet-otc-settlements",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-referrals",
@@ -4985,6 +4987,7 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core",
  "sp-externalities 0.25.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
+ "sp-genesis-builder",
  "sp-inherents",
  "sp-io",
  "sp-offchain",
@@ -5004,7 +5007,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.3.1"
+version = "3.4.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7888,7 +7891,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.4.8"
+version = "1.4.9"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8394,7 +8397,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8642,7 +8645,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.2.3"
+version = "4.3.2"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8696,7 +8699,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "1.1.4"
+version = "1.1.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8709,6 +8712,38 @@ dependencies = [
  "proptest",
  "scale-info",
  "sp-api",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
+ "test-utils",
+]
+
+[[package]]
+name = "pallet-otc-settlements"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-asset-registry",
+ "pallet-balances",
+ "pallet-currencies",
+ "pallet-omnipool",
+ "pallet-otc",
+ "pallet-route-executor",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "pretty_assertions",
+ "proptest",
+ "scale-info",
+ "sp-api",
+ "sp-arithmetic",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -8854,7 +8889,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.3.3"
+version = "2.4.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8954,7 +8989,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.6.3"
+version = "3.6.4"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -9344,7 +9379,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.4.3"
+version = "6.4.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11889,7 +11924,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.22.3"
+version = "1.22.5"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -11946,6 +11981,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
+ "pallet-otc-settlements",
  "pallet-referrals",
  "pallet-relaychain-info",
  "pallet-route-executor",

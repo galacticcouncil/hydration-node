@@ -29,7 +29,6 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod tests;
 
 mod benchmarking;
-mod migrations;
 pub mod weights;
 
 mod assets;
@@ -63,12 +62,19 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
-use frame_support::{construct_runtime, pallet_prelude::Hooks, parameter_types, weights::Weight};
+use frame_support::{
+	construct_runtime,
+	genesis_builder_helper::{build_config, create_default_config},
+	pallet_prelude::Hooks,
+	parameter_types,
+	weights::Weight,
+};
 pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
 use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
+pub use pallet_genesis_history::Chain;
 pub use primitives::{
 	AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index, ItemId, Price, Signature,
 };
@@ -107,7 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 242,
+	spec_version: 244,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -175,10 +181,10 @@ construct_runtime!(
 		Staking: pallet_staking = 69,
 		Stableswap: pallet_stableswap = 70,
 		Bonds: pallet_bonds = 71,
+		OtcSettlements: pallet_otc_settlements = 72,
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
-		//XcmRateLimiter: pallet_xcm_rate_limiter = 76,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -271,7 +277,15 @@ pub type Executive = frame_executive::Executive<
 	),
 >;
 
-// TODO: Remove after the upgrade
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type OverarchingCall = RuntimeCall;
+	type Extrinsic = UncheckedExtrinsic;
+}
+
+// TODO: Remove after the v1.7.2 upgrade
 parameter_types! {
 	pub const DmpQueuePalletName: &'static str = "DmpQueue";
 	pub const XcmRateLimiterPalletName: &'static str = "XcmRateLimiter";
@@ -705,6 +719,7 @@ impl_runtime_apis! {
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 
 			let mut list = Vec::<BenchmarkList>::new();
+
 			list_benchmarks!(list, extra);
 
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
@@ -746,11 +761,11 @@ impl_runtime_apis! {
 			}
 
 			parameter_types! {
-				pub const RandomParaId: ParaId = ParaId::new(22222222);
-				pub const ExistentialDeposit: u128= 0;
+				pub const RandomParaId: ParaId = ParaId::new(22_222_222);
+				pub const ExistentialDeposit: u128 = 0;
 			}
 
-			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, ParentThen, Parachain, Parent};
+			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Parent};
 
 			impl pallet_xcm::benchmarking::Config for Runtime {
 				fn reachable_dest() -> Option<Location> {
@@ -768,13 +783,9 @@ impl_runtime_apis! {
 				}
 
 				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
-					Some((
-						Asset {
-							fun: Fungible(ExistentialDeposit::get()),
-							id: AssetId(Parent.into())
-						},
-						ParentThen(Parachain(RandomParaId::get().into()).into()).into(),
-					))
+					// TODO: https://github.com/galacticcouncil/HydraDX-node/issues/840
+					// fix it in next upgrade > 1.7.2
+					None
 				}
 			}
 
@@ -793,6 +804,7 @@ impl_runtime_apis! {
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
+
 			add_benchmarks!(params, batches);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
@@ -809,6 +821,16 @@ impl_runtime_apis! {
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
+		}
+	}
+
+	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
+		fn create_default_config() -> Vec<u8> {
+			create_default_config::<RuntimeGenesisConfig>()
+		}
+
+		fn build_config(config: Vec<u8>) -> sp_genesis_builder::Result {
+			build_config::<RuntimeGenesisConfig>(config)
 		}
 	}
 }
@@ -832,6 +854,7 @@ mod benches {
 		[pallet_referrals, Referrals]
 		[pallet_evm_accounts, EVMAccounts]
 		[pallet_otc, OTC]
+		[pallet_otc_settlements, OtcSettlements]
 		[pallet_state_trie_migration, StateTrieMigration]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]
