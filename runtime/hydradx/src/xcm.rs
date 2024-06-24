@@ -20,7 +20,7 @@ use pallet_evm::AddressMapping;
 pub use pallet_xcm::GenesisConfig as XcmGenesisConfig;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
-use polkadot_parachain::primitives::{RelayChainBlockNumber, Sibling};
+use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
 use scale_info::TypeInfo;
