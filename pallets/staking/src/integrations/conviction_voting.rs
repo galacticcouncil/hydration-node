@@ -212,15 +212,14 @@ where
 	}
 }
 
-pub struct ReferendumStatus<T>(sp_std::marker::PhantomData<T>);
+pub struct ReferendumStatus<P, T>(sp_std::marker::PhantomData<(P, T)>);
 
-impl<T: pallet_referenda::Config + Polling<<T as pallet_referenda::Config>::Tally>> GetReferendumState<ReferendumIndex>
-	for ReferendumStatus<T>
+impl<T, P: Polling<T>> GetReferendumState<ReferendumIndex> for ReferendumStatus<P, T>
 where
-	<T as Polling<<T as pallet_referenda::Config>::Tally>>::Index: From<ReferendumIndex>,
+	<P as Polling<T>>::Index: From<ReferendumIndex>,
 {
 	fn is_referendum_finished(_index: ReferendumIndex) -> bool {
-		let r = <T as Polling<T::Tally>>::try_access_poll::<bool>(_index.into(), |status| {
+		let r = <P as Polling<T>>::try_access_poll::<bool>(_index.into(), |status| {
 			let r = match status {
 				PollStatus::Completed(_, _) => true,
 				PollStatus::Ongoing(_, _) => false,
