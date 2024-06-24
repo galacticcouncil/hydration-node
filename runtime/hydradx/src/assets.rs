@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use super::*;
+use crate::old::{AllTechnicalCommitteeMembers, MajorityOfCouncil, MaxVotes, SuperMajorityTechCommittee};
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
@@ -360,6 +361,7 @@ impl orml_vesting::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
+	// TODO origin
 	type VestedTransferOrigin = RootAsVestingPallet;
 	type WeightInfo = weights::orml_vesting::HydraWeight<Runtime>;
 	type MaxVestingSchedules = MaxVestingSchedules;
@@ -389,7 +391,10 @@ parameter_types! {
 
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+
+	// TODO origin
 	type RegistryOrigin = EnsureRoot<AccountId>;
+	// TODO origin
 	type UpdateOrigin = SuperMajorityTechCommittee;
 	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
 	type AssetId = AssetId;
@@ -417,8 +422,10 @@ impl pallet_uniques::Config for Runtime {
 	type CollectionId = CollectionId;
 	type ItemId = ItemId;
 	type Currency = Balances;
+	// TODO origin
 	type ForceOrigin = MajorityOfCouncil;
 	// Standard collection creation is disallowed
+	// TODO origin
 	type CreateOrigin = AsEnsureOriginWithArg<NeverEnsureOrigin<AccountId>>;
 	type Locker = ();
 	type CollectionDeposit = CollectionDeposit;
@@ -451,7 +458,9 @@ impl pallet_omnipool::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Currencies;
+	// TODO origin
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+	// TODO origin
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type AssetRegistry = AssetRegistry;
 	type HdxAssetId = NativeAssetId;
@@ -504,6 +513,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
+	// TODO origin
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
@@ -532,6 +542,7 @@ where
 
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	// TODO origin
 	type AuthorityOrigin = SuperMajorityTechCommittee;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
@@ -569,6 +580,7 @@ impl pallet_duster::Config for Runtime {
 	type MinCurrencyDeposits = AssetRegistry;
 	type Reward = DustingReward;
 	type NativeCurrencyId = NativeAssetId;
+	// TODO origin
 	type BlacklistUpdateOrigin = SuperMajorityTechCommittee;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
@@ -611,6 +623,7 @@ parameter_types! {
 impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
+	// TODO origin
 	type CreateOrigin = AllTechnicalCommitteeMembers;
 	type PalletId = OmniLMPalletId;
 	type NFTCollectionId = OmnipoolLMCollectionId;
@@ -658,6 +671,7 @@ parameter_types! {
 impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currencies = Currencies;
+	// TODO origin
 	type CreateOrigin = AllTechnicalCommitteeMembers;
 	type PalletId = XYKLmPalletId;
 	type NFTCollectionId = XYKLmCollectionId;
@@ -759,6 +773,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 impl pallet_dca::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
+	// TODO origin
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type Currencies = Currencies;
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
@@ -1106,6 +1121,7 @@ impl pallet_route_executor::Config for Runtime {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 	type InspectRegistry = AssetRegistry;
+	// TODO origin
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 }
@@ -1277,6 +1293,7 @@ impl pallet_stableswap::Config for Runtime {
 	type Currency = Currencies;
 	type ShareAccountId = StableswapAccountIdConstructor<Runtime>;
 	type AssetInspection = AssetRegistry;
+	// TODO origin
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type DustAccountHandler = Duster;
 	type Hooks = StableswapHooksAdapter<Runtime>;
@@ -1309,6 +1326,7 @@ impl pallet_bonds::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
+	// TODO origin
 	type IssueOrigin = EnsureSigned<AccountId>;
 	type AssetTypeWhitelist = AssetTypeWhitelist;
 	type ProtocolFee = ProtocolFee;
@@ -1349,6 +1367,7 @@ impl GetByKey<FixedU128, Point> for StakingMinSlash {
 
 impl pallet_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	// TODO origin
 	type AuthorityOrigin = MajorityOfCouncil;
 	type AssetId = AssetId;
 	type Currency = Currencies;
@@ -1403,6 +1422,7 @@ impl pallet_lbp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type LockedBalance = MultiCurrencyLockedBalance<Runtime, NativeAssetId>;
+	// TODO origin
 	type CreatePoolOrigin = SuperMajorityTechCommittee;
 	type LBPWeightFunction = pallet_lbp::LBPWeightFunction;
 	type AssetPairAccountId = AssetPairAccountId<Self>;
@@ -1451,6 +1471,7 @@ parameter_types! {
 
 impl pallet_referrals::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	// TODO origin
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;

@@ -17,6 +17,8 @@
 
 use super::*;
 
+use crate::old::{MoreThanHalfCouncil, SuperMajorityTechCommittee};
+
 use pallet_transaction_multi_payment::{DepositAll, TransferFees};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
@@ -26,6 +28,7 @@ use primitives::constants::{
 };
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use core::cmp::Ordering;
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
@@ -33,7 +36,10 @@ use frame_support::{
 		traits::{ConstU32, IdentityLookup},
 		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
 	},
-	traits::{ConstBool, Contains, InstanceFilter, SortedMembers},
+	traits::{
+		fungible::HoldConsideration, ConstBool, Contains, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
+		SortedMembers,
+	},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -250,6 +256,7 @@ parameter_types! {
 impl pallet_collator_selection::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
+	// TODO origin
 	type UpdateOrigin = MoreThanHalfCouncil;
 	type PotId = PotId;
 	#[cfg(not(feature = "runtime-benchmarks"))]
@@ -264,6 +271,67 @@ impl pallet_collator_selection::Config for Runtime {
 	type ValidatorRegistration = Session;
 	type WeightInfo = weights::pallet_collator_selection::HydraWeight<Runtime>;
 	type MinEligibleCollators = ConstU32<4>;
+}
+
+parameter_types! {
+	pub PreimageBaseDeposit: Balance = deposit(2, 64);
+	pub PreimageByteDeposit: Balance = deposit(0, 1);
+	pub const PreimageHoldReason: RuntimeHoldReason = RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
+}
+
+impl pallet_preimage::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::pallet_preimage::HydraWeight<Runtime>;
+	type Currency = Balances;
+	// TODO origin
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type Consideration = HoldConsideration<
+		AccountId,
+		Balances,
+		PreimageHoldReason,
+		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
+	>;
+}
+
+parameter_types! {
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
+	pub const MaxScheduledPerBlock: u32 = 50;
+}
+impl pallet_scheduler::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type PalletsOrigin = OriginCaller;
+	type RuntimeCall = RuntimeCall;
+	type MaximumWeight = MaximumSchedulerWeight;
+	// TODO origin
+	type ScheduleOrigin = MoreThanHalfCouncil;
+	type OriginPrivilegeCmp = OriginPrivilegeCmp;
+	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+	type WeightInfo = weights::pallet_scheduler::HydraWeight<Runtime>;
+	type Preimages = Preimage;
+}
+
+/// Used the compare the privilege of an origin inside the scheduler.
+pub struct OriginPrivilegeCmp;
+
+impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
+	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
+		if left == right {
+			return Some(Ordering::Equal);
+		}
+
+		match (left, right) {
+			// Root is greater than anything.
+			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
+			// Check which one has more yes votes.
+			(
+				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
+				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
+			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
+			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
+			_ => None,
+		}
+	}
 }
 
 parameter_types! {
@@ -315,7 +383,9 @@ impl pallet_identity::Config for Runtime {
 	type IdentityInformation = pallet_identity::legacy::IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
 	type Slashed = Treasury;
+	// TODO origin
 	type ForceOrigin = MoreThanHalfCouncil;
+	// TODO origin
 	type RegistrarOrigin = MoreThanHalfCouncil;
 	type OffchainSignature = Signature;
 	type SigningPublicKey = <Signature as sp_runtime::traits::Verify>::Signer;
@@ -492,6 +562,7 @@ impl pallet_transaction_payment::Config for Runtime {
 
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	// TODO origin
 	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
 	type Currencies = Currencies;
 	type RouteProvider = Router;
@@ -543,6 +614,7 @@ impl pallet_collator_rewards::Config for Runtime {
 
 impl pallet_transaction_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	// TODO origin
 	type UpdateOrigin = SuperMajorityTechCommittee;
 	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
@@ -562,6 +634,7 @@ parameter_types! {
 }
 
 impl pallet_state_trie_migration::Config for Runtime {
+	// TODO origin
 	type ControlOrigin = SuperMajorityTechCommittee;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type SignedFilter = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;

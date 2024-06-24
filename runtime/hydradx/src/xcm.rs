@@ -1,10 +1,12 @@
 use super::*;
 
+use crate::old::{MajorityOfCouncil, MoreThanHalfCouncil, MoreThanHalfTechCommittee};
+use sp_std::marker::PhantomData;
+
 use codec::MaxEncodedLen;
 use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::{AssetId, Price};
-use sp_std::marker::PhantomData; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
@@ -251,6 +253,7 @@ impl orml_unknown_tokens::Config for Runtime {
 
 impl orml_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	// TODO origin
 	type SovereignOrigin = MoreThanHalfCouncil;
 }
 
@@ -275,6 +278,7 @@ impl pallet_xcm::Config for Runtime {
 	type SovereignAccountOf = ();
 	type MaxLockers = ConstU32<8>;
 	type WeightInfo = weights::pallet_xcm::HydraWeight<Runtime>;
+	// TODO origin
 	type AdminOrigin = MajorityOfCouncil;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
