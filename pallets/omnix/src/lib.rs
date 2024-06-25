@@ -121,6 +121,16 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[crate::pallet::call_index(0)]
+		#[crate::pallet::weight(T::WeightInfo::submit_solution())]
+		pub fn submit_solution(
+			origin: OriginFor<T>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			Ok(())
+		}
 	}
 }
 
