@@ -1106,7 +1106,6 @@ impl<T: Config> Pallet<T> {
 			let fee_amount_in_dot = multiply_by_rational_with_rounding(asset_amount, dot_per_hdx_price.n, dot_per_hdx_price.d, Rounding::Up)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			//TODO: add falback to HDX.
 			let asset_pair_account = T::XYK::get_pair_id(AssetPair::new(asset_id.into(), T::PolkadotNativeAssetId::get().into()));
 			let in_reserve = T::Currencies::free_balance(asset_id, &asset_pair_account.clone());
 			let out_reserve = T::Currencies::free_balance(T::PolkadotNativeAssetId::get(), &asset_pair_account);
