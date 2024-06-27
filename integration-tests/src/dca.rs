@@ -126,10 +126,7 @@ mod omnipool {
 					false
 				));
 
-				let s = XYK::calculate_spot_price_with_fee(PoolType::XYK, insufficient_asset, DOT);
-
 				//Arrange
-
 				let block_id = 11;
 				set_relaychain_block_number(block_id);
 
@@ -672,6 +669,7 @@ mod omnipool {
 		});
 	}
 
+	//TODO: prop test again
 	#[test]
 	fn insufficient_fee_asset_should_be_swapped_for_hdx() {
 		TestNet::reset();
@@ -697,6 +695,7 @@ mod omnipool {
 				.unwrap();
 				create_xyk_pool(insufficient_asset, 10000 * UNITS, DAI, 20000 * UNITS);
 				create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 1200000 * UNITS);
+
 				assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
 					RuntimeOrigin::root(),
 					primitives::constants::chain::XYK_SOURCE,
@@ -709,6 +708,7 @@ mod omnipool {
 					insufficient_asset,
 					200 * UNITS as i128,
 				));
+
 				assert_ok!(XYK::sell(
 					RuntimeOrigin::signed(BOB.into()),
 					insufficient_asset,
@@ -728,6 +728,7 @@ mod omnipool {
 					insufficient_asset,
 					alice_init_insuff_balance as i128,
 				));
+
 				let dca_budget = 5000 * UNITS;
 				let amount_to_sell = 100 * UNITS;
 				let schedule1 = schedule_fake_with_sell_order(
@@ -738,6 +739,9 @@ mod omnipool {
 					DOT,
 					amount_to_sell,
 				);
+
+				let init_treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
+
 				create_schedule(ALICE, schedule1);
 
 				assert_balance!(ALICE.into(), insufficient_asset, alice_init_insuff_balance - dca_budget);
@@ -754,22 +758,19 @@ mod omnipool {
 				set_relaychain_block_number(12);
 
 				//Assert
-				let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
-				assert!(fee > 0, "Treasury got rugged");
-				//TODO: no HDX should be accumulated, why there is still?!
+				let new_treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
+				assert_eq!(new_treasury_balance, init_treasury_balance);
+
+				//No insufficient asset should be accumulated
+				assert_balance!(&Treasury::account_id(), insufficient_asset, 0);
 
 				let fee_in_dot = Currencies::free_balance(DOT, &Treasury::account_id());
 				assert!(fee_in_dot > 0, "Treasury got rugged");
 
-				//No insufficient asset should be accumulated TODO: prop tests?!
-				assert_balance!(&Treasury::account_id(), insufficient_asset, 0);
-
 				assert_balance!(ALICE.into(), insufficient_asset, alice_init_insuff_balance - dca_budget);
 
 				let fee_in_insufficient = hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, fee_in_dot).unwrap();
-
 				let xyk_trade_fee_in_insufficient = hydra_dx_math::fee::calculate_pool_trade_fee(fee_in_insufficient, (3, 1000)).unwrap();
-
 				assert_reserved_balance!(&ALICE.into(), insufficient_asset, dca_budget - amount_to_sell - fee_in_insufficient - xyk_trade_fee_in_insufficient);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -853,6 +854,7 @@ mod omnipool {
 					amount_to_sell,
 					route
 				);
+				let init_treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
 
 				create_schedule(ALICE, schedule1);
 
@@ -869,22 +871,19 @@ mod omnipool {
 				set_relaychain_block_number(12);
 
 				//Assert
-				let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
-				assert!(fee > 0, "Treasury got rugged");
-				//TODO: no HDX should be accumulated, why there is still?!
+				let new_treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
+				assert_eq!(new_treasury_balance,init_treasury_balance);
+
+				//No insufficient asset should be accumulated
+				assert_balance!(&Treasury::account_id(), insufficient_asset, 0);
 
 				let fee_in_dot = Currencies::free_balance(DOT, &Treasury::account_id());
 				assert!(fee_in_dot > 0, "Treasury got rugged");
 
-				//No insufficient asset should be accumulated TODO: prop tests?!
-				assert_balance!(&Treasury::account_id(), insufficient_asset, 0);
-
 				assert_balance!(ALICE.into(), insufficient_asset, alice_init_insuff_balance - dca_budget);
 
 				let fee_in_insufficient = hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, fee_in_dot).unwrap();
-
 				let xyk_trade_fee_in_insufficient = hydra_dx_math::fee::calculate_pool_trade_fee(fee_in_insufficient, (3, 1000)).unwrap();
-
 				assert_reserved_balance!(&ALICE.into(), insufficient_asset, dca_budget - amount_to_sell - fee_in_insufficient - xyk_trade_fee_in_insufficient);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
