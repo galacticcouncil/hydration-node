@@ -32,11 +32,11 @@ pub struct Intent<AccountId, AssetId> {
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Swap<AssetId> {
-	asset_in: AssetId,
-	asset_out: AssetId,
+	pub(crate) asset_in: AssetId,
+	pub(crate) asset_out: AssetId,
 	amount_in: Balance,
 	amount_out: Balance,
-	swap_type: SwapType,
+	pub(crate) swap_type: SwapType,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

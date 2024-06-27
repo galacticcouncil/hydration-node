@@ -2,6 +2,7 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+mod engine;
 pub mod types;
 mod weights;
 
@@ -46,6 +47,8 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
+		type HubAssetId: Get<Self::AssetId>;
+
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
 
@@ -73,6 +76,12 @@ pub mod pallet {
 
 		/// Data too long
 		TooLong,
+
+		/// Provided solution is invalid
+		InvalidSolution,
+
+		/// Intent not found
+		IntentNotFound,
 	}
 
 	#[pallet::storage]
