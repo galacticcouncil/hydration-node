@@ -5,9 +5,21 @@
 pub mod types;
 mod weights;
 
-use crate::types::{CallData, IncrementalIntentId, IntentId, Moment};
+use crate::types::{
+	BoundedPrices, BoundedResolvedIntents, CallData, IncrementalIntentId, Intent, IntentId, Moment, Price,
+	ResolvedIntent, Solution, Swap,
+};
+use codec::{Encode, HasCompact, MaxEncodedLen};
+use frame_support::pallet_prelude::StorageValue;
+use frame_support::pallet_prelude::*;
+use frame_support::traits::Time;
 use frame_support::{dispatch::DispatchResult, traits::Get};
+use frame_support::{Blake2_128Concat, Parameter};
+use frame_system::pallet_prelude::*;
 pub use pallet::*;
+use scale_info::TypeInfo;
+use sp_runtime::traits::Hash;
+use sp_runtime::traits::{MaybeSerializeDeserialize, Member};
 use sp_runtime::DispatchError;
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
@@ -15,17 +27,6 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::{IncrementalIntentId, Intent, IntentId, Moment, Swap};
-	use codec::{HasCompact, MaxEncodedLen};
-	use frame_support::pallet_prelude::StorageValue;
-	use frame_support::traits::Time;
-	use frame_support::{
-		pallet_prelude::{IsType, StorageMap, ValueQuery},
-		Blake2_128Concat, Parameter,
-	};
-	use frame_system::pallet_prelude::*;
-	use scale_info::TypeInfo;
-	use sp_runtime::traits::{MaybeSerializeDeserialize, Member};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -58,6 +59,9 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// Solution was noted
+		SolutionNoted { proposer: T::AccountId, hash: T::Hash },
+
 		/// New intent was submitted
 		IntentSubmitted(IntentId, Intent<T::AccountId, T::AssetId>),
 	}
@@ -79,6 +83,10 @@ pub mod pallet {
 	/// Intent id sequencer
 	pub(super) type NextIncrementalId<T: Config> = StorageValue<_, IncrementalIntentId, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn get_solution)]
+	pub(super) type Solutions<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, Solution<T::AccountId, T::AssetId>>;
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
@@ -95,7 +103,7 @@ pub mod pallet {
 
 			//TODO: check:
 			// - deadline is in the future, not too far in the future
-			// - swap is valid- eg no lrna buying?!
+			// - swap is valid- eg no lrna buying?! asset in!= asset out etc.
 
 			//TODO: reserve IN amount
 
@@ -122,12 +130,33 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[crate::pallet::call_index(0)]
-		#[crate::pallet::weight(T::WeightInfo::submit_solution())]
+		#[pallet::call_index(1)]
+		#[pallet::weight(T::WeightInfo::submit_solution())]
 		pub fn submit_solution(
 			origin: OriginFor<T>,
+			resolved_intents: Vec<ResolvedIntent>,
+			sell_prices: Vec<(T::AssetId, Price)>,
+			buy_prices: Vec<(T::AssetId, Price)>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			let intents =
+				BoundedResolvedIntents::try_from(resolved_intents).map_err(|_| crate::pallet::Error::<T>::TooLong)?;
+			let buy_prices = BoundedPrices::try_from(buy_prices).map_err(|_| crate::pallet::Error::<T>::TooLong)?;
+			let sell_prices = BoundedPrices::try_from(sell_prices).map_err(|_| crate::pallet::Error::<T>::TooLong)?;
+
+			let solution = Solution {
+				proposer: who.clone(),
+				intents,
+				sell_prices,
+				buy_prices,
+			};
+
+			let hash = T::Hashing::hash(&solution.encode());
+
+			Solutions::<T>::insert(&hash, solution);
+
+			Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
 
 			Ok(())
 		}
