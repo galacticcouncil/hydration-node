@@ -20,9 +20,9 @@ use super::*;
 
 use crate::Config;
 use crate::{self as liq_mining, types::DefaultPriceAdjustment};
-use frame_support::{parameter_types, traits::Contains, traits::Everything, PalletId};
+use frame_support::{parameter_types, traits::Contains, traits::Everything, PalletId, dispatch};
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Inspect, AssetKind, AMM};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Inspect, AssetKind, AMM, AMMTransfer};
 use orml_traits::GetByKey;
 use sp_core::H256;
 use sp_runtime::{
@@ -207,8 +207,9 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for Amm {
 	}
 
 	fn execute_buy(
-		_transfer: &hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-	) -> frame_support::dispatch::DispatchResult {
+        transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>,
+        destination: Option<&AccountId>,
+    ) -> dispatch::DispatchResult {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}
 

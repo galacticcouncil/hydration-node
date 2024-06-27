@@ -106,7 +106,7 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
 
 	/// Execute buy for given validated transfer.
-	fn execute_buy(transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>) -> dispatch::DispatchResult;
+	fn execute_buy(transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>, destination: Option<&AccountId>) -> dispatch::DispatchResult;
 
 	/// Perform asset swap.
 	fn buy(
@@ -116,10 +116,21 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 		max_limit: Amount,
 		discount: bool,
 	) -> dispatch::DispatchResult {
-		Self::execute_buy(&Self::validate_buy(origin, assets, amount, max_limit, discount)?)?;
+		Self::execute_buy(&Self::validate_buy(origin, assets, amount, max_limit, discount)?, None)?;
 		Ok(())
 	}
 
+	fn buy_for(
+		origin: &AccountId,
+		dest: &AccountId,
+		assets: AssetPair,
+		amount: Amount,
+		max_limit: Amount,
+		discount: bool,
+	) -> dispatch::DispatchResult {
+		Self::execute_buy(&Self::validate_buy(&origin, assets, amount, max_limit, discount)?, Some(dest))?;
+		Ok(())
+	}
 	fn get_min_trading_limit() -> Amount;
 
 	fn get_min_pool_liquidity() -> Amount;

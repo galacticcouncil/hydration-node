@@ -12,6 +12,7 @@ use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
 	Stableswap, Tokens, Treasury, DCA,
 };
+use hydradx_runtime::AssetPairAccountIdFor;
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
@@ -29,12 +30,16 @@ use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use sp_runtime::{DispatchResult, TransactionOutcome};
 use xcm_emulator::TestExt;
-
+use hydradx_runtime::DOT_ASSET_LOCATION;
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 mod omnipool {
 	use super::*;
-	use hydradx_traits::router::Trade;
+	use frame_support::assert_ok;
+	use hydradx_runtime::XYK;
+	use hydradx_traits::router::{PoolType, Trade};
+	use hydradx_traits::AssetKind;
+	use sp_runtime::TransactionOutcome;
 
 	#[test]
 	fn create_schedule_should_work() {
@@ -74,6 +79,98 @@ mod omnipool {
 			.into()]);
 		});
 	}
+	use pallet_route_executor::TradeExecution;
+	#[test]
+	fn create_schedule_should_work_when_insufficient_asset_as_fee() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
+
+				init_omnipool_with_oracle_for_block_10();
+				add_dot_as_payment_currency();
+
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+				create_xyk_pool(insufficient_asset, 10000 * UNITS, DAI, 20000 * UNITS);
+				create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 1200000 * UNITS);
+				assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
+					RuntimeOrigin::root(),
+					primitives::constants::chain::XYK_SOURCE,
+					(DOT, insufficient_asset)
+				));
+				//Populate oracle
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					BOB.into(),
+					insufficient_asset,
+					2 * UNITS as i128,
+				));
+				assert_ok!(XYK::sell(
+					RuntimeOrigin::signed(BOB.into()),
+					insufficient_asset,
+					DOT,
+					1 * UNITS,
+					0,
+					false
+				));
+
+				let s = XYK::calculate_spot_price_with_fee(PoolType::XYK, insufficient_asset, DOT);
+
+				//Arrange
+
+				let block_id = 11;
+				set_relaychain_block_number(block_id);
+
+				let budget = 5000 * UNITS;
+				let schedule1 =
+					schedule_fake_with_buy_order(PoolType::XYK, insufficient_asset, DOT, 100 * UNITS, budget);
+
+				//Act
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					ALICE.into(),
+					insufficient_asset,
+					5000 * UNITS as i128,
+				));
+				assert_ok!(DCA::schedule(
+					RuntimeOrigin::signed(ALICE.into()),
+					schedule1.clone(),
+					None
+				));
+
+				//Assert
+				let schedule_id = 0;
+				let schedule = DCA::schedules(schedule_id);
+				assert!(schedule.is_some());
+
+				let next_block_id = block_id + 1;
+				let schedule = DCA::schedule_ids_per_block(next_block_id);
+				assert!(!schedule.is_empty());
+				expect_hydra_last_events(vec![pallet_dca::Event::Scheduled {
+					id: 0,
+					who: ALICE.into(),
+					period: schedule1.period,
+					total_amount: schedule1.total_amount,
+					order: schedule1.order,
+				}
+				.into()]);
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
 
 	#[test]
 	fn buy_schedule_execution_should_work_when_block_is_initialized() {
@@ -572,6 +669,226 @@ mod omnipool {
 			let schedule = DCA::schedules(schedule_id);
 			assert!(schedule.is_some());
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
+		});
+	}
+
+	#[test]
+	fn insufficient_fee_asset_should_be_swapped_for_hdx() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
+
+				//Arrange
+				init_omnipool_with_oracle_for_block_10();
+				add_dot_as_payment_currency();
+
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+				create_xyk_pool(insufficient_asset, 10000 * UNITS, DAI, 20000 * UNITS);
+				create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 1200000 * UNITS);
+				assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
+					RuntimeOrigin::root(),
+					primitives::constants::chain::XYK_SOURCE,
+					(DOT, insufficient_asset)
+				));
+				//Populate oracLe
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					BOB.into(),
+					insufficient_asset,
+					200 * UNITS as i128,
+				));
+				assert_ok!(XYK::sell(
+					RuntimeOrigin::signed(BOB.into()),
+					insufficient_asset,
+					DOT,
+					1 * UNITS,
+					0,
+					false
+				));
+
+				set_relaychain_block_number(11);
+
+				//init_omnipool_with_oracle_for_block_10();
+				let alice_init_insuff_balance = 10000 * UNITS;
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					ALICE.into(),
+					insufficient_asset,
+					alice_init_insuff_balance as i128,
+				));
+				let dca_budget = 5000 * UNITS;
+				let amount_to_sell = 100 * UNITS;
+				let schedule1 = schedule_fake_with_sell_order(
+					ALICE,
+					PoolType::XYK,
+					dca_budget,
+					insufficient_asset,
+					DOT,
+					amount_to_sell,
+				);
+				create_schedule(ALICE, schedule1);
+
+				assert_balance!(ALICE.into(), insufficient_asset, alice_init_insuff_balance - dca_budget);
+				assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+				assert_reserved_balance!(&ALICE.into(), insufficient_asset, dca_budget);
+				assert_balance!(&Treasury::account_id(), insufficient_asset, 0);
+
+				//We get these xyk pool data before execution to later calculate the proper fee amount in insufficient asset
+				let asset_pair_account =  <hydradx_runtime::Runtime as pallet_xyk::Config>::AssetPairAccountId::from_assets(insufficient_asset, DOT, "xyk");
+				let in_reserve = Currencies::free_balance(insufficient_asset, &asset_pair_account.clone());
+				let out_reserve = Currencies::free_balance(DOT, &asset_pair_account);
+
+				//Act
+				set_relaychain_block_number(12);
+
+				//Assert
+				let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
+				assert!(fee > 0, "Treasury got rugged");
+				//TODO: no HDX should be accumulated, why there is still?!
+
+				let fee_in_dot = Currencies::free_balance(DOT, &Treasury::account_id());
+				assert!(fee_in_dot > 0, "Treasury got rugged");
+
+				//No insufficient asset should be accumulated TODO: prop tests?!
+				assert_balance!(&Treasury::account_id(), insufficient_asset, 0);
+
+				assert_balance!(ALICE.into(), insufficient_asset, alice_init_insuff_balance - dca_budget);
+
+				let fee_in_insufficient = hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, fee_in_dot).unwrap();
+
+				let xyk_trade_fee_in_insufficient = hydra_dx_math::fee::calculate_pool_trade_fee(fee_in_insufficient, (3, 1000)).unwrap();
+
+				assert_reserved_balance!(&ALICE.into(), insufficient_asset, dca_budget - amount_to_sell - fee_in_insufficient - xyk_trade_fee_in_insufficient);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn insufficient_fee_asset_should_work_for_bigger_route() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
+
+				//Arrange
+				init_omnipool_with_oracle_for_block_10();
+				add_dot_as_payment_currency();
+
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+					.unwrap();
+				create_xyk_pool(insufficient_asset, 10000 * UNITS, DAI, 20000 * UNITS);
+				create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 1200000 * UNITS);
+				assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
+					RuntimeOrigin::root(),
+					primitives::constants::chain::XYK_SOURCE,
+					(DOT, insufficient_asset)
+				));
+				//Populate oracLe
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					BOB.into(),
+					insufficient_asset,
+					200 * UNITS as i128,
+				));
+				assert_ok!(XYK::sell(
+					RuntimeOrigin::signed(BOB.into()),
+					insufficient_asset,
+					DOT,
+					1 * UNITS,
+					0,
+					false
+				));
+
+				set_relaychain_block_number(11);
+
+				//init_omnipool_with_oracle_for_block_10();
+				let alice_init_insuff_balance = 10000 * UNITS;
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					ALICE.into(),
+					insufficient_asset,
+					alice_init_insuff_balance as i128,
+				));
+				let dca_budget = 5000 * UNITS;
+				let amount_to_sell = 150 * UNITS;
+				let route = vec![Trade {
+					pool: PoolType::XYK,
+					asset_in: insufficient_asset,
+					asset_out: DOT
+				},
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: DOT,
+					asset_out: HDX
+				}];
+				let schedule1 = schedule_fake_with_sell_order_with_route(
+					ALICE,
+					dca_budget,
+					insufficient_asset,
+					HDX,
+					amount_to_sell,
+					route
+				);
+
+				create_schedule(ALICE, schedule1);
+
+				assert_balance!(ALICE.into(), insufficient_asset, alice_init_insuff_balance - dca_budget);
+				assert_reserved_balance!(&ALICE.into(), insufficient_asset, dca_budget);
+				assert_balance!(&Treasury::account_id(), insufficient_asset, 0);
+
+				//We get these xyk pool data before execution to later calculate the proper fee amount in insufficient asset
+				let asset_pair_account =  <hydradx_runtime::Runtime as pallet_xyk::Config>::AssetPairAccountId::from_assets(insufficient_asset, DOT, "xyk");
+				let in_reserve = Currencies::free_balance(insufficient_asset, &asset_pair_account.clone());
+				let out_reserve = Currencies::free_balance(DOT, &asset_pair_account);
+
+				//Act
+				set_relaychain_block_number(12);
+
+				//Assert
+				let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
+				assert!(fee > 0, "Treasury got rugged");
+				//TODO: no HDX should be accumulated, why there is still?!
+
+				let fee_in_dot = Currencies::free_balance(DOT, &Treasury::account_id());
+				assert!(fee_in_dot > 0, "Treasury got rugged");
+
+				//No insufficient asset should be accumulated TODO: prop tests?!
+				assert_balance!(&Treasury::account_id(), insufficient_asset, 0);
+
+				assert_balance!(ALICE.into(), insufficient_asset, alice_init_insuff_balance - dca_budget);
+
+				let fee_in_insufficient = hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, fee_in_dot).unwrap();
+
+				let xyk_trade_fee_in_insufficient = hydra_dx_math::fee::calculate_pool_trade_fee(fee_in_insufficient, (3, 1000)).unwrap();
+
+				assert_reserved_balance!(&ALICE.into(), insufficient_asset, dca_budget - amount_to_sell - fee_in_insufficient - xyk_trade_fee_in_insufficient);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
 		});
 	}
 
@@ -3211,7 +3528,7 @@ fn schedule_fake_with_sell_order_with_route(
 		total_amount,
 		max_retries: None,
 		stability_threshold: None,
-		slippage: Some(Permill::from_percent(10)),
+		slippage: Some(Permill::from_percent(15)),
 		order: Order::Sell {
 			asset_in,
 			asset_out,
@@ -3500,4 +3817,29 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
 
 	Ok((pool_id, asset_in, asset_out))
+}
+
+fn add_dot_as_payment_currency() {
+	assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					DOT,
+					1_000 * UNITS as i128,
+				));
+
+	assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(50, 100),
+				));
+
+	assert_ok!(Omnipool::add_token(
+					RuntimeOrigin::root(),
+					DOT,
+					FixedU128::from_rational(10, 100),
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
+
+	crate::dca::do_trade_to_populate_oracle(DOT, HDX, UNITS);
 }

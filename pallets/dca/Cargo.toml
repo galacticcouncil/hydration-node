@@ -29,6 +29,7 @@ cumulus-primitives-core = { workspace = true }
 cumulus-pallet-parachain-system ={ workspace = true }
 
 # HydraDX dependencies
+pallet-xyk = { workspace = true }
 pallet-omnipool = { workspace = true }
 hydradx-traits = { workspace = true }
 hydradx-adapters = { workspace = true }

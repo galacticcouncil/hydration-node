@@ -28,7 +28,7 @@ use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle};
+use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle, AMM, AMMTransfer};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
@@ -64,6 +64,7 @@ pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const BTC: AssetId = 3;
 pub const FORBIDDEN_ASSET: AssetId = 4;
+pub const DOT: AssetId = 5;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
@@ -640,11 +641,13 @@ impl PriceOracle<AssetId> for PriceProviderMock {
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
+	pub PolkadotNativeCurrencyId: AssetId = DOT;
 	pub MinBudgetInNativeCurrency: Balance= MIN_BUDGET.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
+	pub ExchangeFeeRate: (u32, u32) = (3, 1000);
 }
 
 pub struct RandomnessProviderMock {}
@@ -684,6 +687,109 @@ impl Config for Test {
 	type MinimumTradingLimit = MinTradeAmount;
 	type NativePriceOracle = NativePriceOracleMock;
 	type RetryOnError = ();
+	type InspectRegistry = MockedAssetRegistry;
+	type XykExchangeFee = ExchangeFeeRate;
+	type XYK = XykMock;
+	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
+}
+
+pub struct XykMock;
+
+impl AMM<AccountId, AssetId, AssetPair, Balance> for XykMock {
+	fn exists(_assets: AssetPair) -> bool {
+		unimplemented!()
+	}
+
+	fn get_pair_id(_assets: AssetPair) -> AccountId {
+		unimplemented!()
+	}
+
+	fn get_share_token(_assets: AssetPair) -> AssetId {
+		unimplemented!()
+	}
+
+	fn get_pool_assets(_pool_account_id: &AccountId) -> Option<Vec<AssetId>> {
+		unimplemented!()
+	}
+
+	fn get_spot_price_unchecked(_asset_a: AssetId, _asset_b: AssetId, _amount: Balance) -> Balance {
+		unimplemented!()
+	}
+
+	fn validate_sell(_origin: &AccountId, _assets: AssetPair, _amount: Balance, _min_bought: Balance, _discount: bool) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Balance>, DispatchError> {
+		unimplemented!()
+	}
+
+	fn execute_sell(_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Balance>) -> frame_support::dispatch::DispatchResult {
+		unimplemented!()
+	}
+
+	fn validate_buy(_origin: &AccountId, _assets: AssetPair, _amount: Balance, _max_limit: Balance, _discount: bool) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Balance>, DispatchError> {
+		unimplemented!()
+	}
+
+	fn execute_buy(_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Balance>, _destination: Option<&AccountId>) -> frame_support::dispatch::DispatchResult {
+		unimplemented!()
+	}
+
+	fn get_min_trading_limit() -> Balance {
+		unimplemented!()
+	}
+
+	fn get_min_pool_liquidity() -> Balance {
+		unimplemented!()
+	}
+
+	fn get_max_in_ratio() -> u128 {
+		unimplemented!()
+	}
+
+	fn get_max_out_ratio() -> u128 {
+		unimplemented!()
+	}
+
+	fn get_fee(_pool_account_id: &AccountId) -> (u32, u32) {
+		unimplemented!()
+	}
+}
+
+pub struct MockedAssetRegistry;
+
+impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
+	type AssetId = AssetId;
+	type Location = ();
+
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		id <= 2000
+	}
+
+	fn exists(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		unimplemented!()
+	}
 }
 
 pub struct NativePriceOracleMock;
@@ -718,6 +824,7 @@ use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
 use rand::SeedableRng;
 use smallvec::smallvec;
+use pallet_xyk::types::AssetPair;
 
 pub struct DummyNFT;
 

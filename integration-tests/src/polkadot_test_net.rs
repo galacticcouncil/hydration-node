@@ -7,6 +7,7 @@ use frame_support::{
 	},
 	traits::{GetCallMetadata, OnInitialize},
 };
+use hydradx_runtime::DOT_ASSET_LOCATION;
 pub use hydradx_runtime::{AccountId, Currencies, NativeExistentialDeposit, Treasury, VestingPalletId};
 use pallet_transaction_multi_payment::Price;
 pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};

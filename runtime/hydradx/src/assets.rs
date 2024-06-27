@@ -734,6 +734,21 @@ impl SpotPriceProvider<AssetId> for DummySpotPriceProvider {
 	}
 }
 
+pub const DOT_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::MultiLocation::parent());
+
+pub struct DotAssetId;
+impl Get<AssetId> for DotAssetId {
+	fn get() -> AssetId {
+		let invalid_id =
+			pallet_asset_registry::Pallet::<crate::Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
+
+		match pallet_asset_registry::Pallet::<crate::Runtime>::location_to_asset(DOT_ASSET_LOCATION) {
+			Some(asset_id) => asset_id,
+			None => invalid_id,
+		}
+	}
+}
+
 parameter_types! {
 	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
 	pub MaxSchedulesPerBlock: u32 = 20;
@@ -782,6 +797,7 @@ impl pallet_dca::Config for Runtime {
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
 	type AmmTradeWeights = RouterWeightInfo;
+	type InspectRegistry = AssetRegistry;
 	type WeightInfo = weights::pallet_dca::HydraWeight<Runtime>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type NativePriceOracle = AssetFeeOraclePriceProvider<
@@ -802,6 +818,10 @@ impl pallet_dca::Config for Runtime {
 		DCAOraclePeriod,
 	>;
 	type RetryOnError = RetryOnErrorForDca;
+	type PolkadotNativeAssetId = DotAssetId;
+	type XYK = XYK;
+	type XykExchangeFee = XYKExchangeFee;
+
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:

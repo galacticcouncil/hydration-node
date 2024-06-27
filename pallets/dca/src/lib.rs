@@ -77,11 +77,12 @@ use frame_system::{
 	Origin,
 };
 use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::router::{inverse_route, RouteProvider};
+use hydradx_traits::router::{inverse_route, PoolType, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::NativePriceOracle;
-use hydradx_traits::OraclePeriod;
+use hydradx_traits::{AssetPairAccountIdFor, OraclePeriod};
 use hydradx_traits::PriceOracle;
+use hydradx_traits::AMM;
+use hydradx_traits::{Inspect, NativePriceOracle};
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -91,7 +92,6 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill, Rounding,
 };
-
 use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};
 
@@ -105,6 +105,7 @@ pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+use pallet_xyk::types::AssetPair;
 
 use crate::types::*;
 
@@ -121,8 +122,10 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{NativePriceOracle, PriceOracle};
+	use hydradx_traits::{NativePriceOracle, PriceOracle, AMM, AssetPairAccountIdFor};
 	use orml_traits::NamedMultiReservableCurrency;
+	use sp_runtime::traits::AtLeast32BitUnsigned;
+	use pallet_xyk::types::AssetId;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -207,7 +210,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset id type
-		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
+		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + Into<u32>;
 
 		/// Origin able to terminate schedules
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -222,6 +225,16 @@ pub mod pallet {
 
 		///Relay chain block hash provider for randomness
 		type RelayChainBlockHashProvider: RelayChainBlockHashProvider;
+
+		///Inspect registry for asset metadata
+		type InspectRegistry: hydradx_traits::registry::Inspect<AssetId = Self::AssetId>;
+
+		/// AMM trait to do a buy_for to support insufficient asset as fee asset
+		type XYK: AMM<Self::AccountId, Self::AssetId, pallet_xyk::types::AssetPair, Balance>;
+
+		/// Trading fee rate for XYK pools
+		#[pallet::constant]
+		type XykExchangeFee: Get<(u32, u32)>;
 
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
@@ -266,6 +279,10 @@ pub mod pallet {
 		/// Native Asset Id
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::AssetId>;
+
+		/// Polkadot Native Asset Id (DOT)
+		#[pallet::constant]
+		type PolkadotNativeAssetId: Get<Self::AssetId>;
 
 		///Minimum budget to be able to schedule a DCA, specified in native currency
 		#[pallet::constant]
@@ -903,15 +920,47 @@ impl<T: Config> Pallet<T> {
 
 		Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
 
-		T::Currencies::transfer(
-			fee_currency,
-			&schedule.owner,
-			&T::FeeReceiver::get(),
-			fee_amount_in_sold_asset,
-		)?;
+		if !T::InspectRegistry::is_sufficient(fee_currency) {
+			//The insufficient asset is taken from the user as fee by doing a buy_for for known DOT amount
+			//To do a buy_for, we need to calculate first DOT amount_out with incorporating the fee too
+			let xyk_exchange_rate = T::XykExchangeFee::get();
+			let fee_nominator = xyk_exchange_rate.0;
+			let fee_denominator = xyk_exchange_rate.0.saturating_add(xyk_exchange_rate.1); // We get the sum of two, to get the fee for the original amount_in
+			let trade_fee = hydra_dx_math::fee::calculate_pool_trade_fee(fee_amount_in_sold_asset, (fee_nominator, fee_denominator)).ok_or(ArithmeticError::Overflow)?;
+
+			let amount_in_without_fee = fee_amount_in_sold_asset.checked_sub(trade_fee).ok_or(ArithmeticError::Underflow)?;
+
+			let asset_pair_account = T::XYK::get_pair_id(AssetPair::new(fee_currency.into(), T::PolkadotNativeAssetId::get().into()));
+			let in_reserve = T::Currencies::free_balance(fee_currency, &asset_pair_account.clone());
+			let out_reserve = T::Currencies::free_balance(T::PolkadotNativeAssetId::get(), &asset_pair_account);
+
+			let amount_out = hydra_dx_math::xyk::calculate_out_given_in(in_reserve, out_reserve, amount_in_without_fee)
+				.map_err(|err|ArithmeticError::Overflow)?;
+
+			let max_limit = fee_amount_in_sold_asset;
+			T::XYK::buy_for(
+				&schedule.owner.clone(),
+				&T::FeeReceiver::get(),
+				pallet_xyk::types::AssetPair {
+					asset_in: fee_currency.into(),
+					asset_out: T::PolkadotNativeAssetId::get().into(),
+				},
+				amount_out,
+				max_limit,
+				false,
+			)?;
+		} else {
+			T::Currencies::transfer(
+				fee_currency,
+				&schedule.owner,
+				&T::FeeReceiver::get(),
+				fee_amount_in_sold_asset,
+			)?;
+		}
 
 		Ok(())
 	}
+
 
 	fn terminate_schedule(
 		schedule_id: ScheduleId,
@@ -1050,7 +1099,21 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Balance, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
-		} else {
+		} else if !T::InspectRegistry::is_sufficient(asset_id) {
+			//TODO: test on live if this conversion is fine as is it is
+			let dot_per_hdx_price = T::NativePriceOracle::price(T::PolkadotNativeAssetId::get())
+				.ok_or(Error::<T>::CalculatingPriceError)?;
+			let fee_amount_in_dot = multiply_by_rational_with_rounding(asset_amount, dot_per_hdx_price.n, dot_per_hdx_price.d, Rounding::Up)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			//TODO: add falback to HDX.
+			let asset_pair_account = T::XYK::get_pair_id(AssetPair::new(asset_id.into(), T::PolkadotNativeAssetId::get().into()));
+			let in_reserve = T::Currencies::free_balance(asset_id, &asset_pair_account.clone());
+			let out_reserve = T::Currencies::free_balance(T::PolkadotNativeAssetId::get(), &asset_pair_account);
+			let amount = hydra_dx_math::xyk::calculate_in_given_out(out_reserve,in_reserve,fee_amount_in_dot).map_err(|err|ArithmeticError::Overflow)?;
+			amount
+		}
+		else {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 
 			multiply_by_rational_with_rounding(asset_amount, price.n, price.d, Rounding::Up)

@@ -29,7 +29,7 @@
 #![allow(clippy::upper_case_acronyms)]
 
 use frame_support::sp_runtime::{traits::Zero, DispatchError};
-use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
+use frame_support::{dispatch, dispatch::DispatchResult, ensure, traits::Get, transactional};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
@@ -1016,7 +1016,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	/// Perform necessary storage/state changes.
 	/// Note : the execution should not return error as everything was previously verified and validated.
 	#[transactional]
-	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>) -> DispatchResult {
+	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, destination: Option<&T::AccountId>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
 		if transfer.discount && transfer.discount_amount > 0 {
@@ -1027,7 +1027,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		T::Currency::transfer(
 			transfer.assets.asset_out,
 			&pair_account,
-			&transfer.origin,
+			destination.unwrap_or(&transfer.origin),
 			transfer.amount,
 		)?;
 		T::Currency::transfer(
