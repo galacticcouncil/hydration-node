@@ -1109,8 +1109,8 @@ impl<T: Config> Pallet<T> {
 			let asset_pair_account = T::XYK::get_pair_id(AssetPair::new(asset_id.into(), T::PolkadotNativeAssetId::get().into()));
 			let in_reserve = T::Currencies::free_balance(asset_id, &asset_pair_account.clone());
 			let out_reserve = T::Currencies::free_balance(T::PolkadotNativeAssetId::get(), &asset_pair_account);
-			let amount = hydra_dx_math::xyk::calculate_in_given_out(out_reserve,in_reserve,fee_amount_in_dot).map_err(|err|ArithmeticError::Overflow)?;
-			amount
+
+			hydra_dx_math::xyk::calculate_in_given_out(out_reserve,in_reserve,fee_amount_in_dot).map_err(|err|ArithmeticError::Overflow)?
 		}
 		else {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
