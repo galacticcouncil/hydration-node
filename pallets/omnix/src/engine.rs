@@ -132,7 +132,7 @@ impl<T: Config> OmniXEngine<T> {
 		for (asset_id, delta_in) in deltas_in.iter() {
 			let delta_out = deltas_out.get(asset_id).unwrap_or(&0);
 			if delta_out > delta_in {
-				let swap = Instruction::HubSwap {
+				let swap = Instruction::<T::AccountId, T::AssetId>::HubSwap {
 					asset_in: T::HubAssetId::get(),
 					asset_out: *asset_id,
 					amount_in: Balance::MAX, //TODO limit?
@@ -161,11 +161,14 @@ impl<T: Config> OmniXEngine<T> {
 			crate::pallet::Error::<T>::InvalidSolution
 		);
 
-		let transfers = Self::calculate_transfer_amounts(&solution)?;
+		let instructions = Self::calculate_transfer_amounts(&solution)?;
 
-		Self::validate_transfers(&transfers)?;
+		Self::validate_transfers(&instructions)?;
+		//TODO: weights?
 
-		todo!()
+		let plan = Plan { instructions };
+
+		Ok(plan)
 	}
 
 	pub fn execute_solution(solution: Plan<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
