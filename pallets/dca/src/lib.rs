@@ -229,7 +229,7 @@ pub mod pallet {
 		///Inspect registry for asset metadata
 		type InspectRegistry: hydradx_traits::registry::Inspect<AssetId = Self::AssetId>;
 
-		/// AMM trait to do a buy_for to support insufficient asset as fee asset
+		/// AMM trait to support insufficient asset as fee asset
 		type XYK: AMM<Self::AccountId, Self::AssetId, pallet_xyk::types::AssetPair, Balance>;
 
 		/// Trading fee rate for XYK pools
