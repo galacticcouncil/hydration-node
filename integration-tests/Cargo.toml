@@ -107,6 +107,8 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-uniques = { workspace = true }
 pallet-im-online = { workspace = true }
+pallet-referenda = { workspace = true }
+pallet-conviction-voting = { workspace = true }
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }

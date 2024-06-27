@@ -29,7 +29,7 @@
 pub mod old;
 
 pub mod origins;
-mod tracks;
+pub mod tracks;
 
 use super::*;
 use crate::governance::{
