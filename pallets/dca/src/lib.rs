@@ -925,7 +925,7 @@ impl<T: Config> Pallet<T> {
 			//To do a buy_for, we need to calculate first DOT amount_out with incorporating the fee too
 			let xyk_exchange_rate = T::XykExchangeFee::get();
 			let fee_nominator = xyk_exchange_rate.0;
-			let fee_denominator = xyk_exchange_rate.0.saturating_add(xyk_exchange_rate.1); // We get the sum of two, to get the fee for the original amount_in
+			let fee_denominator = xyk_exchange_rate.0.saturating_add(xyk_exchange_rate.1); //We need to sum num and denum to proportionally reduce the fee relative to the total amount, including the fee itself
 			let trade_fee = hydra_dx_math::fee::calculate_pool_trade_fee(fee_amount_in_sold_asset, (fee_nominator, fee_denominator)).ok_or(ArithmeticError::Overflow)?;
 
 			let amount_in_without_fee = fee_amount_in_sold_asset.checked_sub(trade_fee).ok_or(ArithmeticError::Underflow)?;
