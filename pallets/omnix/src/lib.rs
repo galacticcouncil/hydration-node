@@ -2,7 +2,7 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod engine;
+pub mod engine;
 pub mod types;
 mod weights;
 
@@ -19,7 +19,7 @@ use frame_support::{Blake2_128Concat, Parameter};
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use scale_info::TypeInfo;
-use sp_runtime::traits::Hash;
+use sp_runtime::traits::{AccountIdConversion, Hash};
 use sp_runtime::traits::{MaybeSerializeDeserialize, Member};
 use sp_runtime::DispatchError;
 use sp_std::prelude::*;
@@ -28,6 +28,7 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::PalletId;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -47,10 +48,15 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
+		/// Asset Id of hub asset
 		type HubAssetId: Get<Self::AssetId>;
 
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
+
+		/// Pallet id.
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
 
 		#[pallet::constant]
 		type MaxCallData: Get<u32>;
@@ -173,6 +179,11 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Holding account
+	pub fn holding_account() -> T::AccountId {
+		T::PalletId::get().into_account_truncating()
+	}
+
 	pub(crate) fn get_intent_id(deadline: Moment, increment: IncrementalIntentId) -> IntentId {
 		(deadline as u128) << 64 | increment as u128
 	}

@@ -3,7 +3,6 @@ use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::ConstU32;
 use sp_runtime::BoundedVec;
-use sp_std::vec::Vec;
 
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
 pub const MAX_RESOLVED_INTENTS: u32 = 128;

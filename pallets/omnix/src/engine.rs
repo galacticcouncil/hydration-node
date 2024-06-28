@@ -1,9 +1,12 @@
 use crate::pallet::Intents;
-use crate::types::{Balance, IntentId, Price, ResolvedIntent, Solution, SwapType};
+use crate::types::{Balance, Solution, SwapType};
 use crate::Config;
+use frame_support::dispatch::RawOrigin;
 use frame_support::ensure;
 use frame_support::pallet_prelude::Get;
-use frame_support::traits::tokens::AssetId;
+use frame_support::traits::fungibles::Mutate;
+use frame_support::traits::tokens::Preservation;
+use hydradx_traits::router::RouterT;
 use sp_runtime::DispatchError;
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -30,9 +33,19 @@ pub struct Plan<AccountId, AssetId> {
 	pub instructions: Vec<Instruction<AccountId, AssetId>>,
 }
 
-pub struct OmniXEngine<T>(std::marker::PhantomData<T>);
+pub struct OmniXEngine<T, C, R>(std::marker::PhantomData<(T, C, R)>);
 
-impl<T: Config> OmniXEngine<T> {
+impl<T: Config, C, R> OmniXEngine<T, C, R>
+where
+	C: Mutate<T::AccountId, AssetId = T::AssetId, Balance = Balance>,
+	R: RouterT<
+		T::RuntimeOrigin,
+		T::AssetId,
+		Balance,
+		hydradx_traits::router::Trade<T::AssetId>,
+		hydradx_traits::router::AmountInAndOut<Balance>,
+	>,
+{
 	fn calculate_transfer_amounts(
 		solution: &Solution<T::AccountId, T::AssetId>,
 	) -> Result<Vec<Instruction<T::AccountId, T::AssetId>>, DispatchError> {
@@ -86,6 +99,7 @@ impl<T: Config> OmniXEngine<T> {
 					// Store deltas
 					// Ensure limits
 					let amount_in = amount; //TODO calculate
+						// TODO: ensure intent limit
 					let transfer = Instruction::TransferIn {
 						who: intent.who.clone(),
 						asset_id: intent.swap.asset_in,
@@ -138,6 +152,7 @@ impl<T: Config> OmniXEngine<T> {
 					amount_in: Balance::MAX, //TODO limit?
 					amount_out: delta_out - delta_in,
 				};
+				hub_asset_swaps.push(swap);
 			}
 		}
 
@@ -149,8 +164,9 @@ impl<T: Config> OmniXEngine<T> {
 		Ok(result)
 	}
 
-	fn validate_transfers(transfers: &[Instruction<T::AccountId, T::AssetId>]) -> Result<(), DispatchError> {
-		todo!()
+	fn validate_transfers(_transfers: &[Instruction<T::AccountId, T::AssetId>]) -> Result<(), DispatchError> {
+		//TODO: check balances
+		Ok(())
 	}
 
 	pub fn prepare_solution(
@@ -172,6 +188,49 @@ impl<T: Config> OmniXEngine<T> {
 	}
 
 	pub fn execute_solution(solution: Plan<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
-		todo!()
+		let holding_account = crate::Pallet::<T>::holding_account();
+		for instruction in solution.instructions {
+			match instruction {
+				Instruction::TransferIn { who, asset_id, amount } => {
+					C::transfer(asset_id, &who, &holding_account, amount, Preservation::Expendable)?;
+				}
+				Instruction::TransferOut { who, asset_id, amount } => {
+					C::transfer(asset_id, &holding_account, &who, amount, Preservation::Expendable)?;
+				}
+				Instruction::HubSwap {
+					asset_in,
+					asset_out,
+					amount_in,
+					amount_out,
+				} => {
+					debug_assert!(
+						asset_in == T::HubAssetId::get() || asset_out == T::HubAssetId::get(),
+						"No Hub asset in the trade"
+					);
+					if asset_in == T::HubAssetId::get() {
+						// buy token
+						R::buy(
+							RawOrigin::Signed(holding_account.clone().into()).into(),
+							asset_in,
+							asset_out,
+							amount_out,
+							amount_in, // it is set as limit in the instruction
+							vec![],
+						)?;
+					} else {
+						// sell token
+						R::sell(
+							RawOrigin::Signed(holding_account.clone().into()).into(),
+							asset_in,
+							asset_out,
+							amount_in,
+							amount_out, // set as limit in the instruction
+							vec![],
+						)?;
+					}
+				}
+			}
+		}
+		Ok(())
 	}
 }

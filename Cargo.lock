@@ -8718,6 +8718,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hydradx-traits",
  "log",
  "parity-scale-codec",
  "pretty_assertions",

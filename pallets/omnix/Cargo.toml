@@ -17,6 +17,8 @@ scale-info = { version = "2.3.1", default-features = false, features = ["derive"
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
 log = { version = "0.4.17", default-features = false }
 
+hydradx-traits = { workspace = true }
+
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 
