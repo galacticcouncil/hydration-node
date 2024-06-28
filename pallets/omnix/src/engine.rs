@@ -1,9 +1,11 @@
 use crate::pallet::Intents;
-use crate::types::{Balance, Price, Solution, SwapType};
+use crate::types::{Balance, BoundedInstructions, Price, Solution, SwapType};
 use crate::{Config, Error};
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::__private::RuntimeDebug;
 use frame_support::dispatch::RawOrigin;
 use frame_support::ensure;
-use frame_support::pallet_prelude::Get;
+use frame_support::pallet_prelude::{Get, TypeInfo, Weight};
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use hydradx_traits::router::RouterT;
@@ -11,7 +13,7 @@ use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{DispatchError, Rounding};
 use sp_std::collections::btree_map::BTreeMap;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Instruction<AccountId, AssetId> {
 	TransferIn {
 		who: AccountId,
@@ -31,9 +33,10 @@ pub enum Instruction<AccountId, AssetId> {
 	},
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Plan<AccountId, AssetId> {
-	pub instructions: Vec<Instruction<AccountId, AssetId>>,
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct ExecutionPlan<AccountId, AssetId> {
+	pub instructions: BoundedInstructions<AccountId, AssetId>,
+	pub weight: Weight,
 }
 
 pub struct OmniXEngine<T, C, R>(std::marker::PhantomData<(T, C, R)>);
@@ -49,9 +52,9 @@ where
 		hydradx_traits::router::AmountInAndOut<Balance>,
 	>,
 {
-	fn calculate_transfer_amounts(
+	fn construct_execution_plan(
 		solution: &Solution<T::AccountId, T::AssetId>,
-	) -> Result<Vec<Instruction<T::AccountId, T::AssetId>>, DispatchError> {
+	) -> Result<ExecutionPlan<T::AccountId, T::AssetId>, DispatchError> {
 		// Result will be:
 		// list of transfers in
 		// list of lrna swaps
@@ -72,8 +75,8 @@ where
 			let intent = Intents::<T>::get(intent_id).ok_or(crate::pallet::Error::<T>::IntentNotFound)?;
 
 			match intent.swap.swap_type {
-				SwapType::ExactInput => {
-					// TODO: Ensure limits
+				SwapType::ExactIn => {
+					// TODO: Ensure limits - here or in validate_exec_plan?
 					let sell_price = sell_prices
 						.get(&intent.swap.asset_in)
 						.ok_or(crate::pallet::Error::<T>::MissingPrice)?;
@@ -105,8 +108,8 @@ where
 						.and_modify(|e| *e = e.saturating_add(amount_out))
 						.or_insert(amount_out);
 				}
-				SwapType::ExactOutput => {
-					// TODO: Ensure limits
+				SwapType::ExactOut => {
+					// TODO: Ensure limits - here or in validate_exec_plan?
 					let sell_price = sell_prices
 						.get(&intent.swap.asset_in)
 						.ok_or(crate::pallet::Error::<T>::MissingPrice)?;
@@ -142,7 +145,7 @@ where
 			}
 		}
 
-		// Calculate deltas and how much needs to be swapped
+		// Calculate how much needs to be swapped
 		// First sell for lrna
 		for (asset_id, delta_in) in deltas_in.iter() {
 			let delta_out = deltas_out.get(asset_id).unwrap_or(&0);
@@ -171,40 +174,45 @@ where
 			}
 		}
 
-		let mut result = Vec::new();
-		result.extend(transfers_in);
-		result.extend(hub_asset_swaps);
-		result.extend(transfers_out);
+		// Construct final list of instructions - order is important
+		let mut instructions = Vec::new();
+		instructions.extend(transfers_in);
+		instructions.extend(hub_asset_swaps);
+		instructions.extend(transfers_out);
 
-		Ok(result)
+		let instructions =
+			BoundedInstructions::try_from(instructions).map_err(|_| crate::pallet::Error::<T>::TooManyInstructions)?;
+
+		let weight = Self::calculate_weight(&instructions)?;
+		Ok(ExecutionPlan { instructions, weight })
 	}
 
-	fn validate_transfers(_transfers: &[Instruction<T::AccountId, T::AssetId>]) -> Result<(), DispatchError> {
-		//TODO: check balances
+	fn validate_execution_plan(_plan: &ExecutionPlan<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
+		//TODO: check balances, limits etc?!
 		Ok(())
 	}
 
-	pub fn prepare_solution(
+	fn calculate_weight(_plan: &BoundedInstructions<T::AccountId, T::AssetId>) -> Result<Weight, DispatchError> {
+		Ok(Weight::default())
+	}
+
+	pub fn prepare_execution_plan(
 		solution: &Solution<T::AccountId, T::AssetId>,
-	) -> Result<Plan<T::AccountId, T::AssetId>, DispatchError> {
+	) -> Result<ExecutionPlan<T::AccountId, T::AssetId>, DispatchError> {
 		ensure!(
 			solution.sell_prices.len() == solution.buy_prices.len(),
-			crate::pallet::Error::<T>::InvalidSolution
+			Error::<T>::InvalidSolution
 		);
 
-		let instructions = Self::calculate_transfer_amounts(&solution)?;
-
-		Self::validate_transfers(&instructions)?;
-		//TODO: weights?
-
-		let plan = Plan { instructions };
+		let plan = Self::construct_execution_plan(&solution)?;
+		Self::validate_execution_plan(&plan)?;
 
 		Ok(plan)
 	}
 
-	pub fn execute_solution(solution: Plan<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
+	pub fn execute_solution(execution_plan: ExecutionPlan<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
 		let holding_account = crate::Pallet::<T>::holding_account();
-		for instruction in solution.instructions {
+		for instruction in execution_plan.instructions {
 			match instruction {
 				Instruction::TransferIn { who, asset_id, amount } => {
 					C::transfer(asset_id, &who, &holding_account, amount, Preservation::Expendable)?;

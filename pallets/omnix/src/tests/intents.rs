@@ -11,7 +11,7 @@ fn submit_intent_should_work() {
 			asset_out: 200,
 			amount_in: 100_000_000_000_000,
 			amount_out: 200_000_000_000_000,
-			swap_type: SwapType::ExactInput,
+			swap_type: SwapType::ExactIn,
 		};
 		assert_ok!(OmniX::submit_intent(
 			RuntimeOrigin::signed(ALICE),

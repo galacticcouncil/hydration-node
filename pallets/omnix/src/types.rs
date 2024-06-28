@@ -1,3 +1,4 @@
+use crate::engine::Instruction;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::TypeInfo;
@@ -7,6 +8,7 @@ use sp_runtime::BoundedVec;
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
 pub const MAX_RESOLVED_INTENTS: u32 = 128;
 pub const MAX_PRICES: u32 = 128;
+pub const MAX_INSTRUCTIONS: u32 = 128;
 
 pub type Balance = u128;
 pub type Moment = u64;
@@ -15,6 +17,8 @@ pub type IntentId = u128;
 pub type CallData = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
 pub type BoundedResolvedIntents = BoundedVec<ResolvedIntent, ConstU32<MAX_RESOLVED_INTENTS>>;
 pub type BoundedPrices<AssetId> = BoundedVec<(AssetId, Price), ConstU32<MAX_PRICES>>;
+pub type BoundedInstructions<AccountId, AssetId> =
+	BoundedVec<Instruction<AccountId, AssetId>, ConstU32<MAX_INSTRUCTIONS>>;
 pub type Price = (Balance, Balance);
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -40,8 +44,8 @@ pub struct Swap<AssetId> {
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum SwapType {
-	ExactInput,
-	ExactOutput,
+	ExactIn,
+	ExactOut,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

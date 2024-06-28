@@ -31,7 +31,7 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::engine::OmniXEngine;
+	use crate::engine::{ExecutionPlan, OmniXEngine};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 
@@ -110,6 +110,9 @@ pub mod pallet {
 
 		/// Price is missing in provided solution
 		MissingPrice,
+
+		/// Execution contains too many instructions
+		TooManyInstructions,
 	}
 
 	#[pallet::storage]
@@ -122,7 +125,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_solution)]
-	pub(super) type Solutions<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, Solution<T::AccountId, T::AssetId>>;
+	pub(super) type Solutions<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::Hash, ExecutionPlan<T::AccountId, T::AssetId>>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -191,7 +195,9 @@ pub mod pallet {
 
 			let hash = T::Hashing::hash(&solution.encode());
 
-			Solutions::<T>::insert(&hash, solution);
+			let plan = OmniXEngine::<T, T::Currency, T::TradeExecutor>::prepare_execution_plan(&solution)?;
+
+			Solutions::<T>::insert(&hash, plan);
 
 			Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
 
@@ -202,13 +208,8 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::execute_solution())]
 		pub fn execute_solution(origin: OriginFor<T>, hash: T::Hash) -> DispatchResult {
 			ensure_signed(origin)?;
-
-			let solution = Solutions::<T>::get(&hash).ok_or(Error::<T>::SolutionNotFound)?;
-
-			let plan = OmniXEngine::<T, T::Currency, T::TradeExecutor>::prepare_solution(&solution)?;
-
-			OmniXEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(plan)?;
-
+			let exec_plan = Solutions::<T>::get(&hash).ok_or(Error::<T>::SolutionNotFound)?;
+			OmniXEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(exec_plan)?;
 			Ok(())
 		}
 	}
