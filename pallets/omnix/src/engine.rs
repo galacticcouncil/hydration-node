@@ -1,6 +1,6 @@
 use crate::pallet::Intents;
 use crate::types::{Balance, Price, Solution, SwapType};
-use crate::Config;
+use crate::{Config, Error};
 use frame_support::dispatch::RawOrigin;
 use frame_support::ensure;
 use frame_support::pallet_prelude::Get;
@@ -73,10 +73,7 @@ where
 
 			match intent.swap.swap_type {
 				SwapType::ExactInput => {
-					// Calculate amount out
-					// STore deltas
-					// Ensure limits
-					// amount out = amount_in * sell price / buy price
+					// TODO: Ensure limits
 					let sell_price = sell_prices
 						.get(&intent.swap.asset_in)
 						.ok_or(crate::pallet::Error::<T>::MissingPrice)?;
@@ -109,11 +106,15 @@ where
 						.or_insert(amount_out);
 				}
 				SwapType::ExactOutput => {
-					// Calculate amount in
-					// Store deltas
-					// Ensure limits
-					let amount_in = amount; //TODO calculate
-						// TODO: ensure intent limit
+					// TODO: Ensure limits
+					let sell_price = sell_prices
+						.get(&intent.swap.asset_in)
+						.ok_or(crate::pallet::Error::<T>::MissingPrice)?;
+					let buy_price = buy_prices
+						.get(&intent.swap.asset_out)
+						.ok_or(crate::pallet::Error::<T>::MissingPrice)?;
+					let amount_in =
+						calculate_in_amount(amount, *sell_price, *buy_price).ok_or(Error::<T>::InvalidSolution)?;
 					let transfer = Instruction::TransferIn {
 						who: intent.who.clone(),
 						asset_id: intent.swap.asset_in,
@@ -150,7 +151,7 @@ where
 					asset_in: *asset_id,
 					asset_out: T::HubAssetId::get(),
 					amount_in: delta_in - delta_out,
-					amount_out: 0, //TODO limit?
+					amount_out: 0, // limit
 				};
 				hub_asset_swaps.push(swap);
 			}
@@ -163,7 +164,7 @@ where
 				let swap = Instruction::<T::AccountId, T::AssetId>::HubSwap {
 					asset_in: T::HubAssetId::get(),
 					asset_out: *asset_id,
-					amount_in: Balance::MAX, //TODO limit?
+					amount_in: Balance::MAX, //limit
 					amount_out: delta_out - delta_in,
 				};
 				hub_asset_swaps.push(swap);
@@ -249,8 +250,16 @@ where
 	}
 }
 
+// amount out = amount_in * sell price / buy price
 fn calculate_out_amount(amount_in: Balance, sell_price: Price, buy_price: Price) -> Option<Balance> {
 	//TODO: Verify calculate, rounding? or other way to calculate to minimize rounding errors
 	let amt = multiply_by_rational_with_rounding(amount_in, sell_price.0, sell_price.1, Rounding::Down)?;
 	multiply_by_rational_with_rounding(amt, buy_price.1, buy_price.0, Rounding::Down)
+}
+
+// amount in = amount_out  * buy price / sell price
+fn calculate_in_amount(amount_out: Balance, sell_price: Price, buy_price: Price) -> Option<Balance> {
+	//TODO: Verify calculate, rounding? or other way to calculate to minimize rounding errors
+	let amt = multiply_by_rational_with_rounding(amount_out, buy_price.0, buy_price.1, Rounding::Down)?;
+	multiply_by_rational_with_rounding(amt, sell_price.1, sell_price.0, Rounding::Down)
 }

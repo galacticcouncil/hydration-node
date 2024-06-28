@@ -20,6 +20,7 @@ pub(crate) type AccountId = u64;
 use crate::types::{Balance, IntentId, Moment};
 
 pub const ALICE: AccountId = 1;
+pub const BOB: AccountId = 2;
 
 pub(crate) const LRNA: AssetId = 1;
 
