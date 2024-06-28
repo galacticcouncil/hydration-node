@@ -33,6 +33,9 @@ sp-io = { workspace = true, optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
+orml-tokens = {workspace = true}
+pallet-balances = { workspace = true}
+orml-traits = { workspace = true}
 
 [features]
 default = ["std"]
@@ -46,6 +49,8 @@ std = [
     "sp-core/std",
     "sp-io/std",
     "frame-benchmarking/std",
+    "orml-tokens/std",
+    "pallet-balances/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",

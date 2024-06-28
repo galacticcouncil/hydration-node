@@ -1,5 +1,5 @@
 use crate::pallet::Intents;
-use crate::types::{Balance, Solution, SwapType};
+use crate::types::{Balance, Price, Solution, SwapType};
 use crate::Config;
 use frame_support::dispatch::RawOrigin;
 use frame_support::ensure;
@@ -7,9 +7,11 @@ use frame_support::pallet_prelude::Get;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use hydradx_traits::router::RouterT;
-use sp_runtime::DispatchError;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
+use sp_runtime::{DispatchError, Rounding};
 use sp_std::collections::btree_map::BTreeMap;
 
+#[derive(Debug, PartialEq)]
 pub enum Instruction<AccountId, AssetId> {
 	TransferIn {
 		who: AccountId,
@@ -29,6 +31,7 @@ pub enum Instruction<AccountId, AssetId> {
 	},
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Plan<AccountId, AssetId> {
 	pub instructions: Vec<Instruction<AccountId, AssetId>>,
 }
@@ -59,6 +62,9 @@ where
 		let mut deltas_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
 		let mut deltas_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
 
+		let sell_prices: BTreeMap<T::AssetId, (Balance, Balance)> = solution.sell_prices.clone().into_iter().collect();
+		let buy_prices: BTreeMap<T::AssetId, (Balance, Balance)> = solution.buy_prices.clone().into_iter().collect();
+
 		for intent in solution.intents.iter() {
 			let intent_id = intent.intent_id;
 			let amount = intent.amount;
@@ -70,7 +76,15 @@ where
 					// Calculate amount out
 					// STore deltas
 					// Ensure limits
-					let amount_out = 1; //TODO calculate
+					// amount out = amount_in * sell price / buy price
+					let sell_price = sell_prices
+						.get(&intent.swap.asset_in)
+						.ok_or(crate::pallet::Error::<T>::MissingPrice)?;
+					let buy_price = buy_prices
+						.get(&intent.swap.asset_out)
+						.ok_or(crate::pallet::Error::<T>::MissingPrice)?;
+					let amount_out = calculate_out_amount(amount, *sell_price, *buy_price)
+						.ok_or(crate::pallet::Error::<T>::InvalidSolution)?;
 					let transfer = Instruction::TransferIn {
 						who: intent.who.clone(),
 						asset_id: intent.swap.asset_in,
@@ -92,7 +106,7 @@ where
 					deltas_out
 						.entry(intent.swap.asset_out)
 						.and_modify(|e| *e = e.saturating_add(amount_out))
-						.or_insert(amount);
+						.or_insert(amount_out);
 				}
 				SwapType::ExactOutput => {
 					// Calculate amount in
@@ -118,7 +132,7 @@ where
 					deltas_in
 						.entry(intent.swap.asset_in)
 						.and_modify(|e| *e = e.saturating_add(amount_in))
-						.or_insert(amount);
+						.or_insert(amount_in);
 					deltas_out
 						.entry(intent.swap.asset_out)
 						.and_modify(|e| *e = e.saturating_add(amount))
@@ -143,8 +157,8 @@ where
 		}
 
 		// Now buys for lrna
-		for (asset_id, delta_in) in deltas_in.iter() {
-			let delta_out = deltas_out.get(asset_id).unwrap_or(&0);
+		for (asset_id, delta_out) in deltas_out.iter() {
+			let delta_in = deltas_in.get(asset_id).unwrap_or(&0);
 			if delta_out > delta_in {
 				let swap = Instruction::<T::AccountId, T::AssetId>::HubSwap {
 					asset_in: T::HubAssetId::get(),
@@ -233,4 +247,10 @@ where
 		}
 		Ok(())
 	}
+}
+
+fn calculate_out_amount(amount_in: Balance, sell_price: Price, buy_price: Price) -> Option<Balance> {
+	//TODO: Verify calculate, rounding? or other way to calculate to minimize rounding errors
+	let amt = multiply_by_rational_with_rounding(amount_in, sell_price.0, sell_price.1, Rounding::Down)?;
+	multiply_by_rational_with_rounding(amt, buy_price.1, buy_price.0, Rounding::Down)
 }

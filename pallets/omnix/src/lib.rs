@@ -3,6 +3,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod engine;
+#[cfg(test)]
+mod tests;
 pub mod types;
 mod weights;
 
@@ -105,6 +107,9 @@ pub mod pallet {
 
 		/// Solution not found
 		SolutionNotFound,
+
+		/// Price is missing in provided solution
+		MissingPrice,
 	}
 
 	#[pallet::storage]
