@@ -17,6 +17,7 @@ use frame_support::traits::Time;
 use frame_support::{dispatch::DispatchResult, traits::Get};
 use frame_support::{Blake2_128Concat, Parameter};
 use frame_system::pallet_prelude::*;
+use hydradx_traits::router::RouterT;
 pub use pallet::*;
 use scale_info::TypeInfo;
 use sp_runtime::traits::{AccountIdConversion, Hash};
@@ -28,6 +29,8 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::engine::OmniXEngine;
+	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 
 	#[pallet::pallet]
@@ -53,6 +56,17 @@ pub mod pallet {
 
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
+
+		///
+		type Currency: Mutate<Self::AccountId, AssetId = Self::AssetId, Balance = types::Balance>;
+
+		type TradeExecutor: RouterT<
+			Self::RuntimeOrigin,
+			Self::AssetId,
+			crate::types::Balance,
+			hydradx_traits::router::Trade<Self::AssetId>,
+			hydradx_traits::router::AmountInAndOut<crate::types::Balance>,
+		>;
 
 		/// Pallet id.
 		#[pallet::constant]
@@ -88,6 +102,9 @@ pub mod pallet {
 
 		/// Intent not found
 		IntentNotFound,
+
+		/// Solution not found
+		SolutionNotFound,
 	}
 
 	#[pallet::storage]
@@ -172,6 +189,20 @@ pub mod pallet {
 			Solutions::<T>::insert(&hash, solution);
 
 			Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
+
+			Ok(())
+		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(T::WeightInfo::execute_solution())]
+		pub fn execute_solution(origin: OriginFor<T>, hash: T::Hash) -> DispatchResult {
+			ensure_signed(origin)?;
+
+			let solution = Solutions::<T>::get(&hash).ok_or(Error::<T>::SolutionNotFound)?;
+
+			let plan = OmniXEngine::<T, T::Currency, T::TradeExecutor>::prepare_solution(&solution)?;
+
+			OmniXEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(plan)?;
 
 			Ok(())
 		}
