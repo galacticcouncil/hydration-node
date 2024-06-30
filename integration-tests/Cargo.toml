@@ -48,6 +48,7 @@ pallet-elections-phragmen = { workspace = true }
 pallet-tips = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 pallet-transaction-pause = { workspace = true }
+pallet-referenda = { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }

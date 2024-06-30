@@ -54,7 +54,10 @@ impl Contains<RuntimeCall> for CallFilter {
 	fn contains(call: &RuntimeCall) -> bool {
 		if matches!(
 			call,
-			RuntimeCall::System(_) | RuntimeCall::Timestamp(_) | RuntimeCall::ParachainSystem(_)
+			RuntimeCall::System(_)
+				| RuntimeCall::Timestamp(_)
+				| RuntimeCall::ParachainSystem(_)
+				| RuntimeCall::Referenda(_)
 		) {
 			// always allow
 			// Note: this is done to avoid unnecessary check of paused storage.
