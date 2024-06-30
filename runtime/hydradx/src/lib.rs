@@ -729,9 +729,9 @@ impl_runtime_apis! {
 
 			list_benchmarks!(list, extra);
 
-			list_benchmark!(list, extra, pallet_conviction_voting, ConvictionVoting);
-			list_benchmark!(list, extra, pallet_referenda, Referenda);
-			list_benchmark!(list, extra, pallet_whitelist, Whitelist);
+			list_benchmarks!(list, extra, pallet_conviction_voting, ConvictionVoting);
+			list_benchmarks!(list, extra, pallet_referenda, Referenda);
+			list_benchmarks!(list, extra, pallet_whitelist, Whitelist);
 
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
@@ -818,9 +818,9 @@ impl_runtime_apis! {
 
 			add_benchmarks!(params, batches);
 
-			add_benchmark!(params, batches, pallet_conviction_voting, ConvictionVoting);
-			add_benchmark!(params, batches, pallet_referenda, Referenda);
-			add_benchmark!(params, batches, pallet_whitelist, Whitelist);
+			add_benchmarks!(params, batches, pallet_conviction_voting, ConvictionVoting);
+			add_benchmarks!(params, batches, pallet_referenda, Referenda);
+			add_benchmarks!(params, batches, pallet_whitelist, Whitelist);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
