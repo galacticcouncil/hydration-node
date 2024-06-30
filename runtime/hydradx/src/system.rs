@@ -17,15 +17,7 @@
 
 use super::*;
 
-use crate::old::{MoreThanHalfCouncil, SuperMajorityTechCommittee};
-
-use pallet_transaction_multi_payment::{DepositAll, TransferFees};
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
-use primitives::constants::{
-	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
-	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
-	time::{DAYS, HOURS, SLOT_DURATION},
-};
+use crate::origins::GeneralAdmin;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use core::cmp::Ordering;
@@ -37,7 +29,7 @@ use frame_support::{
 		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
 	},
 	traits::{
-		fungible::HoldConsideration, ConstBool, Contains, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
+		fungible::HoldConsideration, ConstBool, Contains, EitherOf, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
 		SortedMembers,
 	},
 	weights::{
@@ -48,6 +40,13 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
+use pallet_transaction_multi_payment::{DepositAll, TransferFees};
+use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+use primitives::constants::{
+	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
+	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
+	time::{DAYS, HOURS, SLOT_DURATION},
+};
 use scale_info::TypeInfo;
 
 pub struct CallFilter;
@@ -256,8 +255,7 @@ parameter_types! {
 impl pallet_collator_selection::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	// TODO origin
-	type UpdateOrigin = MoreThanHalfCouncil;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type PotId = PotId;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxCandidates = MaxCandidates;
@@ -283,7 +281,6 @@ impl pallet_preimage::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_preimage::HydraWeight<Runtime>;
 	type Currency = Balances;
-	// TODO origin
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	type Consideration = HoldConsideration<
 		AccountId,
@@ -303,8 +300,7 @@ impl pallet_scheduler::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type RuntimeCall = RuntimeCall;
 	type MaximumWeight = MaximumSchedulerWeight;
-	// TODO origin
-	type ScheduleOrigin = MoreThanHalfCouncil;
+	type ScheduleOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = weights::pallet_scheduler::HydraWeight<Runtime>;
@@ -383,10 +379,8 @@ impl pallet_identity::Config for Runtime {
 	type IdentityInformation = pallet_identity::legacy::IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
 	type Slashed = Treasury;
-	// TODO origin
-	type ForceOrigin = MoreThanHalfCouncil;
-	// TODO origin
-	type RegistrarOrigin = MoreThanHalfCouncil;
+	type ForceOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type RegistrarOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type OffchainSignature = Signature;
 	type SigningPublicKey = <Signature as sp_runtime::traits::Verify>::Signer;
 	type UsernameAuthorityOrigin = EnsureRoot<AccountId>;
@@ -562,8 +556,7 @@ impl pallet_transaction_payment::Config for Runtime {
 
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	// TODO origin
-	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
+	type AcceptedCurrencyOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type Currencies = Currencies;
 	type RouteProvider = Router;
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
@@ -614,8 +607,7 @@ impl pallet_collator_rewards::Config for Runtime {
 
 impl pallet_transaction_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	// TODO origin
-	type UpdateOrigin = SuperMajorityTechCommittee;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
 
@@ -634,8 +626,7 @@ parameter_types! {
 }
 
 impl pallet_state_trie_migration::Config for Runtime {
-	// TODO origin
-	type ControlOrigin = SuperMajorityTechCommittee;
+	type ControlOrigin = EnsureRoot<Self::AccountId>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type SignedFilter = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
 	#[cfg(feature = "runtime-benchmarks")]

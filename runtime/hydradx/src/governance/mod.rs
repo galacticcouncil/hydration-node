@@ -33,22 +33,23 @@ mod tracks;
 
 use super::*;
 use crate::governance::{
-	origins::{ReferendumCanceller, ReferendumKiller, Spender, WhitelistedCaller},
+	origins::{ReferendumCanceller, ReferendumKiller, Spender, Treasurer, WhitelistedCaller},
 	tracks::TracksInfo,
 };
-use crate::old::{MoreThanHalfCouncil, TreasuryApproveOrigin};
 use frame_support::{
 	parameter_types,
 	sp_runtime::Permill,
 	traits::{tokens::UnityAssetBalanceConversion, EitherOf},
 	PalletId,
 };
+use frame_system::{EnsureRoot, EnsureRootWithSuccess};
 use primitives::constants::{currency::DOLLARS, time::DAYS};
 use sp_arithmetic::Perbill;
 use sp_core::ConstU32;
 use sp_runtime::traits::IdentityLookup;
+use pallet_collective::EnsureProportionAtLeast;
 
-use frame_system::{EnsureRoot, EnsureRootWithSuccess};
+pub type TechCommitteeMajority = EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 2>;
 
 parameter_types! {
 	pub const TechnicalMaxProposals: u32 = 20;
@@ -142,10 +143,8 @@ impl frame_support::traits::tokens::Pay for PayFromTreasuryAccount {
 
 impl pallet_treasury::Config for Runtime {
 	type Currency = Balances;
-	// TODO origin
-	type ApproveOrigin = TreasuryApproveOrigin;
-	// TODO origin
-	type RejectOrigin = MoreThanHalfCouncil;
+	type ApproveOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
+	type RejectOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type RuntimeEvent = RuntimeEvent;
 	type OnSlash = Treasury;
 	type ProposalBond = ProposalBond;
@@ -159,8 +158,7 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	// TODO origin
-	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
+	type SpendOrigin = TreasurySpender;
 	#[cfg(feature = "runtime-benchmarks")]
 	type SpendOrigin =
 		frame_system::EnsureWithSuccess<EnsureRoot<AccountId>, AccountId, crate::benches::BenchmarkMaxBalance>;
@@ -197,8 +195,7 @@ impl pallet_whitelist::Config for Runtime {
 	type WeightInfo = weights::pallet_whitelist::WeightInfo<Self>;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
-	// TODO WhitelistOrigin
-	type WhitelistOrigin = EnsureRoot<Self::AccountId>;
+	type WhitelistOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type DispatchWhitelistedOrigin = EitherOf<EnsureRoot<Self::AccountId>, WhitelistedCaller>;
 	type Preimages = Preimage;
 }

@@ -21,6 +21,7 @@
 
 use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
 use crate::evm::runner::WrapRunner;
+use crate::origins::GeneralAdmin;
 use crate::types::ShortOraclePrice;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
@@ -30,10 +31,11 @@ use crate::{NativeAssetId, LRNA};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
-	traits::{Defensive, FindAuthor},
+	traits::{Defensive, EitherOf, FindAuthor},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 	ConsensusEngineId,
 };
+use frame_system::EnsureRoot;
 use hex_literal::hex;
 use hydradx_adapters::price::ConvertAmount;
 use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
@@ -187,8 +189,7 @@ impl pallet_evm_accounts::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
 	type FeeMultiplier = sp_core::ConstU32<50>;
 	type EvmNonceProvider = EvmNonceProvider;
-	// TODO origin
-	type ControllerOrigin = crate::old::SuperMajorityTechCommittee;
+	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type WeightInfo = crate::weights::pallet_evm_accounts::HydraWeight<crate::Runtime>;
 }
 
