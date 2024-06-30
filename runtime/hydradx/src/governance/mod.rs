@@ -43,11 +43,11 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureRootWithSuccess};
+use pallet_collective::EnsureProportionAtLeast;
 use primitives::constants::{currency::DOLLARS, time::DAYS};
 use sp_arithmetic::Perbill;
 use sp_core::ConstU32;
 use sp_runtime::traits::IdentityLookup;
-use pallet_collective::EnsureProportionAtLeast;
 
 pub type TechCommitteeMajority = EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 2>;
 
