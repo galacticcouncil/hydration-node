@@ -2,9 +2,9 @@
 
 use crate::asset_registry::Junction::GeneralIndex;
 use crate::polkadot_test_net::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_runtime::{AssetRegistry as Registry, TechnicalCollective};
+use hydradx_runtime::AssetRegistry as Registry;
 use polkadot_xcm::v3::{
 	Junction::{self, Parachain},
 	Junctions::X2,

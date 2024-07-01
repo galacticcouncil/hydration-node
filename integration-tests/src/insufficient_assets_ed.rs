@@ -7,8 +7,8 @@ use frame_support::{assert_noop, assert_ok, traits::Contains};
 use frame_system::RawOrigin;
 use hydradx_runtime::RuntimeOrigin as hydra_origin;
 use hydradx_runtime::{
-	AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX, MultiTransactionPayment,
-	NativeExistentialDeposit, RuntimeEvent, TechnicalCollective, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
+	origins::Origin, AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX,
+	MultiTransactionPayment, NativeExistentialDeposit, RuntimeEvent, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
 };
 use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
@@ -1343,7 +1343,7 @@ fn tx_should_fail_with_unsupported_currency_error_when_fee_asset_price_was_not_p
 fn banned_asset_should_not_create_new_account() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let tech_comm = pallet_collective::RawOrigin::<AccountId, TechnicalCollective>::Members(1, 1);
+		let update_origin = hydradx_runtime::OriginCaller::Origins(Origin::GeneralAdmin);
 		//Arrange
 		let sht1: AssetId = register_external_asset(0_u128);
 		assert_ok!(Tokens::set_balance(
@@ -1354,7 +1354,7 @@ fn banned_asset_should_not_create_new_account() {
 			0,
 		));
 
-		assert_ok!(Registry::ban_asset(tech_comm.into(), sht1));
+		assert_ok!(Registry::ban_asset(update_origin.into(), sht1));
 
 		assert_eq!(Currencies::free_balance(sht1, &ALICE.into()), 0);
 		assert_eq!(treasury_sufficiency_lock(), 0);
@@ -1371,7 +1371,7 @@ fn banned_asset_should_not_create_new_account() {
 fn banned_asset_should_not_be_transferable_to_existing_account() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		let tech_comm = pallet_collective::RawOrigin::<AccountId, TechnicalCollective>::Members(1, 1);
+		let update_origin = hydradx_runtime::OriginCaller::Origins(Origin::GeneralAdmin);
 		//Arrange
 		let sht1: AssetId = register_external_asset(0_u128);
 		assert_ok!(Tokens::set_balance(
@@ -1390,7 +1390,7 @@ fn banned_asset_should_not_be_transferable_to_existing_account() {
 			0,
 		));
 
-		assert_ok!(Registry::ban_asset(tech_comm.into(), sht1));
+		assert_ok!(Registry::ban_asset(update_origin.into(), sht1));
 
 		//Act & assert
 		assert_noop!(
