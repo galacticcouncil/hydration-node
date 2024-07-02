@@ -146,11 +146,11 @@ fn buy_hub_asset_should_work() {
 				u128::MAX
 			),);
 
-			pretty_assertions::assert_eq!(Tokens::free_balance(HDX, &LP1), 1898_989_898_989_899);
+			pretty_assertions::assert_eq!(Tokens::free_balance(HDX, &LP1), 1898_989_898_989_898);
 			pretty_assertions::assert_eq!(Tokens::free_balance(LRNA, &LP1), 100 * ONE);
 			pretty_assertions::assert_eq!(
 				Tokens::free_balance(HDX, &Omnipool::protocol_account()),
-				10101010101010101
+				10101010101010102
 			);
 			pretty_assertions::assert_eq!(
 				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
@@ -168,7 +168,7 @@ fn buy_hub_asset_should_work() {
 			assert_asset_state!(
 				HDX,
 				AssetReserveState {
-					reserve: 10101010101010101,
+					reserve: 10101010101010102,
 					hub_reserve: 9900000000000000,
 					shares: 10000000000000000,
 					protocol_shares: Balance::zero(),

@@ -262,9 +262,11 @@ pub fn calculate_buy_hub_asset_state_changes(
 	let (in_reserve, hub_reserve, hub_out_amount) =
 		to_u256!(asset_in_state.reserve, asset_in_state.hub_reserve, hub_asset_amount);
 
+	//TODO: verify that round up is correct here!
 	let delta_reserve_in = in_reserve
 		.checked_mul(hub_out_amount)?
-		.checked_div(hub_reserve.checked_sub(hub_out_amount)?)?;
+		.checked_div(hub_reserve.checked_sub(hub_out_amount)?)?
+		.checked_add(U256::one())?;
 
 	// we assume, for now, that buying LRNA is only possible when modify_imbalance = False
 	let delta_l = 0;
