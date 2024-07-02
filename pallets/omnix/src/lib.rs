@@ -121,6 +121,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Intent id sequencer
+	#[pallet::getter(fn next_incremental_id)]
 	pub(super) type NextIncrementalId<T: Config> = StorageValue<_, IncrementalIntentId, ValueQuery>;
 
 	#[pallet::storage]
@@ -221,7 +222,7 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account_truncating()
 	}
 
-	pub(crate) fn get_intent_id(deadline: Moment, increment: IncrementalIntentId) -> IntentId {
+	pub fn get_intent_id(deadline: Moment, increment: IncrementalIntentId) -> IntentId {
 		(deadline as u128) << 64 | increment as u128
 	}
 

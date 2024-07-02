@@ -190,6 +190,7 @@ construct_runtime!(
 		Tokens: orml_tokens = 77,
 		Currencies: pallet_currencies = 79,
 		Vesting: orml_vesting = 81,
+		OmniX: pallet_omnix= 82,
 
 		// Frontier and EVM pallets
 		EVM: pallet_evm = 90,

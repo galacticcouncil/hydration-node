@@ -12,6 +12,7 @@ use hydradx_traits::router::RouterT;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{DispatchError, Rounding};
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec::Vec;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Instruction<AccountId, AssetId> {
@@ -39,7 +40,7 @@ pub struct ExecutionPlan<AccountId, AssetId> {
 	pub weight: Weight,
 }
 
-pub struct OmniXEngine<T, C, R>(std::marker::PhantomData<(T, C, R)>);
+pub struct OmniXEngine<T, C, R>(sp_std::marker::PhantomData<(T, C, R)>);
 
 impl<T: Config, C, R> OmniXEngine<T, C, R>
 where
@@ -238,7 +239,7 @@ where
 							asset_out,
 							amount_out,
 							amount_in, // it is set as limit in the instruction
-							vec![],
+							Vec::new(),
 						)?;
 					} else {
 						// sell token
@@ -248,7 +249,7 @@ where
 							asset_out,
 							amount_in,
 							amount_out, // set as limit in the instruction
-							vec![],
+							Vec::new(),
 						)?;
 					}
 				}

@@ -447,6 +447,14 @@ parameter_types! {
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
 }
 
+pub struct AllowedHubAssetTraders;
+
+impl Contains<AccountId> for AllowedHubAssetTraders {
+	fn contains(a: &AccountId) -> bool {
+		*a == pallet_omnix::Pallet::<Runtime>::holding_account()
+	}
+}
+
 impl pallet_omnipool::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -485,6 +493,24 @@ impl pallet_omnipool::Config for Runtime {
 	);
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
+	type HubAssetTradeAllowedFor = AllowedHubAssetTraders;
+}
+
+parameter_types! {
+	pub const OmnixPalletId: PalletId = PalletId(*b"omnixacc");
+	pub const MaxCallData: u32 = 4 * 1024 * 1024;
+}
+
+impl pallet_omnix::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type HubAssetId = LRNA;
+	type TimestampProvider = Timestamp;
+	type Currency = FungibleCurrencies<Runtime>;
+	type TradeExecutor = Router;
+	type PalletId = OmnixPalletId;
+	type MaxCallData = MaxCallData;
+	type WeightInfo = ();
 }
 
 pub struct CircuitBreakerWhitelist;

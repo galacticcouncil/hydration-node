@@ -23,12 +23,12 @@ pub type Price = (Balance, Balance);
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Intent<AccountId, AssetId> {
-	pub(crate) who: AccountId,
-	pub(crate) swap: Swap<AssetId>,
-	pub(crate) deadline: Moment,
-	pub(crate) partial: bool,
-	pub(crate) on_success: Option<CallData>,
-	pub(crate) on_failure: Option<CallData>,
+	pub who: AccountId,
+	pub swap: Swap<AssetId>,
+	pub deadline: Moment,
+	pub partial: bool,
+	pub on_success: Option<CallData>,
+	pub on_failure: Option<CallData>,
 	//TODO: nonce?!
 	// nonce: Nonce,
 }

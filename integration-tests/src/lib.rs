@@ -19,6 +19,7 @@ mod insufficient_assets_ed;
 mod non_native_fee;
 mod omnipool_init;
 mod omnipool_liquidity_mining;
+mod omnix;
 mod oracle;
 mod otc;
 mod polkadot_test_net;
