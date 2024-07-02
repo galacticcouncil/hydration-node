@@ -9,13 +9,13 @@ fn sell_asset_for_hub_asset_not_allowed_by_default() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),
 			(Omnipool::protocol_account(), 2, 1000 * ONE),
-			(LP1, HDX, 2000 * ONE),
+			(HUB_ASSET_TRADER, HDX, 2000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(RuntimeOrigin::signed(LP1), HDX, LRNA, 100 * ONE, 0),
+				Omnipool::sell(RuntimeOrigin::signed(HUB_ASSET_TRADER), HDX, LRNA, 100 * ONE, 0),
 				Error::<Test>::NotAllowed
 			);
 		});
@@ -75,7 +75,7 @@ fn sell_asset_for_hub_asset_should_work() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),
 			(Omnipool::protocol_account(), 2, 1000 * ONE),
-			(LP1, HDX, 2000 * ONE),
+			(HUB_ASSET_TRADER, HDX, 2000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -86,10 +86,16 @@ fn sell_asset_for_hub_asset_should_work() {
 				Tradability::BUY | Tradability::SELL
 			));
 
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), HDX, LRNA, 100 * ONE, 0),);
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(HUB_ASSET_TRADER),
+				HDX,
+				LRNA,
+				100 * ONE,
+				0
+			),);
 
-			pretty_assertions::assert_eq!(Tokens::free_balance(HDX, &LP1), 1900_000_000_000_000);
-			pretty_assertions::assert_eq!(Tokens::free_balance(LRNA, &LP1), 99009900990099);
+			pretty_assertions::assert_eq!(Tokens::free_balance(HDX, &HUB_ASSET_TRADER), 1900_000_000_000_000);
+			pretty_assertions::assert_eq!(Tokens::free_balance(LRNA, &HUB_ASSET_TRADER), 99009900990099);
 			pretty_assertions::assert_eq!(
 				Tokens::free_balance(HDX, &Omnipool::protocol_account()),
 				10100000000000000
@@ -127,7 +133,7 @@ fn buy_hub_asset_should_work() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),
 			(Omnipool::protocol_account(), 2, 1000 * ONE),
-			(LP1, HDX, 2000 * ONE),
+			(HUB_ASSET_TRADER, HDX, 2000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -139,15 +145,15 @@ fn buy_hub_asset_should_work() {
 			));
 
 			assert_ok!(Omnipool::buy(
-				RuntimeOrigin::signed(LP1),
+				RuntimeOrigin::signed(HUB_ASSET_TRADER),
 				LRNA,
 				HDX,
 				100 * ONE,
 				u128::MAX
 			),);
 
-			pretty_assertions::assert_eq!(Tokens::free_balance(HDX, &LP1), 1898_989_898_989_898);
-			pretty_assertions::assert_eq!(Tokens::free_balance(LRNA, &LP1), 100 * ONE);
+			pretty_assertions::assert_eq!(Tokens::free_balance(HDX, &HUB_ASSET_TRADER), 1898_989_898_989_898);
+			pretty_assertions::assert_eq!(Tokens::free_balance(LRNA, &HUB_ASSET_TRADER), 100 * ONE);
 			pretty_assertions::assert_eq!(
 				Tokens::free_balance(HDX, &Omnipool::protocol_account()),
 				10101010101010102
@@ -187,7 +193,7 @@ fn buy_hub_asset_and_sell_hub_asset_should_match_direct_trade() {
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
 			(LP2, 100, 2000 * ONE),
 			(LP3, 200, 2000 * ONE),
-			(LP1, 100, 1000 * ONE),
+			(HUB_ASSET_TRADER, 100, 1000 * ONE),
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
@@ -202,14 +208,24 @@ fn buy_hub_asset_and_sell_hub_asset_should_match_direct_trade() {
 				Tradability::BUY | Tradability::SELL
 			));
 			let liq_added = 400 * ONE;
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(HUB_ASSET_TRADER),
+				100,
+				liq_added
+			));
 
 			let sell_amount = 50 * ONE;
 
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, LRNA, sell_amount, 0,),);
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(HUB_ASSET_TRADER),
+				100,
+				LRNA,
+				sell_amount,
+				0,
+			),);
 
 			assert_ok!(Omnipool::buy(
-				RuntimeOrigin::signed(LP1),
+				RuntimeOrigin::signed(HUB_ASSET_TRADER),
 				200,
 				LRNA,
 				47808764940238,
@@ -217,10 +233,10 @@ fn buy_hub_asset_and_sell_hub_asset_should_match_direct_trade() {
 			),);
 
 			// ensure nothing left
-			pretty_assertions::assert_eq!(Tokens::free_balance(LRNA, &LP1), 0);
+			pretty_assertions::assert_eq!(Tokens::free_balance(LRNA, &HUB_ASSET_TRADER), 0);
 
-			pretty_assertions::assert_eq!(Tokens::free_balance(100, &LP1), 550000000000000);
-			pretty_assertions::assert_eq!(Tokens::free_balance(200, &LP1), 47808764940238);
+			pretty_assertions::assert_eq!(Tokens::free_balance(100, &HUB_ASSET_TRADER), 550000000000000);
+			pretty_assertions::assert_eq!(Tokens::free_balance(200, &HUB_ASSET_TRADER), 47808764940238);
 			pretty_assertions::assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
 			pretty_assertions::assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2450 * ONE);
 			pretty_assertions::assert_eq!(

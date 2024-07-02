@@ -86,6 +86,7 @@
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::require_transactional;
+use frame_support::traits::Contains;
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
@@ -228,6 +229,9 @@ pub mod pallet {
 
 		/// Oracle price provider. Provides price for given asset. Used in remove liquidity to support calculation of dynamic withdrawal fee.
 		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
+
+		/// Only certain accounts are allowed to buy Hub asset.
+		type HubAssetTradeAllowedFor: Contains<Self::AccountId>;
 	}
 
 	#[pallet::storage]
@@ -2049,7 +2053,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
-		//TODO: add check of who can buy hub asset- only allowed accounts can buy
+		ensure!(T::HubAssetTradeAllowedFor::contains(who), Error::<T>::NotAllowed);
 
 		let asset_state = Self::load_asset_state(asset_in)?;
 		ensure!(asset_state.tradable.contains(Tradability::SELL), Error::<T>::NotAllowed);
@@ -2154,7 +2158,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
-		//TODO: add check of who can buy hub asset- only allowed accounts can buy
+		ensure!(T::HubAssetTradeAllowedFor::contains(who), Error::<T>::NotAllowed);
 
 		let asset_state = Self::load_asset_state(asset_in)?;
 		ensure!(asset_state.tradable.contains(Tradability::SELL), Error::<T>::NotAllowed);
