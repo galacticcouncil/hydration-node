@@ -253,6 +253,59 @@ pub fn calculate_buy_state_changes(
 	})
 }
 
+pub fn calculate_buy_hub_asset_state_changes(
+	asset_in_state: &AssetReserveState<Balance>,
+	hub_asset_amount: Balance,
+	_imbalance: I129<Balance>,
+	_total_hub_reserve: Balance,
+) -> Option<HubTradeStateChange<Balance>> {
+	let (in_reserve, hub_reserve, hub_out_amount) =
+		to_u256!(asset_in_state.reserve, asset_in_state.hub_reserve, hub_asset_amount);
+
+	let delta_reserve_in = in_reserve
+		.checked_mul(hub_out_amount)?
+		.checked_div(hub_reserve.checked_sub(hub_out_amount)?)?;
+
+	// we assume, for now, that buying LRNA is only possible when modify_imbalance = False
+	let delta_l = 0;
+
+	Some(HubTradeStateChange {
+		asset: AssetStateChange {
+			delta_reserve: Increase(to_balance!(delta_reserve_in).ok()?),
+			delta_hub_reserve: Decrease(hub_asset_amount),
+			..Default::default()
+		},
+		delta_imbalance: Increase(delta_l),
+		fee: TradeFee::default(),
+	})
+}
+
+pub fn calculate_sell_for_hub_asset_state_changes(
+	asset_in_state: &AssetReserveState<Balance>,
+	amount_in: Balance,
+	_imbalance: I129<Balance>,
+	_total_hub_reserve: Balance,
+) -> Option<HubTradeStateChange<Balance>> {
+	let (in_reserve, hub_reserve, in_amount) = to_u256!(asset_in_state.reserve, asset_in_state.hub_reserve, amount_in);
+
+	let delta_hub_reserve_out = hub_reserve
+		.checked_mul(in_amount)?
+		.checked_div(in_reserve.checked_add(in_amount)?)?;
+
+	// we assume, for now, that buying LRNA is only possible when modify_imbalance = False
+	let delta_l = 0;
+
+	Some(HubTradeStateChange {
+		asset: AssetStateChange {
+			delta_reserve: Increase(amount_in),
+			delta_hub_reserve: Decrease(to_balance!(delta_hub_reserve_out).ok()?),
+			..Default::default()
+		},
+		delta_imbalance: Increase(delta_l),
+		fee: TradeFee::default(),
+	})
+}
+
 /// Calculate delta changes of add liqudiity given current asset state
 pub fn calculate_add_liquidity_state_changes(
 	asset_state: &AssetReserveState<Balance>,

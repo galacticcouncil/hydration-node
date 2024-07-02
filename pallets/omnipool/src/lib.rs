@@ -1052,7 +1052,7 @@ pub mod pallet {
 			}
 
 			if asset_out == T::HubAssetId::get() {
-				return Self::sell_asset_for_hub_asset(&who, asset_in, amount, min_buy_amount);
+				return Self::sell_asset_for_hub_asset(origin, &who, asset_in, amount, min_buy_amount);
 			}
 
 			let asset_in_state = Self::load_asset_state(asset_in)?;
@@ -1252,7 +1252,7 @@ pub mod pallet {
 
 			// Special handling when one of the asset is Hub Asset
 			if asset_out == T::HubAssetId::get() {
-				return Self::buy_hub_asset(&who, asset_in, amount, max_sell_amount);
+				return Self::buy_hub_asset(origin, &who, asset_in, amount, max_sell_amount);
 			}
 
 			if asset_in == T::HubAssetId::get() {
@@ -1436,7 +1436,6 @@ pub mod pallet {
 
 			if asset_id == T::HubAssetId::get() {
 				// Atm omnipool does not allow adding/removing liquidity of hub asset.
-				// Although BUY is not supported yet, we can allow the new state to be set to SELL/BUY.
 				ensure!(
 					!state.contains(Tradability::ADD_LIQUIDITY) && !state.contains(Tradability::REMOVE_LIQUIDITY),
 					Error::<T>::InvalidHubAssetTradableState
@@ -2038,35 +2037,209 @@ impl<T: Config> Pallet<T> {
 
 	/// Buy hub asset from the pool
 	/// Special handling of buy trade where asset out is Hub Asset.
-	fn buy_hub_asset(_who: &T::AccountId, _asset_in: T::AssetId, _amount: Balance, _limit: Balance) -> DispatchResult {
-		ensure!(
-			HubAssetTradability::<T>::get().contains(Tradability::BUY),
-			Error::<T>::NotAllowed
-		);
-
-		// Note: Currently not allowed at all, neither math is done for this case
-		// this is already ready when hub asset will be allowed to be bought from the pool
-
-		Err(Error::<T>::NotAllowed.into())
-	}
-
-	/// Swap asset for Hub Asset
-	/// Special handling of sell trade where asset out is Hub Asset.
-	fn sell_asset_for_hub_asset(
-		_who: &T::AccountId,
-		_asset_in: T::AssetId,
-		_amount: Balance,
-		_limit: Balance,
+	fn buy_hub_asset(
+		origin: T::RuntimeOrigin,
+		who: &T::AccountId,
+		asset_in: T::AssetId,
+		hub_asset_amount: Balance,
+		limit: Balance,
 	) -> DispatchResult {
 		ensure!(
 			HubAssetTradability::<T>::get().contains(Tradability::BUY),
 			Error::<T>::NotAllowed
 		);
 
-		// Note: Currently not allowed at all, neither math is done for this case
-		// this is already ready when hub asset will be allowed to be bought from the pool
+		//TODO: add check of who can buy hub asset- only allowed accounts can buy
 
-		Err(Error::<T>::NotAllowed.into())
+		let asset_state = Self::load_asset_state(asset_in)?;
+		ensure!(asset_state.tradable.contains(Tradability::SELL), Error::<T>::NotAllowed);
+
+		ensure!(
+			hub_asset_amount
+				<= asset_state
+					.hub_reserve
+					.checked_div(T::MaxOutRatio::get())
+					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+			Error::<T>::MaxOutRatioExceeded
+		);
+
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+
+		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
+
+		let state_changes = hydra_dx_math::omnipool::calculate_buy_hub_asset_state_changes(
+			&(&asset_state).into(),
+			hub_asset_amount,
+			I129 {
+				value: current_imbalance.value,
+				negative: current_imbalance.negative,
+			},
+			current_hub_asset_liquidity,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(
+			*state_changes.asset.delta_reserve <= limit,
+			Error::<T>::SellLimitExceeded
+		);
+
+		ensure!(
+			*state_changes.asset.delta_reserve
+				<= asset_state
+					.reserve
+					.checked_div(T::MaxInRatio::get())
+					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+			Error::<T>::MaxInRatioExceeded
+		);
+
+		let new_asset_state = asset_state
+			.delta_update(&state_changes.asset)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		T::Currency::transfer(
+			T::HubAssetId::get(),
+			&Self::protocol_account(),
+			who,
+			*state_changes.asset.delta_hub_reserve,
+		)?;
+		T::Currency::transfer(
+			asset_in,
+			who,
+			&Self::protocol_account(),
+			*state_changes.asset.delta_reserve,
+		)?;
+
+		let info: AssetInfo<T::AssetId, Balance> =
+			AssetInfo::new(asset_in, &asset_state, &new_asset_state, &state_changes.asset, false);
+
+		Self::update_imbalance(state_changes.delta_imbalance)?;
+
+		Self::set_asset_state(asset_in, new_asset_state);
+
+		Self::process_trade_fee(who, asset_in, state_changes.fee.asset_fee)?;
+
+		debug_assert_eq!(
+			*state_changes.asset.delta_hub_reserve, hub_asset_amount,
+			"Hub asset amount mismatch"
+		);
+
+		Self::deposit_event(Event::BuyExecuted {
+			who: who.clone(),
+			asset_in,
+			asset_out: T::HubAssetId::get(),
+			amount_in: *state_changes.asset.delta_reserve,
+			amount_out: *state_changes.asset.delta_hub_reserve,
+			hub_amount_in: 0,
+			hub_amount_out: 0,
+			asset_fee_amount: state_changes.fee.asset_fee,
+			protocol_fee_amount: state_changes.fee.protocol_fee,
+		});
+
+		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
+
+		Ok(())
+	}
+
+	/// Swap asset for Hub Asset
+	/// Special handling of sell trade where asset out is Hub Asset.
+	fn sell_asset_for_hub_asset(
+		origin: T::RuntimeOrigin,
+		who: &T::AccountId,
+		asset_in: T::AssetId,
+		amount_in: Balance,
+		limit: Balance,
+	) -> DispatchResult {
+		ensure!(
+			HubAssetTradability::<T>::get().contains(Tradability::BUY),
+			Error::<T>::NotAllowed
+		);
+
+		//TODO: add check of who can buy hub asset- only allowed accounts can buy
+
+		let asset_state = Self::load_asset_state(asset_in)?;
+		ensure!(asset_state.tradable.contains(Tradability::SELL), Error::<T>::NotAllowed);
+
+		ensure!(
+			amount_in
+				<= asset_state
+					.reserve
+					.checked_div(T::MaxInRatio::get())
+					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+			Error::<T>::MaxInRatioExceeded
+		);
+
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+
+		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
+
+		let state_changes = hydra_dx_math::omnipool::calculate_sell_for_hub_asset_state_changes(
+			&(&asset_state).into(),
+			amount_in,
+			I129 {
+				value: current_imbalance.value,
+				negative: current_imbalance.negative,
+			},
+			current_hub_asset_liquidity,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(
+			*state_changes.asset.delta_hub_reserve >= limit,
+			Error::<T>::BuyLimitNotReached
+		);
+
+		ensure!(
+			*state_changes.asset.delta_hub_reserve
+				<= asset_state
+					.hub_reserve
+					.checked_div(T::MaxOutRatio::get())
+					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+			Error::<T>::MaxOutRatioExceeded
+		);
+
+		let new_asset_state = asset_state
+			.delta_update(&state_changes.asset)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		debug_assert_eq!(*state_changes.asset.delta_reserve, amount_in, "Asset amount mismatch");
+
+		T::Currency::transfer(
+			T::HubAssetId::get(),
+			&Self::protocol_account(),
+			who,
+			*state_changes.asset.delta_hub_reserve,
+		)?;
+		T::Currency::transfer(
+			asset_in,
+			who,
+			&Self::protocol_account(),
+			*state_changes.asset.delta_reserve,
+		)?;
+
+		let info: AssetInfo<T::AssetId, Balance> =
+			AssetInfo::new(asset_in, &asset_state, &new_asset_state, &state_changes.asset, false);
+
+		Self::update_imbalance(state_changes.delta_imbalance)?;
+
+		Self::set_asset_state(asset_in, new_asset_state);
+
+		Self::process_trade_fee(who, asset_in, state_changes.fee.asset_fee)?;
+
+		Self::deposit_event(Event::SellExecuted {
+			who: who.clone(),
+			asset_in,
+			asset_out: T::HubAssetId::get(),
+			amount_in: *state_changes.asset.delta_reserve,
+			amount_out: *state_changes.asset.delta_hub_reserve,
+			hub_amount_in: 0,
+			hub_amount_out: 0,
+			asset_fee_amount: state_changes.fee.asset_fee,
+			protocol_fee_amount: state_changes.fee.protocol_fee,
+		});
+
+		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
+
+		Ok(())
 	}
 
 	/// Get hub asset balance of protocol account
