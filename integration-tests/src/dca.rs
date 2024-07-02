@@ -36,11 +36,10 @@ const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 mod omnipool {
 	use super::*;
 	use frame_support::assert_ok;
-	use sp_core::U512;
 	use hydradx_runtime::{DCA, XYK};
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::AssetKind;
-	use sp_runtime::{ArithmeticError, FixedU128, print, TransactionOutcome};
+	use sp_runtime::{FixedU128, TransactionOutcome};
 
 	#[test]
 	fn create_schedule_should_work() {
@@ -80,7 +79,6 @@ mod omnipool {
 			.into()]);
 		});
 	}
-	use pallet_route_executor::TradeExecution;
 	#[test]
 	fn create_schedule_should_work_when_insufficient_asset_as_fee() {
 		TestNet::reset();
@@ -670,11 +668,6 @@ mod omnipool {
 		});
 	}
 
-	use hydradx_runtime::NativePriceOracle;
-	use pallet_xyk::Error;
-	use pallet_xyk::types::AssetPair;
-
-	//TODO: prop test again
 	#[test]
 	fn insufficient_fee_asset_should_be_swapped_for_dot() {
 		TestNet::reset();
@@ -696,7 +689,7 @@ mod omnipool {
 					None,
 					None,
 				)
-				.unwrap();
+					.unwrap();
 				create_xyk_pool(insufficient_asset, 10000 * UNITS, DAI, 20000 * UNITS);
 				create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 1000000000000);
 				assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
