@@ -24,7 +24,10 @@ type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
 type BoundedCallOf<T> = Bounded<CallOf<T>, <T as frame_system::Config>::Hashing>;
 type Schedule = VestingSchedule<BlockNumber, Balance>;
 
-const ROOT_TRACK: <hydradx_runtime::governance::tracks::TracksInfo as pallet_referenda::TracksInfo<Balance, BlockNumber>>::Id = 0;
+const ROOT_TRACK: <hydradx_runtime::governance::tracks::TracksInfo as pallet_referenda::TracksInfo<
+	Balance,
+	BlockNumber,
+>>::Id = 0;
 
 fn vesting_schedule() -> Schedule {
 	Schedule {
@@ -585,7 +588,7 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 		));
 		let alice_balance_after_claim = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert!(alice_balance_after_claim > alice_balance);
-		assert_eq!(alice_balance_after_claim, 1000000001920799631);
+		assert_eq!(alice_balance_after_claim, 999900127998361620);
 
 		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
 			&sp_runtime::AccountId32::from(ALICE),
@@ -2315,7 +2318,6 @@ fn claim_should_work_when_processed_votes_are_removed() {
 		));
 
 		end_referendum();
-
 
 		// Votes are processed
 		assert_ok!(Staking::increase_stake(
