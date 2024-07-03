@@ -1094,11 +1094,12 @@ impl<T: Config> Pallet<T> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else if !T::InspectRegistry::is_sufficient(asset_id) {
-			let fee_amount_in_dot = Self::get_fee_in_dot(asset_amount).map_err(|err|ArithmeticError::Overflow)?;
-
 			let asset_pair_account = T::XYK::get_pair_id(AssetPair::new(asset_id.into(), T::PolkadotNativeAssetId::get().into()));
 			let out_reserve = T::Currencies::free_balance(T::PolkadotNativeAssetId::get(), &asset_pair_account);
 			let in_reserve = T::Currencies::free_balance(asset_id, &asset_pair_account.clone());
+
+			let fee_amount_in_dot = Self::get_fee_in_dot(asset_amount).map_err(|err|ArithmeticError::Overflow)?; //TODO: we don't need map error? Check other
+
 			hydra_dx_math::xyk::calculate_in_given_out(out_reserve,in_reserve,fee_amount_in_dot).map_err(|err|ArithmeticError::Overflow)?
 		}
 		else {
@@ -1113,7 +1114,6 @@ impl<T: Config> Pallet<T> {
 
 	fn get_fee_in_dot(fee_amount_in_native: Balance) -> Result<Balance, DispatchError> {
 		//TODO: test on live if this conversion is fine as is it is
-		//TODO: add HDX support
 		let dot_per_hdx_price = T::NativePriceOracle::price(T::PolkadotNativeAssetId::get())
 			.ok_or(Error::<T>::CalculatingPriceError)?;
 
