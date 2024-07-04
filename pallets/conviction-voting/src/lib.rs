@@ -26,6 +26,7 @@
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::mem_replace_with_default)]
 
 use crate::traits::VotingHooks;
 use frame_support::{
