@@ -16,8 +16,8 @@
 // limitations under the License.
 
 //! ConvictionVoting pallet benchmarking.
-#[allow(clippy::unnecessary_cast)]
-#[allow(clippy::len_zero)]
+#![allow(clippy::unnecessary_cast)]
+#![allow(clippy::len_zero)]
 use super::*;
 
 use assert_matches::assert_matches;
