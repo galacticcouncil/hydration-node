@@ -45,6 +45,7 @@ mod tests;
 mod benchmarks;
 
 pub mod integrations;
+pub mod migration;
 pub mod traits;
 pub mod types;
 pub mod weights;
@@ -68,7 +69,7 @@ pub mod pallet {
 	use sp_runtime::traits::AtLeast32BitUnsigned;
 
 	/// Current storage version.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]

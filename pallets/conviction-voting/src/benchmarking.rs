@@ -75,6 +75,8 @@ benchmarks_instance_pallet! {
 		whitelist_account!(caller);
 		let account_vote = account_vote::<T, I>(100u32.into());
 
+		T::DemocracyHooks::on_vote_worst_case(&caller);
+
 		let (class, all_polls) = fill_voting::<T, I>();
 		let polls = &all_polls[&class];
 		let r = polls.len() - 1;
@@ -101,6 +103,8 @@ benchmarks_instance_pallet! {
 		let caller = funded_account::<T, I>("caller", 0);
 		whitelist_account!(caller);
 		let old_account_vote = account_vote::<T, I>(100u32.into());
+
+		T::DemocracyHooks::on_vote_worst_case(&caller);
 
 		let (class, all_polls) = fill_voting::<T, I>();
 		let polls = &all_polls[&class];
@@ -130,6 +134,8 @@ benchmarks_instance_pallet! {
 		whitelist_account!(caller);
 		let old_account_vote = account_vote::<T, I>(100u32.into());
 
+		T::DemocracyHooks::on_remove_vote_worst_case(&caller);
+
 		let (class, all_polls) = fill_voting::<T, I>();
 		let polls = &all_polls[&class];
 		let r = polls.len();
@@ -158,6 +164,8 @@ benchmarks_instance_pallet! {
 		let voter_lookup = T::Lookup::unlookup(voter.clone());
 		whitelist_account!(caller);
 		let old_account_vote = account_vote::<T, I>(100u32.into());
+
+		T::DemocracyHooks::on_remove_vote_worst_case(&caller);
 
 		let (class, all_polls) = fill_voting::<T, I>();
 		let polls = &all_polls[&class];
