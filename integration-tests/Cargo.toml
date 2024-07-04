@@ -49,6 +49,7 @@ pallet-tips = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-referenda = { workspace = true }
+pallet-conviction-voting= { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }
