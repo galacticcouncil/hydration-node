@@ -1629,6 +1629,176 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
 		});
 	}
+
+}
+
+mod fee {
+	use super::*;
+	use frame_support::assert_ok;
+	use sp_runtime::{FixedU128, TransactionOutcome};
+	use hydradx_runtime::DCA;
+	use hydradx_traits::AssetKind;
+
+	#[test]
+	fn sell_tx_fee_should_be_more_for_insufficient_asset() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
+
+				//Arrange
+				init_omnipool_with_oracle_for_block_10();
+				add_dot_as_payment_currency();
+
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+					.unwrap();
+				create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 1000000 * UNITS);
+				assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
+					RuntimeOrigin::root(),
+					primitives::constants::chain::XYK_SOURCE,
+					(DOT, insufficient_asset)
+				));
+				//Populate oracLe
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					BOB.into(),
+					insufficient_asset,
+					200 * UNITS as i128,
+				));
+				assert_ok!(XYK::sell(
+					RuntimeOrigin::signed(BOB.into()),
+					insufficient_asset,
+					DOT,
+					1 * UNITS,
+					0,
+					false
+				));
+
+				//Arrange
+				let sell_with_hdx_fee = Order::Sell {
+					asset_in: DOT,
+					asset_out: insufficient_asset,
+					amount_in: 10000 * UNITS,
+					min_amount_out: 1 * UNITS,
+					route: create_bounded_vec(vec![]),
+				};
+
+				let sell_with_insufficient_fee = Order::Sell {
+					asset_in: insufficient_asset,
+					asset_out: DOT,
+					amount_in: 10000 * UNITS,
+					min_amount_out: 1 * UNITS,
+					route: create_bounded_vec(vec![]),
+				};
+
+				set_relaychain_block_number(11);
+
+				//Assert
+				let fee_for_dot = DCA::get_transaction_fee(&sell_with_hdx_fee).unwrap();
+				let fee_for_insufficient = DCA::get_transaction_fee(&sell_with_insufficient_fee).unwrap();
+
+				let diff = fee_for_insufficient - fee_for_dot;
+				let relative_fee_difference = FixedU128::from_rational(diff, fee_for_dot);
+				let min_difference = FixedU128::from_rational(10, 100);
+
+				//The fee with insufficient asset fee should be significantly bigger as involves more reads/writes, also due to buy swap
+				assert!(relative_fee_difference > min_difference);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn buy_tx_fee_should_be_more_for_insufficient_asset() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
+
+				//Arrange
+				init_omnipool_with_oracle_for_block_10();
+				add_dot_as_payment_currency();
+
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+					.unwrap();
+				create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 1000000 * UNITS);
+				assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
+					RuntimeOrigin::root(),
+					primitives::constants::chain::XYK_SOURCE,
+					(DOT, insufficient_asset)
+				));
+				//Populate oracLe
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					BOB.into(),
+					insufficient_asset,
+					200 * UNITS as i128,
+				));
+				assert_ok!(XYK::sell(
+					RuntimeOrigin::signed(BOB.into()),
+					insufficient_asset,
+					DOT,
+					1 * UNITS,
+					0,
+					false
+				));
+
+				//Arrange
+				let buy_with_hdx_fee = Order::Buy {
+					asset_in: DOT,
+					asset_out: insufficient_asset,
+					amount_out: 10000 * UNITS,
+					max_amount_in: u128::MAX,
+					route: create_bounded_vec(vec![]),
+				};
+
+				let buy_with_insufficient_fee = Order::Buy {
+					asset_in: insufficient_asset,
+					asset_out: DOT,
+					amount_out: 10000 * UNITS,
+					max_amount_in: u128::MAX,
+					route: create_bounded_vec(vec![]),
+				};
+
+				set_relaychain_block_number(11);
+
+				let fee_for_dot = DCA::get_transaction_fee(&buy_with_hdx_fee).unwrap();
+				let fee_for_insufficient = DCA::get_transaction_fee(&buy_with_insufficient_fee).unwrap();
+
+				let diff = fee_for_insufficient - fee_for_dot;
+				let relative_fee_difference = FixedU128::from_rational(diff, fee_for_dot);
+				let min_difference = FixedU128::from_rational(10, 100);
+
+				//The fee with insufficient asset fee should be significantly bigger as involves more reads/writes, also due to buy swap
+				assert!(relative_fee_difference > min_difference);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+
 }
 
 mod stableswap {

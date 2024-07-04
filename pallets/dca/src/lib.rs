@@ -1080,10 +1080,26 @@ impl<T: Config> Pallet<T> {
 	fn get_trade_weight(order: &Order<T::AssetId>) -> Weight {
 		let route = &order.get_route_or_default::<T::RouteProvider>();
 		match order {
-			Order::Sell { .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade()
-				.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route)),
-			Order::Buy { .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade()
-				.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route)),
+			Order::Sell { .. } => {
+				let on_initialize_weight = if T::InspectRegistry::is_sufficient(order.get_asset_in()) {
+					<T as Config>::WeightInfo::on_initialize_with_sell_trade()
+				} else {
+					<T as Config>::WeightInfo::on_initialize_with_sell_trade_with_insufficient_fee_asset()
+				};
+
+				on_initialize_weight
+					.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route))
+			},
+			Order::Buy { .. } => {
+				let on_initialize_weight = if T::InspectRegistry::is_sufficient(order.get_asset_in()) {
+					<T as Config>::WeightInfo::on_initialize_with_buy_trade()
+				} else {
+					<T as Config>::WeightInfo::on_initialize_with_buy_trade_with_insufficient_fee_asset()
+				};
+
+				on_initialize_weight
+					.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route))
+			},
 		}
 	}
 
