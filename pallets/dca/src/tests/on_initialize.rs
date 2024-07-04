@@ -32,6 +32,7 @@ use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError;
 use std::borrow::Borrow;
 use std::ops::RangeInclusive;
+use crate::tests::schedule::get_fee_for_sell_in_hdx;
 
 #[test]
 fn successful_sell_dca_execution_should_emit_trade_executed_event() {
@@ -177,7 +178,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 			set_to_blocknumber(501);
 
 			//Assert
-			let remaining_named_reserve = total_amount - amount_to_sell - SELL_DCA_FEE_IN_NATIVE;
+			let remaining_named_reserve = total_amount - amount_to_sell - get_fee_for_sell_in_hdx();
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: HDX,
 				asset_out: BTC,
@@ -235,7 +236,7 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -252,6 +253,7 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 			set_to_blocknumber(601);
 
 			//Assert
+			let fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
 			assert_executed_sell_trades!(vec![
 				SellExecution {
 					asset_in: HDX,
@@ -262,7 +264,7 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 				SellExecution {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: total_amount - amount_to_sell - SELL_DCA_FEE_IN_NATIVE - SELL_DCA_FEE_IN_NATIVE,
+					amount_in: total_amount - amount_to_sell - fee_in_native - fee_in_native,
 					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 				}
 			]);
@@ -349,13 +351,14 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(501);
 
 			//Assert
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
 			assert_executed_buy_trades!(vec![BuyExecution {
 				asset_in: HDX,
 				asset_out: BTC,
@@ -364,7 +367,7 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 			}]);
 
 			assert_eq!(
-				total_amount - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - BUY_DCA_FEE_IN_NATIVE,
+				total_amount - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - buy_fee_in_native,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 		});
@@ -407,7 +410,7 @@ fn one_buy_dca_execution_should_calculate_exact_amount_in_when_multiple_pools_in
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -429,8 +432,9 @@ fn one_buy_dca_execution_should_calculate_exact_amount_in_when_multiple_pools_in
 				}
 			]);
 
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
 			assert_eq!(
-				total_amount - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - BUY_DCA_FEE_IN_NATIVE,
+				total_amount - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - buy_fee_in_native,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 		});
@@ -615,26 +619,28 @@ fn full_buy_dca_should_be_completed_when_some_successful_dca_execution_happened_
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-
-			let total_amount =
-				CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + BUY_DCA_FEE_IN_NATIVE + BUY_DCA_FEE_IN_NATIVE / 2;
 			let amount_to_buy = 10 * ONE;
+
+			let order = Order::Buy {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_out: amount_to_buy,
+				max_amount_in: Balance::MAX,
+				route: create_bounded_vec(vec![Trade {
+					pool: Omnipool,
+					asset_in: HDX,
+					asset_out: BTC,
+				}]),
+			};
+			let buy_fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+			let total_amount =
+				CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + buy_fee_in_native + buy_fee_in_native / 2;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_slippage(Some(Permill::from_percent(20)))
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: amount_to_buy,
-					max_amount_in: Balance::MAX,
-					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
+				.with_order(order)
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
@@ -865,7 +871,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_en
 			assert_number_of_executed_buy_trades!(4);
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
-			let left_over_which_is_not_enough_for_last_trade = 9994662116000;
+			let left_over_which_is_not_enough_for_last_trade = 9994629924000;
 
 			assert_balance!(
 				ALICE,
@@ -888,24 +894,27 @@ fn full_buy_dca_should_be_completed_without_leftover_fees_are_included_in_budget
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 50 * ONE + 5 * BUY_DCA_FEE_IN_NATIVE;
 			let amount_to_buy = 10 * ONE;
+			let order = Order::Buy {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_out: amount_to_buy,
+				max_amount_in: Balance::MAX,
+				route: create_bounded_vec(vec![Trade {
+					pool: Omnipool,
+					asset_in: HDX,
+					asset_out: BTC,
+				}]),
+			};
+			let buy_fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+
+			let total_amount = 50 * ONE + 5 * buy_fee_in_native;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_slippage(Some(Permill::from_percent(20)))
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: amount_to_buy,
-					max_amount_in: Balance::MAX,
-					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
+				.with_order(order)
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
@@ -1198,7 +1207,7 @@ fn dca_trade_unallocation_should_be_rolled_back_when_trade_fails() {
 
 			let schedule_id = 0;
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 			assert_eq!(Currencies::reserved_balance(HDX, &ALICE), total_amount);
 			assert_eq!(DCA::remaining_amounts(schedule_id).unwrap(), total_amount);
 
@@ -1207,13 +1216,14 @@ fn dca_trade_unallocation_should_be_rolled_back_when_trade_fails() {
 			assert_number_of_executed_buy_trades!(0);
 			assert_scheduled_ids!(511, vec![schedule_id]);
 
+            let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
 			assert_eq!(
 				Currencies::reserved_balance(HDX, &ALICE),
-				total_amount - BUY_DCA_FEE_IN_NATIVE
+				total_amount - buy_fee_in_native
 			);
 			assert_eq!(
 				DCA::remaining_amounts(schedule_id).unwrap(),
-				total_amount - BUY_DCA_FEE_IN_NATIVE
+				total_amount - buy_fee_in_native
 			);
 		});
 }
@@ -1506,18 +1516,19 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 
 			//Act
 			assert_balance!(TreasuryAccount::get(), DAI, 0);
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, BUY_DCA_FEE_IN_DAI);
+			let buy_fee_in_dai = DCA::get_transaction_fee(&schedule.order).unwrap();
+			assert_balance!(TreasuryAccount::get(), DAI, buy_fee_in_dai);
 			assert_number_of_executed_buy_trades!(1);
 			assert_eq!(
 				Currencies::reserved_balance(DAI, &ALICE),
-				budget - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - BUY_DCA_FEE_IN_DAI
+				budget - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - buy_fee_in_dai
 			);
 			assert_balance!(ALICE, BTC, CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY);
 		});
@@ -1549,7 +1560,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 
 			//Act
 			assert_balance!(TreasuryAccount::get(), DAI, 0);
@@ -1558,9 +1569,10 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, BUY_DCA_FEE_IN_DAI);
+			let fee_in_dai = DCA::get_transaction_fee(&schedule.order).unwrap();
+			assert_balance!(TreasuryAccount::get(), DAI, fee_in_dai);
 			assert_number_of_executed_buy_trades!(0);
-			assert_eq!(Currencies::reserved_balance(DAI, &ALICE), budget - BUY_DCA_FEE_IN_DAI);
+			assert_eq!(Currencies::reserved_balance(DAI, &ALICE), budget - fee_in_dai);
 		});
 }
 
@@ -1593,7 +1605,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 
 			//Act
 			assert_balance!(TreasuryAccount::get(), DAI, 0);
@@ -1601,10 +1613,11 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, SELL_DCA_FEE_IN_DAI);
+			let sell_fee_in_dai = DCA::get_transaction_fee(&schedule.order).unwrap();
+			assert_balance!(TreasuryAccount::get(), DAI, sell_fee_in_dai);
 			assert_eq!(
 				Currencies::reserved_balance(DAI, &ALICE),
-				budget - amount_in - SELL_DCA_FEE_IN_DAI
+				budget - amount_in - sell_fee_in_dai
 			);
 			assert_balance!(ALICE, BTC, *AMOUNT_OUT_FOR_OMNIPOOL_SELL);
 			assert_number_of_executed_sell_trades!(1);
@@ -1639,7 +1652,7 @@ fn sell_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 			assert_balance!(TreasuryAccount::get(), HDX, 0);
 
@@ -1647,10 +1660,11 @@ fn sell_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), HDX, SELL_DCA_FEE_IN_NATIVE);
+			let sell_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			assert_balance!(TreasuryAccount::get(), HDX, sell_fee_in_native);
 			assert_eq!(
 				Currencies::reserved_balance(HDX, &ALICE),
-				total_amount - *AMOUNT_OUT_FOR_OMNIPOOL_SELL - SELL_DCA_FEE_IN_NATIVE
+				total_amount - *AMOUNT_OUT_FOR_OMNIPOOL_SELL - sell_fee_in_native
 			);
 			assert_balance!(ALICE, BTC, *AMOUNT_OUT_FOR_OMNIPOOL_SELL);
 			assert_number_of_executed_sell_trades!(1);
@@ -1667,7 +1681,7 @@ fn sell_dca_should_be_completed_when_trade_amount_is_total_budget_plus_fee() {
 			proceed_to_blocknumber(1, 500);
 
 			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
-			let total_amount = amount_to_sell + SELL_DCA_FEE_IN_NATIVE;
+			let total_amount = amount_to_sell + get_fee_for_sell_in_hdx();
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -1724,7 +1738,8 @@ fn buy_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 			assert_eq!(budget, Currencies::reserved_balance(HDX, &ALICE));
 			assert_balance!(TreasuryAccount::get(), HDX, 0);
 
@@ -1732,10 +1747,12 @@ fn buy_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), HDX, BUY_DCA_FEE_IN_NATIVE);
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+
+			assert_balance!(TreasuryAccount::get(), HDX, buy_fee_in_native);
 			assert_eq!(
 				Currencies::reserved_balance(HDX, &ALICE),
-				budget - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - BUY_DCA_FEE_IN_NATIVE
+				budget - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - buy_fee_in_native
 			);
 			assert_balance!(ALICE, BTC, CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY);
 			assert_number_of_executed_buy_trades!(1);
@@ -1813,16 +1830,17 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(501)));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::Some(501)));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(501);
 
 			//Assert
+			let fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
 			assert_executed_sell_trades!(vec![]);
 			assert_eq!(
-				total_amount - SELL_DCA_FEE_IN_NATIVE,
+				total_amount - fee_in_native,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 
@@ -1885,7 +1903,7 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_use
 			//Assert
 			assert_executed_sell_trades!(vec![]);
 			assert_eq!(
-				total_amount - SELL_DCA_FEE_IN_NATIVE,
+				total_amount - get_fee_for_sell_in_hdx(),
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 
@@ -1938,16 +1956,17 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(501);
 
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
 			//Assert
 			assert_executed_buy_trades!(vec![]);
 			assert_eq!(
-				total_amount - BUY_DCA_FEE_IN_NATIVE,
+				total_amount - buy_fee_in_native,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 
@@ -1986,16 +2005,17 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(501);
 
 			//Assert
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
 			assert_executed_buy_trades!(vec![]);
 			assert_eq!(
-				total_amount - BUY_DCA_FEE_IN_NATIVE,
+				total_amount - buy_fee_in_native,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 
@@ -2178,21 +2198,24 @@ fn dca_sell_schedule_should_be_completed_after_one_trade_when_total_amount_is_eq
 			proceed_to_blocknumber(1, 500);
 
 			let amount_in = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
-			let total_amount = amount_in + SELL_DCA_FEE_IN_NATIVE;
+			let order = Order::Sell {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_in,
+				min_amount_out: Balance::MIN,
+				route: create_bounded_vec(vec![Trade {
+					pool: Omnipool,
+					asset_in: HDX,
+					asset_out: BTC,
+				}]),
+			};
+            let fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+
+			let total_amount = amount_in + fee_in_native;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_total_amount(total_amount)
-				.with_order(Order::Sell {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_in,
-					min_amount_out: Balance::MIN,
-					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
+				.with_order(order)
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
@@ -2217,21 +2240,23 @@ fn dca_sell_schedule_should_be_terminated_when_schedule_allocation_is_more_than_
 			proceed_to_blocknumber(1, 500);
 
 			let amount_in = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
-			let total_amount = amount_in + SELL_DCA_FEE_IN_NATIVE;
+			let order = Order::Sell {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_in,
+				min_amount_out: 5 * ONE,
+				route: create_bounded_vec(vec![Trade {
+					pool: Omnipool,
+					asset_in: HDX,
+					asset_out: BTC,
+				}]),
+			};
+			let fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+			let total_amount = amount_in + fee_in_native;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_total_amount(total_amount)
-				.with_order(Order::Sell {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_in,
-					min_amount_out: 5 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
+				.with_order(order)
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
@@ -2351,8 +2376,8 @@ fn sell_schedule_should_be_replanned_when_remainder_is_equal_to_20_transaction_f
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let remainder = 20 * SELL_DCA_FEE_IN_NATIVE;
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + remainder;
+			let remainder = 20 * get_fee_for_sell_in_hdx();
+			let total_amount = ONE + get_fee_for_sell_in_hdx() + remainder;
 			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -2396,8 +2421,8 @@ fn sell_schedule_should_be_replanned_when_more_than_20_transaction_fee_left_for_
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let remainder = 20 * SELL_DCA_FEE_IN_NATIVE + 1;
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + remainder;
+			let remainder = 20 * get_fee_for_sell_in_hdx() + 1;
+			let total_amount = ONE + get_fee_for_sell_in_hdx() + remainder;
 			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -2485,23 +2510,25 @@ fn dca_should_continue_when_remainder_is_equal_to_min_trading_limit() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + min_trade_limit;
 			let amount_to_sell = ONE;
+			let order = Order::Sell {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_in: amount_to_sell,
+				min_amount_out: Balance::MIN,
+				route: create_bounded_vec(vec![Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: BTC,
+				}]),
+			};
+			let fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+			let total_amount = ONE + fee_in_native + min_trade_limit;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Sell {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_in: amount_to_sell,
-					min_amount_out: Balance::MIN,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
+				.with_order(order)
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
@@ -2599,12 +2626,13 @@ fn dca_schedule_should_still_take_fee_when_order_fails() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Option::None));
 
 			//Act and assert
+			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
 			set_to_blocknumber(501);
 			assert_number_of_executed_buy_trades!(0);
-			assert_balance!(TreasuryAccount::get(), HDX, BUY_DCA_FEE_IN_NATIVE);
+			assert_balance!(TreasuryAccount::get(), HDX, buy_fee_in_native);
 		});
 }
 

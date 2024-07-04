@@ -66,6 +66,7 @@ pub const BTC: AssetId = 3;
 pub const FORBIDDEN_ASSET: AssetId = 4;
 pub const DOT: AssetId = 5;
 pub const REGISTERED_ASSET: AssetId = 1000;
+pub const INSUFFICIENT_ASSET: AssetId = 10000021;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
 //Since we always use the same parent hash in the tests, the generated radiuses are always the same
@@ -687,7 +688,7 @@ impl Config for Test {
 	type MinimumTradingLimit = MinTradeAmount;
 	type NativePriceOracle = NativePriceOracleMock;
 	type RetryOnError = ();
-	type InspectRegistry = MockedAssetRegistry;
+	type InspectRegistry = DummyRegistry<Test>;
 	type XykExchangeFee = ExchangeFeeRate;
 	type XYK = XykMock;
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
@@ -701,7 +702,7 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for XykMock {
 	}
 
 	fn get_pair_id(_assets: AssetPair) -> AccountId {
-		unimplemented!()
+		999
 	}
 
 	fn get_share_token(_assets: AssetPair) -> AssetId {
@@ -749,45 +750,6 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for XykMock {
 	}
 
 	fn get_fee(_pool_account_id: &AccountId) -> (u32, u32) {
-		unimplemented!()
-	}
-}
-
-pub struct MockedAssetRegistry;
-
-impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
-	type AssetId = AssetId;
-	type Location = ();
-
-	fn is_sufficient(id: Self::AssetId) -> bool {
-		id <= 2000
-	}
-
-	fn exists(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn decimals(_id: Self::AssetId) -> Option<u8> {
-		unimplemented!()
-	}
-
-	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
-		unimplemented!()
-	}
-
-	fn is_banned(_id: Self::AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-
-	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
-		unimplemented!()
-	}
-
-	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
 		unimplemented!()
 	}
 }
@@ -878,22 +840,22 @@ impl<T: Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
-	type AssetId = T::AssetId;
+	type AssetId = AssetId;
 	type Location = u8;
 
 	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
 		unimplemented!()
 	}
 
-	fn is_sufficient(_id: Self::AssetId) -> bool {
-		true
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		 id <= 2000
 	}
 
 	fn decimals(_id: Self::AssetId) -> Option<u8> {
 		unimplemented!()
 	}
 
-	fn exists(asset_id: T::AssetId) -> bool {
+	fn exists(asset_id: AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
 		asset.is_some()
 	}

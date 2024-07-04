@@ -447,7 +447,7 @@ fn buy_schedule_should_work_when_total_budget_is_equal_to_calculated_amount_in_p
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let budget = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + BUY_DCA_FEE_IN_NATIVE;
+			let budget = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + get_fee_for_buy_in_hdx();
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)
@@ -456,7 +456,7 @@ fn buy_schedule_should_work_when_total_budget_is_equal_to_calculated_amount_in_p
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: 10 * ONE,
-					max_amount_in: budget + BUY_DCA_FEE_IN_NATIVE,
+					max_amount_in: budget + get_fee_for_buy_in_hdx(),
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -670,13 +670,14 @@ fn schedule_should_work_when_sell_amount_is_equal_to_20_times_fee() {
 		.build()
 		.execute_with(|| {
 			//Arrange
+			let fee_in_native = get_fee_for_sell_in_hdx();
 			let total_amount = 100 * ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: SELL_DCA_FEE_IN_NATIVE * 20,
+					amount_in: fee_in_native * 20,
 					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
@@ -766,20 +767,23 @@ fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in_plus_fee() 
 		.execute_with(|| {
 			//Arrange
 			let amount_in = ONE;
-			let total_amount = amount_in + SELL_DCA_FEE_IN_NATIVE;
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_order(Order::Sell {
+			let order = Order::Sell {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_in,
+				min_amount_out: Balance::MIN,
+				route: create_bounded_vec(vec![Trade {
+					pool: PoolType::Omnipool,
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in,
-					min_amount_out: Balance::MIN,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
+				}]),
+			};
+
+			let fee_in_native = DCA::get_transaction_fee(&order).unwrap();
+			let total_amount = amount_in + fee_in_native;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_order(order)
 				.build();
 
 			//Act and Assert
@@ -921,3 +925,36 @@ fn thousands_of_dcas_should_be_schedules_on_a_specific_block_because_of_salt_add
 pub fn set_block_number(n: u64) {
 	System::set_block_number(n);
 }
+
+pub fn get_fee_for_sell_in_hdx() -> Balance {
+	let order = Order::Sell {
+		asset_in: HDX,
+		asset_out: BTC,
+		amount_in: SELL_DCA_FEE_IN_NATIVE * 20,
+		min_amount_out: Balance::MIN,
+		route: create_bounded_vec(vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: BTC,
+		}]),
+	};
+
+	DCA::get_transaction_fee(&order).unwrap()
+}
+pub fn get_fee_for_buy_in_hdx() -> Balance {
+	let order = Order::Buy {
+		asset_in: HDX,
+		asset_out: BTC,
+		amount_out: 10 * ONE,
+		max_amount_in: u128::MAX,
+		route: create_bounded_vec(vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: crate::tests::mock::HDX,
+			asset_out: crate::tests::mock::BTC,
+		}]),
+	};
+
+	DCA::get_transaction_fee(&order).unwrap()
+}
+
+
