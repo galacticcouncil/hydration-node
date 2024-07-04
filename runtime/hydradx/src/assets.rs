@@ -16,7 +16,8 @@
 // limitations under the License.
 
 use super::*;
-use crate::old::{AllTechnicalCommitteeMembers, MajorityOfCouncil, MaxVotes, SuperMajorityTechCommittee};
+use crate::old::MaxVotes;
+use crate::origins::{GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
@@ -52,8 +53,8 @@ use frame_support::{
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EnsureOrigin, Imbalance, LockIdentifier,
-		NeverEnsureOrigin, OnUnbalanced,
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, Imbalance,
+		LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
@@ -361,7 +362,6 @@ impl orml_vesting::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	// TODO origin
 	type VestedTransferOrigin = RootAsVestingPallet;
 	type WeightInfo = weights::orml_vesting::HydraWeight<Runtime>;
 	type MaxVestingSchedules = MaxVestingSchedules;
@@ -391,11 +391,8 @@ parameter_types! {
 
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-
-	// TODO origin
-	type RegistryOrigin = EnsureRoot<AccountId>;
-	// TODO origin
-	type UpdateOrigin = SuperMajorityTechCommittee;
+	type RegistryOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
 	type AssetId = AssetId;
 	type AssetNativeLocation = AssetLocation;
@@ -422,10 +419,8 @@ impl pallet_uniques::Config for Runtime {
 	type CollectionId = CollectionId;
 	type ItemId = ItemId;
 	type Currency = Balances;
-	// TODO origin
-	type ForceOrigin = MajorityOfCouncil;
+	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	// Standard collection creation is disallowed
-	// TODO origin
 	type CreateOrigin = AsEnsureOriginWithArg<NeverEnsureOrigin<AccountId>>;
 	type Locker = ();
 	type CollectionDeposit = CollectionDeposit;
@@ -458,10 +453,8 @@ impl pallet_omnipool::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Currencies;
-	// TODO origin
-	type AuthorityOrigin = EnsureRoot<AccountId>;
-	// TODO origin
-	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
+	type TechnicalOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type AssetRegistry = AssetRegistry;
 	type HdxAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
@@ -513,8 +506,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	// TODO origin
-	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type TechnicalOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
@@ -542,8 +534,7 @@ where
 
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	// TODO origin
-	type AuthorityOrigin = SuperMajorityTechCommittee;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
@@ -580,8 +571,7 @@ impl pallet_duster::Config for Runtime {
 	type MinCurrencyDeposits = AssetRegistry;
 	type Reward = DustingReward;
 	type NativeCurrencyId = NativeAssetId;
-	// TODO origin
-	type BlacklistUpdateOrigin = SuperMajorityTechCommittee;
+	type BlacklistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
 
@@ -623,8 +613,7 @@ parameter_types! {
 impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
-	// TODO origin
-	type CreateOrigin = AllTechnicalCommitteeMembers;
+	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
 	type PalletId = OmniLMPalletId;
 	type NFTCollectionId = OmnipoolLMCollectionId;
 	type NFTHandler = Uniques;
@@ -671,8 +660,7 @@ parameter_types! {
 impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currencies = Currencies;
-	// TODO origin
-	type CreateOrigin = AllTechnicalCommitteeMembers;
+	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type PalletId = XYKLmPalletId;
 	type NFTCollectionId = XYKLmCollectionId;
 	type NFTHandler = Uniques;
@@ -773,8 +761,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 impl pallet_dca::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
-	// TODO origin
-	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type TechnicalOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
 	type Currencies = Currencies;
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 	type RandomnessProvider = DCA;
@@ -1121,8 +1108,7 @@ impl pallet_route_executor::Config for Runtime {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 	type InspectRegistry = AssetRegistry;
-	// TODO origin
-	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type TechnicalOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 }
 
@@ -1293,8 +1279,7 @@ impl pallet_stableswap::Config for Runtime {
 	type Currency = Currencies;
 	type ShareAccountId = StableswapAccountIdConstructor<Runtime>;
 	type AssetInspection = AssetRegistry;
-	// TODO origin
-	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type DustAccountHandler = Duster;
 	type Hooks = StableswapHooksAdapter<Runtime>;
 	type MinPoolLiquidity = MinPoolLiquidity;
@@ -1326,7 +1311,6 @@ impl pallet_bonds::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type TimestampProvider = Timestamp;
 	type PalletId = BondsPalletId;
-	// TODO origin
 	type IssueOrigin = EnsureSigned<AccountId>;
 	type AssetTypeWhitelist = AssetTypeWhitelist;
 	type ProtocolFee = ProtocolFee;
@@ -1367,8 +1351,7 @@ impl GetByKey<FixedU128, Point> for StakingMinSlash {
 
 impl pallet_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	// TODO origin
-	type AuthorityOrigin = MajorityOfCouncil;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
 	type Currency = Currencies;
 	type PeriodLength = PeriodLength;
@@ -1425,8 +1408,7 @@ impl pallet_lbp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type LockedBalance = MultiCurrencyLockedBalance<Runtime, NativeAssetId>;
-	// TODO origin
-	type CreatePoolOrigin = SuperMajorityTechCommittee;
+	type CreatePoolOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type LBPWeightFunction = pallet_lbp::LBPWeightFunction;
 	type AssetPairAccountId = AssetPairAccountId<Self>;
 	type WeightInfo = weights::pallet_lbp::HydraWeight<Runtime>;
@@ -1474,8 +1456,7 @@ parameter_types! {
 
 impl pallet_referrals::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	// TODO origin
-	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
 	type Convert = ConvertViaOmnipool<Omnipool>;

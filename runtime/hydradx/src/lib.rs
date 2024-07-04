@@ -165,10 +165,10 @@ construct_runtime!(
 		StateTrieMigration: pallet_state_trie_migration = 35,
 
 		// OpenGov
-		ConvictionVoting: pallet_conviction_voting::{Pallet, Call, Storage, Event<T>} = 36,
-		Referenda: pallet_referenda::{Pallet, Call, Storage, Event<T>} = 37,
-		Origins: pallet_custom_origins::{Origin} = 38,
-		Whitelist: pallet_whitelist::{Pallet, Call, Storage, Event<T>} = 39,
+		ConvictionVoting: pallet_conviction_voting = 36,
+		Referenda: pallet_referenda = 37,
+		Origins: pallet_custom_origins = 38,
+		Whitelist: pallet_whitelist = 39,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry = 51,
@@ -281,7 +281,6 @@ pub type Executive = frame_executive::Executive<
 		frame_support::migrations::RemovePallet<XcmRateLimiterPalletName, <Runtime as frame_system::Config>::DbWeight>,
 		cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
 		pallet_identity::migration::versioned::V0ToV1<Runtime, 450u64>, // We have currently 379 identities in basllisk, so limit of 450 should be enough
-		pallet_staking::migration::versioned::V1ToV2<Runtime>,          // Clears staking votes
 	),
 >;
 
@@ -730,10 +729,6 @@ impl_runtime_apis! {
 
 			list_benchmarks!(list, extra);
 
-			list_benchmark!(list, extra, pallet_conviction_voting, ConvictionVoting);
-			list_benchmark!(list, extra, pallet_referenda, Referenda);
-			list_benchmark!(list, extra, pallet_whitelist, Whitelist);
-
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
 			orml_list_benchmark!(list, extra, orml_vesting, benchmarking::vesting);
@@ -819,10 +814,6 @@ impl_runtime_apis! {
 
 			add_benchmarks!(params, batches);
 
-			add_benchmark!(params, batches, pallet_conviction_voting, ConvictionVoting);
-			add_benchmark!(params, batches, pallet_referenda, Referenda);
-			add_benchmark!(params, batches, pallet_whitelist, Whitelist);
-
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
 			orml_add_benchmark!(params, batches, orml_vesting, benchmarking::vesting);
@@ -892,6 +883,9 @@ mod benches {
 		[cumulus_pallet_parachain_system, ParachainSystem]
 		[pallet_collator_selection, CollatorSelection]
 		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		[pallet_conviction_voting, ConvictionVoting]
+		[pallet_referenda, Referenda]
+		[pallet_whitelist, Whitelist]
 	);
 }
 

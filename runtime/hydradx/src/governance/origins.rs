@@ -135,12 +135,11 @@ pub mod pallet_custom_origins {
 		}
 	}
 
-	// TODO opengov
 	decl_ensure! {
 		pub type Spender: EnsureOrigin<Success = Balance> {
-			Tipper = 500_000 * UNITS, // ~= $5,000
-			Spender = 5_000_000 * UNITS, // ~= $50,000
-			Treasurer = 500_000_000 * UNITS, // ~= $5,000,000
+			Tipper = 50_000 * UNITS, // ~= $500
+			Spender = 2_222_222 * UNITS, // ~= $22,222
+			Treasurer = 50_000_000 * UNITS, // ~= $500,000
 		}
 	}
 }

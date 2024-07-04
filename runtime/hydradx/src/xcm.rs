@@ -1,6 +1,5 @@
 use super::*;
 
-use crate::old::{MajorityOfCouncil, MoreThanHalfCouncil, MoreThanHalfTechCommittee};
 use sp_std::marker::PhantomData;
 
 use codec::MaxEncodedLen;
@@ -15,6 +14,7 @@ use frame_support::{
 	traits::{ConstU32, Contains, ContainsPair, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
+use frame_system::EnsureRoot;
 use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::AllowTransferAndSwap};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
@@ -22,7 +22,7 @@ use pallet_evm::AddressMapping;
 pub use pallet_xcm::GenesisConfig as XcmGenesisConfig;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
-use polkadot_parachain::primitives::{RelayChainBlockNumber, Sibling};
+use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
 use scale_info::TypeInfo;
@@ -198,9 +198,6 @@ impl cumulus_pallet_xcm::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxDeferredMessages: u32 = 20;
-	pub const MaxDeferredBuckets: u32 = 1_000;
-	pub const MaxBucketsProcessed: u32 = 3;
 	pub const MaxInboundSuspended: u32 = 1_000;
 }
 
@@ -208,7 +205,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ChannelInfo = ParachainSystem;
 	type VersionWrapper = PolkadotXcm;
-	type ControllerOrigin = MoreThanHalfTechCommittee;
+	type ControllerOrigin = EnsureRoot<Self::AccountId>;
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
 	type PriceForSiblingDelivery = polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery<ParaId>;
 	type WeightInfo = weights::cumulus_pallet_xcmp_queue::HydraWeight<Runtime>;
@@ -253,8 +250,7 @@ impl orml_unknown_tokens::Config for Runtime {
 
 impl orml_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	// TODO origin
-	type SovereignOrigin = MoreThanHalfCouncil;
+	type SovereignOrigin = EnsureRoot<Self::AccountId>;
 }
 
 impl pallet_xcm::Config for Runtime {
@@ -278,33 +274,12 @@ impl pallet_xcm::Config for Runtime {
 	type SovereignAccountOf = ();
 	type MaxLockers = ConstU32<8>;
 	type WeightInfo = weights::pallet_xcm::HydraWeight<Runtime>;
-	// TODO origin
-	type AdminOrigin = MajorityOfCouncil;
+	type AdminOrigin = EnsureRoot<Self::AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
 }
 
-#[test]
-fn defer_duration_configuration() {
-	use sp_runtime::{traits::One, FixedPointNumber, FixedU128};
-	/// Calculate the configuration value for the defer duration based on the desired defer duration and
-	/// the threshold percentage when to start deferring.
-	/// - `defer_by`: the desired defer duration when reaching the rate limit
-	/// - `a``: the fraction of the rate limit where we start deferring, e.g. 0.9
-	fn defer_duration(defer_by: u32, a: FixedU128) -> u32 {
-		assert!(a < FixedU128::one());
-		// defer_by * a / (1 - a)
-		(FixedU128::one() / (FixedU128::one() - a)).saturating_mul_int(a.saturating_mul_int(defer_by))
-	}
-	assert_eq!(
-		defer_duration(600 * 4, FixedU128::from_rational(9, 10)),
-		DeferDuration::get()
-	);
-}
 parameter_types! {
-	pub DeferDuration: RelayChainBlockNumber = 600 * 36; // 36 hours
-	pub MaxDeferDuration: RelayChainBlockNumber = 600 * 24 * 10; // 10 days
-
 	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(25) * BlockWeights::get().max_block;
 	pub const MessageQueueMaxStale: u32 = 8;
 	pub const MessageQueueHeapSize: u32 = 128 * 1048;
