@@ -412,7 +412,10 @@ runtime_benchmarks! {
 		let caller: AccountId = create_account_with_native_balance()?;
 		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 
-		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_in = setup_insufficient_asset_with_dot().unwrap();
+		fund_treasury_with(asset_in)?;
+
+		let asset_1 = asset_in;
 		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -454,15 +457,6 @@ runtime_benchmarks! {
 		];
 
 		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
-
-		let maker: AccountId = account("maker", 0, 0);
-		Router::set_route(RawOrigin::Signed(maker).into(), AssetPair::new(asset_1, HDX), route)?;
-
-		assert_ok!(MultiTransactionPayment::add_currency(
-				RawOrigin::Root.into(),
-				asset_1,
-				FixedU128::from_rational(88, 100),
-			));
 
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &caller, 100_000_000_000_000_000_000_000i128)?;
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(asset_1, &caller, 100_000_000_000_000_000_000_000i128)?;
