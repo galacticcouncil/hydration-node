@@ -2011,7 +2011,10 @@ fn execute_buy_should_not_work() {
 		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 2_000_000_000);
 
-		assert_noop!(LBPPallet::execute_buy(&t, None), orml_tokens::Error::<Test>::BalanceTooLow);
+		assert_noop!(
+			LBPPallet::execute_buy(&t, None),
+			orml_tokens::Error::<Test>::BalanceTooLow
+		);
 
 		assert_eq!(Currency::free_balance(asset_in, &ALICE), 999_999_000_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &ALICE), 999_998_000_000_000);

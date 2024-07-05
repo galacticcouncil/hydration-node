@@ -821,7 +821,6 @@ impl pallet_dca::Config for Runtime {
 	type PolkadotNativeAssetId = DotAssetId;
 	type XYK = XYK;
 	type XykExchangeFee = XYKExchangeFee;
-
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:

@@ -27,7 +27,13 @@ use frame_support::sp_runtime::{
 	traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero},
 	DispatchError, RuntimeDebug,
 };
-use frame_support::{dispatch, dispatch::DispatchResult, ensure, traits::{EnsureOrigin, Get, LockIdentifier}, transactional};
+use frame_support::{
+	dispatch,
+	dispatch::DispatchResult,
+	ensure,
+	traits::{EnsureOrigin, Get, LockIdentifier},
+	transactional,
+};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
@@ -1227,7 +1233,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 		}
 	}
 
-	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, BalanceOf<T>>, _destination: Option<&T::AccountId>) -> dispatch::DispatchResult {
+	fn execute_buy(
+		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, BalanceOf<T>>,
+		_destination: Option<&T::AccountId>,
+	) -> dispatch::DispatchResult {
 		Self::execute_trade(transfer)?;
 
 		Self::deposit_event(Event::<T>::BuyExecuted {

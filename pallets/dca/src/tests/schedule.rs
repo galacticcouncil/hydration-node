@@ -956,5 +956,3 @@ pub fn get_fee_for_buy_in_hdx() -> Balance {
 
 	DCA::get_transaction_fee(&order).unwrap()
 }
-
-

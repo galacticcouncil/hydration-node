@@ -1016,7 +1016,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	/// Perform necessary storage/state changes.
 	/// Note : the execution should not return error as everything was previously verified and validated.
 	#[transactional]
-	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, destination: Option<&T::AccountId>) -> DispatchResult {
+	fn execute_buy(
+		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
+		destination: Option<&T::AccountId>,
+	) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
 		if transfer.discount && transfer.discount_amount > 0 {

@@ -39,12 +39,12 @@ use pallet_dca::types::{Order, Schedule, ScheduleId};
 use pallet_dca::{ScheduleIdsPerBlock, Schedules};
 use pallet_route_executor::Trade;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
+use primitives::constants::currency::UNITS;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{DispatchError, Permill};
 use sp_runtime::{DispatchResult, FixedU128};
 use sp_std::vec;
-use primitives::constants::currency::UNITS;
 
 pub const HDX: AssetId = 0;
 pub const DAI: AssetId = 2;
@@ -156,7 +156,7 @@ fn set_period(to: u32) {
 
 		System::on_initialize(b + 1_u32);
 		EmaOracle::on_initialize(b + 1_u32);
-		MultiTransactionPayment::on_initialize(b+ 1_u32);
+		MultiTransactionPayment::on_initialize(b + 1_u32);
 
 		System::set_block_number(b + 1_u32);
 	}
@@ -192,7 +192,12 @@ fn fund_treasury_with(asset: AssetId) -> DispatchResult {
 fn create_funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
 	let account: AccountId = account(name, index, 0);
 	//Necessary to pay ED for insufficient assets.
-	<Currencies as MultiCurrencyExtended<_>>::update_balance(0, &account, crate::benchmarking::route_executor::INITIAL_BALANCE as i128).unwrap();
+	<Currencies as MultiCurrencyExtended<_>>::update_balance(
+		0,
+		&account,
+		crate::benchmarking::route_executor::INITIAL_BALANCE as i128,
+	)
+	.unwrap();
 
 	for asset in assets {
 		assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
@@ -207,8 +212,10 @@ fn create_funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> 
 fn setup_insufficient_asset_with_dot() -> Result<AssetId, BenchmarkError> {
 	let dot = register_asset(b"DOT".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 	set_location(dot, DOT_ASSET_LOCATION).map_err(|_| BenchmarkError::Stop("Failed to set location for weth"))?;
-	MultiPaymentPallet::<Runtime>::add_currency(RawOrigin::Root.into(), dot, FixedU128::from(1)).map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
-	let insufficient_asset = register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+	MultiPaymentPallet::<Runtime>::add_currency(RawOrigin::Root.into(), dot, FixedU128::from(1))
+		.map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
+	let insufficient_asset =
+		register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 	create_xyk_pool(insufficient_asset, dot);
 
 	Ok(insufficient_asset)

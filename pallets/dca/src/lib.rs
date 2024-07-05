@@ -79,9 +79,9 @@ use frame_system::{
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::router::{inverse_route, PoolType, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::{AssetPairAccountIdFor, OraclePeriod};
 use hydradx_traits::PriceOracle;
 use hydradx_traits::AMM;
+use hydradx_traits::{AssetPairAccountIdFor, OraclePeriod};
 use hydradx_traits::{Inspect, NativePriceOracle};
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
@@ -122,10 +122,10 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{NativePriceOracle, PriceOracle, AMM, AssetPairAccountIdFor};
+	use hydradx_traits::{AssetPairAccountIdFor, NativePriceOracle, PriceOracle, AMM};
 	use orml_traits::NamedMultiReservableCurrency;
-	use sp_runtime::traits::AtLeast32BitUnsigned;
 	use pallet_xyk::types::AssetId;
+	use sp_runtime::traits::AtLeast32BitUnsigned;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -921,12 +921,16 @@ impl<T: Config> Pallet<T> {
 		if !T::InspectRegistry::is_sufficient(fee_currency) {
 			//We buy DOT with insufficient asset, for the treasury
 			let fee_in_hdx = Self::weight_to_fee(weight_to_charge);
-			let fee_in_dot = Self::get_fee_in_dot(fee_in_hdx).map_err(|err|ArithmeticError::Overflow)?;
+			let fee_in_dot = Self::get_fee_in_dot(fee_in_hdx).map_err(|err| ArithmeticError::Overflow)?;
 
 			let xyk_exchange_rate = T::XykExchangeFee::get();
-			let pool_trade_fee = hydra_dx_math::fee::calculate_pool_trade_fee(fee_amount_in_sold_asset, xyk_exchange_rate).ok_or(ArithmeticError::Overflow)?;
+			let pool_trade_fee =
+				hydra_dx_math::fee::calculate_pool_trade_fee(fee_amount_in_sold_asset, xyk_exchange_rate)
+					.ok_or(ArithmeticError::Overflow)?;
 
-			let effective_amount_in = fee_amount_in_sold_asset.checked_add(pool_trade_fee).ok_or(ArithmeticError::Overflow)?; //Since there is a trade fee involved in xyk buy swap, we need to unallocate that as well
+			let effective_amount_in = fee_amount_in_sold_asset
+				.checked_add(pool_trade_fee)
+				.ok_or(ArithmeticError::Overflow)?; //Since there is a trade fee involved in xyk buy swap, we need to unallocate that as well
 
 			Self::unallocate_amount(schedule_id, schedule, effective_amount_in)?;
 
@@ -954,7 +958,6 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
-
 
 	fn terminate_schedule(
 		schedule_id: ScheduleId,
@@ -1089,7 +1092,7 @@ impl<T: Config> Pallet<T> {
 
 				on_initialize_weight
 					.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route))
-			},
+			}
 			Order::Buy { .. } => {
 				let on_initialize_weight = if T::InspectRegistry::is_sufficient(order.get_asset_in()) {
 					<T as Config>::WeightInfo::on_initialize_with_buy_trade()
@@ -1099,7 +1102,7 @@ impl<T: Config> Pallet<T> {
 
 				on_initialize_weight
 					.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route))
-			},
+			}
 		}
 	}
 
@@ -1110,15 +1113,16 @@ impl<T: Config> Pallet<T> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else if !T::InspectRegistry::is_sufficient(asset_id) {
-			let asset_pair_account = T::XYK::get_pair_id(AssetPair::new(asset_id.into(), T::PolkadotNativeAssetId::get().into()));
+			let asset_pair_account =
+				T::XYK::get_pair_id(AssetPair::new(asset_id.into(), T::PolkadotNativeAssetId::get().into()));
 			let out_reserve = T::Currencies::free_balance(T::PolkadotNativeAssetId::get(), &asset_pair_account);
 			let in_reserve = T::Currencies::free_balance(asset_id, &asset_pair_account.clone());
 
-			let fee_amount_in_dot = Self::get_fee_in_dot(asset_amount).map_err(|err|ArithmeticError::Overflow)?; //TODO: we don't need map error? Check other
+			let fee_amount_in_dot = Self::get_fee_in_dot(asset_amount).map_err(|err| ArithmeticError::Overflow)?; //TODO: we don't need map error? Check other
 
-			hydra_dx_math::xyk::calculate_in_given_out(out_reserve,in_reserve,fee_amount_in_dot).map_err(|err|ArithmeticError::Overflow)?
-		}
-		else {
+			hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, fee_amount_in_dot)
+				.map_err(|err| ArithmeticError::Overflow)?
+		} else {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 
 			multiply_by_rational_with_rounding(asset_amount, price.n, price.d, Rounding::Up)
@@ -1130,11 +1134,16 @@ impl<T: Config> Pallet<T> {
 
 	fn get_fee_in_dot(fee_amount_in_native: Balance) -> Result<Balance, DispatchError> {
 		//TODO: test on live if this conversion is fine as is it is
-		let dot_per_hdx_price = T::NativePriceOracle::price(T::PolkadotNativeAssetId::get())
-			.ok_or(Error::<T>::CalculatingPriceError)?;
+		let dot_per_hdx_price =
+			T::NativePriceOracle::price(T::PolkadotNativeAssetId::get()).ok_or(Error::<T>::CalculatingPriceError)?;
 
-		Ok(multiply_by_rational_with_rounding(fee_amount_in_native, dot_per_hdx_price.n, dot_per_hdx_price.d, Rounding::Up)
-			.ok_or(ArithmeticError::Overflow)?)
+		Ok(multiply_by_rational_with_rounding(
+			fee_amount_in_native,
+			dot_per_hdx_price.n,
+			dot_per_hdx_price.d,
+			Rounding::Up,
+		)
+		.ok_or(ArithmeticError::Overflow)?)
 	}
 
 	fn get_price_from_last_block_oracle(route: &[Trade<T::AssetId>]) -> Result<FixedU128, DispatchError> {

@@ -28,7 +28,9 @@ use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle, AMM, AMMTransfer};
+use hydradx_traits::{
+	registry::Inspect as InspectRegistry, AMMTransfer, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle, AMM,
+};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
@@ -717,19 +719,36 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for XykMock {
 		unimplemented!()
 	}
 
-	fn validate_sell(_origin: &AccountId, _assets: AssetPair, _amount: Balance, _min_bought: Balance, _discount: bool) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Balance>, DispatchError> {
+	fn validate_sell(
+		_origin: &AccountId,
+		_assets: AssetPair,
+		_amount: Balance,
+		_min_bought: Balance,
+		_discount: bool,
+	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Balance>, DispatchError> {
 		unimplemented!()
 	}
 
-	fn execute_sell(_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Balance>) -> frame_support::dispatch::DispatchResult {
+	fn execute_sell(
+		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
+	) -> frame_support::dispatch::DispatchResult {
 		unimplemented!()
 	}
 
-	fn validate_buy(_origin: &AccountId, _assets: AssetPair, _amount: Balance, _max_limit: Balance, _discount: bool) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Balance>, DispatchError> {
+	fn validate_buy(
+		_origin: &AccountId,
+		_assets: AssetPair,
+		_amount: Balance,
+		_max_limit: Balance,
+		_discount: bool,
+	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Balance>, DispatchError> {
 		unimplemented!()
 	}
 
-	fn execute_buy(_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Balance>, _destination: Option<&AccountId>) -> frame_support::dispatch::DispatchResult {
+	fn execute_buy(
+		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
+		_destination: Option<&AccountId>,
+	) -> frame_support::dispatch::DispatchResult {
 		unimplemented!()
 	}
 
@@ -783,10 +802,10 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
+use pallet_xyk::types::AssetPair;
 use rand::prelude::StdRng;
 use rand::SeedableRng;
 use smallvec::smallvec;
-use pallet_xyk::types::AssetPair;
 
 pub struct DummyNFT;
 
@@ -848,7 +867,7 @@ where
 	}
 
 	fn is_sufficient(id: Self::AssetId) -> bool {
-		 id <= 2000
+		id <= 2000
 	}
 
 	fn decimals(_id: Self::AssetId) -> Option<u8> {

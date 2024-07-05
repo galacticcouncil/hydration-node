@@ -199,8 +199,7 @@ impl WeightInfo for () {
 		//  Measured:  `1075`
 		//  Estimated: `3566`
 		// Minimum execution time: 11_760_000 picoseconds.
-		Weight::from_parts(12_060_000, 3566)
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
+		Weight::from_parts(12_060_000, 3566).saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)

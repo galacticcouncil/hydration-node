@@ -20,10 +20,14 @@ use super::*;
 
 use crate as liq_mining;
 use frame_support::weights::RuntimeDbWeight;
-use frame_support::{parameter_types, traits::{Everything, Nothing}, PalletId, dispatch};
+use frame_support::{
+	dispatch, parameter_types,
+	traits::{Everything, Nothing},
+	PalletId,
+};
 
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMPosition, AMM, AMMTransfer};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMPosition, AMMTransfer, AMM};
 use orml_traits::parameter_type_with_key;
 use pallet_liquidity_mining::{FarmMultiplier, YieldFarmId};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
@@ -232,9 +236,9 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
 	}
 
 	fn execute_buy(
-        transfer: &AMMTransfer<AccountId, AssetId, AssetPair, u128>,
-        destination: Option<&AccountId>,
-    ) -> dispatch::DispatchResult {
+		transfer: &AMMTransfer<AccountId, AssetId, AssetPair, u128>,
+		destination: Option<&AccountId>,
+	) -> dispatch::DispatchResult {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}
 
