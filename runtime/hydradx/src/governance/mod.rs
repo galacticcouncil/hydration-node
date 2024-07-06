@@ -50,6 +50,7 @@ use sp_core::ConstU32;
 use sp_runtime::traits::IdentityLookup;
 
 pub type TechCommitteeMajority = EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 2>;
+pub type TechCommitteeSuperMajority = EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>;
 
 parameter_types! {
 	pub const TechnicalMaxProposals: u32 = 20;
