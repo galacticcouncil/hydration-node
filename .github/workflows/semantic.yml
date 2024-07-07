@@ -15,10 +15,5 @@ jobs:
       - uses: amannn/action-semantic-pull-request@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  test_update:
-    name: Test Update
-    runs-on: ubuntu-latest
-    steps:
-      - name: Echo test message
-        run: echo "This is a test update"
+      - name: Print Hello World
+        run: echo "Hello World"
