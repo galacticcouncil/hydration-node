@@ -79,9 +79,9 @@ use frame_system::{
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
+use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
 use hydradx_traits::AMM;
-use hydradx_traits::{OraclePeriod};
 use hydradx_traits::{Inspect, NativePriceOracle};
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
@@ -122,7 +122,7 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{ NativePriceOracle, PriceOracle, AMM};
+	use hydradx_traits::{NativePriceOracle, PriceOracle, AMM};
 	use orml_traits::NamedMultiReservableCurrency;
 
 	#[pallet::pallet]
