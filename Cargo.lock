@@ -4912,7 +4912,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "245.0.0"
+version = "246.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4962,7 +4962,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.2.1",
+ "pallet-democracy 4.2.2",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -5046,7 +5046,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.4.0"
+version = "3.4.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7921,7 +7921,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.4.9"
+version = "1.4.10"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7960,7 +7960,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.2.1"
+version = "4.2.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8428,7 +8428,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.8.4"
+version = "4.8.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8453,7 +8453,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.3.4"
+version = "4.3.5"
 dependencies = [
  "fixed",
  "frame-support",
@@ -9055,7 +9055,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-democracy 4.2.1",
+ "pallet-democracy 4.2.2",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -9408,7 +9408,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.4.4"
+version = "6.5.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9434,7 +9434,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11949,7 +11949,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.22.5"
+version = "1.22.6"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -11992,7 +11992,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.2.1",
+ "pallet-democracy 4.2.2",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
