@@ -478,7 +478,9 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 								}
 							} else {
 								// Unsuccessful vote, use special hooks to lock the funds too in case of conviction.
-								if let Some(to_lock) = T::VotingHooks::get_amount_to_lock_for_remove_vote(who, poll_index) {
+								if let Some(to_lock) =
+									T::VotingHooks::get_amount_to_lock_for_remove_vote(who, poll_index)
+								{
 									if let AccountVote::Standard { vote, .. } = v.1 {
 										let unlock_at = end.saturating_add(
 											T::VoteLockingPeriod::get()
