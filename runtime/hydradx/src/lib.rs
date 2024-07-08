@@ -113,7 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 243,
+	spec_version: 245,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -181,6 +181,7 @@ construct_runtime!(
 		Staking: pallet_staking = 69,
 		Stableswap: pallet_stableswap = 70,
 		Bonds: pallet_bonds = 71,
+		OtcSettlements: pallet_otc_settlements = 72,
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
@@ -275,6 +276,14 @@ pub type Executive = frame_executive::Executive<
 		pallet_identity::migration::versioned::V0ToV1<Runtime, 450u64>, // We have currently 379 identities in basllisk, so limit of 450 should be enough
 	),
 >;
+
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type OverarchingCall = RuntimeCall;
+	type Extrinsic = UncheckedExtrinsic;
+}
 
 // TODO: Remove after the v1.7.2 upgrade
 parameter_types! {
@@ -710,6 +719,7 @@ impl_runtime_apis! {
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 
 			let mut list = Vec::<BenchmarkList>::new();
+
 			list_benchmarks!(list, extra);
 
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
@@ -794,6 +804,7 @@ impl_runtime_apis! {
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
+
 			add_benchmarks!(params, batches);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
@@ -843,6 +854,7 @@ mod benches {
 		[pallet_referrals, Referrals]
 		[pallet_evm_accounts, EVMAccounts]
 		[pallet_otc, OTC]
+		[pallet_otc_settlements, OtcSettlements]
 		[pallet_state_trie_migration, StateTrieMigration]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]

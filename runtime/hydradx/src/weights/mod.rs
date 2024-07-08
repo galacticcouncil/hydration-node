@@ -26,6 +26,7 @@ pub mod pallet_multisig;
 pub mod pallet_omnipool;
 pub mod pallet_omnipool_liquidity_mining;
 pub mod pallet_otc;
+pub mod pallet_otc_settlements;
 pub mod pallet_preimage;
 pub mod pallet_proxy;
 pub mod pallet_referrals;

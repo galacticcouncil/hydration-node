@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.22.4"
+version = "1.22.5"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -31,6 +31,7 @@ pallet-duster = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
+pallet-otc-settlements = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 pallet-route-executor = { workspace = true}
 pallet-dca = { workspace = true}
