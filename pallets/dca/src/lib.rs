@@ -918,8 +918,8 @@ impl<T: Config> Pallet<T> {
 
 		if !T::InspectRegistry::is_sufficient(fee_currency) {
 			//We buy DOT with insufficient asset, for the treasury
-			let fee_in_hdx = Self::weight_to_fee(weight_to_charge);
-			let fee_in_dot = Self::get_fee_in_dot(fee_in_hdx)?;
+			//The DOT we need to buy is calculated the same way how we convert weight to insufficient fee
+			let fee_in_dot = Self::get_fee_in_dot(Self::weight_to_fee(weight_to_charge))?;
 
 			let xyk_exchange_rate = T::XykExchangeFee::get();
 			let pool_trade_fee =
