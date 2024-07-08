@@ -20,6 +20,8 @@ pub mod versioned {
 pub mod v2 {
 	use super::*;
 	use frame_support::traits::OnRuntimeUpgrade;
+	#[cfg(feature = "try-runtime")]
+	use sp_runtime::TryRuntimeError;
 
 	const TARGET: &str = "runtime::staking::migration::v2";
 
