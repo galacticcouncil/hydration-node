@@ -1131,7 +1131,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn get_fee_in_dot(fee_amount_in_native: Balance) -> Result<Balance, DispatchError> {
-		//TODO: test on live if this conversion is fine as is it is
 		let dot_per_hdx_price =
 			T::NativePriceOracle::price(T::PolkadotNativeAssetId::get()).ok_or(Error::<T>::CalculatingPriceError)?;
 
