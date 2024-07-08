@@ -128,7 +128,7 @@ where
 		});
 	}
 
-	fn remove_vote_locks_if_needed(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
+	fn get_amount_to_lock_for_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
 		let Some(position_id) = Pallet::<T>::get_user_position_id(who).ok()? else {
 			return None;
 		};

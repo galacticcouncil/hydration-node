@@ -8,7 +8,9 @@ pub trait VotingHooks<AccountId, Index, Balance> {
 	// is_finished indicates the state of the referendum = None if referendum is cancelled, Some(bool) if referendum is finished(true) or ongoing(false).
 	fn on_remove_vote(who: &AccountId, ref_index: Index, is_finished: Option<bool>);
 
-	fn remove_vote_locks_if_needed(who: &AccountId, ref_index: Index) -> Option<Balance>;
+	// Called when removed vote is executed and vote is in opposition.
+	// Returns the amount that should be locked for the conviction time.
+	fn get_amount_to_lock_for_remove_vote(who: &AccountId, ref_index: Index) -> Option<Balance>;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn on_vote_worst_case(_who: &AccountId);
@@ -24,7 +26,7 @@ impl<A, I, B> VotingHooks<A, I, B> for () {
 
 	fn on_remove_vote(_who: &A, _ref_index: I, _is_finished: Option<bool>) {}
 
-	fn remove_vote_locks_if_needed(_who: &A, _ref_index: I) -> Option<B> {
+	fn get_amount_to_lock_for_remove_vote(_who: &A, _ref_index: I) -> Option<B> {
 		None
 	}
 

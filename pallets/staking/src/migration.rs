@@ -46,14 +46,17 @@ pub mod v2 {
 				"running storage migration from version 1 to version 2."
 			);
 
-			let weight = T::DbWeight::get().reads_writes(1, 1);
-			let ev = PositionVotes::<T>::clear(u32::MAX, None);
+			let existing_votes = PositionVotes::<T>::iter().count();
+			let processed_votes = ProcessedVotes::<T>::iter().count();
+
+			let mut weight = T::DbWeight::get().reads_writes(1, 1);
+			let ev = PositionVotes::<T>::clear(existing_votes as u32, None);
 			assert!(ev.maybe_cursor.is_none(), "PositionVotes storage is not empty");
 
-			let pv = ProcessedVotes::<T>::clear(u32::MAX, None);
+			let pv = ProcessedVotes::<T>::clear(processed_votes as u32, None);
 			assert!(pv.maybe_cursor.is_none(), "ProcessedVotes storage is not empty");
 
-			// Clear the storage
+			weight.saturating_accrue(T::DbWeight::get().reads(existing_votes.saturating_add(processed_votes) as u64));
 			weight
 		}
 
