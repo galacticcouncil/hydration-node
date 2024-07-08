@@ -56,8 +56,8 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// The origin which may set filter.
-		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		/// The origin which may set the transaction pause filter.
+		type SecurityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Weight information for the extrinsics in this module.
 		type WeightInfo: WeightInfo;
@@ -103,7 +103,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::pause_transaction())]
 		pub fn pause_transaction(origin: OriginFor<T>, pallet_name: Vec<u8>, function_name: Vec<u8>) -> DispatchResult {
-			T::UpdateOrigin::ensure_origin(origin)?;
+			T::SecurityOrigin::ensure_origin(origin)?;
 
 			let pallet_name_b = BoundedName::try_from(pallet_name.clone()).map_err(|_| Error::<T>::NameTooLong)?;
 			let function_name_b = BoundedName::try_from(function_name.clone()).map_err(|_| Error::<T>::NameTooLong)?;
@@ -134,7 +134,7 @@ pub mod pallet {
 			pallet_name: Vec<u8>,
 			function_name: Vec<u8>,
 		) -> DispatchResult {
-			T::UpdateOrigin::ensure_origin(origin)?;
+			T::SecurityOrigin::ensure_origin(origin)?;
 
 			let pallet_name_b = BoundedName::try_from(pallet_name.clone()).map_err(|_| Error::<T>::NameTooLong)?;
 			let function_name_b = BoundedName::try_from(function_name.clone()).map_err(|_| Error::<T>::NameTooLong)?;

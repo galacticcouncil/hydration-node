@@ -26,15 +26,15 @@ use frame_support::assert_ok;
 benchmarks! {
 
 	pause_transaction {
-		let origin = T::UpdateOrigin::try_successful_origin().unwrap();
+		let origin = T::SecurityOrigin::try_successful_origin().unwrap();
 	}: {
 		assert_ok!(crate::Pallet::<T>::pause_transaction(origin, b"Balances".to_vec(), b"transfer".to_vec()));
 	}
 
 	unpause_transaction {
-		let origin = T::UpdateOrigin::try_successful_origin().unwrap();
+		let origin = T::SecurityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::pause_transaction(origin, b"Balances".to_vec(), b"transfer".to_vec())?;
-		let origin = T::UpdateOrigin::try_successful_origin().unwrap();
+		let origin = T::SecurityOrigin::try_successful_origin().unwrap();
 	}:{
 		assert_ok!(crate::Pallet::<T>::unpause_transaction(origin, b"Balances".to_vec(), b"transfer".to_vec()));
 	}
