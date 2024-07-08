@@ -1,6 +1,5 @@
 use crate::types::Balance;
 use frame_support::dispatch::DispatchResult;
-use pallet_democracy::ReferendumIndex;
 use sp_runtime::FixedU128;
 
 pub trait PayablePercentage<Point> {
@@ -8,8 +7,8 @@ pub trait PayablePercentage<Point> {
 	fn get(points: Point) -> Option<FixedU128>;
 }
 
-pub trait DemocracyReferendum {
-	fn is_referendum_finished(index: ReferendumIndex) -> bool;
+pub trait GetReferendumState<Index> {
+	fn is_referendum_finished(index: Index) -> bool;
 }
 
 pub(crate) trait ActionData {

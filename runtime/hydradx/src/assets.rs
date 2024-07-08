@@ -1372,7 +1372,10 @@ impl pallet_staking::Config for Runtime {
 	type Collections = FreezableNFT<Runtime, Self::RuntimeOrigin>;
 	type NFTHandler = Uniques;
 	type MaxVotes = MaxVotes;
-	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
+	type ReferendumInfo = pallet_staking::integrations::conviction_voting::ReferendumStatus<
+		Referenda,
+		pallet_conviction_voting::TallyOf<Runtime>,
+	>;
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
 	type WeightInfo = weights::pallet_staking::HydraWeight<Runtime>;

@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.23.0"
+version = "1.23.1"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -49,6 +49,7 @@ pallet-tips = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-referenda = { workspace = true }
+pallet-conviction-voting= { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }

@@ -4917,7 +4917,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 3.1.1",
+ "pallet-staking 4.0.0",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -4938,7 +4938,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "246.0.0"
+version = "247.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4986,7 +4986,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0",
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy 4.2.1",
@@ -5025,7 +5025,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 3.1.1",
+ "pallet-staking 4.0.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -7917,6 +7917,25 @@ dependencies = [
 [[package]]
 name = "pallet-conviction-voting"
 version = "28.0.0"
+dependencies = [
+ "assert_matches",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-scheduler",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
+]
+
+[[package]]
+name = "pallet-conviction-voting"
+version = "28.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
 dependencies = [
  "assert_matches",
@@ -9075,7 +9094,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "3.1.1"
+version = "4.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9085,7 +9104,9 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
+ "pallet-conviction-voting 28.0.0",
  "pallet-democracy 4.2.1",
+ "pallet-referenda",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -11836,7 +11857,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
  "pallet-democracy 28.0.0",
  "pallet-elections-phragmen",
  "pallet-grandpa",
@@ -11980,7 +12001,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.0"
+version = "1.23.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12020,6 +12041,7 @@ dependencies = [
  "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",
+ "pallet-conviction-voting 28.0.0",
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy 4.2.1",
@@ -12045,7 +12067,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 3.1.1",
+ "pallet-staking 4.0.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -12107,7 +12129,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 3.1.1",
+ "pallet-staking 4.0.0",
  "primitives",
  "scraper",
  "serde",
@@ -16859,7 +16881,7 @@ dependencies = [
  "pallet-beefy",
  "pallet-beefy-mmr",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
  "pallet-democracy 28.0.0",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
