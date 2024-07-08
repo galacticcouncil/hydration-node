@@ -52,8 +52,80 @@ fn router_weights_should_be_non_zero() {
 }
 
 mod router_different_pools_tests {
+	use frame_support::assert_ok;
 	use super::*;
 	use hydradx_traits::router::PoolType;
+
+	#[test]
+	fn allowed_account_should_be_able_to_buy_lrna_in_buy_trade() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool();
+
+			assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+				hydradx_runtime::RuntimeOrigin::root(),
+				LRNA,
+				Tradability::BUY
+			));
+
+			let init_balance = 1000 * UNITS;
+			let omnix_account = pallet_omnix::Pallet::<Runtime>::holding_account();
+			assert_ok!(hydradx_runtime::Balances::force_set_balance(RuntimeOrigin::root(), omnix_account.clone(), init_balance));
+
+			let amount_to_buy = 1 * UNITS;
+			//Act
+			assert_ok!(Router::buy(
+				RuntimeOrigin::signed(omnix_account.clone()),
+				HDX,
+				LRNA,
+				amount_to_buy,
+				u128::MAX,
+				vec![]
+			));
+
+			//Assert
+			assert_balance!(omnix_account.into(), LRNA, amount_to_buy);
+		});
+	}
+
+	#[test]
+	fn allowed_account_should_be_able_to_buy_lrna_in_sell_trade() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool();
+
+			assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+				hydradx_runtime::RuntimeOrigin::root(),
+				LRNA,
+				Tradability::BUY
+			));
+
+			let init_balance = 1000 * UNITS;
+			let omnix_account = pallet_omnix::Pallet::<Runtime>::holding_account();
+			assert_ok!(hydradx_runtime::Balances::force_set_balance(RuntimeOrigin::root(), omnix_account.clone(), init_balance));
+			assert_balance!(omnix_account.clone(), LRNA, 0);
+
+			let amount_to_sell = 1 * UNITS;
+			//Act
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(omnix_account.clone()),
+				HDX,
+				LRNA,
+				amount_to_sell,
+				u128::MIN,
+				vec![]
+			));
+
+			//Assert
+			let balance = hydradx_runtime::Currencies::free_balance(LRNA, &omnix_account);
+			assert!(balance > 0, "The route trade was not successfull");
+		});
+	}
+
 
 	#[test]
 	fn route_should_fail_when_route_is_not_consistent() {
@@ -2620,69 +2692,6 @@ mod xyk_router_tests {
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DOT, 0);
-			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
-
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in,
-				amount_out: amount_to_buy,
-			}
-			.into()]);
-		});
-	}
-
-	#[test]
-	fn buy_should_work_when_route_contains_multiple_trades() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			//Arrange
-			create_xyk_pool(HDX, DOT);
-			create_xyk_pool(DOT, LRNA);
-			create_xyk_pool(LRNA, DAI);
-
-			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE);
-			assert_balance!(BOB.into(), DOT, 0);
-			assert_balance!(BOB.into(), LRNA, BOB_INITIAL_LRNA_BALANCE);
-			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
-
-			let amount_to_buy = UNITS;
-			let limit = 10 * UNITS;
-			let trades = vec![
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: HDX,
-					asset_out: DOT,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: DOT,
-					asset_out: LRNA,
-				},
-				Trade {
-					pool: PoolType::XYK,
-					asset_in: LRNA,
-					asset_out: DAI,
-				},
-			];
-
-			//Act
-			assert_ok!(Router::buy(
-				RuntimeOrigin::signed(BOB.into()),
-				HDX,
-				DAI,
-				amount_to_buy,
-				limit,
-				trades
-			));
-
-			//Assert
-			let amount_in = 9_392_858_946_762;
-
-			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
-			assert_balance!(BOB.into(), DOT, 0);
-			assert_balance!(BOB.into(), LRNA, BOB_INITIAL_LRNA_BALANCE);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
 			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {

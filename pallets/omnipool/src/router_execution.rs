@@ -24,16 +24,12 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			return Err(ExecutorError::NotSupported);
 		}
 
-		if asset_out == T::HubAssetId::get() {
-			return Err(ExecutorError::Error(Error::<T>::NotAllowed.into()));
-		}
-
-		let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 
 		if asset_in == T::HubAssetId::get() {
 			let current_hub_asset_liquidity =
 				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+			let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
 
 			let (asset_fee, _) = T::Fee::get(&asset_out);
 
@@ -50,12 +46,31 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 			return Ok(*state_changes.asset.delta_reserve);
+		} else if asset_out == T::HubAssetId::get() {
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+			let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
+
+			let state_changes = hydra_dx_math::omnipool::calculate_sell_for_hub_asset_state_changes(
+				&(&asset_in_state).into(),
+				amount_in,
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
+			)
+				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+
+			return Ok(*state_changes.asset.delta_hub_reserve);
+
 		}
 
 		let (asset_fee, _) = T::Fee::get(&asset_out);
 		let (_, protocol_fee) = T::Fee::get(&asset_in);
 
 		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
+		let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 			&(&asset_in_state).into(),
 			&(&asset_out_state).into(),
@@ -78,14 +93,12 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		if pool_type != PoolType::Omnipool {
 			return Err(ExecutorError::NotSupported);
 		}
-		// Special handling when one of the asset is Hub Asset
-		if asset_out == T::HubAssetId::get() {
-			return Err(ExecutorError::Error(Error::<T>::NotAllowed.into()));
-		}
-		let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
+
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 
 		if asset_in == T::HubAssetId::get() {
+			let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
+
 			let current_hub_asset_liquidity =
 				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
@@ -104,9 +117,27 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 			return Ok(*state_changes.asset.delta_hub_reserve);
+		} else if asset_out == T::HubAssetId::get() {
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+			let asset_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
+
+			let state_changes = hydra_dx_math::omnipool::calculate_buy_hub_asset_state_changes(
+				&(&asset_state).into(),
+				amount_out,
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
+			)
+				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+
+			return Ok(*state_changes.asset.delta_reserve);
 		}
 
 		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
+		let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
 
 		let (asset_fee, _) = T::Fee::get(&asset_out);
 		let (_, protocol_fee) = T::Fee::get(&asset_in);
