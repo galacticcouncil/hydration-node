@@ -29,7 +29,7 @@
 #![allow(clippy::upper_case_acronyms)]
 
 use frame_support::sp_runtime::{traits::Zero, DispatchError};
-use frame_support::{dispatch, dispatch::DispatchResult, ensure, traits::Get, transactional};
+use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{

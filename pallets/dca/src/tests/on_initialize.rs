@@ -287,8 +287,9 @@ fn sell_schedule_should_continue_when_there_is_exact_amount_in_left_as_remaining
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
+			let sell_dca_fee = get_fee_for_sell_in_hdx();
 
-			let total_amount = *AMOUNT_OUT_FOR_OMNIPOOL_SELL * 2 + SELL_DCA_FEE_IN_NATIVE;
+			let total_amount = *AMOUNT_OUT_FOR_OMNIPOOL_SELL * 2 + sell_dca_fee;
 			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
@@ -545,8 +546,9 @@ fn full_sell_dca_should_be_completed_when_some_successful_dca_execution_happened
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
+			let sell_dca_fee = get_fee_for_sell_in_hdx();
 			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
-			let total_amount = amount_to_sell + SELL_DCA_FEE_IN_NATIVE + SELL_DCA_FEE_IN_NATIVE / 2;
+			let total_amount = amount_to_sell + sell_dca_fee + sell_dca_fee / 2;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -807,7 +809,8 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL + 3 * SELL_DCA_FEE_IN_NATIVE;
+			let fee = get_fee_for_sell_in_hdx();
+			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL + 3 * fee;
 			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
@@ -2325,8 +2328,10 @@ fn sell_schedule_should_be_completed_when_remainder_is_less_than_20_transaction_
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let remainder = 20 * SELL_DCA_FEE_IN_NATIVE - 1;
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + remainder;
+			let sell_fee = get_fee_for_sell_in_hdx();
+
+			let remainder = 20 * sell_fee - 1;
+			let total_amount = ONE + sell_fee + remainder;
 			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -2512,8 +2517,9 @@ fn dca_should_complete_when_remainder_is_smaller_than_min_trading_limit() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
+			let fee = get_fee_for_sell_in_hdx();
 			let remainder = min_trade_limit - 1;
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + remainder;
+			let total_amount = ONE + fee + remainder;
 			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()

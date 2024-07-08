@@ -377,13 +377,14 @@ fn sell_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_
 		.build()
 		.execute_with(|| {
 			//Arrange
+			let buy_fee = get_fee_for_buy_in_hdx();
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: budget + BUY_DCA_FEE_IN_NATIVE,
+					amount_in: budget + buy_fee,
 					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
@@ -411,7 +412,8 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_p
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let budget = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + BUY_DCA_FEE_IN_NATIVE - 1;
+			let buy_fee = get_fee_for_buy_in_hdx();
+			let budget = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + buy_fee - 1;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)
@@ -420,7 +422,7 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_p
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: 10 * ONE,
-					max_amount_in: budget + BUY_DCA_FEE_IN_NATIVE,
+					max_amount_in: budget + buy_fee,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -698,13 +700,14 @@ fn schedule_should_fail_when_trade_amount_is_less_than_20x_fee() {
 		.build()
 		.execute_with(|| {
 			//Arrange
+			let sell_dca_fee = get_fee_for_sell_in_hdx();
 			let total_amount = 100 * ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: SELL_DCA_FEE_IN_NATIVE * 20 - 1,
+					amount_in: sell_dca_fee * 20 - 1,
 					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
@@ -930,7 +933,7 @@ pub fn get_fee_for_sell_in_hdx() -> Balance {
 	let order = Order::Sell {
 		asset_in: HDX,
 		asset_out: BTC,
-		amount_in: SELL_DCA_FEE_IN_NATIVE * 20,
+		amount_in: ONE,
 		min_amount_out: Balance::MIN,
 		route: create_bounded_vec(vec![Trade {
 			pool: PoolType::Omnipool,

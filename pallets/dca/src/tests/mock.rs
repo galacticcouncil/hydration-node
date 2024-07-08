@@ -56,11 +56,6 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1336361000;
-pub const BUY_DCA_FEE_IN_DAI: Balance = 1175997680;
-pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1338448000;
-pub const SELL_DCA_FEE_IN_DAI: Balance = 1177834240;
-
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
@@ -68,7 +63,6 @@ pub const BTC: AssetId = 3;
 pub const FORBIDDEN_ASSET: AssetId = 4;
 pub const DOT: AssetId = 5;
 pub const REGISTERED_ASSET: AssetId = 1000;
-pub const INSUFFICIENT_ASSET: AssetId = 10000021;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
 //Since we always use the same parent hash in the tests, the generated radiuses are always the same
@@ -875,7 +869,7 @@ where
 	}
 
 	fn exists(asset_id: AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
 		asset.is_some()
 	}
 

@@ -77,11 +77,11 @@ use frame_system::{
 	Origin,
 };
 use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::router::{inverse_route, PoolType, RouteProvider};
+use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::PriceOracle;
 use hydradx_traits::AMM;
-use hydradx_traits::{AssetPairAccountIdFor, OraclePeriod};
+use hydradx_traits::{OraclePeriod};
 use hydradx_traits::{Inspect, NativePriceOracle};
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
@@ -122,10 +122,8 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{AssetPairAccountIdFor, NativePriceOracle, PriceOracle, AMM};
+	use hydradx_traits::{ NativePriceOracle, PriceOracle, AMM};
 	use orml_traits::NamedMultiReservableCurrency;
-	use pallet_xyk::types::AssetId;
-	use sp_runtime::traits::AtLeast32BitUnsigned;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -921,7 +919,7 @@ impl<T: Config> Pallet<T> {
 		if !T::InspectRegistry::is_sufficient(fee_currency) {
 			//We buy DOT with insufficient asset, for the treasury
 			let fee_in_hdx = Self::weight_to_fee(weight_to_charge);
-			let fee_in_dot = Self::get_fee_in_dot(fee_in_hdx).map_err(|err| ArithmeticError::Overflow)?;
+			let fee_in_dot = Self::get_fee_in_dot(fee_in_hdx)?;
 
 			let xyk_exchange_rate = T::XykExchangeFee::get();
 			let pool_trade_fee =
@@ -1118,10 +1116,10 @@ impl<T: Config> Pallet<T> {
 			let out_reserve = T::Currencies::free_balance(T::PolkadotNativeAssetId::get(), &asset_pair_account);
 			let in_reserve = T::Currencies::free_balance(asset_id, &asset_pair_account.clone());
 
-			let fee_amount_in_dot = Self::get_fee_in_dot(asset_amount).map_err(|err| ArithmeticError::Overflow)?; //TODO: we don't need map error? Check other
+			let fee_amount_in_dot = Self::get_fee_in_dot(asset_amount)?;
 
 			hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, fee_amount_in_dot)
-				.map_err(|err| ArithmeticError::Overflow)?
+				.map_err(|_err| ArithmeticError::Overflow)?
 		} else {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 

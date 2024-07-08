@@ -120,7 +120,7 @@ mod omnipool {
 					RuntimeOrigin::signed(BOB.into()),
 					insufficient_asset,
 					DOT,
-					1 * UNITS,
+					UNITS,
 					0,
 					false
 				));
@@ -832,7 +832,7 @@ mod omnipool {
 					RuntimeOrigin::signed(BOB.into()),
 					insufficient_asset,
 					DOT,
-					1 * UNITS,
+					UNITS,
 					0,
 					false
 				));
@@ -949,7 +949,7 @@ mod omnipool {
 					RuntimeOrigin::signed(BOB.into()),
 					insufficient_asset,
 					DOT,
-					1 * UNITS,
+					UNITS,
 					0,
 					false
 				));
@@ -1712,7 +1712,7 @@ mod fee {
 					RuntimeOrigin::signed(BOB.into()),
 					insufficient_asset,
 					DOT,
-					1 * UNITS,
+					UNITS,
 					0,
 					false
 				));
@@ -1722,7 +1722,7 @@ mod fee {
 					asset_in: DOT,
 					asset_out: insufficient_asset,
 					amount_in: 10000 * UNITS,
-					min_amount_out: 1 * UNITS,
+					min_amount_out: UNITS,
 					route: create_bounded_vec(vec![]),
 				};
 
@@ -1730,7 +1730,7 @@ mod fee {
 					asset_in: insufficient_asset,
 					asset_out: DOT,
 					amount_in: 10000 * UNITS,
-					min_amount_out: 1 * UNITS,
+					min_amount_out: UNITS,
 					route: create_bounded_vec(vec![]),
 				};
 
@@ -1792,7 +1792,7 @@ mod fee {
 					RuntimeOrigin::signed(BOB.into()),
 					insufficient_asset,
 					DOT,
-					1 * UNITS,
+					UNITS,
 					0,
 					false
 				));

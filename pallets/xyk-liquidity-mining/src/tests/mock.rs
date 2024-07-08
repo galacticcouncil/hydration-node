@@ -236,8 +236,8 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
 	}
 
 	fn execute_buy(
-		transfer: &AMMTransfer<AccountId, AssetId, AssetPair, u128>,
-		destination: Option<&AccountId>,
+		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, u128>,
+		_destination: Option<&AccountId>,
 	) -> dispatch::DispatchResult {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}
