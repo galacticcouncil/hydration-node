@@ -2,6 +2,10 @@
 build:
 	cargo build --release --locked
 
+.PHONY: build-release
+build:
+	cargo build --release --locked --features release-build
+
 .PHONY: check
 check:
 	cargo check --release
