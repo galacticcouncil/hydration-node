@@ -1,11 +1,11 @@
-#[cfg(all(feature = "std", feature = "metadata-hash"))]
+#[cfg(all(feature = "std", feature = "release-build"))]
 fn main() {
 	substrate_wasm_builder::WasmBuilder::init_with_defaults()
 		.enable_metadata_hash("HDX", 12)
 		.build();
 }
 
-#[cfg(all(feature = "std", not(feature = "metadata-hash")))]
+#[cfg(all(feature = "std", not(feature = "release-build")))]
 fn main() {
 	substrate_wasm_builder::WasmBuilder::build_using_defaults();
 }
