@@ -125,6 +125,7 @@ pub mod pallet {
 			who: T::AccountId,
 			amount_in: Balance,
 			amount_out: Balance,
+			fee: Balance,
 		},
 		/// An Order has been partially filled
 		PartiallyFilled {
@@ -132,6 +133,7 @@ pub mod pallet {
 			who: T::AccountId,
 			amount_in: Balance,
 			amount_out: Balance,
+			fee: Balance,
 		},
 		/// An Order has been placed
 		Placed {
@@ -275,13 +277,16 @@ pub mod pallet {
 				Self::ensure_min_order_amount(order.asset_out, order.amount_out)?;
 				Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
 
-				Self::execute_order(order, &who, amount_in, amount_out)?;
+				let fee = Self::calculate_fee(order.amount_out);
+
+				Self::execute_order(order, &who, amount_in, amount_out, fee)?;
 
 				Self::deposit_event(Event::PartiallyFilled {
 					order_id,
 					who,
 					amount_in,
 					amount_out,
+					fee,
 				});
 				Ok(())
 			})
@@ -300,7 +305,9 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let order = <Orders<T>>::get(order_id).ok_or(Error::<T>::OrderNotFound)?;
 
-			Self::execute_order(&order, &who, order.amount_in, order.amount_out)?;
+			let fee = Self::calculate_fee(order.amount_out);
+
+			Self::execute_order(&order, &who, order.amount_in, order.amount_out, fee)?;
 			<Orders<T>>::remove(order_id);
 
 			Self::deposit_event(Event::Filled {
@@ -308,6 +315,7 @@ pub mod pallet {
 				who,
 				amount_in: order.amount_in,
 				amount_out: order.amount_out,
+				fee,
 			});
 			Ok(())
 		}
@@ -361,6 +369,7 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		amount_in: Balance,
 		amount_out: Balance,
+		fee: Balance
 	) -> DispatchResult {
 		T::Currency::transfer(order.asset_in, who, &order.owner, amount_in)?;
 		let remaining_to_unreserve =
@@ -368,7 +377,6 @@ impl<T: Config> Pallet<T> {
 			T::Currency::unreserve_named(&NAMED_RESERVE_ID, order.asset_out, &order.owner, amount_out);
 		ensure!(remaining_to_unreserve.is_zero(), Error::<T>::InsufficientReservedAmount);
 
-		let fee = Self::calculate_fee(amount_out);
 		let amount_out_without_fee = amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?;
 
 		T::Currency::transfer(order.asset_out, &order.owner, who, amount_out_without_fee)?;
