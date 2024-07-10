@@ -1,5 +1,5 @@
 use crate::pallet::Intents;
-use crate::types::{Balance, BoundedInstructions, Price, Solution, SwapType};
+use crate::types::{Balance, BoundedInstructions, BoundedPrices, Price, Solution, SwapType};
 use crate::{Config, Error};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::__private::RuntimeDebug;
@@ -10,7 +10,7 @@ use frame_support::traits::tokens::Preservation;
 use frame_support::traits::OriginTrait;
 use hydradx_traits::router::RouterT;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::{DispatchError, Rounding};
+use sp_runtime::{DispatchError, FixedU128, Rational128, Rounding};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
 
@@ -37,6 +37,8 @@ pub enum Instruction<AccountId, AssetId> {
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ExecutionPlan<AccountId, AssetId> {
 	pub instructions: BoundedInstructions<AccountId, AssetId>,
+	pub sell_prices: BoundedPrices<AssetId>,
+	pub buy_prices: BoundedPrices<AssetId>,
 	pub weight: Weight,
 }
 
@@ -185,7 +187,12 @@ where
 			BoundedInstructions::try_from(instructions).map_err(|_| crate::pallet::Error::<T>::TooManyInstructions)?;
 
 		let weight = Self::calculate_weight(&instructions)?;
-		Ok(ExecutionPlan { instructions, weight })
+		Ok(ExecutionPlan {
+			instructions,
+			sell_prices: solution.sell_prices.clone(),
+			buy_prices: solution.buy_prices.clone(),
+			weight,
+		})
 	}
 
 	fn validate_execution_plan(_plan: &ExecutionPlan<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
@@ -211,15 +218,99 @@ where
 		Ok(plan)
 	}
 
+	fn validate_prices(
+		deltas: BTreeMap<T::AssetId, (Balance, Balance)>,
+		hub_deltas: BTreeMap<T::AssetId, Balance>,
+		sell_prices: BoundedPrices<T::AssetId>,
+		buy_prices: BoundedPrices<T::AssetId>,
+	) -> bool {
+		for (asset_id, (delta_in, delta_out)) in deltas.into_iter() {
+			if delta_out > delta_in {
+				let sell_amt = delta_in;
+				let pool_sell_amt = delta_out - delta_in;
+				let sell_price = sell_prices.iter().find(|(id, _)| *id == asset_id).unwrap(); //TODO: unwrap handling
+				let lrna_amt =
+					multiply_by_rational_with_rounding(sell_amt, sell_price.1 .1, sell_price.1 .0, Rounding::Down)
+						.unwrap(); //TODO: unwrap handling
+				let pool_lrna_amt = hub_deltas.get(&asset_id).unwrap();
+
+				//TODO: perhaps without FixedU128, there might be more precise way to calculate
+				// try using sp_runtime::Rational128
+				let net_price = FixedU128::from_rational(lrna_amt + pool_lrna_amt, sell_amt + pool_sell_amt);
+				let buy_price = buy_prices.iter().find(|(id, _)| *id == asset_id).unwrap(); //TODO: unwrap handling
+				let buy_price = FixedU128::from_rational(buy_price.1 .1, buy_price.1 .0);
+
+				let abs_price = if net_price < buy_price {
+					buy_price - net_price
+				} else {
+					net_price - buy_price
+				};
+
+				let tolerance = FixedU128::from_rational(1u128, 1000u128); //TODO: constant, or should respect tkn decimals?!
+
+				if (abs_price / net_price) > tolerance {
+					return false;
+				}
+
+			//TODO: add check with spot prices
+			//if delta['in'] != 0 and not abs(sell_prices[tkn] - spot_prices['sell'][tkn])/spot_prices['sell'][tkn] < tolerance: return error
+			} else if delta_out < delta_in {
+				let buy_amt = delta_out;
+				let pool_buy_amt = delta_in - delta_out;
+				let buy_price = buy_prices.iter().find(|(id, _)| *id == asset_id).unwrap(); //TODO: unwrap handling
+				let lrna_amt =
+					multiply_by_rational_with_rounding(buy_amt, buy_price.1 .1, buy_price.1 .0, Rounding::Up).unwrap(); //TODO: unwrap handling
+				let pool_lrna_amt = hub_deltas.get(&asset_id).unwrap();
+
+				let net_price = FixedU128::from_rational(lrna_amt + pool_lrna_amt, buy_amt + pool_buy_amt);
+				let sell_price = sell_prices.iter().find(|(id, _)| *id == asset_id).unwrap(); //TODO: unwrap handling
+				let sell_price = FixedU128::from_rational(sell_price.1 .1, sell_price.1 .0);
+
+				let abs_price = if net_price < sell_price {
+					sell_price - net_price
+				} else {
+					net_price - sell_price
+				};
+
+				let tolerance = FixedU128::from_rational(1u128, 1000u128); //TODO: constant, or should respect tkn decimals?!
+
+				if (abs_price / net_price) > tolerance {
+					return false;
+				}
+
+			//TODO: add check with spot prices
+			// if delta['out'] > 0 and not abs(buy_prices[tkn] - spot_prices['buy'][tkn])/spot_prices['buy'][tkn] < tolerance: return error
+			} else if delta_out != 0u128 {
+				//TODO
+				// if direct transfers between accounts
+				//assert abs(buy_prices[tkn] - spot_prices['buy'][tkn]) / spot_prices['buy'][tkn] < tolerance, "price not valid for " + tkn
+				//assert abs(sell_prices[tkn] - spot_prices['sell'][tkn]) / spot_prices['sell'][tkn] < tolerance, "price not valid for " + tkn
+			}
+		}
+		true
+	}
+
 	pub fn execute_solution(execution_plan: ExecutionPlan<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
 		let holding_account = crate::Pallet::<T>::holding_account();
+
+		let mut deltas: BTreeMap<T::AssetId, (Balance, Balance)> = BTreeMap::new();
+		let mut hub_asset_deltas: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+
 		for instruction in execution_plan.instructions {
 			match instruction {
 				Instruction::TransferIn { who, asset_id, amount } => {
 					C::transfer(asset_id, &who, &holding_account, amount, Preservation::Expendable)?;
+					deltas
+						.entry(asset_id)
+						.and_modify(|e| *e = (e.0.saturating_add(amount), e.1))
+						.or_insert((amount, 0u128));
 				}
 				Instruction::TransferOut { who, asset_id, amount } => {
 					C::transfer(asset_id, &holding_account, &who, amount, Preservation::Expendable)?;
+					deltas
+						.entry(asset_id)
+						.and_modify(|e| *e = (e.0, e.1.saturating_add(amount)))
+						.or_insert((0u128, amount));
 				}
 				Instruction::HubSwap {
 					asset_in,
@@ -235,6 +326,7 @@ where
 
 					if asset_in == T::HubAssetId::get() {
 						// buy token
+						let initial_hub_balance = C::balance(T::HubAssetId::get(), &holding_account);
 						R::buy(
 							origin,
 							asset_in,
@@ -243,8 +335,15 @@ where
 							amount_in, // it is set as limit in the instruction
 							Vec::new(),
 						)?;
+						let final_hub_balance = C::balance(T::HubAssetId::get(), &holding_account);
+						let delta = initial_hub_balance.saturating_sub(final_hub_balance);
+						hub_asset_deltas
+							.entry(asset_out)
+							.and_modify(|e| *e = e.saturating_add(delta))
+							.or_insert(delta);
 					} else {
 						// sell token
+						let initial_hub_balance = C::balance(T::HubAssetId::get(), &holding_account);
 						R::sell(
 							origin,
 							asset_in,
@@ -253,10 +352,26 @@ where
 							amount_out, // set as limit in the instruction
 							Vec::new(),
 						)?;
+						let final_hub_balance = C::balance(T::HubAssetId::get(), &holding_account);
+						let delta = final_hub_balance.saturating_sub(initial_hub_balance);
+						hub_asset_deltas
+							.entry(asset_in)
+							.and_modify(|e| *e = e.saturating_add(delta))
+							.or_insert(delta);
 					}
 				}
 			}
 		}
+
+		Self::validate_prices(
+			deltas,
+			hub_asset_deltas,
+			execution_plan.sell_prices,
+			execution_plan.buy_prices,
+		)
+		.then(|| ())
+		.ok_or(Error::<T>::InvalidPrices)?;
+
 		Ok(())
 	}
 }

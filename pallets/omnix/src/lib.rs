@@ -102,6 +102,9 @@ pub mod pallet {
 		/// Provided solution is invalid
 		InvalidSolution,
 
+		/// One or more prices provided for solution are invalid
+		InvalidPrices,
+
 		/// Intent not found
 		IntentNotFound,
 

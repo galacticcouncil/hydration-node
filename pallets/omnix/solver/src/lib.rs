@@ -44,7 +44,7 @@ where
 		.unwrap();
 
 		let lrna_out = *state_changes.asset.delta_hub_reserve;
-		let asset_in_price = (amount_in, *state_changes.asset.delta_hub_reserve);
+		let asset_in_sell_price = (amount_in, *state_changes.asset.delta_hub_reserve);
 
 		let asset_state = pallet_omnipool::Pallet::<T>::load_asset_state(asset_out.into()).unwrap();
 		let (asset_fee, _) = <T as pallet_omnipool::Config>::Fee::get(&asset_out.into());
@@ -67,14 +67,17 @@ where
 		);
 
 		let amount_out = *state_changes.asset.delta_reserve;
-		let asset_out_price = (amount_out, lrna_out);
+		let asset_out_buy_price = (amount_out, lrna_out);
+
+		let asset_in_buy_price = asset_in_sell_price; //TODO: figure out
+		let asset_out_sell_price = asset_out_buy_price; //TODO: figure out
 
 		let resolved_intents = vec![pallet_omnix::types::ResolvedIntent {
 			intent_id: intents[0].0,
 			amount: amount_in,
 		}];
-		let sell_prices = vec![(asset_in, asset_in_price)];
-		let buy_prices = vec![(asset_out, asset_out_price)];
+		let sell_prices = vec![(asset_in, asset_in_sell_price), (asset_out, asset_out_sell_price)];
+		let buy_prices = vec![(asset_out, asset_out_buy_price), (asset_in, asset_in_buy_price)];
 
 		Ok(SolverSolution {
 			intents: resolved_intents,

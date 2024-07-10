@@ -7,7 +7,6 @@ use hydradx_runtime::{OmniX, RuntimeOrigin};
 use omnix_solver::traits::OmniXSolver;
 use pallet_omnix::types::{IntentId, Swap};
 use primitives::{AccountId, AssetId, Moment};
-use sp_runtime::Permill;
 use xcm_emulator::TestExt;
 
 pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -> Vec<IntentId> {
