@@ -16,7 +16,7 @@
 use crate as otc;
 use crate::Config;
 use frame_support::{
-	parameter_types,
+	parameter_types, PalletId,
 	traits::{Everything, Nothing},
 };
 use frame_system as system;
@@ -25,8 +25,8 @@ use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage,
+	traits::{BlakeTwo256, IdentityLookup, AccountIdConversion},
+	BuildStorage, Permill,
 };
 use std::{cell::RefCell, collections::HashMap};
 
@@ -66,6 +66,9 @@ thread_local! {
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub ExistentialDepositMultiplier: u8 = 5;
+	pub OtcFee: Permill = Permill::zero(); // Permill::from_rational(1u32, 1_000_u32); // 0.1%
+	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 }
 
 parameter_type_with_key! {
@@ -81,6 +84,8 @@ impl otc::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
+	type Fee = OtcFee;
+	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();
 }
 

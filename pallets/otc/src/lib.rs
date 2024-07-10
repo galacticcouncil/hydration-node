@@ -40,6 +40,7 @@ use hydradx_traits::Inspect;
 use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
 use sp_core::U256;
 use sp_runtime::traits::{One, Zero};
+use sp_runtime::Permill;
 
 #[cfg(test)]
 mod tests;
@@ -100,6 +101,14 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type ExistentialDepositMultiplier: Get<u8>;
+
+		/// Fee
+		#[pallet::constant]
+		type Fee: Get<Permill>;
+
+		/// Fee receiver
+		#[pallet::constant]
+		type FeeReceiver: Get<Self::AccountId>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -355,10 +364,20 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		T::Currency::transfer(order.asset_in, who, &order.owner, amount_in)?;
 		let remaining_to_unreserve =
+			// returns any amount that was unable to be unreserved
 			T::Currency::unreserve_named(&NAMED_RESERVE_ID, order.asset_out, &order.owner, amount_out);
 		ensure!(remaining_to_unreserve.is_zero(), Error::<T>::InsufficientReservedAmount);
-		T::Currency::transfer(order.asset_out, &order.owner, who, amount_out)?;
+
+		let fee = Self::calculate_fee(amount_out);
+		let amount_out_without_fee = amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?;
+
+		T::Currency::transfer(order.asset_out, &order.owner, who, amount_out_without_fee)?;
+		T::Currency::transfer(order.asset_out, &order.owner, &T::FeeReceiver::get(), fee)?;
 
 		Ok(())
+	}
+
+	fn calculate_fee(amount: Balance) -> Balance {
+		T::Fee::get().mul_ceil(amount)
 	}
 }
