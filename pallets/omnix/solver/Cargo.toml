@@ -11,6 +11,7 @@ pallet-omnix = { workspace = true}
 pallet-omnipool = { workspace = true}
 sp-std = {workspace = true}
 sp-runtime = {workspace = true}
+orml-traits = {workspace = true}
 
 
 [features]
@@ -21,4 +22,5 @@ std = [
     "sp-std/std",
     "pallet-omnipool/std",
     "sp-runtime/std",
+    "orml-traits/std",
 ]

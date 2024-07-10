@@ -7215,6 +7215,7 @@ name = "omnix-solver"
 version = "0.1.0"
 dependencies = [
  "hydra-dx-math",
+ "orml-traits",
  "pallet-omnipool",
  "pallet-omnix",
  "sp-runtime",

@@ -264,13 +264,13 @@ where
 // amount out = amount_in * sell price / buy price
 fn calculate_out_amount(amount_in: Balance, sell_price: Price, buy_price: Price) -> Option<Balance> {
 	//TODO: Verify calculate, rounding? or other way to calculate to minimize rounding errors
-	let amt = multiply_by_rational_with_rounding(amount_in, sell_price.1, sell_price.0, Rounding::Down)?;
-	multiply_by_rational_with_rounding(amt, buy_price.0, buy_price.1, Rounding::Down)
+	let amt = multiply_by_rational_with_rounding(amount_in, sell_price.1, sell_price.0, Rounding::Up)?;
+	multiply_by_rational_with_rounding(amt, buy_price.0, buy_price.1, Rounding::Up)
 }
 
 // amount in = amount_out  * buy price / sell price
 fn calculate_in_amount(amount_out: Balance, sell_price: Price, buy_price: Price) -> Option<Balance> {
 	//TODO: Verify calculate, rounding? or other way to calculate to minimize rounding errors
-	let amt = multiply_by_rational_with_rounding(amount_out, buy_price.1, buy_price.0, Rounding::Up)?;
-	multiply_by_rational_with_rounding(amt, sell_price.0, sell_price.1, Rounding::Up)
+	let amt = multiply_by_rational_with_rounding(amount_out, buy_price.1, buy_price.0, Rounding::Down)?;
+	multiply_by_rational_with_rounding(amt, sell_price.0, sell_price.1, Rounding::Down)
 }
