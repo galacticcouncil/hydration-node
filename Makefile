@@ -3,7 +3,7 @@ build:
 	cargo build --release --locked
 
 .PHONY: build-release
-build:
+build-release:
 	cargo build --release --locked --features release-build
 
 .PHONY: check
