@@ -3,11 +3,11 @@ mod solution;
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use frame_support::traits::fungibles::Mutate;
-use hydradx_runtime::{Currencies, OmniX, Runtime, RuntimeOrigin};
+use hydradx_runtime::{OmniX, RuntimeOrigin};
+use omnix_solver::traits::OmniXSolver;
 use pallet_omnix::types::{IntentId, Swap};
 use primitives::{AccountId, AssetId, Moment};
-use sp_runtime::DispatchResult;
+use sp_runtime::Permill;
 use xcm_emulator::TestExt;
 
 pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -> Vec<IntentId> {
@@ -27,4 +27,10 @@ pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -
 	}
 
 	intent_ids
+}
+
+pub(crate) fn solve_intents(
+	intents: Vec<(IntentId, pallet_omnix::types::Intent<AccountId, AssetId>)>,
+) -> Result<omnix_solver::SolverSolution<AssetId>, ()> {
+	omnix_solver::OneIntentSolver::<hydradx_runtime::Runtime>::solve(intents)
 }

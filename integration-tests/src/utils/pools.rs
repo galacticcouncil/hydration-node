@@ -2,7 +2,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
 use hydradx_runtime::Balances;
-use hydradx_runtime::{Omnipool, Runtime, RuntimeOrigin, Tokens};
+use hydradx_runtime::{Omnipool, RuntimeOrigin, Tokens};
 use primitives::{AssetId, Balance};
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;

@@ -3,11 +3,11 @@ use crate::types::{Balance, BoundedInstructions, Price, Solution, SwapType};
 use crate::{Config, Error};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::__private::RuntimeDebug;
-use frame_support::dispatch::RawOrigin;
 use frame_support::ensure;
 use frame_support::pallet_prelude::{Get, TypeInfo, Weight};
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
+use frame_support::traits::OriginTrait;
 use hydradx_traits::router::RouterT;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{DispatchError, Rounding};
@@ -231,10 +231,12 @@ where
 						asset_in == T::HubAssetId::get() || asset_out == T::HubAssetId::get(),
 						"No Hub asset in the trade"
 					);
+					let origin = T::RuntimeOrigin::signed(holding_account.clone().into());
+
 					if asset_in == T::HubAssetId::get() {
 						// buy token
 						R::buy(
-							RawOrigin::Signed(holding_account.clone().into()).into(),
+							origin,
 							asset_in,
 							asset_out,
 							amount_out,
@@ -244,7 +246,7 @@ where
 					} else {
 						// sell token
 						R::sell(
-							RawOrigin::Signed(holding_account.clone().into()).into(),
+							origin,
 							asset_in,
 							asset_out,
 							amount_in,
@@ -262,13 +264,13 @@ where
 // amount out = amount_in * sell price / buy price
 fn calculate_out_amount(amount_in: Balance, sell_price: Price, buy_price: Price) -> Option<Balance> {
 	//TODO: Verify calculate, rounding? or other way to calculate to minimize rounding errors
-	let amt = multiply_by_rational_with_rounding(amount_in, sell_price.0, sell_price.1, Rounding::Down)?;
-	multiply_by_rational_with_rounding(amt, buy_price.1, buy_price.0, Rounding::Down)
+	let amt = multiply_by_rational_with_rounding(amount_in, sell_price.1, sell_price.0, Rounding::Down)?;
+	multiply_by_rational_with_rounding(amt, buy_price.0, buy_price.1, Rounding::Down)
 }
 
 // amount in = amount_out  * buy price / sell price
 fn calculate_in_amount(amount_out: Balance, sell_price: Price, buy_price: Price) -> Option<Balance> {
 	//TODO: Verify calculate, rounding? or other way to calculate to minimize rounding errors
-	let amt = multiply_by_rational_with_rounding(amount_out, buy_price.0, buy_price.1, Rounding::Down)?;
-	multiply_by_rational_with_rounding(amt, sell_price.1, sell_price.0, Rounding::Down)
+	let amt = multiply_by_rational_with_rounding(amount_out, buy_price.1, buy_price.0, Rounding::Up)?;
+	multiply_by_rational_with_rounding(amt, sell_price.0, sell_price.1, Rounding::Up)
 }

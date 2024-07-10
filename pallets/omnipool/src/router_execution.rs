@@ -60,10 +60,9 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 				},
 				current_hub_asset_liquidity,
 			)
-				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 			return Ok(*state_changes.asset.delta_hub_reserve);
-
 		}
 
 		let (asset_fee, _) = T::Fee::get(&asset_out);
@@ -131,7 +130,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 				},
 				current_hub_asset_liquidity,
 			)
-				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 			return Ok(*state_changes.asset.delta_reserve);
 		}

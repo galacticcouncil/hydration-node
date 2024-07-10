@@ -52,8 +52,8 @@ fn router_weights_should_be_non_zero() {
 }
 
 mod router_different_pools_tests {
-	use frame_support::assert_ok;
 	use super::*;
+	use frame_support::assert_ok;
 	use hydradx_traits::router::PoolType;
 
 	#[test]
@@ -72,7 +72,11 @@ mod router_different_pools_tests {
 
 			let init_balance = 1000 * UNITS;
 			let omnix_account = pallet_omnix::Pallet::<Runtime>::holding_account();
-			assert_ok!(hydradx_runtime::Balances::force_set_balance(RuntimeOrigin::root(), omnix_account.clone(), init_balance));
+			assert_ok!(hydradx_runtime::Balances::force_set_balance(
+				RuntimeOrigin::root(),
+				omnix_account.clone(),
+				init_balance
+			));
 
 			let amount_to_buy = 1 * UNITS;
 			//Act
@@ -106,7 +110,11 @@ mod router_different_pools_tests {
 
 			let init_balance = 1000 * UNITS;
 			let omnix_account = pallet_omnix::Pallet::<Runtime>::holding_account();
-			assert_ok!(hydradx_runtime::Balances::force_set_balance(RuntimeOrigin::root(), omnix_account.clone(), init_balance));
+			assert_ok!(hydradx_runtime::Balances::force_set_balance(
+				RuntimeOrigin::root(),
+				omnix_account.clone(),
+				init_balance
+			));
 			assert_balance!(omnix_account.clone(), LRNA, 0);
 
 			let amount_to_sell = 1 * UNITS;
@@ -125,7 +133,6 @@ mod router_different_pools_tests {
 			assert!(balance > 0, "The route trade was not successfull");
 		});
 	}
-
 
 	#[test]
 	fn route_should_fail_when_route_is_not_consistent() {

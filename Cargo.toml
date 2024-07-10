@@ -44,6 +44,7 @@ members = [
   'precompiles/call-permit',
   'runtime-mock',
   "pallets/omnix",
+  "pallets/omnix/solver",
 ]
 
 resolver = "2"
@@ -106,6 +107,7 @@ pallet-referrals = { path = "pallets/referrals", default-features = false}
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false}
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false}
 pallet-omnix = { path = "pallets/omnix", default-features = false}
+omnix-solver = { path = "pallets/omnix/solver", default-features = false}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
