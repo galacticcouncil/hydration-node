@@ -113,16 +113,16 @@ fn execute_one_intent_solution_should_work() {
 		assert_ok!(OmniX::execute_solution(RuntimeOrigin::signed(BOB.into()), hash));
 
 		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
+		assert_eq!(hdx_balance, initial_hdx_balance - 1_000_000_000_000u128);
 		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
-
-		dbg!(initial_hdx_balance, initial_dai_balance);
-		dbg!(hdx_balance, dai_balance);
 
 		let lrna_balance = Currencies::free_balance(
 			LRNA,
 			&pallet_omnix::Pallet::<hydradx_runtime::Runtime>::holding_account(),
 		);
-		dbg!(lrna_balance);
+		assert_eq!(lrna_balance, 0u128);
+		let received = dai_balance - initial_dai_balance;
+		assert_eq!(received, 8978102355397552u128);
 	});
 }
 
@@ -130,7 +130,6 @@ fn execute_one_intent_solution_should_work() {
 fn test_omnipool_swap() {
 	Hydra::execute_with(|| {
 		crate::utils::pools::setup_omnipool();
-		let initial_hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
 		let initial_dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 		assert_ok!(Omnipool::sell(
 			RuntimeOrigin::signed(BOB.into()),
@@ -139,9 +138,8 @@ fn test_omnipool_swap() {
 			1_000_000_000_000,
 			0,
 		));
-		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
 		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 
-		dbg!(dai_balance - initial_dai_balance);
+		assert_eq!(dai_balance - initial_dai_balance, 8973613312776918);
 	});
 }
