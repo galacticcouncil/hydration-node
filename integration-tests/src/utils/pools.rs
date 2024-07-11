@@ -1,11 +1,16 @@
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
+use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
-use hydradx_runtime::Balances;
+use hydradx_runtime::{AssetRegistry, Balances, Currencies, Stableswap};
 use hydradx_runtime::{Omnipool, RuntimeOrigin, Tokens};
+use hydradx_traits::AssetKind;
+use hydradx_traits::Create;
+use pallet_stableswap::types::AssetAmount;
+use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::{AssetId, Balance};
-use sp_runtime::FixedU128;
 use sp_runtime::Permill;
+use sp_runtime::{DispatchError, FixedU128, TransactionOutcome};
 
 pub fn setup_omnipool() {
 	initialize_omnipol();
@@ -15,6 +20,34 @@ pub fn setup_omnipool() {
 		do_trade_to_populate_oracle(DAI, HDX, 1_000_000_000_000);
 		do_trade_to_populate_oracle(WETH, DOT, 1_000_000_000_000);
 	}
+}
+
+pub fn setup_omnipool_with_stable_subpool() -> (AssetId, Vec<AssetId>) {
+	setup_omnipool();
+	let (pool_id, asset_a, asset_b) = with_transaction(
+		|| -> TransactionOutcome<Result<(AssetId, AssetId, AssetId), DispatchError>> {
+			let r = initialize_stableswap();
+			TransactionOutcome::Commit(Ok(r))
+		},
+	)
+	.unwrap();
+
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		Omnipool::protocol_account(),
+		pool_id,
+		(3000 * UNITS * 1_000_000u128) as i128,
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		pool_id,
+		FixedU128::from_inner(25_650_000_000_000_000),
+		Permill::from_percent(1),
+		AccountId::from(BOB),
+	));
+
+	(pool_id, vec![asset_a, asset_b])
 }
 
 fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {
@@ -100,13 +133,91 @@ fn initialize_omnipol() {
 		Permill::from_percent(100),
 		AccountId::from(ALICE),
 	));
+}
 
-	/*
-	assert_ok!(Balances::force_set_balance(
-		RawOrigin::Root.into(),
-		hydradx_runtime::Treasury::account_id(),
-		TREASURY_ACCOUNT_INIT_BALANCE,
+fn initialize_stableswap() -> (AssetId, AssetId, AssetId) {
+	let initial_liquidity = 1_000_000_000_000_000u128;
+	let liquidity_added = 300_000_000_000_000u128;
+
+	initialize_stableswap_with_details(initial_liquidity, liquidity_added, 18)
+}
+
+fn initialize_stableswap_with_details(
+	initial_liquidity: Balance,
+	liquidity_added: Balance,
+	decimals: u8,
+) -> (AssetId, AssetId, AssetId) {
+	let mut initial: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> = vec![];
+	let mut added_liquidity: Vec<AssetAmount<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId>> =
+		vec![];
+
+	let mut asset_ids: Vec<<hydradx_runtime::Runtime as pallet_stableswap::Config>::AssetId> = Vec::new();
+	for idx in 0u32..MAX_ASSETS_IN_POOL {
+		let name: Vec<u8> = idx.to_ne_bytes().to_vec();
+		let result = AssetRegistry::register_sufficient_asset(
+			None,
+			Some(name.clone().try_into().unwrap()),
+			AssetKind::Token,
+			1000u128,
+			Some(name.try_into().unwrap()),
+			Some(decimals),
+			None,
+			None,
+		);
+		assert_ok!(result);
+		let asset_id = result.unwrap();
+		asset_ids.push(asset_id);
+
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			AccountId::from(BOB),
+			asset_id,
+			initial_liquidity as i128,
+		));
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			AccountId::from(CHARLIE),
+			asset_id,
+			initial_liquidity as i128,
+		));
+
+		initial.push(AssetAmount::new(asset_id, initial_liquidity));
+		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
+	}
+	let result = AssetRegistry::register_sufficient_asset(
+		None,
+		Some(b"pool".to_vec().try_into().unwrap()),
+		AssetKind::Token,
+		1u128,
+		None,
+		None,
+		None,
+		None,
+	);
+
+	assert_ok!(result);
+
+	let pool_id = result.unwrap();
+
+	let amplification = 100u16;
+	let fee = Permill::from_percent(1);
+
+	let asset_in: AssetId = *asset_ids.last().unwrap();
+	let asset_out: AssetId = *asset_ids.first().unwrap();
+
+	assert_ok!(Stableswap::create_pool(
+		hydradx_runtime::RuntimeOrigin::root(),
+		pool_id,
+		asset_ids,
+		amplification,
+		fee,
 	));
 
-	 */
+	assert_ok!(Stableswap::add_liquidity(
+		hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+		pool_id,
+		initial
+	));
+
+	(pool_id, asset_in, asset_out)
 }
