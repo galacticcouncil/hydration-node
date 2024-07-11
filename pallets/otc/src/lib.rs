@@ -218,8 +218,11 @@ pub mod pallet {
 			};
 
 			ensure!(T::AssetRegistry::exists(order.asset_in), Error::<T>::AssetNotRegistered);
+
+			let fee = Self::calculate_fee(order.amount_out);
+
 			Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
-			Self::ensure_min_order_amount(order.asset_out, amount_out)?;
+			Self::ensure_min_order_amount(order.asset_out, order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?)?;
 
 			<NextOrderId<T>>::try_mutate(|next_id| -> DispatchResult {
 				let order_id = *next_id;
@@ -274,10 +277,10 @@ pub mod pallet {
 				order.amount_in = order.amount_in.checked_sub(amount_in).ok_or(Error::<T>::MathError)?;
 				order.amount_out = order.amount_out.checked_sub(amount_out).ok_or(Error::<T>::MathError)?;
 
-				Self::ensure_min_order_amount(order.asset_out, order.amount_out)?;
-				Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
+				let fee = Self::calculate_fee(amount_out);
 
-				let fee = Self::calculate_fee(order.amount_out);
+				Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
+				Self::ensure_min_order_amount(order.asset_out, order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?)?;
 
 				Self::execute_order(order, &who, amount_in, amount_out, fee)?;
 
@@ -385,7 +388,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn calculate_fee(amount: Balance) -> Balance {
+	pub fn calculate_fee(amount: Balance) -> Balance {
 		T::Fee::get().mul_ceil(amount)
 	}
 }

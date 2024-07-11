@@ -24,12 +24,14 @@ use pretty_assertions::assert_eq;
 fn complete_fill_order_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
+		let amount_in = 20 * ONE;
+		let amount_out = 100 * ONE;
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
 			DAI,
 			HDX,
-			20 * ONE,
-			100 * ONE,
+			amount_in,
+			amount_out,
 			true
 		));
 
@@ -40,12 +42,13 @@ fn complete_fill_order_should_work() {
 		let bob_dai_balance_before = Tokens::free_balance(DAI, &BOB);
 
 		// Act
-		let amount = 20 * ONE;
 		assert_ok!(OTC::fill_order(RuntimeOrigin::signed(BOB), 0));
 
 		// Assert
 		let order = OTC::orders(0);
 		assert!(order.is_none());
+
+		let fee = OTC::calculate_fee(amount_out);
 
 		let alice_free_hdx_balance_after = Tokens::free_balance(HDX, &ALICE);
 		let bob_hdx_balance_after = Tokens::free_balance(HDX, &BOB);
@@ -56,17 +59,21 @@ fn complete_fill_order_should_work() {
 		// Alice: HDX *free* balance remains the same, reserved balance decreases with amount_receive; DAI grows
 		assert_eq!(alice_free_hdx_balance_after, alice_free_hdx_balance_before);
 		assert_eq!(Tokens::reserved_balance_named(&otc::NAMED_RESERVE_ID, HDX, &ALICE), 0);
-		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount);
+		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount_in);
 
 		// Bob: HDX grows, DAI decreases
-		assert_eq!(bob_hdx_balance_after, bob_hdx_balance_before + 100 * ONE);
-		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount);
+		assert_eq!(bob_hdx_balance_after, bob_hdx_balance_before + 100 * ONE - fee);
+		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount_in);
+
+		// fee should be transferred to Treasury
+		assert_eq!(Tokens::free_balance(HDX, &TreasuryAccount::get()), TREASURY_INITIAL_BALANCE + fee);
 
 		expect_events(vec![Event::Filled {
 			order_id: 0,
 			who: BOB,
 			amount_in: 20 * ONE,
 			amount_out: 100 * ONE,
+			fee: ONE,
 		}
 		.into()]);
 	});
@@ -76,12 +83,14 @@ fn complete_fill_order_should_work() {
 fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
+		let amount_in = 20 * ONE;
+		let amount_out = 100 * ONE;
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
 			DAI,
 			HDX,
-			20 * ONE,
-			100 * ONE,
+			amount_in,
+			amount_out,
 			false
 		));
 
@@ -92,12 +101,13 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 		let bob_dai_balance_before = Tokens::free_balance(DAI, &BOB);
 
 		// Act
-		let amount = 20 * ONE;
 		assert_ok!(OTC::fill_order(RuntimeOrigin::signed(BOB), 0));
 
 		// Assert
 		let order = OTC::orders(0);
 		assert!(order.is_none());
+
+		let fee = OTC::calculate_fee(amount_out);
 
 		let alice_free_hdx_balance_after = Tokens::free_balance(HDX, &ALICE);
 		let bob_hdx_balance_after = Tokens::free_balance(HDX, &BOB);
@@ -108,17 +118,21 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 		// Alice: HDX *free* balance remains the same, reserved balance decreases with amount_receive; DAI grows
 		assert_eq!(alice_free_hdx_balance_after, alice_free_hdx_balance_before);
 		assert_eq!(Tokens::reserved_balance_named(&otc::NAMED_RESERVE_ID, HDX, &ALICE), 0);
-		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount);
+		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount_in);
 
 		// Bob: HDX grows, DAI decreases
-		assert_eq!(bob_hdx_balance_after, bob_hdx_balance_before + 100 * ONE);
-		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount);
+		assert_eq!(bob_hdx_balance_after, bob_hdx_balance_before + 100 * ONE - fee);
+		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount_in);
+
+		// fee should be transferred to Treasury
+		assert_eq!(Tokens::free_balance(HDX, &TreasuryAccount::get()), TREASURY_INITIAL_BALANCE + fee);
 
 		expect_events(vec![Event::Filled {
 			order_id: 0,
 			who: BOB,
 			amount_in: 20 * ONE,
 			amount_out: 100 * ONE,
+			fee: ONE,
 		}
 		.into()]);
 	});
@@ -128,12 +142,14 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
+		let amount_in = 20 * ONE;
+		let amount_out = 100 * ONE;
 		assert_ok!(OTC::place_order(
 			RuntimeOrigin::signed(ALICE),
 			DAI,
 			HDX,
-			20 * ONE,
-			100 * ONE,
+			amount_in,
+			amount_out,
 			true
 		));
 
@@ -153,12 +169,13 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 		let bob_dai_balance_before = Tokens::free_balance(DAI, &BOB);
 
 		// Act
-		let amount = 20 * ONE;
 		assert_ok!(OTC::fill_order(RuntimeOrigin::signed(BOB), 0));
 
 		// Assert
 		let order = OTC::orders(0);
 		assert!(order.is_none());
+
+		let fee = OTC::calculate_fee(amount_out);
 
 		let alice_free_hdx_balance_after = Tokens::free_balance(HDX, &ALICE);
 		let bob_hdx_balance_after = Tokens::free_balance(HDX, &BOB);
@@ -172,17 +189,21 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 			Tokens::reserved_balance_named(&otc::NAMED_RESERVE_ID, HDX, &ALICE),
 			50 * ONE
 		);
-		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount);
+		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount_in);
 
 		// Bob: HDX grows, DAI decreases
-		assert_eq!(bob_hdx_balance_after, bob_hdx_balance_before + 100 * ONE);
-		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount);
+		assert_eq!(bob_hdx_balance_after, bob_hdx_balance_before + 100 * ONE - fee);
+		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount_in);
+
+		// fee should be transferred to Treasury
+		assert_eq!(Tokens::free_balance(HDX, &TreasuryAccount::get()), TREASURY_INITIAL_BALANCE + fee);
 
 		expect_events(vec![Event::Filled {
 			order_id: 0,
 			who: BOB,
 			amount_in: 20 * ONE,
 			amount_out: 100 * ONE,
+			fee: ONE,
 		}
 		.into()]);
 	});

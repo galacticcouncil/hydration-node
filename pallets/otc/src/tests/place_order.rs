@@ -128,9 +128,10 @@ fn place_order_should_throw_error_when_asset_in_is_not_registered() {
 #[test]
 fn place_order_should_throw_error_when_amount_in_is_too_low() {
 	ExtBuilder::default().build().execute_with(|| {
-		// Act
+		let amount_in = 4 * ONE / 10; // needs to be less than 5 * ED
+		let amount_out = 100 * ONE;
 		assert_noop!(
-			OTC::place_order(RuntimeOrigin::signed(ALICE), DAI, HDX, 4 * ONE, 100 * ONE, true),
+			OTC::place_order(RuntimeOrigin::signed(ALICE), DAI, HDX, amount_in, amount_out, true),
 			Error::<Test>::OrderAmountTooSmall
 		);
 	});
@@ -139,9 +140,10 @@ fn place_order_should_throw_error_when_amount_in_is_too_low() {
 #[test]
 fn place_order_should_throw_error_when_amount_out_is_too_low() {
 	ExtBuilder::default().build().execute_with(|| {
-		// Act
+		let amount_in = 100 * ONE;
+		let amount_out = 4 * ONE / 10; // needs to be less than 5 * ED
 		assert_noop!(
-			OTC::place_order(RuntimeOrigin::signed(ALICE), DAI, HDX, 20 * ONE, 4 * ONE, true),
+			OTC::place_order(RuntimeOrigin::signed(ALICE), DAI, HDX, amount_in, amount_out, true),
 			Error::<Test>::OrderAmountTooSmall
 		);
 	});
