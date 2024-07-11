@@ -3,7 +3,7 @@ mod solution;
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use hydradx_runtime::{OmniX, RuntimeOrigin};
+use hydradx_runtime::{OmniX, Router, RuntimeOrigin};
 use omnix_solver::traits::OmniXSolver;
 use pallet_omnix::types::{IntentId, Swap};
 use primitives::{AccountId, AssetId, Moment};
@@ -31,5 +31,5 @@ pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -
 pub(crate) fn solve_intents(
 	intents: Vec<(IntentId, pallet_omnix::types::Intent<AccountId, AssetId>)>,
 ) -> Result<omnix_solver::SolverSolution<AssetId>, ()> {
-	omnix_solver::OneIntentSolver::<hydradx_runtime::Runtime>::solve(intents)
+	omnix_solver::OneIntentSolver::<hydradx_runtime::Runtime, Router, Router>::solve(intents)
 }

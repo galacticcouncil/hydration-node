@@ -1,11 +1,10 @@
 use crate::traits::OmniXSolver;
-use hydra_dx_math::omnipool::types::I129;
-use orml_traits::get_by_key::GetByKey;
+use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
 use pallet_omnix::types::{Intent, IntentId, ResolvedIntent};
 
 pub mod traits;
 
-pub struct OneIntentSolver<T>(sp_std::marker::PhantomData<T>);
+pub struct OneIntentSolver<T, R, RP>(sp_std::marker::PhantomData<(T, R, RP)>);
 
 pub struct SolverSolution<AssetId> {
 	pub intents: Vec<ResolvedIntent>,
@@ -13,10 +12,18 @@ pub struct SolverSolution<AssetId> {
 	pub buy_prices: Vec<(AssetId, (u128, u128))>,
 }
 
-impl<T: pallet_omnix::Config + pallet_omnipool::Config>
-	OmniXSolver<(IntentId, Intent<T::AccountId, <T as pallet_omnix::Config>::AssetId>)> for OneIntentSolver<T>
+impl<T: pallet_omnix::Config, R, RP> OmniXSolver<(IntentId, Intent<T::AccountId, <T as pallet_omnix::Config>::AssetId>)>
+	for OneIntentSolver<T, R, RP>
 where
-	<T as pallet_omnix::Config>::AssetId: Into<<T as pallet_omnipool::Config>::AssetId>,
+	<T as pallet_omnix::Config>::AssetId: From<u32>,
+	R: RouterT<
+		T::RuntimeOrigin,
+		<T as pallet_omnix::Config>::AssetId,
+		u128,
+		hydradx_traits::router::Trade<<T as pallet_omnix::Config>::AssetId>,
+		hydradx_traits::router::AmountInAndOut<u128>,
+	>,
+	RP: RouteProvider<<T as pallet_omnix::Config>::AssetId>,
 {
 	type Solution = SolverSolution<<T as pallet_omnix::Config>::AssetId>;
 	type Error = ();
@@ -33,40 +40,22 @@ where
 		let asset_out = intents[0].1.swap.asset_out;
 		let amount_in = intents[0].1.swap.amount_in;
 
-		let asset_state = pallet_omnipool::Pallet::<T>::load_asset_state(asset_in.into()).unwrap();
+		let route = RP::get_route(AssetPair::<<T as pallet_omnix::Config>::AssetId>::new(
+			asset_in,
+			1u32.into(),
+		));
 
-		let state_changes = hydra_dx_math::omnipool::calculate_sell_for_hub_asset_state_changes(
-			&(&asset_state).into(),
-			amount_in,
-			I129::default(),
-			0,
-		)
-		.unwrap();
+		let r = R::calculate_sell_trade_amounts(&route, amount_in).unwrap();
+		let lrna_out = r.last().unwrap().amount_out;
+		let asset_in_sell_price = (amount_in, lrna_out);
 
-		let lrna_out = *state_changes.asset.delta_hub_reserve;
-		let asset_in_sell_price = (amount_in, *state_changes.asset.delta_hub_reserve);
+		let route = RP::get_route(AssetPair::<<T as pallet_omnix::Config>::AssetId>::new(
+			1u32.into(),
+			asset_out,
+		));
+		let r = R::calculate_sell_trade_amounts(&route, lrna_out).unwrap();
 
-		let asset_state = pallet_omnipool::Pallet::<T>::load_asset_state(asset_out.into()).unwrap();
-		let (asset_fee, _) = <T as pallet_omnipool::Config>::Fee::get(&asset_out.into());
-
-		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
-			&(&asset_state).into(),
-			lrna_out,
-			asset_fee,
-			I129::default(),
-			0,
-		)
-		.unwrap();
-
-		let lrna_in = *state_changes.asset.delta_hub_reserve;
-		debug_assert!(
-			lrna_in == lrna_out,
-			"lrna_in != lrna_out {:?} != {:?}",
-			lrna_in,
-			lrna_out
-		);
-
-		let amount_out = *state_changes.asset.delta_reserve;
+		let amount_out = r.last().unwrap().amount_out;
 		let asset_out_buy_price = (amount_out, lrna_out);
 
 		let asset_in_buy_price = asset_in_sell_price; //TODO: figure out

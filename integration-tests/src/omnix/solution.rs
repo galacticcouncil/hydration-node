@@ -131,15 +131,36 @@ fn execute_one_intent_solution_should_work() {
 #[test]
 fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnipool_asset() {
 	Hydra::execute_with(|| {
-		crate::utils::pools::setup_omnipool_with_stable_subpool();
+		let (pool_id, assets) = crate::utils::pools::setup_omnipool_with_stable_subpool();
 		assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
 			hydradx_runtime::RuntimeOrigin::root(),
 			LRNA,
 			pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
 		));
 
+		let route1 = vec![
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: LRNA,
+				asset_out: pool_id,
+			},
+			Trade {
+				pool: PoolType::Stableswap(pool_id),
+				asset_in: pool_id,
+				asset_out: assets[0],
+			},
+		];
+
+		let asset_pair = Pair::new(LRNA, assets[0]);
+
+		assert_ok!(Router::set_route(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			asset_pair,
+			route1.clone()
+		));
+
 		let initial_hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
-		let initial_dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
+		let initial_asset_balance = Currencies::free_balance(assets[0], &AccountId32::from(BOB));
 
 		let deadline: Moment = NOW + 86_400_000;
 
@@ -147,9 +168,9 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 			BOB.into(),
 			Swap {
 				asset_in: HDX,
-				asset_out: DAI,
+				asset_out: assets[0],
 				amount_in: 1_000_000_000_000,
-				amount_out: 8_973_613_312_776_918,
+				amount_out: 1,
 				swap_type: pallet_omnix::types::SwapType::ExactIn,
 			},
 			deadline,
@@ -186,15 +207,15 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 
 		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
 		assert_eq!(hdx_balance, initial_hdx_balance - 1_000_000_000_000u128);
-		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
+		let asset_balance = Currencies::free_balance(assets[0], &AccountId32::from(BOB));
 
 		let lrna_balance = Currencies::free_balance(
 			LRNA,
 			&pallet_omnix::Pallet::<hydradx_runtime::Runtime>::holding_account(),
 		);
+		let received = asset_balance - initial_asset_balance;
+		assert_eq!(received, 26118);
 		assert_eq!(lrna_balance, 0u128);
-		let received = dai_balance - initial_dai_balance;
-		assert_eq!(received, 8978102355397552u128);
 	});
 }
 

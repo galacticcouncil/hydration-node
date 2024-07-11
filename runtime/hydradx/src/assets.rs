@@ -452,6 +452,7 @@ pub struct AllowedHubAssetTraders;
 impl Contains<AccountId> for AllowedHubAssetTraders {
 	fn contains(a: &AccountId) -> bool {
 		*a == pallet_omnix::Pallet::<Runtime>::holding_account()
+			|| *a == pallet_route_executor::Pallet::<Runtime>::router_account() //TODO: remove router account - this is problem in setting route with lrna!
 	}
 }
 
