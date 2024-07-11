@@ -16,8 +16,9 @@
 use crate as otc;
 use crate::Config;
 use frame_support::{
-	parameter_types, PalletId,
+	parameter_types,
 	traits::{Everything, Nothing},
+	PalletId,
 };
 use frame_system as system;
 use hydradx_traits::{registry::Inspect, AssetKind};
@@ -25,7 +26,7 @@ use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup, AccountIdConversion},
+	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 	BuildStorage, Permill,
 };
 use std::{cell::RefCell, collections::HashMap};

@@ -66,7 +66,10 @@ fn complete_fill_order_should_work() {
 		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount_in);
 
 		// fee should be transferred to Treasury
-		assert_eq!(Tokens::free_balance(HDX, &TreasuryAccount::get()), TREASURY_INITIAL_BALANCE + fee);
+		assert_eq!(
+			Tokens::free_balance(HDX, &TreasuryAccount::get()),
+			TREASURY_INITIAL_BALANCE + fee
+		);
 
 		expect_events(vec![Event::Filled {
 			order_id: 0,
@@ -125,7 +128,10 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount_in);
 
 		// fee should be transferred to Treasury
-		assert_eq!(Tokens::free_balance(HDX, &TreasuryAccount::get()), TREASURY_INITIAL_BALANCE + fee);
+		assert_eq!(
+			Tokens::free_balance(HDX, &TreasuryAccount::get()),
+			TREASURY_INITIAL_BALANCE + fee
+		);
 
 		expect_events(vec![Event::Filled {
 			order_id: 0,
@@ -196,7 +202,10 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount_in);
 
 		// fee should be transferred to Treasury
-		assert_eq!(Tokens::free_balance(HDX, &TreasuryAccount::get()), TREASURY_INITIAL_BALANCE + fee);
+		assert_eq!(
+			Tokens::free_balance(HDX, &TreasuryAccount::get()),
+			TREASURY_INITIAL_BALANCE + fee
+		);
 
 		expect_events(vec![Event::Filled {
 			order_id: 0,

@@ -67,7 +67,10 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount);
 
 		// Bob: HDX grows, DAI decreases
-		assert_eq!(bob_hdx_balance_after, bob_hdx_balance_before + expected_amount_out - fee);
+		assert_eq!(
+			bob_hdx_balance_after,
+			bob_hdx_balance_before + expected_amount_out - fee
+		);
 		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount);
 
 		let order = OTC::orders(0).unwrap();
@@ -75,7 +78,10 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 		assert_eq!(order.amount_out, expected_new_amount_out);
 
 		// fee should be transferred to Treasury
-		assert_eq!(Tokens::free_balance(HDX, &TreasuryAccount::get()), TREASURY_INITIAL_BALANCE + fee);
+		assert_eq!(
+			Tokens::free_balance(HDX, &TreasuryAccount::get()),
+			TREASURY_INITIAL_BALANCE + fee
+		);
 
 		expect_events(vec![Event::PartiallyFilled {
 			order_id: 0,

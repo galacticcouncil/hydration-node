@@ -222,7 +222,10 @@ pub mod pallet {
 			let fee = Self::calculate_fee(order.amount_out);
 
 			Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
-			Self::ensure_min_order_amount(order.asset_out, order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?)?;
+			Self::ensure_min_order_amount(
+				order.asset_out,
+				order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?,
+			)?;
 
 			<NextOrderId<T>>::try_mutate(|next_id| -> DispatchResult {
 				let order_id = *next_id;
@@ -280,7 +283,10 @@ pub mod pallet {
 				let fee = Self::calculate_fee(amount_out);
 
 				Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
-				Self::ensure_min_order_amount(order.asset_out, order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?)?;
+				Self::ensure_min_order_amount(
+					order.asset_out,
+					order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?,
+				)?;
 
 				Self::execute_order(order, &who, amount_in, amount_out, fee)?;
 
@@ -372,7 +378,7 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		amount_in: Balance,
 		amount_out: Balance,
-		fee: Balance
+		fee: Balance,
 	) -> DispatchResult {
 		T::Currency::transfer(order.asset_in, who, &order.owner, amount_in)?;
 		let remaining_to_unreserve =
