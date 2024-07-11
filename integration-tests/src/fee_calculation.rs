@@ -5,7 +5,7 @@ use frame_support::assert_ok;
 use frame_support::dispatch::DispatchClass;
 use frame_support::dispatch::GetDispatchInfo;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
-use hydradx_runtime::Tokens;
+use hydradx_runtime::{LRNA, NativeAssetId, Runtime, RuntimeOrigin, Tokens};
 use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::EVM;
 use orml_traits::MultiCurrency;
@@ -16,11 +16,52 @@ use sp_core::Encode;
 use sp_core::U256;
 use sp_runtime::{FixedU128, Permill};
 use test_utils::assert_eq_approx;
-use xcm_emulator::TestExt;
+use xcm_emulator::{TestExt, Weight};
 
 pub const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
 const HDX_USD_SPOT_PRICE: f64 = 0.0266; //Current HDX price in USD on CoinGecko on 22th Feb, 2024
 pub const ETH_USD_SPOT_PRICE: f64 = 2907.92; //Current HDX price in USD on CoinGecko on 22th Feb, 2024
+use hydradx_runtime::WeightToFee;
+use frame_support::weights::WeightToFee as OtherWeightToFee;
+use hydradx_adapters::OmnipoolHookAdapter;
+use hydradx_runtime::weights::pallet_omnipool::HydraWeight;
+use pallet_omnipool::WeightInfo;
+use pallet_omnipool::traits::OmnipoolHooks;
+use primitives::{AccountId, AssetId, Balance};
+
+#[ignore]
+#[test]
+fn check_max_number_of_swaps_in_a_block() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let block_weight = hydradx_runtime::BlockWeights::get()
+			.get(DispatchClass::Normal)
+			.max_total
+			.unwrap();
+
+		let weight = Weight::from(370832329228);
+
+		let on_trade_weight = <OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
+			RuntimeOrigin,
+			AccountId,
+			AssetId,
+			Balance,
+		>>::on_trade_weight();
+
+		let on_liq_changed_weight = <OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
+			RuntimeOrigin,
+			AccountId,
+			AssetId,
+			Balance,
+		>>::on_liquidity_changed_weight();
+
+		let sell_weight  = HydraWeight::<hydradx_runtime::Runtime>::sell().saturating_add(on_trade_weight)
+			.saturating_add(on_liq_changed_weight);
+		assert!(block_weight.all_gt(sell_weight * 56));
+	});
+}
+
 
 #[ignore]
 #[test]
@@ -84,15 +125,15 @@ fn max_swap_fee() {
 	});
 }
 
-#[ignore]
 #[test]
-fn substrate_and_evm_fee_growth_simulator_with_genesis_chain() {
+fn substrate_fee_growth_simulator_with_idle_chain() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		let prod_init_multiplier = FixedU128::from_u32(1);
-
-		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(prod_init_multiplier);
+		//We simulate that the chain has no activity so the MinimumMultiplier kept diverged to absolute minimum
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			evm_account(),
@@ -124,17 +165,13 @@ fn substrate_and_evm_fee_growth_simulator_with_genesis_chain() {
 			let fee_in_cent = (fee as f64 * HDX_USD_SPOT_PRICE) / 1000000000000.0;
 			let fee_in_cent = round(fee_in_cent);
 
-			let evm_fee_in_cent = round(get_evm_fee_in_cent(nonce as u128));
 			let next = TransactionPayment::next_fee_multiplier();
 
-			let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
-
-			println!("{b:?} - fee: ${fee_in_cent:?}  - evm_fee: ${evm_fee_in_cent:?} - multiplier: {next:?} - gas {gas_price:?}");
+			println!("{b:?} | fee: ${fee_in_cent:?} | raw: {fee} | multiplier: {next:?}");
 		}
 	});
 }
 
-#[ignore]
 #[test]
 fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 	TestNet::reset();
@@ -198,6 +235,7 @@ pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
 	let gas_limit = 1000000;
 
 	let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
 	//Execute omnipool via EVM
 	assert_ok!(EVM::call(
 		evm_signed_origin(evm_address()),
