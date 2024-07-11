@@ -29,7 +29,7 @@ async function main () {
 
     const blockNumber = await api.rpc.chain.getBlock();
 
-    await createDcaSchedules(api, alice, blockNumber.block.header.number);
+    await createInfiniteDcas(api, alice, blockNumber.block.header.number);
 
     let balance_after = await api.query.system.account(alice.publicKey);
     console.log(`Alice's HDX balance after DDOS ${balance_after.data.free}`);
@@ -42,7 +42,7 @@ async function main () {
 
 main().catch(console.error).finally(() => process.exit());
 
-async function createDcaSchedules(api, user, block) {
+async function createInfiniteDcas(api, user, block) {
     let counter = 0;
     let prev_block = block;
     let prev_balance = await api.query.system.account(user.publicKey);
@@ -51,7 +51,6 @@ async function createDcaSchedules(api, user, block) {
         const blockInfo = await api.rpc.chain.getBlock();
         const blockNumber = blockInfo.block.header.number;
 
-        //Change this `ddos_run_duration` variable to define how long (in blocks) the DDOS should take
         let ddos_run_duration = 1000;
         let block_spent = blockNumber - block;
         if (block_spent == ddos_run_duration) {
@@ -61,7 +60,20 @@ async function createDcaSchedules(api, user, block) {
 
         //If there is a new block
         if (!(Math.abs(blockNumber - prev_block) < Number.EPSILON)) {
-            ///Change this `dcas_per_block` variable to reach different extrinsic weight utilization
+            console.log("NEW BLOCK FOUND: " + blockNumber);
+            console.log("PREV BLOCK: " + prev_block);
+
+
+            let balance = await api.query.system.account(user.publicKey);
+            let balance_diff = prev_balance.data.free - balance.data.free;
+            const blockWeight = await api.query.system.blockWeight();
+
+            console.log(`Spent fee at block ${blockNumber} with weight ${blockWeight.normal.refTime}: ${balance_diff} HDX`);
+
+            prev_block = blockNumber;
+            prev_balance = balance;
+
+            ///Change this variable to reach different extrinsic weight utilization
             ///10 (10%)
             ///20 (20%)
             ///28 (30%)
@@ -72,52 +84,56 @@ async function createDcaSchedules(api, user, block) {
             ///72 (80%)
             ///85 (90%)
             ///100 (100%)
-            let dcas_per_block = 100;
+            let dcas_per_block = 20;//20
             for (let i = 0; i < dcas_per_block; i++) {
                 let user_pub_key = user.publicKey;
                 const nonce = await api.rpc.system.accountNextIndex(user_pub_key);
                 const tip = 1;
 
-                await createDca(user_pub_key, nonce, tip);
+                try {
+                    await api.tx.dca
+                        .schedule(
+                            {
+                                owner: user_pub_key,
+                                period: 1,
+                                totalAmount: 1000000000000000,
+                                maxRetries: null,
+                                stabilityThreshold: null,
+                                slippage: null,
+                                order: {
+                                    Sell: {
+                                        assetIn: 5,
+                                        assetOut: 2,
+                                        amountIn: 100000000000000,
+                                        minAmountOut: 0,
+                                        route: null
+                                    }
+                                }
+                            },
+                            null)
+                        .signAndSend(user, { nonce, tip });
+                } catch (error) {
+                    console.log("Error while sending DCA - Sent transaction counter when signing fails: ", counter);
+                }
             }
 
-            //Print out block feeresult
-            let balance = await api.query.system.account(user.publicKey);
-            let balance_diff = prev_balance.data.free - balance.data.free;
-            const blockWeight = await api.query.system.blockWeight();
+            let sells_per_block = 50;//50
+            for (let i = 0; i < sells_per_block; i++) {
+                let user_pub_key = user.publicKey;
+                const nonce = await api.rpc.system.accountNextIndex(user_pub_key);
+                const tip = 1;
 
-            console.log(`${balance_diff} HDX fee spent in block ${blockNumber} with weight ${blockWeight.normal.refTime}`);
-
-            prev_block = blockNumber;
-            prev_balance = balance;
-        }
-    }
-
-    async function createDca(user_pub_key, nonce, tip) {
-        try {
-            await api.tx.dca
-                .schedule(
-                    {
-                        owner: user_pub_key,
-                        period: 1,
-                        totalAmount: 1000000000000000,
-                        maxRetries: null,
-                        stabilityThreshold: null,
-                        slippage: null,
-                        order: {
-                            Sell: {
-                                assetIn: 5,
-                                assetOut: 2,
-                                amountIn: 100000000000000,
-                                minAmountOut: 0,
-                                route: null
-                            }
-                        }
-                    },
-                    null)
-                .signAndSend(user, { nonce, tip });
-        } catch (error) {
-            console.log("Error while sending DCA - Sent transaction counter when signing fails: ", counter);
+                try {
+                    await api.tx.omnipool.sell(5,2, 1000000000000, 0).signAndSend(user, { nonce, tip });
+                } catch (error) {
+                    console.log("Error while sending DCA - Sent transaction counter when signing fails: ", counter);
+                }
+            }
+        } else {
+            console.log('There is no new block yet');
+            console.log("current block " + blockNumber);
+            console.log("previous block " + prev_block)
+            await new Promise(r => setTimeout(r, 2000));
         }
     }
 }

@@ -25,10 +25,18 @@ async function main () {
     const alice = keyring.addFromUri('//Alice');
 
     let transactions = [];
-    assetRegistry(api, transactions);
+    assetRegistryNew(api, transactions);
     mintForAlice(api, transactions);
     mintUsersWithHDX(api, transactions);
     initOmnipool(api, transactions)
+
+    mintMetamaskWeth(api,transactions);
+    let tx = api.tx.multiTransactionPayment.addCurrency(20, '16420844565569051996');
+    transactions.push(tx);
+
+    tx = api.tx.multiTransactionPayment.addCurrency(5, '16420844565569051996');
+    transactions.push(tx);
+
 
     let batch = api.tx.utility.batchAll(transactions);
     await api.tx.preimage.notePreimage(batch.method.toHex()).signAndSend(alice);
@@ -61,6 +69,7 @@ function mintForAlice(api, txs) {
     txs.push(api.tx.currencies.updateBalance(alice, 8, "5000000000000000000"));
     txs.push(api.tx.currencies.updateBalance(alice, 9, "5000000000000000000"));
     txs.push(api.tx.currencies.updateBalance(alice, 10, "5000000000000000000"));
+    txs.push(api.tx.currencies.updateBalance(alice, 20, "5000000000000000000"));
 }
 
 function mintUsersWithHDX(api, txs) {
@@ -88,8 +97,8 @@ function mintUsersWithHDX(api, txs) {
     txs.push(api.tx.currencies.updateBalance(user10.publicKey, 0, "5000000000000000000000000000"));
 }
 
-function assetRegistry(api, txs) {
-    const assets = require('../assets.json');
+function assetRegistryNew(api, txs) {
+    const assets = require('./assets.json');
     let keys = Object.keys(assets);
 
     for (let i = 0, l = keys.length; i < l; i++) {
@@ -98,9 +107,6 @@ function assetRegistry(api, txs) {
         let tx;
 
         if (k == "0") {
-            tx = api.tx.assetRegistry.setMetadata(k, a.metadata.symbol, a.metadata.decimals);
-            txs.push(tx);
-
             continue;
         }
 
@@ -108,10 +114,28 @@ function assetRegistry(api, txs) {
             let aType = {};
             aType[a.asset.assetType] = 0;
 
-            tx = api.tx.assetRegistry.update(k, a.asset.name, aType, 100, null);
+            tx = api.tx.assetRegistry.update(k, a.asset.name, aType, 100, null, null, a.metadata.symbol, a.metadata.decimals, null);
             txs.push(tx);
+            continue;
+        }
 
-            tx = api.tx.assetRegistry.setMetadata(k, a.metadata.symbol, a.metadata.decimals);
+        if (k == "20") {
+            const multiLocation = {
+                parents: 1,
+                interior: {
+                    X3: [
+                        {Parachain: 2004},
+                        {PalletInstance: 110},
+                        {AccountKey20: {key: "0xab3f0245b83feb11d15aaffefd7ad465a59817ed"}}
+                    ]
+                }
+            };
+
+            let aType = {};
+            aType[a.asset.assetType] = 0;
+
+            tx = api.tx.assetRegistry.register(k, a.asset.name, aType, 100, a.metadata.symbol, a.metadata.decimals, multiLocation, null, true);
+
             txs.push(tx);
             continue;
         }
@@ -119,14 +143,68 @@ function assetRegistry(api, txs) {
         let aType = {};
         aType[a.asset.assetType] = 0;
 
-        a.metadata.decimals = Number(a.metadata.decimals);
-
-        tx = api.tx.assetRegistry.register(a.asset.name, aType, 100, k, a.metadata, null, null);
+        tx = api.tx.assetRegistry.register(k, a.asset.name, aType, 100, a.metadata.symbol, a.metadata.decimals, null, null, true);
         txs.push(tx);
+
     };
+
+
 
     return txs;
 }
+
+
+function mintMetamaskWeth(api, txs) {
+    let my_original_metamask = "7KATdGbFsc58BDyfV9ZtxHEYPt5icvS5itHcJh3yWYmpwG8k";
+    let new_metamask = "7KATdGauM2GcuFoZ91PPA8gp1BxWVLBEor7h8TJT3xDm2f5Y";
+    let test_acc = "7KATdGakyhfBGnAt3XVgXTL7cYjzRXeSZHezKNtENcbwWibb"
+    let test_acc2 = "7KATdGakyhfBGnAt3XVgXTL7cYjzRXeSZHezKNtENcbwWibb"
+    //hdx
+    /*txs.push(
+      api.tx.currencies.updateBalance(new_metamask, 0, "226329588000000000")
+    );*/
+
+    //weth
+    txs.push(
+        api.tx.currencies.updateBalance(my_original_metamask, 20, "1936329588000000000")
+    );
+    txs.push(
+        api.tx.currencies.updateBalance(new_metamask, 20, "1936329588000000000")
+    );
+
+    txs.push(
+        api.tx.currencies.updateBalance(test_acc2, 20, "1936329588000000000")
+    );
+
+    txs.push(
+        api.tx.currencies.updateBalance(my_original_metamask, 5, "1936329588000000000")
+    );
+    txs.push(
+        api.tx.currencies.updateBalance(new_metamask, 5, "1936329588000000000")
+    );
+
+    txs.push(
+        api.tx.currencies.updateBalance(test_acc2, 5, "1936329588000000000")
+    );
+
+
+}
+
+/*
+function mintStaking(api, txs) {
+  let stakingPot = "7L53bUTCbRAv4KC8NGQC17Cv8VDWYgbeCnLkT3tShzisck4C";
+  //hdx
+  txs.push(
+    api.tx.currencies.updateBalance(stakingPot, 0, "1000000000000000")
+  );
+}
+
+function initStaking(api, txs) {
+  txs.push(
+    api.tx.staking.initializeStaking()
+  );
+}*/
+
 
 function initOmnipool(api, txs) {
     let omniAccount = "7L53bUTBbfuj14UpdCNPwmgzzHSsrsTWBHX5pys32mVWM3C1";
