@@ -601,7 +601,10 @@ impl<T: Config> Pallet<T> {
 	/// Calculates the price (asset_out/asset_in) after subtracting the OTC fee from the amount_out.
 	fn otc_price(otc: &Order<T::AccountId, T::AssetId>) -> Result<FixedU128, DispatchError> {
 		let fee = pallet_otc::Pallet::<T>::calculate_fee(otc.amount_out);
-		Ok(FixedU128::checked_from_rational(otc.amount_out.checked_sub(fee).ok_or(ArithmeticError::Overflow)?, otc.amount_in).ok_or(ArithmeticError::Overflow)?)
-
+		Ok(FixedU128::checked_from_rational(
+			otc.amount_out.checked_sub(fee).ok_or(ArithmeticError::Overflow)?,
+			otc.amount_in,
+		)
+		.ok_or(ArithmeticError::Overflow)?)
 	}
 }
