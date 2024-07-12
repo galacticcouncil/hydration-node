@@ -33,7 +33,7 @@ pub mod tracks;
 
 use super::*;
 use crate::governance::{
-	origins::{ReferendumCanceller, ReferendumKiller, Spender, Treasurer, WhitelistedCaller},
+	origins::{GeneralAdmin, ReferendumCanceller, ReferendumKiller, Spender, Treasurer, WhitelistedCaller},
 	tracks::TracksInfo,
 };
 use frame_support::{
@@ -70,7 +70,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = weights::pallet_collective_technical_committee::HydraWeight<Runtime>;
 	type MaxProposalWeight = MaxProposalWeight;
-	type SetMembersOrigin = EnsureRoot<AccountId>;
+	type SetMembersOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 }
 
 parameter_types! {
