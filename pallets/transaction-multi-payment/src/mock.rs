@@ -34,11 +34,12 @@ use frame_support::{
 use frame_system as system;
 use hydradx_traits::{
 	router::{RouteProvider, Trade},
-	AssetPairAccountIdFor, OraclePeriod, PriceOracle,
+	AMMTransfer, AssetKind, AssetPairAccountIdFor, OraclePeriod, PriceOracle,
 };
 use orml_traits::{currency::MutationHooks, parameter_type_with_key};
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::{H160, H256, U256};
+use sp_runtime::DispatchError;
 use sp_std::cell::RefCell;
 
 pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
@@ -56,9 +57,11 @@ pub const FEE_RECEIVER: AccountId = AccountId::new([5; 32]);
 
 pub const HDX: AssetId = 0;
 pub const WETH: AssetId = 20;
+pub const DOT: AssetId = 5;
 pub const SUPPORTED_CURRENCY: AssetId = 2000;
 pub const SUPPORTED_CURRENCY_WITH_PRICE: AssetId = 3000;
 pub const UNSUPPORTED_CURRENCY: AssetId = 4000;
+pub const INSUFFICIENT_CURRENCY: AssetId = 10000;
 pub const SUPPORTED_CURRENCY_NO_BALANCE: AssetId = 5000; // Used for insufficient balance testing
 pub const HIGH_ED_CURRENCY: AssetId = 6000;
 pub const HIGH_VALUE_CURRENCY: AssetId = 7000;
@@ -102,6 +105,7 @@ parameter_types! {
 
 	pub const HdxAssetId: u32 = HDX;
 	pub const EvmAssetId: u32 = WETH;
+	pub const DotAssetId: u32 = DOT;
 	pub const ExistentialDeposit: u128 = 2;
 	pub const MaxLocks: u32 = 50;
 	pub const RegistryStringLimit: u32 = 100;
@@ -160,13 +164,133 @@ impl Config for Test {
 	type Currencies = Currencies;
 	type RouteProvider = DefaultRouteProvider;
 	type OraclePriceProvider = PriceProviderMock;
+	type InspectRegistry = DummyRegistry<Test>;
+	type XYK = XykMock;
 	type WeightInfo = ();
 	type WeightToFee = IdentityFee<Balance>;
 	type NativeAssetId = HdxAssetId;
+	type PolkadotNativeAssetId = DotAssetId;
 	type EvmAssetId = EvmAssetId;
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
 	type TryCallCurrency<'a> = NoCallCurrency<Test>;
+}
+
+pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> hydradx_traits::registry::Inspect for DummyRegistry<T>
+{
+	type AssetId = AssetId;
+	type Location = u8;
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		id < INSUFFICIENT_CURRENCY
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn exists(_asset_id: AssetId) -> bool {
+		true
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		unimplemented!()
+	}
+}
+
+pub struct XykMock;
+
+impl AMM<AccountId, AssetId, pallet_xyk::types::AssetPair, Balance> for XykMock {
+	fn exists(_assets: pallet_xyk::types::AssetPair) -> bool {
+		true
+	}
+
+	fn get_pair_id(_assets: pallet_xyk::types::AssetPair) -> AccountId {
+		AccountId::new([5u8; 32])
+	}
+
+	fn get_share_token(_assets: pallet_xyk::types::AssetPair) -> AssetId {
+		unimplemented!()
+	}
+
+	fn get_pool_assets(_pool_account_id: &AccountId) -> Option<Vec<AssetId>> {
+		unimplemented!()
+	}
+
+	fn get_spot_price_unchecked(_asset_a: AssetId, _asset_b: AssetId, _amount: Balance) -> Balance {
+		unimplemented!()
+	}
+
+	fn validate_sell(
+		_origin: &AccountId,
+		_assets: pallet_xyk::types::AssetPair,
+		_amount: Balance,
+		_min_bought: Balance,
+		_discount: bool,
+	) -> Result<AMMTransfer<AccountId, AssetId, pallet_xyk::types::AssetPair, Balance>, DispatchError> {
+		unimplemented!()
+	}
+
+	fn execute_sell(
+		_transfer: &AMMTransfer<AccountId, AssetId, pallet_xyk::types::AssetPair, Balance>,
+	) -> frame_support::dispatch::DispatchResult {
+		unimplemented!()
+	}
+
+	fn validate_buy(
+		_origin: &AccountId,
+		_assets: pallet_xyk::types::AssetPair,
+		_amount: Balance,
+		_max_limit: Balance,
+		_discount: bool,
+	) -> Result<AMMTransfer<AccountId, AssetId, pallet_xyk::types::AssetPair, Balance>, DispatchError> {
+		unimplemented!()
+	}
+
+	fn execute_buy(
+		_transfer: &AMMTransfer<AccountId, AssetId, pallet_xyk::types::AssetPair, Balance>,
+		_destination: Option<&AccountId>,
+	) -> frame_support::dispatch::DispatchResult {
+		unimplemented!()
+	}
+
+	fn get_min_trading_limit() -> Balance {
+		unimplemented!()
+	}
+
+	fn get_min_pool_liquidity() -> Balance {
+		unimplemented!()
+	}
+
+	fn get_max_in_ratio() -> u128 {
+		unimplemented!()
+	}
+
+	fn get_max_out_ratio() -> u128 {
+		unimplemented!()
+	}
+
+	fn get_fee(_pool_account_id: &AccountId) -> (u32, u32) {
+		unimplemented!()
+	}
 }
 
 pub struct DefaultRouteProvider;

@@ -3910,7 +3910,7 @@ pub fn init_omnipol() {
 	set_zero_reward_for_referrals(DAI);
 }
 
-fn init_omnipool_with_oracle_for_block_10() {
+pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	do_trade_to_populate_oracle(DAI, HDX, UNITS);
 	set_relaychain_block_number(10);
@@ -4128,7 +4128,7 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 	Ok((pool_id, asset_in, asset_out))
 }
 
-fn add_dot_as_payment_currency() {
+pub fn add_dot_as_payment_currency() {
 	add_dot_as_payment_currency_with_details(1000 * UNITS, FixedU128::from_rational(10, 100));
 }
 

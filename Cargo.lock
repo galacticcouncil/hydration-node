@@ -9208,6 +9208,7 @@ dependencies = [
  "pallet-evm-accounts",
  "pallet-transaction-payment",
  "pallet-utility",
+ "pallet-xyk",
  "parity-scale-codec",
  "primitives",
  "scale-info",
