@@ -289,6 +289,10 @@ impl<T: Config> Pallet<T> {
 	/// - `amount`: Amount necessary to close the arb.
 	/// - `route`: The route we trade against. Required for the fee calculation.
 	pub fn settle_otc(otc_id: OrderId, amount: Balance, route: Vec<Trade<AssetIdOf<T>>>) -> DispatchResult {
+		log::debug!(
+			target: "offchain_worker::settle_otc",
+			"calling settle_otc(): otc_id: {:?} amount: {:?} route: {:?}", otc_id, amount, route);
+
 		let pallet_acc = Self::account_id();
 
 		let otc = <pallet_otc::Orders<T>>::get(otc_id).ok_or(Error::<T>::OrderNotFound)?;
@@ -315,8 +319,7 @@ impl<T: Config> Pallet<T> {
 		<T as Config>::Currency::mint_into(asset_a, &pallet_acc, amount)?;
 
 		// get initial otc price
-		let otc_price =
-			FixedU128::checked_from_rational(otc.amount_out, otc.amount_in).ok_or(ArithmeticError::Overflow)?;
+		let otc_price = Self::otc_price(&otc)?;
 
 		// Router trade is disabled in the benchmarks, so disable this one as well.
 		// Without disabling it, the requirements for the extrinsic cannot be met (e.g. profit).
@@ -456,7 +459,7 @@ impl<T: Config> Pallet<T> {
 
 				let mut list = vec![];
 				for (otc_id, otc) in <pallet_otc::Orders<T>>::iter() {
-					let otc_price = FixedU128::checked_from_rational(otc.amount_out, otc.amount_in);
+					let otc_price = Self::otc_price(&otc).ok();
 
 					let route = T::Router::get_route(AssetPair {
 						// To get the correct price, we need to switch the assets, otherwise
@@ -593,5 +596,12 @@ impl<T: Config> Pallet<T> {
 			sell_amt = (sell_amt_up.checked_add(sell_amt_down)).and_then(|value| value.checked_div(2))?;
 		}
 		None
+	}
+
+	/// Calculates the price (asset_out/asset_in) after subtracting the OTC fee from the amount_out.
+	fn otc_price(otc: &Order<T::AccountId, T::AssetId>) -> Result<FixedU128, DispatchError> {
+		let fee = pallet_otc::Pallet::<T>::calculate_fee(otc.amount_out);
+		Ok(FixedU128::checked_from_rational(otc.amount_out.checked_sub(fee).ok_or(ArithmeticError::Overflow)?, otc.amount_in).ok_or(ArithmeticError::Overflow)?)
+
 	}
 }

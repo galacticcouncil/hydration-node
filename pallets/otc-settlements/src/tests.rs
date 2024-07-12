@@ -196,7 +196,7 @@ fn profit_should_be_transferred_to_treasury_when_zero_initial_pallet_balance() {
 			HDX,
 			DAI,
 			100_000 * ONE,
-			201_000 * ONE,
+			205_000 * ONE,
 			true,
 		));
 
@@ -226,7 +226,7 @@ fn profit_should_be_transferred_to_treasury_when_nonzero_initial_pallet_balance(
 			HDX,
 			DAI,
 			100_000 * ONE,
-			201_000 * ONE,
+			205_000 * ONE,
 			true,
 		));
 
@@ -258,7 +258,7 @@ fn existing_arb_opportunity_should_trigger_trade() {
 			HDX, // otc asset_in
 			DAI, // otc asset_out
 			100_000 * ONE,
-			201_000 * ONE,
+			205_000 * ONE,
 			true,
 		));
 
@@ -294,7 +294,7 @@ fn existing_arb_opportunity_should_trigger_trade() {
 
 		expect_last_events(vec![Event::Executed {
 			asset_id: HDX,
-			profit: 2_067_802_207_347,
+			profit: 17_736_110_470_326,
 		}
 		.into()]);
 	});
@@ -308,10 +308,8 @@ fn existing_arb_opportunity_should_trigger_trade_when_otc_is_not_partially_filla
 			RuntimeOrigin::signed(ALICE),
 			HDX, // otc asset_in
 			DAI, // otc asset_out
-			// we got following 2 values from the logs of
-			// existing_arb_opportunity_should_trigger_trade test
-			828_170_776_368_178,
-			1_664_623_260_500_037,
+			100_000 * ONE,
+			300_000 * ONE,
 			false, // not partially fillable
 		));
 
@@ -347,7 +345,7 @@ fn existing_arb_opportunity_should_trigger_trade_when_otc_is_not_partially_filla
 
 		expect_last_events(vec![Event::Executed {
 			asset_id: HDX,
-			profit: 2_067_802_207_347,
+			profit: 2_732_618_471_117_260,
 		}
 		.into()]);
 	});
@@ -365,7 +363,7 @@ fn existing_arb_opportunity_of_insufficient_asset_should_trigger_trade() {
 			BTC, // otc asset_in
 			HDX, // otc asset_out
 			200_000 * ONE,
-			101_000 * ONE,
+			105_000 * ONE,
 			true,
 		));
 
@@ -401,7 +399,7 @@ fn existing_arb_opportunity_of_insufficient_asset_should_trigger_trade() {
 
 		expect_last_events(vec![Event::Executed {
 			asset_id: BTC,
-			profit: 16_419_654_005_878,
+			profit: 245_338_363_920_576,
 		}
 		.into()]);
 	});
@@ -416,7 +414,7 @@ fn multiple_arb_opportunities_should_trigger_trades() {
 			HDX, // otc asset_in
 			DAI, // otc asset_out
 			100_000 * ONE,
-			201_000 * ONE,
+			205_000 * ONE,
 			true,
 		));
 		assert_ok!(OTC::place_order(
@@ -424,7 +422,7 @@ fn multiple_arb_opportunities_should_trigger_trades() {
 			DOT, // otc asset_in
 			KSM, // otc asset_out
 			100_000 * ONE,
-			101_000 * ONE,
+			102_000 * ONE,
 			true,
 		));
 
@@ -433,12 +431,12 @@ fn multiple_arb_opportunities_should_trigger_trades() {
 		expect_events(vec![
 			Event::Executed {
 				asset_id: HDX,
-				profit: 2_067_802_207_347,
+				profit: 17736110470326,
 			}
 			.into(),
 			Event::Executed {
 				asset_id: DOT,
-				profit: 12_345_450_557_916,
+				profit: 11860096179879,
 			}
 			.into(),
 		]);
@@ -476,7 +474,7 @@ fn trade_should_be_triggered_when_arb_opportunity_appears() {
 		<OtcSettlements as Hooks<BlockNumberFor<Test>>>::offchain_worker(System::block_number());
 
 		// make a trade to move the price and create an arb opportunity
-		assert_ok!(Omnipool::sell(RuntimeOrigin::signed(ALICE), HDX, DAI, 1_000 * ONE, ONE,));
+		assert_ok!(Omnipool::sell(RuntimeOrigin::signed(ALICE), HDX, DAI, 3_000 * ONE, ONE,));
 
 		System::set_block_number(System::block_number() + 1);
 
@@ -510,7 +508,7 @@ fn trade_should_be_triggered_when_arb_opportunity_appears() {
 
 		expect_last_events(vec![Event::Executed {
 			asset_id: HDX,
-			profit: 2_981_065_139_674,
+			profit: 5_173_145_606_735,
 		}
 		.into()]);
 	});
@@ -619,7 +617,7 @@ fn test_offchain_worker_unsigned_transaction_submission() {
 			HDX, // otc asset_in
 			DAI, // otc asset_out
 			100_000 * ONE,
-			201_000 * ONE,
+			205_000 * ONE,
 			true,
 		));
 
@@ -641,7 +639,7 @@ fn test_offchain_worker_unsigned_transaction_submission() {
 			tx.call,
 			crate::mock::RuntimeCall::OtcSettlements(crate::Call::settle_otc_order {
 				otc_id: 0,
-				amount: 828_170_776_368_178,
+				amount: 2_413_749_694_825_193,
 				route,
 			})
 		);
@@ -657,7 +655,7 @@ fn test_offchain_worker_signed_transaction_submission() {
 			HDX, // otc asset_in
 			DAI, // otc asset_out
 			100_000 * ONE,
-			201_000 * ONE,
+			205_000 * ONE,
 			true,
 		));
 
@@ -671,7 +669,7 @@ fn test_offchain_worker_signed_transaction_submission() {
 		assert_ok!(OtcSettlements::settle_otc_order(
 			RuntimeOrigin::signed(ALICE),
 			otc_id,
-			828_170_776_368_178,
+			2_413_749_694_825_193,
 			route,
 		));
 	})
