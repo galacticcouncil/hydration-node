@@ -2,7 +2,8 @@
 ## General description
 This pallet provides basic over-the-counter (OTC) trading functionality.
 It allows anyone to `place_order` by specifying a pair of assets (in and out), their respective amounts, and
-whether the order is partially fillable. The order price is static and calculated as `amount_out / amount_in`.
+whether the order is partially fillable. Fee is applied to all trades and is deducted from the `amount_out`.
+Because of the fee, the order price is static and calculated as `(amount_out - fee) / amount_in`.
 
 ## Notes
 The pallet implements a minimum order size as an alternative to storage fees. The amounts of an open order cannot

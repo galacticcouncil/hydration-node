@@ -17,7 +17,8 @@
 // ## General description
 // This pallet provides basic over-the-counter (OTC) trading functionality.
 // It allows anyone to `place_order` by specifying a pair of assets (in and out), their respective amounts, and
-// whether the order is partially fillable. The order price is static and calculated as `amount_out / amount_in`.
+// whether the order is partially fillable. Fee is applied to all trades and is deducted from the `amount_out`.
+// Because of the fee, the order price is static and calculated as `(amount_out - fee) / amount_in`.
 //
 // ## Notes
 // The pallet implements a minimum order size as an alternative to storage fees. The amounts of an open order cannot
@@ -84,10 +85,10 @@ pub mod pallet {
 		/// Identifier for the class of asset.
 		type AssetId: Member + Parameter + Copy + HasCompact + MaybeSerializeDeserialize + MaxEncodedLen;
 
-		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
+		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry.
 		type AssetRegistry: Inspect<AssetId = Self::AssetId>;
 
-		/// Named reservable multi currency
+		/// Named reservable multi currency.
 		type Currency: NamedMultiReservableCurrency<
 			Self::AccountId,
 			ReserveIdentifier = NamedReserveIdentifier,
@@ -95,18 +96,21 @@ pub mod pallet {
 			Balance = Balance,
 		>;
 
+		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		/// Existential deposits provider.
 		type ExistentialDeposits: GetByKey<Self::AssetId, Balance>;
 
 		#[pallet::constant]
+		/// Multiplier used to compute minimal amounts of asset_in and asset_out in an OTC.
 		type ExistentialDepositMultiplier: Get<u8>;
 
-		/// Fee
+		/// Fee deducted from amount_out.
 		#[pallet::constant]
 		type Fee: Get<Permill>;
 
-		/// Fee receiver
+		/// Fee receiver.
 		#[pallet::constant]
 		type FeeReceiver: Get<Self::AccountId>;
 
@@ -222,6 +226,7 @@ pub mod pallet {
 			let fee = Self::calculate_fee(order.amount_out);
 
 			Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
+			// the fee is applied to amount_out
 			Self::ensure_min_order_amount(
 				order.asset_out,
 				order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?,
@@ -283,6 +288,7 @@ pub mod pallet {
 				let fee = Self::calculate_fee(amount_out);
 
 				Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
+				// the fee is applied to amount_out
 				Self::ensure_min_order_amount(
 					order.asset_out,
 					order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?,
