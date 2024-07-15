@@ -194,3 +194,61 @@ fn passing_low_turnout_voting_should_work() {
 		assert_eq!(Balances::free_balance(42), 2);
 	});
 }
+
+#[test]
+fn force_remove_vote_should_work() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(0);
+		assert_ok!(propose_set_balance(1, 2, 1));
+		let r = 0;
+		assert!(Democracy::referendum_info(r).is_none());
+
+		// start of 2 => next referendum scheduled.
+		fast_forward_to(2);
+		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r, big_aye(1)));
+
+		assert_eq!(Democracy::referendum_count(), 1);
+		assert_eq!(
+			Democracy::referendum_status(0),
+			Ok(ReferendumStatus {
+				end: 4,
+				proposal: set_balance_proposal(2),
+				threshold: VoteThreshold::SuperMajorityApprove,
+				delay: 2,
+				tally: Tally {
+					ayes: 10,
+					nays: 0,
+					turnout: 10
+				},
+			})
+		);
+
+		fast_forward_to(3);
+
+		// referendum still running
+		assert_ok!(Democracy::referendum_status(0));
+
+		// not allowed to force remove a vote when referendum is ongoing
+		assert_noop!(
+			Democracy::force_remove_vote(RuntimeOrigin::signed(7), 1, 0),
+			Error::<Test>::NoPermission
+		);
+
+		// referendum runs during 2 and 3, ends @ start of 4.
+		fast_forward_to(4);
+
+		assert_noop!(Democracy::referendum_status(0), Error::<Test>::ReferendumInvalid);
+		assert!(pallet_scheduler::Agenda::<Test>::get(6)[0].is_some());
+
+		// referendum passes and wait another two blocks for enactment.
+		fast_forward_to(6);
+
+		assert_eq!(Balances::free_balance(42), 2);
+
+		// Not allowed origin
+		assert_noop!(Democracy::force_remove_vote(RuntimeOrigin::signed(4), 1, 0), BadOrigin);
+
+		// Allowed origin
+		assert_ok!(Democracy::force_remove_vote(RuntimeOrigin::signed(7), 1, 0));
+	});
+}
