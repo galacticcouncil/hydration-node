@@ -396,7 +396,7 @@ try-runtime= [
     "pallet-state-trie-migration/try-runtime",
 ]
 
-release-build = [
+metadata-hash = [
     "substrate-wasm-builder/metadata-hash",
     "sp-api/disable-logging",
 ]

@@ -4,7 +4,7 @@ build:
 
 .PHONY: build-release
 build-release:
-	cargo build --release --locked --features release-build
+	cargo build --release --locked --features metadata-hash
 
 .PHONY: check
 check:
