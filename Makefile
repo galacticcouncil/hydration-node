@@ -64,7 +64,7 @@ checksum:
 	cp target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
 	sha256sum target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
 
-release: build checksum
+release: build-release checksum
 
 all: clippy build-benchmarks test-benchmarks test build checksum
 
