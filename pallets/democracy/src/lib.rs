@@ -1171,6 +1171,7 @@ pub mod pallet {
 
 		/// Allow to force remove a vote for a referendum.
 		///
+		/// Same as `remove_other_vote`, except the scope is overriden by forced flag.
 		/// The dispatch origin of this call must be `VoteRemovalOrigin`.
 		///
 		/// Only allowed if the referendum is finished.
