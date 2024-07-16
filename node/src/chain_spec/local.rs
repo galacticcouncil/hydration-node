@@ -130,7 +130,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 			evm_since: 1,
 		},
 	)
-	.with_name("HydraDX Local Testnet")
+	.with_name("Hydration Local Testnet")
 	.with_id("local_testnet")
 	.with_chain_type(ChainType::Local)
 	.with_boot_nodes(vec![])

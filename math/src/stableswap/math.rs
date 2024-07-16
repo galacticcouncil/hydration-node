@@ -799,7 +799,7 @@ pub fn calculate_spot_price(
 			let mut updated_reserves = asset_reserves.clone();
 			for reserve in updated_reserves.iter_mut() {
 				if reserve.0 == added_asset.0 {
-					reserve.1.amount += added_asset.1;
+					reserve.1.amount = reserve.1.amount.checked_add(added_asset.1)?;
 				}
 			}
 

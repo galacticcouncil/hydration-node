@@ -29,6 +29,7 @@ members = [
   'pallets/dynamic-fees',
   'pallets/duster',
   'pallets/otc',
+  'pallets/otc-settlements',
   'pallets/bonds',
   'pallets/lbp',
   'pallets/nft',
@@ -87,6 +88,7 @@ pallet-nft = { path = "pallets/nft", default-features = false }
 pallet-omnipool = { path = "pallets/omnipool", default-features = false }
 pallet-omnipool-liquidity-mining = { path = "pallets/omnipool-liquidity-mining", default-features = false }
 pallet-otc = { path = "pallets/otc", default-features = false}
+pallet-otc-settlements = { path = "pallets/otc-settlements", default-features = false}
 pallet-relaychain-info = { path = "pallets/relaychain-info", default-features = false }
 pallet-route-executor = { path = "pallets/route-executor", default-features = false }
 pallet-stableswap = { path = "pallets/stableswap", default-features = false }
@@ -128,6 +130,7 @@ frame-system = { git = "https://github.com/paritytech/polkadot-sdk", branch = "r
 frame-system-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 frame-try-runtime = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
+frame-metadata-hash-extension = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 sp-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 sp-arithmetic = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
 sp-authority-discovery = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2", default-features = false }
@@ -342,6 +345,7 @@ frame-system = { git = "https://github.com/paritytech/polkadot-sdk", branch = "r
 frame-system-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 frame-try-runtime = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
+frame-metadata-hash-extension = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 sp-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 sp-arithmetic = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 sp-authority-discovery = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
@@ -485,3 +489,7 @@ westend-runtime = { git = "https://github.com/paritytech/polkadot-sdk", branch =
 cumulus-client-pov-recovery = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.2" }
+
+# Check issue: https://github.com/paritytech/arkworks-substrate/issues/9
+[patch."https://github.com/paritytech/polkadot-sdk"]
+sp-crypto-ec-utils = { git = "https://github.com/paritytech//polkadot-sdk", branch = "release-polkadot-v1.7.2" }

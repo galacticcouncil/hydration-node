@@ -29,7 +29,7 @@ fn decimals() -> impl Strategy<Value = u32> {
 }
 
 fn asset_amount(max: Balance, precision: u32) -> impl Strategy<Value = Balance> {
-	let min_order = 5 * 10u128.pow(precision) + 10u128.pow(precision);
+	let min_order = 6 * 10u128.pow(precision);
 	let max_amount = max * 10u128.pow(precision);
 	min_order..max_amount
 }
@@ -40,12 +40,14 @@ fn amount_fill(
 	precision_in: u32,
 	precision_out: u32,
 ) -> impl Strategy<Value = Balance> {
+	let fee = OTC::calculate_fee(amount_in);
+
 	let price = FixedU128::from_rational(amount_in, amount_out);
 	let m = price
 		.checked_mul_int(MIN_ORDER_SIZE * 10u128.pow(precision_out))
 		.unwrap();
-	let max_remaining_amount_out = amount_in - m;
-	let max_remaining_amount_in = amount_in - MIN_ORDER_SIZE * 10u128.pow(precision_in);
+	let max_remaining_amount_out = amount_in - m - fee;
+	let max_remaining_amount_in = amount_in - MIN_ORDER_SIZE * 10u128.pow(precision_in) - fee;
 
 	0..min(max_remaining_amount_out, max_remaining_amount_in)
 }

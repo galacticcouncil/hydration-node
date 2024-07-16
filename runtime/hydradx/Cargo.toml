@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "244.0.0"
+version = "248.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -78,6 +78,7 @@ pallet-transaction-pause = { workspace = true }
 pallet-duster = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
+pallet-otc-settlements = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 
@@ -125,6 +126,7 @@ frame-system = { workspace = true }
 frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api = { workspace = true }
 frame-try-runtime = { workspace = true, optional = true }
+frame-metadata-hash-extension = { workspace = true }
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-genesis-builder = { workspace = true }
@@ -197,6 +199,7 @@ runtime-benchmarks = [
     "pallet-duster/runtime-benchmarks",
     "pallet-omnipool-liquidity-mining/runtime-benchmarks",
     "pallet-otc/runtime-benchmarks",
+    "pallet-otc-settlements/runtime-benchmarks",
     "pallet-dca/runtime-benchmarks",
     "pallet-route-executor/runtime-benchmarks",
     "pallet-ethereum/runtime-benchmarks",
@@ -221,6 +224,7 @@ std = [
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "frame-try-runtime/std",
+    "frame-metadata-hash-extension/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-aura-ext/std",
     "cumulus-primitives-core/std",
@@ -273,6 +277,7 @@ std = [
     "pallet-dca/std",
     "pallet-ema-oracle/std",
     "pallet-otc/std",
+    "pallet-otc-settlements/std",
     "pallet-route-executor/std",
     "pallet-omnipool-liquidity-mining/std",
     "pallet-dynamic-fees/std",
@@ -370,6 +375,7 @@ try-runtime= [
     "pallet-omnipool-liquidity-mining/try-runtime",
     "pallet-circuit-breaker/try-runtime",
     "pallet-otc/try-runtime",
+    "pallet-otc-settlements/try-runtime",
     "pallet-route-executor/try-runtime",
     "pallet-dynamic-fees/try-runtime",
     "pallet-staking/try-runtime",
@@ -388,4 +394,9 @@ try-runtime= [
     "pallet-xyk-liquidity-mining/try-runtime",
     "pallet-message-queue/try-runtime",
     "pallet-state-trie-migration/try-runtime",
+]
+
+metadata-hash = [
+    "substrate-wasm-builder/metadata-hash",
+    "sp-api/disable-logging",
 ]

@@ -1,5 +1,5 @@
 {
-  "name": "HydraDX testnet",
+  "name": "Hydration testnet",
   "id": "hydra_rococo",
   "chainType": "Live",
   "bootNodes": [
