@@ -360,7 +360,7 @@ pub mod pallet {
 		ManuallyTerminated,
 		///Max number of retries reached for schedule
 		MaxRetryReached,
-		///Absolutely trade limit reached reached, leading to retry
+		///Absolutely trade limit reached, leading to retry
 		TradeLimitReached,
 		///Slippage limit calculated from oracle is reached, leading to retry
 		SlippageLimitReached,
