@@ -42,7 +42,7 @@ use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::DAYS,
 };
-use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedPointNumber};
+use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber};
 
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -175,7 +175,6 @@ impl SufficiencyCheck {
 
 			let ed_in_fee_asset = if !AssetRegistry::is_sufficient(fee_payment_asset) {
 				let dot = DotAssetId::get();
-				//TODO: we could do a common logic for this whole part, and injecting here and to multi pallet
 
 				let ed_in_dot = MultiTransactionPayment::price(DotAssetId::get())
 					.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
@@ -187,9 +186,11 @@ impl SufficiencyCheck {
 				let asset_out_reserve = Currencies::free_balance(dot, &pair_account);
 				let asset_in_reserve = Currencies::free_balance(fee_payment_asset, &pair_account);
 				let amount_in =
-					hydra_dx_math::xyk::calculate_in_given_out(asset_out_reserve, asset_in_reserve, ed_in_dot).unwrap();
+					hydra_dx_math::xyk::calculate_in_given_out(asset_out_reserve, asset_in_reserve, ed_in_dot)
+						.map_err(|_| ArithmeticError::Overflow)?;
 				let fee = XYKExchangeFee::get();
-				let trade_fee = hydra_dx_math::fee::calculate_pool_trade_fee(amount_in, (fee.0, fee.1)).unwrap();
+				let trade_fee = hydra_dx_math::fee::calculate_pool_trade_fee(amount_in, (fee.0, fee.1))
+					.ok_or(ArithmeticError::Overflow)?;
 				let spent_amount_in = amount_in.saturating_add(trade_fee);
 
 				XYK::buy_for(
@@ -1263,6 +1264,7 @@ use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
+use sp_runtime::DispatchError::Arithmetic;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
 
