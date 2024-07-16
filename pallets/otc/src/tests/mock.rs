@@ -18,6 +18,7 @@ use crate::Config;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
+	PalletId,
 };
 use frame_system as system;
 use hydradx_traits::{registry::Inspect, AssetKind};
@@ -25,8 +26,8 @@ use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage,
+	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
+	BuildStorage, Permill,
 };
 use std::{cell::RefCell, collections::HashMap};
 
@@ -48,6 +49,8 @@ pub const ONE: Balance = 1_000_000_000_000;
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 
+pub const TREASURY_INITIAL_BALANCE: Balance = 1_000_000 * ONE;
+
 frame_support::construct_runtime!(
 	pub enum Test
 	 {
@@ -66,11 +69,14 @@ thread_local! {
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub ExistentialDepositMultiplier: u8 = 5;
+	pub OtcFee: Permill = Permill::from_percent(1u32);
+	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 }
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
-		EXISTENTIAL_DEPOSIT.with(|v| *v.borrow().get(currency_id).unwrap_or(&ONE))
+		EXISTENTIAL_DEPOSIT.with(|v| *v.borrow().get(currency_id).unwrap_or(&(ONE / 10)))
 	};
 }
 
@@ -81,6 +87,8 @@ impl otc::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
+	type Fee = OtcFee;
+	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();
 }
 
@@ -245,6 +253,7 @@ impl Default for ExtBuilder {
 				(BOB, HDX, 10_000),
 				(ALICE, DAI, 100),
 				(BOB, DAI, 100),
+				(TreasuryAccount::get(), HDX, 1_000_000),
 			],
 			registered_assets: vec![HDX, DAI],
 		}

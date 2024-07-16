@@ -35,7 +35,7 @@ benchmarks! {
 		<T as crate::Config>::Currency::mint_into(DAI.into(), &account, 1_000_000_000 * ONE)?;
 
 		assert_ok!(
-			pallet_otc::Pallet::<T>::place_order(RawOrigin::Signed(account).into(), HDX.into(), DAI.into(), 100_000_000 * ONE, 200_000_001 * ONE, true)
+			pallet_otc::Pallet::<T>::place_order(RawOrigin::Signed(account).into(), HDX.into(), DAI.into(), 100_000_000 * ONE, 202_020_001 * ONE, true)
 		);
 
 		let route = <T as crate::Config>::Router::get_route(AssetPair {
