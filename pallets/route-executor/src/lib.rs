@@ -55,7 +55,7 @@ pub use pallet::*;
 pub const MAX_NUMBER_OF_TRADES: u32 = 5;
 
 #[derive(Debug, Encode, Decode, Copy, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub enum SkipEdState {
+pub enum EdHandling {
 	SkipEdLock,
 	SkipEdLockAndUnlock,
 	SkipEdUnlock,
@@ -166,7 +166,7 @@ pub mod pallet {
 	///Flag to indicate when to skip ED handling
 	#[pallet::storage]
 	#[pallet::getter(fn last_trade_position)]
-	pub type SkipEd<T: Config> = StorageValue<_, SkipEdState, OptionQuery>;
+	pub type SkipEd<T: Config> = StorageValue<_, EdHandling, OptionQuery>;
 
 	/// Storing routes for asset pairs
 	#[pallet::storage]
@@ -625,11 +625,11 @@ impl<T: Config> Pallet<T> {
 			*skip_ed_disabling = true;
 			//We optimize to set the state for middle trades only once at the first middle trade, then we change no state till the last trade
 			match trade_index {
-				0 => SkipEd::<T>::put(SkipEdState::SkipEdLock),
+				0 => SkipEd::<T>::put(EdHandling::SkipEdLock),
 				trade_index if trade_index.saturating_add(1) == route_length => {
-					SkipEd::<T>::put(SkipEdState::SkipEdUnlock)
+					SkipEd::<T>::put(EdHandling::SkipEdUnlock)
 				}
-				1 => SkipEd::<T>::put(SkipEdState::SkipEdLockAndUnlock),
+				1 => SkipEd::<T>::put(EdHandling::SkipEdLockAndUnlock),
 				_ => (),
 			}
 		}
