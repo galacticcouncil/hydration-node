@@ -182,6 +182,7 @@ impl SufficiencyCheck {
 					.saturating_mul_int(InsufficientEDinHDX::get())
 					.max(1);
 
+				//First we calculate how much the user would spend with fee asset for ED, so we can return it in the ExistentialDepositPaid event
 				let pair_account = XYK::pair_account_from_assets(fee_payment_asset, dot);
 				let asset_out_reserve = Currencies::free_balance(dot, &pair_account);
 				let asset_in_reserve = Currencies::free_balance(fee_payment_asset, &pair_account);
