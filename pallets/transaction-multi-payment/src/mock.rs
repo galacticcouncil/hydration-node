@@ -178,8 +178,7 @@ impl Config for Test {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> hydradx_traits::registry::Inspect for DummyRegistry<T>
-{
+impl<T: Config> hydradx_traits::registry::Inspect for DummyRegistry<T> {
 	type AssetId = AssetId;
 	type Location = u8;
 

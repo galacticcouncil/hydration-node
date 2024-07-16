@@ -192,26 +192,3 @@ fn init_omnipool() {
 		hydradx_runtime::Omnipool::protocol_account(),
 	));
 }
-
-fn create_xyk_pool(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
-	assert_ok!(Currencies::update_balance(
-		hydradx_runtime::RuntimeOrigin::root(),
-		DAVE.into(),
-		asset_a,
-		amount_a as i128,
-	));
-	assert_ok!(Currencies::update_balance(
-		hydradx_runtime::RuntimeOrigin::root(),
-		DAVE.into(),
-		asset_b,
-		amount_b as i128,
-	));
-
-	assert_ok!(XYK::create_pool(
-		RuntimeOrigin::signed(DAVE.into()),
-		asset_a,
-		amount_a,
-		asset_b,
-		amount_b,
-	));
-}
