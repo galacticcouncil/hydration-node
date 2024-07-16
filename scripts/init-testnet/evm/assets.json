@@ -1,7 +1,7 @@
 {
     "0": {
       "asset": {
-        "name": "HydraDX",
+        "name": "Hydration",
         "assetType": "Token",
         "existentialDeposit": "1,000,000,000,000",
         "xcmRateLimit": null
@@ -13,13 +13,13 @@
     },
     "1": {
       "asset": {
-        "name": "Lerna",
+        "name": "H2O",
         "assetType": "Token",
         "existentialDeposit": "400,000,000",
         "xcmRateLimit": null
       },
       "metadata": {
-        "symbol": "LRNA",
+        "symbol": "H2O",
         "decimals": "12"
       }
     },

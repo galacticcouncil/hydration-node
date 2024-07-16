@@ -311,6 +311,8 @@ pub trait AmmTradeWeights<Trade> {
 	fn buy_and_calculate_buy_trade_amounts_weight(route: &[Trade]) -> Weight;
 	fn set_route_weight(route: &[Trade]) -> Weight;
 	fn force_insert_route_weight() -> Weight;
+	fn get_route_weight() -> Weight;
+	fn calculate_spot_price_with_fee_weight(route: &[Trade]) -> Weight;
 }
 
 impl<Trade> AmmTradeWeights<Trade> for () {
@@ -333,6 +335,12 @@ impl<Trade> AmmTradeWeights<Trade> for () {
 		Weight::zero()
 	}
 	fn force_insert_route_weight() -> Weight {
+		Weight::zero()
+	}
+	fn get_route_weight() -> Weight {
+		Weight::zero()
+	}
+	fn calculate_spot_price_with_fee_weight(_route: &[Trade]) -> Weight {
 		Weight::zero()
 	}
 }

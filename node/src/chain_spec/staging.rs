@@ -97,7 +97,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 			evm_since: 1,
 		},
 	)
-	.with_name("HydraDX")
+	.with_name("Hydration")
 	.with_id("hydra")
 	.with_chain_type(ChainType::Live)
 	.with_boot_nodes(vec![
