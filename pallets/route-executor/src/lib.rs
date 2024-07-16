@@ -225,15 +225,9 @@ pub mod pallet {
 				Error::<T>::TradingLimitReached
 			);
 
-			let mut skip_ed_disabling: bool = false;
 			let route_length = route.len();
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
-				Self::disable_ed_handling_for_insufficient_assets(
-					&mut skip_ed_disabling,
-					route_length,
-					trade_index,
-					trade,
-				);
+				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 
 				let user_balance_of_asset_in_before_trade =
 					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
@@ -257,9 +251,7 @@ pub mod pallet {
 				)?;
 			}
 
-			if skip_ed_disabling {
-				SkipEd::<T>::kill();
-			}
+			SkipEd::<T>::kill();
 
 			Self::ensure_that_user_received_asset_out_at_most(
 				who,
@@ -320,15 +312,9 @@ pub mod pallet {
 			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
-			let mut skip_ed_disabling: bool = false;
 			let route_length = route.len();
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
-				Self::disable_ed_handling_for_insufficient_assets(
-					&mut skip_ed_disabling,
-					route_length,
-					trade_index,
-					trade,
-				);
+				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 				let user_balance_of_asset_out_before_trade =
 					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 				let execution_result = T::AMM::execute_buy(
@@ -351,9 +337,7 @@ pub mod pallet {
 				)?;
 			}
 
-			if skip_ed_disabling {
-				SkipEd::<T>::kill();
-			}
+			SkipEd::<T>::kill();
 
 			Self::ensure_that_user_spent_asset_in_at_least(
 				who,
@@ -613,7 +597,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn disable_ed_handling_for_insufficient_assets(
-		skip_ed_disabling: &mut bool,
 		route_length: usize,
 		trade_index: usize,
 		trade: Trade<T::AssetId>,
@@ -622,7 +605,6 @@ impl<T: Config> Pallet<T> {
 			&& (!T::InspectRegistry::is_sufficient(trade.asset_in)
 				|| !T::InspectRegistry::is_sufficient(trade.asset_out))
 		{
-			*skip_ed_disabling = true;
 			//We optimize to set the state for middle trades only once at the first middle trade, then we change no state till the last trade
 			match trade_index {
 				0 => SkipEd::<T>::put(EdHandling::SkipEdLock),
@@ -637,7 +619,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn skip_ed_lock() -> bool {
 		if let Ok(v) = SkipEd::<T>::try_get() {
-			return matches!(v, SkipEdState::SkipEdLock | SkipEdState::SkipEdLockAndUnlock);
+			return matches!(v, EdHandling::SkipEdLock | EdHandling::SkipEdLockAndUnlock);
 		}
 
 		false
@@ -645,7 +627,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn skip_ed_unlock() -> bool {
 		if let Ok(v) = SkipEd::<T>::try_get() {
-			return matches!(v, SkipEdState::SkipEdUnlock | SkipEdState::SkipEdLockAndUnlock);
+			return matches!(v, EdHandling::SkipEdUnlock | EdHandling::SkipEdLockAndUnlock);
 		}
 
 		false
