@@ -185,24 +185,24 @@ impl SufficiencyCheck {
 				let pair_account = XYK::pair_account_from_assets(fee_payment_asset, dot);
 				let asset_out_reserve = Currencies::free_balance(dot, &pair_account);
 				let asset_in_reserve = Currencies::free_balance(fee_payment_asset, &pair_account);
-				let amount_in =
+				let amount_in_without_fee =
 					hydra_dx_math::xyk::calculate_in_given_out(asset_out_reserve, asset_in_reserve, ed_in_dot)
 						.map_err(|_| ArithmeticError::Overflow)?;
 				let fee = XYKExchangeFee::get();
-				let trade_fee = hydra_dx_math::fee::calculate_pool_trade_fee(amount_in, (fee.0, fee.1))
+				let trade_fee = hydra_dx_math::fee::calculate_pool_trade_fee(amount_in_without_fee, (fee.0, fee.1))
 					.ok_or(ArithmeticError::Overflow)?;
-				let spent_amount_in = amount_in.saturating_add(trade_fee);
+				let amount_in_as_ed = amount_in_without_fee.saturating_add(trade_fee);
 
 				XYK::buy_for(
 					paying_account,
 					&TreasuryAccount::get(),
 					pallet_xyk::types::AssetPair::new(fee_payment_asset.into(), DotAssetId::get().into()),
 					ed_in_dot.into(),
-					u128::MAX.into(), //TODO: double check if it is fine, maybe use math calc
+					amount_in_as_ed,
 					false,
 				)?;
 
-				spent_amount_in
+				amount_in_as_ed
 			} else {
 				let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)
 					.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
