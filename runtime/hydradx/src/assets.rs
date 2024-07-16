@@ -193,6 +193,7 @@ impl SufficiencyCheck {
 					.ok_or(ArithmeticError::Overflow)?;
 				let amount_in_as_ed = amount_in_without_fee.saturating_add(trade_fee);
 
+				//NOTE: Account doesn't have enough funds to pay ED if this fail.
 				XYK::buy_for(
 					paying_account,
 					&TreasuryAccount::get(),
@@ -200,7 +201,8 @@ impl SufficiencyCheck {
 					ed_in_dot.into(),
 					amount_in_as_ed,
 					false,
-				)?;
+				)
+				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
 				amount_in_as_ed
 			} else {
