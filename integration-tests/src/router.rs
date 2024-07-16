@@ -2962,7 +2962,7 @@ mod set_route {
 		use primitives::constants::chain::XYK_SOURCE;
 
 		#[test]
-		fn set_route_should_work_with_all_pools_involved() {
+		fn set_route_should_work_with_omnipool_xyk_and_stable_pools() {
 			{
 				TestNet::reset();
 
