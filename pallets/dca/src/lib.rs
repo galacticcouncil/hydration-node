@@ -85,7 +85,6 @@ use hydradx_traits::PriceOracle;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use scale_info::TypeDefPrimitive::U256;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::{CheckedMul, One};
 use sp_runtime::{
@@ -353,7 +352,7 @@ pub mod pallet {
 		CalculatingPriceError,
 		///The total amount to be reserved is smaller than min budget
 		TotalAmountIsSmallerThanMinBudget,
-		///The budget is too low for executing one DCA
+		///The budget is too low for executing at least two orders
 		BudgetTooLow,
 		///There is no free block found to plan DCA execution
 		NoFreeBlockFound,
