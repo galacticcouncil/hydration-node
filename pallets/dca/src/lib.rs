@@ -85,6 +85,7 @@ use hydradx_traits::PriceOracle;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use scale_info::TypeDefPrimitive::U256;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::{CheckedMul, One};
 use sp_runtime::{
@@ -368,6 +369,10 @@ pub mod pallet {
 		NoParentHashFound,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
+		///Period should be longer than 5 blocks
+		PeriodTooShort,
+		///Stability threshold cannot be higher than 5%
+		StabilityThresholdTooHigh,
 	}
 
 	/// Id sequencer for schedules
@@ -449,6 +454,17 @@ pub mod pallet {
 				schedule.total_amount >= min_budget,
 				Error::<T>::TotalAmountIsSmallerThanMinBudget
 			);
+			ensure!(
+				schedule.period >= BlockNumberFor::<T>::from(5u32),
+				Error::<T>::PeriodTooShort
+			);
+			ensure!(
+				match schedule.stability_threshold {
+					Some(threshold) => threshold <= Permill::from_percent(5),
+					None => true,
+				},
+				Error::<T>::StabilityThresholdTooHigh
+			);
 
 			let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
@@ -469,9 +485,7 @@ pub mod pallet {
 				Error::<T>::MinTradeAmountNotReached
 			);
 
-			let amount_in_with_transaction_fee = amount_in
-				.checked_add(transaction_fee)
-				.ok_or(ArithmeticError::Overflow)?;
+			let amount_in_with_transaction_fee = amount_in.saturating_add(transaction_fee).saturating_mul(2);
 			ensure!(
 				amount_in_with_transaction_fee <= schedule.total_amount,
 				Error::<T>::BudgetTooLow
@@ -600,11 +614,15 @@ impl<T: Config> Pallet<T> {
 		start_execution_block: Option<BlockNumberFor<T>>,
 	) -> Result<BlockNumberFor<T>, DispatchError> {
 		let blocknumber_for_first_schedule_execution = match start_execution_block {
-			Some(blocknumber) => Ok(blocknumber),
+			Some(blocknumber) => {
+				let remainder: u32 = (blocknumber.into() % 5).as_u32();
+				let diff = if remainder == 0 { 0 } else { 5u32 - remainder };
+				Ok(blocknumber.saturating_add(BlockNumberFor::<T>::from(diff)))
+			}
 			None => {
 				let current_block_number = frame_system::Pallet::<T>::current_block_number();
 				let next_block_number = current_block_number
-					.checked_add(&BlockNumberFor::<T>::one())
+					.checked_add(&BlockNumberFor::<T>::from(2u32))
 					.ok_or(ArithmeticError::Overflow)?;
 
 				Ok::<BlockNumberFor<T>, ArithmeticError>(next_block_number)
