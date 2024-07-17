@@ -27,8 +27,11 @@ use frame_support::{
 	},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
-use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::router::{PoolType, RefundEdCalculator};
+use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
+use hydradx_traits::{
+	router::{PoolType, RefundEdCalculator},
+	OraclePeriod, PriceOracle,
+};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -125,18 +128,33 @@ impl RefundEdCalculator<Balance> for MockedEdCalculator {
 	}
 }
 
+pub struct PriceProviderMock {}
+
+impl PriceOracle<AssetId> for PriceProviderMock {
+	type Price = Ratio;
+
+	fn price(route: &[Trade<AssetId>], _: OraclePeriod) -> Option<Ratio> {
+		let has_insufficient_asset = route.iter().any(|t| t.asset_in > 2000 || t.asset_out > 2000);
+		if has_insufficient_asset {
+			return None;
+		}
+		Some(Ratio::new(88, 100))
+	}
+}
+
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type NativeAssetId = HDXAssetId;
 	type Currency = FungibleCurrencies<Test>;
-	type AMM = Omnipool;
 	type InspectRegistry = AssetRegistry;
-	type DefaultRoutePoolType = DefaultRoutePoolType;
-	type WeightInfo = ();
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type AMM = Omnipool;
 	type EdToRefundCalculator = MockedEdCalculator;
+	type OraclePriceProvider = PriceProviderMock;
+	type DefaultRoutePoolType = DefaultRoutePoolType;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type WeightInfo = ();
 }
 
 parameter_types! {
