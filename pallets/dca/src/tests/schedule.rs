@@ -299,11 +299,7 @@ fn schedule_first_execution_cannot_be_next_block_manually() {
 
 			//Act
 			set_block_number(500);
-			assert_ok!(DCA::schedule(
-				RuntimeOrigin::signed(ALICE),
-				schedule.clone(),
-				Some(500000000000001)
-			));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), Some(501)));
 
 			//Assert
 			expect_events(vec![
