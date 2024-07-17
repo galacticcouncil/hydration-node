@@ -83,6 +83,7 @@ use hydradx_traits::NativePriceOracle;
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
+use primitive_types::U256;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
@@ -628,14 +629,15 @@ impl<T: Config> Pallet<T> {
 	fn get_first_execution_block(
 		start_execution_block: Option<BlockNumberFor<T>>,
 	) -> Result<BlockNumberFor<T>, DispatchError> {
+		let current_block_number = frame_system::Pallet::<T>::current_block_number();
 		let blocknumber_for_first_schedule_execution = match start_execution_block {
 			Some(blocknumber) => {
-				let remainder: u32 = (blocknumber.into() % 5).as_u32();
+				let number: U256 = current_block_number.saturating_add(2u32.into()).max(blocknumber).into();
+				let remainder: u32 = (number % 5).as_u32();
 				let diff = if remainder == 0 { 0 } else { 5u32 - remainder };
 				Ok(blocknumber.saturating_add(BlockNumberFor::<T>::from(diff)))
 			}
 			None => {
-				let current_block_number = frame_system::Pallet::<T>::current_block_number();
 				let next_block_number = current_block_number
 					.checked_add(&BlockNumberFor::<T>::from(2u32))
 					.ok_or(ArithmeticError::Overflow)?;
