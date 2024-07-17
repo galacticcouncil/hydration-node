@@ -86,10 +86,10 @@ use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCur
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::traits::{CheckedMul, One};
+use sp_runtime::traits::CheckedMul;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
-	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill, Rounding,
+	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding,
 };
 
 use sp_std::vec::Vec;
@@ -123,6 +123,7 @@ pub mod pallet {
 	use hydra_dx_math::ema::EmaPrice;
 	use hydradx_traits::{NativePriceOracle, PriceOracle};
 	use orml_traits::NamedMultiReservableCurrency;
+	use sp_runtime::Percent;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -158,10 +159,11 @@ pub mod pallet {
 					&schedule,
 					&mut randomness_generator,
 				) {
-					if e != Error::<T>::PriceUnstable.into() {
+					if e == Error::<T>::PriceUnstable.into() || e == Error::<T>::Bumped.into() {
+						continue;
+					} else {
 						Self::terminate_schedule(schedule_id, &schedule, e);
-					};
-					continue;
+					}
 				};
 
 				match Self::execute_trade(schedule_id, &schedule) {
@@ -251,6 +253,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxPriceDifferenceBetweenBlocks: Get<Permill>;
 
+		///Max configurable price difference allowed between blocks
+		#[pallet::constant]
+		type MaxConfigurablePriceDifferenceBetweenBlocks: Get<Permill>;
+
 		///The number of max schedules to be executed per block
 		#[pallet::constant]
 		type MaxSchedulePerBlock: Get<u32>;
@@ -258,6 +264,14 @@ pub mod pallet {
 		///The number of max retries in case of trade limit error
 		#[pallet::constant]
 		type MaxNumberOfRetriesOnError: Get<u8>;
+
+		///Minimal period between executions
+		#[pallet::constant]
+		type MinimalPeriod: Get<u32>;
+
+		///Chance of the random rescheduling
+		#[pallet::constant]
+		type BumpChance: Get<Percent>;
 
 		/// Minimum trading limit for a single trade
 		#[pallet::constant]
@@ -348,6 +362,8 @@ pub mod pallet {
 		BlockNumberIsNotInFuture,
 		///Price is unstable as price change from oracle data is bigger than max allowed
 		PriceUnstable,
+		///Order was randomly rescheduled to next block
+		Bumped,
 		///Error occurred when calculating price
 		CalculatingPriceError,
 		///The total amount to be reserved is smaller than min budget
@@ -370,7 +386,7 @@ pub mod pallet {
 		InvalidState,
 		///Period should be longer than 5 blocks
 		PeriodTooShort,
-		///Stability threshold cannot be higher than 5%
+		///Stability threshold cannot be higher than `MaxConfigurablePriceDifferenceBetweenBlock`
 		StabilityThresholdTooHigh,
 	}
 
@@ -429,7 +445,7 @@ pub mod pallet {
 		/// Parameters:
 		/// - `origin`: schedule owner
 		/// - `schedule`: schedule details
-		/// - `start_execution_block`: start execution block for the schedule
+		/// - `start_execution_block`: first possible execution block for the schedule
 		///
 		/// Emits `Scheduled` and `ExecutionPlanned` event when successful.
 		///
@@ -454,12 +470,12 @@ pub mod pallet {
 				Error::<T>::TotalAmountIsSmallerThanMinBudget
 			);
 			ensure!(
-				schedule.period >= BlockNumberFor::<T>::from(5u32),
+				schedule.period >= BlockNumberFor::<T>::from(T::MinimalPeriod::get()),
 				Error::<T>::PeriodTooShort
 			);
 			ensure!(
 				match schedule.stability_threshold {
-					Some(threshold) => threshold <= Permill::from_percent(5),
+					Some(threshold) => threshold <= T::MaxConfigurablePriceDifferenceBetweenBlocks::get(),
 					None => true,
 				},
 				Error::<T>::StabilityThresholdTooHigh
@@ -509,7 +525,7 @@ pub mod pallet {
 				schedule.total_amount,
 			)?;
 
-			let blocknumber_for_first_schedule_execution = Self::get_next_execution_block(start_execution_block)?;
+			let blocknumber_for_first_schedule_execution = Self::get_first_execution_block(start_execution_block)?;
 
 			let mut randomness_generator = Self::get_randomness_generator(
 				frame_system::Pallet::<T>::current_block_number(),
@@ -561,7 +577,7 @@ pub mod pallet {
 
 			Self::try_unreserve_all(schedule_id, &schedule);
 
-			let next_execution_block = Self::get_next_execution_block(next_execution_block)?;
+			let next_execution_block = next_execution_block.ok_or(Error::<T>::ScheduleNotFound)?;
 
 			//Remove schedule id from next execution block
 			ScheduleIdsPerBlock::<T>::try_mutate_exists(
@@ -609,7 +625,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn get_next_execution_block(
+	fn get_first_execution_block(
 		start_execution_block: Option<BlockNumberFor<T>>,
 	) -> Result<BlockNumberFor<T>, DispatchError> {
 		let blocknumber_for_first_schedule_execution = match start_execution_block {
@@ -638,6 +654,12 @@ impl<T: Config> Pallet<T> {
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
+		if Percent::from_percent(randomness_generator.gen_range(0..100)) <= T::BumpChance::get() {
+			let next_block = current_blocknumber.clone().saturating_add(1u32.into());
+			Self::plan_schedule_for_block(&schedule.owner, next_block, schedule_id, randomness_generator)?;
+			return Err(Error::<T>::Bumped.into());
+		}
+
 		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_dca_execution)?;
 
 		if Self::is_price_unstable(schedule) {
