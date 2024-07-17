@@ -273,11 +273,48 @@ fn schedule_should_emit_necessary_events() {
 				Event::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
-					block: 501,
+					block: 502,
 				}
 				.into(),
 				Event::Scheduled {
 					id: schedule_id,
+					who: ALICE,
+					period: schedule.period,
+					total_amount: schedule.total_amount,
+					order: schedule.order,
+				}
+				.into(),
+			]);
+		});
+}
+
+#[test]
+fn schedule_first_execution_cannot_be_next_block_manually() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().build();
+
+			//Act
+			set_block_number(500);
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule.clone(),
+				Some(500000000000001)
+			));
+
+			//Assert
+			expect_events(vec![
+				Event::ExecutionPlanned {
+					id: 0,
+					who: ALICE,
+					block: 505,
+				}
+				.into(),
+				Event::Scheduled {
+					id: 0,
 					who: ALICE,
 					period: schedule.period,
 					total_amount: schedule.total_amount,

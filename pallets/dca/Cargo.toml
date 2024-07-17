@@ -19,7 +19,6 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 # primitives
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
-primitive-types = { version = "0.12.0", default-features = false }
 
 # FRAME
 frame-support = { workspace = true }

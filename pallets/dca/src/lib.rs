@@ -83,7 +83,6 @@ use hydradx_traits::NativePriceOracle;
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
-use primitive_types::U256;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
@@ -632,10 +631,10 @@ impl<T: Config> Pallet<T> {
 		let current_block_number = frame_system::Pallet::<T>::current_block_number();
 		let blocknumber_for_first_schedule_execution = match start_execution_block {
 			Some(blocknumber) => {
-				let number: U256 = current_block_number.saturating_add(2u32.into()).max(blocknumber).into();
-				let remainder: u32 = (number % 5).as_u32();
+				let number = current_block_number.saturating_add(2u32.into()).max(blocknumber);
+				let remainder: u32 = (number.into() % 5).as_u32();
 				let diff = if remainder == 0 { 0 } else { 5u32 - remainder };
-				Ok(blocknumber.saturating_add(BlockNumberFor::<T>::from(diff)))
+				Ok(number.saturating_add(diff.into()))
 			}
 			None => {
 				let next_block_number = current_block_number
