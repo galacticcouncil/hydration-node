@@ -79,6 +79,7 @@ parameter_types! {
 	pub MinProfitLimit: Balance = 10_000_000_000_000;
 	pub PricePrecision: FixedU128 = FixedU128::from_rational(1, 1_000_000);
 	pub MinProfitPercentage: Perbill = Perbill::from_rational(1u32, 100_000_u32); // 0.001%
+	pub OtcFee: Permill = Permill::from_percent(1u32);
 }
 
 parameter_type_with_key! {
@@ -107,6 +108,8 @@ impl pallet_otc::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
+	type Fee = OtcFee;
+	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = ();
 }
 

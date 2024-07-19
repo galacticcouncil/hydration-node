@@ -1120,6 +1120,7 @@ parameter_types! {
 	pub const ExistentialDepositMultiplier: u8 = 5;
 	pub const PricePrecision: FixedU128 = FixedU128::from_rational(1, 100);
 	pub MinProfitPercentage: Perbill = Perbill::from_rational(1u32, 100_000_u32); // 0.001%
+	pub OtcFee: Permill = Permill::from_rational(1u32, 1_000_u32); // 0.1%
 }
 
 impl pallet_otc::Config for Runtime {
@@ -1129,6 +1130,8 @@ impl pallet_otc::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposits = AssetRegistry;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
+	type Fee = OtcFee;
+	type FeeReceiver = TreasuryAccount;
 	type WeightInfo = weights::pallet_otc::HydraWeight<Runtime>;
 }
 

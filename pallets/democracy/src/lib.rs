@@ -342,6 +342,9 @@ pub mod pallet {
 		/// Hooks are actions that are executed on certain events.
 		/// Eg: on_vote
 		type DemocracyHooks: DemocracyHooks<Self::AccountId, BalanceOf<Self>>;
+
+		/// Origin for anyone able to force remove a vote.
+		type VoteRemovalOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
 	}
 
 	/// The number of (public) proposals that have been made so far.
@@ -989,7 +992,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::remove_vote(T::MaxVotes::get()))]
 		pub fn remove_vote(origin: OriginFor<T>, index: ReferendumIndex) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::try_remove_vote(&who, index, UnvoteScope::Any)
+			Self::try_remove_vote(&who, index, UnvoteScope::Any, false)
 		}
 
 		/// Remove a vote for a referendum.
@@ -1021,7 +1024,7 @@ pub mod pallet {
 			} else {
 				UnvoteScope::OnlyExpired
 			};
-			Self::try_remove_vote(&target, index, scope)?;
+			Self::try_remove_vote(&target, index, scope, false)?;
 			Ok(())
 		}
 
@@ -1164,6 +1167,39 @@ pub mod pallet {
 			} else {
 				Self::clear_metadata(owner);
 			}
+			Ok(())
+		}
+
+		/// Allow to force remove a vote for a referendum.
+		///
+		/// Same as `remove_other_vote`, except the scope is overriden by forced flag.
+		/// The dispatch origin of this call must be `VoteRemovalOrigin`.
+		///
+		/// Only allowed if the referendum is finished.
+		///
+		/// The dispatch origin of this call must be _Signed_.
+		///
+		/// - `target`: The account of the vote to be removed; this account must have voted for
+		///   referendum `index`.
+		/// - `index`: The index of referendum of the vote to be removed.
+		///
+		/// Weight: `O(R + log R)` where R is the number of referenda that `target` has voted on.
+		///   Weight is calculated for the maximum number of vote.
+		#[pallet::call_index(19)]
+		#[pallet::weight(T::WeightInfo::remove_other_vote(T::MaxVotes::get()))]
+		pub fn force_remove_vote(
+			origin: OriginFor<T>,
+			target: crate::AccountIdLookupOf<T>,
+			index: crate::types::ReferendumIndex,
+		) -> DispatchResult {
+			let who = T::VoteRemovalOrigin::ensure_origin(origin)?;
+			let target = T::Lookup::lookup(target)?;
+			let scope = if target == who {
+				crate::types::UnvoteScope::Any
+			} else {
+				crate::types::UnvoteScope::OnlyExpired
+			};
+			Self::try_remove_vote(&target, index, scope, true)?;
 			Ok(())
 		}
 	}
@@ -1333,7 +1369,12 @@ impl<T: Config> Pallet<T> {
 	/// - The referendum has finished and the voter's lock period is up.
 	///
 	/// This will generally be combined with a call to `unlock`.
-	fn try_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex, scope: UnvoteScope) -> DispatchResult {
+	fn try_remove_vote(
+		who: &T::AccountId,
+		ref_index: ReferendumIndex,
+		scope: UnvoteScope,
+		forced: bool,
+	) -> DispatchResult {
 		let info = ReferendumInfoOf::<T>::get(ref_index);
 		VotingOf::<T>::try_mutate(who, |voting| -> DispatchResult {
 			if let Voting::Direct {
@@ -1362,7 +1403,7 @@ impl<T: Config> Pallet<T> {
 								end.saturating_add(T::VoteLockingPeriod::get().saturating_mul(lock_periods.into()));
 							let now = frame_system::Pallet::<T>::block_number();
 							if now < unlock_at {
-								ensure!(matches!(scope, UnvoteScope::Any), Error::<T>::NoPermission);
+								ensure!(forced || matches!(scope, UnvoteScope::Any), Error::<T>::NoPermission);
 								prior.accumulate(unlock_at, balance)
 							}
 						} else {
@@ -1376,7 +1417,7 @@ impl<T: Config> Pallet<T> {
 									);
 									let now = frame_system::Pallet::<T>::block_number();
 									if now < unlock_at {
-										ensure!(matches!(scope, UnvoteScope::Any), Error::<T>::NoPermission);
+										ensure!(forced || matches!(scope, UnvoteScope::Any), Error::<T>::NoPermission);
 										prior.accumulate(unlock_at, to_lock)
 									}
 								}
