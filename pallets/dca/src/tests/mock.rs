@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{Config, Error, RandomnessGenerator, RandomnessProvider, RelayChainBlockHashProvider, RandomNumberGenerator};
+use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::traits::{Everything, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
@@ -68,8 +68,8 @@ pub const FORBIDDEN_ASSET: AssetId = 4;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
-//Since we always return 5 in the MockRndGenerator, therefore the delay is the same
-pub const DELAYS: [u64; 10] = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5];
+//Since we always use the same parent hash in the tests, the generated radiuses are always the same
+pub const GENERATED_SEARCH_RADIUSES: [u64; 10] = [1, 3, 6, 10, 28, 34, 114, 207, 504, 947];
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -646,42 +646,25 @@ parameter_types! {
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
 	pub MaxConfigurablePriceDifference: Permill = Permill::from_percent(20);
 	pub MinimalPeriod: u32 = 5;
-	pub BumpChance: Percent = Percent::from_percent(17);
+	pub BumpChance: Percent = Percent::from_percent(0);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
 }
+use rand::SeedableRng;
 
 pub struct RandomnessProviderMock {}
 
 impl RandomnessProvider for RandomnessProviderMock {
-	fn generator(salt: Option<u32>) -> Result<Box<dyn RandomNumberGenerator>, DispatchError> {
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError> {
 		let use_prod_randomness = USE_PROD_RANDOMNESS.with(|v| *v.borrow());
 
 		if use_prod_randomness {
-			let gen = RandomnessGenerator::<Test>::new(salt).unwrap();
-			Ok(Box::new(gen))
+			DCA::generator(salt)
 		} else {
-			Ok(Box::new(MockRndGenerator{}))
+			Ok(StdRng::seed_from_u64(0))
 		}
 	}
 }
-
-pub struct MockRndGenerator;
-
-impl RandomNumberGenerator for MockRndGenerator {
-	fn gen_u32(&mut self) -> u32 {
-		1
-	}
-
-	fn gen_range_u8(&mut self, _range: Range<u8>) -> u8 {
-		18
-	}
-
-	fn gen_range_u32(&mut self, _range: RangeInclusive<u32>) -> u32 {
-		5
-	}
-}
-
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -734,6 +717,7 @@ impl RelayChainBlockHashProvider for ParentHashGetterMock {
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
 use frame_system::pallet_prelude::OriginFor;
+use rand::rngs::StdRng;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;

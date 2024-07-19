@@ -483,7 +483,7 @@ fn schedule_should_fail_when_not_called_by_user() {
 }
 
 #[test]
-fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
+fn schedule_should_schedule_for_consequent_block_when_specified_block_is_full() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 1000000 * ONE)])
 		.build()
@@ -505,7 +505,7 @@ fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
 			let actual_schedule_ids = DCA::schedule_ids_per_block(1000);
 			assert_eq!(20, actual_schedule_ids.len());
 
-			assert_scheduled_ids!(1005, vec![schedule_id]);
+			assert_scheduled_ids!(1001, vec![schedule_id]);
 		});
 }
 
@@ -533,11 +533,11 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 			let actual_schedule_ids = DCA::schedule_ids_per_block(block);
 			assert_eq!(20, actual_schedule_ids.len());
 
-			let actual_schedule_ids = DCA::schedule_ids_per_block(block + DELAYS[0]);
+			let actual_schedule_ids = DCA::schedule_ids_per_block(block + GENERATED_SEARCH_RADIUSES[0]);
 			assert_eq!(20, actual_schedule_ids.len());
 
 			assert_scheduled_ids!(
-				block + DELAYS[0] + DELAYS[1],
+				block + GENERATED_SEARCH_RADIUSES[0] + GENERATED_SEARCH_RADIUSES[1],
 				vec![schedule_id]
 			);
 		});
@@ -560,7 +560,7 @@ fn schedule_should_fail_when_there_is_no_free_consquent_blocks() {
 			//Check if all the blocks within radiuses are fully filled
 			let next_block = 1000;
 			let mut next_block_with_radius = next_block;
-			for radius in DELAYS {
+			for radius in GENERATED_SEARCH_RADIUSES {
 				next_block_with_radius += radius;
 				let actual_schedule_ids = DCA::schedule_ids_per_block(next_block_with_radius);
 				assert_eq!(20, actual_schedule_ids.len());

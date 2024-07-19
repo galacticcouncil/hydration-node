@@ -138,7 +138,7 @@ pub mod pallet {
 
 			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::take(current_blocknumber).to_vec();
 
-			schedule_ids.sort_by_cached_key(|_| randomness_generator.gen_u32());
+			schedule_ids.sort_by_cached_key(|_| randomness_generator.gen::<u32>());
 			for schedule_id in schedule_ids {
 				Self::deposit_event(Event::ExecutionStarted {
 					id: schedule_id,
@@ -614,7 +614,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn get_randomness_generator(current_blocknumber: BlockNumberFor<T>, salt: Option<u32>) -> Box<dyn RandomNumberGenerator> {
+	fn get_randomness_generator(current_blocknumber: BlockNumberFor<T>, salt: Option<u32>) -> StdRng {
 		match T::RandomnessProvider::generator(salt) {
 			Ok(generator) => generator,
 			Err(err) => {
@@ -623,12 +623,7 @@ impl<T: Config> Pallet<T> {
 					error: err,
 				});
 
-				let randomness_generator : RandomnessGenerator<T> = RandomnessGenerator {
-					rng: rand::rngs::StdRng::seed_from_u64(0),
-					_marker: Default::default(),
-				};
-
-				Box::new(randomness_generator)
+				StdRng::seed_from_u64(0)
 			}
 		}
 	}
@@ -661,9 +656,9 @@ impl<T: Config> Pallet<T> {
 		weight_for_dca_execution: Weight,
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
-		randomness_generator: &mut Box<dyn RandomNumberGenerator>,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
-		if Percent::from_percent(randomness_generator.gen_range_u8(0..100)) <= T::BumpChance::get() {
+		if Percent::from_percent(randomness_generator.gen_range(0..100)) <= T::BumpChance::get() {
 			let next_block = current_blocknumber.saturating_add(1u32.into());
 			Self::plan_schedule_for_block(&schedule.owner, next_block, schedule_id, randomness_generator)?;
 			return Err(Error::<T>::Bumped.into());
@@ -783,7 +778,7 @@ impl<T: Config> Pallet<T> {
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		current_blocknumber: BlockNumberFor<T>,
 		amounts: AmountInAndOut<Balance>,
-		randomness_generator: &mut Box<dyn RandomNumberGenerator>,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		Self::deposit_event(Event::TradeExecuted {
 			id: schedule_id,
@@ -831,7 +826,7 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		current_blocknumber: BlockNumberFor<T>,
-		randomness_generator: &mut Box<dyn RandomNumberGenerator>,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		let number_of_retries = Self::retries_on_error(schedule_id);
 
@@ -1015,7 +1010,7 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		blocknumber: BlockNumberFor<T>,
 		schedule_id: ScheduleId,
-		randomness_generator: &mut Box<dyn RandomNumberGenerator>,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		let current_block_number = frame_system::Pallet::<T>::current_block_number();
 		ensure!(blocknumber > current_block_number, Error::<T>::BlockNumberIsNotInFuture);
@@ -1039,7 +1034,7 @@ impl<T: Config> Pallet<T> {
 
 	fn find_next_free_block(
 		blocknumber: BlockNumberFor<T>,
-		randomness_generator: &mut Box<dyn RandomNumberGenerator>,
+		randomness_generator: &mut StdRng,
 	) -> Result<BlockNumberFor<T>, DispatchError> {
 		let mut next_execution_block = blocknumber;
 
@@ -1052,7 +1047,7 @@ impl<T: Config> Pallet<T> {
 			let lower_bound = 2u32.saturating_pow(i);
 			let upper_bound = 2u32.saturating_pow(i.saturating_add(1)).saturating_sub(1);
 
-			let delay_with = randomness_generator.gen_range_u32(lower_bound..=upper_bound);
+			let delay_with = randomness_generator.gen_range(lower_bound..=upper_bound);
 			next_execution_block = next_execution_block.saturating_add(delay_with.into());
 		}
 
@@ -1137,30 +1132,11 @@ impl<T: Config> Pallet<T> {
 }
 
 pub trait RandomnessProvider {
-	fn generator(salt: Option<u32>) -> Result<Box<dyn RandomNumberGenerator>, DispatchError>;
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError>;
 }
 
 impl<T: Config> RandomnessProvider for Pallet<T> {
-	fn generator(salt: Option<u32>) -> Result<Box<dyn RandomNumberGenerator>, DispatchError> {
-		let res = RandomnessGenerator::<T>::new(salt)?;
-
-		Ok(Box::new(res))
-	}
-}
-
-pub trait RandomNumberGenerator {
-	fn gen_u32(&mut self) -> u32;
-	fn gen_range_u8(&mut self, range: sp_std::ops::Range<u8>) -> u8;
-	fn gen_range_u32(&mut self, range: sp_std::ops::RangeInclusive<u32>) -> u32;
-}
-
-pub struct RandomnessGenerator<T: Config> {
-	rng: StdRng,
-	_marker: sp_std::marker::PhantomData<T>,
-}
-
-impl<T: Config> RandomnessGenerator<T> {
-	pub fn new(salt: Option<u32>) -> Result<Self, DispatchError> {
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError> {
 		let hash_value = T::RelayChainBlockHashProvider::parent_hash().ok_or(Error::<T>::NoParentHashFound)?;
 		let hash_bytes = hash_value.as_fixed_bytes();
 		let mut seed_arr = [0u8; 8];
@@ -1172,25 +1148,6 @@ impl<T: Config> RandomnessGenerator<T> {
 			None => u64::from_le_bytes(seed_arr),
 		};
 
-		Ok(RandomnessGenerator {
-			rng: rand::rngs::StdRng::seed_from_u64(seed),
-			_marker: sp_std::marker::PhantomData,
-		})
-	}
-}
-
-impl<T: Config> RandomNumberGenerator for RandomnessGenerator<T> {
-	fn gen_u32(&mut self) -> u32 {
-		self.rng.gen::<u32>()
-	}
-
-	fn gen_range_u8(&mut self, range: sp_std::ops::Range<u8>) -> u8
-	{
-		self.rng.gen_range(range)
-	}
-
-	fn gen_range_u32(&mut self, range: sp_std::ops::RangeInclusive<u32>) -> u32
-	{
-		self.rng.gen_range(range)
+		Ok(rand::rngs::StdRng::seed_from_u64(seed))
 	}
 }

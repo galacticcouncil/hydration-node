@@ -2098,12 +2098,7 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 
 			for _ in RangeInclusive::new(1, 220) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1000)));
-			}
-
-			for _ in RangeInclusive::new(1, 20) {
-				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1055)));
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1005)));//995 + 10 because 10 is the retry delay
 			}
 
 			//Act
@@ -2157,7 +2152,7 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 			assert_eq!(20, actual_schedule_ids.len());
 
 			//Check if all blocks found within radius are filled
-			for delay in DELAYS {
+			for delay in GENERATED_SEARCH_RADIUSES {
 				execution_block += delay;
 				let actual_schedule_ids = DCA::schedule_ids_per_block(execution_block);
 				assert_eq!(20, actual_schedule_ids.len());
@@ -2167,7 +2162,7 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 			proceed_to_blocknumber(1000, 2000);
 
 			//Assert
-			assert_number_of_executed_sell_trades!(2220);
+			assert_number_of_executed_sell_trades!(1740);
 
 			//Assert if none of the schedule is terminated
 			for schedule_id in RangeInclusive::new(0, 119) {
