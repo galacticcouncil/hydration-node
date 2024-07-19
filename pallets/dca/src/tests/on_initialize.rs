@@ -650,7 +650,7 @@ fn full_buy_dca_should_be_completed_when_some_successful_dca_execution_happened_
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
 			assert_number_of_executed_buy_trades!(2);
-			assert_balance!(ALICE, BTC, 2*CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY);
+			assert_balance!(ALICE, BTC, 2 * CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY);
 
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
@@ -2045,7 +2045,11 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 
 			for _ in RangeInclusive::new(1, 220) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1000)));
+				assert_ok!(DCA::schedule(
+					RuntimeOrigin::signed(ALICE),
+					schedule,
+					Option::Some(1000)
+				));
 			}
 
 			//Act
@@ -2098,7 +2102,11 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 
 			for _ in RangeInclusive::new(1, 220) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1005)));//995 + 10 because 10 is the retry delay
+				assert_ok!(DCA::schedule(
+					RuntimeOrigin::signed(ALICE),
+					schedule,
+					Option::Some(1005)
+				)); //995 + 10 because 10 is the retry delay
 			}
 
 			//Act

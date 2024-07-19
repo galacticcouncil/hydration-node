@@ -493,13 +493,21 @@ fn schedule_should_schedule_for_consequent_block_when_specified_block_is_full() 
 
 			for _ in RangeInclusive::new(1, 20) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1000)));
+				assert_ok!(DCA::schedule(
+					RuntimeOrigin::signed(ALICE),
+					schedule,
+					Option::Some(1000)
+				));
 			}
 
 			//Act
 			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 20;
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1000)));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule,
+				Option::Some(1000)
+			));
 
 			//Assert
 			let actual_schedule_ids = DCA::schedule_ids_per_block(1000);
@@ -520,13 +528,21 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 
 			for _ in RangeInclusive::new(1, 40) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1000)));
+				assert_ok!(DCA::schedule(
+					RuntimeOrigin::signed(ALICE),
+					schedule,
+					Option::Some(1000)
+				));
 			}
 
 			//Act
 			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 40;
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1000)));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule,
+				Option::Some(1000)
+			));
 
 			//Assert
 			let block = 1000;
@@ -554,7 +570,11 @@ fn schedule_should_fail_when_there_is_no_free_consquent_blocks() {
 
 			for _ in RangeInclusive::new(1, 220) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1000)));
+				assert_ok!(DCA::schedule(
+					RuntimeOrigin::signed(ALICE),
+					schedule,
+					Option::Some(1000)
+				));
 			}
 
 			//Check if all the blocks within radiuses are fully filled
