@@ -64,7 +64,7 @@ fn successful_sell_dca_execution_should_emit_trade_executed_event() {
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
 
 			//Assert
 			let schedule_id = 0;
@@ -79,7 +79,7 @@ fn successful_sell_dca_execution_should_emit_trade_executed_event() {
 				DcaEvent::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
-					block: 601,
+					block: 602,
 				}
 				.into(),
 			]);
@@ -119,7 +119,7 @@ fn successful_buy_dca_execution_should_emit_trade_executed_event() {
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
 
 			//Assert
 			let schedule_id = 0;
@@ -134,7 +134,7 @@ fn successful_buy_dca_execution_should_emit_trade_executed_event() {
 				DcaEvent::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
-					block: 601,
+					block: 602,
 				}
 				.into(),
 			]);
@@ -216,7 +216,7 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = *AMOUNT_OUT_FOR_OMNIPOOL_SELL * 3 / 2;
+			let total_amount = *AMOUNT_OUT_FOR_OMNIPOOL_SELL * 5 / 2;
 			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
@@ -239,17 +239,13 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
+			set_to_blocknumber(602);
 
 			//Assert
-			assert_executed_sell_trades!(vec![SellExecution {
-				asset_in: HDX,
-				asset_out: BTC,
-				amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
-				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
-			}]);
+			assert_number_of_executed_sell_trades!(2);
 
-			set_to_blocknumber(601);
+			set_to_blocknumber(702);
 
 			//Assert
 			assert_executed_sell_trades!(vec![
@@ -262,7 +258,13 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 				SellExecution {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: total_amount - amount_to_sell - SELL_DCA_FEE_IN_NATIVE - SELL_DCA_FEE_IN_NATIVE,
+					amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+				},
+				SellExecution {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: total_amount - 2 * (amount_to_sell + SELL_DCA_FEE_IN_NATIVE) - SELL_DCA_FEE_IN_NATIVE,
 					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 				}
 			]);
@@ -282,12 +284,12 @@ fn sell_schedule_should_continue_when_there_is_exact_amount_in_left_as_remaining
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = *AMOUNT_OUT_FOR_OMNIPOOL_SELL * 2 + SELL_DCA_FEE_IN_NATIVE;
+			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL * 2 + SELL_DCA_FEE_IN_NATIVE;
 			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
-				.with_period(1)
+				.with_period(5)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
@@ -305,7 +307,8 @@ fn sell_schedule_should_continue_when_there_is_exact_amount_in_left_as_remaining
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
+			set_to_blocknumber(504);
 
 			//Assert
 			assert_executed_sell_trades!(vec![SellExecution {
@@ -1145,12 +1148,12 @@ fn sell_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
 
 			assert_number_of_executed_sell_trades!(0);
 
 			let schedule_id = 0;
-			assert_scheduled_ids!(511, vec![schedule_id]);
+			assert_scheduled_ids!(512, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries);
 			expect_dca_events(vec![
@@ -1163,7 +1166,7 @@ fn sell_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 				DcaEvent::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
-					block: 511,
+					block: 512,
 				}
 				.into(),
 			]);
@@ -1422,8 +1425,8 @@ fn sell_dca_schedule_continue_on_slippage_error() {
 
 			//Act and assert
 			let schedule_id = 0;
-			set_to_blocknumber(501);
-			assert_scheduled_ids!(511, vec![schedule_id]);
+			set_to_blocknumber(502);
+			assert_scheduled_ids!(512, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries);
 		});
@@ -1644,7 +1647,7 @@ fn sell_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 			assert_balance!(TreasuryAccount::get(), HDX, 0);
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
 
 			//Assert
 			assert_balance!(TreasuryAccount::get(), HDX, SELL_DCA_FEE_IN_NATIVE);
@@ -1658,7 +1661,7 @@ fn sell_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 }
 
 #[test]
-fn sell_dca_should_be_completed_when_trade_amount_is_total_budget_plus_fee() {
+fn sell_dca_should_be_completed_when_last_trade_amount_is_total_budget_plus_fee() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -1667,7 +1670,7 @@ fn sell_dca_should_be_completed_when_trade_amount_is_total_budget_plus_fee() {
 			proceed_to_blocknumber(1, 500);
 
 			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
-			let total_amount = amount_to_sell + SELL_DCA_FEE_IN_NATIVE;
+			let total_amount = 2 * (amount_to_sell + SELL_DCA_FEE_IN_NATIVE);
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -1690,10 +1693,11 @@ fn sell_dca_should_be_completed_when_trade_amount_is_total_budget_plus_fee() {
 			assert_balance!(TreasuryAccount::get(), HDX, 0);
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
+			set_to_blocknumber(602);
 
 			//Assert
-			assert_number_of_executed_sell_trades!(1);
+			assert_number_of_executed_sell_trades!(2);
 			assert_that_dca_is_completed(ALICE, 0);
 		});
 }
@@ -1773,7 +1777,7 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_t
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
 
 			//Assert
 			//No trade happens because slippage limit is too small
@@ -1990,7 +1994,7 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
 
 			//Assert
 			assert_executed_buy_trades!(vec![]);
@@ -2000,7 +2004,7 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 			);
 
 			let schedule_id = 0;
-			assert_scheduled_ids!(511, vec![schedule_id]);
+			assert_scheduled_ids!(512, vec![schedule_id]);
 
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries);
@@ -2018,12 +2022,11 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 
 			let total_amount = 5 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
-			let one_block = 1;
 
 			let schedule_id = 0;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
-				.with_period(one_block)
+				.with_period(5)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
@@ -2037,16 +2040,16 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(995)));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			for _ in RangeInclusive::new(1, 220) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(502)));
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1000)));
 			}
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(995);
 
 			//Assert
 			assert_executed_sell_trades!(vec![SellExecution {
@@ -2076,7 +2079,7 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 			let schedule_id = 0;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
-				.with_period(1)
+				.with_period(5)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
@@ -2090,16 +2093,21 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(501)));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(995)));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			for _ in RangeInclusive::new(1, 220) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(511)));
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1000)));
+			}
+
+			for _ in RangeInclusive::new(1, 20) {
+				let schedule = ScheduleBuilder::new().build();
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(1055)));
 			}
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(995);
 
 			//Assert
 			assert_executed_sell_trades!(vec![]);
@@ -2135,31 +2143,31 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 				})
 				.build();
 
-			let mut execution_block = 502;
 			for _ in RangeInclusive::new(1, 220) {
 				assert_ok!(DCA::schedule(
 					RuntimeOrigin::signed(ALICE),
 					schedule.clone(),
-					None
+					Some(1000)
 				));
 			}
 
 			//Check if first block is fully filled
+			let mut execution_block = 1000;
 			let actual_schedule_ids = DCA::schedule_ids_per_block(execution_block);
 			assert_eq!(20, actual_schedule_ids.len());
 
 			//Check if all blocks found within radius are filled
-			for delay in GENERATED_SEARCH_RADIUSES {
+			for delay in DELAYS {
 				execution_block += delay;
 				let actual_schedule_ids = DCA::schedule_ids_per_block(execution_block);
 				assert_eq!(20, actual_schedule_ids.len());
 			}
 
 			//Act
-			proceed_to_blocknumber(502, 1530);
+			proceed_to_blocknumber(1000, 2000);
 
 			//Assert
-			assert_number_of_executed_sell_trades!(1860);
+			assert_number_of_executed_sell_trades!(2220);
 
 			//Assert if none of the schedule is terminated
 			for schedule_id in RangeInclusive::new(0, 119) {
@@ -2219,7 +2227,7 @@ fn sell_schedule_should_be_completed_when_remainder_is_less_than_20_transaction_
 			proceed_to_blocknumber(1, 500);
 
 			let remainder = 20 * SELL_DCA_FEE_IN_NATIVE - 1;
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + remainder;
+			let total_amount = 2 * (ONE + SELL_DCA_FEE_IN_NATIVE) + remainder;
 			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -2241,7 +2249,8 @@ fn sell_schedule_should_be_completed_when_remainder_is_less_than_20_transaction_
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
+			set_to_blocknumber(602);
 
 			//Assert
 			let schedule_id = 0;
@@ -2290,12 +2299,12 @@ fn schedules_are_purged_when_the_block_is_over() {
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			set_to_blocknumber(501);
-			assert_number_of_executed_sell_trades!(3);
 			set_to_blocknumber(502);
+			assert_number_of_executed_sell_trades!(3);
+			set_to_blocknumber(503);
 
 			//Assert
-			let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501);
+			let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(502);
 			assert_eq!(
 				scheduled_ids_for_next_block,
 				create_bounded_vec_with_schedule_ids(vec![])
@@ -2313,7 +2322,7 @@ fn sell_schedule_should_be_replanned_when_remainder_is_equal_to_20_transaction_f
 			proceed_to_blocknumber(1, 500);
 
 			let remainder = 20 * SELL_DCA_FEE_IN_NATIVE;
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + remainder;
+			let total_amount = 2 * (ONE + SELL_DCA_FEE_IN_NATIVE) + remainder;
 			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -2335,14 +2344,15 @@ fn sell_schedule_should_be_replanned_when_remainder_is_equal_to_20_transaction_f
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
+			set_to_blocknumber(602);
 
 			//Assert
 			let schedule_id = 0;
 			expect_events(vec![DcaEvent::ExecutionPlanned {
 				id: schedule_id,
 				who: ALICE,
-				block: 601,
+				block: 702,
 			}
 			.into()]);
 		});
@@ -2358,7 +2368,7 @@ fn sell_schedule_should_be_replanned_when_more_than_20_transaction_fee_left_for_
 			proceed_to_blocknumber(1, 500);
 
 			let remainder = 20 * SELL_DCA_FEE_IN_NATIVE + 1;
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + remainder;
+			let total_amount = 2 * (ONE + SELL_DCA_FEE_IN_NATIVE) + remainder;
 			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -2380,14 +2390,15 @@ fn sell_schedule_should_be_replanned_when_more_than_20_transaction_fee_left_for_
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			set_to_blocknumber(501);
+			set_to_blocknumber(502);
+			set_to_blocknumber(602);
 
 			//Assert
 			let schedule_id = 0;
 			expect_events(vec![DcaEvent::ExecutionPlanned {
 				id: schedule_id,
 				who: ALICE,
-				block: 601,
+				block: 702,
 			}
 			.into()]);
 		});

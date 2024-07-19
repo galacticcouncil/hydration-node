@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
+use crate::{Config, Error, RandomnessGenerator, RandomnessProvider, RelayChainBlockHashProvider, RandomNumberGenerator};
 use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::traits::{Everything, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
@@ -46,6 +46,7 @@ use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResult, FixedU128};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ops::{Range, RangeInclusive};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -67,8 +68,8 @@ pub const FORBIDDEN_ASSET: AssetId = 4;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
-//Since we always use the same parent hash in the tests, the generated radiuses are always the same
-pub const GENERATED_SEARCH_RADIUSES: [u64; 10] = [1, 3, 6, 10, 28, 34, 114, 207, 504, 947];
+//Since we always return 5 in the MockRndGenerator, therefore the delay is the same
+pub const DELAYS: [u64; 10] = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5];
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -653,16 +654,34 @@ parameter_types! {
 pub struct RandomnessProviderMock {}
 
 impl RandomnessProvider for RandomnessProviderMock {
-	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError> {
+	fn generator(salt: Option<u32>) -> Result<Box<dyn RandomNumberGenerator>, DispatchError> {
 		let use_prod_randomness = USE_PROD_RANDOMNESS.with(|v| *v.borrow());
 
 		if use_prod_randomness {
-			DCA::generator(salt)
+			let gen = RandomnessGenerator::<Test>::new(salt).unwrap();
+			Ok(Box::new(gen))
 		} else {
-			Ok(StdRng::seed_from_u64(0))
+			Ok(Box::new(MockRndGenerator{}))
 		}
 	}
 }
+
+pub struct MockRndGenerator;
+
+impl RandomNumberGenerator for MockRndGenerator {
+	fn gen_u32(&mut self) -> u32 {
+		1
+	}
+
+	fn gen_range_u8(&mut self, _range: Range<u8>) -> u8 {
+		18
+	}
+
+	fn gen_range_u32(&mut self, _range: RangeInclusive<u32>) -> u32 {
+		5
+	}
+}
+
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -721,8 +740,6 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
-use rand::prelude::StdRng;
-use rand::SeedableRng;
 use smallvec::smallvec;
 
 pub struct DummyNFT;
