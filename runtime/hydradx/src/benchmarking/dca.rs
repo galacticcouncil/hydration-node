@@ -65,7 +65,7 @@ fn schedule_fake(
 ) -> Schedule<AccountId, AssetId, BlockNumber> {
 	let schedule1: Schedule<AccountId, AssetId, BlockNumber> = Schedule {
 		owner,
-		period: 3u32,
+		period: 5u32,
 		total_amount: 1100 * ONE,
 		max_retries: None,
 		stability_threshold: None,
@@ -97,7 +97,7 @@ fn schedule_buy_fake(
 ) -> Schedule<AccountId, AssetId, BlockNumber> {
 	let schedule1: Schedule<AccountId, AssetId, BlockNumber> = Schedule {
 		owner,
-		period: 3u32,
+		period: 5u32,
 		total_amount: 2000 * ONE,
 		max_retries: None,
 		stability_threshold: None,
@@ -125,7 +125,7 @@ fn schedule_sell_fake(
 ) -> Schedule<AccountId, AssetId, BlockNumber> {
 	let schedule1: Schedule<AccountId, AssetId, BlockNumber> = Schedule {
 		owner,
-		period: 3u32,
+		period: 5u32,
 		total_amount: 2000 * ONE,
 		max_retries: None,
 		stability_threshold: None,
@@ -197,7 +197,7 @@ runtime_benchmarks! {
 		fund_treasury()?;
 
 		let schedule1 = schedule_buy_fake(seller.clone(), HDX, DAI, amount_buy);
-		let execution_block = 1001u32;
+		let execution_block = 1005u32;
 
 		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
 
@@ -211,7 +211,7 @@ runtime_benchmarks! {
 
 		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
 		//We leave only one slot
-		let schedule_period = 3;
+		let schedule_period = 5;
 		let next_block_to_replan = execution_block + schedule_period;
 		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
 		for i in 0..number_of_all_schedules {
@@ -239,7 +239,7 @@ runtime_benchmarks! {
 
 		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 		let schedule1 = schedule_sell_fake(seller.clone(), HDX, DAI, amount_sell);
-		let execution_block = 1001u32;
+		let execution_block = 1005u32;
 
 		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
 
@@ -253,7 +253,7 @@ runtime_benchmarks! {
 
 		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
 		//We leave only one slot
-		let schedule_period = 3;
+		let schedule_period = 5;
 		let next_block_to_replan = execution_block + schedule_period;
 		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
 		for i in 0..number_of_all_schedules {
@@ -345,7 +345,7 @@ runtime_benchmarks! {
 
 		let schedule1: Schedule<AccountId, AssetId, BlockNumber> = Schedule {
 			owner:caller.clone() ,
-			period: 3u32,
+			period: 5u32,
 			total_amount: 1100 * ONE,
 			max_retries: None,
 			stability_threshold: None,
@@ -363,7 +363,7 @@ runtime_benchmarks! {
 			},
 		};
 
-		let execution_block = 100u32;
+		let execution_block = 105u32;
 
 		//We fill blocks with schedules leaving only one place
 		let schedule_2 = schedule_fake(caller.clone(), HDX, DAI, amount_sell);
