@@ -397,7 +397,7 @@ runtime_benchmarks! {
 		let execution_block = 100u32;
 		assert_ok!(DCA::schedule(RawOrigin::Signed(caller).into(), schedule1, Option::Some(execution_block)));
 
-	}: _(RawOrigin::Root, schedule_id, None)
+	}: _(RawOrigin::Root, schedule_id, Some(105))
 	verify {
 		assert!(<Schedules<Runtime>>::get::<ScheduleId>(schedule_id).is_none());
 	}
