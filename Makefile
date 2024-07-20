@@ -1,59 +1,61 @@
+cargo := cargo --config net.git-fetch-with-cli=true
+
 .PHONY: build
 build:
-	cargo build --release --locked
+	$(cargo) build --release --locked
 
 .PHONY: build-release
 build-release:
-	cargo build --release --locked --features metadata-hash
+	$(cargo) build --release --locked --features metadata-hash
 
 .PHONY: check
 check:
-	cargo check --release
+	$(cargo) check --release
 
 .PHONY: build-benchmarks
 build-benchmarks:
-	cargo build --release --features runtime-benchmarks
+	$(cargo) build --release --features runtime-benchmarks
 
 .PHONY: test
 test:
-	cargo test --locked
+	$(cargo) test --locked
 
 .PHONY: test-release
 test-release:
-	cargo test --release --locked
+	$(cargo) test --release --locked
 
 .PHONY: test-benchmarks
 test-benchmarks:
-	cargo test --release --features runtime-benchmarks
+	$(cargo) test --release --features runtime-benchmarks
 
 .PHONY: coverage
 coverage:
-	cargo tarpaulin --avoid-cfg-tarpaulin --all-features --workspace --locked  --exclude-files node/* --exclude-files runtime/* --exclude-files infrastructure/*  --exclude-files utils/* --exclude-files **/weights.rs --ignore-tests -o Xml -o lcov --timeout 120
+	$(cargo) tarpaulin --avoid-cfg-tarpaulin --all-features --workspace --locked  --exclude-files node/* --exclude-files runtime/* --exclude-files infrastructure/*  --exclude-files utils/* --exclude-files **/weights.rs --ignore-tests -o Xml -o lcov --timeout 120
 
 .PHONY: clippy
 clippy:
-	cargo clippy --release --locked --all-targets -- -D warnings -A deprecated
+	$(cargo) clippy --release --locked --all-targets -- -D warnings -A deprecated
 
 .PHONY: clippy-all
 clippy-all:
-	cargo clippy --release --locked --all-targets --all-features -- -D warnings -A deprecated
+	$(cargo) clippy --release --locked --all-targets --all-features -- -D warnings -A deprecated
 
 .PHONY: format
 format:
-	cargo fmt
+	$(cargo) fmt
 
 .PHONY: try-runtime
 try-runtime:
-	cargo build --release --features try-runtime
+	$(cargo) build --release --features try-runtime
 	try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks all live --uri wss://rpc.hydradx.cloud:443
 
 .PHONY: build-docs
 build-docs:
-	cargo doc --release --target-dir ./HydraDX-dev-docs --no-deps
+	$(cargo) doc --release --target-dir ./HydraDX-dev-docs --no-deps
 
 .PHONY: clean
 clean:
-	cargo clean
+	$(cargo) clean
 
 .PHONY: docker
 docker:

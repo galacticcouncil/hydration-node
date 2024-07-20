@@ -34,12 +34,12 @@ use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
-use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One},
 	BuildStorage, DispatchError,
 };
+use sp_runtime::{Perbill, Percent};
 
 use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use sp_runtime::traits::Zero;
@@ -643,9 +643,13 @@ parameter_types! {
 	pub MinBudgetInNativeCurrency: Balance= MIN_BUDGET.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
+	pub MaxConfigurablePriceDifference: Permill = Permill::from_percent(20);
+	pub MinimalPeriod: u32 = 5;
+	pub BumpChance: Percent = Percent::from_percent(0);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
 }
+use rand::SeedableRng;
 
 pub struct RandomnessProviderMock {}
 
@@ -676,6 +680,9 @@ impl Config for Test {
 	type RouteExecutor = RouteExecutor;
 	type RouteProvider = DefaultRouteProvider;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
+	type MaxConfigurablePriceDifferenceBetweenBlocks = MaxConfigurablePriceDifference;
+	type MinimalPeriod = MinimalPeriod;
+	type BumpChance = BumpChance;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
@@ -715,8 +722,7 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
-use rand::prelude::StdRng;
-use rand::SeedableRng;
+use rand::rngs::StdRng;
 use smallvec::smallvec;
 
 pub struct DummyNFT;

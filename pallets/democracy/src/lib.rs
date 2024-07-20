@@ -181,6 +181,7 @@ pub mod weights;
 use crate::traits::DemocracyHooks;
 pub use conviction::Conviction;
 pub use pallet::*;
+use sp_std::vec;
 pub use types::{
 	Delegations, MetadataOwner, PropIndex, ReferendumIndex, ReferendumInfo, ReferendumStatus, Tally, UnvoteScope,
 };
