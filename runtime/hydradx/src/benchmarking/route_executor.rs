@@ -17,7 +17,10 @@
 #![allow(clippy::result_large_err)]
 #![allow(unused_assignments)] //Benchmark test leads to unused assignment, which is not true
 
-use crate::{AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System, LBP, XYK, EmaOracle};
+use crate::{
+	AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System,
+	LBP, XYK,
+};
 
 use super::*;
 use crate::benchmarking::dca::{DAI, HDX};
@@ -28,13 +31,13 @@ use frame_system::RawOrigin;
 use hydradx_traits::router::inverse_route;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouteSpotPriceProvider};
 use hydradx_traits::router::{PoolType, RouterT, Trade};
+use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use primitives::constants::currency::UNITS;
-use sp_std::vec;
-use primitives::BlockNumber;
-use hydradx_traits::PriceOracle;
 use pallet_ema_oracle::OraclePeriod;
+use primitives::constants::currency::UNITS;
+use primitives::BlockNumber;
+use sp_std::vec;
 pub const INITIAL_BALANCE: Balance = 10_000_000 * UNITS;
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
@@ -145,7 +148,6 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 		u128::MIN,
 		false
 	));
-
 }
 
 runtime_benchmarks! {
@@ -453,8 +455,8 @@ mod tests {
 	impl_benchmark_test_suite!(new_test_ext(),);
 }
 
-use frame_support::traits::OnInitialize;
 use frame_support::traits::OnFinalize;
+use frame_support::traits::OnInitialize;
 
 fn set_period(to: u32) {
 	while System::block_number() < Into::<BlockNumber>::into(to) {
