@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #![allow(clippy::result_large_err)]
+#![allow(unused_assignments)] //Benchmark test leads to unused assignment, which is not true
 
 use crate::{AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System, LBP, XYK, EmaOracle};
 

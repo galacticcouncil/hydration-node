@@ -850,7 +850,7 @@ impl RouterWeightInfo {
 		set_route_overweight.saturating_sub(weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(
 			number_of_times_calculate_sell_amounts_executed,
 			number_of_times_execute_sell_amounts_executed,
-		))
+		)).saturating_sub(weights::pallet_route_executor::HydraWeight::<Runtime>::get_oracle_price()) // we substract weight of getting oracle price as we add this back later based on the length of the route
 	}
 
 	pub fn calculate_spot_price_overweight() -> Weight {
