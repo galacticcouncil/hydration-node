@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "244.0.0"
+version = "249.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -63,7 +63,7 @@ pallet-multisig = { workspace = true }
 pallet-democracy = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-uniques = { workspace = true }
-pallet-message-queue= { workspace = true }
+pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
 
 # Warehouse dependencies
@@ -117,7 +117,7 @@ pallet-xcm = { workspace = true }
 polkadot-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
-polkadot-runtime-common= { workspace = true }
+polkadot-runtime-common = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -127,6 +127,7 @@ frame-system = { workspace = true }
 frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api = { workspace = true }
 frame-try-runtime = { workspace = true, optional = true }
+frame-metadata-hash-extension = { workspace = true }
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-genesis-builder = { workspace = true }
@@ -143,7 +144,7 @@ sp-transaction-pool = { workspace = true }
 sp-version = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
-primitive-types = {  workspace = true }
+primitive-types = { workspace = true }
 
 # Frontier
 fp-rpc = { workspace = true }
@@ -224,6 +225,7 @@ std = [
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "frame-try-runtime/std",
+    "frame-metadata-hash-extension/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-aura-ext/std",
     "cumulus-primitives-core/std",
@@ -324,7 +326,7 @@ std = [
     "pallet-state-trie-migration/std",
     "pallet-omnix/std",
 ]
-try-runtime= [
+try-runtime = [
     "frame-try-runtime",
     "frame-executive/try-runtime",
     "frame-system/try-runtime",
@@ -394,4 +396,9 @@ try-runtime= [
     "pallet-xyk-liquidity-mining/try-runtime",
     "pallet-message-queue/try-runtime",
     "pallet-state-trie-migration/try-runtime",
+]
+
+metadata-hash = [
+    "substrate-wasm-builder/metadata-hash",
+    "sp-api/disable-logging",
 ]

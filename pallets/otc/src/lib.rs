@@ -17,7 +17,8 @@
 // ## General description
 // This pallet provides basic over-the-counter (OTC) trading functionality.
 // It allows anyone to `place_order` by specifying a pair of assets (in and out), their respective amounts, and
-// whether the order is partially fillable. The order price is static and calculated as `amount_out / amount_in`.
+// whether the order is partially fillable. Fee is applied to all trades and is deducted from the `amount_out`.
+// Because of the fee, the order price is static and calculated as `(amount_out - fee) / amount_in`.
 //
 // ## Notes
 // The pallet implements a minimum order size as an alternative to storage fees. The amounts of an open order cannot
@@ -40,6 +41,7 @@ use hydradx_traits::Inspect;
 use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
 use sp_core::U256;
 use sp_runtime::traits::{One, Zero};
+use sp_runtime::Permill;
 
 #[cfg(test)]
 mod tests;
@@ -83,10 +85,10 @@ pub mod pallet {
 		/// Identifier for the class of asset.
 		type AssetId: Member + Parameter + Copy + HasCompact + MaybeSerializeDeserialize + MaxEncodedLen;
 
-		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
+		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry.
 		type AssetRegistry: Inspect<AssetId = Self::AssetId>;
 
-		/// Named reservable multi currency
+		/// Named reservable multi currency.
 		type Currency: NamedMultiReservableCurrency<
 			Self::AccountId,
 			ReserveIdentifier = NamedReserveIdentifier,
@@ -94,12 +96,23 @@ pub mod pallet {
 			Balance = Balance,
 		>;
 
+		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		/// Existential deposits provider.
 		type ExistentialDeposits: GetByKey<Self::AssetId, Balance>;
 
 		#[pallet::constant]
+		/// Multiplier used to compute minimal amounts of asset_in and asset_out in an OTC.
 		type ExistentialDepositMultiplier: Get<u8>;
+
+		/// Fee deducted from amount_out.
+		#[pallet::constant]
+		type Fee: Get<Permill>;
+
+		/// Fee receiver.
+		#[pallet::constant]
+		type FeeReceiver: Get<Self::AccountId>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -116,6 +129,7 @@ pub mod pallet {
 			who: T::AccountId,
 			amount_in: Balance,
 			amount_out: Balance,
+			fee: Balance,
 		},
 		/// An Order has been partially filled
 		PartiallyFilled {
@@ -123,6 +137,7 @@ pub mod pallet {
 			who: T::AccountId,
 			amount_in: Balance,
 			amount_out: Balance,
+			fee: Balance,
 		},
 		/// An Order has been placed
 		Placed {
@@ -207,8 +222,15 @@ pub mod pallet {
 			};
 
 			ensure!(T::AssetRegistry::exists(order.asset_in), Error::<T>::AssetNotRegistered);
+
+			let fee = Self::calculate_fee(order.amount_out);
+
 			Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
-			Self::ensure_min_order_amount(order.asset_out, amount_out)?;
+			// the fee is applied to amount_out
+			Self::ensure_min_order_amount(
+				order.asset_out,
+				order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?,
+			)?;
 
 			<NextOrderId<T>>::try_mutate(|next_id| -> DispatchResult {
 				let order_id = *next_id;
@@ -263,16 +285,23 @@ pub mod pallet {
 				order.amount_in = order.amount_in.checked_sub(amount_in).ok_or(Error::<T>::MathError)?;
 				order.amount_out = order.amount_out.checked_sub(amount_out).ok_or(Error::<T>::MathError)?;
 
-				Self::ensure_min_order_amount(order.asset_out, order.amount_out)?;
-				Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
+				let fee = Self::calculate_fee(amount_out);
 
-				Self::execute_order(order, &who, amount_in, amount_out)?;
+				Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
+				// the fee is applied to amount_out
+				Self::ensure_min_order_amount(
+					order.asset_out,
+					order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?,
+				)?;
+
+				Self::execute_order(order, &who, amount_in, amount_out, fee)?;
 
 				Self::deposit_event(Event::PartiallyFilled {
 					order_id,
 					who,
 					amount_in,
 					amount_out,
+					fee,
 				});
 				Ok(())
 			})
@@ -291,7 +320,9 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let order = <Orders<T>>::get(order_id).ok_or(Error::<T>::OrderNotFound)?;
 
-			Self::execute_order(&order, &who, order.amount_in, order.amount_out)?;
+			let fee = Self::calculate_fee(order.amount_out);
+
+			Self::execute_order(&order, &who, order.amount_in, order.amount_out, fee)?;
 			<Orders<T>>::remove(order_id);
 
 			Self::deposit_event(Event::Filled {
@@ -299,6 +330,7 @@ pub mod pallet {
 				who,
 				amount_in: order.amount_in,
 				amount_out: order.amount_out,
+				fee,
 			});
 			Ok(())
 		}
@@ -352,13 +384,23 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		amount_in: Balance,
 		amount_out: Balance,
+		fee: Balance,
 	) -> DispatchResult {
 		T::Currency::transfer(order.asset_in, who, &order.owner, amount_in)?;
 		let remaining_to_unreserve =
+			// returns any amount that was unable to be unreserved
 			T::Currency::unreserve_named(&NAMED_RESERVE_ID, order.asset_out, &order.owner, amount_out);
 		ensure!(remaining_to_unreserve.is_zero(), Error::<T>::InsufficientReservedAmount);
-		T::Currency::transfer(order.asset_out, &order.owner, who, amount_out)?;
+
+		let amount_out_without_fee = amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?;
+
+		T::Currency::transfer(order.asset_out, &order.owner, who, amount_out_without_fee)?;
+		T::Currency::transfer(order.asset_out, &order.owner, &T::FeeReceiver::get(), fee)?;
 
 		Ok(())
+	}
+
+	pub fn calculate_fee(amount: Balance) -> Balance {
+		T::Fee::get().mul_ceil(amount)
 	}
 }
