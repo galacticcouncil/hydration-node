@@ -118,6 +118,7 @@ impl pallet_otc::Config for Test {
 
 parameter_types! {
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+		pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
 pub struct MockedEdCalculator;
@@ -152,6 +153,7 @@ impl pallet_route_executor::Config for Test {
 	type AMM = Omnipool;
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
+	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();

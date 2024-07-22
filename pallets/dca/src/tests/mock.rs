@@ -350,6 +350,8 @@ pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
 parameter_types! {
 	pub MaxNumberOfTrades: u8 = 3;
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+
 }
 
 type Pools = (OmniPool, Xyk);
@@ -367,6 +369,7 @@ impl pallet_route_executor::Config for Test {
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
+	type OraclePeriod = RouteValidationOraclePeriod;
 }
 
 pub struct MockedEdCalculator;

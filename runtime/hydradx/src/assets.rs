@@ -1105,6 +1105,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 parameter_types! {
 	pub const DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+
 }
 
 impl pallet_route_executor::Config for Runtime {
@@ -1120,6 +1122,7 @@ impl pallet_route_executor::Config for Runtime {
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
+	type OraclePeriod = RouteValidationOraclePeriod;
 }
 
 parameter_types! {

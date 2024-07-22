@@ -114,6 +114,10 @@ pub mod pallet {
 		///Oracle price provider to validate if new route has oracle price data
 		type OraclePriceProvider: PriceOracle<Self::AssetId, Price = EmaPrice>;
 
+		/// Oracle's price aggregation period.
+		#[pallet::constant]
+		type OraclePeriod: Get<OraclePeriod>;
+
 		/// Pool type used in the default route
 		type DefaultRoutePoolType: Get<PoolType<Self::AssetId>>;
 
@@ -373,7 +377,7 @@ pub mod pallet {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(new_route.len())?;
 			Self::ensure_route_arguments(&asset_pair, &new_route)?;
-			T::OraclePriceProvider::price(&new_route, OraclePeriod::TenMinutes).ok_or(Error::<T>::RouteHasNoOracle)?;
+			T::OraclePriceProvider::price(&new_route, T::OraclePeriod::get()).ok_or(Error::<T>::RouteHasNoOracle)?;
 
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();

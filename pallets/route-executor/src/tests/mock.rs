@@ -141,6 +141,8 @@ type Pools = (XYK, StableSwap, OmniPool, LBP);
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+
 }
 
 impl Config for Test {
@@ -153,6 +155,7 @@ impl Config for Test {
 	type AMM = Pools;
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
+	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();

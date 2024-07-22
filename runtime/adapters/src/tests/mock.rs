@@ -317,6 +317,7 @@ pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+			pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
 type Pools = (Omnipool, XYK);
@@ -333,6 +334,7 @@ impl pallet_route_executor::Config for Test {
 	type OraclePriceProvider = PriceProviderMock;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type OraclePeriod = RouteValidationOraclePeriod;
 	type WeightInfo = ();
 }
 
