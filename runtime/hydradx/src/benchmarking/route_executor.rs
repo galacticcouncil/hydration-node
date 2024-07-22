@@ -16,9 +16,7 @@
 // limitations under the License.
 #![allow(clippy::result_large_err)]
 
-use crate::{
-	AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System, LBP, XYK,
-};
+use crate::{AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System, LBP, XYK, EmaOracle};
 
 use super::*;
 use crate::benchmarking::dca::{DAI, HDX};
@@ -33,6 +31,9 @@ use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::constants::currency::UNITS;
 use sp_std::vec;
+use primitives::BlockNumber;
+use hydradx_traits::PriceOracle;
+use pallet_ema_oracle::OraclePeriod;
 pub const INITIAL_BALANCE: Balance = 10_000_000 * UNITS;
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
@@ -132,6 +133,18 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 		asset_b,
 		amount,
 	));
+
+	let seller: AccountId = funded_account("caller", 0, &[asset_a]);
+
+	assert_ok!(XYK::sell(
+		RuntimeOrigin::signed(seller),
+		asset_a,
+		asset_b,
+		10 * UNITS,
+		u128::MIN,
+		false
+	));
+
 }
 
 runtime_benchmarks! {
@@ -255,6 +268,9 @@ runtime_benchmarks! {
 			asset_in: asset_5,
 			asset_out: asset_6
 		}];
+
+		set_period(10);
+
 		Router::set_route(
 			RawOrigin::Signed(caller.clone()).into(),
 			AssetPair::new(HDX, asset_6),
@@ -345,6 +361,27 @@ runtime_benchmarks! {
 		Router::get_route(AssetPair::new(HDX, DAI))
 	}
 
+	get_oracle_price {
+		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		let caller: AccountId = funded_account("caller", 0, &[asset_2]);
+		create_xyk_pool(HDX, asset_2);
+
+		let route = vec![Trade {
+			pool: PoolType::XYK,
+			asset_in: HDX,
+			asset_out: asset_2
+		}];
+
+		set_period(10);
+		let mut price = None;
+	}: {
+		 price = <Runtime as pallet_route_executor::Config>::OraclePriceProvider::price(&route, OraclePeriod::TenMinutes);
+	}
+	verify {
+		assert!(price.is_some());
+	}
+
 	// Calculates the weight of LBP spot price with fee calculation. Used in the calculation to determine the weight of the overhead.
 	calculate_spot_price_with_fee_in_lbp {
 		let asset_in = register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -413,4 +450,21 @@ mod tests {
 	}
 
 	impl_benchmark_test_suite!(new_test_ext(),);
+}
+
+use frame_support::traits::OnInitialize;
+use frame_support::traits::OnFinalize;
+
+fn set_period(to: u32) {
+	while System::block_number() < Into::<BlockNumber>::into(to) {
+		let b = System::block_number();
+
+		System::on_finalize(b);
+		EmaOracle::on_finalize(b);
+
+		System::on_initialize(b + 1_u32);
+		EmaOracle::on_initialize(b + 1_u32);
+
+		System::set_block_number(b + 1_u32);
+	}
 }

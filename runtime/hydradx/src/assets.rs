@@ -1060,6 +1060,11 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			weight.saturating_accrue(amm_weight);
 		}
 
+		//Add a sell weight as we do a dry-run sell as validation
+		let weight_of_get_oracle_price_for_2_assets = weights::pallet_route_executor::HydraWeight::<Runtime>::get_oracle_price();
+		let weight_of_get_oracle_price_for_route = weight_of_get_oracle_price_for_2_assets.saturating_mul(route.len() as u64);
+		weight.saturating_accrue(weight_of_get_oracle_price_for_route);
+
 		weight
 	}
 
@@ -1108,10 +1113,7 @@ impl pallet_route_executor::Config for Runtime {
 	type InspectRegistry = AssetRegistry;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type OraclePriceProvider = DummyOraclePriceProvider;
+	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 }
 
 parameter_types! {
