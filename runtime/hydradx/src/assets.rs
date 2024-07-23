@@ -859,7 +859,7 @@ impl RouterWeightInfo {
 				number_of_times_calculate_sell_amounts_executed,
 				number_of_times_execute_sell_amounts_executed,
 			))
-			.saturating_sub(weights::pallet_route_executor::HydraWeight::<Runtime>::get_oracle_price())
+			.saturating_sub(weights::pallet_route_executor::HydraWeight::<Runtime>::get_oracle_price_for_xyk())
 	}
 
 	pub fn calculate_spot_price_overweight() -> Weight {
@@ -1071,7 +1071,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 		//Add a sell weight as we do a dry-run sell as validation
 		let weight_of_get_oracle_price_for_2_assets =
-			weights::pallet_route_executor::HydraWeight::<Runtime>::get_oracle_price();
+			weights::pallet_route_executor::HydraWeight::<Runtime>::get_oracle_price_for_omnipool();
 		let weight_of_get_oracle_price_for_route =
 			weight_of_get_oracle_price_for_2_assets.saturating_mul(route.len() as u64);
 		weight.saturating_accrue(weight_of_get_oracle_price_for_route);

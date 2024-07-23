@@ -38,6 +38,8 @@ use pallet_ema_oracle::OraclePeriod;
 use primitives::constants::currency::UNITS;
 use primitives::BlockNumber;
 use sp_std::vec;
+use crate::Omnipool;
+
 pub const INITIAL_BALANCE: Balance = 10_000_000 * UNITS;
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
@@ -364,7 +366,7 @@ runtime_benchmarks! {
 		Router::get_route(AssetPair::new(HDX, DAI))
 	}
 
-	get_oracle_price {
+	get_oracle_price_for_xyk {
 		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		let caller: AccountId = funded_account("caller", 0, &[asset_2]);
@@ -377,6 +379,29 @@ runtime_benchmarks! {
 		}];
 
 		set_period(10);
+		let mut price = None;
+	}: {
+		 price = <Runtime as pallet_route_executor::Config>::OraclePriceProvider::price(&route, OraclePeriod::TenMinutes);
+	}
+	verify {
+		assert!(price.is_some());
+	}
+
+	//We use omnipool as it contains 2 reads when getting oracle price, so we can use it as worst case, and multiplying it with the length of the route
+	get_oracle_price_for_omnipool {
+		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		crate::benchmarking::omnipool::init()?;
+		let caller: AccountId = funded_account("caller", 0, &[HDX, DAI]);
+		Omnipool::sell(RawOrigin::Signed(caller).into(), HDX, DAI, 10 * UNITS, 0)?;
+
+		set_period(10);
+
+		let route = vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: DAI
+		}];
 		let mut price = None;
 	}: {
 		 price = <Runtime as pallet_route_executor::Config>::OraclePriceProvider::price(&route, OraclePeriod::TenMinutes);
@@ -457,6 +482,7 @@ mod tests {
 
 use frame_support::traits::OnFinalize;
 use frame_support::traits::OnInitialize;
+use sp_runtime::FixedU128;
 
 fn set_period(to: u32) {
 	while System::block_number() < Into::<BlockNumber>::into(to) {

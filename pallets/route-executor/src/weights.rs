@@ -52,7 +52,8 @@ pub trait WeightInfo {
 	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32, ) -> Weight;
 	fn set_route_for_xyk() -> Weight;
 	fn force_insert_route() -> Weight;
-	fn get_oracle_price() -> Weight;
+	fn get_oracle_price_for_xyk() -> Weight;
+	fn get_oracle_price_for_omnipool() -> Weight;
 	fn get_route() -> Weight;
 	fn calculate_spot_price_with_fee_in_lbp() -> Weight;
 }
@@ -170,13 +171,23 @@ impl WeightInfo for () {
 
 	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
 	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
-	fn get_oracle_price() -> Weight {
+	fn get_oracle_price_for_xyk() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `1589`
+		//  Measured:  `1452`
 		//  Estimated: `6294`
-		// Minimum execution time: 24_019_000 picoseconds.
-		Weight::from_parts(24_870_000, 6294)
+		// Minimum execution time: 21_820_000 picoseconds.
+		Weight::from_parts(22_320_000, 6294)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
+	}
+	/// Storage: `EmaOracle::Oracles` (r:4 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
+	fn get_oracle_price_for_omnipool() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1814`
+		//  Estimated: `11598`
+		// Minimum execution time: 35_720_000 picoseconds.
+		Weight::from_parts(36_110_000, 11598)
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
 	}
 
 	/// Storage: `LBP::PoolData` (r:1 w:0)

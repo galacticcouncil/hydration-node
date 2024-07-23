@@ -164,14 +164,25 @@ impl<T: frame_system::Config> pallet_route_executor::WeightInfo for HydraWeight<
 	}
 	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
 	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
-	fn get_oracle_price() -> Weight {
+	fn get_oracle_price_for_xyk() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1452`
 		//  Estimated: `6294`
-		// Minimum execution time: 26_438_000 picoseconds.
-		Weight::from_parts(26_957_000, 6294)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
+		// Minimum execution time: 21_820_000 picoseconds.
+		Weight::from_parts(22_320_000, 6294)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
 	}
+	/// Storage: `EmaOracle::Oracles` (r:4 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
+	fn get_oracle_price_for_omnipool() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1814`
+		//  Estimated: `11598`
+		// Minimum execution time: 35_720_000 picoseconds.
+		Weight::from_parts(36_110_000, 11598)
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
+	}
+
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Locks` (r:1 w:0)
