@@ -1069,7 +1069,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			weight.saturating_accrue(amm_weight);
 		}
 
-		//Add a sell weight as we do a dry-run sell as validation
+		//Include oracle price calculation.
 		let weight_of_get_oracle_price_for_2_assets =
 			weights::pallet_route_executor::HydraWeight::<Runtime>::get_oracle_price_for_omnipool();
 		let weight_of_get_oracle_price_for_route =

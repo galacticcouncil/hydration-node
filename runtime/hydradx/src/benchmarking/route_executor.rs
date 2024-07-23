@@ -387,7 +387,7 @@ runtime_benchmarks! {
 		assert!(price.is_some());
 	}
 
-	//We use omnipool as it contains 2 reads when getting oracle price, so we can use it as worst case, and multiplying it with the length of the route
+	//We use omnipool as it contains 4 reads when getting oracle price, so we can use it as worst case, and multiplying it with the length of the route
 	get_oracle_price_for_omnipool {
 		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
