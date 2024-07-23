@@ -482,7 +482,6 @@ mod tests {
 
 use frame_support::traits::OnFinalize;
 use frame_support::traits::OnInitialize;
-use sp_runtime::FixedU128;
 
 fn set_period(to: u32) {
 	while System::block_number() < Into::<BlockNumber>::into(to) {
