@@ -916,12 +916,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		}
 
 		//We add the overweight for skipping ED handling if we have any insufficient asset
-		let mut unique_assets = sp_std::collections::btree_set::BTreeSet::new();
-		for trade in route.iter() {
-			unique_assets.insert(trade.asset_in);
-			unique_assets.insert(trade.asset_out);
-		}
-		if unique_assets.iter().any(|asset| !AssetRegistry::is_sufficient(*asset)) {
+
+		if route.iter().any(|trade| !AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)) {
 			weight.saturating_accrue(Self::skip_ed_handling_overweight());
 		}
 
@@ -966,12 +962,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		}
 
 		//We add the overweight for skipping ED handling if we have any insufficient asset
-		let mut unique_assets = sp_std::collections::btree_set::BTreeSet::new();
-		for trade in route.iter() {
-			unique_assets.insert(trade.asset_in);
-			unique_assets.insert(trade.asset_out);
-		}
-		if unique_assets.iter().any(|asset| !AssetRegistry::is_sufficient(*asset)) {
+		if route.iter().any(|trade| !AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)) {
 			weight.saturating_accrue(Self::skip_ed_handling_overweight());
 		}
 
