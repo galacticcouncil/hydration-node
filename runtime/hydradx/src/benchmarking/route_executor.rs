@@ -24,6 +24,7 @@ use crate::{
 
 use super::*;
 use crate::benchmarking::dca::{DAI, HDX};
+use crate::Omnipool;
 use frame_benchmarking::{account, BenchmarkError};
 use frame_support::dispatch::DispatchResult;
 use frame_support::{assert_ok, ensure};
@@ -38,7 +39,6 @@ use pallet_ema_oracle::OraclePeriod;
 use primitives::constants::currency::UNITS;
 use primitives::BlockNumber;
 use sp_std::vec;
-use crate::Omnipool;
 
 pub const INITIAL_BALANCE: Balance = 10_000_000 * UNITS;
 
