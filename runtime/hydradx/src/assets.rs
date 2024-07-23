@@ -1069,7 +1069,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			weight.saturating_accrue(amm_weight);
 		}
 
-		//Include oracle price calculation.
+		// Incorporate oracle price calculation
+		// We use omnipool as reference as it is the worst case for calculating oracle price
 		let weight_of_get_oracle_price_for_2_assets =
 			weights::pallet_route_executor::HydraWeight::<Runtime>::get_oracle_price_for_omnipool();
 		let weight_of_get_oracle_price_for_route =
