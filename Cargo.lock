@@ -4938,7 +4938,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "249.0.0"
+version = "250.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8936,7 +8936,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.4.1"
+version = "2.4.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
