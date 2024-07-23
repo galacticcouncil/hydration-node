@@ -19,7 +19,6 @@
 use crate::{
 	AccountId, AssetId, Balance, Currencies, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System, LBP, XYK,
 };
-use pallet_route_executor::SkipEd;
 
 use super::*;
 use crate::benchmarking::dca::{DAI, HDX};
