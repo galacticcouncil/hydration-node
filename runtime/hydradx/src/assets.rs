@@ -917,7 +917,9 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 		//We add the overweight for skipping ED handling if we have any insufficient asset
 
-		if route.iter().any(|trade| !AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)) {
+		if route.iter().any(|trade| {
+			!AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)
+		}) {
 			weight.saturating_accrue(Self::skip_ed_handling_overweight());
 		}
 
@@ -962,7 +964,9 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		}
 
 		//We add the overweight for skipping ED handling if we have any insufficient asset
-		if route.iter().any(|trade| !AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)) {
+		if route.iter().any(|trade| {
+			!AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)
+		}) {
 			weight.saturating_accrue(Self::skip_ed_handling_overweight());
 		}
 

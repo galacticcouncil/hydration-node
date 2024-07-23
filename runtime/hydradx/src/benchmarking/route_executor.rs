@@ -151,9 +151,9 @@ runtime_benchmarks! {
 
 	}: {
 		//We assume the worst case, so we change the state 4 times(1 add, 2 modify, 1 kill)
-		Router::disable_ed_handling_for_insufficient_assets(&mut false, 3, 0, trade);
-		Router::disable_ed_handling_for_insufficient_assets(&mut false, 3, 1, trade);
-		Router::disable_ed_handling_for_insufficient_assets(&mut false, 3, 2, trade);
+		Router::disable_ed_handling_for_insufficient_assets(3, 0, trade);
+		Router::disable_ed_handling_for_insufficient_assets(3, 1, trade);
+		Router::disable_ed_handling_for_insufficient_assets(3, 2, trade);
 		<SkipEd<Runtime>>::kill();
 	}
 	verify {
