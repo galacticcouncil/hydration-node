@@ -270,7 +270,7 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 				SellExecution {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: total_amount - 2 * (amount_to_sell + fee_in_native) - SELL_DCA_FEE_IN_NATIVE,
+					amount_in: total_amount - 2 * (amount_to_sell + fee_in_native) - fee_in_native,
 					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 				}
 			]);
@@ -1872,7 +1872,7 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule.clone(), None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -2529,7 +2529,6 @@ fn dca_should_continue_when_remainder_is_equal_to_min_trading_limit() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + min_trade_limit;
 			let amount_to_sell = ONE;
 			let order = Order::Sell {
 				asset_in: HDX,

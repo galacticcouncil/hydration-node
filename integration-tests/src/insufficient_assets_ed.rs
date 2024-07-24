@@ -10,9 +10,7 @@ use frame_system::RawOrigin;
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::RuntimeOrigin as hydra_origin;
-use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::DOT_ASSET_LOCATION;
-use hydradx_runtime::XYK;
 use hydradx_runtime::{
 	AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX, MultiTransactionPayment,
 	NativeExistentialDeposit, RuntimeEvent, TechnicalCollective, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,

@@ -649,7 +649,6 @@ parameter_types! {
 	pub MaxNumberOfRetriesOnError: u8 = 3;
 	pub ExchangeFeeRate: (u32, u32) = (3, 1000);
 }
-use rand::SeedableRng;
 
 pub struct RandomnessProviderMock {}
 

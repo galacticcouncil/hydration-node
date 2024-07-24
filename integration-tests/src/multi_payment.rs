@@ -1,33 +1,22 @@
 #![cfg(test)]
 
-use crate::{assert_balance, oracle::hydradx_run_to_block, polkadot_test_net::*};
+use crate::{assert_balance, polkadot_test_net::*};
 use frame_support::dispatch::GetDispatchInfo;
-use frame_support::dispatch::{DispatchClass, PostDispatchInfo};
+use frame_support::dispatch::{PostDispatchInfo};
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
-use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::RuntimeOrigin;
-use hydradx_runtime::Tokens;
-use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::DOT_ASSET_LOCATION;
-use hydradx_runtime::EVM;
-use hydradx_runtime::XYK;
-use hydradx_traits::router::PoolType;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
-use pallet_evm::FeeCalculator;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::constants::currency::UNITS;
-use primitives::constants::time::HOURS;
-use sp_core::Encode;
-use sp_core::U256;
 use sp_runtime::traits::SignedExtension;
 use sp_runtime::DispatchResult;
-use sp_runtime::{FixedU128, Permill, TransactionOutcome};
-use test_utils::assert_eq_approx;
+use sp_runtime::{FixedU128, TransactionOutcome};
 use xcm_emulator::TestExt;
 
 #[test]
@@ -171,24 +160,4 @@ fn default_post_info() -> PostDispatchInfo {
 		actual_weight: None,
 		pays_fee: Default::default(),
 	}
-}
-
-fn init_omnipool() {
-	let native_price = FixedU128::from_inner(1201500000000000);
-	let stable_price = FixedU128::from_inner(45_000_000_000);
-
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
-		HDX,
-		native_price,
-		Permill::from_percent(10),
-		hydradx_runtime::Omnipool::protocol_account(),
-	));
-	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::RuntimeOrigin::root(),
-		DAI,
-		stable_price,
-		Permill::from_percent(100),
-		hydradx_runtime::Omnipool::protocol_account(),
-	));
 }
