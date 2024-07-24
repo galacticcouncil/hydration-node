@@ -66,7 +66,7 @@ mod omnipool {
 			let schedule = DCA::schedules(schedule_id);
 			assert!(schedule.is_some());
 
-			let next_block_id = block_id + 1;
+			let next_block_id = block_id + 2;
 			let schedule = DCA::schedule_ids_per_block(next_block_id);
 			assert!(!schedule.is_empty());
 			expect_hydra_last_events(vec![pallet_dca::Event::Scheduled {
@@ -188,7 +188,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -223,7 +223,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -250,7 +250,7 @@ mod omnipool {
 			let amount_out = 100 * UNITS;
 			let schedule1 = Schedule {
 				owner: AccountId::from(ALICE),
-				period: 1u32,
+				period: 5u32,
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
@@ -275,7 +275,7 @@ mod omnipool {
 
 			//Act and assert
 			let schedule_id = 0;
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -283,20 +283,20 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 
-			set_relaychain_block_number(21);
+			set_relaychain_block_number(22);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 2);
 
-			set_relaychain_block_number(41);
+			set_relaychain_block_number(42);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 3);
 
 			//After this retry we terminate
-			set_relaychain_block_number(81);
+			set_relaychain_block_number(82);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 4 * fee);
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -328,7 +328,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), LRNA, 0);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let fee = Currencies::free_balance(LRNA, &Treasury::account_id());
@@ -362,7 +362,7 @@ mod omnipool {
 			create_schedule(ALICE, schedule1);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -447,7 +447,7 @@ mod omnipool {
 			create_schedule(ALICE, schedule1);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let fee = Currencies::free_balance(LRNA, &Treasury::account_id());
@@ -532,7 +532,7 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 			//Act
-			run_to_block(11, 40);
+			run_to_block(11, 50);
 
 			//Assert
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 700 * UNITS);
@@ -575,7 +575,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let amount_out = 71_214_372_591_631;
@@ -611,7 +611,7 @@ mod omnipool {
 				BOB.into(),
 			));
 
-			rococo_run_to_block(11);
+			rococo_run_to_block(12);
 
 			let alice_init_hdx_balance = 5000 * UNITS;
 			assert_ok!(Balances::force_set_balance(
@@ -657,7 +657,7 @@ mod omnipool {
 				ETH,
 				BOB.into(),
 			));
-			rococo_run_to_block(12);
+			rococo_run_to_block(14);
 
 			//Assert
 			let schedule_id = 0;
@@ -1100,7 +1100,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -1129,7 +1129,7 @@ mod omnipool {
 			let amount_to_sell = 100 * UNITS;
 			let schedule1 = Schedule {
 				owner: AccountId::from(ALICE),
-				period: 1u32,
+				period: 5u32,
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
@@ -1155,7 +1155,7 @@ mod omnipool {
 			//Act and Assert
 			let schedule_id = 0;
 
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -1164,20 +1164,20 @@ mod omnipool {
 
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 
-			set_relaychain_block_number(21);
+			set_relaychain_block_number(22);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 2);
 
-			set_relaychain_block_number(41);
+			set_relaychain_block_number(42);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 3);
 
 			//At this point, the schedule will be terminated as retries max number of times
-			set_relaychain_block_number(81);
+			set_relaychain_block_number(82);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - 4 * fee);
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -1209,7 +1209,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), LRNA, 0);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let amount_out = 142499995765917;
@@ -1250,7 +1250,7 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -1341,7 +1341,7 @@ mod omnipool {
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let fee = Currencies::free_balance(LRNA, &Treasury::account_id());
@@ -1637,14 +1637,14 @@ mod omnipool {
 			})
 			.unwrap();
 
-			let alice_init_hdx_balance = 1000 * UNITS + fee + 1;
+			let alice_init_hdx_balance = 2 * (1000 * UNITS + fee) + 1;
 			assert_ok!(Balances::force_set_balance(
 				RuntimeOrigin::root(),
 				ALICE.into(),
 				alice_init_hdx_balance,
 			));
 
-			let dca_budget = 1000 * UNITS + fee;
+			let dca_budget = 2 * (1000 * UNITS + fee);
 			let schedule1 =
 				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget, HDX, DAI, amount_to_sell);
 			create_schedule(ALICE, schedule1);
@@ -1655,12 +1655,12 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			set_relaychain_block_number(11);
+			run_to_block(11, 17);
 
 			//Assert
 			check_if_no_failed_events();
-			assert_balance!(ALICE.into(), HDX, 0);
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
+			assert_balance!(ALICE.into(), HDX, 0);
 		});
 	}
 }
@@ -1892,7 +1892,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), asset_a, 0);
 
 				//Act
-				set_relaychain_block_number(11);
+				set_relaychain_block_number(12);
 
 				//Assert
 				let fee = Currencies::free_balance(asset_a, &Treasury::account_id());
@@ -1964,7 +1964,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), asset_a, 0);
 
 				//Act
-				set_relaychain_block_number(11);
+				set_relaychain_block_number(12);
 
 				//Assert
 				let fee = Currencies::free_balance(asset_a, &Treasury::account_id());
@@ -2046,7 +2046,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 3u32,
+					period: 5u32,
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -2068,7 +2068,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 				//Act
-				set_relaychain_block_number(11);
+				set_relaychain_block_number(12);
 
 				//Assert
 				let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -2326,7 +2326,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 3u32,
+					period: 5u32,
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -2348,7 +2348,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), stable_asset_1, 0);
 
 				//Act
-				set_relaychain_block_number(1001);
+				set_relaychain_block_number(1002);
 
 				//Assert
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
@@ -2634,7 +2634,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 3u32,
+					period: 5u32,
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -2656,7 +2656,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 				//Act
-				set_relaychain_block_number(11);
+				set_relaychain_block_number(12);
 
 				//Assert
 				let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -2715,7 +2715,7 @@ mod stableswap {
 					amount_to_buy,
 					dca_budget,
 				);
-				set_relaychain_block_number(10);
+				set_relaychain_block_number(12);
 
 				create_schedule(ALICE, schedule1);
 
@@ -2725,7 +2725,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), asset_a, 0);
 
 				//Act
-				set_relaychain_block_number(11);
+				set_relaychain_block_number(14);
 
 				//Assert
 				let fee = Currencies::free_balance(asset_a, &Treasury::account_id());
@@ -2815,7 +2815,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 3u32,
+					period: 5u32,
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -2837,7 +2837,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), stable_asset_1, 0);
 
 				//Act
-				set_relaychain_block_number(11);
+				set_relaychain_block_number(12);
 
 				//Assert
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
@@ -2911,7 +2911,7 @@ mod xyk {
 			let treasury_init_balance = Balances::free_balance(Treasury::account_id());
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let amount_out = 151105924242426;
@@ -2965,7 +2965,7 @@ mod xyk {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -3068,7 +3068,7 @@ mod all_pools {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 3u32,
+					period: 5u32,
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -3094,7 +3094,7 @@ mod all_pools {
 				);
 
 				//Act
-				set_relaychain_block_number(11);
+				set_relaychain_block_number(12);
 
 				//Assert
 				let amount_to_receive = 380211607465242;
@@ -3216,7 +3216,7 @@ mod with_onchain_route {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 3u32,
+					period: 5u32,
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -3238,7 +3238,7 @@ mod with_onchain_route {
 				assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 				//Act
-				set_relaychain_block_number(11);
+				set_relaychain_block_number(12);
 
 				//Assert
 				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -3330,7 +3330,7 @@ mod with_onchain_route {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 3u32,
+					period: 5u32,
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -3352,7 +3352,7 @@ mod with_onchain_route {
 				assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 				//Act
-				set_relaychain_block_number(11);
+				set_relaychain_block_number(12);
 
 				//Assert
 				let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -3414,7 +3414,7 @@ mod with_onchain_route {
 
 			let schedule = Schedule {
 				owner: AccountId::from(ALICE),
-				period: 3u32,
+				period: 5u32,
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
@@ -3457,7 +3457,7 @@ mod with_onchain_route {
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
@@ -3561,7 +3561,7 @@ mod with_onchain_route {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 3u32,
+					period: 5u32,
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -3598,7 +3598,7 @@ mod with_onchain_route {
 				create_schedule(ALICE, schedule);
 
 				//Act
-				set_relaychain_block_number(11);
+				set_relaychain_block_number(12);
 
 				//Assert
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
@@ -3681,7 +3681,7 @@ mod with_onchain_route {
 
 			let schedule = Schedule {
 				owner: AccountId::from(ALICE),
-				period: 3u32,
+				period: 5u32,
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
@@ -3718,13 +3718,13 @@ mod with_onchain_route {
 			create_schedule(ALICE, schedule);
 
 			//Act
-			set_relaychain_block_number(11);
+			set_relaychain_block_number(12);
 
 			//Assert
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 277_665_116_680_343);
+			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 277781714835263);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
@@ -3786,7 +3786,7 @@ fn schedule_fake_with_buy_order_with_route(
 ) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
 		owner: AccountId::from(ALICE),
-		period: 2u32,
+		period: 5u32,
 		total_amount: budget,
 		max_retries: None,
 		stability_threshold: None,
@@ -3833,7 +3833,7 @@ fn schedule_fake_with_sell_order_with_route(
 ) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
 		owner: AccountId::from(owner),
-		period: 3u32,
+		period: 5u32,
 		total_amount,
 		max_retries: None,
 		stability_threshold: None,

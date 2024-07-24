@@ -1,6 +1,6 @@
 [package]
 name = "pallet-democracy"
-version = "4.2.2"
+version = "4.3.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -14,13 +14,13 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
-	"derive",
+    "derive",
 ] }
 scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
 serde = { version = "1.0.188", features = ["derive"], optional = true }
 log = { workspace = true }
 
-frame-benchmarking = { workspace = true, optional = true}
+frame-benchmarking = { workspace = true, optional = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-io = { workspace = true }
@@ -34,36 +34,36 @@ pallet-scheduler = { workspace = true }
 pallet-preimage = { workspace = true }
 
 [features]
-default = [ "std" ]
+default = ["std"]
 std = [
-	"codec/std",
-	"frame-benchmarking?/std",
-	"frame-support/std",
-	"frame-system/std",
-	"pallet-balances/std",
-	"pallet-preimage/std",
-	"pallet-scheduler/std",
-	"scale-info/std",
-	"serde",
-	"sp-core/std",
-	"sp-io/std",
-	"sp-runtime/std",
-	"sp-std/std",
+    "codec/std",
+    "frame-benchmarking?/std",
+    "frame-support/std",
+    "frame-system/std",
+    "pallet-balances/std",
+    "pallet-preimage/std",
+    "pallet-scheduler/std",
+    "scale-info/std",
+    "serde",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-runtime/std",
+    "sp-std/std",
 ]
 runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
-	"frame-support/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
-	"pallet-balances/runtime-benchmarks",
-	"pallet-preimage/runtime-benchmarks",
-	"pallet-scheduler/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
+    "pallet-preimage/runtime-benchmarks",
+    "pallet-scheduler/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [
-	"frame-support/try-runtime",
-	"frame-system/try-runtime",
-	"pallet-balances/try-runtime",
-	"pallet-preimage/try-runtime",
-	"pallet-scheduler/try-runtime",
-	"sp-runtime/try-runtime",
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "pallet-balances/try-runtime",
+    "pallet-preimage/try-runtime",
+    "pallet-scheduler/try-runtime",
+    "sp-runtime/try-runtime",
 ]

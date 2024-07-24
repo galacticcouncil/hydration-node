@@ -170,6 +170,7 @@ ord_parameter_types! {
 	pub const Four: u64 = 4;
 	pub const Five: u64 = 5;
 	pub const Six: u64 = 6;
+	pub const Seven: u64 = 7;
 }
 pub struct OneToFive;
 impl SortedMembers<u64> for OneToFive {
@@ -211,6 +212,7 @@ impl Config for Test {
 	type MaxProposals = ConstU32<100>;
 	type Preimages = Preimage;
 	type DemocracyHooks = HooksHandler;
+	type VoteRemovalOrigin = EnsureSignedBy<Seven, u64>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

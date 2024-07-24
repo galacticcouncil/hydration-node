@@ -48,6 +48,8 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 		let expected_amount_out = 25_000_000_000_000_u128;
 		let expected_new_amount_in = 15_000_000_000_000_u128;
 		let expected_new_amount_out = 75_000_000_000_000_u128;
+		let fee = OTC::calculate_fee(expected_amount_out);
+		assert_eq!(fee, 25 * ONE / 100);
 
 		let alice_free_hdx_balance_after = Tokens::free_balance(HDX, &ALICE);
 		let alice_reserved_hdx_balance_after = Tokens::reserved_balance_named(&otc::NAMED_RESERVE_ID, HDX, &ALICE);
@@ -65,18 +67,28 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount);
 
 		// Bob: HDX grows, DAI decreases
-		assert_eq!(bob_hdx_balance_after, bob_hdx_balance_before + expected_amount_out);
+		assert_eq!(
+			bob_hdx_balance_after,
+			bob_hdx_balance_before + expected_amount_out - fee
+		);
 		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount);
 
 		let order = OTC::orders(0).unwrap();
 		assert_eq!(order.amount_in, expected_new_amount_in);
 		assert_eq!(order.amount_out, expected_new_amount_out);
 
+		// fee should be transferred to Treasury
+		assert_eq!(
+			Tokens::free_balance(HDX, &TreasuryAccount::get()),
+			TREASURY_INITIAL_BALANCE + fee
+		);
+
 		expect_events(vec![Event::PartiallyFilled {
 			order_id: 0,
 			who: BOB,
 			amount_in: 5 * ONE,
 			amount_out: expected_amount_out,
+			fee,
 		}
 		.into()]);
 	});
@@ -195,7 +207,7 @@ fn partial_fill_order_should_throw_error_when_remaining_amounts_are_too_low() {
 		let bob_dai_balance_before = Tokens::free_balance(DAI, &BOB);
 
 		// Act
-		let amount = 16 * ONE;
+		let amount = 20 * ONE - (ONE / 100);
 		assert_noop!(
 			OTC::partial_fill_order(RuntimeOrigin::signed(BOB), 0, amount),
 			Error::<Test>::OrderAmountTooSmall

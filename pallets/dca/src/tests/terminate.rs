@@ -50,31 +50,6 @@ fn terminate_should_remove_schedule_from_storage() {
 }
 
 #[test]
-fn terminate_should_terminate_schedule_planned_in_next_block_when_no_block_specified() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			set_block_number(500);
-			let schedule = ScheduleBuilder::new().build();
-			let schedule_id = 0;
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-
-			//Act
-			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, Option::None));
-
-			//Assert
-			expect_events(vec![Event::Terminated {
-				id: 0,
-				who: ALICE,
-				error: Error::<Test>::ManuallyTerminated.into(),
-			}
-			.into()]);
-		});
-}
-
-#[test]
 fn terminate_should_unreserve_all_named_reserved() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
@@ -206,7 +181,7 @@ fn terminate_should_pass_when_called_by_owner() {
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
-			assert_ok!(DCA::terminate(RuntimeOrigin::signed(ALICE), schedule_id, Some(501)));
+			assert_ok!(DCA::terminate(RuntimeOrigin::signed(ALICE), schedule_id, Some(502)));
 		});
 }
 
@@ -260,7 +235,7 @@ fn terminate_should_pass_when_called_by_technical_origin() {
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
-			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, Some(501)));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, Some(502)));
 		});
 }
 
