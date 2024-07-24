@@ -366,6 +366,7 @@ runtime_benchmarks! {
 		Router::get_route(AssetPair::new(HDX, DAI))
 	}
 
+	//To calculate the overweight poperly we use this to substract
 	get_oracle_price_for_xyk {
 		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
