@@ -253,7 +253,7 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 			set_to_blocknumber(702);
 
 			//Assert
-            			let fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
+			let fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
 			assert_executed_sell_trades!(vec![
 				SellExecution {
 					asset_in: HDX,
