@@ -23,6 +23,7 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, TradeExecution};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
@@ -140,6 +141,8 @@ type Pools = (XYK, StableSwap, OmniPool, LBP);
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+
 }
 
 impl Config for Test {
@@ -151,6 +154,8 @@ impl Config for Test {
 	type InspectRegistry = MockedAssetRegistry;
 	type AMM = Pools;
 	type EdToRefundCalculator = MockedEdCalculator;
+	type OraclePriceProvider = PriceProviderMock;
+	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
@@ -164,7 +169,21 @@ impl RefundEdCalculator<Balance> for MockedEdCalculator {
 	}
 }
 
-use hydradx_traits::AssetKind;
+pub struct PriceProviderMock {}
+
+impl PriceOracle<AssetId> for PriceProviderMock {
+	type Price = Ratio;
+
+	fn price(route: &[Trade<AssetId>], _: OraclePeriod) -> Option<Ratio> {
+		let has_insufficient_asset = route.iter().any(|t| t.asset_in > 2000 || t.asset_out > 2000);
+		if has_insufficient_asset {
+			return None;
+		}
+		Some(Ratio::new(88, 100))
+	}
+}
+
+use hydradx_traits::{AssetKind, OraclePeriod, PriceOracle};
 pub struct MockedAssetRegistry;
 
 impl hydradx_traits::registry::Inspect for MockedAssetRegistry {
