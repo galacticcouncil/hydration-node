@@ -968,9 +968,10 @@ impl<T: Config> Pallet<T> {
 				hydra_dx_math::fee::calculate_pool_trade_fee(fee_amount_in_sold_asset, xyk_exchange_rate)
 					.ok_or(ArithmeticError::Overflow)?;
 
+			//Since there is a trade fee involved in xyk buy swap, we need to unallocate that, together with amount_in
 			let effective_amount_in = fee_amount_in_sold_asset
 				.checked_add(pool_trade_fee)
-				.ok_or(ArithmeticError::Overflow)?; //Since there is a trade fee involved in xyk buy swap, we need to unallocate that as well
+				.ok_or(ArithmeticError::Overflow)?;
 
 			Self::unallocate_amount(schedule_id, schedule, effective_amount_in)?;
 
