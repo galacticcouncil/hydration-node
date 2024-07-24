@@ -126,14 +126,16 @@ impl<T: frame_system::Config> pallet_route_executor::WeightInfo for HydraWeight<
 			.saturating_add(T::DbWeight::get().writes((8_u64).saturating_mul(b.into())))
 			.saturating_add(Weight::from_parts(0, 7749).saturating_mul(b.into()))
 	}
-	/// Storage: `AssetRegistry::Assets` (r:6 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
 	/// Storage: `Router::Routes` (r:1 w:1)
 	/// Proof: `Router::Routes` (`max_values`: None, `max_size`: Some(90), added: 2565, mode: `MaxEncodedLen`)
 	/// Storage: `System::Account` (r:7 w:0)
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:15 w:0)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:6 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `XYK::ShareToken` (r:6 w:0)
 	/// Proof: `XYK::ShareToken` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// Storage: `Router::SkipEd` (r:1 w:0)
@@ -152,11 +154,11 @@ impl<T: frame_system::Config> pallet_route_executor::WeightInfo for HydraWeight<
 	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	fn set_route_for_xyk() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `6426`
+		//  Measured:  `7004`
 		//  Estimated: `39735`
-		// Minimum execution time: 1_934_716_000 picoseconds.
-		Weight::from_parts(1_944_221_000, 39735)
-			.saturating_add(T::DbWeight::get().reads(56_u64))
+		// Minimum execution time: 1_880_149_000 picoseconds.
+		Weight::from_parts(1_889_973_000, 39735)
+			.saturating_add(T::DbWeight::get().reads(57_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	/// Storage: `Router::Routes` (r:0 w:1)
@@ -165,8 +167,8 @@ impl<T: frame_system::Config> pallet_route_executor::WeightInfo for HydraWeight<
 		// Proof Size summary in bytes:
 		//  Measured:  `1012`
 		//  Estimated: `0`
-		// Minimum execution time: 25_462_000 picoseconds.
-		Weight::from_parts(25_776_000, 0)
+		// Minimum execution time: 25_566_000 picoseconds.
+		Weight::from_parts(26_013_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	/// Storage: `Router::Routes` (r:1 w:0)
@@ -175,9 +177,29 @@ impl<T: frame_system::Config> pallet_route_executor::WeightInfo for HydraWeight<
 		// Proof Size summary in bytes:
 		//  Measured:  `800`
 		//  Estimated: `3555`
-		// Minimum execution time: 7_564_000 picoseconds.
-		Weight::from_parts(7_813_000, 3555)
+		// Minimum execution time: 7_753_000 picoseconds.
+		Weight::from_parts(7_998_000, 3555)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
+	}
+	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
+	fn get_oracle_price_for_xyk() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1452`
+		//  Estimated: `6294`
+		// Minimum execution time: 26_531_000 picoseconds.
+		Weight::from_parts(27_010_000, 6294)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+	}
+	/// Storage: `EmaOracle::Oracles` (r:4 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
+	fn get_oracle_price_for_omnipool() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1814`
+		//  Estimated: `11598`
+		// Minimum execution time: 40_726_000 picoseconds.
+		Weight::from_parts(41_280_000, 11598)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
@@ -189,8 +211,8 @@ impl<T: frame_system::Config> pallet_route_executor::WeightInfo for HydraWeight<
 		// Proof Size summary in bytes:
 		//  Measured:  `1674`
 		//  Estimated: `6156`
-		// Minimum execution time: 35_268_000 picoseconds.
-		Weight::from_parts(35_625_000, 6156)
+		// Minimum execution time: 35_350_000 picoseconds.
+		Weight::from_parts(35_956_000, 6156)
 			.saturating_add(T::DbWeight::get().reads(4_u64))
 	}
 }

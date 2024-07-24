@@ -861,10 +861,13 @@ impl RouterWeightInfo {
 
 		let set_route_overweight = weights::pallet_route_executor::HydraWeight::<Runtime>::set_route_for_xyk();
 
-		set_route_overweight.saturating_sub(weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(
-			number_of_times_calculate_sell_amounts_executed,
-			number_of_times_execute_sell_amounts_executed,
-		))
+		// we substract weight of getting oracle price too as we add this back later based on the length of the route
+		set_route_overweight
+			.saturating_sub(weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(
+				number_of_times_calculate_sell_amounts_executed,
+				number_of_times_execute_sell_amounts_executed,
+			))
+			.saturating_sub(weights::pallet_route_executor::HydraWeight::<Runtime>::get_oracle_price_for_xyk())
 	}
 
 	pub fn calculate_spot_price_overweight() -> Weight {
@@ -1094,6 +1097,14 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			weight.saturating_accrue(amm_weight);
 		}
 
+		// Incorporate oracle price calculation
+		// We use omnipool as reference as it is the worst case for calculating oracle price
+		let weight_of_get_oracle_price_for_2_assets =
+			weights::pallet_route_executor::HydraWeight::<Runtime>::get_oracle_price_for_omnipool();
+		let weight_of_get_oracle_price_for_route =
+			weight_of_get_oracle_price_for_2_assets.saturating_mul(route.len() as u64);
+		weight.saturating_accrue(weight_of_get_oracle_price_for_route);
+
 		weight
 	}
 
@@ -1128,6 +1139,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 parameter_types! {
 	pub const DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+
 }
 
 impl pallet_route_executor::Config for Runtime {
@@ -1142,6 +1155,8 @@ impl pallet_route_executor::Config for Runtime {
 	type InspectRegistry = AssetRegistry;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
+	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
+	type OraclePeriod = RouteValidationOraclePeriod;
 }
 
 parameter_types! {
