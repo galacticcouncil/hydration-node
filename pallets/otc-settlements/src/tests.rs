@@ -618,7 +618,7 @@ fn trade_should_not_be_triggered_when_there_is_no_arb_opportunity() {
 }
 
 #[test]
-fn trade_should_not_be_triggered_when_optimal_amount_not_found() {
+fn trade_should_be_triggered_when_optimal_amount_not_found_but_arb_can_be_reduced() {
 	let (mut ext, _) = ExtBuilder::default().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
@@ -651,9 +651,7 @@ fn trade_should_not_be_triggered_when_optimal_amount_not_found() {
 		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
 		assert!(Currencies::free_balance(DAI, &OtcSettlements::account_id()) == 0);
 
-		assert_storage_noop!(<OtcSettlements as Hooks<BlockNumberFor<Test>>>::offchain_worker(
-			System::block_number()
-		));
+		<OtcSettlements as Hooks<BlockNumberFor<Test>>>::offchain_worker(System::block_number());
 
 		assert_eq!(hdx_total_issuance, Currencies::total_issuance(HDX));
 		assert_eq!(dai_total_issuance, Currencies::total_issuance(DAI));
@@ -661,6 +659,43 @@ fn trade_should_not_be_triggered_when_optimal_amount_not_found() {
 		// total issuance of tokens should not change
 		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
 		assert!(Currencies::free_balance(DAI, &OtcSettlements::account_id()) == 0);
+	});
+}
+
+#[test]
+fn trade_should_not_be_triggered_when_amount_not_found() {
+	let (mut ext, _) = ExtBuilder::default().build();
+	ext.execute_with(|| {
+		assert_ok!(OTC::place_order(
+			RuntimeOrigin::signed(ALICE),
+			HDX, // otc asset_in
+			DAI, // otc asset_out
+			1_000 * ONE,
+			800_000_000_000_000_001 * ONE,
+			true,
+		));
+
+		// get otc price
+		let otc_id = 0;
+		let otc = <pallet_otc::Orders<Test>>::get(otc_id).unwrap();
+		let otc_price = calculate_otc_price(&otc);
+
+		// get trade price
+		let route = Router::get_route(AssetPair {
+			asset_in: otc.asset_out,
+			asset_out: otc.asset_in,
+		});
+		let router_price = Router::spot_price_with_fee(&route).unwrap();
+
+		// verify that there's an arb opportunity
+		assert!(otc_price > router_price);
+
+		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
+		assert!(Currencies::free_balance(DAI, &OtcSettlements::account_id()) == 0);
+
+		assert_storage_noop!(<OtcSettlements as Hooks<BlockNumberFor<Test>>>::offchain_worker(
+			System::block_number()
+		));
 	});
 }
 

@@ -25,7 +25,7 @@
 //! ## Notes
 //! If the OTC order is partially fillable, the pallet tries to close the arbitrage opportunity by finding the amount that
 //! aligns the OTC and the Omnipool prices. Executing this trade needs to be profitable, but we are not trying to maximize
-//! the profit.
+//! the profit. If the pallet couldn't find the amount that closes the arb, the amount that reduces the size of the arb is used.
 //! In the case of not partially fillable OTC orders, the pallet tries to maximize the profit.
 //!
 //! ## Dispatachable functions
@@ -39,7 +39,7 @@ use frame_support::{
 		fungibles::{Inspect, Mutate},
 		tokens::{Fortitude, Precision, Preservation},
 	},
-	PalletId,
+	transactional, PalletId,
 };
 use frame_system::{
 	offchain::{SendTransactionTypes, SubmitTransaction},
@@ -221,7 +221,7 @@ pub mod pallet {
 		///
 		/// Executes a trade between an OTC order and some route.
 		/// If the OTC order is partially fillable, the extrinsic fails if the existing arbitrage
-		/// opportunity is not closed after the trade.
+		/// opportunity is not closed or reduced after the trade.
 		/// If the OTC order is not partially fillable, fails if there is no profit after the trade.
 		///
 		/// `Origin` calling this extrinsic is not paying or receiving anything.
@@ -250,7 +250,9 @@ pub mod pallet {
 			amount: Balance,
 			route: Vec<Trade<AssetIdOf<T>>>,
 		) -> DispatchResult {
-			Self::settle_otc(otc_id, amount, route)
+			// `is_execution` is set to `true`, so both full and partial closing of arbs is allowed.
+			// If set to `false`, an arb needs to be fully closed.
+			Self::settle_otc(otc_id, amount, route, true)
 		}
 	}
 }
@@ -280,15 +282,23 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Executes two trades: asset_a -> OTC -> asset_b, and asset_b -> Router -> asset_a.
 	///
-	/// If the OTC order is partially fillable, the extrinsic fails if the existing arbitrage
+	/// If the OTC order is partially fillable and `is_execution` is set to `false`, the extrinsic fails if the existing arbitrage
 	/// opportunity is not closed after the trade and if there is no profit after the trade.
+	/// If the OTC order is partially fillable and `is_execution` is set to `true`, arbs are allowed to be partially closed.
 	/// If the OTC order is not partially fillable, fails only if there is no profit after the trade.
 	///
 	/// Parameters:
 	/// - `otc_id`: ID of the OTC order with existing arbitrage opportunity.
 	/// - `amount`: Amount necessary to close the arb.
 	/// - `route`: The route we trade against. Required for the fee calculation.
-	pub fn settle_otc(otc_id: OrderId, amount: Balance, route: Vec<Trade<AssetIdOf<T>>>) -> DispatchResult {
+	/// - `is_execution`: When enabled, test for the price precision is disabled.
+	#[transactional]
+	pub fn settle_otc(
+		otc_id: OrderId,
+		amount: Balance,
+		route: Vec<Trade<AssetIdOf<T>>>,
+		is_execution: bool,
+	) -> DispatchResult {
 		log::debug!(
 			target: "offchain_worker::settle_otc",
 			"calling settle_otc(): otc_id: {:?} amount: {:?} route: {:?}", otc_id, amount, route);
@@ -368,7 +378,7 @@ impl<T: Config> Pallet<T> {
 
 		// Compare OTC and Router price.
 		// In the case of fully fillable orders, the resulting price is not important.
-		if otc.partially_fillable {
+		if !is_execution && otc.partially_fillable {
 			let price_diff = {
 				if otc_price > router_price_after {
 					otc_price.saturating_sub(router_price_after)
@@ -562,7 +572,7 @@ impl<T: Config> Pallet<T> {
 			log::debug!(
 			target: "offchain_worker::settle_otcs::binary_search",
 				"\nsell_amt: {:?}\nsell_amt_up: {:?}\nsell_amt_down: {:?}", sell_amt, sell_amt_up, sell_amt_down);
-			match Self::settle_otc_order(RawOrigin::None.into(), otc_id, sell_amt, route.to_vec()) {
+			match Self::settle_otc(otc_id, sell_amt, route.to_vec(), false) {
 				Ok(_) => {
 					log::debug!(
 					target: "offchain_worker::settle_otcs",
@@ -593,12 +603,21 @@ impl<T: Config> Pallet<T> {
 					}
 				}
 			}
+			// no more values to test
 			if sell_amt_down == sell_amt_up {
-				return None;
+				break;
 			}
 			sell_amt = (sell_amt_up.checked_add(sell_amt_down)).and_then(|value| value.checked_div(2))?;
 		}
-		None
+		// execute with the latest min value
+		if sell_amt_down != T::MinTradingLimit::get() {
+			match Self::settle_otc(otc_id, sell_amt_down, route.to_vec(), true) {
+				Ok(_) => Some(sell_amt_down),
+				Err(_) => None,
+			}
+		} else {
+			None
+		}
 	}
 
 	/// Calculates the price (asset_out/asset_in) after subtracting the OTC fee from the amount_out.
