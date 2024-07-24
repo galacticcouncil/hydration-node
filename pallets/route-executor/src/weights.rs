@@ -180,6 +180,26 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 
+	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
+	fn get_oracle_price_for_xyk() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1452`
+		//  Estimated: `6294`
+		// Minimum execution time: 26_531_000 picoseconds.
+		Weight::from_parts(27_010_000, 6294)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+	}
+	/// Storage: `EmaOracle::Oracles` (r:4 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
+	fn get_oracle_price_for_omnipool() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1814`
+		//  Estimated: `11598`
+		// Minimum execution time: 40_726_000 picoseconds.
+		Weight::from_parts(41_280_000, 11598)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+	}
 	/// Storage: `Router::Routes` (r:1 w:0)
 	/// Proof: `Router::Routes` (`max_values`: None, `max_size`: Some(90), added: 2565, mode: `MaxEncodedLen`)
 	fn get_route() -> Weight {
