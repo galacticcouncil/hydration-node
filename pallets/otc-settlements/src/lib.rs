@@ -382,7 +382,10 @@ impl<T: Config> Pallet<T> {
 				.ok_or(ArithmeticError::Overflow)?;
 			if price_diff > price_precision {
 				ensure!(router_price_after <= otc_price, Error::<T>::TradeAmountTooHigh);
-				ensure!(router_price_after >= otc_price, Error::<T>::TradeAmountTooLow);
+				// partially fillable OTC can be fully filled if the arb is reduced
+				if amount != otc.amount_in {
+					ensure!(router_price_after >= otc_price, Error::<T>::TradeAmountTooLow);
+				}
 			}
 		}
 
