@@ -250,7 +250,7 @@ fn profit_should_be_transferred_to_treasury_when_nonzero_initial_pallet_balance(
 }
 
 #[test]
-fn existing_arb_opportunity_should_trigger_trade() {
+fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_found() {
 	let (mut ext, _) = ExtBuilder::default().build();
 	ext.execute_with(|| {
 		assert_ok!(OTC::place_order(
@@ -295,6 +295,62 @@ fn existing_arb_opportunity_should_trigger_trade() {
 		expect_last_events(vec![Event::Executed {
 			asset_id: HDX,
 			profit: 17_736_110_470_326,
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn existing_arb_opportunity_should_trigger_trade_when_partially_fillable_otc_can_be_fully_filled() {
+	let (mut ext, _) = ExtBuilder::default().build();
+	ext.execute_with(|| {
+		assert_ok!(OTC::place_order(
+			RuntimeOrigin::signed(ALICE),
+			HDX, // otc asset_in
+			DAI, // otc asset_out
+			100 * ONE,
+			205 * ONE,
+			true,
+		));
+
+		// get otc price
+		let otc_id = 0;
+		let otc = <pallet_otc::Orders<Test>>::get(otc_id).unwrap();
+		let otc_price = calculate_otc_price(&otc);
+
+		// get trade price
+		let route = Router::get_route(AssetPair {
+			asset_in: otc.asset_out,
+			asset_out: otc.asset_in,
+		});
+		let initial_router_price = Router::spot_price_with_fee(&route).unwrap();
+
+		// verify that there's an arb opportunity
+		assert!(otc_price > initial_router_price);
+
+		let hdx_total_issuance = Currencies::total_issuance(HDX);
+		let dai_total_issuance = Currencies::total_issuance(DAI);
+
+		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
+		assert!(Currencies::free_balance(DAI, &OtcSettlements::account_id()) == 0);
+
+		<OtcSettlements as Hooks<BlockNumberFor<Test>>>::offchain_worker(System::block_number());
+
+		// verify that the arb is still there, but smaller than before
+		let final_router_price = Router::spot_price_with_fee(&route).unwrap();
+		assert!(otc_price > final_router_price);
+		assert!(final_router_price > initial_router_price);
+
+		assert_eq!(hdx_total_issuance, Currencies::total_issuance(HDX));
+		assert_eq!(dai_total_issuance, Currencies::total_issuance(DAI));
+
+		// total issuance of tokens should not change
+		assert!(Currencies::free_balance(HDX, &OtcSettlements::account_id()) == 0);
+		assert!(Currencies::free_balance(DAI, &OtcSettlements::account_id()) == 0);
+
+		expect_last_events(vec![Event::Executed {
+			asset_id: HDX,
+			profit: 1_444_117_874_415,
 		}
 		.into()]);
 	});
