@@ -32,6 +32,7 @@ mod tests;
 mod traits;
 
 pub use crate::traits::*;
+use hydradx_traits::InspectSufficiency;
 use frame_support::storage::with_transaction;
 use frame_support::traits::{Contains, IsSubType};
 use frame_support::{
@@ -45,12 +46,13 @@ use frame_support::{
 	traits::Get,
 	weights::Weight,
 };
+use hydradx_traits::InsufficientAssetTrader;
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	router::{AssetPair, RouteProvider},
-	AccountFeeCurrency, Inspect, NativePriceOracle, OraclePeriod, PriceOracle, AMM,
+	AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle,
 };
 use orml_traits::{GetByKey, Happened, MultiCurrency};
 use pallet_transaction_payment::OnChargeTransaction;
@@ -75,7 +77,7 @@ pub mod pallet {
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::AMM;
+	use hydradx_traits::{InsufficientAssetTrader};
 	use sp_core::{H160, H256, U256};
 	use sp_runtime::{ModuleError, TransactionOutcome};
 
@@ -124,11 +126,8 @@ pub mod pallet {
 		/// Oracle price provider for routes
 		type OraclePriceProvider: PriceOracle<AssetIdOf<Self>, Price = EmaPrice>;
 
-		///Inspect registry for asset metadata
-		type InspectRegistry: hydradx_traits::registry::Inspect<AssetId = AssetIdOf<Self>>;
-
-		/// AMM trait to support insufficient asset as fee asset
-		type XYK: AMM<Self::AccountId, AssetIdOf<Self>, pallet_xyk::types::AssetPair, BalanceOf<Self>>;
+		///Insufficient asset as fee support
+		type InsufficientAssetSupport: InsufficientAssetTrader<Self::AccountId, AssetIdOf<Self>, BalanceOf<Self>>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -289,17 +288,14 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			if T::InspectRegistry::is_sufficient(currency) {
+			if T::InsufficientAssetSupport::is_sufficient(currency) {
 				ensure!(
 					currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
 					Error::<T>::UnsupportedCurrency
 				);
 			} else {
 				ensure!(
-					T::XYK::exists(pallet_xyk::types::AssetPair::new(
-						currency.into(),
-						T::PolkadotNativeAssetId::get().into()
-					)),
+					T::InsufficientAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
 					Error::<T>::UnsupportedCurrency
 				);
 			}
@@ -663,7 +659,7 @@ where
 			Pallet::<T>::account_currency(who)
 		};
 
-		let (converted_fee, currency, price) = if T::InspectRegistry::is_sufficient(currency) {
+		let (converted_fee, currency, price) = if T::InsufficientAssetSupport::is_sufficient(currency) {
 			let price = Pallet::<T>::get_currency_price(currency)
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
@@ -677,14 +673,9 @@ where
 
 			let fee_in_dot = convert_fee_with_price(fee, dot_hdx_price)
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			T::XYK::buy(
-				who,
-				pallet_xyk::types::AssetPair::new(currency.into(), T::PolkadotNativeAssetId::get().into()),
-				fee_in_dot.into(),
-				u128::MAX.into(), //TODO: double check if it is fine, maybe use math calc
-				false,
-			)
-			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+			//TODO: double check if it is fine to use max, maybe use math or similar?
+			T::InsufficientAssetSupport::buy(who, who, currency.into(), T::PolkadotNativeAssetId::get().into(),fee_in_dot.into(), u128::MAX.into()).map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			(fee_in_dot, T::PolkadotNativeAssetId::get(), dot_hdx_price)
 		};

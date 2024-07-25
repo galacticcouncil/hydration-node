@@ -57,7 +57,7 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_traits::AMM;
+use hydradx_traits::{InspectSufficiency, InsufficientAssetTrader, AMM};
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Happened,
@@ -838,7 +838,6 @@ impl pallet_dca::Config for Runtime {
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
 	type AmmTradeWeights = RouterWeightInfo;
-	type InspectRegistry = AssetRegistry;
 	type WeightInfo = weights::pallet_dca::HydraWeight<Runtime>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type NativePriceOracle = AssetFeeOraclePriceProvider<
@@ -860,8 +859,7 @@ impl pallet_dca::Config for Runtime {
 	>;
 	type RetryOnError = RetryOnErrorForDca;
 	type PolkadotNativeAssetId = DotAssetId;
-	type XYK = XYK;
-	type XykExchangeFee = XYKExchangeFee;
+	type InsufficientAssetSupport = InsufficientAssetSupport;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -1641,6 +1639,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
+use pallet_xyk::types::AssetPair;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;
@@ -1718,5 +1717,65 @@ impl PriceProvider<AssetId> for ReferralsDummyPriceProvider {
 			return Some(EmaPrice::one());
 		}
 		Some(EmaPrice::new(1_000_000_000_000, 2_000_000_000_000_000_000))
+	}
+}
+
+pub struct InsufficientAssetSupport;
+
+impl InspectSufficiency<AssetId> for InsufficientAssetSupport {
+	fn is_sufficient(asset: AssetId) -> bool {
+		AssetRegistry::is_sufficient(asset)
+	}
+
+	fn is_trade_supported(from: AssetId, into: AssetId) -> bool {
+		//TODO: here we should just say that is suppored for fee, and dot is hardcoded
+		XYK::exists(pallet_xyk::types::AssetPair::new(from.into(), into.into()))
+	}
+}
+
+//TODO: remove INto<u32> conversions we added earlier
+impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetSupport {
+	fn buy(
+		origin: &AccountId,
+		dest: &AccountId,
+		from: AssetId,
+		into: AssetId,
+		amount: Balance,
+		max_limit: Balance,
+	) -> frame_support::dispatch::DispatchResult {
+		//TODO: consider here hardcoding DOT, as thats' the standard. or maybe not needed
+		XYK::buy_for(
+			&origin,
+			&dest,
+			pallet_xyk::types::AssetPair {
+				asset_in: from.into(),
+				asset_out: into.into(),
+			},
+			amount.into(),
+			max_limit.into(),
+			false,
+		)
+	}
+
+	fn pool_trade_fee(swap_amount: Balance) -> Result<Balance, DispatchError> {
+		let xyk_exchange_rate = XYKExchangeFee::get();
+
+		hydra_dx_math::fee::calculate_pool_trade_fee(swap_amount.into(), xyk_exchange_rate)
+			.ok_or(ArithmeticError::Overflow.into())
+	}
+
+	//TODO: rename
+	fn get_amount_in_for_out(
+		insuff_asset_id: AssetId,
+		asset_out: AssetId,
+		asset_out_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		let asset_pair_account = XYK::get_pair_id(AssetPair::new(insuff_asset_id.into(), asset_out.into()));
+		let out_reserve = Currencies::free_balance(asset_out, &asset_pair_account);
+		let in_reserve = Currencies::free_balance(insuff_asset_id, &asset_pair_account.clone());
+
+		hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, asset_out_amount)
+			.map(|amount| Ok(amount.into()))
+			.map_err(|_err| ArithmeticError::Overflow)?
 	}
 }

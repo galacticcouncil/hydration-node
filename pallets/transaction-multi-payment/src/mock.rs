@@ -32,10 +32,7 @@ use frame_support::{
 	weights::{IdentityFee, Weight},
 };
 use frame_system as system;
-use hydradx_traits::{
-	router::{RouteProvider, Trade},
-	AMMTransfer, AssetKind, AssetPairAccountIdFor, OraclePeriod, PriceOracle,
-};
+use hydradx_traits::{router::{RouteProvider, Trade}, AssetKind, AssetPairAccountIdFor, OraclePeriod, PriceOracle, InspectSufficiency, InsufficientAssetTrader};
 use orml_traits::{currency::MutationHooks, parameter_type_with_key};
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::{H160, H256, U256};
@@ -164,8 +161,6 @@ impl Config for Test {
 	type Currencies = Currencies;
 	type RouteProvider = DefaultRouteProvider;
 	type OraclePriceProvider = PriceProviderMock;
-	type InspectRegistry = DummyRegistry<Test>;
-	type XYK = XykMock;
 	type WeightInfo = ();
 	type WeightToFee = IdentityFee<Balance>;
 	type NativeAssetId = HdxAssetId;
@@ -174,7 +169,46 @@ impl Config for Test {
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
 	type TryCallCurrency<'a> = NoCallCurrency<Test>;
+	type InsufficientAssetSupport = MockedInsufficientAssetSupport;
 }
+
+pub struct MockedInsufficientAssetSupport;
+
+impl InspectSufficiency<AssetId> for MockedInsufficientAssetSupport {
+	fn is_sufficient(_asset: AssetId) -> bool {
+		true
+	}
+
+	fn is_trade_supported(_from: AssetId, _into: AssetId) -> bool {
+		unimplemented!()
+	}
+}
+
+impl InsufficientAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
+	fn buy(
+		_origin: &AccountId,
+		_dest: &AccountId,
+		_from: AssetId,
+		_into: AssetId,
+		_amount: Balance,
+		_max_limit: Balance,
+	) -> frame_support::dispatch::DispatchResult {
+		unimplemented!()
+	}
+
+	fn pool_trade_fee(_swap_amount: Balance) -> Result<Balance, DispatchError> {
+		unimplemented!()
+	}
+
+	fn get_amount_in_for_out(
+		_insuff_asset_id: AssetId,
+		_asset_out: AssetId,
+		_asset_out_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		unimplemented!()
+	}
+}
+
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
@@ -214,84 +248,6 @@ impl<T: Config> hydradx_traits::registry::Inspect for DummyRegistry<T> {
 		unimplemented!()
 	}
 }
-
-pub struct XykMock;
-
-impl AMM<AccountId, AssetId, pallet_xyk::types::AssetPair, Balance> for XykMock {
-	fn exists(_assets: pallet_xyk::types::AssetPair) -> bool {
-		true
-	}
-
-	fn get_pair_id(_assets: pallet_xyk::types::AssetPair) -> AccountId {
-		AccountId::new([5u8; 32])
-	}
-
-	fn get_share_token(_assets: pallet_xyk::types::AssetPair) -> AssetId {
-		unimplemented!()
-	}
-
-	fn get_pool_assets(_pool_account_id: &AccountId) -> Option<Vec<AssetId>> {
-		unimplemented!()
-	}
-
-	fn get_spot_price_unchecked(_asset_a: AssetId, _asset_b: AssetId, _amount: Balance) -> Balance {
-		unimplemented!()
-	}
-
-	fn validate_sell(
-		_origin: &AccountId,
-		_assets: pallet_xyk::types::AssetPair,
-		_amount: Balance,
-		_min_bought: Balance,
-		_discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetId, pallet_xyk::types::AssetPair, Balance>, DispatchError> {
-		unimplemented!()
-	}
-
-	fn execute_sell(
-		_transfer: &AMMTransfer<AccountId, AssetId, pallet_xyk::types::AssetPair, Balance>,
-	) -> frame_support::dispatch::DispatchResult {
-		unimplemented!()
-	}
-
-	fn validate_buy(
-		_origin: &AccountId,
-		_assets: pallet_xyk::types::AssetPair,
-		_amount: Balance,
-		_max_limit: Balance,
-		_discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetId, pallet_xyk::types::AssetPair, Balance>, DispatchError> {
-		unimplemented!()
-	}
-
-	fn execute_buy(
-		_transfer: &AMMTransfer<AccountId, AssetId, pallet_xyk::types::AssetPair, Balance>,
-		_destination: Option<&AccountId>,
-	) -> frame_support::dispatch::DispatchResult {
-		unimplemented!()
-	}
-
-	fn get_min_trading_limit() -> Balance {
-		unimplemented!()
-	}
-
-	fn get_min_pool_liquidity() -> Balance {
-		unimplemented!()
-	}
-
-	fn get_max_in_ratio() -> u128 {
-		unimplemented!()
-	}
-
-	fn get_max_out_ratio() -> u128 {
-		unimplemented!()
-	}
-
-	fn get_fee(_pool_account_id: &AccountId) -> (u32, u32) {
-		unimplemented!()
-	}
-}
-
 pub struct DefaultRouteProvider;
 
 impl RouteProvider<AssetId> for DefaultRouteProvider {}

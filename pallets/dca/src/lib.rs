@@ -79,10 +79,9 @@ use frame_system::{
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::OraclePeriod;
+use hydradx_traits::{InspectSufficiency, OraclePeriod};
 use hydradx_traits::PriceOracle;
-use hydradx_traits::AMM;
-use hydradx_traits::{Inspect, NativePriceOracle};
+use hydradx_traits::{NativePriceOracle};
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -104,10 +103,9 @@ pub mod weights;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
-pub use pallet::*;
-use pallet_xyk::types::AssetPair;
-
 use crate::types::*;
+use hydradx_traits::InsufficientAssetTrader;
+pub use pallet::*;
 
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
@@ -122,7 +120,7 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{NativePriceOracle, PriceOracle, AMM};
+	use hydradx_traits::{InsufficientAssetTrader, NativePriceOracle, PriceOracle};
 	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::Percent;
 
@@ -227,15 +225,8 @@ pub mod pallet {
 		///Relay chain block hash provider for randomness
 		type RelayChainBlockHashProvider: RelayChainBlockHashProvider;
 
-		///Inspect registry for asset metadata
-		type InspectRegistry: hydradx_traits::registry::Inspect<AssetId = Self::AssetId>;
-
-		/// AMM trait to support insufficient asset as fee asset
-		type XYK: AMM<Self::AccountId, Self::AssetId, pallet_xyk::types::AssetPair, Balance>;
-
-		/// Trading fee rate for XYK pools
-		#[pallet::constant]
-		type XykExchangeFee: Get<(u32, u32)>;
+		///Insufficient asset as fee support
+		type InsufficientAssetSupport: InsufficientAssetTrader<Self::AccountId, Self::AssetId, Balance>;
 
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
@@ -958,15 +949,10 @@ impl<T: Config> Pallet<T> {
 		let fee_currency = schedule.order.get_asset_in();
 		let fee_amount_in_sold_asset = Self::convert_weight_to_fee(weight_to_charge, fee_currency)?;
 
-		if !T::InspectRegistry::is_sufficient(fee_currency) {
+		if !T::InsufficientAssetSupport::is_sufficient(fee_currency) {
 			//We buy DOT with insufficient asset, for the treasury
 			//The DOT we need to buy is calculated the same way how we convert weight to insufficient fee
-			let fee_in_dot = Self::get_fee_in_dot(Self::weight_to_fee(weight_to_charge))?;
-
-			let xyk_exchange_rate = T::XykExchangeFee::get();
-			let pool_trade_fee =
-				hydra_dx_math::fee::calculate_pool_trade_fee(fee_amount_in_sold_asset, xyk_exchange_rate)
-					.ok_or(ArithmeticError::Overflow)?;
+			let pool_trade_fee = T::InsufficientAssetSupport::pool_trade_fee(fee_amount_in_sold_asset)?;
 
 			//Since there is a trade fee involved in xyk buy swap, we need to unallocate that, together with amount_in
 			let effective_amount_in = fee_amount_in_sold_asset
@@ -975,16 +961,14 @@ impl<T: Config> Pallet<T> {
 
 			Self::unallocate_amount(schedule_id, schedule, effective_amount_in)?;
 
-			T::XYK::buy_for(
+			let fee_in_dot = Self::get_fee_in_dot(Self::weight_to_fee(weight_to_charge))?;
+			T::InsufficientAssetSupport::buy(
 				&schedule.owner.clone(),
 				&T::FeeReceiver::get(),
-				pallet_xyk::types::AssetPair {
-					asset_in: fee_currency.into(),
-					asset_out: T::PolkadotNativeAssetId::get().into(),
-				},
+				fee_currency,
+				T::PolkadotNativeAssetId::get(),
 				fee_in_dot,
 				effective_amount_in,
-				false,
 			)?;
 		} else {
 			Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
@@ -1125,7 +1109,7 @@ impl<T: Config> Pallet<T> {
 		let route = &order.get_route_or_default::<T::RouteProvider>();
 		match order {
 			Order::Sell { .. } => {
-				let on_initialize_weight = if T::InspectRegistry::is_sufficient(order.get_asset_in()) {
+				let on_initialize_weight = if T::InsufficientAssetSupport::is_sufficient(order.get_asset_in()) {
 					<T as Config>::WeightInfo::on_initialize_with_sell_trade()
 				} else {
 					<T as Config>::WeightInfo::on_initialize_with_sell_trade_with_insufficient_fee_asset()
@@ -1135,7 +1119,7 @@ impl<T: Config> Pallet<T> {
 					.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route))
 			}
 			Order::Buy { .. } => {
-				let on_initialize_weight = if T::InspectRegistry::is_sufficient(order.get_asset_in()) {
+				let on_initialize_weight = if T::InsufficientAssetSupport::is_sufficient(order.get_asset_in()) {
 					<T as Config>::WeightInfo::on_initialize_with_buy_trade()
 				} else {
 					<T as Config>::WeightInfo::on_initialize_with_buy_trade_with_insufficient_fee_asset()
@@ -1153,16 +1137,9 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Balance, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
-		} else if !T::InspectRegistry::is_sufficient(asset_id) {
-			let asset_pair_account =
-				T::XYK::get_pair_id(AssetPair::new(asset_id.into(), T::PolkadotNativeAssetId::get().into()));
-			let out_reserve = T::Currencies::free_balance(T::PolkadotNativeAssetId::get(), &asset_pair_account);
-			let in_reserve = T::Currencies::free_balance(asset_id, &asset_pair_account.clone());
-
+		} else if !T::InsufficientAssetSupport::is_sufficient(asset_id) {
 			let fee_amount_in_dot = Self::get_fee_in_dot(asset_amount)?;
-
-			hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, fee_amount_in_dot)
-				.map_err(|_err| ArithmeticError::Overflow)?
+			T::InsufficientAssetSupport::get_amount_in_for_out(asset_id, T::PolkadotNativeAssetId::get(), fee_amount_in_dot)?
 		} else {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 

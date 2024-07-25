@@ -29,7 +29,8 @@ use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{
-	registry::Inspect as InspectRegistry, AMMTransfer, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle, AMM,
+	registry::Inspect as InspectRegistry, AssetKind, InspectSufficiency, InsufficientAssetTrader,
+	NativePriceOracle, OraclePeriod, PriceOracle,
 };
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::BasicCurrencyAdapter;
@@ -694,85 +695,43 @@ impl Config for Test {
 	type MinimumTradingLimit = MinTradeAmount;
 	type NativePriceOracle = NativePriceOracleMock;
 	type RetryOnError = ();
-	type InspectRegistry = DummyRegistry<Test>;
-	type XykExchangeFee = ExchangeFeeRate;
-	type XYK = XykMock;
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
+	type InsufficientAssetSupport = MockedInsufficientAssetSupport;
 }
 
-pub struct XykMock;
+pub struct MockedInsufficientAssetSupport;
 
-impl AMM<AccountId, AssetId, AssetPair, Balance> for XykMock {
-	fn exists(_assets: AssetPair) -> bool {
+impl InspectSufficiency<AssetId> for MockedInsufficientAssetSupport {
+	fn is_sufficient(_asset: AssetId) -> bool {
+		true
+	}
+
+	fn is_trade_supported(_from: AssetId, _into: AssetId) -> bool {
 		unimplemented!()
 	}
+}
 
-	fn get_pair_id(_assets: AssetPair) -> AccountId {
-		999
-	}
-
-	fn get_share_token(_assets: AssetPair) -> AssetId {
-		unimplemented!()
-	}
-
-	fn get_pool_assets(_pool_account_id: &AccountId) -> Option<Vec<AssetId>> {
-		unimplemented!()
-	}
-
-	fn get_spot_price_unchecked(_asset_a: AssetId, _asset_b: AssetId, _amount: Balance) -> Balance {
-		unimplemented!()
-	}
-
-	fn validate_sell(
+impl InsufficientAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
+	fn buy(
 		_origin: &AccountId,
-		_assets: AssetPair,
-		_amount: Balance,
-		_min_bought: Balance,
-		_discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Balance>, DispatchError> {
-		unimplemented!()
-	}
-
-	fn execute_sell(
-		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-	) -> frame_support::dispatch::DispatchResult {
-		unimplemented!()
-	}
-
-	fn validate_buy(
-		_origin: &AccountId,
-		_assets: AssetPair,
+		_dest: &AccountId,
+		_from: AssetId,
+		_into: AssetId,
 		_amount: Balance,
 		_max_limit: Balance,
-		_discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Balance>, DispatchError> {
-		unimplemented!()
-	}
-
-	fn execute_buy(
-		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-		_destination: Option<&AccountId>,
 	) -> frame_support::dispatch::DispatchResult {
 		unimplemented!()
 	}
 
-	fn get_min_trading_limit() -> Balance {
+	fn pool_trade_fee(_swap_amount: Balance) -> Result<Balance, DispatchError> {
 		unimplemented!()
 	}
 
-	fn get_min_pool_liquidity() -> Balance {
-		unimplemented!()
-	}
-
-	fn get_max_in_ratio() -> u128 {
-		unimplemented!()
-	}
-
-	fn get_max_out_ratio() -> u128 {
-		unimplemented!()
-	}
-
-	fn get_fee(_pool_account_id: &AccountId) -> (u32, u32) {
+	fn get_amount_in_for_out(
+		_insuff_asset_id: AssetId,
+		_asset_out: AssetId,
+		_asset_out_amount: Balance,
+	) -> Result<Balance, DispatchError> {
 		unimplemented!()
 	}
 }
@@ -806,7 +765,6 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
-use pallet_xyk::types::AssetPair;
 use rand::prelude::StdRng;
 use rand::SeedableRng;
 use smallvec::smallvec;
