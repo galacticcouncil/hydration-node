@@ -596,9 +596,7 @@ impl<T: Config> Pallet<T> {
 			//We optimize to set the state for middle trades only once at the first middle trade, then we change no state till the last trade
 			match trade_index {
 				0 => SkipEd::<T>::put(types::SkipEd::Lock),
-				trade_index if trade_index.saturating_add(1) == route_length => {
-					SkipEd::<T>::put(types::SkipEd::Unlock)
-				}
+				trade_index if trade_index.saturating_add(1) == route_length => SkipEd::<T>::put(types::SkipEd::Unlock),
 				1 => SkipEd::<T>::put(types::SkipEd::LockAndUnlock),
 				_ => (),
 			}
