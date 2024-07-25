@@ -33,6 +33,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(not(feature = "runtime-benchmarks"))]
+use frame_system::RawOrigin;
+
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
@@ -44,7 +47,6 @@ use frame_support::{
 use frame_system::{
 	offchain::{SendTransactionTypes, SubmitTransaction},
 	pallet_prelude::{BlockNumberFor, OriginFor},
-	RawOrigin,
 };
 use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouteSpotPriceProvider, RouterT, Trade,
