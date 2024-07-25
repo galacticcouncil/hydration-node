@@ -1350,7 +1350,7 @@ mod omnipool_router_tests {
 				assert_ok!(Currencies::deposit(insufficient_asset_1, &ALICE.into(), amount_to_sell,));
 				let ed = UNITS * 11 / 10;
 				let extra_ed_charge = UNITS / 10;
-				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 1 * ed);
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
 
 				let amount_to_sell = amount_to_sell;
 				assert_ok!(Router::sell(
