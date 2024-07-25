@@ -1,5 +1,6 @@
 mod intents;
 mod solution;
+mod txorder;
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;

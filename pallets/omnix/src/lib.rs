@@ -3,6 +3,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod engine;
+pub mod order;
 #[cfg(test)]
 mod tests;
 pub mod types;
@@ -34,6 +35,7 @@ pub mod pallet {
 	use crate::engine::{ExecutionPlan, OmniXEngine};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
+	use orml_traits::GetByKey;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -76,6 +78,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxCallData: Get<u32>;
+
+		type PriorityOrder: GetByKey<Self::RuntimeCall, TransactionPriority>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;

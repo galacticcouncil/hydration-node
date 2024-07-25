@@ -64,18 +64,14 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		// council members
 		vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 		// technical committee members
-		vec![
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			get_account_id_from_seed::<sr25519::Public>("Bob"),
-			get_account_id_from_seed::<sr25519::Public>("Eve"),
-		],
+		vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 		// vestings
 		vec![],
 		// registered assets
 		vec![
 			(
 				Some(1),
-				Some(b"KSM".to_vec().try_into().expect("Name is too long")),
+				Some(b"LRNA".to_vec().try_into().expect("Name is too long")),
 				1_000u128,
 				None,
 				None,
@@ -83,8 +79,17 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				true,
 			),
 			(
-				Some(2),
-				Some(b"KUSD".to_vec().try_into().expect("Name is too long")),
+				Some(5),
+				Some(b"DOT".to_vec().try_into().expect("Name is too long")),
+				1_000u128,
+				None,
+				None,
+				None,
+				true,
+			),
+			(
+				Some(20),
+				Some(b"WETH".to_vec().try_into().expect("Name is too long")),
 				1_000u128,
 				None,
 				None,
@@ -93,26 +98,22 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 			),
 		],
 		// accepted assets
-		vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
+		vec![(5, Price::from_float(0.0000212)), (20, Price::from_float(0.000806))],
 		// token balances
 		vec![
 			(
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+				vec![(5, 1000_000_000_000_000), (20, 400_000_000_000_000_000_000_000)],
 			),
 			(
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+				vec![(5, 1000_000_000_000_000), (20, 400_000_000_000_000_000_000_000)],
 			),
 		],
 		// claims data
 		create_testnet_claims(),
 		// elections
-		vec![
-			(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
-			(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
-			(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
-		],
+		vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5)],
 		// parachain ID
 		PARA_ID.into(),
 		DusterConfig {

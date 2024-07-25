@@ -501,6 +501,16 @@ parameter_types! {
 	pub const OmnixPalletId: PalletId = PalletId(*b"omnixacc");
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
 }
+pub struct TxPriorityOrder;
+impl GetByKey<RuntimeCall, TransactionPriority> for TxPriorityOrder {
+	fn get(call: &RuntimeCall) -> TransactionPriority {
+		match call.is_sub_type() {
+			Some(pallet_omnipool::Call::add_liquidity { .. }) => 0,
+			Some(pallet_omnipool::Call::sell { .. }) => 1_000_000_000_000_000_000,
+			_ => 0,
+		}
+	}
+}
 
 impl pallet_omnix::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -511,6 +521,7 @@ impl pallet_omnix::Config for Runtime {
 	type TradeExecutor = Router;
 	type PalletId = OmnixPalletId;
 	type MaxCallData = MaxCallData;
+	type PriorityOrder = TxPriorityOrder;
 	type WeightInfo = ();
 }
 
@@ -1239,6 +1250,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
+use frame_support::traits::IsSubType;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1248,6 +1260,7 @@ use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
+use sp_runtime::transaction_validity::TransactionPriority;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
 
