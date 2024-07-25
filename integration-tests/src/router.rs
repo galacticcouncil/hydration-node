@@ -37,7 +37,7 @@ use sp_runtime::{
 };
 
 use orml_traits::MultiCurrency;
-
+use hydradx_runtime::InsufficientEDinHDX;
 pub const LBP_SALE_START: BlockNumber = 10;
 pub const LBP_SALE_END: BlockNumber = 40;
 
@@ -1174,7 +1174,7 @@ mod omnipool_router_tests {
 
 				assert_ok!(Currencies::deposit(insufficient_asset1, &ALICE.into(), 1500 * UNITS,));
 
-				let ed = UNITS * 11 / 10;
+				let ed = InsufficientEDinHDX::get();
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
 
 				let amount_to_sell = 20 * UNITS;
@@ -1348,7 +1348,7 @@ mod omnipool_router_tests {
 				//Act
 				let amount_to_sell = 10 * UNITS;
 				assert_ok!(Currencies::deposit(insufficient_asset_1, &ALICE.into(), amount_to_sell,));
-				let ed = UNITS * 11 / 10;
+				let ed = InsufficientEDinHDX::get();
 				let extra_ed_charge = UNITS / 10;
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
 
@@ -1478,7 +1478,7 @@ mod omnipool_router_tests {
 
 				assert_ok!(Currencies::deposit(insufficient_asset1, &ALICE.into(), 1500 * UNITS,));
 
-				let ed = UNITS * 11 / 10;
+				let ed = InsufficientEDinHDX::get();
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
 
 				let amount_to_buy = 20 * UNITS;
