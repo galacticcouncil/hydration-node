@@ -1291,7 +1291,7 @@ mod omnipool_router_tests {
 	}
 
 	#[test]
-	fn should_no_ed_charging_disabled_when_only_one_route_with_insufficient_assets() {
+	fn ed_charging_should_not_be_disabled_when_only_one_trade_with_insufficient_assets() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
