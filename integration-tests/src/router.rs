@@ -36,8 +36,8 @@ use sp_runtime::{
 	DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome,
 };
 
-use orml_traits::MultiCurrency;
 use hydradx_runtime::InsufficientEDinHDX;
+use orml_traits::MultiCurrency;
 pub const LBP_SALE_START: BlockNumber = 10;
 pub const LBP_SALE_END: BlockNumber = 40;
 
