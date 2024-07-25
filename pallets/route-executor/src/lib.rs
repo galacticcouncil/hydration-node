@@ -47,19 +47,14 @@ use sp_std::{vec, vec::Vec};
 mod tests;
 pub mod weights;
 
+mod types;
+
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
 pub const MAX_NUMBER_OF_TRADES: u32 = 5;
-
-#[derive(Debug, Encode, Decode, Copy, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub enum EdHandling {
-	SkipEdLock,
-	SkipEdLockAndUnlock,
-	SkipEdUnlock,
-}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -176,7 +171,7 @@ pub mod pallet {
 	///Flag to indicate when to skip ED handling
 	#[pallet::storage]
 	#[pallet::getter(fn last_trade_position)]
-	pub type SkipEd<T: Config> = StorageValue<_, EdHandling, OptionQuery>;
+	pub type SkipEd<T: Config> = StorageValue<_, types::SkipEd, OptionQuery>;
 
 	/// Storing routes for asset pairs
 	#[pallet::storage]
@@ -600,11 +595,11 @@ impl<T: Config> Pallet<T> {
 		{
 			//We optimize to set the state for middle trades only once at the first middle trade, then we change no state till the last trade
 			match trade_index {
-				0 => SkipEd::<T>::put(EdHandling::SkipEdLock),
+				0 => SkipEd::<T>::put(types::SkipEd::Lock),
 				trade_index if trade_index.saturating_add(1) == route_length => {
-					SkipEd::<T>::put(EdHandling::SkipEdUnlock)
+					SkipEd::<T>::put(types::SkipEd::Unlock)
 				}
-				1 => SkipEd::<T>::put(EdHandling::SkipEdLockAndUnlock),
+				1 => SkipEd::<T>::put(types::SkipEd::LockAndUnlock),
 				_ => (),
 			}
 		}
@@ -612,7 +607,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn skip_ed_lock() -> bool {
 		if let Ok(v) = SkipEd::<T>::try_get() {
-			return matches!(v, EdHandling::SkipEdLock | EdHandling::SkipEdLockAndUnlock);
+			return matches!(v, types::SkipEd::Lock | types::SkipEd::LockAndUnlock);
 		}
 
 		false
@@ -620,7 +615,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn skip_ed_unlock() -> bool {
 		if let Ok(v) = SkipEd::<T>::try_get() {
-			return matches!(v, EdHandling::SkipEdUnlock | EdHandling::SkipEdLockAndUnlock);
+			return matches!(v, types::SkipEd::Unlock | types::SkipEd::LockAndUnlock);
 		}
 
 		false
