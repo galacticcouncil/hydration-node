@@ -171,19 +171,6 @@ where
 
 		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
 
-		let position_id = Pallet::<T>::get_user_position_id(&who.clone()).unwrap().unwrap();
-
-		let mut votes = sp_std::vec::Vec::<(u32, Vote)>::new();
-		for i in 0..<T as crate::pallet::Config>::MaxVotes::get() {
-			votes.push((
-				i,
-				Vote {
-					amount: 20_000_000_000_000_000,
-					conviction: Conviction::Locked1x,
-				},
-			));
-		}
-
 		for i in 0..<T as crate::pallet::Config>::MaxLocks::get() - 5 {
 			let id: LockIdentifier = scale_info::prelude::format!("{:a>8}", i.to_string())
 				.as_bytes()
@@ -192,12 +179,6 @@ where
 
 			T::Currency::set_lock(id, T::NativeAssetId::get(), who, 10_000_000_000_000_u128).unwrap();
 		}
-
-		let voting = crate::types::Voting::<T::MaxVotes> {
-			votes: votes.try_into().unwrap(),
-		};
-
-		crate::PositionVotes::<T>::insert(position_id, voting);
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
