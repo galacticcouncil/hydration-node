@@ -40,7 +40,7 @@ use fc_db::kv::Backend as FrontierBackend;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
-use sc_executor::{HeapAllocStrategy, NativeElseWasmExecutor, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
+use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 use sc_network::NetworkBlock;
 use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
@@ -53,24 +53,14 @@ use substrate_prometheus_endpoint::Registry;
 pub(crate) mod evm;
 use crate::{chain_spec, rpc};
 
-/// Native executor type.
-pub struct HydraDXNativeExecutor;
-
-impl sc_executor::NativeExecutionDispatch for HydraDXNativeExecutor {
-	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
-
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		hydradx_runtime::api::dispatch(method, data)
-	}
-
-	fn native_version() -> sc_executor::NativeVersion {
-		hydradx_runtime::native_version()
-	}
-}
-
-type ParachainExecutor = NativeElseWasmExecutor<HydraDXNativeExecutor>;
-
-type ParachainClient = TFullClient<Block, RuntimeApi, ParachainExecutor>;
+type ParachainClient = TFullClient<
+	Block,
+	RuntimeApi,
+	WasmExecutor<(
+		sp_io::SubstrateHostFunctions,
+		frame_benchmarking::benchmarking::HostFunctions,
+	)>,
+>;
 
 type ParachainBackend = TFullBackend<Block>;
 
@@ -117,15 +107,13 @@ pub fn new_partial(
 			extra_pages: h as _,
 		});
 
-	let wasm = WasmExecutor::builder()
+	let executor = WasmExecutor::builder()
 		.with_execution_method(config.wasm_method)
 		.with_onchain_heap_alloc_strategy(heap_pages)
 		.with_offchain_heap_alloc_strategy(heap_pages)
 		.with_max_runtime_instances(config.max_runtime_instances)
 		.with_runtime_cache_size(config.runtime_cache_size)
 		.build();
-
-	let executor = ParachainExecutor::new_with_wasm_executor(wasm);
 
 	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts::<Block, RuntimeApi, _>(
 		config,
