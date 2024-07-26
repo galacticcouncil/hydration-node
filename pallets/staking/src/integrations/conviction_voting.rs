@@ -164,7 +164,11 @@ where
 		)
 		.unwrap();
 		Pallet::<T>::initialize_staking(Origin::<T>::Root.into()).unwrap();
-		T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
+
+		if T::Currency::free_balance(T::NativeAssetId::get(), who) <= 1_000_000_000_000_000 {
+			T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
+		}
+
 		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
 
 		let position_id = Pallet::<T>::get_user_position_id(&who.clone()).unwrap().unwrap();
@@ -207,7 +211,9 @@ where
 		)
 		.unwrap();
 		Pallet::<T>::initialize_staking(Origin::<T>::Root.into()).unwrap();
-		T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
+		if T::Currency::free_balance(T::NativeAssetId::get(), who) <= 1_000_000_000_000_000 {
+			T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
+		}
 		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
 	}
 }
