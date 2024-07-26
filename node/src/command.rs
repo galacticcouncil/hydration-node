@@ -17,7 +17,7 @@
 
 use crate::chain_spec;
 use crate::cli::{Cli, RelayChainCli, Subcommand};
-use crate::service::{new_partial, HydraDXNativeExecutor};
+use crate::service::new_partial;
 
 use codec::Encode;
 use cumulus_primitives_core::ParaId;
@@ -28,7 +28,7 @@ use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams, Result,
 	RuntimeVersion, SharedParams, SubstrateCli,
 };
-use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
+use sc_executor::sp_wasm_interface::ExtendedHostFunctions;
 use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::{
@@ -197,7 +197,7 @@ pub fn run() -> sc_cli::Result<()> {
 						runner.sync_run(|config| {
 							cmd.run::<Block, ExtendedHostFunctions<
 								sp_io::SubstrateHostFunctions,
-								<HydraDXNativeExecutor as NativeExecutionDispatch>::ExtendHostFunctions,
+								frame_benchmarking::benchmarking::HostFunctions,
 							>>(config)
 						})
 					} else {
