@@ -1,17 +1,17 @@
 mod engine;
 mod intents;
 
+use crate as pallet_omnix;
 use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::pallet_prelude::ConstU32;
 use frame_support::traits::{ConstU128, ConstU64, Everything, Time};
 use frame_support::{construct_runtime, parameter_types, PalletId};
 use hydradx_traits::router::{AmountInAndOut, AssetPair, RouterT, Trade};
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey};
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
+use sp_runtime::transaction_validity::TransactionPriority;
 use sp_runtime::{BuildStorage, DispatchError, DispatchResult};
-
-use crate as pallet_omnix;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 pub(crate) type AssetId = u32;
@@ -120,6 +120,14 @@ impl Time for DummyTimestampProvider {
 	}
 }
 
+pub struct DummyOrder;
+
+impl GetByKey<RuntimeCall, TransactionPriority> for DummyOrder {
+	fn get(k: &RuntimeCall) -> TransactionPriority {
+		0
+	}
+}
+
 impl pallet_omnix::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -129,6 +137,7 @@ impl pallet_omnix::Config for Test {
 	type TradeExecutor = DummyTradeExecutor;
 	type PalletId = OmniXPalletId;
 	type MaxCallData = MaxCallData;
+	type PriorityOrder = DummyOrder;
 	type WeightInfo = ();
 }
 

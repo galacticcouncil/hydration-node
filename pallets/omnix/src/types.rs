@@ -51,13 +51,12 @@ pub enum SwapType {
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ResolvedIntent {
 	pub intent_id: IntentId,
-	pub amount: Balance,
+	pub amount_in: Balance,
+	pub amount_out: Balance,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Solution<AccountId, AssetId> {
+pub struct Solution<AccountId> {
 	pub proposer: AccountId,
 	pub intents: BoundedResolvedIntents,
-	pub sell_prices: BoundedPrices<AssetId>,
-	pub buy_prices: BoundedPrices<AssetId>,
 }

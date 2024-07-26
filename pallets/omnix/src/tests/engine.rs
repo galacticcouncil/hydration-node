@@ -7,19 +7,11 @@ use crate::types::{
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::Weight;
 
-fn create_solution(
-	intents: Vec<ResolvedIntent>,
-	sell_prices: Vec<(AssetId, (u128, u128))>,
-	buy_prices: Vec<(AssetId, (u128, u128))>,
-) -> Solution<AccountId, AssetId> {
+fn create_solution(intents: Vec<ResolvedIntent>) -> Solution<AccountId> {
 	let intents = BoundedResolvedIntents::try_from(intents).unwrap();
-	let buy_prices = BoundedPrices::try_from(buy_prices).unwrap();
-	let sell_prices = BoundedPrices::try_from(sell_prices).unwrap();
 	Solution {
 		proposer: ALICE,
 		intents,
-		sell_prices,
-		buy_prices,
 	}
 }
 
@@ -51,14 +43,11 @@ fn test_prepare_solution_with_one_intent() {
 
 		let intent_id = get_intent_id(NOW, 0);
 
-		let solution = create_solution(
-			vec![ResolvedIntent {
-				intent_id,
-				amount: 100_000_000_000_000,
-			}],
-			vec![(100, (1, 1)), (200, (1, 1))],
-			vec![(100, (2, 1)), (200, (1, 2))],
-		);
+		let solution = create_solution(vec![ResolvedIntent {
+			intent_id,
+			amount_in: 100_000_000_000_000,
+			amount_out: 200_000_000_000_000,
+		}]);
 
 		let plan = OmniXEngine::<Test, Tokens, DummyTradeExecutor>::prepare_execution_plan(&solution);
 
@@ -130,20 +119,18 @@ fn test_prepare_solution_with_two_intents() {
 		let intent_id_1 = get_intent_id(NOW, 0);
 		let intent_id_2 = get_intent_id(NOW, 1);
 
-		let solution = create_solution(
-			vec![
-				ResolvedIntent {
-					intent_id: intent_id_1,
-					amount: 100_000_000_000_000,
-				},
-				ResolvedIntent {
-					intent_id: intent_id_2,
-					amount: 100_000_000_000_000,
-				},
-			],
-			vec![(100, (1, 1)), (200, (1, 1))],
-			vec![(100, (2, 1)), (200, (1, 2))],
-		);
+		let solution = create_solution(vec![
+			ResolvedIntent {
+				intent_id: intent_id_1,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+			},
+			ResolvedIntent {
+				intent_id: intent_id_2,
+				amount_in: 200_000_000_000_000,
+				amount_out: 100_000_000_000_000,
+			},
+		]);
 
 		let plan = OmniXEngine::<Test, Tokens, DummyTradeExecutor>::prepare_execution_plan(&solution);
 

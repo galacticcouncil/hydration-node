@@ -33,24 +33,14 @@ fn submit_solution_should_work() {
 		)])
 		.unwrap();
 		let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-		let sell_prices = solved.sell_prices;
-		let buy_prices = solved.buy_prices;
-
-		let b_sell_prices = BoundedPrices::try_from(sell_prices.clone()).unwrap();
-		let b_buy_prices = BoundedPrices::try_from(buy_prices.clone()).unwrap();
-
-		let solution = Solution::<AccountId, AssetId> {
+		let solution = Solution::<AccountId> {
 			proposer: BOB.into(),
 			intents: resolved_intents.clone(),
-			sell_prices: b_sell_prices,
-			buy_prices: b_buy_prices,
 		};
 
 		assert_ok!(OmniX::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			resolved_intents.into_inner(),
-			sell_prices,
-			buy_prices,
 		));
 
 		let hash = <hydradx_runtime::Runtime as frame_system::Config>::Hashing::hash(&solution.encode());
@@ -91,24 +81,14 @@ fn execute_one_intent_solution_should_work() {
 		)])
 		.unwrap();
 		let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-		let sell_prices = solved.sell_prices;
-		let buy_prices = solved.buy_prices;
-
-		let b_sell_prices = BoundedPrices::try_from(sell_prices.clone()).unwrap();
-		let b_buy_prices = BoundedPrices::try_from(buy_prices.clone()).unwrap();
-
-		let solution = Solution::<AccountId, AssetId> {
+		let solution = Solution::<AccountId> {
 			proposer: BOB.into(),
 			intents: resolved_intents.clone(),
-			sell_prices: b_sell_prices,
-			buy_prices: b_buy_prices,
 		};
 
 		assert_ok!(OmniX::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			resolved_intents.into_inner(),
-			sell_prices,
-			buy_prices,
 		));
 
 		let hash = <hydradx_runtime::Runtime as frame_system::Config>::Hashing::hash(&solution.encode());
@@ -124,7 +104,7 @@ fn execute_one_intent_solution_should_work() {
 		);
 		assert_eq!(lrna_balance, 0u128);
 		let received = dai_balance - initial_dai_balance;
-		assert_eq!(received, 8978102355397552u128);
+		assert_eq!(received, 8978102355397551u128);
 	});
 }
 
@@ -182,24 +162,14 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		)])
 		.unwrap();
 		let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-		let sell_prices = solved.sell_prices;
-		let buy_prices = solved.buy_prices;
-
-		let b_sell_prices = BoundedPrices::try_from(sell_prices.clone()).unwrap();
-		let b_buy_prices = BoundedPrices::try_from(buy_prices.clone()).unwrap();
-
-		let solution = Solution::<AccountId, AssetId> {
+		let solution = Solution::<AccountId> {
 			proposer: BOB.into(),
 			intents: resolved_intents.clone(),
-			sell_prices: b_sell_prices,
-			buy_prices: b_buy_prices,
 		};
 
 		assert_ok!(OmniX::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			resolved_intents.into_inner(),
-			sell_prices,
-			buy_prices,
 		));
 
 		let hash = <hydradx_runtime::Runtime as frame_system::Config>::Hashing::hash(&solution.encode());
@@ -214,7 +184,7 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 			&pallet_omnix::Pallet::<hydradx_runtime::Runtime>::holding_account(),
 		);
 		let received = asset_balance - initial_asset_balance;
-		assert_eq!(received, 26118);
+		assert_eq!(received, 26117);
 		assert_eq!(lrna_balance, 0u128);
 	});
 }
@@ -272,24 +242,14 @@ fn execute_two_intents_solution_should_work() {
 		])
 		.unwrap();
 		let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-		let sell_prices = solved.sell_prices;
-		let buy_prices = solved.buy_prices;
-
-		let b_sell_prices = BoundedPrices::try_from(sell_prices.clone()).unwrap();
-		let b_buy_prices = BoundedPrices::try_from(buy_prices.clone()).unwrap();
-
-		let solution = Solution::<AccountId, AssetId> {
+		let solution = Solution::<AccountId> {
 			proposer: BOB.into(),
 			intents: resolved_intents.clone(),
-			sell_prices: b_sell_prices,
-			buy_prices: b_buy_prices,
 		};
 
 		assert_ok!(OmniX::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			resolved_intents.into_inner(),
-			sell_prices,
-			buy_prices,
 		));
 
 		let hash = <hydradx_runtime::Runtime as frame_system::Config>::Hashing::hash(&solution.encode());

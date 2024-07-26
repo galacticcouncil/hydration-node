@@ -31,6 +31,6 @@ pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -
 
 pub(crate) fn solve_intents(
 	intents: Vec<(IntentId, pallet_omnix::types::Intent<AccountId, AssetId>)>,
-) -> Result<omnix_solver::SolverSolution<AssetId>, ()> {
+) -> Result<omnix_solver::SolverSolution, ()> {
 	omnix_solver::SimpleSolver::<hydradx_runtime::Runtime, Router, Router>::solve(intents)
 }

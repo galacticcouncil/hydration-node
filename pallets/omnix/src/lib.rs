@@ -181,24 +181,15 @@ pub mod pallet {
 
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::submit_solution())]
-		pub fn submit_solution(
-			origin: OriginFor<T>,
-			resolved_intents: Vec<ResolvedIntent>,
-			sell_prices: Vec<(T::AssetId, Price)>,
-			buy_prices: Vec<(T::AssetId, Price)>,
-		) -> DispatchResult {
+		pub fn submit_solution(origin: OriginFor<T>, resolved_intents: Vec<ResolvedIntent>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let intents =
 				BoundedResolvedIntents::try_from(resolved_intents).map_err(|_| crate::pallet::Error::<T>::TooLong)?;
-			let buy_prices = BoundedPrices::try_from(buy_prices).map_err(|_| crate::pallet::Error::<T>::TooLong)?;
-			let sell_prices = BoundedPrices::try_from(sell_prices).map_err(|_| crate::pallet::Error::<T>::TooLong)?;
 
 			let solution = Solution {
 				proposer: who.clone(),
 				intents,
-				sell_prices,
-				buy_prices,
 			};
 
 			let hash = T::Hashing::hash(&solution.encode());
