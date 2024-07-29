@@ -77,11 +77,12 @@ use frame_system::{
 	Origin,
 };
 use hydradx_adapters::RelayChainBlockHashProvider;
+use hydradx_traits::fee::{InspectSufficiency, InsufficientAssetTrader};
 use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::{OraclePeriod};
+use hydradx_traits::NativePriceOracle;
+use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
-use hydradx_traits::{NativePriceOracle};
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -93,7 +94,6 @@ use sp_runtime::{
 };
 use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};
-use hydradx_traits::fee::{InspectSufficiency, InsufficientAssetTrader};
 
 #[cfg(test)]
 mod tests;
@@ -120,8 +120,8 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{NativePriceOracle, PriceOracle};
 	use hydradx_traits::fee::InsufficientAssetTrader;
+	use hydradx_traits::{NativePriceOracle, PriceOracle};
 	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::Percent;
 
@@ -1140,7 +1140,11 @@ impl<T: Config> Pallet<T> {
 			asset_amount
 		} else if !T::InsufficientAssetSupport::is_sufficient(asset_id) {
 			let fee_amount_in_dot = Self::get_fee_in_dot(asset_amount)?;
-			T::InsufficientAssetSupport::get_amount_in_for_out(asset_id, T::PolkadotNativeAssetId::get(), fee_amount_in_dot)?
+			T::InsufficientAssetSupport::get_amount_in_for_out(
+				asset_id,
+				T::PolkadotNativeAssetId::get(),
+				fee_amount_in_dot,
+			)?
 		} else {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 

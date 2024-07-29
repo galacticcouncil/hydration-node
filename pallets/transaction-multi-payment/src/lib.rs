@@ -32,7 +32,6 @@ mod tests;
 mod traits;
 
 pub use crate::traits::*;
-use hydradx_traits::fee::InspectSufficiency;
 use frame_support::storage::with_transaction;
 use frame_support::traits::{Contains, IsSubType};
 use frame_support::{
@@ -46,9 +45,10 @@ use frame_support::{
 	traits::Get,
 	weights::Weight,
 };
-use hydradx_traits::fee::{InsufficientAssetTrader};
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::fee::InspectSufficiency;
+use hydradx_traits::fee::InsufficientAssetTrader;
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	router::{AssetPair, RouteProvider},
@@ -77,7 +77,7 @@ pub mod pallet {
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::fee::{InsufficientAssetTrader};
+	use hydradx_traits::fee::InsufficientAssetTrader;
 	use sp_core::{H160, H256, U256};
 	use sp_runtime::{ModuleError, TransactionOutcome};
 
@@ -672,11 +672,25 @@ where
 			let fee_in_dot = convert_fee_with_price(fee, dot_hdx_price)
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			let amount_in = T::InsufficientAssetSupport::get_amount_in_for_out(currency, T::PolkadotNativeAssetId::get(), fee_in_dot.into()).map_err(|_|TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			let pool_fee = T::InsufficientAssetSupport::pool_trade_fee(amount_in.into()).map_err(|_|TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			let amount_in = T::InsufficientAssetSupport::get_amount_in_for_out(
+				currency,
+				T::PolkadotNativeAssetId::get(),
+				fee_in_dot.into(),
+			)
+			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			let pool_fee = T::InsufficientAssetSupport::pool_trade_fee(amount_in.into())
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 			let max_limit = amount_in.saturating_add(pool_fee);
 
-			T::InsufficientAssetSupport::buy(who, who, currency, T::PolkadotNativeAssetId::get(), fee_in_dot.into(), max_limit.into()).map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			T::InsufficientAssetSupport::buy(
+				who,
+				who,
+				currency,
+				T::PolkadotNativeAssetId::get(),
+				fee_in_dot.into(),
+				max_limit.into(),
+			)
+			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			(fee_in_dot, T::PolkadotNativeAssetId::get(), dot_hdx_price)
 		};

@@ -32,7 +32,10 @@ use frame_support::{
 	weights::{IdentityFee, Weight},
 };
 use frame_system as system;
-use hydradx_traits::{router::{RouteProvider, Trade}, AssetKind, AssetPairAccountIdFor, OraclePeriod, PriceOracle};
+use hydradx_traits::{
+	router::{RouteProvider, Trade},
+	AssetKind, AssetPairAccountIdFor, OraclePeriod, PriceOracle,
+};
 use orml_traits::{currency::MutationHooks, parameter_type_with_key};
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::{H160, H256, U256};
@@ -208,7 +211,6 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for MockedInsufficient
 		unimplemented!()
 	}
 }
-
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 

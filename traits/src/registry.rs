@@ -27,7 +27,7 @@ pub trait AccountIdFor<Assets> {
 	fn name(assets: &Assets, identifier: Option<&[u8]>) -> Vec<u8>;
 }
 
-use frame_support::dispatch::{Parameter};
+use frame_support::dispatch::Parameter;
 
 pub trait Inspect {
 	type AssetId: Parameter;
