@@ -1,13 +1,11 @@
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 
-//TODO: inherit this in InpsectRegistry?!
 pub trait InspectSufficiency<AssetId> {
 	fn is_sufficient(asset: AssetId) -> bool;
 
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool;
 }
 
-//TODO: replace this to better place
 //TODO: give better name
 pub trait InsufficientAssetTrader<AccountId, AssetId, Amount>: InspectSufficiency<AssetId> {
 	fn buy(
