@@ -57,7 +57,7 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_traits::{InspectSufficiency, InsufficientAssetTrader, AMM};
+use hydradx_traits::{AMM};
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Happened,
@@ -1290,6 +1290,7 @@ use pallet_referrals::{FeeDistribution, Level};
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
+use hydradx_traits::fee::{InspectSufficiency, InsufficientAssetTrader};
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);

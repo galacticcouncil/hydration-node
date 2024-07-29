@@ -79,7 +79,7 @@ use frame_system::{
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::{InspectSufficiency, OraclePeriod};
+use hydradx_traits::{OraclePeriod};
 use hydradx_traits::PriceOracle;
 use hydradx_traits::{NativePriceOracle};
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
@@ -93,6 +93,7 @@ use sp_runtime::{
 };
 use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};
+use hydradx_traits::fee::{InspectSufficiency, InsufficientAssetTrader};
 
 #[cfg(test)]
 mod tests;
@@ -104,7 +105,6 @@ pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use crate::types::*;
-use hydradx_traits::InsufficientAssetTrader;
 pub use pallet::*;
 
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
@@ -120,7 +120,8 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{InsufficientAssetTrader, NativePriceOracle, PriceOracle};
+	use hydradx_traits::{NativePriceOracle, PriceOracle};
+	use hydradx_traits::fee::InsufficientAssetTrader;
 	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::Percent;
 

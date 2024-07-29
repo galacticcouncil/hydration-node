@@ -29,7 +29,7 @@ use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{
-	registry::Inspect as InspectRegistry, AssetKind, InspectSufficiency, InsufficientAssetTrader,
+	registry::Inspect as InspectRegistry, AssetKind,
 	NativePriceOracle, OraclePeriod, PriceOracle,
 };
 use orml_traits::{parameter_type_with_key, GetByKey};
@@ -768,6 +768,7 @@ use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;
 use rand::SeedableRng;
 use smallvec::smallvec;
+use hydradx_traits::fee::{InspectSufficiency, InsufficientAssetTrader};
 
 pub struct DummyNFT;
 
