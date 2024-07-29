@@ -20,7 +20,7 @@ pub trait InsufficientAssetTrader<AccountId, AssetId, Amount>: InspectSufficienc
 
 	fn pool_trade_fee(swap_amount: Amount) -> Result<Amount, DispatchError>;
 
-	fn get_amount_in_for_out(
+	fn get_amount_in_given_out(
 		insuff_asset_id: AssetId,
 		asset_out: AssetId,
 		asset_out_amount: Amount,

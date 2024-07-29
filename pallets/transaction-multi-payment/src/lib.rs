@@ -672,7 +672,7 @@ where
 			let fee_in_dot = convert_fee_with_price(fee, dot_hdx_price)
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			let amount_in = T::InsufficientAssetSupport::get_amount_in_for_out(
+			let amount_in = T::InsufficientAssetSupport::get_amount_in_given_out(
 				currency,
 				T::PolkadotNativeAssetId::get(),
 				fee_in_dot.into(),
