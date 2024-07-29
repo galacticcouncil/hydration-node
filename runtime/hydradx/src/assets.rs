@@ -183,7 +183,7 @@ impl SufficiencyCheck {
 
 				//First we calculate how much the user would spend with fee asset for ED, so we can return it in the ExistentialDepositPaid event
 				let amount_in_without_fee =
-					InsufficientAssetSupport::get_amount_in_given_out(fee_payment_asset, dot, ed_in_dot)?;
+					InsufficientAssetSupport::calculate_in_given_out(fee_payment_asset, dot, ed_in_dot)?;
 				let trade_fee = InsufficientAssetSupport::pool_trade_fee(amount_in_without_fee)?;
 
 				let amount_in_as_ed = amount_in_without_fee.saturating_add(trade_fee);
@@ -1759,7 +1759,7 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetS
 			.ok_or(ArithmeticError::Overflow.into())
 	}
 
-	fn get_amount_in_given_out(
+	fn calculate_in_given_out(
 		insuff_asset_id: AssetId,
 		asset_out: AssetId,
 		asset_out_amount: Balance,

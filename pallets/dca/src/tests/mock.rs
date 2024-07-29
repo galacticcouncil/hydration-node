@@ -724,7 +724,7 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for MockedInsufficient
 		unimplemented!()
 	}
 
-	fn get_amount_in_given_out(
+	fn calculate_in_given_out(
 		_insuff_asset_id: AssetId,
 		_asset_out: AssetId,
 		_asset_out_amount: Balance,

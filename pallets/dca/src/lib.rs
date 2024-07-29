@@ -1140,7 +1140,7 @@ impl<T: Config> Pallet<T> {
 			asset_amount
 		} else if !T::InsufficientAssetSupport::is_sufficient(asset_id) {
 			let fee_amount_in_dot = Self::get_fee_in_dot(asset_amount)?;
-			T::InsufficientAssetSupport::get_amount_in_given_out(
+			T::InsufficientAssetSupport::calculate_in_given_out(
 				asset_id,
 				T::PolkadotNativeAssetId::get(),
 				fee_amount_in_dot,
