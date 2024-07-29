@@ -1,12 +1,13 @@
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 
+//TODO: give better name and add doc comment
 pub trait InspectSufficiency<AssetId> {
 	fn is_sufficient(asset: AssetId) -> bool;
 
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool;
 }
 
-//TODO: give better name
+//TODO: give better name when we decicded if we wanna hardcode DOT or not
 pub trait InsufficientAssetTrader<AccountId, AssetId, Amount>: InspectSufficiency<AssetId> {
 	fn buy(
 		origin: &AccountId,
