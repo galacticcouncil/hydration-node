@@ -812,8 +812,6 @@ impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for 
 where
 	T: Config + pallet_utility::Config,
 	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
-	AssetIdOf<T>: Into<u32>,
-
 	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 {
 	fn try_convert(
