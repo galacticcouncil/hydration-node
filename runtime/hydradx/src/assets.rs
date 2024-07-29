@@ -57,7 +57,7 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_traits::{AMM};
+use hydradx_traits::AMM;
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Happened,
@@ -182,25 +182,20 @@ impl SufficiencyCheck {
 					.max(1);
 
 				//First we calculate how much the user would spend with fee asset for ED, so we can return it in the ExistentialDepositPaid event
-				let pair_account = XYK::pair_account_from_assets(fee_payment_asset, dot);
-				let asset_out_reserve = Currencies::free_balance(dot, &pair_account);
-				let asset_in_reserve = Currencies::free_balance(fee_payment_asset, &pair_account);
 				let amount_in_without_fee =
-					hydra_dx_math::xyk::calculate_in_given_out(asset_out_reserve, asset_in_reserve, ed_in_dot)
-						.map_err(|_| ArithmeticError::Overflow)?;
-				let fee = XYKExchangeFee::get();
-				let trade_fee = hydra_dx_math::fee::calculate_pool_trade_fee(amount_in_without_fee, (fee.0, fee.1))
-					.ok_or(ArithmeticError::Overflow)?;
+					InsufficientAssetSupport::get_amount_in_for_out(fee_payment_asset, dot, ed_in_dot)?;
+				let trade_fee = InsufficientAssetSupport::pool_trade_fee(amount_in_without_fee)?;
+
 				let amount_in_as_ed = amount_in_without_fee.saturating_add(trade_fee);
 
 				//NOTE: Account doesn't have enough funds to pay ED if this fail.
-				XYK::buy_for(
+				InsufficientAssetSupport::buy(
 					paying_account,
 					&TreasuryAccount::get(),
-					pallet_xyk::types::AssetPair::new(fee_payment_asset.into(), DotAssetId::get().into()),
+					fee_payment_asset.into(),
+					DotAssetId::get().into(),
 					ed_in_dot.into(),
 					amount_in_as_ed,
-					false,
 				)
 				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
@@ -1279,6 +1274,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
+use hydradx_traits::fee::{InspectSufficiency, InsufficientAssetTrader};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1290,7 +1286,6 @@ use pallet_referrals::{FeeDistribution, Level};
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
-use hydradx_traits::fee::{InspectSufficiency, InsufficientAssetTrader};
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
