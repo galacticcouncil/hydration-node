@@ -530,18 +530,6 @@ runtime_benchmarks! {
 
 pub const INITIAL_BALANCE: Balance = 10_000_000 * ONE;
 
-fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
-	let account: AccountId = account(name, index, 0);
-	for asset in assets {
-		assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
-			*asset,
-			&account,
-			INITIAL_BALANCE.try_into().unwrap(),
-		));
-	}
-	account
-}
-
 fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 	let caller: AccountId = create_funded_account("caller", 0, &[asset_a, asset_b]);
 
