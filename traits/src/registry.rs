@@ -57,7 +57,6 @@ pub trait AccountIdFor<Assets> {
 }
 
 use frame_support::dispatch::{DispatchResult, Parameter};
-use sp_arithmetic::Permill;
 
 pub trait Inspect {
 	type AssetId: Parameter;

@@ -268,7 +268,6 @@ pub mod pallet {
 	impl<T: Config> Pallet<T>
 	where
 		BalanceOf<T>: FixedPointOperand,
-		AssetIdOf<T>: Into<u32>,
 	{
 		/// Set selected currency for given account.
 		///
@@ -614,7 +613,6 @@ where
 	T: Config + pallet_utility::Config,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	AssetIdOf<T>: Into<MC::CurrencyId>,
-	AssetIdOf<T>: Into<u32>,
 	MC::Balance: FixedPointOperand,
 	FR: Get<T::AccountId>,
 	DF: DepositFee<T::AccountId, MC::CurrencyId, MC::Balance>,
@@ -675,7 +673,7 @@ where
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			//TODO: double check if it is fine to use max, maybe use math or similar?
-			T::InsufficientAssetSupport::buy(who, who, currency.into(), T::PolkadotNativeAssetId::get().into(),fee_in_dot.into(), u128::MAX.into()).map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			T::InsufficientAssetSupport::buy(who, who, currency, T::PolkadotNativeAssetId::get(),fee_in_dot.into(), u128::MAX.into()).map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			(fee_in_dot, T::PolkadotNativeAssetId::get(), dot_hdx_price)
 		};
