@@ -141,7 +141,6 @@ fn insufficient_asset_should_not_be_set_as_currency_when_pool_doesnt_exist() {
 				None,
 			)
 			.unwrap();
-			//create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 3000000 * UNITS);
 
 			assert_noop!(
 				hydradx_runtime::MultiTransactionPayment::set_currency(
