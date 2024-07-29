@@ -1733,7 +1733,6 @@ impl InspectSufficiency<AssetId> for InsufficientAssetSupport {
 	}
 }
 
-//TODO: remove INto<u32> conversions we added earlier
 impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetSupport {
 	fn buy(
 		origin: &AccountId,
@@ -1764,7 +1763,6 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetS
 			.ok_or(ArithmeticError::Overflow.into())
 	}
 
-	//TODO: rename
 	fn get_amount_in_for_out(
 		insuff_asset_id: AssetId,
 		asset_out: AssetId,

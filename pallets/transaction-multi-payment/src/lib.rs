@@ -32,7 +32,7 @@ mod tests;
 mod traits;
 
 pub use crate::traits::*;
-use hydradx_traits::InspectSufficiency;
+use hydradx_traits::fee::InspectSufficiency;
 use frame_support::storage::with_transaction;
 use frame_support::traits::{Contains, IsSubType};
 use frame_support::{
@@ -46,7 +46,7 @@ use frame_support::{
 	traits::Get,
 	weights::Weight,
 };
-use hydradx_traits::InsufficientAssetTrader;
+use hydradx_traits::fee::{InsufficientAssetTrader};
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{
@@ -77,7 +77,7 @@ pub mod pallet {
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::{InsufficientAssetTrader};
+	use hydradx_traits::fee::{InsufficientAssetTrader};
 	use sp_core::{H160, H256, U256};
 	use sp_runtime::{ModuleError, TransactionOutcome};
 
