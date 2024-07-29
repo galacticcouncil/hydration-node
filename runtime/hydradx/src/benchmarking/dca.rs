@@ -18,7 +18,7 @@
 
 use crate::{
 	AccountId, AssetId, Balance, BlockNumber, Currencies, EmaOracle, MaxSchedulesPerBlock, MultiTransactionPayment,
-	NamedReserveId, Router, Runtime, System, DCA, XYK,
+	NamedReserveId, Runtime, System, DCA, XYK,
 };
 
 use crate::benchmarking::{register_asset, register_external_asset, set_location};
@@ -31,7 +31,6 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::RawOrigin;
-use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, NamedMultiReservableCurrency};
@@ -39,7 +38,6 @@ use pallet_dca::types::{Order, Schedule, ScheduleId};
 use pallet_dca::{ScheduleIdsPerBlock, Schedules};
 use pallet_route_executor::Trade;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
-use primitives::constants::currency::UNITS;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{DispatchError, Permill};
@@ -233,8 +231,8 @@ runtime_benchmarks! {
 
 		let asset_in = HDX;
 
-		let seller: AccountId = create_funded_account("seller", 3, &vec![asset_in]);
-		let other_seller: AccountId = create_funded_account("seller", 3, &vec![asset_in]);
+		let seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
+		let other_seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
 
 		//Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 		fund_treasury()?;
@@ -278,8 +276,8 @@ runtime_benchmarks! {
 
 		let asset_in = setup_insufficient_asset_with_dot().unwrap();
 
-		let seller: AccountId = create_funded_account("seller", 3, &vec![asset_in]);
-		let other_seller: AccountId = create_funded_account("seller", 3, &vec![asset_in]);
+		let seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
+		let other_seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
 
 		//Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 		fund_treasury()?;
@@ -361,8 +359,8 @@ runtime_benchmarks! {
 		set_period(1000);
 		let asset_in = setup_insufficient_asset_with_dot().unwrap();
 
-		let seller: AccountId = create_funded_account("seller", 3, &vec![asset_in]);
-		let other_seller: AccountId = create_funded_account("seller", 3, &vec![asset_in]);
+		let seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
+		let other_seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
 
 		//Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 		fund_treasury()?;

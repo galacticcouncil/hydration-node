@@ -192,9 +192,9 @@ impl SufficiencyCheck {
 				InsufficientAssetSupport::buy(
 					paying_account,
 					&TreasuryAccount::get(),
-					fee_payment_asset.into(),
-					DotAssetId::get().into(),
-					ed_in_dot.into(),
+					fee_payment_asset,
+					DotAssetId::get(),
+					ed_in_dot,
 					amount_in_as_ed,
 				)
 				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
@@ -1725,7 +1725,7 @@ impl InspectSufficiency<AssetId> for InsufficientAssetSupport {
 
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool {
 		//TODO: here we should just say that is suppored for fee, and dot is hardcoded
-		XYK::exists(pallet_xyk::types::AssetPair::new(from.into(), into.into()))
+		XYK::exists(pallet_xyk::types::AssetPair::new(from, into))
 	}
 }
 
@@ -1740,14 +1740,14 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetS
 	) -> frame_support::dispatch::DispatchResult {
 		//TODO: consider here hardcoding DOT, as thats' the standard. or maybe not needed
 		XYK::buy_for(
-			&origin,
-			&dest,
+			origin,
+			dest,
 			pallet_xyk::types::AssetPair {
-				asset_in: from.into(),
-				asset_out: into.into(),
+				asset_in: from,
+				asset_out: into,
 			},
-			amount.into(),
-			max_limit.into(),
+			amount,
+			max_limit,
 			false,
 		)
 	}
@@ -1755,7 +1755,7 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetS
 	fn pool_trade_fee(swap_amount: Balance) -> Result<Balance, DispatchError> {
 		let xyk_exchange_rate = XYKExchangeFee::get();
 
-		hydra_dx_math::fee::calculate_pool_trade_fee(swap_amount.into(), xyk_exchange_rate)
+		hydra_dx_math::fee::calculate_pool_trade_fee(swap_amount, xyk_exchange_rate)
 			.ok_or(ArithmeticError::Overflow.into())
 	}
 
@@ -1764,12 +1764,11 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetS
 		asset_out: AssetId,
 		asset_out_amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		let asset_pair_account = XYK::get_pair_id(AssetPair::new(insuff_asset_id.into(), asset_out.into()));
+		let asset_pair_account = XYK::get_pair_id(AssetPair::new(insuff_asset_id, asset_out));
 		let out_reserve = Currencies::free_balance(asset_out, &asset_pair_account);
 		let in_reserve = Currencies::free_balance(insuff_asset_id, &asset_pair_account.clone());
 
 		hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, asset_out_amount)
-			.map(|amount| Ok(amount.into()))
-			.map_err(|_err| ArithmeticError::Overflow)?
+			.map_err(|_err| ArithmeticError::Overflow.into())
 	}
 }

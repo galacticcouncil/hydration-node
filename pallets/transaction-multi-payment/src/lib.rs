@@ -678,7 +678,7 @@ where
 				fee_in_dot.into(),
 			)
 			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			let pool_fee = T::InsufficientAssetSupport::pool_trade_fee(amount_in.into())
+			let pool_fee = T::InsufficientAssetSupport::pool_trade_fee(amount_in)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 			let max_limit = amount_in.saturating_add(pool_fee);
 
@@ -688,7 +688,7 @@ where
 				currency,
 				T::PolkadotNativeAssetId::get(),
 				fee_in_dot.into(),
-				max_limit.into(),
+				max_limit,
 			)
 			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
