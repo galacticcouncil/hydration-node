@@ -672,8 +672,11 @@ where
 			let fee_in_dot = convert_fee_with_price(fee, dot_hdx_price)
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			//TODO: double check if it is fine to use max, maybe use math or similar?
-			T::InsufficientAssetSupport::buy(who, who, currency, T::PolkadotNativeAssetId::get(),fee_in_dot.into(), u128::MAX.into()).map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			let amount_in = T::InsufficientAssetSupport::get_amount_in_for_out(currency, T::PolkadotNativeAssetId::get(), fee_in_dot.into()).map_err(|_|TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			let pool_fee = T::InsufficientAssetSupport::pool_trade_fee(amount_in.into()).map_err(|_|TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			let max_limit = amount_in.saturating_add(pool_fee);
+
+			T::InsufficientAssetSupport::buy(who, who, currency, T::PolkadotNativeAssetId::get(), fee_in_dot.into(), max_limit.into()).map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			(fee_in_dot, T::PolkadotNativeAssetId::get(), dot_hdx_price)
 		};
