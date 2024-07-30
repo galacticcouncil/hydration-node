@@ -176,7 +176,6 @@ impl SufficiencyCheck {
 		if !orml_tokens::Accounts::<Runtime>::contains_key(to, asset) && !AssetRegistry::is_sufficient(asset) {
 			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);
 
-			//TODO: test insufficient branch with DOT fee payment asset
 			let ed_in_fee_asset = if AssetRegistry::is_sufficient(fee_payment_asset) {
 				let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)
 					.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
@@ -194,16 +193,16 @@ impl SufficiencyCheck {
 
 				ed_in_fee_asset
 			} else {
-				let dot = DotAssetId::get();
+				let dot_asset_id = DotAssetId::get();
 
-				let ed_in_dot = MultiTransactionPayment::price(DotAssetId::get())
+				let ed_in_dot = MultiTransactionPayment::price(dot_asset_id)
 					.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
 					.saturating_mul_int(InsufficientEDinHDX::get())
 					.max(1);
 
 				//First we calculate how much the user would spend with fee asset for ED, so we can return it in the ExistentialDepositPaid event
 				let amount_in_without_fee =
-					InsufficientAssetSupport::calculate_in_given_out(fee_payment_asset, dot, ed_in_dot)?;
+					InsufficientAssetSupport::calculate_in_given_out(fee_payment_asset, dot_asset_id, ed_in_dot)?;
 				let trade_fee = InsufficientAssetSupport::pool_trade_fee(amount_in_without_fee)?;
 
 				let amount_in_as_ed = amount_in_without_fee.saturating_add(trade_fee);
