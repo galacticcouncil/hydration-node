@@ -970,7 +970,7 @@ impl<T: Config> Pallet<T> {
 				.ok_or(ArithmeticError::Overflow)?;
 			Self::unallocate_amount(schedule_id, schedule, effective_amount_in)?;
 
-			let fee_in_dot = Self::get_fee_in_dot(Self::weight_to_fee(weight_to_charge))?;
+			let fee_in_dot = Self::convert_to_polkadot_native_asset(Self::weight_to_fee(weight_to_charge))?;
 			T::InsufficientAssetSupport::buy(
 				&schedule.owner.clone(),
 				&T::FeeReceiver::get(),
@@ -1138,7 +1138,7 @@ impl<T: Config> Pallet<T> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else if !T::InsufficientAssetSupport::is_sufficient(asset_id) {
-			let fee_amount_in_dot = Self::get_fee_in_dot(asset_amount)?;
+			let fee_amount_in_dot = Self::convert_to_polkadot_native_asset(asset_amount)?;
 			T::InsufficientAssetSupport::calculate_in_given_out(
 				asset_id,
 				T::PolkadotNativeAssetId::get(),
@@ -1154,7 +1154,7 @@ impl<T: Config> Pallet<T> {
 		Ok(amount)
 	}
 
-	fn get_fee_in_dot(fee_amount_in_native: Balance) -> Result<Balance, DispatchError> {
+	fn convert_to_polkadot_native_asset(fee_amount_in_native: Balance) -> Result<Balance, DispatchError> {
 		let dot_per_hdx_price =
 			T::NativePriceOracle::price(T::PolkadotNativeAssetId::get()).ok_or(Error::<T>::CalculatingPriceError)?;
 
