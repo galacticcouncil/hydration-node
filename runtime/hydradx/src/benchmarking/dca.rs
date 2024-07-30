@@ -285,7 +285,7 @@ runtime_benchmarks! {
 
 		let schedule1 = schedule_buy_fake(seller.clone(), asset_in, DAI, amount_buy);
 		let schedule_2 = schedule_buy_fake(seller.clone(), HDX, DAI, amount_buy);
-		let execution_block = 1001u32;
+		let execution_block = 1005u32;
 
 		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
 
@@ -299,7 +299,7 @@ runtime_benchmarks! {
 
 		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
 		//We leave only one slot
-		let schedule_period = 3;
+		let schedule_period = 5;
 		let next_block_to_replan = execution_block + schedule_period;
 		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
 		for i in 0..number_of_all_schedules {
@@ -341,7 +341,7 @@ runtime_benchmarks! {
 
 		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
 		//We leave only one slot
-		let schedule_period = 3;
+		let schedule_period = 5;
 		let next_block_to_replan = execution_block + schedule_period;
 		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
 		for i in 0..number_of_all_schedules {
@@ -369,7 +369,7 @@ runtime_benchmarks! {
 		let amount_sell = 100 * ONE;
 
 		let schedule1 = schedule_sell_fake(seller.clone(), asset_in, DAI, amount_sell);
-		let execution_block = 1001u32;
+		let execution_block = 1005u32;
 
 		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
 

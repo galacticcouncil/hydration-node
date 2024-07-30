@@ -3,6 +3,7 @@ use crate::{AccountId, AssetId, Balance, Currencies, MultiTransactionPayment, Pr
 use super::*;
 
 use frame_benchmarking::{account, BenchmarkError};
+use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
@@ -26,6 +27,7 @@ fn funded_account<T: pallet_xyk::Config>(name: &'static str, index: u32, assets:
 	caller
 }
 
+
 #[allow(clippy::result_large_err)]
 fn init_fee_asset(fee_asset: AssetId) -> Result<(), BenchmarkError> {
 	MultiTransactionPayment::add_currency(RawOrigin::Root.into(), fee_asset, Price::from(1))
@@ -35,6 +37,7 @@ fn init_fee_asset(fee_asset: AssetId) -> Result<(), BenchmarkError> {
 
 	Ok(())
 }
+
 
 runtime_benchmarks! {
 	{ Runtime, pallet_xyk }
@@ -64,6 +67,7 @@ runtime_benchmarks! {
 		//NOTE: xyk shares are insufficinet so that's why not 0.
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
 	}
+
 
 	add_liquidity {
 		let asset_a = register_external_asset(b"TKNA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -297,12 +301,24 @@ mod tests {
 	use super::*;
 	use orml_benchmarking::impl_benchmark_test_suite;
 	use sp_runtime::BuildStorage;
+	use crate::NativeExistentialDeposit;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::<crate::Runtime>::default()
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
 			.build_storage()
-			.unwrap()
-			.into()
+			.unwrap();
+
+		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
+			registered_assets: vec![],
+			native_asset_name: b"HDX".to_vec().try_into().unwrap(),
+			native_existential_deposit: NativeExistentialDeposit::get(),
+			native_decimals: 12,
+			native_symbol: b"HDX".to_vec().try_into().unwrap(),
+		}
+			.assimilate_storage(&mut t)
+			.unwrap();
+
+		sp_io::TestExternalities::new(t)
 	}
 
 	impl_benchmark_test_suite!(new_test_ext(),);
