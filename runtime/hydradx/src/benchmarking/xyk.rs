@@ -27,7 +27,6 @@ fn funded_account<T: pallet_xyk::Config>(name: &'static str, index: u32, assets:
 	caller
 }
 
-
 #[allow(clippy::result_large_err)]
 fn init_fee_asset(fee_asset: AssetId) -> Result<(), BenchmarkError> {
 	MultiTransactionPayment::add_currency(RawOrigin::Root.into(), fee_asset, Price::from(1))
@@ -37,7 +36,6 @@ fn init_fee_asset(fee_asset: AssetId) -> Result<(), BenchmarkError> {
 
 	Ok(())
 }
-
 
 runtime_benchmarks! {
 	{ Runtime, pallet_xyk }
@@ -299,9 +297,9 @@ runtime_benchmarks! {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::NativeExistentialDeposit;
 	use orml_benchmarking::impl_benchmark_test_suite;
 	use sp_runtime::BuildStorage;
-	use crate::NativeExistentialDeposit;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Runtime>::default()
@@ -315,8 +313,8 @@ mod tests {
 			native_decimals: 12,
 			native_symbol: b"HDX".to_vec().try_into().unwrap(),
 		}
-			.assimilate_storage(&mut t)
-			.unwrap();
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		sp_io::TestExternalities::new(t)
 	}

@@ -242,9 +242,9 @@ fn set_period(to: u32) {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::NativeExistentialDeposit;
 	use orml_benchmarking::impl_benchmark_test_suite;
 	use sp_runtime::BuildStorage;
-	use crate::NativeExistentialDeposit;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Runtime>::default()
@@ -258,8 +258,8 @@ mod tests {
 			native_decimals: 12,
 			native_symbol: b"HDX".to_vec().try_into().unwrap(),
 		}
-			.assimilate_storage(&mut t)
-			.unwrap();
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		sp_io::TestExternalities::new(t)
 	}

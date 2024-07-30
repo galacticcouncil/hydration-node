@@ -189,7 +189,7 @@ impl SufficiencyCheck {
 					&TreasuryAccount::get(),
 					ed_in_fee_asset,
 				)
-					.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
+				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
 				ed_in_fee_asset
 			} else {
@@ -216,7 +216,7 @@ impl SufficiencyCheck {
 					amount_in_as_ed,
 					&TreasuryAccount::get(),
 				)
-					.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
+				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
 				amount_in_as_ed
 			};
@@ -1745,10 +1745,7 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetS
 		//TODO: consider here hardcoding DOT, as thats' the standard. or maybe not needed
 		XYK::buy_for(
 			origin,
-			pallet_xyk::types::AssetPair {
-				asset_in,
-				asset_out,
-			},
+			pallet_xyk::types::AssetPair { asset_in, asset_out },
 			amount,
 			max_limit,
 			false,
