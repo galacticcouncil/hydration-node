@@ -203,7 +203,7 @@ impl SufficiencyCheck {
 				//First we calculate how much the user would spend with fee asset for ED, so we can return it in the ExistentialDepositPaid event
 				let amount_in_without_fee =
 					InsufficientAssetSupport::calculate_in_given_out(fee_payment_asset, dot_asset_id, ed_in_dot)?;
-				let trade_fee = InsufficientAssetSupport::pool_trade_fee(amount_in_without_fee)?;
+				let trade_fee = InsufficientAssetSupport::calculate_fee_amount(amount_in_without_fee)?;
 
 				let amount_in_as_ed = amount_in_without_fee.saturating_add(trade_fee);
 
@@ -1756,7 +1756,7 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetS
 		)
 	}
 
-	fn pool_trade_fee(swap_amount: Balance) -> Result<Balance, DispatchError> {
+	fn calculate_fee_amount(swap_amount: Balance) -> Result<Balance, DispatchError> {
 		let xyk_exchange_rate = XYKExchangeFee::get();
 
 		hydra_dx_math::fee::calculate_pool_trade_fee(swap_amount, xyk_exchange_rate)

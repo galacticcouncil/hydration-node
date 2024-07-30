@@ -18,7 +18,7 @@ pub trait InsufficientAssetTrader<AccountId, AssetId, Amount>: InspectSufficienc
 		max_limit: Amount,
 	) -> DispatchResult;
 
-	fn pool_trade_fee(swap_amount: Amount) -> Result<Amount, DispatchError>;
+	fn calculate_fee_amount(swap_amount: Amount) -> Result<Amount, DispatchError>;
 
 	fn calculate_in_given_out(
 		insuff_asset_id: AssetId,

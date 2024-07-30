@@ -678,7 +678,7 @@ where
 				fee_in_dot.into(),
 			)
 			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			let pool_fee = T::InsufficientAssetSupport::pool_trade_fee(amount_in)
+			let pool_fee = T::InsufficientAssetSupport::calculate_fee_amount(amount_in)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 			let max_limit = amount_in.saturating_add(pool_fee);
 

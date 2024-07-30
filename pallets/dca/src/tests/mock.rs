@@ -720,7 +720,7 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for MockedInsufficient
 		unimplemented!()
 	}
 
-	fn pool_trade_fee(_swap_amount: Balance) -> Result<Balance, DispatchError> {
+	fn calculate_fee_amount(_swap_amount: Balance) -> Result<Balance, DispatchError> {
 		unimplemented!()
 	}
 

@@ -953,7 +953,7 @@ impl<T: Config> Pallet<T> {
 		if !T::InsufficientAssetSupport::is_sufficient(fee_currency) {
 			//We buy DOT with insufficient asset, for the treasury
 			//The DOT we need to buy is calculated the same way how we convert weight to insufficient fee
-			let pool_trade_fee = T::InsufficientAssetSupport::pool_trade_fee(fee_amount_in_sold_asset)?;
+			let pool_trade_fee = T::InsufficientAssetSupport::calculate_fee_amount(fee_amount_in_sold_asset)?;
 
 			//Since there is a trade fee involved in xyk buy swap, we need to unallocate that, together with amount_in
 			let effective_amount_in = fee_amount_in_sold_asset
