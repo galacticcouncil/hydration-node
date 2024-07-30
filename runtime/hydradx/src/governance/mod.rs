@@ -178,7 +178,7 @@ parameter_types! {
 }
 
 impl pallet_conviction_voting::Config for Runtime {
-	type WeightInfo = weights::pallet_conviction_voting::WeightInfo<Self>;
+	type WeightInfo = weights::pallet_conviction_voting::HydraWeight<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type VoteLockingPeriod = VoteLockingPeriod;
@@ -194,7 +194,7 @@ parameter_types! {
 pub type TreasurySpender = EitherOf<EnsureRootWithSuccess<AccountId, MaxBalance>, Spender>;
 
 impl pallet_whitelist::Config for Runtime {
-	type WeightInfo = weights::pallet_whitelist::WeightInfo<Self>;
+	type WeightInfo = weights::pallet_whitelist::HydraWeight<Runtime>;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type WhitelistOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
@@ -209,7 +209,7 @@ parameter_types! {
 }
 
 impl pallet_referenda::Config for Runtime {
-	type WeightInfo = weights::pallet_referenda::WeightInfo<Self>;
+	type WeightInfo = weights::pallet_referenda::HydraWeight<Runtime>;
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type Scheduler = Scheduler;
