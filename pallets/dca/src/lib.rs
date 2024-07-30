@@ -950,7 +950,16 @@ impl<T: Config> Pallet<T> {
 		let fee_currency = schedule.order.get_asset_in();
 		let fee_amount_in_sold_asset = Self::convert_weight_to_fee(weight_to_charge, fee_currency)?;
 
-		if !T::InsufficientAssetSupport::is_sufficient(fee_currency) {
+		if T::InsufficientAssetSupport::is_sufficient(fee_currency) {
+			Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
+
+			T::Currencies::transfer(
+				fee_currency,
+				&schedule.owner,
+				&T::FeeReceiver::get(),
+				fee_amount_in_sold_asset,
+			)?;
+		} else {
 			//We buy DOT with insufficient asset, for the treasury
 			//The DOT we need to buy is calculated the same way how we convert weight to insufficient fee
 			let pool_trade_fee = T::InsufficientAssetSupport::calculate_fee_amount(fee_amount_in_sold_asset)?;
@@ -959,7 +968,6 @@ impl<T: Config> Pallet<T> {
 			let effective_amount_in = fee_amount_in_sold_asset
 				.checked_add(pool_trade_fee)
 				.ok_or(ArithmeticError::Overflow)?;
-
 			Self::unallocate_amount(schedule_id, schedule, effective_amount_in)?;
 
 			let fee_in_dot = Self::get_fee_in_dot(Self::weight_to_fee(weight_to_charge))?;
@@ -970,15 +978,6 @@ impl<T: Config> Pallet<T> {
 				T::PolkadotNativeAssetId::get(),
 				fee_in_dot,
 				effective_amount_in,
-			)?;
-		} else {
-			Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
-
-			T::Currencies::transfer(
-				fee_currency,
-				&schedule.owner,
-				&T::FeeReceiver::get(),
-				fee_amount_in_sold_asset,
 			)?;
 		}
 
