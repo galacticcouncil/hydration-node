@@ -136,6 +136,9 @@ impl SufficiencyCheck {
 	/// It is called from `PreDeposit` and `PreTransfer`.
 	/// If transferred asset is not sufficient asset, it calculates ED amount in user's fee asset
 	/// and transfers it from user to treasury account.
+	///
+	/// If user's fee asset is not sufficient asset, it calculates ED amount in DOT and transfers it to treasury through a swap
+	///
 	/// Function also locks corresponding HDX amount in the treasury because returned ED to the users
 	/// when the account is killed is in the HDX. We are collecting little bit more (currencty 10%)than
 	/// we are paying back when account is killed.
@@ -173,7 +176,24 @@ impl SufficiencyCheck {
 		if !orml_tokens::Accounts::<Runtime>::contains_key(to, asset) && !AssetRegistry::is_sufficient(asset) {
 			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);
 
-			let ed_in_fee_asset = if !AssetRegistry::is_sufficient(fee_payment_asset) {
+			//TODO: test insufficient branch with DOT fee payment asset
+			let ed_in_fee_asset = if AssetRegistry::is_sufficient(fee_payment_asset) {
+				let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)
+					.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
+					.saturating_mul_int(InsufficientEDinHDX::get())
+					.max(1);
+
+				//NOTE: Account doesn't have enough funds to pay ED if this fail.
+				<Currencies as MultiCurrency<AccountId>>::transfer(
+					fee_payment_asset,
+					paying_account,
+					&TreasuryAccount::get(),
+					ed_in_fee_asset,
+				)
+					.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
+
+				ed_in_fee_asset
+			} else {
 				let dot = DotAssetId::get();
 
 				let ed_in_dot = MultiTransactionPayment::price(DotAssetId::get())
@@ -197,24 +217,9 @@ impl SufficiencyCheck {
 					ed_in_dot,
 					amount_in_as_ed,
 				)
-				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
+					.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
 				amount_in_as_ed
-			} else {
-				let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)
-					.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
-					.saturating_mul_int(InsufficientEDinHDX::get())
-					.max(1);
-
-				//NOTE: Account doesn't have enough funds to pay ED if this fail.
-				<Currencies as MultiCurrency<AccountId>>::transfer(
-					fee_payment_asset,
-					paying_account,
-					&TreasuryAccount::get(),
-					ed_in_fee_asset,
-				)
-				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
-				ed_in_fee_asset
 			};
 
 			//NOTE: we are locking little bit less than charging.
