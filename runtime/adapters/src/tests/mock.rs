@@ -28,13 +28,14 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydra_dx_math::ema::EmaPrice;
+use hydra_dx_math::ratio::Ratio;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::router::RefundEdCalculator;
+use hydradx_traits::router::{RefundEdCalculator, Trade};
 use hydradx_traits::{
 	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
-	Inspect as InspectRegistry,
+	Inspect as InspectRegistry, OraclePeriod, PriceOracle,
 };
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::fungibles::FungibleCurrencies;
@@ -316,6 +317,7 @@ pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+			pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
 type Pools = (Omnipool, XYK);
@@ -329,8 +331,10 @@ impl pallet_route_executor::Config for Test {
 	type InspectRegistry = DummyRegistry<Test>;
 	type AMM = Pools;
 	type EdToRefundCalculator = MockedEdCalculator;
+	type OraclePriceProvider = PriceProviderMock;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type OraclePeriod = RouteValidationOraclePeriod;
 	type WeightInfo = ();
 }
 
@@ -339,6 +343,19 @@ pub struct MockedEdCalculator;
 impl RefundEdCalculator<Balance> for MockedEdCalculator {
 	fn calculate() -> Balance {
 		1_000_000_000_000
+	}
+}
+
+pub struct PriceProviderMock {}
+
+impl PriceOracle<AssetId> for PriceProviderMock {
+	type Price = Ratio;
+
+	fn price(_: &[Trade<AssetId>], period: OraclePeriod) -> Option<Ratio> {
+		if period == OraclePeriod::Short {
+			return Some(Ratio::new(80, 100));
+		}
+		Some(Ratio::new(88, 100))
 	}
 }
 

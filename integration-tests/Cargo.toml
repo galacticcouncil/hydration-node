@@ -32,14 +32,14 @@ warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
 pallet-otc-settlements = { workspace = true }
 pallet-relaychain-info = { workspace = true }
-pallet-route-executor = { workspace = true}
-pallet-dca = { workspace = true}
+pallet-route-executor = { workspace = true }
+pallet-dca = { workspace = true }
 pallet-dynamic-fees = { workspace = true }
 pallet-dynamic-evm-fee = { workspace = true }
-pallet-staking = { workspace = true}
-pallet-lbp = { workspace = true}
-pallet-xyk = { workspace = true}
-pallet-evm-accounts = { workspace = true}
+pallet-staking = { workspace = true }
+pallet-lbp = { workspace = true }
+pallet-xyk = { workspace = true }
+pallet-evm-accounts = { workspace = true }
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }

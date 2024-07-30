@@ -34,12 +34,12 @@ use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::U128;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
-use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One},
 	BuildStorage, DispatchError,
 };
+use sp_runtime::{Perbill, Percent};
 
 use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use sp_runtime::traits::Zero;
@@ -350,6 +350,8 @@ pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
 parameter_types! {
 	pub MaxNumberOfTrades: u8 = 3;
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
+	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+
 }
 
 type Pools = (OmniPool, Xyk);
@@ -366,6 +368,8 @@ impl pallet_route_executor::Config for Test {
 	type WeightInfo = ();
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type EdToRefundCalculator = MockedEdCalculator;
+	type OraclePriceProvider = PriceProviderMock;
+	type OraclePeriod = RouteValidationOraclePeriod;
 }
 
 pub struct MockedEdCalculator;
@@ -373,6 +377,19 @@ pub struct MockedEdCalculator;
 impl RefundEdCalculator<Balance> for MockedEdCalculator {
 	fn calculate() -> Balance {
 		1_000_000_000_000
+	}
+}
+
+pub struct PriceProviderMock {}
+
+impl PriceOracle<AssetId> for crate::tests::mock::PriceProviderMock {
+	type Price = Ratio;
+
+	fn price(_: &[Trade<AssetId>], period: OraclePeriod) -> Option<Ratio> {
+		if period == OraclePeriod::Short {
+			return Some(Ratio::new(80, 100));
+		}
+		Some(Ratio::new(88, 100))
 	}
 }
 
@@ -625,27 +642,18 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 	}
 }
 
-pub struct PriceProviderMock {}
-
-impl PriceOracle<AssetId> for PriceProviderMock {
-	type Price = Ratio;
-
-	fn price(_: &[Trade<AssetId>], period: OraclePeriod) -> Option<Ratio> {
-		if period == OraclePeriod::Short {
-			return Some(Ratio::new(80, 100));
-		}
-		Some(Ratio::new(88, 100))
-	}
-}
-
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub MinBudgetInNativeCurrency: Balance= MIN_BUDGET.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
+	pub MaxConfigurablePriceDifference: Permill = Permill::from_percent(20);
+	pub MinimalPeriod: u32 = 5;
+	pub BumpChance: Percent = Percent::from_percent(0);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
 }
+use rand::SeedableRng;
 
 pub struct RandomnessProviderMock {}
 
@@ -676,6 +684,9 @@ impl Config for Test {
 	type RouteExecutor = RouteExecutor;
 	type RouteProvider = DefaultRouteProvider;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
+	type MaxConfigurablePriceDifferenceBetweenBlocks = MaxConfigurablePriceDifference;
+	type MinimalPeriod = MinimalPeriod;
+	type BumpChance = BumpChance;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
@@ -715,8 +726,7 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
-use rand::prelude::StdRng;
-use rand::SeedableRng;
+use rand::rngs::StdRng;
 use smallvec::smallvec;
 
 pub struct DummyNFT;
