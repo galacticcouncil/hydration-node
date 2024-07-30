@@ -4795,7 +4795,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "13.1.1"
+version = "13.1.2"
 dependencies = [
  "async-trait",
  "clap 4.5.4",
@@ -4888,7 +4888,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.3.4"
+version = "1.3.5"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4938,7 +4938,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "249.0.0"
+version = "253.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -7951,7 +7951,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8780,7 +8780,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8802,7 +8802,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8970,7 +8970,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.4.1"
+version = "2.5.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11964,7 +11964,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.0"
+version = "1.23.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",

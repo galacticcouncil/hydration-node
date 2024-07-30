@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "249.0.0"
+version = "253.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -400,5 +400,4 @@ try-runtime = [
 
 metadata-hash = [
     "substrate-wasm-builder/metadata-hash",
-    "sp-api/disable-logging",
 ]
