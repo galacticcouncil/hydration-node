@@ -190,8 +190,8 @@ impl InspectSufficiency<AssetId> for MockedInsufficientAssetSupport {
 impl InsufficientAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
 	fn buy(
 		_origin: &AccountId,
-		_from: AssetId,
-		_into: AssetId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
 		_amount: Balance,
 		_max_limit: Balance,
 		_dest: &AccountId,

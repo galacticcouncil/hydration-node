@@ -11,8 +11,8 @@ pub trait InspectSufficiency<AssetId> {
 pub trait InsufficientAssetTrader<AccountId, AssetId, Amount>: InspectSufficiency<AssetId> {
 	fn buy(
 		origin: &AccountId,
-		from: AssetId,
-		into: AssetId,
+		asset_in: AssetId,
+		asset_out: AssetId,
 		amount: Amount,
 		max_limit: Amount,
 		dest: &AccountId,

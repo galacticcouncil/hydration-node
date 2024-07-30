@@ -1736,8 +1736,8 @@ impl InspectSufficiency<AssetId> for InsufficientAssetSupport {
 impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetSupport {
 	fn buy(
 		origin: &AccountId,
-		from: AssetId,
-		into: AssetId,
+		asset_in: AssetId,
+		asset_out: AssetId,
 		amount: Balance,
 		max_limit: Balance,
 		dest: &AccountId,
@@ -1746,8 +1746,8 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetS
 		XYK::buy_for(
 			origin,
 			pallet_xyk::types::AssetPair {
-				asset_in: from,
-				asset_out: into,
+				asset_in,
+				asset_out,
 			},
 			amount,
 			max_limit,
