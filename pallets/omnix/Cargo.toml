@@ -53,6 +53,7 @@ std = [
     "orml-tokens/std",
     "pallet-balances/std",
     "orml-traits/std",
+    "hydradx-traits/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",

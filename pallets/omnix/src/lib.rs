@@ -9,10 +9,7 @@ mod tests;
 pub mod types;
 mod weights;
 
-use crate::types::{
-	BoundedPrices, BoundedResolvedIntents, CallData, IncrementalIntentId, Intent, IntentId, Moment, Price,
-	ResolvedIntent, Solution, Swap,
-};
+use crate::types::{CallData, IncrementalIntentId, Intent, IntentId, Moment, ProposedSolution, Solution, Swap};
 use codec::{Encode, HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
@@ -32,7 +29,7 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::engine::{ExecutionPlan, OmniXEngine};
+	use crate::engine::OmniXEngine;
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use orml_traits::GetByKey;
@@ -133,8 +130,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_solution)]
-	pub(super) type Solutions<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::Hash, ExecutionPlan<T::AccountId, T::AssetId>>;
+	pub(super) type Solutions<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, Solution<T::AccountId, T::AssetId>>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -156,7 +152,7 @@ pub mod pallet {
 
 			//TODO: reserve IN amount
 
-			let incremental_id = Self::get_next_incrementat_id().ok_or(Error::<T>::IntendIdsExhausted)?;
+			let incremental_id = Self::get_next_incremental_id().ok_or(Error::<T>::IntendIdsExhausted)?;
 
 			let on_success = Self::try_into_call_data(on_success)?;
 			let on_failure = Self::try_into_call_data(on_failure)?;
@@ -181,22 +177,23 @@ pub mod pallet {
 
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::submit_solution())]
-		pub fn submit_solution(origin: OriginFor<T>, resolved_intents: Vec<ResolvedIntent>) -> DispatchResult {
+		pub fn submit_solution(
+			origin: OriginFor<T>,
+			solution: ProposedSolution<T::AccountId, T::AssetId>,
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let intents =
-				BoundedResolvedIntents::try_from(resolved_intents).map_err(|_| crate::pallet::Error::<T>::TooLong)?;
-
-			let solution = Solution {
+			let mut solution = Solution {
 				proposer: who.clone(),
-				intents,
+				intents: solution.intents,
+				instructions: solution.instructions,
+				weight: Default::default(),
 			};
 
+			OmniXEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&mut solution)?;
+
 			let hash = T::Hashing::hash(&solution.encode());
-
-			let plan = OmniXEngine::<T, T::Currency, T::TradeExecutor>::prepare_execution_plan(&solution)?;
-
-			Solutions::<T>::insert(&hash, plan);
+			Solutions::<T>::insert(&hash, solution);
 
 			Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
 
@@ -207,8 +204,8 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::execute_solution())]
 		pub fn execute_solution(origin: OriginFor<T>, hash: T::Hash) -> DispatchResult {
 			ensure_signed(origin)?;
-			let exec_plan = Solutions::<T>::get(&hash).ok_or(Error::<T>::SolutionNotFound)?;
-			OmniXEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(exec_plan)?;
+			let solution = Solutions::<T>::get(&hash).ok_or(Error::<T>::SolutionNotFound)?;
+			OmniXEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
 			Ok(())
 		}
 	}
@@ -224,7 +221,7 @@ impl<T: Config> Pallet<T> {
 		(deadline as u128) << 64 | increment as u128
 	}
 
-	pub(crate) fn get_next_incrementat_id() -> Option<IncrementalIntentId> {
+	pub(crate) fn get_next_incremental_id() -> Option<IncrementalIntentId> {
 		NextIncrementalId::<T>::mutate(|id| -> Option<IncrementalIntentId> {
 			let current_id = *id;
 			*id = id.checked_add(1)?;

@@ -3,6 +3,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::ConstU32;
+use frame_support::weights::Weight;
 use sp_runtime::BoundedVec;
 
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
@@ -16,10 +17,8 @@ pub type IncrementalIntentId = u64;
 pub type IntentId = u128;
 pub type CallData = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
 pub type BoundedResolvedIntents = BoundedVec<ResolvedIntent, ConstU32<MAX_RESOLVED_INTENTS>>;
-pub type BoundedPrices<AssetId> = BoundedVec<(AssetId, Price), ConstU32<MAX_PRICES>>;
 pub type BoundedInstructions<AccountId, AssetId> =
 	BoundedVec<Instruction<AccountId, AssetId>, ConstU32<MAX_INSTRUCTIONS>>;
-pub type Price = (Balance, Balance);
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Intent<AccountId, AssetId> {
@@ -56,7 +55,15 @@ pub struct ResolvedIntent {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Solution<AccountId> {
+pub struct Solution<AccountId, AssetId> {
 	pub proposer: AccountId,
 	pub intents: BoundedResolvedIntents,
+	pub instructions: BoundedInstructions<AccountId, AssetId>,
+	pub weight: Weight,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct ProposedSolution<AccountId, AssetId> {
+	pub intents: BoundedResolvedIntents,
+	pub instructions: BoundedInstructions<AccountId, AssetId>,
 }
