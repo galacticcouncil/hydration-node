@@ -7938,7 +7938,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.5.1"
+version = "1.6.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -9211,7 +9211,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.0.4"
+version = "10.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
