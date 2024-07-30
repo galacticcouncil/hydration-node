@@ -620,7 +620,6 @@ where
 	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 	BalanceOf<T>: FixedPointOperand,
 	BalanceOf<T>: From<MC::Balance>,
-	BalanceOf<T>: From<u128>,
 {
 	type LiquidityInfo = Option<PaymentInfo<Self::Balance, AssetIdOf<T>, Price>>;
 	type Balance = <MC as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
