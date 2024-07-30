@@ -683,11 +683,11 @@ where
 
 			T::InsufficientAssetSupport::buy(
 				who,
-				who,
 				currency,
 				T::PolkadotNativeAssetId::get(),
 				fee_in_dot.into(),
 				max_limit,
+				who,
 			)
 			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 

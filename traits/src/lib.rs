@@ -127,11 +127,11 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 	/// Perform asset swap and send bought assets to the destination account.
 	fn buy_for(
 		origin: &AccountId,
-		dest: &AccountId,
 		assets: AssetPair,
 		amount: Amount,
 		max_limit: Amount,
 		discount: bool,
+		dest: &AccountId,
 	) -> dispatch::DispatchResult {
 		Self::execute_buy(
 			&Self::validate_buy(origin, assets, amount, max_limit, discount)?,

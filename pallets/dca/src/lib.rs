@@ -973,11 +973,11 @@ impl<T: Config> Pallet<T> {
 			let fee_in_dot = Self::convert_to_polkadot_native_asset(Self::weight_to_fee(weight_to_charge))?;
 			T::InsufficientAssetSupport::buy(
 				&schedule.owner.clone(),
-				&T::FeeReceiver::get(),
 				fee_currency,
 				T::PolkadotNativeAssetId::get(),
 				fee_in_dot,
 				effective_amount_in,
+				&T::FeeReceiver::get(),
 			)?;
 		}
 

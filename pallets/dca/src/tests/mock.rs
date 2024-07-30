@@ -711,12 +711,12 @@ impl InspectSufficiency<AssetId> for MockedInsufficientAssetSupport {
 impl InsufficientAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
 	fn buy(
 		_origin: &AccountId,
-		_dest: &AccountId,
 		_from: AssetId,
 		_into: AssetId,
 		_amount: Balance,
 		_max_limit: Balance,
-	) -> frame_support::dispatch::DispatchResult {
+		_dest: &AccountId,
+	) -> DispatchResult {
 		unimplemented!()
 	}
 

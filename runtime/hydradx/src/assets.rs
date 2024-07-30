@@ -210,11 +210,11 @@ impl SufficiencyCheck {
 				//NOTE: Account doesn't have enough funds to pay ED if this fail.
 				InsufficientAssetSupport::buy(
 					paying_account,
-					&TreasuryAccount::get(),
 					fee_payment_asset,
 					DotAssetId::get(),
 					ed_in_dot,
 					amount_in_as_ed,
+					&TreasuryAccount::get(),
 				)
 					.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
@@ -1736,16 +1736,15 @@ impl InspectSufficiency<AssetId> for InsufficientAssetSupport {
 impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetSupport {
 	fn buy(
 		origin: &AccountId,
-		dest: &AccountId,
 		from: AssetId,
 		into: AssetId,
 		amount: Balance,
 		max_limit: Balance,
-	) -> frame_support::dispatch::DispatchResult {
+		dest: &AccountId,
+	) -> DispatchResult {
 		//TODO: consider here hardcoding DOT, as thats' the standard. or maybe not needed
 		XYK::buy_for(
 			origin,
-			dest,
 			pallet_xyk::types::AssetPair {
 				asset_in: from,
 				asset_out: into,
@@ -1753,6 +1752,7 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetS
 			amount,
 			max_limit,
 			false,
+			dest,
 		)
 	}
 

@@ -11,11 +11,11 @@ pub trait InspectSufficiency<AssetId> {
 pub trait InsufficientAssetTrader<AccountId, AssetId, Amount>: InspectSufficiency<AssetId> {
 	fn buy(
 		origin: &AccountId,
-		dest: &AccountId,
 		from: AssetId,
 		into: AssetId,
 		amount: Amount,
 		max_limit: Amount,
+		dest: &AccountId,
 	) -> DispatchResult;
 
 	fn calculate_fee_amount(swap_amount: Amount) -> Result<Amount, DispatchError>;
