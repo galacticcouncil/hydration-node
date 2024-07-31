@@ -116,7 +116,7 @@ parameter_types! {
 	pub const VoteLockingPeriod: BlockNumber = 6 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
 	pub const InstantAllowed: bool = true;
-	pub const MaxVotes: u32 = 512;
+	pub const MaxVotes: u32 = 100;
 	pub const MaxProposals: u32 = 100;
 }
 

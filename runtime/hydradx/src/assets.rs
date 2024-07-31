@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use super::*;
-use crate::old::MaxVotes;
+use crate::MaxVotes;
 use crate::origins::{GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 

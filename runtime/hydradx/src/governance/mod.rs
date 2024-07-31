@@ -175,6 +175,7 @@ impl pallet_treasury::Config for Runtime {
 
 parameter_types! {
 	pub const VoteLockingPeriod: BlockNumber = 7 * DAYS;
+	pub const MaxVotes: u32 = 25;
 }
 
 impl pallet_conviction_voting::Config for Runtime {
@@ -182,7 +183,7 @@ impl pallet_conviction_voting::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type VoteLockingPeriod = VoteLockingPeriod;
-	type MaxVotes = ConstU32<25>;
+	type MaxVotes = MaxVotes;
 	type MaxTurnout = frame_support::traits::tokens::currency::ActiveIssuanceOf<Balances, Self::AccountId>;
 	type Polls = Referenda;
 	type VotingHooks = pallet_staking::integrations::conviction_voting::StakingConvictionVoting<Runtime>;
