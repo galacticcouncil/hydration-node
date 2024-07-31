@@ -64,7 +64,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 		1,
 		pallet_referenda::TrackInfo {
 			name: "whitelisted_caller",
-			max_deciding: 10,
+			max_deciding: 3,
 			decision_deposit: 50_000 * UNITS,
 			prepare_period: 10 * MINUTES,
 			decision_period: 7 * DAYS,
@@ -78,7 +78,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 		2,
 		pallet_referenda::TrackInfo {
 			name: "referendum_canceller",
-			max_deciding: 10,
+			max_deciding: 3,
 			decision_deposit: 500_000 * UNITS,
 			prepare_period: 60 * MINUTES,
 			decision_period: 3 * DAYS,
@@ -92,7 +92,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 		3,
 		pallet_referenda::TrackInfo {
 			name: "referendum_killer",
-			max_deciding: 10,
+			max_deciding: 3,
 			decision_deposit: 2_500_000 * UNITS,
 			prepare_period: 60 * MINUTES,
 			decision_period: 7 * DAYS,
@@ -106,7 +106,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 		4,
 		pallet_referenda::TrackInfo {
 			name: "general_admin",
-			max_deciding: 10,
+			max_deciding: 3,
 			decision_deposit: 500_000 * UNITS,
 			prepare_period: 60 * MINUTES,
 			decision_period: 7 * DAYS,
@@ -120,7 +120,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 		5,
 		pallet_referenda::TrackInfo {
 			name: "treasurer",
-			max_deciding: 10,
+			max_deciding: 3,
 			decision_deposit: 1_250_000 * UNITS,
 			prepare_period: 60 * MINUTES,
 			decision_period: 7 * DAYS,
@@ -134,7 +134,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 		6,
 		pallet_referenda::TrackInfo {
 			name: "spender",
-			max_deciding: 10,
+			max_deciding: 3,
 			decision_deposit: 100_000 * UNITS,
 			prepare_period: 60 * MINUTES,
 			decision_period: 7 * DAYS,
@@ -148,7 +148,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 		7,
 		pallet_referenda::TrackInfo {
 			name: "tipper",
-			max_deciding: 10,
+			max_deciding: 3,
 			decision_deposit: 10_000 * UNITS,
 			prepare_period: 60 * MINUTES,
 			decision_period: 7 * DAYS,
@@ -162,7 +162,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 		8,
 		pallet_referenda::TrackInfo {
 			name: "omnipool_admin",
-			max_deciding: 10,
+			max_deciding: 3,
 			decision_deposit: 500_000 * UNITS,
 			prepare_period: 60 * MINUTES,
 			decision_period: 7 * DAYS,
