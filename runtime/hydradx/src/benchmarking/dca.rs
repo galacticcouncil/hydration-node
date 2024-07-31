@@ -21,7 +21,7 @@ use crate::{
 	NamedReserveId, Runtime, System, DCA, XYK,
 };
 
-use crate::benchmarking::{register_asset, register_external_asset, set_location};
+use crate::benchmarking::{register_asset, register_external_asset, set_location, set_period, setup_insufficient_asset_with_dot};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::{
@@ -144,21 +144,7 @@ fn schedule_sell_fake(
 	schedule1
 }
 
-fn set_period(to: u32) {
-	while System::block_number() < Into::<BlockNumber>::into(to) {
-		let b = System::block_number();
-
-		System::on_finalize(b);
-		EmaOracle::on_finalize(b);
-		MultiTransactionPayment::on_finalize(b);
-
-		System::on_initialize(b + 1_u32);
-		EmaOracle::on_initialize(b + 1_u32);
-		MultiTransactionPayment::on_initialize(b + 1_u32);
-
-		System::set_block_number(b + 1_u32);
-	}
-}
+//TODO: make it global
 
 pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade<AssetId>, ConstU32<5>> = trades.try_into().unwrap();
@@ -207,20 +193,8 @@ fn create_funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> 
 	account
 }
 
-fn setup_insufficient_asset_with_dot() -> Result<AssetId, BenchmarkError> {
-	let dot = register_asset(b"DOT".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-	set_location(dot, DOT_ASSET_LOCATION).map_err(|_| BenchmarkError::Stop("Failed to set location for weth"))?;
-	MultiPaymentPallet::<Runtime>::add_currency(RawOrigin::Root.into(), dot, FixedU128::from(1))
-		.map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
-	let insufficient_asset =
-		register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-	create_xyk_pool(insufficient_asset, dot);
-
-	Ok(insufficient_asset)
-}
-
 use crate::DOT_ASSET_LOCATION;
-type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
+pub type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
 runtime_benchmarks! {
 	{Runtime, pallet_dca}
 
@@ -530,7 +504,7 @@ runtime_benchmarks! {
 
 pub const INITIAL_BALANCE: Balance = 10_000_000 * ONE;
 
-fn create_xyk_pool(asset_a: u32, asset_b: u32) {
+pub fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 	let caller: AccountId = create_funded_account("caller", 0, &[asset_a, asset_b]);
 
 	assert_ok!(Currencies::update_balance(
