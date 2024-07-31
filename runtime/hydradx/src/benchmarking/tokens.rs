@@ -40,39 +40,6 @@ runtime_benchmarks! {
 		let amount: Balance = 2 * UNIT;
 
 		let asset_id = register_external_asset(b"TST".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let fee_asset = register_asset(b"FEE".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-
-		let from: AccountId = account("from", 0, SEED);
-		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &from, (10_000 * UNIT) as i128)?;
-		update_balance(asset_id, &from, amount);
-		update_balance(fee_asset, &from, 1_000 * UNIT);
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 1);
-
-		MultiTransactionPayment::add_currency(RawOrigin::Root.into(), fee_asset, Price::from(1)).map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
-		pallet_transaction_multi_payment::pallet::AcceptedCurrencyPrice::<Runtime>::insert(fee_asset, Price::from(1));
-
-		MultiTransactionPayment::set_currency(
-			RawOrigin::Signed(from.clone()).into(),
-			fee_asset
-		)?;
-
-		let to: AccountId = account("to", 1, SEED);
-		let to_lookup = lookup_of_account(to.clone());
-	}: _(RawOrigin::Signed(from.clone()), to_lookup, asset_id, amount)
-	verify {
-		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &to), amount);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(to).sufficients, 1);
-
-		//NOTE: make sure from was killed
-		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 1);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
-	}
-
-	transfer2 {
-		let amount: Balance = 2 * UNIT;
-
-		let asset_id = register_external_asset(b"TST".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let fee_asset = setup_insufficient_asset_with_dot()?;
 
 		let from: AccountId = account("from", 0, SEED);
@@ -108,15 +75,12 @@ runtime_benchmarks! {
 		let amount: Balance = UNIT;
 
 		let asset_id = register_external_asset(b"TST".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let fee_asset = register_asset(b"FEE".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let fee_asset = setup_insufficient_asset_with_dot()?;
 
 		let from: AccountId = account("from", 0, SEED);
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &from, (10_000 * UNIT) as i128)?;
 		update_balance(asset_id, &from, amount);
 		update_balance(fee_asset, &from, 1_000 * UNIT);
-
-		MultiTransactionPayment::add_currency(RawOrigin::Root.into(), fee_asset, Price::from(1)).map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
-		pallet_transaction_multi_payment::pallet::AcceptedCurrencyPrice::<Runtime>::insert(fee_asset, Price::from(1));
 
 		MultiTransactionPayment::set_currency(
 			RawOrigin::Signed(from.clone()).into(),
@@ -125,27 +89,30 @@ runtime_benchmarks! {
 
 		let to: AccountId = account("to", 0, SEED);
 		let to_lookup = lookup_of_account(to);
+		set_period(10);
+
+		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
+
 	}: _(RawOrigin::Signed(from.clone()), to_lookup, asset_id, false)
 	verify {
 		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &from), 0);
 
 		//NOTE: make sure from was killed
 		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 1);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 1);
+		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5); //Counter remains the same as first increased by on_funds, but then decreased on kill
 	}
+
 
 	transfer_keep_alive {
 		let asset_id = register_external_asset(b"TST".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let fee_asset = register_asset(b"FEE".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let fee_asset = setup_insufficient_asset_with_dot()?;
 
 		let from: AccountId = account("from", 0, SEED);
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &from, (10_000 * UNIT) as i128)?;
 		update_balance(asset_id, &from, 2 * UNIT);
 		update_balance(fee_asset, &from, 1_000 * UNIT);
-
-		MultiTransactionPayment::add_currency(RawOrigin::Root.into(), fee_asset, Price::from(1)).map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
-		pallet_transaction_multi_payment::pallet::AcceptedCurrencyPrice::<Runtime>::insert(fee_asset, Price::from(1));
 
 		MultiTransactionPayment::set_currency(
 			RawOrigin::Signed(from.clone()).into(),
@@ -154,19 +121,23 @@ runtime_benchmarks! {
 
 		let to: AccountId = account("to", 0, SEED);
 		let to_lookup = lookup_of_account(to.clone());
+		set_period(10);
+
+		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
 	}: _(RawOrigin::Signed(from), to_lookup, asset_id, UNIT)
 	verify {
 		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &to), UNIT);
 
 		//NOTE: make sure none was killed
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 2);
+		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 6); //Counter is increased in on_funds but not decreased on kill
 	}
 
 	force_transfer {
 		let amount = 2 * UNIT;
 
 		let asset_id = register_external_asset(b"TST".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let fee_asset = register_asset(b"FEE".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let fee_asset = setup_insufficient_asset_with_dot()?;
 
 		let from: AccountId = account("from", 0, SEED);
 		let from_lookup = lookup_of_account(from.clone());
@@ -174,9 +145,6 @@ runtime_benchmarks! {
 		update_balance(asset_id, &from, amount);
 		update_balance(fee_asset, &from, 1_000 * UNIT);
 
-		MultiTransactionPayment::add_currency(RawOrigin::Root.into(), fee_asset, Price::from(1)).map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
-		pallet_transaction_multi_payment::pallet::AcceptedCurrencyPrice::<Runtime>::insert(fee_asset, Price::from(1));
-
 		MultiTransactionPayment::set_currency(
 			RawOrigin::Signed(from.clone()).into(),
 			fee_asset
@@ -184,14 +152,19 @@ runtime_benchmarks! {
 
 		let to: AccountId = account("to", 0, SEED);
 		let to_lookup = lookup_of_account(to.clone());
+		set_period(10);
+
+		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
+
 	}: _(RawOrigin::Root, from_lookup, to_lookup, asset_id, amount)
 	verify {
 		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &to), amount);
 
 		//NOTE: make sure from was killed
-		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 1);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
+	    assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 1);
+		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5); //Counter remains the same as first increased by on_funds, but then decreased on kill
 	}
 
 	//NOTE: set balance bypass MutationHooks so sufficiency check is never triggered.
