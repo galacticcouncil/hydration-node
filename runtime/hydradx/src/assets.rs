@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use super::*;
-use crate::MaxVotes;
 use crate::origins::{GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 
@@ -1372,6 +1371,10 @@ impl GetByKey<FixedU128, Point> for StakingMinSlash {
 	fn get(_k: &FixedU128) -> Point {
 		50_u128
 	}
+}
+
+parameter_types! {
+	pub const MaxVotes: u32 = 25;
 }
 
 impl pallet_staking::Config for Runtime {
