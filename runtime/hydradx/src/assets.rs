@@ -200,12 +200,10 @@ impl SufficiencyCheck {
 					.saturating_mul_int(InsufficientEDinHDX::get())
 					.max(1);
 
-				//First we calculate how much the user would spend with fee asset for ED, so we can return it in the ExistentialDepositPaid event
 				let amount_in_without_fee =
 					InsufficientAssetSupport::calculate_in_given_out(fee_payment_asset, dot_asset_id, ed_in_dot)?;
 				let trade_fee = InsufficientAssetSupport::calculate_fee_amount(amount_in_without_fee)?;
-
-				let amount_in_as_ed = amount_in_without_fee.saturating_add(trade_fee);
+				let ed_in_fee_asset = amount_in_without_fee.saturating_add(trade_fee);
 
 				//NOTE: Account doesn't have enough funds to pay ED if this fail.
 				InsufficientAssetSupport::buy(
@@ -213,12 +211,12 @@ impl SufficiencyCheck {
 					fee_payment_asset,
 					DotAssetId::get(),
 					ed_in_dot,
-					amount_in_as_ed,
+					ed_in_fee_asset,
 					&TreasuryAccount::get(),
 				)
 				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
-				amount_in_as_ed
+				ed_in_fee_asset
 			};
 
 			//NOTE: we are locking little bit less than charging.
