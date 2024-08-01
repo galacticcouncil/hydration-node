@@ -856,7 +856,7 @@ impl pallet_dca::Config for Runtime {
 	>;
 	type RetryOnError = RetryOnErrorForDca;
 	type PolkadotNativeAssetId = DotAssetId;
-	type InsufficientAssetSupport = InsufficientAssetSupport;
+	type InsufficientAssetFeeSupport = InsufficientAssetSupport;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:

@@ -127,7 +127,7 @@ pub mod pallet {
 		type OraclePriceProvider: PriceOracle<AssetIdOf<Self>, Price = EmaPrice>;
 
 		///Insufficient asset as fee support
-		type InsufficientAssetSupport: InsufficientAssetTrader<Self::AccountId, AssetIdOf<Self>, BalanceOf<Self>>;
+		type InsufficientAssetFeeSupport: InsufficientAssetTrader<Self::AccountId, AssetIdOf<Self>, BalanceOf<Self>>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -287,14 +287,14 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			if T::InsufficientAssetSupport::is_sufficient(currency) {
+			if T::InsufficientAssetFeeSupport::is_sufficient(currency) {
 				ensure!(
 					currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
 					Error::<T>::UnsupportedCurrency
 				);
 			} else {
 				ensure!(
-					T::InsufficientAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
+					T::InsufficientAssetFeeSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
 					Error::<T>::UnsupportedCurrency
 				);
 			}
@@ -656,7 +656,7 @@ where
 			Pallet::<T>::account_currency(who)
 		};
 
-		let (converted_fee, currency, price) = if T::InsufficientAssetSupport::is_sufficient(currency) {
+		let (converted_fee, currency, price) = if T::InsufficientAssetFeeSupport::is_sufficient(currency) {
 			let price = Pallet::<T>::get_currency_price(currency)
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
@@ -671,17 +671,17 @@ where
 			let fee_in_dot = convert_fee_with_price(fee, dot_hdx_price)
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			let amount_in = T::InsufficientAssetSupport::calculate_in_given_out(
+			let amount_in = T::InsufficientAssetFeeSupport::calculate_in_given_out(
 				currency,
 				T::PolkadotNativeAssetId::get(),
 				fee_in_dot.into(),
 			)
 			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			let pool_fee = T::InsufficientAssetSupport::calculate_fee_amount(amount_in)
+			let pool_fee = T::InsufficientAssetFeeSupport::calculate_fee_amount(amount_in)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 			let max_limit = amount_in.saturating_add(pool_fee);
 
-			T::InsufficientAssetSupport::buy(
+			T::InsufficientAssetFeeSupport::buy(
 				who,
 				currency,
 				T::PolkadotNativeAssetId::get(),

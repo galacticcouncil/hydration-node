@@ -693,7 +693,7 @@ impl Config for Test {
 	type NativePriceOracle = NativePriceOracleMock;
 	type RetryOnError = ();
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
-	type InsufficientAssetSupport = MockedInsufficientAssetSupport;
+	type InsufficientAssetFeeSupport = MockedInsufficientAssetSupport;
 }
 
 pub struct MockedInsufficientAssetSupport;

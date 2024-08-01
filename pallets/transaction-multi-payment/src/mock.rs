@@ -172,7 +172,7 @@ impl Config for Test {
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
 	type TryCallCurrency<'a> = NoCallCurrency<Test>;
-	type InsufficientAssetSupport = MockedInsufficientAssetSupport;
+	type InsufficientAssetFeeSupport = MockedInsufficientAssetSupport;
 }
 
 pub struct MockedInsufficientAssetSupport;

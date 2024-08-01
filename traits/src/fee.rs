@@ -1,13 +1,13 @@
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 
-//TODO: give better name and add doc comment
+///Checking for asset sufficiency and tradeability for fee paying purposes
 pub trait InspectSufficiency<AssetId> {
 	fn is_sufficient(asset: AssetId) -> bool;
 
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool;
 }
 
-//TODO: give better name when we decicded if we wanna hardcode DOT or not
+///Insufficient asset trader for enabling insufficient fee support
 pub trait InsufficientAssetTrader<AccountId, AssetId, Amount>: InspectSufficiency<AssetId> {
 	fn buy(
 		origin: &AccountId,
