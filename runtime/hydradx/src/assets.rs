@@ -1728,7 +1728,6 @@ impl InspectSufficiency<AssetId> for InsufficientAssetSupport {
 	}
 
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool {
-		//TODO: here we should just say that is suppored for fee, and dot is hardcoded
 		XYK::exists(pallet_xyk::types::AssetPair::new(from, into))
 	}
 }
@@ -1742,7 +1741,6 @@ impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetS
 		max_limit: Balance,
 		dest: &AccountId,
 	) -> DispatchResult {
-		//TODO: consider here hardcoding DOT, as thats' the standard. or maybe not needed
 		XYK::buy_for(
 			origin,
 			pallet_xyk::types::AssetPair { asset_in, asset_out },
