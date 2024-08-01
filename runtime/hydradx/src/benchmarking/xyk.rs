@@ -3,7 +3,6 @@ use crate::{AccountId, AssetId, Balance, Currencies, MultiTransactionPayment, Pr
 use super::*;
 
 use frame_benchmarking::{account, BenchmarkError};
-use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};

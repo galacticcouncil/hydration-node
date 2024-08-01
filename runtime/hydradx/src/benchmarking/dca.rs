@@ -17,12 +17,12 @@
 #![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the Act block
 
 use crate::{
-	AccountId, AssetId, Balance, BlockNumber, Currencies, EmaOracle, MaxSchedulesPerBlock, MultiTransactionPayment,
-	NamedReserveId, Runtime, System, DCA, XYK,
+	AccountId, AssetId, Balance, BlockNumber, Currencies, MaxSchedulesPerBlock,
+	NamedReserveId, Runtime, DCA, XYK,
 };
 
 use crate::benchmarking::{
-	register_asset, register_external_asset, set_location, set_period, setup_insufficient_asset_with_dot,
+	register_asset, set_period, setup_insufficient_asset_with_dot,
 };
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
@@ -43,7 +43,7 @@ use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{DispatchError, Permill};
-use sp_runtime::{DispatchResult, FixedU128};
+use sp_runtime::{DispatchResult};
 use sp_std::vec;
 
 pub const HDX: AssetId = 0;
@@ -195,7 +195,6 @@ fn create_funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> 
 	account
 }
 
-use crate::DOT_ASSET_LOCATION;
 pub type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
 runtime_benchmarks! {
 	{Runtime, pallet_dca}

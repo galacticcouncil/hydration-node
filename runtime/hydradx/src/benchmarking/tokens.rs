@@ -10,7 +10,6 @@ use frame_support::assert_ok;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
-use primitives::Price;
 use sp_runtime::FixedU128;
 
 use super::*;
