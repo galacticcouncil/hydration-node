@@ -21,7 +21,9 @@ use crate::{
 	NamedReserveId, Runtime, System, DCA, XYK,
 };
 
-use crate::benchmarking::{register_asset, register_external_asset, set_location, set_period, setup_insufficient_asset_with_dot};
+use crate::benchmarking::{
+	register_asset, register_external_asset, set_location, set_period, setup_insufficient_asset_with_dot,
+};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::{

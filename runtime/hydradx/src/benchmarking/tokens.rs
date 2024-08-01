@@ -162,7 +162,7 @@ runtime_benchmarks! {
 		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &to), amount);
 
 		//NOTE: make sure from was killed
-	    assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
+		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
 		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 1);
 		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5); //Counter remains the same as first increased by on_funds, but then decreased on kill
 	}
