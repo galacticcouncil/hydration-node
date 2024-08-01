@@ -17,13 +17,10 @@
 #![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the Act block
 
 use crate::{
-	AccountId, AssetId, Balance, BlockNumber, Currencies, MaxSchedulesPerBlock,
-	NamedReserveId, Runtime, DCA, XYK,
+	AccountId, AssetId, Balance, BlockNumber, Currencies, MaxSchedulesPerBlock, NamedReserveId, Runtime, DCA, XYK,
 };
 
-use crate::benchmarking::{
-	register_asset, set_period, setup_insufficient_asset_with_dot,
-};
+use crate::benchmarking::{register_asset, set_period, setup_insufficient_asset_with_dot};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::{
@@ -42,8 +39,8 @@ use pallet_route_executor::Trade;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
+use sp_runtime::DispatchResult;
 use sp_runtime::{DispatchError, Permill};
-use sp_runtime::{DispatchResult};
 use sp_std::vec;
 
 pub const HDX: AssetId = 0;
@@ -454,11 +451,7 @@ runtime_benchmarks! {
 				asset_out: DAI,
 				amount_out: amount_sell,
 				max_amount_in: Balance::MAX,
-				route: create_bounded_vec(vec![Trade {
-					pool: PoolType::Omnipool,
-					asset_in: asset_1,
-					asset_out: DAI,
-				}]),
+				route: create_bounded_vec(route),
 			},
 		};
 
