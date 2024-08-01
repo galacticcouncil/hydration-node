@@ -75,10 +75,11 @@ runtime_benchmarks! {
 		let caller: AccountId = account("caller", 0, SEED);
 		let fallback_account: AccountId = account("fallback_account", 1, SEED);
 
-		let asset_id = register_asset(b"TST".to_vec(), 100u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_id = setup_insufficient_asset_with_dot().unwrap();
 
 		MultiPaymentPallet::<Runtime>::add_currency(RawOrigin::Root.into(), asset_id, Price::from(1)).map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
 
+		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(0, &caller, (100_000_000_000_000) as i128)?;//Needed to prevent ED error
 		update_balance(asset_id, &caller,100_000_000_000_000);
 
 	}: { MultiPaymentPallet::<Runtime>::set_currency(RawOrigin::Signed(caller.clone()).into(), asset_id)? }
