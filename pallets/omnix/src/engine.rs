@@ -1,16 +1,23 @@
-use crate::types::{Balance, BoundedInstructions, BoundedResolvedIntents, Solution};
+use crate::types::{Balance, BoundedInstructions, BoundedResolvedIntents, Solution, SwapType};
 use crate::Config;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::BoundedVec;
 use frame_support::__private::RuntimeDebug;
 use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::{TypeInfo, Weight};
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use frame_support::traits::OriginTrait;
+use frame_support::{ensure, BoundedVec};
 use hydradx_traits::router::{AmountInAndOut, RouterT, Trade};
 use sp_core::ConstU32;
 use sp_runtime::DispatchError;
+use std::collections::BTreeMap;
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, frame_support::PalletError, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum SolutionError {
+	IncorrectIntentAmountResolution,
+	IncorrectTransferInstruction,
+}
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Instruction<AccountId, AssetId> {
@@ -48,7 +55,77 @@ where
 	R: RouterT<T::RuntimeOrigin, T::AssetId, Balance, Trade<T::AssetId>, AmountInAndOut<Balance>>,
 {
 	pub fn validate_solution(solution: &mut Solution<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
-		//TODO: check balances, limits, partials etc?!
+		// Store resolved amounts for each account
+		let mut resolved_amounts = BTreeMap::new();
+
+		// Check if resolved intensts are valid - amounts, partial, limit
+		for resolved_intent in solution.intents.iter() {
+			let intent =
+				crate::Pallet::<T>::get_intent(resolved_intent.intent_id).ok_or(crate::Error::<T>::IntentNotFound)?;
+
+			let is_partial = intent.partial;
+
+			match intent.swap.swap_type {
+				SwapType::ExactIn => {
+					if is_partial {
+						ensure!(
+							resolved_intent.amount_in <= intent.swap.amount_in,
+							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+						);
+					} else {
+						ensure!(
+							resolved_intent.amount_in == intent.swap.amount_in,
+							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+						);
+					}
+					ensure!(
+						resolved_intent.amount_out >= intent.swap.amount_out,
+						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+					);
+
+					resolved_amounts.insert(intent.who.clone(), (resolved_intent.amount_in, resolved_intent.amount_out));
+				}
+				SwapType::ExactOut => {
+					if is_partial {
+						ensure!(
+							resolved_intent.amount_out <= intent.swap.amount_out,
+							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+						);
+					} else {
+						ensure!(
+							resolved_intent.amount_out == intent.swap.amount_out,
+							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+						);
+					}
+					ensure!(
+						resolved_intent.amount_in <= intent.swap.amount_in,
+						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+					);
+
+					resolved_amounts.insert(intent.who.clone(), (resolved_intent.amount_in, resolved_intent.amount_out));
+				}
+			}
+		}
+
+		// Validate instructions, correct transfer amounts, valid trades , calculate weight
+		for instruction in solution.instructions.iter() {
+			match instruction {
+				Instruction::TransferIn { who, asset_id: _, amount } => {
+					ensure!(
+						resolved_amounts.get(who).unwrap_or(&(0, 0)).0 == *amount,
+						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectTransferInstruction)
+					);
+				}
+				Instruction::TransferOut { who, asset_id: _, amount } => {
+					ensure!(
+						resolved_amounts.get(who).unwrap_or(&(0, 0)).1 == *amount,
+						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+					);
+				}
+				Instruction::SwapExactIn { .. } => {}
+				Instruction::SwapExactOut { .. } => {}
+			}
+		}
 
 		solution.weight = Self::calculate_weight(&solution.instructions)?;
 

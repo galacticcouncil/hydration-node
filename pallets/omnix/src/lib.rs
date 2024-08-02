@@ -29,7 +29,7 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::engine::OmniXEngine;
+	use crate::engine::{OmniXEngine, SolutionError};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use orml_traits::GetByKey;
@@ -101,7 +101,7 @@ pub mod pallet {
 		TooLong,
 
 		/// Provided solution is invalid
-		InvalidSolution,
+		InvalidSolution(SolutionError),
 
 		/// One or more prices provided for solution are invalid
 		InvalidPrices,
