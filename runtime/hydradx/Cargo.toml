@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "254.0.0"
+version = "255.0.1"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -15,8 +15,12 @@ substrate-wasm-builder = { workspace = true }
 [dependencies]
 hex-literal = "0.4.1"
 serde = { features = ["derive"], optional = true, version = "1.0.136" }
-codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = [
+    "derive",
+] }
+scale-info = { version = "2.3.1", default-features = false, features = [
+    "derive",
+] }
 smallvec = "1.9.0"
 log = { workspace = true }
 num_enum = { version = "0.5.1", default-features = false }
@@ -396,6 +400,4 @@ try-runtime = [
     "pallet-state-trie-migration/try-runtime",
 ]
 
-metadata-hash = [
-    "substrate-wasm-builder/metadata-hash",
-]
+metadata-hash = ["substrate-wasm-builder/metadata-hash"]
