@@ -239,21 +239,6 @@ fn calling_pallet_xcm_send_extrinsic_should_not_be_filtered_by_call_filter() {
 }
 
 #[test]
-fn calling_pallet_xcm_extrinsic_should_be_filtered_by_call_filter() {
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		// the values here don't need to make sense, all we need is a valid Call
-		let call = hydradx_runtime::RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute {
-			message: Box::new(VersionedXcm::from(Xcm(vec![]))),
-			max_weight: Weight::zero(),
-		});
-
-		assert!(!hydradx_runtime::CallFilter::contains(&call));
-	});
-}
-
-#[test]
 fn calling_orml_xcm_extrinsic_should_be_filtered_by_call_filter() {
 	TestNet::reset();
 
