@@ -4,3 +4,4 @@ pub mod mock;
 pub mod sell;
 pub mod set_route;
 pub mod spot_price;
+pub mod sell_all;

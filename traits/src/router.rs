@@ -112,6 +112,15 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 		route: Vec<Trade>,
 	) -> DispatchResult;
 
+	fn sell_all(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		min_amount_out: Balance,
+		route: Vec<Trade>,
+	) -> DispatchResult;
+
+
 	fn buy(
 		origin: Origin,
 		asset_in: AssetId,
