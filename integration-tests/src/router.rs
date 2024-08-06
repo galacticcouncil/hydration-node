@@ -1340,7 +1340,7 @@ mod omnipool_router_tests {
 	}
 
 	#[test]
-	fn sell_should_with_selling_nonnaitve_when_account_providers_increases_during_trade() {
+	fn sell_should_work_with_selling_nonnaitve_when_account_providers_increases_during_trade() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -4770,6 +4770,7 @@ mod route_spot_price {
 
 mod sell_all {
 	use hydradx_runtime::Currencies;
+	use hydradx_traits::router::PoolType;
 	use super::*;
 
 	#[test]
@@ -4853,6 +4854,55 @@ mod sell_all {
 			}.into()]);
 		});
 	}
+
+	#[test]
+	fn sell_all_should_work_when_selling_all_nonnative_in_stableswap() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+
+				init_omnipool();
+
+				let init_balance = 3000 * UNITS + 1;
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ALICE.into(),
+					stable_asset_1,
+					init_balance as i128,
+				));
+
+				let trades = vec![Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: stable_asset_1,
+					asset_out: pool_id,
+				}];
+
+				assert_balance!(ALICE.into(), pool_id, 0);
+
+				//Act
+				let amount_to_sell = 3000 * UNITS;
+				assert_ok!(Router::sell_all(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					stable_asset_1,
+					pool_id,
+					0,
+					trades
+				));
+
+				//Assert
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)),
+					0
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
 
 }
 
