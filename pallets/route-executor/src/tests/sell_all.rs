@@ -22,7 +22,6 @@ use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError::BadOrigin;
-use sp_runtime::{DispatchError, TokenError};
 use orml_traits::MultiCurrency;
 
 //TODO: add integration test for small ED so account is killed and allbalance is sold
