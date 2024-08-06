@@ -63,7 +63,7 @@ pub mod v2 {
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn post_upgrade(state: Vec<u8>) -> Result<(), TryRuntimeError> {
+		fn post_upgrade(_state: Vec<u8>) -> Result<(), TryRuntimeError> {
 			// TODO: check if the votes storage is empty
 			assert_eq!(
 				PositionVotes::<T>::iter().count(),
