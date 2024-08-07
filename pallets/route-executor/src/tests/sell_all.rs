@@ -24,8 +24,6 @@ use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError::BadOrigin;
 
-//TODO: add integration test for small ED so account is killed and allbalance is sold
-
 #[test]
 fn sell_should_work_when_route_has_single_trade() {
 	ExtBuilder::default().build().execute_with(|| {
