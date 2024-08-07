@@ -30,7 +30,7 @@ use hex_literal::hex;
 use hydradx_traits::evm::InspectEvmAccounts;
 use pallet_evm::AddressMapping;
 use sp_core::{crypto::ByteArray, H160};
-use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::{RuntimeAppPublic, traits::AccountIdConversion};
 
 pub struct ExtendedAddressMapping;
 
@@ -42,14 +42,14 @@ impl AddressMapping<AccountId> for ExtendedAddressMapping {
 
 // Ethereum-compatible blocks author (20 bytes)
 // Converted by truncating from Substrate author (32 bytes)
-pub struct FindAuthorTruncated<F>(PhantomData<F>);
-impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
+pub struct FindAuthorTruncated<T, F>(PhantomData<(T, F)>);
+impl<T: pallet_aura::Config, F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<T, F> {
 	fn find_author<'a, I>(digests: I) -> Option<H160>
 	where
 		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
 	{
 		if let Some(author_index) = F::find_author(digests) {
-			let authority_id = Aura::authorities()[author_index as usize].clone();
+			let authority_id = pallet_aura::Authorities::<T>::get()[author_index as usize].clone();
 			return Some(H160::from_slice(&authority_id.to_raw_vec()[4..24]));
 		}
 		None

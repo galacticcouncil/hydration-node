@@ -40,7 +40,7 @@ use fc_db::kv::Backend as FrontierBackend;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
-use sc_executor::{HeapAllocStrategy, NativeElseWasmExecutor, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
+use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 use sc_network::NetworkBlock;
 use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
@@ -53,24 +53,14 @@ use substrate_prometheus_endpoint::Registry;
 pub(crate) mod evm;
 use crate::{chain_spec, rpc};
 
-/// Native executor type.
-pub struct HydraDXNativeExecutor;
-
-impl sc_executor::NativeExecutionDispatch for HydraDXNativeExecutor {
-	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
-
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		hydradx_runtime::api::dispatch(method, data)
-	}
-
-	fn native_version() -> sc_executor::NativeVersion {
-		hydradx_runtime::native_version()
-	}
-}
-
-type ParachainExecutor = NativeElseWasmExecutor<HydraDXNativeExecutor>;
-
-type ParachainClient = TFullClient<Block, RuntimeApi, ParachainExecutor>;
+type ParachainClient = TFullClient<
+	Block,
+	RuntimeApi,
+	WasmExecutor<(
+		sp_io::SubstrateHostFunctions,
+		frame_benchmarking::benchmarking::HostFunctions,
+	)>,
+>;
 
 type ParachainBackend = TFullBackend<Block>;
 
@@ -93,7 +83,7 @@ pub fn new_partial(
 			evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
 			Option<Telemetry>,
 			Option<TelemetryWorkerHandle>,
-			Arc<FrontierBackend<Block>>,
+			Arc<FrontierBackend<Block, ParachainClient>>,
 			FilterPool,
 			FeeHistoryCache,
 		),
@@ -117,15 +107,13 @@ pub fn new_partial(
 			extra_pages: h as _,
 		});
 
-	let wasm = WasmExecutor::builder()
+	let executor = WasmExecutor::builder()
 		.with_execution_method(config.wasm_method)
 		.with_onchain_heap_alloc_strategy(heap_pages)
 		.with_offchain_heap_alloc_strategy(heap_pages)
 		.with_max_runtime_instances(config.max_runtime_instances)
 		.with_runtime_cache_size(config.runtime_cache_size)
 		.build();
-
-	let executor = ParachainExecutor::new_with_wasm_executor(wasm);
 
 	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts::<Block, RuntimeApi, _>(
 		config,
@@ -212,7 +200,7 @@ async fn start_node_impl(
 	let params = new_partial(&parachain_config)?;
 	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) =
 		params.other;
-	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
+	let net_config = sc_network::config::FullNetworkConfiguration::<_, _, sc_network::NetworkWorker<Block, Hash>>::new(&parachain_config.network);
 
 	let client = params.client.clone();
 	let backend = params.backend.clone();
@@ -237,13 +225,13 @@ async fn start_node_impl(
 	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
 		build_network(BuildNetworkParams {
 			parachain_config: &parachain_config,
-			net_config,
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			para_id,
 			spawn_handle: task_manager.spawn_handle(),
 			relay_chain_interface: relay_chain_interface.clone(),
 			import_queue: params.import_queue,
+			net_config,
 			sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
 		})
 		.await?;
@@ -259,7 +247,7 @@ async fn start_node_impl(
 				keystore: Some(params.keystore_container.keystore()),
 				offchain_db: backend.offchain_storage(),
 				transaction_pool: Some(OffchainTransactionPoolFactory::new(transaction_pool.clone())),
-				network_provider: network.clone(),
+				network_provider: Arc::new(network.clone()),
 				is_validator: parachain_config.role.is_authority(),
 				enable_http_requests: false,
 				custom_extensions: move |_| vec![],
@@ -269,7 +257,7 @@ async fn start_node_impl(
 		);
 	}
 
-	let overrides = evm::overrides_handle(client.clone());
+	let overrides = Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone()));
 	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
 		task_manager.spawn_handle(),
 		overrides.clone(),
@@ -427,8 +415,6 @@ fn build_import_queue(
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
 ) -> Result<sc_consensus::DefaultImportQueue<Block>, sc_service::Error> {
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
-
 	Ok(
 		cumulus_client_consensus_aura::equivocation_import_queue::fully_verifying_import_queue::<
 			sp_consensus_aura::sr25519::AuthorityPair,
@@ -443,7 +429,6 @@ fn build_import_queue(
 				let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 				Ok(timestamp)
 			},
-			slot_duration,
 			&task_manager.spawn_essential_handle(),
 			config.prometheus_registry(),
 			telemetry,
@@ -472,8 +457,6 @@ fn start_consensus(
 	// NOTE: because we use Aura here explicitly, we can use `CollatorSybilResistance::Resistant`
 	// when starting the network.
 
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
-
 	let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
 		task_manager.spawn_handle(),
 		client.clone(),
@@ -501,7 +484,6 @@ fn start_consensus(
 		collator_key,
 		para_id,
 		overseer_handle,
-		slot_duration,
 		relay_chain_slot_duration,
 		proposer,
 		collator_service,

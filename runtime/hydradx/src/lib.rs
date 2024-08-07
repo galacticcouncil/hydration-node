@@ -48,14 +48,14 @@ use hydradx_traits::evm::InspectEvmAccounts;
 use sp_api::impl_runtime_apis;
 use sp_core::{ConstU128, Get, OpaqueMetadata, H160, H256, U256};
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+	create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, Permill, ExtrinsicInclusionMode,
 	traits::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
-	ApplyExtrinsicResult, Permill,
 };
+use sp_genesis_builder::PresetId;
 
 use sp_std::{convert::From, prelude::*};
 #[cfg(feature = "std")]
@@ -64,7 +64,7 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::{
 	construct_runtime,
-	genesis_builder_helper::{build_config, create_default_config},
+	genesis_builder_helper::{build_state, get_preset},
 	pallet_prelude::Hooks,
 	parameter_types,
 	weights::Weight,
@@ -302,7 +302,7 @@ impl_runtime_apis! {
 			Executive::execute_block(block)
 		}
 
-		fn initialize_block(header: &<Block as BlockT>::Header) {
+		fn initialize_block(header: &<Block as BlockT>::Header) -> ExtrinsicInclusionMode {
 			Executive::initialize_block(header)
 		}
 	}
@@ -376,7 +376,7 @@ impl_runtime_apis! {
 		}
 
 		fn authorities() -> Vec<AuraId> {
-			Aura::authorities().into_inner()
+			pallet_aura::Authorities::<Runtime>::get().into_inner()
 		}
 	}
 
@@ -684,7 +684,7 @@ impl_runtime_apis! {
 		}
 
 		fn initialize_pending_block(header: &<Block as BlockT>::Header) {
-			Executive::initialize_block(header)
+			Executive::initialize_block(header);
 		}
 	}
 
@@ -826,12 +826,16 @@ impl_runtime_apis! {
 	}
 
 	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
-		fn create_default_config() -> Vec<u8> {
-			create_default_config::<RuntimeGenesisConfig>()
+		fn build_state(config: Vec<u8>) -> sp_genesis_builder::Result {
+			build_state::<RuntimeGenesisConfig>(config)
 		}
 
-		fn build_config(config: Vec<u8>) -> sp_genesis_builder::Result {
-			build_config::<RuntimeGenesisConfig>(config)
+		fn get_preset(id: &Option<PresetId>) -> Option<Vec<u8>> {
+			get_preset::<RuntimeGenesisConfig>(id, |_| None)
+		}
+
+		fn preset_names() -> Vec<PresetId> {
+			Default::default()
 		}
 	}
 }

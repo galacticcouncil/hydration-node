@@ -19,33 +19,30 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use std::{collections::BTreeMap, path::PathBuf, sync::Arc, time::Duration};
 
 use crate::service::{
-	rpc::{RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override, SchemaV3Override, StorageOverride},
 	ParachainClient,
 };
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use cumulus_client_consensus_common::ParachainBlockImportMarker;
 use fc_consensus::Error;
 use fc_db::kv::Backend as FrontierBackend;
 use fc_mapping_sync::{kv::MappingSyncWorker, SyncStrategy};
-use fc_rpc::{EthTask, OverrideHandle};
+use fc_rpc::{EthTask, StorageOverride};
 use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_consensus::ensure_log;
 use fp_rpc::EthereumRuntimeRPCApi;
-use fp_storage::EthereumStorageSchema;
 use futures::{future, StreamExt};
 use primitives::Block;
-use sc_client_api::{backend::AuxStore, Backend, BlockOf, BlockchainEvents, StateBackend, StorageProvider};
+use sc_client_api::{backend::AuxStore, BlockOf, BlockchainEvents};
 use sc_consensus::{BlockCheckParams, BlockImport as BlockImportT, BlockImportParams, ImportResult};
 use sc_network_sync::SyncingService;
 use sc_service::{Configuration, TFullBackend, TaskManager};
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
-use sp_blockchain::{Error as BlockchainError, HeaderBackend, HeaderMetadata};
+use sp_blockchain::HeaderBackend;
 use sp_consensus::Error as ConsensusError;
-use sp_core::H256;
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Header as HeaderT, PhantomData};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT, PhantomData};
 
 /// The ethereum-compatibility configuration used to run a node.
 #[derive(Clone, Copy, Debug, clap::Parser)]
@@ -80,7 +77,7 @@ type BlockNumberOf<B> = <<B as BlockT>::Header as HeaderT>::Number;
 pub struct BlockImport<B: BlockT, I: BlockImportT<B>, C> {
 	inner: I,
 	client: Arc<C>,
-	backend: Arc<fc_db::kv::Backend<B>>,
+	backend: Arc<fc_db::kv::Backend<B, C>>,
 	evm_since: BlockNumberOf<B>,
 	_marker: PhantomData<B>,
 }
@@ -106,7 +103,7 @@ where
 	C::Api: EthereumRuntimeRPCApi<B>,
 	C::Api: BlockBuilderApi<B>,
 {
-	pub fn new(inner: I, client: Arc<C>, backend: Arc<fc_db::kv::Backend<B>>, evm_since: BlockNumberOf<B>) -> Self {
+	pub fn new(inner: I, client: Arc<C>, backend: Arc<fc_db::kv::Backend<B, C>>, evm_since: BlockNumberOf<B>) -> Self {
 		Self {
 			inner,
 			client,
@@ -152,9 +149,9 @@ pub fn spawn_frontier_tasks(
 	task_manager: &TaskManager,
 	client: Arc<ParachainClient>,
 	backend: Arc<TFullBackend<Block>>,
-	frontier_backend: Arc<FrontierBackend<Block>>,
+	frontier_backend: Arc<FrontierBackend<Block, ParachainClient>>,
 	filter_pool: FilterPool,
-	overrides: Arc<OverrideHandle<Block>>,
+	overrides: Arc<dyn StorageOverride<Block>>,
 	fee_history_cache: FeeHistoryCache,
 	fee_history_cache_limit: FeeHistoryCacheLimit,
 	sync: Arc<SyncingService<Block>>,
@@ -196,33 +193,4 @@ pub fn spawn_frontier_tasks(
 		None,
 		EthTask::fee_history_task(client, overrides, fee_history_cache, fee_history_cache_limit),
 	);
-}
-
-pub fn overrides_handle<B: BlockT<Hash = H256>, C, BE>(client: Arc<C>) -> Arc<OverrideHandle<B>>
-where
-	C: ProvideRuntimeApi<B> + StorageProvider<B, BE> + AuxStore,
-	C: HeaderBackend<B> + HeaderMetadata<B, Error = BlockchainError>,
-	C: Send + Sync + 'static,
-	C::Api: sp_api::ApiExt<B> + fp_rpc::EthereumRuntimeRPCApi<B> + fp_rpc::ConvertTransactionRuntimeApi<B>,
-	BE: Backend<B> + 'static,
-	BE::State: StateBackend<BlakeTwo256>,
-{
-	let mut overrides_map = BTreeMap::new();
-	overrides_map.insert(
-		EthereumStorageSchema::V1,
-		Box::new(SchemaV1Override::new(client.clone())) as Box<dyn StorageOverride<_>>,
-	);
-	overrides_map.insert(
-		EthereumStorageSchema::V2,
-		Box::new(SchemaV2Override::new(client.clone())) as Box<dyn StorageOverride<_>>,
-	);
-	overrides_map.insert(
-		EthereumStorageSchema::V3,
-		Box::new(SchemaV3Override::new(client.clone())) as Box<dyn StorageOverride<_>>,
-	);
-
-	Arc::new(OverrideHandle {
-		schemas: overrides_map,
-		fallback: Box::new(RuntimeApiStorageOverride::new(client)),
-	})
 }

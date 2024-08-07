@@ -680,7 +680,7 @@ where
 	Runtime: cumulus_pallet_parachain_system::Config,
 {
 	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		let validation_data = cumulus_pallet_parachain_system::ValidationData::<Runtime>::get();
 		match validation_data {
 			Some(data) => Some(data.parent_head.hash()),
 			None => None,
