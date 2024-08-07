@@ -65,7 +65,7 @@ parameter_types! {
 }
 
 thread_local! {
-	pub static KILLED: RefCell<Vec<u64>> = RefCell::new(vec![]);
+	pub static KILLED: RefCell<Vec<u64>> = const { RefCell::new(vec![]) };
 }
 
 pub struct RecordKilled;
@@ -100,6 +100,11 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_type_with_key! {

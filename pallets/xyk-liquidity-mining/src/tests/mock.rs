@@ -139,24 +139,29 @@ impl system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 thread_local! {
-	pub static NFT_COLLECTION: RefCell<(u128, u128, u128)>= RefCell::new((0,0,0));
+	pub static NFT_COLLECTION: RefCell<(u128, u128, u128)>= const { RefCell::new((0,0,0)) };
 
 	pub static AMM_POOLS: RefCell<HashMap<AccountId, (AssetId, AssetPair)>> = RefCell::new(HashMap::new());
 	pub static NFTS: RefCell<HashMap<(CollectionId, ItemId), AccountId>> = RefCell::new(HashMap::default());
-	pub static DEPOSIT_IDS: RefCell<Vec<DepositId>> = RefCell::new(Vec::new());
+	pub static DEPOSIT_IDS: RefCell<Vec<DepositId>> = const { RefCell::new(Vec::new()) };
 
 	pub static GLOBAL_FARMS: RefCell<HashMap<u32, DymmyGlobalFarm>> = RefCell::new(HashMap::default());
 	pub static YIELD_FARMS: RefCell<HashMap<u32, DummyYieldFarm>> = RefCell::new(HashMap::default());
 	pub static DEPOSITS: RefCell<HashMap<u128, DummyDeposit>> = RefCell::new(HashMap::default());
 	pub static DEPOSIT_ENTRIES: RefCell<HashMap<(DepositId, u32), DummyFarmEntry>> = RefCell::new(HashMap::default());
 
-	pub static FARM_ID: RefCell<u32> = RefCell::new(0);
-	pub static DEPOSIT_ID: RefCell<DepositId> = RefCell::new(0);
+	pub static FARM_ID: RefCell<u32> = const { RefCell::new(0) };
+	pub static DEPOSIT_ID: RefCell<DepositId> = const { RefCell::new(0) };
 
-	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>>= RefCell::new(Vec::new());
+	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>>= const { RefCell::new(Vec::new()) };
 }
 #[derive(Copy, Clone)]
 pub struct DymmyGlobalFarm {

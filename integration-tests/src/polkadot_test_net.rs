@@ -2,7 +2,7 @@
 use frame_support::{
 	assert_ok,
 	sp_runtime::{
-		traits::{AccountIdConversion, Block as BlockT, Dispatchable},
+		traits::{AccountIdConversion, Block as BlockT, Dispatchable, HashingFor},
 		BuildStorage, FixedU128, Permill,
 	},
 	traits::{GetCallMetadata, OnInitialize},
@@ -18,7 +18,7 @@ use hex_literal::hex;
 use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeOrigin};
 pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 use pallet_referrals::{FeeDistribution, Level};
-pub use polkadot_primitives::v6::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
+pub use polkadot_primitives::v7::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::storage::Storage;
@@ -120,7 +120,7 @@ decl_test_networks! {
 }
 
 decl_test_relay_chains! {
-	#[api_version(10)]
+	#[api_version(11)]
 	pub struct RococoRelayChain {
 		genesis = rococo::genesis(),
 		on_init = {
@@ -259,8 +259,6 @@ pub mod rococo {
 			max_code_size: MAX_CODE_SIZE,
 			max_pov_size: MAX_POV_SIZE,
 			max_head_data_size: 32 * 1024,
-			group_rotation_frequency: 20,
-			paras_availability_period: 4,
 			max_upward_queue_count: 8,
 			max_upward_queue_size: 1024 * 1024,
 			max_downward_message_size: 1024,
@@ -378,7 +376,7 @@ pub mod rococo {
 			},
 			babe: rococo_runtime::BabeConfig {
 				authorities: Default::default(),
-				epoch_config: Some(rococo_runtime::BABE_GENESIS_EPOCH_CONFIG),
+				epoch_config: rococo_runtime::BABE_GENESIS_EPOCH_CONFIG,
 				..Default::default()
 			},
 			..Default::default()
@@ -767,7 +765,7 @@ pub fn rococo_run_to_block(to: BlockNumber) {
 
 pub fn hydra_live_ext(
 	path_to_snapshot: &str,
-) -> frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block> {
+) -> frame_remote_externalities::RemoteExternalities<HashingFor<hydradx_runtime::Block>> {
 	let ext = tokio::runtime::Builder::new_current_thread()
 		.enable_all()
 		.build()

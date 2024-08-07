@@ -769,6 +769,9 @@ impl_runtime_apis! {
 			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Parent};
 
 			impl pallet_xcm::benchmarking::Config for Runtime {
+				// TODO:
+				type DeliveryHelper = ();
+
 				fn reachable_dest() -> Option<Location> {
 					Some(Parent.into())
 				}
@@ -787,6 +790,14 @@ impl_runtime_apis! {
 					// TODO: https://github.com/galacticcouncil/HydraDX-node/issues/840
 					// fix it in next upgrade > 1.7.2
 					None
+				}
+
+				// TODO:
+				fn get_asset() -> Asset {
+					Asset {
+						id: AssetId(Location::here()),
+						fun: Fungible(ExistentialDeposit::get()),
+					}
 				}
 			}
 
