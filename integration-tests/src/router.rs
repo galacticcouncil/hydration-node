@@ -4769,9 +4769,9 @@ mod route_spot_price {
 }
 
 mod sell_all {
+	use super::*;
 	use hydradx_runtime::Currencies;
 	use hydradx_traits::router::PoolType;
-	use super::*;
 
 	#[test]
 	fn sell_should_sell_all_user_native_balance() {
@@ -4779,7 +4779,6 @@ mod sell_all {
 
 		let limit = 0;
 		let amount_out = 26577363534770086553;
-
 
 		Hydra::execute_with(|| {
 			let bob_hdx_balance = Currencies::free_balance(HDX, &BOB.into());
@@ -4810,7 +4809,8 @@ mod sell_all {
 				asset_out: DAI,
 				amount_in: bob_hdx_balance,
 				amount_out,
-			}.into()]);
+			}
+			.into()]);
 		});
 	}
 
@@ -4820,7 +4820,6 @@ mod sell_all {
 
 		let limit = 0;
 		let amount_out = 35227901268414708;
-
 
 		Hydra::execute_with(|| {
 			let bob_nonnative_balance = Currencies::free_balance(DAI, &BOB.into());
@@ -4851,7 +4850,8 @@ mod sell_all {
 				asset_out: HDX,
 				amount_in: bob_nonnative_balance,
 				amount_out,
-			}.into()]);
+			}
+			.into()]);
 		});
 	}
 
@@ -4902,8 +4902,6 @@ mod sell_all {
 			});
 		});
 	}
-
-
 }
 
 fn create_lbp_pool(accumulated_asset: u32, distributed_asset: u32) {

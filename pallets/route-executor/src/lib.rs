@@ -202,7 +202,7 @@ pub mod pallet {
 			min_amount_out: T::Balance,
 			route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResult {
-			Self::do_sell(origin, asset_in, asset_out, amount_in,min_amount_out, route)
+			Self::do_sell(origin, asset_in, asset_out, amount_in, min_amount_out, route)
 		}
 
 		/// Executes a buy with a series of trades specified in the route.
@@ -435,7 +435,6 @@ pub mod pallet {
 
 			Self::do_sell(origin, asset_in, asset_out, amount_in, min_amount_out, route)
 		}
-
 	}
 }
 
@@ -445,7 +444,14 @@ impl<T: Config> Pallet<T> {
 		PalletId(*b"routerex").into_account_truncating()
 	}
 
-	fn do_sell(origin: T::RuntimeOrigin, asset_in: T::AssetId, asset_out: T::AssetId, amount_in: T::Balance, min_amount_out: T::Balance, route: Vec<Trade<T::AssetId>>) -> Result<(), DispatchError> {
+	fn do_sell(
+		origin: T::RuntimeOrigin,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_in: T::Balance,
+		min_amount_out: T::Balance,
+		route: Vec<Trade<T::AssetId>>,
+	) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin.clone())?;
 		ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
 
@@ -462,9 +468,9 @@ impl<T: Config> Pallet<T> {
 
 		let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 		ensure!(
-				last_trade_amount.amount_out >= min_amount_out,
-				Error::<T>::TradingLimitReached
-			);
+			last_trade_amount.amount_out >= min_amount_out,
+			Error::<T>::TradingLimitReached
+		);
 
 		for (trade_amount, trade) in trade_amounts.iter().zip(route) {
 			let user_balance_of_asset_in_before_trade =
@@ -506,7 +512,6 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
-
 
 	fn ensure_route_size(route_length: usize) -> Result<(), DispatchError> {
 		ensure!(
@@ -770,7 +775,6 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 		Pallet::<T>::sell_all(origin, asset_in, asset_out, min_amount_out, route)
 	}
 
-
 	fn buy(
 		origin: T::RuntimeOrigin,
 		asset_in: T::AssetId,
@@ -828,7 +832,13 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 		Ok(())
 	}
 
-	fn sell_all(_origin: T::RuntimeOrigin, _asset_in: T::AssetId, _asset_out: T::AssetId, _min_amount_out: T::Balance, _route: Vec<Trade<T::AssetId>>) -> sp_runtime::DispatchResult {
+	fn sell_all(
+		_origin: T::RuntimeOrigin,
+		_asset_in: T::AssetId,
+		_asset_out: T::AssetId,
+		_min_amount_out: T::Balance,
+		_route: Vec<Trade<T::AssetId>>,
+	) -> sp_runtime::DispatchResult {
 		Ok(())
 	}
 
@@ -909,7 +919,6 @@ macro_rules! handle_execution_error {
 }
 
 impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
-
 	fn get_route(asset_pair: AssetPair<T::AssetId>) -> Vec<Trade<T::AssetId>> {
 		let onchain_route = Routes::<T>::get(asset_pair.ordered_pair());
 

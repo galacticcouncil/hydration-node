@@ -120,7 +120,6 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 		route: Vec<Trade>,
 	) -> DispatchResult;
 
-
 	fn buy(
 		origin: Origin,
 		asset_in: AssetId,

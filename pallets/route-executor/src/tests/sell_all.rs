@@ -20,9 +20,9 @@ use crate::{Error, Event, Trade};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
+use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError::BadOrigin;
-use orml_traits::MultiCurrency;
 
 //TODO: add integration test for small ED so account is killed and allbalance is sold
 
@@ -37,14 +37,7 @@ fn sell_should_work_when_route_has_single_trade() {
 		let alice_balance = Currencies::free_balance(HDX, &ALICE);
 
 		//Act
-		assert_ok!(Router::sell_all(
-			RuntimeOrigin::signed(ALICE),
-			HDX,
-			AUSD,
-			limit,
-			trades
-		));
-
+		assert_ok!(Router::sell_all(RuntimeOrigin::signed(ALICE), HDX, AUSD, limit, trades));
 
 		//Assert
 		assert_executed_sell_trades(vec![(PoolType::XYK, alice_balance, HDX, AUSD)]);
@@ -58,7 +51,6 @@ fn sell_should_work_when_route_has_single_trade() {
 	});
 }
 
-
 #[test]
 fn sell_should_work_with_omnipool_when_no_specified_or_onchain_route_exist() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -68,13 +60,7 @@ fn sell_should_work_with_omnipool_when_no_specified_or_onchain_route_exist() {
 		let alice_balance = Currencies::free_balance(HDX, &ALICE);
 
 		//Act
-		assert_ok!(Router::sell_all(
-			RuntimeOrigin::signed(ALICE),
-			HDX,
-			AUSD,
-			limit,
-			vec![]
-		));
+		assert_ok!(Router::sell_all(RuntimeOrigin::signed(ALICE), HDX, AUSD, limit, vec![]));
 
 		//Assert
 		assert_executed_sell_trades(vec![(PoolType::Omnipool, alice_balance, HDX, AUSD)]);
@@ -106,19 +92,12 @@ fn sell_should_work_when_route_has_single_trade_without_native_balance() {
 			}];
 
 			//Act
-			assert_ok!(Router::sell_all(
-				RuntimeOrigin::signed(ALICE),
-				KSM,
-				AUSD,
-				limit,
-				trades
-			));
+			assert_ok!(Router::sell_all(RuntimeOrigin::signed(ALICE), KSM, AUSD, limit, trades));
 
 			//Assert
 			assert_executed_sell_trades(vec![(PoolType::XYK, alice_nonnative_balance, KSM, AUSD)]);
 		});
 }
-
 
 #[test]
 fn sell_should_work_when_route_has_multiple_trades_with_same_pooltype() {
@@ -145,13 +124,7 @@ fn sell_should_work_when_route_has_multiple_trades_with_same_pooltype() {
 		let trades = vec![trade1, trade2, trade3];
 
 		//Act
-		assert_ok!(Router::sell_all(
-			RuntimeOrigin::signed(ALICE),
-			HDX,
-			KSM,
-			limit,
-			trades
-		));
+		assert_ok!(Router::sell_all(RuntimeOrigin::signed(ALICE), HDX, KSM, limit, trades));
 
 		//Assert
 		assert_executed_sell_trades(vec![
@@ -194,13 +167,7 @@ fn sell_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 		let trades = vec![trade1, trade2, trade3];
 
 		//Act
-		assert_ok!(Router::sell_all(
-			RuntimeOrigin::signed(ALICE),
-			HDX,
-			KSM,
-			limit,
-			trades
-		));
+		assert_ok!(Router::sell_all(RuntimeOrigin::signed(ALICE), HDX, KSM, limit, trades));
 
 		//Assert
 		assert_executed_sell_trades(vec![
@@ -218,8 +185,6 @@ fn sell_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 		.into()]);
 	});
 }
-
-
 
 #[test]
 fn sell_should_work_with_onchain_route_when_no_routes_specified() {
@@ -250,13 +215,7 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 		));
 
 		//Act
-		assert_ok!(Router::sell_all(
-			RuntimeOrigin::signed(ALICE),
-			HDX,
-			KSM,
-			limit,
-			vec![]
-		));
+		assert_ok!(Router::sell_all(RuntimeOrigin::signed(ALICE), HDX, KSM, limit, vec![]));
 
 		//Assert
 		assert_last_executed_sell_trades(
@@ -278,11 +237,10 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 	});
 }
 
-
 #[test]
 fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_order() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, KSM,2000)])
+		.with_endowed_accounts(vec![(ALICE, KSM, 2000)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -313,13 +271,7 @@ fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_ord
 
 			//Act
 			//it fails, the amount out is not there after all three trades.
-			assert_ok!(Router::sell_all(
-				RuntimeOrigin::signed(ALICE),
-				KSM,
-				HDX,
-				limit,
-				vec![]
-			));
+			assert_ok!(Router::sell_all(RuntimeOrigin::signed(ALICE), KSM, HDX, limit, vec![]));
 
 			//Assert
 			assert_last_executed_sell_trades(
@@ -360,13 +312,7 @@ fn sell_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 		let trades = vec![trade1, trade2];
 
 		//Act
-		assert_ok!(Router::sell_all(
-			RuntimeOrigin::signed(ALICE),
-			HDX,
-			KSM,
-			limit,
-			trades
-		));
+		assert_ok!(Router::sell_all(RuntimeOrigin::signed(ALICE), HDX, KSM, limit, trades));
 
 		//Assert
 		assert_executed_sell_trades(vec![
@@ -375,7 +321,6 @@ fn sell_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 		]);
 	});
 }
-
 
 #[test]
 fn sell_should_fail_when_max_limit_for_trade_reached() {
@@ -424,7 +369,6 @@ fn sell_should_fail_when_max_limit_for_trade_reached() {
 		});
 }
 
-
 #[test]
 fn sell_should_fail_when_called_with_non_signed_origin() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -439,7 +383,6 @@ fn sell_should_fail_when_called_with_non_signed_origin() {
 		);
 	});
 }
-
 
 #[test]
 fn sell_should_fail_when_min_limit_to_receive_is_not_reached() {
@@ -456,7 +399,6 @@ fn sell_should_fail_when_min_limit_to_receive_is_not_reached() {
 		);
 	});
 }
-
 
 #[test]
 fn sell_should_fail_when_assets_dont_correspond_to_route() {
@@ -487,7 +429,6 @@ fn sell_should_fail_when_assets_dont_correspond_to_route() {
 			);
 		});
 }
-
 
 #[test]
 fn sell_should_fail_when_intermediare_assets_are_inconsistent() {
