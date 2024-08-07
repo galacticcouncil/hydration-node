@@ -36,5 +36,7 @@ If not on-chain is present, then omnipool is used as default
 
 Both buy and sell trades are supported. 
 
+There is also a `sell_all` extrinsic, which sells all the reducible `asset_in` balance of the user.
+
 ### Weight calculation
 The extrinsic weights are calculated based on the size of the route.
