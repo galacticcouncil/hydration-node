@@ -14,7 +14,7 @@ The comparison happens by calculating sell amount_outs for the routes, but also 
 
 The route is stored in an ordered manner, based on the oder of the ids in the asset pair.
 
-If the route is set successfully, then the fee is payed back.
+If the route is set successfully, then the fee is paid back.
 
 If the route setting fails, it emits event `RouteUpdateIsNotSuccessful`
 
