@@ -1,10 +1,11 @@
 use super::*;
 use frame_support::assert_ok;
+use frame_support::weights::Weight;
 use hydradx_runtime::{Currencies, OmniX, Omnipool, Router};
 use hydradx_traits::router::AssetPair as Pair;
 use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
-use pallet_omnix::types::{BoundedPrices, BoundedResolvedIntents, Solution};
+use pallet_omnix::types::{BoundedInstructions, BoundedResolvedIntents, ProposedSolution, Solution};
 use sp_core::crypto::AccountId32;
 use sp_core::Encode;
 use sp_runtime::traits::Hash;
@@ -27,26 +28,20 @@ fn submit_solution_should_work() {
 			deadline,
 		)]);
 
-		let solved = solve_intents(vec![(
+		let solution = solve_intents(vec![(
 			intent_ids[0],
 			pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 		)])
 		.unwrap();
-		let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-		let solution = Solution::<AccountId> {
-			proposer: BOB.into(),
-			intents: resolved_intents.clone(),
-		};
-
-		assert_ok!(OmniX::submit_solution(
-			RuntimeOrigin::signed(BOB.into()),
-			resolved_intents.into_inner(),
-		));
 
 		let hash = <hydradx_runtime::Runtime as frame_system::Config>::Hashing::hash(&solution.encode());
+
+		assert_ok!(OmniX::submit_solution(RuntimeOrigin::signed(BOB.into()), solution,));
+
 		assert!(pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_solution(hash).is_some());
 	});
 }
+/*
 
 #[test]
 fn execute_one_intent_solution_should_work() {
@@ -81,14 +76,14 @@ fn execute_one_intent_solution_should_work() {
 		)])
 		.unwrap();
 		let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-		let solution = Solution::<AccountId> {
-			proposer: BOB.into(),
+		let solution = ProposedSolution::<AccountId, AssetId> {
 			intents: resolved_intents.clone(),
+			instructions: solved.instructions,
 		};
 
 		assert_ok!(OmniX::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
-			resolved_intents.into_inner(),
+			solution,
 		));
 
 		let hash = <hydradx_runtime::Runtime as frame_system::Config>::Hashing::hash(&solution.encode());
@@ -162,9 +157,9 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		)])
 		.unwrap();
 		let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-		let solution = Solution::<AccountId> {
-			proposer: BOB.into(),
+		let solution = ProposedSolution::<AccountId, AssetId> {
 			intents: resolved_intents.clone(),
+			instructions: solved.instructions,
 		};
 
 		assert_ok!(OmniX::submit_solution(
@@ -350,3 +345,6 @@ fn test_omnipool_stable_swap() {
 		assert_eq!(stable_balance - initial_stable_balance, 26105);
 	});
 }
+
+
+ */

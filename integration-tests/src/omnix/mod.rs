@@ -6,7 +6,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use hydradx_runtime::{OmniX, Router, RuntimeOrigin};
 use omnix_solver::traits::OmniXSolver;
-use pallet_omnix::types::{IntentId, Swap};
+use pallet_omnix::types::{BoundedInstructions, BoundedResolvedIntents, IntentId, ProposedSolution, Swap};
 use primitives::{AccountId, AssetId, Moment};
 use xcm_emulator::TestExt;
 
@@ -31,6 +31,12 @@ pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -
 
 pub(crate) fn solve_intents(
 	intents: Vec<(IntentId, pallet_omnix::types::Intent<AccountId, AssetId>)>,
-) -> Result<omnix_solver::SolverSolution, ()> {
-	omnix_solver::SimpleSolver::<hydradx_runtime::Runtime, Router, Router>::solve(intents)
+) -> Result<ProposedSolution<AccountId, AssetId>, ()> {
+	let solved = omnix_solver::SimpleSolver::<hydradx_runtime::Runtime, Router, Router>::solve(intents)?;
+	let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
+	let instructions = BoundedInstructions::try_from(solved.instructions).unwrap();
+	Ok(ProposedSolution::<AccountId, AssetId> {
+		intents: resolved_intents.clone(),
+		instructions,
+	})
 }

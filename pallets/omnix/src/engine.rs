@@ -3,15 +3,16 @@ use crate::Config;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::__private::RuntimeDebug;
 use frame_support::dispatch::DispatchResult;
-use frame_support::pallet_prelude::{TypeInfo, Weight};
+use frame_support::pallet_prelude::{ConstU32, TypeInfo, Weight};
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use frame_support::traits::OriginTrait;
 use frame_support::{ensure, BoundedVec};
 use hydradx_traits::router::{AmountInAndOut, RouterT, Trade};
-use sp_core::ConstU32;
 use sp_runtime::DispatchError;
-use std::collections::BTreeMap;
+use sp_std::collections::btree_map::BTreeMap;
+
+pub type BoundedRoute<AssetId> = BoundedVec<Trade<AssetId>, ConstU32<5>>;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, frame_support::PalletError, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum SolutionError {
@@ -36,14 +37,14 @@ pub enum Instruction<AccountId, AssetId> {
 		asset_out: AssetId,
 		amount_in: Balance,
 		amount_out: Balance,
-		route: BoundedVec<Trade<AssetId>, ConstU32<5>>,
+		route: BoundedRoute<AssetId>,
 	},
 	SwapExactOut {
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_in: Balance,
 		amount_out: Balance,
-		route: BoundedVec<Trade<AssetId>, ConstU32<5>>,
+		route: BoundedRoute<AssetId>,
 	},
 }
 
@@ -56,14 +57,20 @@ where
 {
 	pub fn validate_solution(solution: &mut Solution<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
 		// Store resolved amounts for each account
-		let mut resolved_amounts = BTreeMap::new();
+		let mut amounts_in: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
+		let mut amounts_out: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
 
-		// Check if resolved intensts are valid - amounts, partial, limit
+		// Check if resolved intents are valid:
+		// - amounts not exceeding limit
+		// - in case of partial - check ratio
+		// - record resolved amount to check transfer instructions
 		for resolved_intent in solution.intents.iter() {
 			let intent =
 				crate::Pallet::<T>::get_intent(resolved_intent.intent_id).ok_or(crate::Error::<T>::IntentNotFound)?;
 
 			let is_partial = intent.partial;
+			let asset_in = intent.swap.asset_in;
+			let asset_out = intent.swap.asset_out;
 
 			match intent.swap.swap_type {
 				SwapType::ExactIn => {
@@ -83,7 +90,14 @@ where
 						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
 					);
 
-					resolved_amounts.insert(intent.who.clone(), (resolved_intent.amount_in, resolved_intent.amount_out));
+					amounts_in
+						.entry((intent.who.clone(), asset_in))
+						.and_modify(|v| *v = v.saturating_add(resolved_intent.amount_in))
+						.or_insert(resolved_intent.amount_in);
+					amounts_out
+						.entry((intent.who.clone(), asset_out))
+						.and_modify(|v| *v = v.saturating_add(resolved_intent.amount_out))
+						.or_insert(resolved_intent.amount_in);
 				}
 				SwapType::ExactOut => {
 					if is_partial {
@@ -102,7 +116,14 @@ where
 						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
 					);
 
-					resolved_amounts.insert(intent.who.clone(), (resolved_intent.amount_in, resolved_intent.amount_out));
+					amounts_in
+						.entry((intent.who.clone(), asset_in))
+						.and_modify(|v| *v = v.saturating_add(resolved_intent.amount_in))
+						.or_insert(resolved_intent.amount_in);
+					amounts_out
+						.entry((intent.who.clone(), asset_out))
+						.and_modify(|v| *v = v.saturating_add(resolved_intent.amount_out))
+						.or_insert(resolved_intent.amount_in);
 				}
 			}
 		}
@@ -110,15 +131,15 @@ where
 		// Validate instructions, correct transfer amounts, valid trades , calculate weight
 		for instruction in solution.instructions.iter() {
 			match instruction {
-				Instruction::TransferIn { who, asset_id: _, amount } => {
+				Instruction::TransferIn { who, asset_id, amount } => {
 					ensure!(
-						resolved_amounts.get(who).unwrap_or(&(0, 0)).0 == *amount,
+						*amounts_in.get(&(who.clone(), *asset_id)).unwrap_or(&0u128) == *amount,
 						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectTransferInstruction)
 					);
 				}
-				Instruction::TransferOut { who, asset_id: _, amount } => {
+				Instruction::TransferOut { who, asset_id, amount } => {
 					ensure!(
-						resolved_amounts.get(who).unwrap_or(&(0, 0)).1 == *amount,
+						*amounts_out.get(&(who.clone(), *asset_id)).unwrap_or(&0u128) == *amount,
 						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
 					);
 				}
