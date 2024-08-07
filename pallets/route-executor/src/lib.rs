@@ -429,7 +429,6 @@ pub mod pallet {
 			min_amount_out: T::Balance,
 			route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResult {
-			//TODO: add proper benchmarking? of since it is one read with cache, it is not a big deal
 			let who = ensure_signed(origin.clone())?;
 			let amount_in = T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
 
