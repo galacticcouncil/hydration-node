@@ -34,7 +34,8 @@ const COLLECTION_ID_0: u32 = 1_000_000;
 
 fn create_account<T: Config>(name: &'static str, index: u32) -> T::AccountId {
 	let caller: T::AccountId = account(name, index, SEED);
-	let _imbalance = <T as pallet_uniques::Config>::Currency::deposit_creating(&caller, ENDOWMENT.unique_saturated_into());
+	let _imbalance =
+		<T as pallet_uniques::Config>::Currency::deposit_creating(&caller, ENDOWMENT.unique_saturated_into());
 	caller
 }
 

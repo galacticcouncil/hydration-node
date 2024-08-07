@@ -25,16 +25,11 @@ use cumulus_primitives_core::PersistedValidationData;
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use fc_db::kv::Backend as FrontierBackend;
-pub use fc_rpc::{
-	EthBlockDataCacheTask, StorageOverride, StorageOverrideHandler,
-};
+pub use fc_rpc::{EthBlockDataCacheTask, StorageOverride, StorageOverrideHandler};
 use fc_rpc_core::types::TransactionRequest;
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
-use hydradx_runtime::{
-	opaque::Block,
-	AccountId, Balance, Index,
-};
+use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
 	client::BlockchainEvents,
@@ -66,7 +61,7 @@ impl fc_rpc::EstimateGasAdapter for HydraDxEGA {
 						input.0[..4].copy_from_slice(&BATCH_PRECOMPILE_BATCH_ALL_SELECTOR);
 					}
 				}
-			(None, Some(ref mut data)) => {
+				(None, Some(ref mut data)) => {
 					if data.0.len() >= 4 {
 						data.0[..4].copy_from_slice(&BATCH_PRECOMPILE_BATCH_ALL_SELECTOR);
 					}

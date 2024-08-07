@@ -18,7 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use core::marker::PhantomData;
-use fp_evm::{Context, ExitRevert, ExitReason, PrecompileFailure, PrecompileHandle, Transfer};
+use fp_evm::{Context, ExitReason, ExitRevert, PrecompileFailure, PrecompileHandle, Transfer};
 use frame_support::{
 	ensure,
 	storage::types::{StorageMap, ValueQuery},

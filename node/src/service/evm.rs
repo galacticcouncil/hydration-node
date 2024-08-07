@@ -19,11 +19,7 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-
-use crate::service::{
-	ParachainClient,
-};
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use crate::service::ParachainClient;
 use cumulus_client_consensus_common::ParachainBlockImportMarker;
 use fc_consensus::Error;
 use fc_db::kv::Backend as FrontierBackend;
@@ -43,6 +39,7 @@ use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::Error as ConsensusError;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT, PhantomData};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 /// The ethereum-compatibility configuration used to run a node.
 #[derive(Clone, Copy, Debug, clap::Parser)]
