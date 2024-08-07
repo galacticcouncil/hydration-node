@@ -570,6 +570,7 @@ impl pallet_duster::Config for Runtime {
 	type Reward = DustingReward;
 	type NativeCurrencyId = NativeAssetId;
 	type BlacklistUpdateOrigin = SuperMajorityTechCommittee;
+	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
 
