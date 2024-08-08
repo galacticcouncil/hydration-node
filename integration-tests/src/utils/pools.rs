@@ -2,7 +2,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
-use hydradx_runtime::{AssetRegistry, Balances, Currencies, Stableswap};
+use hydradx_runtime::{AssetRegistry, Balances, Currencies, Stableswap, Router};
 use hydradx_runtime::{Omnipool, RuntimeOrigin, Tokens};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
@@ -11,7 +11,8 @@ use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::{AssetId, Balance};
 use sp_runtime::Permill;
 use sp_runtime::{DispatchError, FixedU128, TransactionOutcome};
-
+use hydradx_traits::router::PoolType;
+use hydradx_traits::router::Trade;
 pub fn setup_omnipool() {
 	initialize_omnipol();
 	for _ in 0..10 {
@@ -46,8 +47,45 @@ pub fn setup_omnipool_with_stable_subpool() -> (AssetId, Vec<AssetId>) {
 		Permill::from_percent(1),
 		AccountId::from(BOB),
 	));
+	for _ in 0..10 {
+		hydradx_run_to_next_block();
+		do_trade_to_populate_stable_oracle(pool_id,asset_a, 1_000_000_000_000);
+		do_trade_to_populate_stable_oracle(pool_id, asset_b, 1_000_000_000_000);
+	}
 
 	(pool_id, vec![asset_a, asset_b])
+}
+fn do_trade_to_populate_stable_oracle(pool_id: AssetId, asset_id: AssetId, amount: Balance) {
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
+		CHARLIE.into(),
+		LRNA,
+		1000000000000 * UNITS,
+		0,
+	));
+	let route = vec![
+		Trade {
+			pool: PoolType::Omnipool,
+			asset_in: LRNA,
+			asset_out: pool_id,
+		},
+		Trade {
+			pool: PoolType::Stableswap(pool_id),
+			asset_in: pool_id,
+			asset_out: asset_id,
+		},
+	];
+
+
+	assert_ok!(Router::sell(
+		RuntimeOrigin::signed(CHARLIE.into()),
+		LRNA,
+		asset_id,
+		amount,
+		Balance::MIN,
+		route,
+	));
+
 }
 
 fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {

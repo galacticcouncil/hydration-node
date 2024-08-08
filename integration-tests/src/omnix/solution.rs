@@ -40,72 +40,10 @@ fn submit_solution_should_work() {
 		)])
 		.unwrap();
 
-		dbg!(&solution);
 
 		assert_ok!(OmniX::submit_solution(RuntimeOrigin::signed(BOB.into()), solution));
 		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 		assert_eq!(dai_balance - initial_dai_balance, 8973613312776918);
-	});
-}
-/*
-
-#[test]
-fn execute_one_intent_solution_should_work() {
-	Hydra::execute_with(|| {
-		crate::utils::pools::setup_omnipool();
-		assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-			hydradx_runtime::RuntimeOrigin::root(),
-			LRNA,
-			pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
-		));
-
-		let initial_hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
-		let initial_dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
-
-		let deadline: Moment = NOW + 86_400_000;
-
-		let intent_ids = submit_intents(vec![(
-			BOB.into(),
-			Swap {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: 1_000_000_000_000,
-				amount_out: 8_973_613_312_776_918,
-				swap_type: pallet_omnix::types::SwapType::ExactIn,
-			},
-			deadline,
-		)]);
-
-		let solved = solve_intents(vec![(
-			intent_ids[0],
-			pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
-		)])
-		.unwrap();
-		let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-		let solution = ProposedSolution::<AccountId, AssetId> {
-			intents: resolved_intents.clone(),
-			instructions: solved.instructions,
-		};
-
-		assert_ok!(OmniX::submit_solution(
-			RuntimeOrigin::signed(BOB.into()),
-			solution,
-		));
-
-		let hash = <hydradx_runtime::Runtime as frame_system::Config>::Hashing::hash(&solution.encode());
-		assert_ok!(OmniX::execute_solution(RuntimeOrigin::signed(BOB.into()), hash));
-
-		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
-		assert_eq!(hdx_balance, initial_hdx_balance - 1_000_000_000_000u128);
-		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
-
-		let lrna_balance = Currencies::free_balance(
-			LRNA,
-			&pallet_omnix::Pallet::<hydradx_runtime::Runtime>::holding_account(),
-		);
-		assert_eq!(lrna_balance, 0u128);
-		let received = dai_balance - initial_dai_balance;
-		assert_eq!(received, 8978102355397551u128);
 	});
 }
 
@@ -134,6 +72,8 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 
 		let asset_pair = Pair::new(LRNA, assets[0]);
 
+		println!("setting route");
+
 		assert_ok!(Router::set_route(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			asset_pair,
@@ -151,30 +91,24 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 				asset_in: HDX,
 				asset_out: assets[0],
 				amount_in: 1_000_000_000_000,
-				amount_out: 1,
+				amount_out: 26117,
 				swap_type: pallet_omnix::types::SwapType::ExactIn,
 			},
 			deadline,
 		)]);
 
-		let solved = solve_intents(vec![(
+		let solution = solve_intents(vec![(
 			intent_ids[0],
 			pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 		)])
 		.unwrap();
-		let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-		let solution = ProposedSolution::<AccountId, AssetId> {
-			intents: resolved_intents.clone(),
-			instructions: solved.instructions,
-		};
+
+		dbg!(&solution);
 
 		assert_ok!(OmniX::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
-			resolved_intents.into_inner(),
+			solution
 		));
-
-		let hash = <hydradx_runtime::Runtime as frame_system::Config>::Hashing::hash(&solution.encode());
-		assert_ok!(OmniX::execute_solution(RuntimeOrigin::signed(BOB.into()), hash));
 
 		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
 		assert_eq!(hdx_balance, initial_hdx_balance - 1_000_000_000_000u128);
@@ -189,6 +123,8 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		assert_eq!(lrna_balance, 0u128);
 	});
 }
+
+/*
 
 #[test]
 fn execute_two_intents_solution_should_work() {
