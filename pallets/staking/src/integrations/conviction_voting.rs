@@ -1,18 +1,19 @@
 use crate::pallet::{PositionVotes, Positions, ProcessedVotes};
 use crate::traits::{GetReferendumState, VestingDetails};
-use crate::types::{Action, Balance, Conviction, Vote};
+use crate::types::{Action, Balance, Conviction, ReferendumIndex, Vote};
 use crate::{Config, Error, Pallet};
 use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
+use frame_support::traits::{PollStatus, Polling};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use pallet_democracy::traits::DemocracyHooks;
-use pallet_democracy::{AccountVote, ReferendumIndex, ReferendumInfo};
+use pallet_conviction_voting::traits::VotingHooks;
+use pallet_conviction_voting::AccountVote;
 use sp_core::Get;
 use sp_runtime::FixedPointNumber;
 
-pub struct StakingDemocracy<T>(sp_std::marker::PhantomData<T>);
+pub struct StakingConvictionVoting<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T>
+impl<T: Config> VotingHooks<T::AccountId, ReferendumIndex, Balance> for StakingConvictionVoting<T>
 where
 	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 {
@@ -41,13 +42,13 @@ where
 			let amount = vote.balance();
 			let conviction = if let AccountVote::Standard { vote, .. } = vote {
 				match vote.conviction {
-					pallet_democracy::Conviction::None => Conviction::None,
-					pallet_democracy::Conviction::Locked1x => Conviction::Locked1x,
-					pallet_democracy::Conviction::Locked2x => Conviction::Locked2x,
-					pallet_democracy::Conviction::Locked3x => Conviction::Locked3x,
-					pallet_democracy::Conviction::Locked4x => Conviction::Locked4x,
-					pallet_democracy::Conviction::Locked5x => Conviction::Locked5x,
-					pallet_democracy::Conviction::Locked6x => Conviction::Locked6x,
+					pallet_conviction_voting::Conviction::None => Conviction::None,
+					pallet_conviction_voting::Conviction::Locked1x => Conviction::Locked1x,
+					pallet_conviction_voting::Conviction::Locked2x => Conviction::Locked2x,
+					pallet_conviction_voting::Conviction::Locked3x => Conviction::Locked3x,
+					pallet_conviction_voting::Conviction::Locked4x => Conviction::Locked4x,
+					pallet_conviction_voting::Conviction::Locked5x => Conviction::Locked5x,
+					pallet_conviction_voting::Conviction::Locked6x => Conviction::Locked6x,
 				}
 			} else {
 				Conviction::default()
@@ -127,7 +128,7 @@ where
 		});
 	}
 
-	fn remove_vote_locks_if_needed(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
+	fn get_amount_to_lock_for_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
 		let Some(position_id) = Pallet::<T>::get_user_position_id(who).ok()? else {
 			return None;
 		};
@@ -163,21 +164,12 @@ where
 		)
 		.unwrap();
 		Pallet::<T>::initialize_staking(Origin::<T>::Root.into()).unwrap();
-		T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
-		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
 
-		let position_id = Pallet::<T>::get_user_position_id(&who.clone()).unwrap().unwrap();
-
-		let mut votes = sp_std::vec::Vec::<(u32, Vote)>::new();
-		for i in 0..<T as crate::pallet::Config>::MaxVotes::get() {
-			votes.push((
-				i,
-				Vote {
-					amount: 20_000_000_000_000_000,
-					conviction: Conviction::Locked1x,
-				},
-			));
+		if T::Currency::free_balance(T::NativeAssetId::get(), who) <= 1_000_000_000_000_000 {
+			T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
 		}
+
+		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
 
 		for i in 0..<T as crate::pallet::Config>::MaxLocks::get() - 5 {
 			let id: LockIdentifier = scale_info::prelude::format!("{:a>8}", i.to_string())
@@ -187,12 +179,6 @@ where
 
 			T::Currency::set_lock(id, T::NativeAssetId::get(), who, 10_000_000_000_000_u128).unwrap();
 		}
-
-		let voting = crate::types::Voting::<T::MaxVotes> {
-			votes: votes.try_into().unwrap(),
-		};
-
-		crate::PositionVotes::<T>::insert(position_id, voting);
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -206,16 +192,31 @@ where
 		)
 		.unwrap();
 		Pallet::<T>::initialize_staking(Origin::<T>::Root.into()).unwrap();
-		T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
+		if T::Currency::free_balance(T::NativeAssetId::get(), who) <= 1_000_000_000_000_000 {
+			T::Currency::update_balance(T::NativeAssetId::get(), who, 1_000_000_000_000_000i128).unwrap();
+		}
 		Pallet::<T>::stake(Origin::<T>::Signed(who.clone()).into(), 1_000_000_000_000_000u128).unwrap();
 	}
 }
 
-pub struct ReferendumStatus<T>(sp_std::marker::PhantomData<T>);
+pub struct ReferendumStatus<P, T>(sp_std::marker::PhantomData<(P, T)>);
 
-impl<T: pallet_democracy::Config> GetReferendumState<pallet_democracy::ReferendumIndex> for ReferendumStatus<T> {
-	fn is_referendum_finished(index: pallet_democracy::ReferendumIndex) -> bool {
-		let maybe_info = pallet_democracy::Pallet::<T>::referendum_info(index);
-		matches!(maybe_info, Some(ReferendumInfo::Finished { .. }))
+impl<T, P: Polling<T>> GetReferendumState<ReferendumIndex> for ReferendumStatus<P, T>
+where
+	<P as Polling<T>>::Index: From<ReferendumIndex>,
+{
+	fn is_referendum_finished(_index: ReferendumIndex) -> bool {
+		let r = <P as Polling<T>>::try_access_poll::<bool>(_index.into(), |status| {
+			let r = match status {
+				PollStatus::Completed(_, _) => true,
+				PollStatus::Ongoing(_, _) => false,
+				PollStatus::None => false,
+			};
+			Ok(r)
+		});
+		debug_assert!(r.is_ok(), "Failed to access poll");
+		// If we failed to access poll, we assume that referendum is not finished - this should never be the case
+		// Note: we cant return true, because it would reward points.
+		r.unwrap_or(false)
 	}
 }

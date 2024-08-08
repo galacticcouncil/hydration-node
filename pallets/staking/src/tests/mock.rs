@@ -253,8 +253,8 @@ impl GetByKey<Action, u32> for DummyMaxPointsPerAction {
 
 pub struct DummyReferendumStatus;
 
-impl DemocracyReferendum for DummyReferendumStatus {
-	fn is_referendum_finished(index: pallet_democracy::ReferendumIndex) -> bool {
+impl GetReferendumState<types::ReferendumIndex> for DummyReferendumStatus {
+	fn is_referendum_finished(index: types::ReferendumIndex) -> bool {
 		index % 2 == 0
 	}
 }

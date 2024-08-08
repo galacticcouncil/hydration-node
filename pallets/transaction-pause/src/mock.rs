@@ -115,7 +115,7 @@ ord_parameter_types! {
 
 impl Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type UpdateOrigin = EnsureSignedBy<One, AccountId>;
+	type SecurityOrigin = EnsureSignedBy<One, AccountId>;
 	type WeightInfo = ();
 }
 
