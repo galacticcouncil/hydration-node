@@ -14,7 +14,7 @@ The comparison happens by calculating sell amount_outs for the routes, but also 
 
 The route is stored in an ordered manner, based on the oder of the ids in the asset pair.
 
-If the route is set successfully, then the fee is payed back.
+If the route is set successfully, then the fee is paid back.
 
 If the route setting fails, it emits event `RouteUpdateIsNotSuccessful`
 
@@ -35,6 +35,8 @@ If no route is specified for a route execution, then the on-chain route is used.
 If not on-chain is present, then omnipool is used as default
 
 Both buy and sell trades are supported. 
+
+There is also a `sell_all` extrinsic, which sells all the reducible `asset_in` balance of the user.
 
 ### Weight calculation
 The extrinsic weights are calculated based on the size of the route.
