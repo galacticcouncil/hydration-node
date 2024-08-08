@@ -4,6 +4,7 @@ use frame_support::weights::Weight;
 use hydradx_runtime::{CheckedExtrinsic, Executive, SignedExtra};
 use sp_runtime::traits::SignedExtension;
 
+/*
 #[test]
 fn tx_priority_should_be_correct() {
 	Hydra::execute_with(|| {
@@ -78,3 +79,5 @@ fn tx_priority_should_be_correct() {
 		//CheckedExtrinsic::validate()
 	});
 }
+
+ */

@@ -97,7 +97,7 @@ where
 					amounts_out
 						.entry((intent.who.clone(), asset_out))
 						.and_modify(|v| *v = v.saturating_add(resolved_intent.amount_out))
-						.or_insert(resolved_intent.amount_in);
+						.or_insert(resolved_intent.amount_out);
 				}
 				SwapType::ExactOut => {
 					if is_partial {
@@ -204,8 +204,8 @@ where
 						origin,
 						asset_in,
 						asset_out,
-						amount_in,
-						amount_out, // set as limit in the instruction
+						amount_out,
+						amount_in, // set as limit in the instruction
 						route.to_vec(),
 					)?;
 				}

@@ -14,7 +14,13 @@ use sp_runtime::traits::Hash;
 fn submit_solution_should_work() {
 	Hydra::execute_with(|| {
 		crate::utils::pools::setup_omnipool();
+		assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+			hydradx_runtime::RuntimeOrigin::root(),
+			LRNA,
+			pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
+		));
 		let deadline: Moment = NOW + 86_400_000;
+		let initial_dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 
 		let intent_ids = submit_intents(vec![(
 			BOB.into(),
@@ -22,7 +28,7 @@ fn submit_solution_should_work() {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: 1_000_000_000_000,
-				amount_out: 0,
+				amount_out: 8973613312776918,
 				swap_type: pallet_omnix::types::SwapType::ExactIn,
 			},
 			deadline,
@@ -34,11 +40,11 @@ fn submit_solution_should_work() {
 		)])
 		.unwrap();
 
-		let hash = <hydradx_runtime::Runtime as frame_system::Config>::Hashing::hash(&solution.encode());
+		dbg!(&solution);
 
-		assert_ok!(OmniX::submit_solution(RuntimeOrigin::signed(BOB.into()), solution,));
-
-		assert!(pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_solution(hash).is_some());
+		assert_ok!(OmniX::submit_solution(RuntimeOrigin::signed(BOB.into()), solution));
+		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
+		assert_eq!(dai_balance - initial_dai_balance, 8973613312776918);
 	});
 }
 /*

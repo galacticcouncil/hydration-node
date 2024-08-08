@@ -45,7 +45,7 @@ where
 			let asset_in = intent.swap.asset_in;
 			let asset_out = intent.swap.asset_out;
 			let amount_in = intent.swap.amount_in;
-			let amount_out = intent.swap.amount_in;
+			let amount_out = intent.swap.amount_out;
 
 			transfer_in_instructions.push(Instruction::TransferIn {
 				who: intent.who.clone(),

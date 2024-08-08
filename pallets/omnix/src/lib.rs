@@ -191,11 +191,9 @@ pub mod pallet {
 			};
 
 			OmniXEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&mut solution)?;
+			OmniXEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
 
-			let hash = T::Hashing::hash(&solution.encode());
-			Solutions::<T>::insert(&hash, solution);
-
-			Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
+			//Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
 
 			Ok(())
 		}
