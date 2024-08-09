@@ -1,6 +1,6 @@
 [package]
 name = "pallet-transaction-multi-payment"
-version = "10.0.4"
+version = "10.1.0"
 description = "Transaction multi currency payment support module"
 authors = ["GalacticCoucil"]
 edition = "2021"
@@ -21,6 +21,7 @@ orml-traits = { workspace = true }
 hydradx-traits = { workspace = true }
 primitives = { workspace = true }
 hydra-dx-math = { workspace = true }
+pallet-xyk = {workspace = true}
 
 # Substrate dependencies
 frame-support = { workspace = true }

@@ -75,10 +75,11 @@ runtime_benchmarks! {
 		let caller: AccountId = account("caller", 0, SEED);
 		let fallback_account: AccountId = account("fallback_account", 1, SEED);
 
-		let asset_id = register_asset(b"TST".to_vec(), 100u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_id = setup_insufficient_asset_with_dot().unwrap();
 
 		MultiPaymentPallet::<Runtime>::add_currency(RawOrigin::Root.into(), asset_id, Price::from(1)).map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
 
+		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(0, &caller, 100_000_000_000_000_i128)?;//Needed to prevent ED error
 		update_balance(asset_id, &caller,100_000_000_000_000);
 
 	}: { MultiPaymentPallet::<Runtime>::set_currency(RawOrigin::Signed(caller.clone()).into(), asset_id)? }
@@ -242,14 +243,26 @@ fn set_period(to: u32) {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::NativeExistentialDeposit;
 	use orml_benchmarking::impl_benchmark_test_suite;
 	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::<crate::Runtime>::default()
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
 			.build_storage()
-			.unwrap()
-			.into()
+			.unwrap();
+
+		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
+			registered_assets: vec![],
+			native_asset_name: b"HDX".to_vec().try_into().unwrap(),
+			native_existential_deposit: NativeExistentialDeposit::get(),
+			native_decimals: 12,
+			native_symbol: b"HDX".to_vec().try_into().unwrap(),
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		sp_io::TestExternalities::new(t)
 	}
 
 	impl_benchmark_test_suite!(new_test_ext(),);

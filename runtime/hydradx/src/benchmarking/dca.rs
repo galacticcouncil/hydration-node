@@ -17,11 +17,10 @@
 #![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the Act block
 
 use crate::{
-	AccountId, AssetId, Balance, BlockNumber, Currencies, EmaOracle, MaxSchedulesPerBlock, MultiTransactionPayment,
-	NamedReserveId, Router, Runtime, System, DCA, XYK,
+	AccountId, AssetId, Balance, BlockNumber, Currencies, MaxSchedulesPerBlock, NamedReserveId, Runtime, DCA, XYK,
 };
 
-use crate::benchmarking::register_asset;
+use crate::benchmarking::{register_asset, set_period, setup_insufficient_asset_with_dot};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::{
@@ -31,7 +30,6 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::RawOrigin;
-use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, NamedMultiReservableCurrency};
@@ -41,8 +39,8 @@ use pallet_route_executor::Trade;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
+use sp_runtime::DispatchResult;
 use sp_runtime::{DispatchError, Permill};
-use sp_runtime::{DispatchResult, FixedU128};
 use sp_std::vec;
 
 pub const HDX: AssetId = 0;
@@ -145,19 +143,7 @@ fn schedule_sell_fake(
 	schedule1
 }
 
-fn set_period(to: u32) {
-	while System::block_number() < Into::<BlockNumber>::into(to) {
-		let b = System::block_number();
-
-		System::on_finalize(b);
-		EmaOracle::on_finalize(b);
-
-		System::on_initialize(b + 1_u32);
-		EmaOracle::on_initialize(b + 1_u32);
-
-		System::set_block_number(b + 1_u32);
-	}
-}
+//TODO: make it global
 
 pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade<AssetId>, ConstU32<5>> = trades.try_into().unwrap();
@@ -179,30 +165,59 @@ fn fund_treasury() -> DispatchResult {
 	Ok(())
 }
 
+fn fund_treasury_with(asset: AssetId) -> DispatchResult {
+	let treasury = <Runtime as pallet_dca::Config>::FeeReceiver::get();
+	<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(asset, &treasury, 500_000_000_000_000i128)?;
+
+	Ok(())
+}
+
+fn create_funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
+	let account: AccountId = account(name, index, 0);
+	//Necessary to pay ED for insufficient assets.
+	<Currencies as MultiCurrencyExtended<_>>::update_balance(
+		0,
+		&account,
+		crate::benchmarking::route_executor::INITIAL_BALANCE as i128,
+	)
+	.unwrap();
+
+	for asset in assets {
+		assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
+			*asset,
+			&account,
+			INITIAL_BALANCE.try_into().unwrap(),
+		));
+	}
+	account
+}
+
+pub type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
 runtime_benchmarks! {
 	{Runtime, pallet_dca}
 
 	on_initialize_with_buy_trade{
-		let seller: AccountId = account("seller", 3, 1);
-		let other_seller: AccountId = account("seller", 3, 1);
-
 		set_period(1000);
 
 		let amount_buy = 200 * ONE;
 
-		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &seller, 500_000_000_000_000i128)?;
-		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &other_seller, 20_000_000_000_000_000_000_000i128)?;
+		let asset_in = HDX;
+
+		let seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
+		let other_seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
 
 		//Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 		fund_treasury()?;
+		fund_treasury_with(asset_in)?;
 
-		let schedule1 = schedule_buy_fake(seller.clone(), HDX, DAI, amount_buy);
+		let schedule1 = schedule_buy_fake(seller.clone(), asset_in, DAI, amount_buy);
+		let schedule_2 = schedule_buy_fake(seller.clone(), HDX, DAI, amount_buy);
 		let execution_block = 1005u32;
 
 		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
 
 		assert_eq!(Currencies::free_balance(DAI, &seller),0);
-		let reserved_balance = get_named_reseve_balance(HDX, seller.clone());
+		let reserved_balance = get_named_reseve_balance(asset_in, seller.clone());
 
 		let init_reserved_balance = 2000 * ONE;
 		assert_eq!(init_reserved_balance, reserved_balance);
@@ -215,7 +230,52 @@ runtime_benchmarks! {
 		let next_block_to_replan = execution_block + schedule_period;
 		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
 		for i in 0..number_of_all_schedules {
-			assert_ok!(DCA::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule1.clone(), Option::Some(next_block_to_replan)));
+			assert_ok!(DCA::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule_2.clone(), Option::Some(next_block_to_replan)));
+		}
+
+		assert_eq!((MaxSchedulesPerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(next_block_to_replan + DELAY_AFTER_LAST_RADIUS).len());
+	}: {
+		DCA::on_initialize(execution_block);
+	}
+	verify {
+		assert_eq!((MaxSchedulesPerBlock::get()) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(next_block_to_replan + DELAY_AFTER_LAST_RADIUS).len());
+	}
+
+	on_initialize_with_buy_trade_with_insufficient_fee_asset{
+		set_period(1000);
+
+		let amount_buy = 200 * ONE;
+
+		let asset_in = setup_insufficient_asset_with_dot().unwrap();
+
+		let seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
+		let other_seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
+
+		//Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
+		fund_treasury()?;
+		fund_treasury_with(asset_in)?;
+
+		let schedule1 = schedule_buy_fake(seller.clone(), asset_in, DAI, amount_buy);
+		let schedule_2 = schedule_buy_fake(seller.clone(), HDX, DAI, amount_buy);
+		let execution_block = 1005u32;
+
+		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
+
+		assert_eq!(Currencies::free_balance(DAI, &seller),0);
+		let reserved_balance = get_named_reseve_balance(asset_in, seller.clone());
+
+		let init_reserved_balance = 2000 * ONE;
+		assert_eq!(init_reserved_balance, reserved_balance);
+
+		assert_eq!(Currencies::free_balance(DAI, &seller), 0);
+
+		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
+		//We leave only one slot
+		let schedule_period = 5;
+		let next_block_to_replan = execution_block + schedule_period;
+		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
+		for i in 0..number_of_all_schedules {
+			assert_ok!(DCA::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule_2.clone(), Option::Some(next_block_to_replan)));
 		}
 
 		assert_eq!((MaxSchedulesPerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(next_block_to_replan + DELAY_AFTER_LAST_RADIUS).len());
@@ -267,6 +327,48 @@ runtime_benchmarks! {
 		assert_eq!((MaxSchedulesPerBlock::get()) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(next_block_to_replan + DELAY_AFTER_LAST_RADIUS).len());
 	}
 
+	on_initialize_with_sell_trade_with_insufficient_fee_asset{
+		set_period(1000);
+		let asset_in = setup_insufficient_asset_with_dot().unwrap();
+
+		let seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
+		let other_seller: AccountId = create_funded_account("seller", 3, &[asset_in]);
+
+		//Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
+		fund_treasury()?;
+		fund_treasury_with(asset_in)?;
+
+		let amount_sell = 100 * ONE;
+
+		let schedule1 = schedule_sell_fake(seller.clone(), asset_in, DAI, amount_sell);
+		let execution_block = 1005u32;
+
+		assert_ok!(DCA::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block)));
+
+		assert_eq!(Currencies::free_balance(DAI, &seller),0);
+		let reserved_balance = get_named_reseve_balance(asset_in, seller.clone());
+
+		let init_reserved_balance = 2000 * ONE;
+		assert_eq!(init_reserved_balance, reserved_balance);
+
+		assert_eq!(Currencies::free_balance(DAI, &seller), 0);
+
+		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
+		//We leave only one slot
+		let schedule_period = 5;
+		let next_block_to_replan = execution_block + schedule_period;
+		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
+		for i in 0..number_of_all_schedules {
+			assert_ok!(DCA::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule1.clone(), Option::Some(next_block_to_replan)));
+		}
+		assert_eq!((MaxSchedulesPerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(next_block_to_replan + DELAY_AFTER_LAST_RADIUS).len());
+	}: {
+		DCA::on_initialize(execution_block);
+	}
+	verify {
+		assert_eq!((MaxSchedulesPerBlock::get()) as usize, <ScheduleIdsPerBlock<Runtime>>::get::<BlockNumber>(next_block_to_replan + DELAY_AFTER_LAST_RADIUS).len());
+	}
+
 	on_initialize_with_empty_block{
 		let seller: AccountId = account("seller", 3, 1);
 		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
@@ -287,7 +389,10 @@ runtime_benchmarks! {
 		let caller: AccountId = create_account_with_native_balance()?;
 		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
 
-		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_in = setup_insufficient_asset_with_dot().unwrap();
+		fund_treasury_with(asset_in)?;
+
+		let asset_1 = asset_in;
 		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -330,15 +435,6 @@ runtime_benchmarks! {
 
 		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
 
-		let maker: AccountId = account("maker", 0, 0);
-		Router::set_route(RawOrigin::Signed(maker).into(), AssetPair::new(asset_1, HDX), route)?;
-
-		assert_ok!(MultiTransactionPayment::add_currency(
-				RawOrigin::Root.into(),
-				asset_1,
-				FixedU128::from_rational(88, 100),
-			));
-
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &caller, 100_000_000_000_000_000_000_000i128)?;
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(asset_1, &caller, 100_000_000_000_000_000_000_000i128)?;
 		let amount_sell = 200 * ONE;
@@ -355,11 +451,7 @@ runtime_benchmarks! {
 				asset_out: DAI,
 				amount_out: amount_sell,
 				max_amount_in: Balance::MAX,
-				route: create_bounded_vec(vec![Trade {
-					pool: PoolType::Omnipool,
-					asset_in: asset_1,
-					asset_out: DAI,
-				}]),
+				route: create_bounded_vec(route),
 			},
 		};
 
@@ -406,20 +498,8 @@ runtime_benchmarks! {
 
 pub const INITIAL_BALANCE: Balance = 10_000_000 * ONE;
 
-fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
-	let account: AccountId = account(name, index, 0);
-	for asset in assets {
-		assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
-			*asset,
-			&account,
-			INITIAL_BALANCE.try_into().unwrap(),
-		));
-	}
-	account
-}
-
-fn create_xyk_pool(asset_a: u32, asset_b: u32) {
-	let caller: AccountId = funded_account("caller", 0, &[asset_a, asset_b]);
+pub fn create_xyk_pool(asset_a: u32, asset_b: u32) {
+	let caller: AccountId = create_funded_account("caller", 0, &[asset_a, asset_b]);
 
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),

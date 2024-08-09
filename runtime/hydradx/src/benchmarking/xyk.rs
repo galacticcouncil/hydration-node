@@ -65,6 +65,7 @@ runtime_benchmarks! {
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
 	}
 
+
 	add_liquidity {
 		let asset_a = register_external_asset(b"TKNA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_b = register_external_asset(b"TKNB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
@@ -295,14 +296,26 @@ runtime_benchmarks! {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::NativeExistentialDeposit;
 	use orml_benchmarking::impl_benchmark_test_suite;
 	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::<crate::Runtime>::default()
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
 			.build_storage()
-			.unwrap()
-			.into()
+			.unwrap();
+
+		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
+			registered_assets: vec![],
+			native_asset_name: b"HDX".to_vec().try_into().unwrap(),
+			native_existential_deposit: NativeExistentialDeposit::get(),
+			native_decimals: 12,
+			native_symbol: b"HDX".to_vec().try_into().unwrap(),
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		sp_io::TestExternalities::new(t)
 	}
 
 	impl_benchmark_test_suite!(new_test_ext(),);

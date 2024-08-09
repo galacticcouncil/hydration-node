@@ -498,11 +498,13 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type WeightInfo = weights::pallet_transaction_multi_payment::HydraWeight<Runtime>;
 	type NativeAssetId = NativeAssetId;
+	type PolkadotNativeAssetId = DotAssetId;
 	type EvmAssetId = evm::WethAssetId;
 	type InspectEvmAccounts = EVMAccounts;
 	type WeightToFee = WeightToFee;
 	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
 	type TryCallCurrency<'a> = pallet_transaction_multi_payment::TryCallCurrency<Runtime>;
+	type InsufficientAssetFeeSupport = assets::InsufficientAssetSupport;
 }
 
 impl pallet_relaychain_info::Config for Runtime {

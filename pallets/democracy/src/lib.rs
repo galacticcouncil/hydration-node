@@ -618,7 +618,7 @@ pub mod pallet {
 
 			T::Currency::reserve(&who, value)?;
 
-			let depositors = BoundedVec::<_, T::MaxDeposits>::truncate_from(vec![who.clone()]);
+			let depositors = BoundedVec::<_, T::MaxDeposits>::truncate_from(sp_std::vec![who.clone()]);
 			DepositOf::<T>::insert(index, (depositors, value));
 
 			PublicPropCount::<T>::put(index + 1);

@@ -12,21 +12,22 @@ pub mod vesting;
 pub mod xyk;
 pub mod xyk_liquidity_mining;
 
-use crate::{AssetLocation, AssetRegistry, MultiTransactionPayment};
+use crate::{AssetLocation, AssetRegistry, EmaOracle, MultiTransactionPayment, Runtime, System, DOT_ASSET_LOCATION};
+use frame_benchmarking::BenchmarkError;
+use frame_support::traits::OnFinalize;
+use frame_support::traits::OnInitialize;
 use frame_system::RawOrigin;
-
 use hydradx_traits::{registry::Create, AssetKind};
 use pallet_transaction_multi_payment::Price;
-use primitives::{AssetId, Balance};
+use primitives::{AssetId, Balance, BlockNumber};
 use sp_runtime::traits::One;
 use sp_std::vec;
 use sp_std::vec::Vec;
-
 pub const BSX: Balance = primitives::constants::currency::UNITS;
 
 use frame_support::storage::with_transaction;
 use hydradx_traits::Mutate;
-use sp_runtime::TransactionOutcome;
+use sp_runtime::{FixedU128, TransactionOutcome};
 pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 	let n = name.try_into().map_err(|_| ())?;
 	with_transaction(|| {
@@ -92,6 +93,38 @@ pub fn update_asset(asset_id: AssetId, name: Option<Vec<u8>>, deposit: Balance) 
 		))
 	})
 	.map_err(|_| ())
+}
+
+pub fn set_period(to: u32) {
+	while System::block_number() < Into::<BlockNumber>::into(to) {
+		let b = System::block_number();
+
+		System::on_finalize(b);
+		EmaOracle::on_finalize(b);
+		MultiTransactionPayment::on_finalize(b);
+
+		System::on_initialize(b + 1_u32);
+		EmaOracle::on_initialize(b + 1_u32);
+		MultiTransactionPayment::on_initialize(b + 1_u32);
+
+		System::set_block_number(b + 1_u32);
+	}
+}
+
+fn setup_insufficient_asset_with_dot() -> Result<AssetId, BenchmarkError> {
+	let dot = register_asset(b"DOT".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+	set_location(dot, DOT_ASSET_LOCATION).map_err(|_| BenchmarkError::Stop("Failed to set location for weth"))?;
+	crate::benchmarking::dca::MultiPaymentPallet::<Runtime>::add_currency(
+		RawOrigin::Root.into(),
+		dot,
+		FixedU128::from(1),
+	)
+	.map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
+	let insufficient_asset =
+		register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+	crate::benchmarking::dca::create_xyk_pool(insufficient_asset, dot);
+
+	Ok(insufficient_asset)
 }
 
 // TODO: uncomment once AMM pool is available

@@ -1,19 +1,28 @@
 #![cfg(test)]
 
+use crate::assert_balance;
 use crate::assert_event_times;
 use crate::insufficient_assets_ed::v3::Junction::GeneralIndex;
 use crate::polkadot_test_net::*;
+use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok, traits::Contains};
 use frame_system::RawOrigin;
+use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::Omnipool;
 use hydradx_runtime::RuntimeOrigin as hydra_origin;
+use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::{
 	AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX, MultiTransactionPayment,
 	NativeExistentialDeposit, RuntimeEvent, TechnicalCollective, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
 };
+use hydradx_traits::AssetKind;
+use hydradx_traits::Create;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
 use polkadot_xcm::v3::{self, Junction::Parachain, Junctions::X2, MultiLocation};
+use sp_runtime::DispatchResult;
 use sp_runtime::FixedPointNumber;
+use sp_runtime::TransactionOutcome;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -1397,6 +1406,106 @@ fn banned_asset_should_not_be_transferable_to_existing_account() {
 			Tokens::transfer(hydra_origin::signed(BOB.into()), ALICE.into(), sht1, 1_000_000 * UNITS),
 			sp_runtime::DispatchError::Other("BannedAssetTransfer")
 		);
+	});
+}
+
+#[test]
+fn ed_should_be_paid_in_insufficient_asset_through_dot() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
+
+			//Arrange
+			crate::dca::init_omnipool_with_oracle_for_block_10();
+			crate::dca::add_dot_as_payment_currency();
+			assert_ok!(Currencies::update_balance(
+				RawOrigin::Root.into(),
+				BOB.into(),
+				DOT,
+				200 * UNITS as i128,
+			));
+
+			assert_ok!(Omnipool::sell(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				DOT,
+				HDX,
+				10 * UNITS,
+				u128::MIN
+			));
+
+			let name = b"INSUF1".to_vec();
+			let insufficient_asset = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(name.try_into().unwrap()),
+				AssetKind::External,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+			create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 3000000 * UNITS);
+
+			let name2 = b"INSUF2".to_vec();
+
+			let insufficient_asset2 = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(name2.try_into().unwrap()),
+				AssetKind::External,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
+			set_relaychain_block_number(11);
+
+			let alice_init_insuff_balance = 10 * UNITS;
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ALICE.into(),
+				insufficient_asset,
+				alice_init_insuff_balance as i128,
+			));
+
+			let fee_currency = insufficient_asset;
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				fee_currency,
+			));
+
+			assert_balance!(&Treasury::account_id(), DOT, 0);
+			let alice_init_insuff_balance =
+				hydradx_runtime::Currencies::free_balance(insufficient_asset, &ALICE.into());
+
+			//Act
+			assert_ok!(Tokens::deposit(insufficient_asset2, &ALICE.into(), 1 * UNITS));
+
+			//Assert
+			let alice_new_insuff_balance = hydradx_runtime::Currencies::free_balance(insufficient_asset, &ALICE.into());
+			assert!(alice_new_insuff_balance < alice_init_insuff_balance);
+			let spent_insuff_asset = alice_init_insuff_balance - alice_new_insuff_balance;
+
+			let treasury_dot_balance = hydradx_runtime::Currencies::free_balance(DOT, &ALICE.into());
+			assert!(treasury_dot_balance > 0, "Treasury is rugged");
+
+			assert_event_times!(
+				RuntimeEvent::AssetRegistry(pallet_asset_registry::Event::ExistentialDepositPaid {
+					who: ALICE.into(),
+					fee_asset: insufficient_asset,
+					amount: spent_insuff_asset
+				}),
+				1
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
 	});
 }
 
