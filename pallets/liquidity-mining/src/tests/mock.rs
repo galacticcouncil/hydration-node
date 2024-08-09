@@ -413,9 +413,10 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	type Error = DispatchError;
 
 	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
-		if Whitelist::contains(account) {
-			return Err(sp_runtime::DispatchError::Other("Account is already in the whitelist"));
-		}
+		// TODO: verify that the following check can be removed
+		// if Whitelist::contains(account) {
+		// 	return Err(sp_runtime::DispatchError::Other("Account is already in the whitelist"));
+		// }
 
 		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
 

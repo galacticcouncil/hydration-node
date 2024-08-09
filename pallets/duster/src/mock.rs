@@ -133,6 +133,7 @@ impl Config for Test {
 	type Reward = Reward;
 	type NativeCurrencyId = NativeCurrencyId;
 	type BlacklistUpdateOrigin = EnsureRoot<AccountId>;
+	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
 }
 
