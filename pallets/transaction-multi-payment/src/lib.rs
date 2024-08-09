@@ -32,6 +32,7 @@ mod tests;
 mod traits;
 
 pub use crate::traits::*;
+pub use crate::DisabledEvmPermitHandler;
 use frame_support::storage::with_transaction;
 use frame_support::traits::{Contains, IsSubType};
 use frame_support::{
