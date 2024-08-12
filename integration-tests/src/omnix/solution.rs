@@ -40,7 +40,11 @@ fn submit_solution_should_work() {
 		)])
 		.unwrap();
 
-		assert_ok!(OmniX::submit_solution(RuntimeOrigin::signed(BOB.into()), solution));
+		assert_ok!(OmniX::submit_solution(
+			RuntimeOrigin::signed(BOB.into()),
+			solution,
+			1u128
+		));
 		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 		assert_eq!(dai_balance - initial_dai_balance, 8973613312776918);
 	});
@@ -100,7 +104,11 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		)])
 		.unwrap();
 
-		assert_ok!(OmniX::submit_solution(RuntimeOrigin::signed(BOB.into()), solution));
+		assert_ok!(OmniX::submit_solution(
+			RuntimeOrigin::signed(BOB.into()),
+			solution,
+			1u128
+		));
 
 		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
 		assert_eq!(hdx_balance, initial_hdx_balance - 1_000_000_000_000u128);
@@ -169,7 +177,11 @@ fn execute_two_intents_solution_should_work() {
 		])
 		.unwrap();
 
-		assert_ok!(OmniX::submit_solution(RuntimeOrigin::signed(BOB.into()), solution));
+		assert_ok!(OmniX::submit_solution(
+			RuntimeOrigin::signed(BOB.into()),
+			solution,
+			1u128
+		));
 
 		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
 		assert_eq!(hdx_balance, initial_hdx_balance - 1_000_000_000_000u128);

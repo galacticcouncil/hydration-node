@@ -59,6 +59,7 @@ pub struct Solution<AccountId, AssetId> {
 	pub proposer: AccountId,
 	pub intents: BoundedResolvedIntents,
 	pub instructions: BoundedInstructions<AccountId, AssetId>,
+	pub score: Balance,
 	pub weight: Weight,
 }
 

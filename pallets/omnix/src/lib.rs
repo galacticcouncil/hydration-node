@@ -33,6 +33,7 @@ pub mod pallet {
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use orml_traits::GetByKey;
+	use types::Balance;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -176,6 +177,7 @@ pub mod pallet {
 		pub fn submit_solution(
 			origin: OriginFor<T>,
 			solution: ProposedSolution<T::AccountId, T::AssetId>,
+			score: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -183,6 +185,7 @@ pub mod pallet {
 				proposer: who.clone(),
 				intents: solution.intents,
 				instructions: solution.instructions,
+				score,
 				weight: Default::default(),
 			};
 
