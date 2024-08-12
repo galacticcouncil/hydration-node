@@ -128,10 +128,6 @@ pub mod pallet {
 	#[pallet::getter(fn next_incremental_id)]
 	pub(super) type NextIncrementalId<T: Config> = StorageValue<_, IncrementalIntentId, ValueQuery>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn get_solution)]
-	pub(super) type Solutions<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, Solution<T::AccountId, T::AssetId>>;
-
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
@@ -195,15 +191,6 @@ pub mod pallet {
 
 			//Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
 
-			Ok(())
-		}
-
-		#[pallet::call_index(2)]
-		#[pallet::weight(T::WeightInfo::execute_solution())]
-		pub fn execute_solution(origin: OriginFor<T>, hash: T::Hash) -> DispatchResult {
-			ensure_signed(origin)?;
-			let solution = Solutions::<T>::get(&hash).ok_or(Error::<T>::SolutionNotFound)?;
-			OmniXEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
 			Ok(())
 		}
 	}
