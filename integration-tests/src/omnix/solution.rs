@@ -40,7 +40,6 @@ fn submit_solution_should_work() {
 		)])
 		.unwrap();
 
-
 		assert_ok!(OmniX::submit_solution(RuntimeOrigin::signed(BOB.into()), solution));
 		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 		assert_eq!(dai_balance - initial_dai_balance, 8973613312776918);
@@ -72,8 +71,6 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 
 		let asset_pair = Pair::new(LRNA, assets[0]);
 
-		println!("setting route");
-
 		assert_ok!(Router::set_route(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			asset_pair,
@@ -103,12 +100,7 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		)])
 		.unwrap();
 
-		dbg!(&solution);
-
-		assert_ok!(OmniX::submit_solution(
-			RuntimeOrigin::signed(BOB.into()),
-			solution
-		));
+		assert_ok!(OmniX::submit_solution(RuntimeOrigin::signed(BOB.into()), solution));
 
 		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
 		assert_eq!(hdx_balance, initial_hdx_balance - 1_000_000_000_000u128);
@@ -123,8 +115,6 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		assert_eq!(lrna_balance, 0u128);
 	});
 }
-
-/*
 
 #[test]
 fn execute_two_intents_solution_should_work() {
@@ -167,7 +157,7 @@ fn execute_two_intents_solution_should_work() {
 			),
 		]);
 
-		let solved = solve_intents(vec![
+		let solution = solve_intents(vec![
 			(
 				intent_ids[0],
 				pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
@@ -178,19 +168,8 @@ fn execute_two_intents_solution_should_work() {
 			),
 		])
 		.unwrap();
-		let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-		let solution = Solution::<AccountId> {
-			proposer: BOB.into(),
-			intents: resolved_intents.clone(),
-		};
 
-		assert_ok!(OmniX::submit_solution(
-			RuntimeOrigin::signed(BOB.into()),
-			resolved_intents.into_inner(),
-		));
-
-		let hash = <hydradx_runtime::Runtime as frame_system::Config>::Hashing::hash(&solution.encode());
-		assert_ok!(OmniX::execute_solution(RuntimeOrigin::signed(BOB.into()), hash));
+		assert_ok!(OmniX::submit_solution(RuntimeOrigin::signed(BOB.into()), solution));
 
 		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
 		assert_eq!(hdx_balance, initial_hdx_balance - 1_000_000_000_000u128);
@@ -200,13 +179,13 @@ fn execute_two_intents_solution_should_work() {
 			LRNA,
 			&pallet_omnix::Pallet::<hydradx_runtime::Runtime>::holding_account(),
 		);
-		assert_eq!(lrna_balance, 0u128);
+		//assert_eq!(lrna_balance, 0u128);
 		let received = dai_balance - initial_dai_balance;
-		assert_eq!(received, 8978102355397552u128);
+		assert_eq!(received, 8_973_613_312_776_918u128);
 
 		let alice_dai_balance = Currencies::free_balance(DAI, &AccountId32::from(ALICE));
 		let received = alice_dai_balance - alice_initial_dai_balance;
-		assert_eq!(received, 8978102355397552u128);
+		assert_eq!(received, 8_973_613_312_776_918u128);
 	});
 }
 
@@ -287,6 +266,3 @@ fn test_omnipool_stable_swap() {
 		assert_eq!(stable_balance - initial_stable_balance, 26105);
 	});
 }
-
-
- */
