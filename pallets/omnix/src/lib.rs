@@ -7,9 +7,12 @@ pub mod order;
 #[cfg(test)]
 mod tests;
 pub mod types;
+pub mod validity;
 mod weights;
 
-use crate::types::{CallData, IncrementalIntentId, Intent, IntentId, Moment, ProposedSolution, Solution, Swap};
+use crate::types::{
+	Balance, CallData, IncrementalIntentId, Intent, IntentId, Moment, ProposedSolution, Solution, Swap,
+};
 use codec::{Encode, HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
@@ -129,6 +132,18 @@ pub mod pallet {
 	#[pallet::getter(fn next_incremental_id)]
 	pub(super) type NextIncrementalId<T: Config> = StorageValue<_, IncrementalIntentId, ValueQuery>;
 
+	#[pallet::storage]
+	/// Intent id sequencer
+	#[pallet::getter(fn solution_score)]
+	pub(super) type SolutionScore<T: Config> = StorageValue<_, Balance, ValueQuery>;
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			SolutionScore::<T>::kill();
+		}
+	}
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
@@ -224,5 +239,14 @@ impl<T: Config> Pallet<T> {
 		CallData::try_from(data)
 			.map_err(|_| Error::<T>::TooLong.into())
 			.map(|v| Some(v))
+	}
+
+	pub fn validate_proposed_score(_who: &T::AccountId, score: Balance) -> bool {
+		//TODO: lock proposal bond
+		let current_score = SolutionScore::<T>::get();
+		if score > current_score {
+			SolutionScore::<T>::put(score);
+		}
+		score > current_score
 	}
 }

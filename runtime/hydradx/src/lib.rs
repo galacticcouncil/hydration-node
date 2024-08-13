@@ -259,7 +259,7 @@ pub type SignedExtra = (
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	pallet_claims::ValidateClaim<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
-	pallet_omnix::order::SetPriority<Runtime>,
+	pallet_omnix::validity::ValidateIceSolution<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;

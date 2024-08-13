@@ -15,6 +15,7 @@ fn create_solution(
 		proposer: ALICE,
 		intents,
 		instructions,
+		score: 0,
 		weight: Default::default(),
 	}
 }
