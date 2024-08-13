@@ -160,7 +160,7 @@ pub mod pallet {
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Security origin that can set asset's tradability.
-		type SecurityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type UpdateTradabilityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: RegistryInspect<AssetId = Self::AssetId>;
@@ -1432,7 +1432,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			state: Tradability,
 		) -> DispatchResult {
-			T::SecurityOrigin::ensure_origin(origin)?;
+			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
 
 			if asset_id == T::HubAssetId::get() {
 				// Atm omnipool does not allow adding/removing liquidity of hub asset.

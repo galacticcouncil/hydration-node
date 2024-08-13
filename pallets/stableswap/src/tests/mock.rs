@@ -174,7 +174,7 @@ impl Config for Test {
 	type ShareAccountId = AccountIdConstructor;
 	type AssetInspection = DummyRegistry;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
-	type SecurityOrigin = EnsureRoot<AccountId>;
+	type UpdateTradabilityOrigin = EnsureRoot<AccountId>;
 	type MinPoolLiquidity = MinimumLiquidity;
 	type AmplificationRange = AmplificationRange;
 	type MinTradingLimit = MinimumTradingLimit;

@@ -55,9 +55,13 @@ impl Contains<RuntimeCall> for CallFilter {
 		if matches!(
 			call,
 			RuntimeCall::System(_)
+				| RuntimeCall::ConvictionVoting(_)
 				| RuntimeCall::Timestamp(_)
 				| RuntimeCall::ParachainSystem(_)
+				| RuntimeCall::Preimage(_)
 				| RuntimeCall::Referenda(_)
+				| RuntimeCall::TransactionPause(_)
+				| RuntimeCall::Whitelist(_)
 		) {
 			// always allow
 			// Note: this is done to avoid unnecessary check of paused storage.
@@ -610,7 +614,7 @@ impl pallet_collator_rewards::Config for Runtime {
 
 impl pallet_transaction_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type SecurityOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeSuperMajority>;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
 

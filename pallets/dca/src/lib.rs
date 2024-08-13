@@ -57,7 +57,7 @@
 //!
 //! ## Terminating a Schedule
 //!
-//! Both users and technical origin can terminate a DCA schedule. However, users can only terminate schedules that they own.
+//! Both users and TerminateOrigin can terminate a DCA schedule. However, users can only terminate schedules that they own.
 //!
 //! Once a schedule is terminated, it is completely and permanently removed from the blockchain.
 
@@ -213,7 +213,7 @@ pub mod pallet {
 		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
 
 		/// Origin able to terminate schedules
-		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type TerminateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		///For named-reserving user's assets
 		type Currencies: NamedMultiReservableCurrency<
@@ -552,7 +552,7 @@ pub mod pallet {
 
 		/// Terminates a DCA schedule and remove it completely from the chain.
 		///
-		/// This can be called by both schedule owner or the configured `T::TechnicalOrigin`
+		/// This can be called by both schedule owner or the configured `T::TerminateOrigin`
 		///
 		/// Parameters:
 		/// - `origin`: schedule owner
@@ -571,7 +571,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 
-			if T::TechnicalOrigin::ensure_origin(origin.clone()).is_err() {
+			if T::TerminateOrigin::ensure_origin(origin.clone()).is_err() {
 				let who = ensure_signed(origin)?;
 				ensure!(who == schedule.owner, Error::<T>::Forbidden);
 			}

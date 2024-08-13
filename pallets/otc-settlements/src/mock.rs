@@ -155,7 +155,7 @@ impl pallet_route_executor::Config for Test {
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
 }
 
@@ -328,7 +328,7 @@ impl pallet_omnipool::Config for Test {
 	type AssetRegistry = AssetRegistry;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
-	type SecurityOrigin = EnsureRoot<Self::AccountId>;
+	type UpdateTradabilityOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
