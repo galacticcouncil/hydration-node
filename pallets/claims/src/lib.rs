@@ -193,7 +193,7 @@ fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 /// Signed extension that checks for the `claim` call and in that case, it verifies an Ethereum signature
 #[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
-pub struct ValidateClaim<T: Config + Send + Sync>(PhantomData<T>);
+pub struct ValidateClaim<T: Config + Send + Sync>(pub PhantomData<T>);
 
 impl<T: Config + Send + Sync> sp_std::fmt::Debug for ValidateClaim<T> {
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {

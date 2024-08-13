@@ -19,10 +19,7 @@
 
 #![allow(clippy::all)]
 
-use hydradx_runtime::{
-	opaque::{Block, Hash},
-	RuntimeApi,
-};
+use hydradx_runtime::{opaque::{Block, Hash}, Runtime, RuntimeApi};
 use std::{sync::Arc, time::Duration};
 
 use cumulus_client_cli::CollatorOptions;
@@ -38,9 +35,9 @@ use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 
 use fc_db::kv::Backend as FrontierBackend;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
-use sc_client_api::Backend;
+use sc_client_api::{Backend, BlockBackend};
 use sc_consensus::ImportQueue;
-use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
+use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY, NativeElseWasmExecutor};
 use sc_network::NetworkBlock;
 use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
@@ -48,12 +45,20 @@ use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerH
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_keystore::KeystorePtr;
 use std::{collections::BTreeMap, sync::Mutex};
+use frame_system_rpc_runtime_api::AccountNonceApi;
+use sp_api::ProvideRuntimeApi;
+use sp_runtime::generic::SignedPayload;
+use sp_runtime::generic::Era;
+use sp_runtime::generic::*;
 use substrate_prometheus_endpoint::Registry;
-
+use sp_core::Pair;
+use sp_core::Encode;
+use sp_runtime::SaturatedConversion;
+use sp_std::marker::PhantomData;
 pub(crate) mod evm;
 use crate::{chain_spec, rpc};
 
-type ParachainClient = TFullClient<
+pub type ParachainClient = TFullClient<
 	Block,
 	RuntimeApi,
 	WasmExecutor<(
@@ -65,6 +70,78 @@ type ParachainClient = TFullClient<
 type ParachainBackend = TFullBackend<Block>;
 
 type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
+
+/// Create a transaction using the given `call`.
+///
+/// The transaction will be signed by `sender`. If `nonce` is `None` it will be fetched from the
+/// state of the best block.
+///
+/// Note: Should only be used for tests.
+pub fn create_extrinsic(
+	client: &ParachainClient,
+	sender: sp_core::sr25519::Pair,
+	function: impl Into<hydradx_runtime::RuntimeCall>,
+	nonce: Option<u32>,
+) -> hydradx_runtime::UncheckedExtrinsic {
+	log::warn!("CREATE EXT");
+	let function = function.into();
+	let genesis_hash = client
+		.block_hash(0)
+		.ok()
+		.flatten()
+		.expect("Genesis block exists; qed");
+	let best_hash = client.chain_info().best_hash;
+	let best_block = client.chain_info().best_number;
+	let nonce = nonce.unwrap_or_else(|| fetch_nonce(client, sender.clone()));
+
+	let period = hydradx_runtime::BlockHashCount::get()
+		.checked_next_power_of_two()
+		.map(|c| c / 2)
+		.unwrap_or(2) as u64;
+	let tip = 0;
+	let extra: hydradx_runtime::SignedExtra = (
+		frame_system::CheckNonZeroSender::<hydradx_runtime::Runtime>::new(),
+		frame_system::CheckSpecVersion::<hydradx_runtime::Runtime>::new(),
+		frame_system::CheckTxVersion::<hydradx_runtime::Runtime>::new(),
+		frame_system::CheckGenesis::<hydradx_runtime::Runtime>::new(),
+		frame_system::CheckEra::<hydradx_runtime::Runtime>::from(Era::mortal(
+			period,
+			best_block.saturated_into(),
+		)),
+		frame_system::CheckNonce::<hydradx_runtime::Runtime>::from(nonce),
+		frame_system::CheckWeight::<hydradx_runtime::Runtime>::new(),
+		pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(tip),
+		pallet_claims::ValidateClaim(PhantomData),
+		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+	);
+
+	log::warn!("After extra");
+
+	let raw_payload = SignedPayload::from_raw(
+		function.clone(),
+		extra.clone(),
+		(
+			(),
+			hydradx_runtime::VERSION.spec_version,
+			hydradx_runtime::VERSION.transaction_version,
+			genesis_hash,
+			best_hash,
+			(),
+			(),
+			(),
+			(),
+			None
+		),
+	);
+	let signature = raw_payload.using_encoded(|e| sender.sign(e));
+
+	hydradx_runtime::UncheckedExtrinsic::new_signed(
+		function,
+		sp_runtime::AccountId32::from(sender.public()),
+		hydradx_runtime::Signature::Sr25519(signature),
+		extra,
+	)
+}
 
 /// Starts a `ServiceBuilder` for a full service.
 ///
@@ -520,4 +597,33 @@ pub async fn start_node(
 		para_id,
 	)
 	.await
+}
+
+
+/// Fetch the nonce of the given `account` from the chain state.
+///
+/// Note: Should only be used for tests.
+pub fn fetch_nonce(client: &ParachainClient, account: sp_core::sr25519::Pair) -> u32 {
+	let best_hash = client.chain_info().best_hash;
+	client
+		.runtime_api()
+		.account_nonce(best_hash, account.public().into())
+		.expect("Fetching account nonce works; qed")
+}
+
+
+// Declare an instance of the native executor named `ExecutorDispatch`. Include the wasm binary as
+// the equivalent wasm code.
+pub struct ExecutorDispatch;
+
+impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
+	type ExtendHostFunctions = frame_benchmarking::v1::benchmarking::HostFunctions;
+
+	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+		hydradx_runtime::api::dispatch(method, data)
+	}
+
+	fn native_version() -> sc_executor::NativeVersion {
+		hydradx_runtime::native_version()
+	}
 }

@@ -17,7 +17,7 @@
 
 use crate::chain_spec;
 use crate::cli::{Cli, RelayChainCli, Subcommand};
-use crate::service::new_partial;
+use crate::service::{new_partial, ParachainClient};
 
 use codec::Encode;
 use cumulus_primitives_core::ParaId;
@@ -31,11 +31,14 @@ use sc_cli::{
 use sc_executor::sp_wasm_interface::ExtendedHostFunctions;
 use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
-use sp_runtime::{
-	traits::{AccountIdConversion, Block as BlockT, Hash as HashT, Header as HeaderT, Zero},
-	StateVersion,
-};
+use sp_runtime::{traits::{AccountIdConversion, Block as BlockT, Hash as HashT, Header as HeaderT, Zero}, StateVersion, OpaqueExtrinsic};
 use std::io::Write;
+use cumulus_primitives_parachain_inherent::{INHERENT_IDENTIFIER, ParachainInherentData};
+use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
+use frame_system_rpc_runtime_api::AccountNonceApi;
+use polkadot_primitives::PersistedValidationData;
+use sp_api::ProvideRuntimeApi;
+use sp_inherents::{InherentData, InherentDataProvider};
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	Ok(match id {
@@ -220,7 +223,19 @@ pub fn run() -> sc_cli::Result<()> {
 
 					cmd.run(config, partials.client, db, storage)
 				}),
-				BenchmarkCmd::Overhead(_) | BenchmarkCmd::Extrinsic(_) => {
+				BenchmarkCmd::Overhead(cmd) => runner.sync_run(|config| {
+					let partials = new_partial(&config)?;
+					let ext_builder = RemarkBuilder::new(partials.client.clone());
+					let inh = para_benchmark_inherent_data().unwrap();
+					cmd.run(
+						config,
+						partials.client,
+						inh,
+						Vec::new(),
+						&ext_builder,
+					)
+				}),
+				BenchmarkCmd::Extrinsic(_) => {
 					Err("Unsupported benchmarking command".into())
 				}
 				BenchmarkCmd::Machine(cmd) => {
@@ -476,3 +491,92 @@ pub fn generate_genesis_block<Block: BlockT>(
 		Default::default(),
 	))
 }
+
+/// Generates `System::Remark` extrinsics for the benchmarks.
+///
+/// Note: Should only be used for benchmarking.
+pub struct RemarkBuilder {
+	client: Arc<ParachainClient>,
+}
+
+impl RemarkBuilder {
+	/// Creates a new [`Self`] from the given client.
+	pub fn new(client: Arc<ParachainClient>) -> Self {
+		Self { client }
+	}
+}
+
+use sp_keyring::Sr25519Keyring;
+use sp_std::sync::Arc;
+use sp_timestamp::Timestamp;
+use crate::service::create_extrinsic;
+impl frame_benchmarking_cli::ExtrinsicBuilder for RemarkBuilder {
+	fn pallet(&self) -> &str {
+		"system"
+	}
+
+	fn extrinsic(&self) -> &str {
+		"remark"
+	}
+
+	fn build(&self, nonce: u32) -> std::result::Result<OpaqueExtrinsic, &'static str> {
+		let acc = Sr25519Keyring::Bob.pair();
+		let extrinsic: OpaqueExtrinsic = create_extrinsic(
+			self.client.as_ref(),
+			acc,
+			frame_system::Call::remark { remark: vec![] },
+			Some(nonce),
+		)
+			.into();
+
+		Ok(extrinsic)
+	}
+}
+
+/// Generates inherent data for the `benchmark overhead` command.
+pub fn inherent_benchmark_data() -> Result<InherentData> {
+	let mut inherent_data = InherentData::new();
+	let d = std::time::Duration::from_millis(100);
+	let timestamp = sp_timestamp::InherentDataProvider::new(d.into());
+
+	futures::executor::block_on(timestamp.provide_inherent_data(&mut inherent_data))
+		.map_err(|e| format!("creating inherent data: {:?}", e))?;
+	Ok(inherent_data)
+}
+
+pub fn para_benchmark_inherent_data(
+) -> std::result::Result<sp_inherents::InherentData, sp_inherents::Error> {
+	use sp_inherents::InherentDataProvider;
+	let mut inherent_data = sp_inherents::InherentData::new();
+
+	// Assume that all runtimes have the `timestamp` pallet.
+	let d = std::time::Duration::from_millis(0);
+	let timestamp = sp_timestamp::InherentDataProvider::new(d.into());
+	futures::executor::block_on(timestamp.provide_inherent_data(&mut inherent_data))?;
+
+	let sproof_builder = RelayStateSproofBuilder::default();
+	let (relay_parent_storage_root, relay_chain_state) = sproof_builder.into_state_root_and_proof();
+	// `relay_parent_number` should be bigger than 0 for benchmarking.
+	// It is mocked value, any number except 0 is valid.
+	let validation_data = PersistedValidationData {
+		relay_parent_number: 1,
+		relay_parent_storage_root,
+		..Default::default()
+	};
+
+	// Parachain blocks needs to include ParachainInherentData, otherwise block is invalid.
+	let para_data = ParachainInherentData {
+		validation_data,
+		relay_chain_state,
+		downward_messages: Default::default(),
+		horizontal_messages: Default::default(),
+	};
+
+	inherent_data.put_data(INHERENT_IDENTIFIER, &para_data)?;
+
+	Ok(inherent_data)
+}
+
+
+
+

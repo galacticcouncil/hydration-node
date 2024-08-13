@@ -31,10 +31,14 @@ async-trait = "0.1"
 # local dependencies
 hydradx-runtime = { workspace = true , features = ["std"] }
 primitives = { workspace = true }
+pallet-claims = { workspace = true }
 
 # Substrate dependencies
+frame-system = { workspace = true }
 frame-benchmarking = { workspace = true }
 frame-benchmarking-cli = { workspace = true , optional = true }
+frame-metadata-hash-extension = { workspace = true }
+pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
 sc-basic-authorship = { workspace = true }
 sc-chain-spec = { workspace = true }
@@ -71,6 +75,8 @@ sc-network = { workspace = true }
 sc-network-sync = { workspace = true }
 sc-network-common = { workspace = true }
 sp-keystore = { workspace = true }
+sp-keyring = { workspace = true}
+
 sp-session = { workspace = true }
 sp-offchain = { workspace = true }
 sc-offchain = { workspace = true }
