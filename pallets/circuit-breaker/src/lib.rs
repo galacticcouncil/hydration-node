@@ -195,7 +195,7 @@ pub mod pallet {
 			+ From<u128>;
 
 		/// Origin able to change the trade volume limit of an asset.
-		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type UpdateLimitsOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// List of accounts that bypass checks for adding/removing liquidity. Root is always whitelisted
 		type WhitelistedAccounts: Contains<Self::AccountId>;
@@ -326,7 +326,7 @@ pub mod pallet {
 		/// Set trade volume limit for an asset.
 		///
 		/// Parameters:
-		/// - `origin`: The dispatch origin for this call. Must be `TechnicalOrigin`
+		/// - `origin`: The dispatch origin for this call. Must be `UpdateLimitsOrigin`
 		/// - `asset_id`: The identifier of an asset
 		/// - `trade_volume_limit`: New trade volume limit represented as a percentage
 		///
@@ -339,7 +339,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			trade_volume_limit: (u32, u32),
 		) -> DispatchResult {
-			T::TechnicalOrigin::ensure_origin(origin)?;
+			T::UpdateLimitsOrigin::ensure_origin(origin)?;
 
 			ensure!(asset_id != T::OmnipoolHubAsset::get(), Error::<T>::NotAllowed);
 
@@ -358,7 +358,7 @@ pub mod pallet {
 		/// Set add liquidity limit for an asset.
 		///
 		/// Parameters:
-		/// - `origin`: The dispatch origin for this call. Must be `TechnicalOrigin`
+		/// - `origin`: The dispatch origin for this call. Must be `UpdateLimitsOrigin`
 		/// - `asset_id`: The identifier of an asset
 		/// - `liquidity_limit`: Optional add liquidity limit represented as a percentage
 		///
@@ -371,7 +371,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			liquidity_limit: Option<(u32, u32)>,
 		) -> DispatchResult {
-			T::TechnicalOrigin::ensure_origin(origin)?;
+			T::UpdateLimitsOrigin::ensure_origin(origin)?;
 
 			ensure!(asset_id != T::OmnipoolHubAsset::get(), Error::<T>::NotAllowed);
 
@@ -392,7 +392,7 @@ pub mod pallet {
 		/// Set remove liquidity limit for an asset.
 		///
 		/// Parameters:
-		/// - `origin`: The dispatch origin for this call. Must be `TechnicalOrigin`
+		/// - `origin`: The dispatch origin for this call. Must be `UpdateLimitsOrigin`
 		/// - `asset_id`: The identifier of an asset
 		/// - `liquidity_limit`: Optional remove liquidity limit represented as a percentage
 		///
@@ -405,7 +405,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			liquidity_limit: Option<(u32, u32)>,
 		) -> DispatchResult {
-			T::TechnicalOrigin::ensure_origin(origin)?;
+			T::UpdateLimitsOrigin::ensure_origin(origin)?;
 
 			ensure!(asset_id != T::OmnipoolHubAsset::get(), Error::<T>::NotAllowed);
 

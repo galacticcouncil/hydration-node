@@ -132,7 +132,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type UpdateLimitsOrigin = EnsureRoot<Self::AccountId>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
