@@ -8791,7 +8791,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8959,7 +8959,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.5.1"
+version = "2.5.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11955,7 +11955,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.2"
+version = "1.23.3"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
