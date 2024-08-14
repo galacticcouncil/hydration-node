@@ -52,11 +52,8 @@ pub mod v2 {
 			let processed_votes = ProcessedVotes::<T>::iter().count();
 
 			let mut weight = T::DbWeight::get().reads_writes(1, 1);
-			let ev = PositionVotes::<T>::clear(existing_votes as u32, None);
-			assert!(ev.maybe_cursor.is_none(), "PositionVotes storage is not empty");
-
-			let pv = ProcessedVotes::<T>::clear(processed_votes as u32, None);
-			assert!(pv.maybe_cursor.is_none(), "ProcessedVotes storage is not empty");
+			let _ = PositionVotes::<T>::clear(existing_votes as u32, None);
+			let _ = ProcessedVotes::<T>::clear(processed_votes as u32, None);
 
 			weight.saturating_accrue(T::DbWeight::get().reads(existing_votes.saturating_add(processed_votes) as u64));
 			weight
@@ -64,7 +61,6 @@ pub mod v2 {
 
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade(_state: Vec<u8>) -> Result<(), TryRuntimeError> {
-			// TODO: check if the votes storage is empty
 			assert_eq!(
 				PositionVotes::<T>::iter().count(),
 				0,
