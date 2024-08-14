@@ -158,7 +158,7 @@ impl pallet_democracy::Config for Runtime {
 	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
 	type PalletsOrigin = OriginCaller;
 	type Slash = Treasury;
-	type DemocracyHooks = pallet_staking::integrations::democracy::StakingDemocracy<Runtime>;
+	type DemocracyHooks = ();
 	// Any single technical committee member may remove a vote.
 	type VoteRemovalOrigin = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
 }
