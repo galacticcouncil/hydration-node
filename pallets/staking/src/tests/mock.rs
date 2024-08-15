@@ -26,7 +26,6 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, RawOrigin};
 use orml_traits::{parameter_type_with_key, LockIdentifier, MultiCurrencyExtended};
-use pallet_democracy::ReferendumIndex;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
@@ -290,7 +289,7 @@ pub struct ExtBuilder {
 	//(who, staked maount, created_at, pendig_rewards)
 	stakes: Vec<(AccountId, Balance, BlockNumber, Balance)>,
 	init_staking: bool,
-	with_votings: Vec<(PositionId, Vec<(ReferendumIndex, Vote)>)>,
+	with_votings: Vec<(PositionId, Vec<(types::ReferendumIndex, Vote)>)>,
 }
 
 impl ExtBuilder {
@@ -315,7 +314,7 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_votings(mut self, votings: Vec<(u128, Vec<(ReferendumIndex, Vote)>)>) -> Self {
+	pub fn with_votings(mut self, votings: Vec<(u128, Vec<(types::ReferendumIndex, Vote)>)>) -> Self {
 		self.with_votings = votings;
 		self
 	}

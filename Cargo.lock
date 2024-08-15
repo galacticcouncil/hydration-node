@@ -9095,7 +9095,6 @@ dependencies = [
  "orml-traits",
  "pallet-balances",
  "pallet-conviction-voting 28.0.0",
- "pallet-democracy 4.3.0",
  "pallet-referenda",
  "pallet-uniques",
  "parity-scale-codec",
