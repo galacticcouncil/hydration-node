@@ -576,6 +576,7 @@ pallet-identity = { git = "https://github.com/galacticcouncil/polkadot-sdk", bra
 pallet-multisig = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "voting-hooks-1.7.2" }
 pallet-preimage = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "voting-hooks-1.7.2" }
 pallet-proxy = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "voting-hooks-1.7.2" }
+pallet-referenda = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "voting-hooks-1.7.2" }
 pallet-scheduler = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "voting-hooks-1.7.2" }
 pallet-session = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "voting-hooks-1.7.2" }
 pallet-sudo = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "voting-hooks-1.7.2" }
