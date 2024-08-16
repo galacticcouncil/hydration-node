@@ -83,7 +83,6 @@ pub fn create_extrinsic(
 	function: impl Into<hydradx_runtime::RuntimeCall>,
 	nonce: Option<u32>,
 ) -> hydradx_runtime::UncheckedExtrinsic {
-	log::warn!("CREATE EXT");
 	let function = function.into();
 	let genesis_hash = client
 		.block_hash(0)
@@ -114,8 +113,6 @@ pub fn create_extrinsic(
 		pallet_claims::ValidateClaim(PhantomData),
 		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 	);
-
-	log::warn!("After extra");
 
 	let raw_payload = SignedPayload::from_raw(
 		function.clone(),
