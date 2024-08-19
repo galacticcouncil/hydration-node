@@ -97,10 +97,10 @@ jobs:
           repository: galacticcouncil/polkadot-ecosystem-tests
           ref: test/add-hydration-tests-ci
 
-      - name: Download WASM artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: hydradx_runtime.compact.compressed.wasm
+      #- name: Download WASM artifact
+      #  uses: actions/download-artifact@v2
+      #  with:
+      #    name: hydradx_runtime.compact.compressed.wasm
 
       - name: Run ecosystem tests
         run: |
