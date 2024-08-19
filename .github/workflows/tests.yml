@@ -87,7 +87,7 @@ jobs:
         run: exit 1
 
   ecosystem-tests:
-    needs: build  # Make sure this runs after your build job
+    #needs: build  # Make sure this runs after your build job
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
