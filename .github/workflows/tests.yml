@@ -45,7 +45,7 @@ jobs:
       - name: Clippy
         run: make clippy-all
         # - name: Test benchmarks
-      #  run: make test-benchmarks
+      #   run: make test-benchmarks
 
   version-check:
     runs-on: ubuntu-latest
