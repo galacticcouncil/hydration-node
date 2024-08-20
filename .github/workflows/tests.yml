@@ -26,8 +26,8 @@ jobs:
         uses: codota/toolchain@00a8bf2bdcfe93aefd70422d3dec07337959d3a4
         with:
           profile: minimal
-      #- name: Run tests
-      # run: make test-release
+      - name: Run tests
+        run: make test-release
       - name: Build release
         run: time make build-release
       - name: Version info
@@ -44,8 +44,8 @@ jobs:
           path: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
       - name: Clippy
         run: make clippy-all
-        # - name: Test benchmarks
-      #   run: make test-benchmarks
+      - name: Test benchmarks
+        run: make test-benchmarks
 
   version-check:
     runs-on: ubuntu-latest
@@ -96,7 +96,6 @@ jobs:
         with:
           repository: galacticcouncil/polkadot-ecosystem-tests
           ref: test/add-hydration-tests-ci
-
 
       - name: Download WASM artifact
         uses: actions/download-artifact@v2
