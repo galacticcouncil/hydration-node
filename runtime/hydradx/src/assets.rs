@@ -1797,6 +1797,4 @@ impl NonMultiFeeAssetTrader<AccountId, AssetId, Balance> for NonMultiFeePaymentA
 			dest,
 		)
 	}
-
-
 }

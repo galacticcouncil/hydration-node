@@ -1109,21 +1109,23 @@ impl<T: Config> Pallet<T> {
 		let route = &order.get_route_or_default::<T::RouteProvider>();
 		match order {
 			Order::Sell { .. } => {
-				let on_initialize_weight = if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
-					<T as Config>::WeightInfo::on_initialize_with_sell_trade()
-				} else {
-					<T as Config>::WeightInfo::on_initialize_with_sell_trade_with_insufficient_fee_asset()
-				};
+				let on_initialize_weight =
+					if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
+						<T as Config>::WeightInfo::on_initialize_with_sell_trade()
+					} else {
+						<T as Config>::WeightInfo::on_initialize_with_sell_trade_with_insufficient_fee_asset()
+					};
 
 				on_initialize_weight
 					.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route))
 			}
 			Order::Buy { .. } => {
-				let on_initialize_weight = if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
-					<T as Config>::WeightInfo::on_initialize_with_buy_trade()
-				} else {
-					<T as Config>::WeightInfo::on_initialize_with_buy_trade_with_insufficient_fee_asset()
-				};
+				let on_initialize_weight =
+					if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
+						<T as Config>::WeightInfo::on_initialize_with_buy_trade()
+					} else {
+						<T as Config>::WeightInfo::on_initialize_with_buy_trade_with_insufficient_fee_asset()
+					};
 
 				on_initialize_weight
 					.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route))
