@@ -1666,6 +1666,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
+use primitives::constants::chain::CORE_ASSET_ID;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;
@@ -1750,7 +1751,7 @@ pub struct InsufficientAssetSupport;
 
 impl InspectSufficiency<AssetId> for InsufficientAssetSupport {
 	fn is_sufficient(asset: AssetId) -> bool {
-		AssetRegistry::is_sufficient(asset)
+		asset == CORE_ASSET_ID || MultiTransactionPayment::contains(&asset)
 	}
 
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool {

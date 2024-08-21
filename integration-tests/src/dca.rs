@@ -1035,6 +1035,128 @@ mod omnipool {
 	}
 
 	#[test]
+	fn sufficient_but_not_accepted_fee_asset_should_be_swapped_for_dot() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
+
+				//Arrange
+				init_omnipool_with_oracle_for_block_10();
+
+				let name = b"INSUF1".to_vec();
+				let sufficient_asset = AssetRegistry::register_sufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					1_000,
+					None,
+					None,
+					None,
+					None,
+				)
+					.unwrap();
+				create_xyk_pool(sufficient_asset, 10000 * UNITS, DAI, 20000 * UNITS);
+				create_xyk_pool(sufficient_asset, 1000000 * UNITS, DOT, 1000000000000);
+				assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
+					RuntimeOrigin::root(),
+					primitives::constants::chain::XYK_SOURCE,
+					(DOT, sufficient_asset)
+				));
+				//Populate oracLe
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					BOB.into(),
+					sufficient_asset,
+					200 * UNITS as i128,
+				));
+
+				assert_ok!(XYK::sell(
+					RuntimeOrigin::signed(BOB.into()),
+					sufficient_asset,
+					DOT,
+					100 * UNITS,
+					0,
+					false
+				));
+
+				set_relaychain_block_number(11);
+
+				//init_omnipool_with_oracle_for_block_10();
+				let alice_init_suff_balance = 10000000 * UNITS;
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					ALICE.into(),
+					sufficient_asset,
+					alice_init_suff_balance as i128,
+				));
+
+				add_dot_as_payment_currency_with_details(100 * UNITS, FixedU128::from_rational(2000, 1));
+
+				set_relaychain_block_number(12);
+
+				let dca_budget = 500000 * UNITS;
+				let amount_to_sell = 10000 * UNITS;
+				let schedule1 = schedule_fake_with_sell_order(
+					ALICE,
+					PoolType::XYK,
+					dca_budget,
+					sufficient_asset,
+					DOT,
+					amount_to_sell,
+				);
+
+				let init_treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
+
+				create_schedule(ALICE, schedule1.clone());
+
+				assert_balance!(ALICE.into(), sufficient_asset, alice_init_suff_balance - dca_budget);
+				assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+				assert_reserved_balance!(&ALICE.into(), sufficient_asset, dca_budget);
+				assert_balance!(&Treasury::account_id(), sufficient_asset, 0);
+
+				//We get these xyk pool data before execution to later calculate the proper fee amount in sufficient asset
+				let asset_pair_account =
+					<hydradx_runtime::Runtime as pallet_xyk::Config>::AssetPairAccountId::from_assets(
+						sufficient_asset,
+						DOT,
+						"xyk",
+					);
+				let in_reserve = Currencies::free_balance(sufficient_asset, &asset_pair_account.clone());
+				let out_reserve = Currencies::free_balance(DOT, &asset_pair_account);
+
+				//Act
+				set_relaychain_block_number(14);
+
+				//Assert
+				let new_treasury_balance = Currencies::free_balance(HDX, &Treasury::account_id());
+				assert_eq!(new_treasury_balance, init_treasury_balance);
+
+				//No sufficient (but non fee payment) asset should be accumulated
+				assert_balance!(&Treasury::account_id(), sufficient_asset, 0);
+
+				let fee_in_dot = Currencies::free_balance(DOT, &Treasury::account_id());
+				assert!(fee_in_dot > 0, "Treasury got rugged");
+
+				assert_balance!(ALICE.into(), sufficient_asset, alice_init_suff_balance - dca_budget);
+
+				let fee_in_sufficient =
+					hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, fee_in_dot).unwrap();
+				let xyk_trade_fee_in_sufficient =
+					hydra_dx_math::fee::calculate_pool_trade_fee(fee_in_sufficient, (3, 1000)).unwrap();
+
+				assert_reserved_balance!(
+					&ALICE.into(),
+					sufficient_asset,
+					dca_budget - amount_to_sell - fee_in_sufficient - xyk_trade_fee_in_sufficient
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
 	fn sell_schedule_execution_should_work_without_route() {
 		TestNet::reset();
 		Hydra::execute_with(|| {
