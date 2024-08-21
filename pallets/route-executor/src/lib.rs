@@ -462,71 +462,71 @@ impl<T: Config> Pallet<T> {
 		min_amount_out: T::Balance,
 		route: Vec<Trade<T::AssetId>>,
 	) -> Result<(), DispatchError> {
-			let who = ensure_signed(origin.clone())?;
+		let who = ensure_signed(origin.clone())?;
 
-			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
+		ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
 
-			Self::ensure_route_size(route.len())?;
+		Self::ensure_route_size(route.len())?;
 
-			let asset_pair = AssetPair::new(asset_in, asset_out);
-			let route = Self::get_route_or_default(route, asset_pair)?;
-			Self::ensure_route_arguments(&asset_pair, &route)?;
+		let asset_pair = AssetPair::new(asset_in, asset_out);
+		let route = Self::get_route_or_default(route, asset_pair)?;
+		Self::ensure_route_arguments(&asset_pair, &route)?;
 
-			let user_balance_of_asset_out_before_trade =
-				T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
+		let user_balance_of_asset_out_before_trade =
+			T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 
-			let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
+		let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
 
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
-			ensure!(
-				last_trade_amount.amount_out >= min_amount_out,
-				Error::<T>::TradingLimitReached
+		let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
+		ensure!(
+			last_trade_amount.amount_out >= min_amount_out,
+			Error::<T>::TradingLimitReached
+		);
+
+		let route_length = route.len();
+		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
+			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
+
+			let user_balance_of_asset_in_before_trade =
+				T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+
+			let execution_result = T::AMM::execute_sell(
+				origin.clone(),
+				trade.pool,
+				trade.asset_in,
+				trade.asset_out,
+				trade_amount.amount_in,
+				trade_amount.amount_out,
 			);
 
-			let route_length = route.len();
-			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
-				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
+			handle_execution_error!(execution_result);
 
-				let user_balance_of_asset_in_before_trade =
-					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
-
-				let execution_result = T::AMM::execute_sell(
-					origin.clone(),
-					trade.pool,
-					trade.asset_in,
-					trade.asset_out,
-					trade_amount.amount_in,
-					trade_amount.amount_out,
-				);
-
-				handle_execution_error!(execution_result);
-
-				Self::ensure_that_user_spent_asset_in_at_least(
-					who.clone(),
-					trade.asset_in,
-					user_balance_of_asset_in_before_trade,
-					trade_amount.amount_in,
-				)?;
-			}
-
-			SkipEd::<T>::kill();
-
-			Self::ensure_that_user_received_asset_out_at_most(
-				who,
-				asset_in,
-				asset_out,
-				user_balance_of_asset_out_before_trade,
-				last_trade_amount.amount_out,
+			Self::ensure_that_user_spent_asset_in_at_least(
+				who.clone(),
+				trade.asset_in,
+				user_balance_of_asset_in_before_trade,
+				trade_amount.amount_in,
 			)?;
+		}
 
-			Self::deposit_event(Event::Executed {
-				asset_in,
-				asset_out,
-				amount_in,
-				amount_out: last_trade_amount.amount_out,
-			});
+		SkipEd::<T>::kill();
 
-			Ok(())
+		Self::ensure_that_user_received_asset_out_at_most(
+			who,
+			asset_in,
+			asset_out,
+			user_balance_of_asset_out_before_trade,
+			last_trade_amount.amount_out,
+		)?;
+
+		Self::deposit_event(Event::Executed {
+			asset_in,
+			asset_out,
+			amount_in,
+			amount_out: last_trade_amount.amount_out,
+		});
+
+		Ok(())
 	}
 
 	fn ensure_route_size(route_length: usize) -> Result<(), DispatchError> {
