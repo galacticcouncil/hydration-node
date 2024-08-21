@@ -87,7 +87,7 @@ jobs:
         run: exit 1
 
   ecosystem-tests:
-    needs: build  # Make sure this runs after your build job
+    needs: build  # Make sure this runs after build job to have the wasm artifact
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
@@ -107,9 +107,8 @@ jobs:
           # Set the path to the downloaded WASM file
           export HYDRADX_RUNTIME_WASM_PATH="$PWD/hydradx_runtime.compact.compressed.wasm"
           
-          # Run your tests here, for example:
+          # Run specific tests doing XCM between hydradx and other parachains
           yarn install
           yarn test upgrade.test.ts
         env:
-          # You can pass any necessary environment variables here
           HYDRADX_RUNTIME_WASM_PATH: ${{ env.HYDRADX_RUNTIME_WASM_PATH }}
