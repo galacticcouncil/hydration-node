@@ -693,7 +693,7 @@ impl Config for Test {
 	type NativePriceOracle = NativePriceOracleMock;
 	type RetryOnError = ();
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
-	type NonMultiFeeAssetFeeSupport = MockedInsufficientAssetSupport;
+	type NonMultiFeeAssetSupport = MockedInsufficientAssetSupport;
 }
 
 pub struct MockedInsufficientAssetSupport;
@@ -708,7 +708,7 @@ impl InspectTransactionFeeCurrency<AssetId> for MockedInsufficientAssetSupport {
 	}
 }
 
-impl NonMultiFeePaymentAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
+impl NonMultiFeeAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
 	fn buy(
 		_origin: &AccountId,
 		_asset_in: AssetId,
@@ -759,7 +759,7 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::fee::{InspectTransactionFeeCurrency, NonMultiFeePaymentAssetTrader};
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, NonMultiFeeAssetTrader};
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;

@@ -864,7 +864,7 @@ impl pallet_dca::Config for Runtime {
 	>;
 	type RetryOnError = RetryOnErrorForDca;
 	type PolkadotNativeAssetId = DotAssetId;
-	type NonMultiFeeAssetFeeSupport = NonMultiFeePaymentAssetSupport;
+	type NonMultiFeeAssetSupport = NonMultiFeePaymentAssetSupport;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -1304,7 +1304,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
-use hydradx_traits::fee::{InspectTransactionFeeCurrency, NonMultiFeePaymentAssetTrader};
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, NonMultiFeeAssetTrader};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1755,7 +1755,7 @@ impl InspectTransactionFeeCurrency<AssetId> for NonMultiFeePaymentAssetSupport {
 	}
 }
 
-impl NonMultiFeePaymentAssetTrader<AccountId, AssetId, Balance> for NonMultiFeePaymentAssetSupport {
+impl NonMultiFeeAssetTrader<AccountId, AssetId, Balance> for NonMultiFeePaymentAssetSupport {
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool {
 		XYK::exists(pallet_xyk::types::AssetPair::new(from, into))
 	}

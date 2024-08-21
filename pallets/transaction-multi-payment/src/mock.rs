@@ -172,7 +172,7 @@ impl Config for Test {
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
 	type TryCallCurrency<'a> = NoCallCurrency<Test>;
-	type NonMultiFeeAssetFeeSupport = MockedInsufficientAssetSupport;
+	type NonMultiFeeAssetSupport = MockedInsufficientAssetSupport;
 }
 
 pub struct MockedInsufficientAssetSupport;
@@ -187,7 +187,7 @@ impl InspectTransactionFeeCurrency<AssetId> for MockedInsufficientAssetSupport {
 	}
 }
 
-impl NonMultiFeePaymentAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
+impl NonMultiFeeAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
 	fn buy(
 		_origin: &AccountId,
 		_asset_in: AssetId,

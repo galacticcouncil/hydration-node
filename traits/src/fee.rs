@@ -6,7 +6,7 @@ pub trait InspectTransactionFeeCurrency<AssetId> {
 }
 
 ///Trait for enabling trading of assets that are not accepted as transaction fee currency
-pub trait NonMultiFeePaymentAssetTrader<AccountId, AssetId, Amount>: InspectTransactionFeeCurrency<AssetId> {
+pub trait NonMultiFeeAssetTrader<AccountId, AssetId, Amount>: InspectTransactionFeeCurrency<AssetId> {
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool;
 
 	fn calculate_fee_amount(swap_amount: Amount) -> Result<Amount, DispatchError>;
