@@ -414,7 +414,7 @@ impl Default for ExtBuilder {
 			endowed_accounts: vec![
 				(ALICE, HDX, 1_000_000_000_000 * ONE),
 				(ALICE, LRNA, 1_000_000_000_000 * ONE),
-				(ALICE, DAI, 1_000_000_000_000 * ONE),
+				(ALICE, DAI, 1_000_000_000_000_000_000 * ONE),
 				(ALICE, DOT, 1_000_000_000_000 * ONE),
 				(ALICE, KSM, 1_000_000_000_000 * ONE),
 				(ALICE, BTC, 1_000_000_000_000 * ONE),
