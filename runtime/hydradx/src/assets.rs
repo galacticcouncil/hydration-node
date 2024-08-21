@@ -1753,29 +1753,11 @@ impl InspectTransactionFeeCurrency<AssetId> for NonMultiFeePaymentAssetSupport {
 	fn is_transaction_fee_currency(asset: AssetId) -> bool {
 		asset == CORE_ASSET_ID || MultiTransactionPayment::contains(&asset)
 	}
-
-	fn is_trade_supported(from: AssetId, into: AssetId) -> bool {
-		XYK::exists(pallet_xyk::types::AssetPair::new(from, into))
-	}
 }
 
 impl NonMultiFeePaymentAssetTrader<AccountId, AssetId, Balance> for NonMultiFeePaymentAssetSupport {
-	fn buy(
-		origin: &AccountId,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount: Balance,
-		max_limit: Balance,
-		dest: &AccountId,
-	) -> DispatchResult {
-		XYK::buy_for(
-			origin,
-			pallet_xyk::types::AssetPair { asset_in, asset_out },
-			amount,
-			max_limit,
-			false,
-			dest,
-		)
+	fn is_trade_supported(from: AssetId, into: AssetId) -> bool {
+		XYK::exists(pallet_xyk::types::AssetPair::new(from, into))
 	}
 
 	fn calculate_fee_amount(swap_amount: Balance) -> Result<Balance, DispatchError> {
@@ -1797,4 +1779,24 @@ impl NonMultiFeePaymentAssetTrader<AccountId, AssetId, Balance> for NonMultiFeeP
 		hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, asset_out_amount)
 			.map_err(|_err| ArithmeticError::Overflow.into())
 	}
+
+	fn buy(
+		origin: &AccountId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+		max_limit: Balance,
+		dest: &AccountId,
+	) -> DispatchResult {
+		XYK::buy_for(
+			origin,
+			pallet_xyk::types::AssetPair { asset_in, asset_out },
+			amount,
+			max_limit,
+			false,
+			dest,
+		)
+	}
+
+
 }
