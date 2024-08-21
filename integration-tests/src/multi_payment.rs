@@ -5,7 +5,7 @@ use frame_support::dispatch::GetDispatchInfo;
 use frame_support::dispatch::PostDispatchInfo;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
-use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::{AssetRegistry, TreasuryAccount};
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_traits::AssetKind;
@@ -103,8 +103,11 @@ fn insufficient_asset_can_be_used_as_fee_currency() {
 			let alice_new_insuff_balance = hydradx_runtime::Currencies::free_balance(insufficient_asset, &ALICE.into());
 			assert!(alice_new_insuff_balance < alice_init_insuff_balance);
 
-			let treasury_dot_balance = hydradx_runtime::Currencies::free_balance(DOT, &ALICE.into());
-			assert!(treasury_dot_balance > 0, "Treasury is rugged");
+			let treasury_insuff_balance = hydradx_runtime::Currencies::free_balance(insufficient_asset, &TreasuryAccount::get());
+			assert_eq!(treasury_insuff_balance, 0, "Treasury should not have accumulated insuff asset");
+
+			let treasury_dot_balance = hydradx_runtime::Currencies::free_balance(DOT, &TreasuryAccount::get());
+			assert!(treasury_dot_balance > 0, "Treasury should have received DOT swapped from insuff asset");
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
@@ -233,8 +236,11 @@ fn sufficient_but_not_accepted_asset_can_be_used_as_fee_currency() {
 			let alice_new_suff_balance = hydradx_runtime::Currencies::free_balance(sufficient_but_not_accepted_asset, &ALICE.into());
 			assert!(alice_new_suff_balance < alice_init_suff_balance);
 
-			let treasury_dot_balance = hydradx_runtime::Currencies::free_balance(DOT, &ALICE.into());
-			assert!(treasury_dot_balance > 0, "Treasury is rugged");
+			let treasury_suff_balance = hydradx_runtime::Currencies::free_balance(sufficient_but_not_accepted_asset, &TreasuryAccount::get());
+			assert_eq!(treasury_suff_balance, 0, "Treasury should not have accumulated non accepted suff asset");
+
+			let treasury_dot_balance = hydradx_runtime::Currencies::free_balance(DOT, &TreasuryAccount::get());
+			assert!(treasury_dot_balance > 0, "Treasury should have received DOT swapped from non accepted suff asset");
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
