@@ -1055,7 +1055,7 @@ mod omnipool {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 				create_xyk_pool(sufficient_asset, 10000 * UNITS, DAI, 20000 * UNITS);
 				create_xyk_pool(sufficient_asset, 1000000 * UNITS, DOT, 1000000000000);
 				assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
