@@ -201,12 +201,12 @@ impl SufficiencyCheck {
 					.max(1);
 
 				let amount_in_without_fee =
-					InsufficientAssetSupport::calculate_in_given_out(fee_payment_asset, dot_asset_id, ed_in_dot)?;
-				let trade_fee = InsufficientAssetSupport::calculate_fee_amount(amount_in_without_fee)?;
+					NonMultiFeePaymentAssetSupport::calculate_in_given_out(fee_payment_asset, dot_asset_id, ed_in_dot)?;
+				let trade_fee = NonMultiFeePaymentAssetSupport::calculate_fee_amount(amount_in_without_fee)?;
 				let ed_in_fee_asset = amount_in_without_fee.saturating_add(trade_fee);
 
 				//NOTE: Account doesn't have enough funds to pay ED if this fail.
-				InsufficientAssetSupport::buy(
+				NonMultiFeePaymentAssetSupport::buy(
 					paying_account,
 					fee_payment_asset,
 					DotAssetId::get(),
@@ -864,7 +864,7 @@ impl pallet_dca::Config for Runtime {
 	>;
 	type RetryOnError = RetryOnErrorForDca;
 	type PolkadotNativeAssetId = DotAssetId;
-	type InsufficientAssetFeeSupport = InsufficientAssetSupport;
+	type NonMultiFeeAssetFeeSupport = NonMultiFeePaymentAssetSupport;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -1304,7 +1304,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
-use hydradx_traits::fee::{InspectSufficiency, InsufficientAssetTrader};
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, NonMultiFeePaymentAssetTrader};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1747,10 +1747,10 @@ impl PriceProvider<AssetId> for ReferralsDummyPriceProvider {
 	}
 }
 
-pub struct InsufficientAssetSupport;
+pub struct NonMultiFeePaymentAssetSupport;
 
-impl InspectSufficiency<AssetId> for InsufficientAssetSupport {
-	fn is_sufficient(asset: AssetId) -> bool {
+impl InspectTransactionFeeCurrency<AssetId> for NonMultiFeePaymentAssetSupport {
+	fn is_transaction_fee_currency(asset: AssetId) -> bool {
 		asset == CORE_ASSET_ID || MultiTransactionPayment::contains(&asset)
 	}
 
@@ -1759,7 +1759,7 @@ impl InspectSufficiency<AssetId> for InsufficientAssetSupport {
 	}
 }
 
-impl InsufficientAssetTrader<AccountId, AssetId, Balance> for InsufficientAssetSupport {
+impl NonMultiFeePaymentAssetTrader<AccountId, AssetId, Balance> for NonMultiFeePaymentAssetSupport {
 	fn buy(
 		origin: &AccountId,
 		asset_in: AssetId,

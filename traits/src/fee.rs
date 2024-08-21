@@ -1,14 +1,14 @@
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 
 ///Checking for asset sufficiency and tradeability for fee paying purposes
-pub trait InspectSufficiency<AssetId> {
-	fn is_sufficient(asset: AssetId) -> bool;
+pub trait InspectTransactionFeeCurrency<AssetId> {
+	fn is_transaction_fee_currency(asset: AssetId) -> bool;
 
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool;
 }
 
 ///Insufficient asset trader for enabling insufficient fee support
-pub trait InsufficientAssetTrader<AccountId, AssetId, Amount>: InspectSufficiency<AssetId> {
+pub trait NonMultiFeePaymentAssetTrader<AccountId, AssetId, Amount>: InspectTransactionFeeCurrency<AssetId> {
 	fn buy(
 		origin: &AccountId,
 		asset_in: AssetId,

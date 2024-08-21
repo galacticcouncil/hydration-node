@@ -172,13 +172,13 @@ impl Config for Test {
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
 	type TryCallCurrency<'a> = NoCallCurrency<Test>;
-	type InsufficientAssetFeeSupport = MockedInsufficientAssetSupport;
+	type NonMultiFeeAssetFeeSupport = MockedInsufficientAssetSupport;
 }
 
 pub struct MockedInsufficientAssetSupport;
 
-impl InspectSufficiency<AssetId> for MockedInsufficientAssetSupport {
-	fn is_sufficient(_asset: AssetId) -> bool {
+impl InspectTransactionFeeCurrency<AssetId> for MockedInsufficientAssetSupport {
+	fn is_transaction_fee_currency(_asset: AssetId) -> bool {
 		true
 	}
 
@@ -187,7 +187,7 @@ impl InspectSufficiency<AssetId> for MockedInsufficientAssetSupport {
 	}
 }
 
-impl InsufficientAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
+impl NonMultiFeePaymentAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
 	fn buy(
 		_origin: &AccountId,
 		_asset_in: AssetId,
