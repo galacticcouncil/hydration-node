@@ -1139,18 +1139,18 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Balance, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
-		} else if !T::NonMultiFeeAssetSupport::is_transaction_fee_currency(asset_id) {
+		} else if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(asset_id) {
+			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
+
+			multiply_by_rational_with_rounding(asset_amount, price.n, price.d, Rounding::Up)
+				.ok_or(ArithmeticError::Overflow)?
+		} else {
 			let fee_amount_in_dot = Self::convert_to_polkadot_native_asset(asset_amount)?;
 			T::NonMultiFeeAssetSupport::calculate_in_given_out(
 				asset_id,
 				T::PolkadotNativeAssetId::get(),
 				fee_amount_in_dot,
 			)?
-		} else {
-			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
-
-			multiply_by_rational_with_rounding(asset_amount, price.n, price.d, Rounding::Up)
-				.ok_or(ArithmeticError::Overflow)?
 		};
 
 		Ok(amount)
