@@ -702,14 +702,12 @@ impl InspectTransactionFeeCurrency<AssetId> for MockedInsufficientAssetSupport {
 	fn is_transaction_fee_currency(_asset: AssetId) -> bool {
 		true
 	}
-
 }
 
 impl NonMultiFeeAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
 	fn is_trade_supported(_from: AssetId, _into: AssetId) -> bool {
 		unimplemented!()
 	}
-
 
 	fn buy(
 		_origin: &AccountId,
