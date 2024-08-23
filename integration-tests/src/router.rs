@@ -36,8 +36,8 @@ use sp_runtime::{
 	DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome,
 };
 
+use hydradx_runtime::InsufficientEDinHDX;
 use orml_traits::MultiCurrency;
-
 pub const LBP_SALE_START: BlockNumber = 10;
 pub const LBP_SALE_END: BlockNumber = 40;
 
@@ -840,6 +840,7 @@ mod router_different_pools_tests {
 mod omnipool_router_tests {
 	use super::*;
 	use frame_support::assert_noop;
+	use hydradx_runtime::{Balances, XYK};
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::AssetKind;
 
@@ -1046,6 +1047,530 @@ mod omnipool_router_tests {
 					0,
 					trades
 				));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn sell_should_not_charge_ed_when_insufficient_in_middle_of_route() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let name = b"INSUFF".to_vec();
+				let insufficient_asset = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				assert_ok!(Currencies::deposit(ETH, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(DOT, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DAVE.into(),
+					HDX,
+					10000 * UNITS as i128,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					HDX,
+					10000 * UNITS,
+					DOT,
+					10000 * UNITS,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					DOT,
+					10000 * UNITS,
+					insufficient_asset,
+					10000 * UNITS,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset,
+					10000 * UNITS,
+					ETH,
+					10000 * UNITS,
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: HDX,
+						asset_out: DOT,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: DOT,
+						asset_out: insufficient_asset,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset,
+						asset_out: ETH,
+					},
+				];
+
+				//Act
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS);
+
+				let amount_to_sell = 20 * UNITS;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					ETH,
+					amount_to_sell,
+					0,
+					trades
+				));
+
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - amount_to_sell);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn sell_should_work_with_only_insufficient_assets() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset1 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				let name = b"INSUF2".to_vec();
+				let insufficient_asset2 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				let name = b"INSUF3".to_vec();
+				let insufficient_asset3 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				let name = b"INSUF4".to_vec();
+				let insufficient_asset4 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				assert_ok!(Currencies::deposit(insufficient_asset1, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset2, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset3, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset4, &DAVE.into(), 100000 * UNITS,));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset1,
+					10000 * UNITS,
+					insufficient_asset2,
+					10000 * UNITS,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset2,
+					10000 * UNITS,
+					insufficient_asset3,
+					10000 * UNITS,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset3,
+					10000 * UNITS,
+					insufficient_asset4,
+					10000 * UNITS,
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset1,
+						asset_out: insufficient_asset2,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset2,
+						asset_out: insufficient_asset3,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset3,
+						asset_out: insufficient_asset4,
+					},
+				];
+
+				assert_ok!(Currencies::deposit(insufficient_asset1, &ALICE.into(), 1500 * UNITS,));
+
+				let ed = InsufficientEDinHDX::get();
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
+
+				let amount_to_sell = 20 * UNITS;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					insufficient_asset1,
+					insufficient_asset4,
+					amount_to_sell,
+					0,
+					trades
+				));
+
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 2 * ed);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn ed_should_be_refunded_when_all_insufficient_assets_sold() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset1 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				let name = b"INSUF2".to_vec();
+				let insufficient_asset2 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				assert_ok!(Currencies::deposit(insufficient_asset1, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset2, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(ETH, &DAVE.into(), 100000 * UNITS,));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset1,
+					10000 * UNITS,
+					insufficient_asset2,
+					10000 * UNITS,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset2,
+					10000 * UNITS,
+					ETH,
+					10000 * UNITS,
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset1,
+						asset_out: insufficient_asset2,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset2,
+						asset_out: ETH,
+					},
+				];
+
+				let alice_balance_before_trade = Balances::free_balance(AccountId::from(ALICE));
+
+				let insufficient_asset1_balance = 100 * UNITS;
+				assert_ok!(Currencies::deposit(
+					insufficient_asset1,
+					&ALICE.into(),
+					insufficient_asset1_balance,
+				));
+
+				let extra_ed_charge = UNITS / 10;
+
+				let amount_to_sell = insufficient_asset1_balance;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					insufficient_asset1,
+					ETH,
+					amount_to_sell,
+					0,
+					trades
+				));
+				let alice_balance_after_trade = Balances::free_balance(AccountId::from(ALICE));
+
+				//ED should be refunded to alice as she sold all her asset, minus the 10% extra
+				assert_eq!(alice_balance_before_trade, alice_balance_after_trade + extra_ed_charge);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn ed_charging_should_not_be_disabled_when_only_one_trade_with_insufficient_assets() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset_1 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				let name = b"INSUF12".to_vec();
+				let insufficient_asset_2 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+				assert_ok!(Currencies::deposit(insufficient_asset_1, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset_2, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					DAVE.into(),
+					HDX,
+					100000 * UNITS as i128,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset_1,
+					100000 * UNITS,
+					insufficient_asset_2,
+					100000 * UNITS,
+				));
+
+				let trades = vec![Trade {
+					pool: PoolType::XYK,
+					asset_in: insufficient_asset_1,
+					asset_out: insufficient_asset_2,
+				}];
+
+				//Act
+				let amount_to_sell = 10 * UNITS;
+				assert_ok!(Currencies::deposit(insufficient_asset_1, &ALICE.into(), amount_to_sell,));
+				let ed = InsufficientEDinHDX::get();
+				let extra_ed_charge = UNITS / 10;
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
+
+				let amount_to_sell = amount_to_sell;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					insufficient_asset_1,
+					insufficient_asset_2,
+					amount_to_sell,
+					0,
+					trades
+				),);
+
+				//ED for insufficient_asset_1 is refunded, but ED for insufficient_asset_2 is charged plus extra 10%
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 1 * ed - extra_ed_charge);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn buy_should_work_with_only_insufficient_assets() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset1 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				let name = b"INSUF2".to_vec();
+				let insufficient_asset2 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				let name = b"INSUF3".to_vec();
+				let insufficient_asset3 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				let name = b"INSUF4".to_vec();
+				let insufficient_asset4 = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				assert_ok!(Currencies::deposit(insufficient_asset1, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset2, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset3, &DAVE.into(), 100000 * UNITS,));
+				assert_ok!(Currencies::deposit(insufficient_asset4, &DAVE.into(), 100000 * UNITS,));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset1,
+					10000 * UNITS,
+					insufficient_asset2,
+					10000 * UNITS,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset2,
+					10000 * UNITS,
+					insufficient_asset3,
+					10000 * UNITS,
+				));
+
+				assert_ok!(XYK::create_pool(
+					RuntimeOrigin::signed(DAVE.into()),
+					insufficient_asset3,
+					10000 * UNITS,
+					insufficient_asset4,
+					10000 * UNITS,
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset1,
+						asset_out: insufficient_asset2,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset2,
+						asset_out: insufficient_asset3,
+					},
+					Trade {
+						pool: PoolType::XYK,
+						asset_in: insufficient_asset3,
+						asset_out: insufficient_asset4,
+					},
+				];
+
+				assert_ok!(Currencies::deposit(insufficient_asset1, &ALICE.into(), 1500 * UNITS,));
+
+				let ed = InsufficientEDinHDX::get();
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
+
+				let amount_to_buy = 20 * UNITS;
+				assert_ok!(Router::buy(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					insufficient_asset1,
+					insufficient_asset4,
+					amount_to_buy,
+					u128::MAX,
+					trades
+				));
+
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 2 * ed);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
