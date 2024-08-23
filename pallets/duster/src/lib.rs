@@ -149,12 +149,8 @@ pub mod pallet {
 				AccountBlacklist::<T>::insert(account_id, ());
 			});
 
-			RewardAccount::<T>::put(
-				&self.reward_account.clone().unwrap_or_else(|| T::TreasuryAccountId::get())
-			);
-			DustAccount::<T>::put(
-				&self.dust_account.clone().unwrap_or_else(|| T::TreasuryAccountId::get())
-			);
+			RewardAccount::<T>::put(&self.reward_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
+			DustAccount::<T>::put(&self.dust_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
 		}
 	}
 
