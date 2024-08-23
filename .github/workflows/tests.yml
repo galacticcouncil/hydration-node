@@ -88,6 +88,7 @@ jobs:
 
   ecosystem-tests:
     needs: build  # Make sure this runs after build job to have the wasm artifact
+    permissions: { }
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
