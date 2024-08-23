@@ -96,7 +96,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: galacticcouncil/polkadot-ecosystem-tests
-          ref: test/add-hydration-tests-ci
+          ref: 1ad4db1c546f31a4f8e8987ada39dc7ef71100fe
 
       - name: Download WASM artifact
         uses: actions/download-artifact@v2
