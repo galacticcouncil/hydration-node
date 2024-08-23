@@ -63,7 +63,7 @@ hex = {version = "0.4.3", default-features = false}
 sha3 = {version = "0.10", default-features = false}
 serde = {version = "1.0.197", default-features = false}
 libsecp256k1 = {version = "0.7", default-features = false}
-num_enum = {version = "0.5.3", default-features = false}
+num_enum = {version = "0.7.3", default-features = false}
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
 hydradx-traits = { path = "traits", default-features = false }
@@ -488,10 +488,7 @@ cumulus-client-pov-recovery = { git = "https://github.com/galacticcouncil/polkad
 cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch" }
 
-# Check issue: https://github.com/paritytech/arkworks-substrate/issues/9
 [patch."https://github.com/paritytech/polkadot-sdk"]
-sp-crypto-ec-utils = { git = "https://github.com/galacticcouncil//polkadot-sdk", branch = "release-polkadot-v1.11.0-patch" }
-
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch" }
 frame-benchmarking-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch" }
 frame-executive = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch" }
