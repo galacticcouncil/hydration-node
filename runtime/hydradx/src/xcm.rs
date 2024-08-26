@@ -141,9 +141,32 @@ where
 	}
 }
 
+/// Matches DOT from Asset Hub
+pub struct IsDotFromAssetHub<Origin>(PhantomData<Origin>);
+impl<Origin> ContainsPair<Asset, Location> for IsDotFromAssetHub<Origin>
+where
+	Origin: Get<Location>,
+{
+	fn contains(asset: &Asset, origin: &Location) -> bool {
+		let loc = Origin::get();
+		&loc == origin
+			&& matches!(
+				asset,
+				Asset {
+					id: AssetId(Location {
+						parents: 1,
+						interior: Junctions::X1(Parachain(1000))
+					}),
+					fun: Fungible(_),
+				},
+			)
+	}
+}
+
 pub type Reserves = (
 	IsForeignNativeAssetFrom<AssetHubLocation>,
 	MultiNativeAsset<AbsoluteReserveProvider>,
+	IsDotFromAssetHub<AssetHubLocation>,
 );
 
 pub struct XcmConfig;
