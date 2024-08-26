@@ -211,6 +211,58 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(T::WeightInfo::submit_solution())]
+		pub fn propose_solution(
+			origin: OriginFor<T>,
+			from: T::AccountId,
+			solution: ProposedSolution<T::AccountId, T::AssetId>,
+			score: Balance,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+			let mut solution = Solution {
+				proposer: from.clone(),
+				intents: solution.intents,
+				instructions: solution.instructions,
+				score,
+				weight: Default::default(),
+			};
+
+			OmniXEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&mut solution)?;
+			OmniXEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
+
+			//Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
+
+			Ok(())
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match call {
+				Call::propose_solution {
+					from,
+					solution,
+					score,
+				} => {
+					if Self::validate_proposed_score(from, *score) {
+						ValidTransaction::with_tag_prefix("IceSolutionProposal")
+							.and_provides(100u128)
+							.priority(0)
+							.longevity(64)
+							.propagate(true)
+							.build()
+					} else {
+						InvalidTransaction::Call.into()
+					}
+				}
+				_ => InvalidTransaction::Call.into(),
+			}
+		}
 	}
 }
 
