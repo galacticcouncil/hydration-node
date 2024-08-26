@@ -149,13 +149,14 @@ where
 {
 	fn contains(asset: &Asset, origin: &Location) -> bool {
 		let loc = Origin::get();
+		let interior = Junctions::X1(Arc::new([Parachain(1000)]));
 		&loc == origin
 			&& matches!(
 				asset,
 				Asset {
 					id: AssetId(Location {
 						parents: 1,
-						interior: Junctions::X1(Parachain(1000))
+						interior,
 					}),
 					fun: Fungible(_),
 				},
