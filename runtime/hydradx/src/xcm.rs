@@ -141,7 +141,26 @@ where
 	}
 }
 
+pub struct IsDotFrom<Origin>(PhantomData<Origin>);
+impl<Origin> ContainsPair<Asset, Location> for IsDotFrom<Origin>
+	where
+		Origin: Get<Location>,
+{
+	fn contains(asset: &Asset, origin: &Location) -> bool {
+		let loc = Origin::get();
+		&loc == origin
+			&& matches!(
+				asset,
+				Asset {
+					id: AssetId(Location { parents: 1, interior: Here }),
+					fun: Fungible(_),
+				},
+			)
+	}
+}
+
 pub type Reserves = (
+	IsDotFrom<AssetHubLocation>,
 	IsForeignNativeAssetFrom<AssetHubLocation>,
 	MultiNativeAsset<AbsoluteReserveProvider>,
 );
