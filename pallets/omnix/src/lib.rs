@@ -137,6 +137,11 @@ pub mod pallet {
 	#[pallet::getter(fn solution_score)]
 	pub(super) type SolutionScore<T: Config> = StorageValue<_, (T::AccountId, Balance), OptionQuery>;
 
+	#[pallet::storage]
+	/// Intent id sequencer
+	#[pallet::getter(fn solution_none)]
+	pub(super) type SolutionNonce<T: Config> = StorageValue<_, u8, ValueQuery>;
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
@@ -195,6 +200,12 @@ pub mod pallet {
 			score: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			let current_solution = SolutionScore::<T>::get();
+
+			log::info!(
+				target: "omnix::submit_solution",
+				"X current solution: {:?}", current_solution);
 
 			let mut solution = Solution {
 				proposer: who.clone(),
@@ -268,21 +279,28 @@ pub mod pallet {
 					solution,
 					score,
 				} => {
-					if Self::validate_proposed_score(from, *score) {
-						log::info!(
-							target: "omnix::validate_unsigned",
-							"valid solution");
-						ValidTransaction::with_tag_prefix("IceSolutionProposal")
-							.and_provides(100u128)
-							.priority(1_000_000)
-							.longevity(64)
-							.propagate(true)
-							.build()
-					} else {
+					let (valid, previous_score) = Self::check_proposed_score(from, *score);
+					if !valid {
 						log::info!(
 							target: "omnix::validate_unsigned",
 							"invalid solution");
 						InvalidTransaction::Call.into()
+					}else{
+						let nonce = SolutionNonce::<T>::get();
+						log::info!(
+							target: "omnix::validate_unsigned",
+							"valid solution, current nonce {:?}", nonce);
+
+						let mut tx = ValidTransaction::with_tag_prefix("IceSolutionProposal")
+							.and_provides(("solution", nonce));
+
+						tx = tx.priority(*score as u64)
+							.longevity(64)
+							.propagate(true);
+
+						Self::increment_solution_nonce();
+
+						tx.build()
 					}
 				}
 				_ => InvalidTransaction::Call.into(),
@@ -295,6 +313,10 @@ impl<T: Config> Pallet<T> {
 	/// Holding account
 	pub fn holding_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
+	}
+
+	pub fn increment_solution_nonce() {
+		SolutionNonce::<T>::mutate(|nonce| *nonce += 1);
 	}
 
 	pub fn get_intent_id(deadline: Moment, increment: IncrementalIntentId) -> IntentId {
@@ -316,6 +338,33 @@ impl<T: Config> Pallet<T> {
 		CallData::try_from(data)
 			.map_err(|_| Error::<T>::TooLong.into())
 			.map(|v| Some(v))
+	}
+
+	pub fn check_proposed_score(who: &T::AccountId, score: Balance) -> (bool, Option<Balance>) {
+		log::info!(
+			target: "omnix::check_proposed_score",
+			"who: {:?}, score: {:?}", who, score);
+
+		if let Some((from, current_score)) = SolutionScore::<T>::get() {
+			log::info!(
+				target: "omnix::check_proposed_score",
+				"from: {:?}, current score: {:?}", from, current_score);
+			if score > current_score {
+				SolutionScore::<T>::put((who, score));
+			}
+			if from == *who {
+				(true, Some(current_score))
+			}else{
+				(score > current_score, Some(current_score))
+			}
+
+		}else{
+			log::info!(
+				target: "omnix::validate_proposed_score",
+				"no current score");
+			SolutionScore::<T>::put((who, score));
+			(true, None)
+		}
 	}
 
 	pub fn validate_proposed_score(who: &T::AccountId, score: Balance) -> bool {

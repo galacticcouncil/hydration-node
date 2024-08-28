@@ -8,6 +8,7 @@ use sp_runtime::transaction_validity::{
 	InvalidTransaction, TransactionPriority, TransactionValidity, TransactionValidityError, ValidTransaction,
 };
 use sp_std::marker::PhantomData;
+use crate::pallet::SolutionNonce;
 
 #[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
@@ -48,11 +49,29 @@ where
 	) -> TransactionValidity {
 		match call.is_sub_type() {
 			Some(Call::submit_solution { score, .. }) => {
-				if Pallet::<T>::validate_proposed_score(who, *score) {
-					Ok(Default::default())
-				} else {
-					Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1))) //TODO: custom error?!
-				}
+					let (valid, previous_score) = Pallet::<T>::check_proposed_score(who, *score);
+					if !valid {
+						log::info!(
+							target: "omnix_ext::validate",
+							"invalid solution");
+						Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1))) //TODO: custom error?!
+					}else {
+						let nonce = SolutionNonce::<T>::get();
+						log::info!(
+							target: "omnix_ext::validate",
+							"valid solution, current nonce {:?}", nonce);
+
+						let mut tx = ValidTransaction::with_tag_prefix("IceSolutionProposal")
+							.and_provides("solution");
+
+						tx = tx.priority(*score as u64)
+							.longevity(64)
+							.propagate(true);
+
+						Pallet::<T>::increment_solution_nonce();
+
+						tx.build()
+					}
 			}
 			_ => Ok(Default::default()),
 		}
