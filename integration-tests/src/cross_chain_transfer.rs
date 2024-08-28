@@ -663,10 +663,7 @@ fn transfer_dot_reserve_from_asset_hub_to_hydra_should_work() {
 
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			DOT,
-			hydradx_runtime::AssetLocation(MultiLocation::new(
-				1,
-				polkadot_xcm::opaque::v3::Junctions::Here
-			))
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, polkadot_xcm::opaque::v3::Junctions::Here))
 		));
 	});
 
@@ -683,10 +680,7 @@ fn transfer_dot_reserve_from_asset_hub_to_hydra_should_work() {
 		));
 
 		let dot: Asset = Asset {
-			id: cumulus_primitives_core::AssetId(Location::new(
-				1,
-				cumulus_primitives_core::Junctions::Here
-			)),
+			id: cumulus_primitives_core::AssetId(Location::new(1, cumulus_primitives_core::Junctions::Here)),
 			fun: Fungible(100 * UNITS),
 		};
 
@@ -745,10 +739,7 @@ fn transfer_dot_from_hydra_to_asset_hub() {
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			DOT,
-			hydradx_runtime::AssetLocation(MultiLocation::new(
-				1,
-				polkadot_xcm::opaque::v3::Junctions::Here
-			))
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, polkadot_xcm::opaque::v3::Junctions::Here))
 		));
 
 		//Act
@@ -788,7 +779,6 @@ fn transfer_dot_from_hydra_to_asset_hub() {
 		);
 	});
 }
-
 
 #[test]
 fn transfer_dot_reserve_from_non_asset_hub_chain_to_hydra_should_not_work() {
@@ -983,7 +973,11 @@ fn xcm_transfer_reserve_asset_and_deposit_asset_to_hydra<RC: Decode + GetDispatc
 	// executed on local (AssetHub)
 	let message = Xcm(vec![
 		SetFeesMode { jit_withdraw: true },
-		TransferReserveAsset { assets: assets.into(), dest, xcm },
+		TransferReserveAsset {
+			assets: assets.into(),
+			dest,
+			xcm,
+		},
 	]);
 	VersionedXcm::from(message)
 }

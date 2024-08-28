@@ -143,8 +143,8 @@ where
 
 pub struct IsDotFrom<Origin>(PhantomData<Origin>);
 impl<Origin> ContainsPair<Asset, Location> for IsDotFrom<Origin>
-	where
-		Origin: Get<Location>,
+where
+	Origin: Get<Location>,
 {
 	fn contains(asset: &Asset, origin: &Location) -> bool {
 		let loc = Origin::get();
@@ -152,7 +152,10 @@ impl<Origin> ContainsPair<Asset, Location> for IsDotFrom<Origin>
 			&& matches!(
 				asset,
 				Asset {
-					id: AssetId(Location { parents: 1, interior: Here }),
+					id: AssetId(Location {
+						parents: 1,
+						interior: Here
+					}),
 					fun: Fungible(_),
 				},
 			)
