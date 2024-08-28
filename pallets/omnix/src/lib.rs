@@ -135,12 +135,12 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Intent id sequencer
 	#[pallet::getter(fn solution_score)]
-	pub(super) type SolutionScore<T: Config> = StorageValue<_, Balance, ValueQuery>;
+	pub(super) type SolutionScore<T: Config> = StorageValue<_, (T::AccountId, Balance), OptionQuery>;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
-			SolutionScore::<T>::kill();
+			//SolutionScore::<T>::kill();
 		}
 	}
 
@@ -221,6 +221,12 @@ pub mod pallet {
 			score: Balance,
 		) -> DispatchResult {
 			ensure_none(origin)?;
+
+			let current_solution = SolutionScore::<T>::get();
+			log::info!(
+				target: "omnix::propose_solution",
+				"X current solution: {:?}", current_solution);
+
 			let mut solution = Solution {
 				proposer: from.clone(),
 				intents: solution.intents,
@@ -242,7 +248,20 @@ pub mod pallet {
 	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 
+		fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
+			log::info!(
+				target: "omnix::pre_dispatch",
+				"pre_dispatch execution");
+			Self::validate_unsigned(TransactionSource::InBlock, call)
+				.map(|_| ())
+				.map_err(Into::into)
+		}
+
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			log::info!(
+				target: "omnix::validate_unsigned",
+				"validate_unsigned execution");
+
 			match call {
 				Call::propose_solution {
 					from,
@@ -250,13 +269,19 @@ pub mod pallet {
 					score,
 				} => {
 					if Self::validate_proposed_score(from, *score) {
+						log::info!(
+							target: "omnix::validate_unsigned",
+							"valid solution");
 						ValidTransaction::with_tag_prefix("IceSolutionProposal")
 							.and_provides(100u128)
-							.priority(0)
+							.priority(1_000_000)
 							.longevity(64)
 							.propagate(true)
 							.build()
 					} else {
+						log::info!(
+							target: "omnix::validate_unsigned",
+							"invalid solution");
 						InvalidTransaction::Call.into()
 					}
 				}
@@ -293,12 +318,30 @@ impl<T: Config> Pallet<T> {
 			.map(|v| Some(v))
 	}
 
-	pub fn validate_proposed_score(_who: &T::AccountId, score: Balance) -> bool {
+	pub fn validate_proposed_score(who: &T::AccountId, score: Balance) -> bool {
+		log::info!(
+			target: "omnix::validate_proposed_score",
+			"who: {:?}, score: {:?}", who, score);
 		//TODO: lock proposal bond
-		let current_score = SolutionScore::<T>::get();
-		if score > current_score {
-			SolutionScore::<T>::put(score);
+		if let Some((from, current_score)) = SolutionScore::<T>::get() {
+			log::info!(
+				target: "omnix::validate_proposed_score",
+				"from: {:?}, current score: {:?}", from, current_score);
+			if score > current_score {
+				SolutionScore::<T>::put((who, score));
+			}
+			if from == *who {
+				true
+			}else{
+				score > current_score
+			}
+
+		}else{
+			log::info!(
+				target: "omnix::validate_proposed_score",
+				"no current score");
+			SolutionScore::<T>::put((who, score));
+			true
 		}
-		score > current_score
 	}
 }
