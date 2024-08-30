@@ -5,22 +5,22 @@ use frame_support::assert_ok;
 use frame_support::dispatch::DispatchClass;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::weights::constants::RocksDbWeight;
+use frame_support::weights::WeightToFee as WeightToFeeTrait;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
-use hydradx_runtime::{ExtrinsicBaseWeight, Runtime, Tokens, WeightToFee};
 use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::EVM;
+use hydradx_runtime::{ExtrinsicBaseWeight, Runtime, Tokens, WeightToFee};
 use orml_traits::MultiCurrency;
 use pallet_evm::FeeCalculator;
+use primitives::constants::chain::Weight;
 use primitives::constants::currency::UNITS;
 use primitives::constants::time::HOURS;
 use sp_core::Encode;
 use sp_core::U256;
+use sp_io::storage::changes_root;
 use sp_runtime::{FixedU128, Permill};
 use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;
-use frame_support::weights::WeightToFee as WeightToFeeTrait;
-use sp_io::storage::changes_root;
-use primitives::constants::chain::Weight;
 
 pub const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
 const HDX_USD_SPOT_PRICE: f64 = 0.0266; //Current HDX price in USD on CoinGecko on 22th Feb, 2024

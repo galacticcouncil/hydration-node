@@ -335,7 +335,10 @@ fn transfer_and_swap_should_work_with_4_hops() {
 	Acala::execute_with(|| {
 		let bob_new_ibtc_balance = hydradx_runtime::Currencies::free_balance(IBTC, &AccountId::from(BOB));
 
-		assert!(bob_new_ibtc_balance > bob_init_ibtc_balance, "Bob should have received iBTC");
+		assert!(
+			bob_new_ibtc_balance > bob_init_ibtc_balance,
+			"Bob should have received iBTC"
+		);
 
 		let fee = hydradx_runtime::Tokens::free_balance(IBTC, &hydradx_runtime::Treasury::account_id());
 
@@ -520,8 +523,12 @@ pub mod zeitgeist_use_cases {
 
 		//Assert that swap amount out is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
-			let alice_new_hxd_balance_on_zeitgeist = hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE));
-			assert!(alice_new_hxd_balance_on_zeitgeist > alice_init_hxd_balance_on_zeitgeist, "Alice should have received HDX");
+			let alice_new_hxd_balance_on_zeitgeist =
+				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE));
+			assert!(
+				alice_new_hxd_balance_on_zeitgeist > alice_init_hxd_balance_on_zeitgeist,
+				"Alice should have received HDX"
+			);
 		});
 	}
 
@@ -587,7 +594,10 @@ pub mod zeitgeist_use_cases {
 			crate::exchange_asset::add_currency_price(HDX_ON_OTHER_PARACHAIN, FixedU128::from(1));
 			crate::exchange_asset::add_currency_price(IBTC, FixedU128::from(1));
 
-			pretty_assertions::assert_eq!(hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)), alice_init_ibtc_balance_on_zeitgeist);
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
+				alice_init_ibtc_balance_on_zeitgeist
+			);
 
 			let give_reserve_chain = Location::new(
 				1,
@@ -734,8 +744,12 @@ pub mod zeitgeist_use_cases {
 
 		//Assert that swap amount out of IBTC is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
-			let alice_new_ibtc_balance_on_zeitgeist = hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE));
-			assert!(alice_new_ibtc_balance_on_zeitgeist > alice_init_ibtc_balance_on_zeitgeist, "Alice should have received iBTC");
+			let alice_new_ibtc_balance_on_zeitgeist =
+				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE));
+			assert!(
+				alice_new_ibtc_balance_on_zeitgeist > alice_init_ibtc_balance_on_zeitgeist,
+				"Alice should have received iBTC"
+			);
 		});
 	}
 
@@ -1012,7 +1026,10 @@ pub mod zeitgeist_use_cases {
 		//Assert that swap amount out of IBTC is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
 			let alice_new_ibtc_balance = hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE));
-			assert!(alice_new_ibtc_balance > alice_init_ibtc_balance_on_zeitgeist, "Alice should have received iBTC");
+			assert!(
+				alice_new_ibtc_balance > alice_init_ibtc_balance_on_zeitgeist,
+				"Alice should have received iBTC"
+			);
 		});
 	}
 }

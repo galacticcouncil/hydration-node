@@ -17,7 +17,10 @@
 #![allow(unused_assignments)] //We need this as benchmark does not recognize the assignment properly
 
 use super::*;
-use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, RuntimeCall, System, TreasuryAccount};
+use crate::{
+	AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, RuntimeCall, System,
+	TreasuryAccount,
+};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
@@ -30,13 +33,13 @@ use hydradx_traits::router::RouteProvider;
 use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;
-use pallet_transaction_payment::OnChargeTransaction;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
+use pallet_transaction_payment::OnChargeTransaction;
 use primitives::{BlockNumber, Price};
 use sp_core::Get;
 use sp_runtime::traits::SaturatedConversion;
-use sp_runtime::FixedU128;
 use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidityError};
+use sp_runtime::FixedU128;
 
 type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
 type XykPallet<T> = pallet_xyk::Pallet<T>;

@@ -139,7 +139,7 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 			)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
-		assert_eq!(bob_balance,  999969);
+		assert_eq!(bob_balance, 999969);
 	});
 
 	TestNet::reset();

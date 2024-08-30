@@ -145,7 +145,8 @@ parameter_types! {
 //We get the base and add the multi payment overhead until we have proper solution for calculating ExtrinsicBaseWeight by using the benchmark overhead command.
 pub fn get_extrinsic_base_weight() -> Weight {
 	let mut base_weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
-	let multi_payment_overhead = crate::weights::pallet_transaction_multi_payment::HydraWeight::<Runtime>::withdraw_fee();
+	let multi_payment_overhead =
+		crate::weights::pallet_transaction_multi_payment::HydraWeight::<Runtime>::withdraw_fee();
 
 	base_weight.saturating_accrue(multi_payment_overhead);
 

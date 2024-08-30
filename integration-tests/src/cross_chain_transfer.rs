@@ -491,7 +491,10 @@ fn claim_trapped_asset_should_work() {
 		assert!(fee > 0, "treasury should have received fees");
 
 		let bob_new_lrna_balance = hydradx_runtime::Tokens::free_balance(LRNA, &AccountId::from(BOB));
-		assert!(bob_new_lrna_balance > BOB_INITIAL_LRNA_BALANCE, "Bob should have received the claimed trapped asset");
+		assert!(
+			bob_new_lrna_balance > BOB_INITIAL_LRNA_BALANCE,
+			"Bob should have received the claimed trapped asset"
+		);
 
 		let origin = MultiLocation::new(1, X1(Junction::Parachain(ACALA_PARA_ID)));
 		let hash = determine_hash(&origin, vec![asset]);
