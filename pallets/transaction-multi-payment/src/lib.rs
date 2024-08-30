@@ -128,7 +128,11 @@ pub mod pallet {
 		type OraclePriceProvider: PriceOracle<AssetIdOf<Self>, Price = EmaPrice>;
 
 		/// Supporting swappable assets as fee currencies
-		type SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<Self::AccountId, AssetIdOf<Self>, BalanceOf<Self>>;
+		type SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<
+			Self::AccountId,
+			AssetIdOf<Self>,
+			BalanceOf<Self>,
+		>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -657,7 +661,8 @@ where
 			Pallet::<T>::account_currency(who)
 		};
 
-		let (converted_fee, currency, price) = if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
+		let (converted_fee, currency, price) = if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency)
+		{
 			let price = Pallet::<T>::get_currency_price(currency)
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
