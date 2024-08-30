@@ -126,7 +126,7 @@ pub mod pallet {
 		/// Oracle price provider for routes
 		type OraclePriceProvider: PriceOracle<AssetIdOf<Self>, Price = EmaPrice>;
 
-		///Insufficient asset as fee support
+		///Non multi fee asset as fee support
 		type NonMultiFeeAssetSupport: NonMultiFeeAssetTrader<Self::AccountId, AssetIdOf<Self>, BalanceOf<Self>>;
 
 		/// Weight information for the extrinsics.

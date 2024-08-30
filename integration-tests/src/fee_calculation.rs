@@ -31,16 +31,6 @@ pub const ETH_USD_SPOT_PRICE: f64 = 2907.92; //Current HDX price in USD on CoinG
 fn check_weight_to_fee() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-
-		let mut base = frame_support::weights::constants::ExtrinsicBaseWeight::get();
-
-		let sell = 		Weight::from_parts(262_022_000, 16488)
-			.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().reads(24_u64))
-			.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().writes(10_u64));
-
-		assert!(base.ref_time() > sell.ref_time());
-
-		/*
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -55,7 +45,7 @@ fn check_weight_to_fee() {
 
 		base.saturating_accrue(w);
 		let fee2 = hydradx_runtime::WeightToFee::weight_to_fee(&base); //(1515449000, 11322)
-		assert_eq!(fee, fee2)*/
+		assert_eq!(fee, fee2)
 	});
 }
 

@@ -5,7 +5,7 @@ pub trait InspectTransactionFeeCurrency<AssetId> {
 	fn is_transaction_fee_currency(asset: AssetId) -> bool;
 }
 
-///Trait for enabling trading of assets that are not accepted as transaction fee currency
+///Trait for enabling trading of assets that are not accepted currencies in MultiPayment pallet
 pub trait NonMultiFeeAssetTrader<AccountId, AssetId, Amount>: InspectTransactionFeeCurrency<AssetId> {
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool;
 
