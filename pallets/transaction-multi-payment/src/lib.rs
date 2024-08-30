@@ -59,7 +59,7 @@ use pallet_transaction_payment::OnChargeTransaction;
 use sp_runtime::traits::TryConvert;
 use sp_std::{marker::PhantomData, prelude::*};
 
-type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
+pub type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
 type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
 
 /// Spot price type

@@ -125,4 +125,46 @@ impl<T: frame_system::Config> pallet_transaction_multi_payment::WeightInfo for H
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+
+	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:0)
+	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
+	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::NextAssetId` (r:1 w:0)
+	/// Proof: `AssetRegistry::NextAssetId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::LocationAssets` (r:1 w:0)
+	/// Proof: `AssetRegistry::LocationAssets` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// Storage: `MultiTransactionPayment::AcceptedCurrencyPrice` (r:1 w:0)
+	/// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `Router::Routes` (r:1 w:0)
+	/// Proof: `Router::Routes` (`max_values`: None, `max_size`: Some(90), added: 2565, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Oracles` (r:1 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:4 w:4)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `XYK::ShareToken` (r:1 w:0)
+	/// Proof: `XYK::ShareToken` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `Router::SkipEd` (r:1 w:0)
+	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+	/// Storage: `Duster::AccountBlacklist` (r:2 w:0)
+	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
+	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:2 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::WhitelistedAssets` (r:1 w:0)
+	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::TotalIssuance` (r:1 w:1)
+	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	fn withdraw_fee() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `4091`
+		//  Estimated: `11322`
+		// Minimum execution time: 186_115_000 picoseconds.
+		Weight::from_parts(191_035_000, 11322)
+			.saturating_add(T::DbWeight::get().reads(24_u64))
+			.saturating_add(T::DbWeight::get().writes(6_u64))
+	}
 }

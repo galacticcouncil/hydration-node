@@ -47,7 +47,7 @@ fn non_native_fee_payment_works_with_oracle_price_based_on_onchain_route() {
 			)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
-		assert_eq!(bob_balance, 999991);
+		assert_eq!(bob_balance, 999969);
 
 		assert_ok!(hydradx_runtime::Balances::force_set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -76,7 +76,7 @@ fn non_native_fee_payment_works_with_oracle_price_based_on_onchain_route() {
 		);
 
 		let dave_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(DAVE));
-		assert_eq!(dave_balance, 999_998_091_159_455_519_200);
+		assert_eq!(dave_balance, 999993752030318349400);
 	});
 }
 
@@ -109,7 +109,7 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 			)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
-		assert_eq!(bob_balance, 999991);
+		assert_eq!(bob_balance, 999969);
 	});
 
 	TestNet::reset();
@@ -139,7 +139,7 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 			)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
-		assert_eq!(bob_balance, 999991);
+		assert_eq!(bob_balance,  999969);
 	});
 
 	TestNet::reset();
@@ -169,7 +169,7 @@ fn set_currency_should_work_in_batch_transaction_when_first_tx() {
 			)
 		);
 		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
-		assert_eq!(bob_balance, 999991);
+		assert_eq!(bob_balance, 999969);
 	});
 }
 

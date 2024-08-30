@@ -746,7 +746,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		let user_dai_balance = user_acc.balance(DAI);
 		assert!(user_dai_balance < initial_user_dai_balance);
 		let dai_diff = initial_user_dai_balance - user_dai_balance;
-		assert_eq!(dai_diff, 1_860_527_753_219_412);
+		assert_eq!(dai_diff, 1_984_562_942_528_057);
 	})
 }
 
@@ -1141,7 +1141,7 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
-		assert_eq!(tx_fee, 1_797_084_195_590);
+		assert_eq!(tx_fee, 1_916_889_814_194);
 	})
 }
 
@@ -1329,7 +1329,7 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
 
-		assert_eq!(tx_fee, 6_707_014_587_503);
+		assert_eq!(tx_fee, 7_154_148_914_103);
 	})
 }
 
@@ -1536,7 +1536,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
 
-		assert_eq!(tx_fee, 6707014587503);
+		assert_eq!(tx_fee, 7154148914103);
 
 		let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,

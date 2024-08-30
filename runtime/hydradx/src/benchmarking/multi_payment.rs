@@ -16,10 +16,11 @@
 // limitations under the License.
 
 use super::*;
-use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, System};
+use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, RuntimeCall, System, TreasuryAccount};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
+use frame_support::dispatch::GetDispatchInfo;
 use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::RawOrigin;
 use hydradx_traits::evm::InspectEvmAccounts;
@@ -28,11 +29,13 @@ use hydradx_traits::router::RouteProvider;
 use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;
+use pallet_transaction_payment::OnChargeTransaction;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use primitives::{BlockNumber, Price};
 use sp_core::Get;
 use sp_runtime::traits::SaturatedConversion;
 use sp_runtime::FixedU128;
+use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidityError};
 
 type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
 type XykPallet<T> = pallet_xyk::Pallet<T>;
@@ -40,6 +43,8 @@ type Router<T> = pallet_route_executor::Pallet<T>;
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::Trade;
 use hydradx_traits::OraclePeriod;
+use pallet_otc_settlements::AssetIdOf;
+use pallet_transaction_multi_payment::{DepositAll, PaymentInfo, TransferFees};
 
 const SEED: u32 = 1;
 
@@ -166,6 +171,31 @@ runtime_benchmarks! {
 	}: { MultiPaymentPallet::<Runtime>::reset_payment_currency(RawOrigin::Root.into(), caller_evm_acc.clone())? }
 	verify{
 		assert_eq!(MultiPaymentPallet::<Runtime>::get_currency(caller_evm_acc), Some(<Runtime as pallet_transaction_multi_payment::Config>::EvmAssetId::get()));
+	}
+
+	//Used for calculating multi payment overhead for BaseExtrinsicWeight
+	withdraw_fee {
+		let fee_asset = setup_insufficient_asset_with_dot()?;
+
+		let from: AccountId = account("from", 0, SEED);
+		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(0, &from, (10_000 * UNITS) as i128)?;
+		update_balance(fee_asset, &from, 1_000 * UNITS);
+
+		MultiTransactionPayment::set_currency(
+			RawOrigin::Signed(from.clone()).into(),
+			fee_asset
+		)?;
+	   let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+
+		let info = call.get_dispatch_info();
+		let fee= 295599811918u128;
+		let tip = 0;
+		let mut tx_result : Result<Option<PaymentInfo<Balance, pallet_transaction_multi_payment::AssetIdOf<Runtime>, Price>>, TransactionValidityError> = Err(TransactionValidityError::Invalid(InvalidTransaction::Payment));
+	}: {
+		tx_result = <TransferFees<Currencies, DepositAll<Runtime>, TreasuryAccount> as OnChargeTransaction<Runtime>>::withdraw_fee(&from, &call, &info, fee, tip);
+	}
+	verify {
+		assert!(tx_result.is_ok());
 	}
 }
 
