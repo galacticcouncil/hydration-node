@@ -201,12 +201,12 @@ impl SufficiencyCheck {
 					.max(1);
 
 				let amount_in_without_fee =
-					NonMultiFeePaymentAssetSupport::calculate_in_given_out(fee_payment_asset, dot_asset_id, ed_in_dot)?;
-				let trade_fee = NonMultiFeePaymentAssetSupport::calculate_fee_amount(amount_in_without_fee)?;
+					XykPaymentAssetSupport::calculate_in_given_out(fee_payment_asset, dot_asset_id, ed_in_dot)?;
+				let trade_fee = XykPaymentAssetSupport::calculate_fee_amount(amount_in_without_fee)?;
 				let ed_in_fee_asset = amount_in_without_fee.saturating_add(trade_fee);
 
 				//NOTE: Account doesn't have enough funds to pay ED if this fail.
-				NonMultiFeePaymentAssetSupport::buy(
+				XykPaymentAssetSupport::buy(
 					paying_account,
 					fee_payment_asset,
 					DotAssetId::get(),
@@ -864,7 +864,7 @@ impl pallet_dca::Config for Runtime {
 	>;
 	type RetryOnError = RetryOnErrorForDca;
 	type PolkadotNativeAssetId = DotAssetId;
-	type NonMultiFeeAssetSupport = NonMultiFeePaymentAssetSupport;
+	type SwappablePaymentAssetSupport = XykPaymentAssetSupport;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -1304,7 +1304,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
-use hydradx_traits::fee::{InspectTransactionFeeCurrency, NonMultiFeeAssetTrader};
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1747,15 +1747,15 @@ impl PriceProvider<AssetId> for ReferralsDummyPriceProvider {
 	}
 }
 
-pub struct NonMultiFeePaymentAssetSupport;
+pub struct XykPaymentAssetSupport;
 
-impl InspectTransactionFeeCurrency<AssetId> for NonMultiFeePaymentAssetSupport {
+impl InspectTransactionFeeCurrency<AssetId> for XykPaymentAssetSupport {
 	fn is_transaction_fee_currency(asset: AssetId) -> bool {
 		asset == CORE_ASSET_ID || MultiTransactionPayment::contains(&asset)
 	}
 }
 
-impl NonMultiFeeAssetTrader<AccountId, AssetId, Balance> for NonMultiFeePaymentAssetSupport {
+impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAssetSupport {
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool {
 		XYK::exists(pallet_xyk::types::AssetPair::new(from, into))
 	}

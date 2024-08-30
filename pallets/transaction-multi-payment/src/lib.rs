@@ -48,7 +48,7 @@ use frame_support::{
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::fee::InspectTransactionFeeCurrency;
-use hydradx_traits::fee::NonMultiFeeAssetTrader;
+use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	router::{AssetPair, RouteProvider},
@@ -78,7 +78,7 @@ pub mod pallet {
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::fee::NonMultiFeeAssetTrader;
+	use hydradx_traits::fee::SwappablePaymentAssetTrader;
 	use sp_core::{H160, H256, U256};
 	use sp_runtime::{ModuleError, TransactionOutcome};
 
@@ -127,8 +127,8 @@ pub mod pallet {
 		/// Oracle price provider for routes
 		type OraclePriceProvider: PriceOracle<AssetIdOf<Self>, Price = EmaPrice>;
 
-		///Non multi fee asset as fee support
-		type NonMultiFeeAssetSupport: NonMultiFeeAssetTrader<Self::AccountId, AssetIdOf<Self>, BalanceOf<Self>>;
+		/// Supporting swappable assets as fee currencies
+		type SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<Self::AccountId, AssetIdOf<Self>, BalanceOf<Self>>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -288,14 +288,14 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(currency) {
+			if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
 				ensure!(
 					currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
 					Error::<T>::UnsupportedCurrency
 				);
 			} else {
 				ensure!(
-					T::NonMultiFeeAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
+					T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
 					Error::<T>::UnsupportedCurrency
 				);
 			}
@@ -657,7 +657,7 @@ where
 			Pallet::<T>::account_currency(who)
 		};
 
-		let (converted_fee, currency, price) = if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(currency) {
+		let (converted_fee, currency, price) = if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
 			let price = Pallet::<T>::get_currency_price(currency)
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
@@ -672,17 +672,17 @@ where
 			let fee_in_dot = convert_fee_with_price(fee, dot_hdx_price)
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			let amount_in = T::NonMultiFeeAssetSupport::calculate_in_given_out(
+			let amount_in = T::SwappablePaymentAssetSupport::calculate_in_given_out(
 				currency,
 				T::PolkadotNativeAssetId::get(),
 				fee_in_dot.into(),
 			)
 			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			let pool_fee = T::NonMultiFeeAssetSupport::calculate_fee_amount(amount_in)
+			let pool_fee = T::SwappablePaymentAssetSupport::calculate_fee_amount(amount_in)
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 			let max_limit = amount_in.saturating_add(pool_fee);
 
-			T::NonMultiFeeAssetSupport::buy(
+			T::SwappablePaymentAssetSupport::buy(
 				who,
 				currency,
 				T::PolkadotNativeAssetId::get(),

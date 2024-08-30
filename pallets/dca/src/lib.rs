@@ -77,7 +77,7 @@ use frame_system::{
 	Origin,
 };
 use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::fee::{InspectTransactionFeeCurrency, NonMultiFeeAssetTrader};
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::NativePriceOracle;
@@ -120,7 +120,7 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::fee::NonMultiFeeAssetTrader;
+	use hydradx_traits::fee::SwappablePaymentAssetTrader;
 	use hydradx_traits::{NativePriceOracle, PriceOracle};
 	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::Percent;
@@ -226,8 +226,8 @@ pub mod pallet {
 		///Relay chain block hash provider for randomness
 		type RelayChainBlockHashProvider: RelayChainBlockHashProvider;
 
-		///Insufficient asset as fee support
-		type NonMultiFeeAssetSupport: NonMultiFeeAssetTrader<Self::AccountId, Self::AssetId, Balance>;
+		/// Supporting swappable assets as fee currencies
+		type SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<Self::AccountId, Self::AssetId, Balance>;
 
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
@@ -950,7 +950,7 @@ impl<T: Config> Pallet<T> {
 		let fee_currency = schedule.order.get_asset_in();
 		let fee_amount_in_sold_asset = Self::convert_weight_to_fee(weight_to_charge, fee_currency)?;
 
-		if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(fee_currency) {
+		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(fee_currency) {
 			Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
 
 			T::Currencies::transfer(
@@ -962,7 +962,7 @@ impl<T: Config> Pallet<T> {
 		} else {
 			//We buy DOT with insufficient asset, for the treasury
 			//The DOT we need to buy is calculated the same way how we convert weight to insufficient fee
-			let pool_trade_fee = T::NonMultiFeeAssetSupport::calculate_fee_amount(fee_amount_in_sold_asset)?;
+			let pool_trade_fee = T::SwappablePaymentAssetSupport::calculate_fee_amount(fee_amount_in_sold_asset)?;
 
 			//Since there is a trade fee involved in xyk buy swap, we need to unallocate that, together with amount_in
 			let effective_amount_in = fee_amount_in_sold_asset
@@ -971,7 +971,7 @@ impl<T: Config> Pallet<T> {
 			Self::unallocate_amount(schedule_id, schedule, effective_amount_in)?;
 
 			let fee_in_dot = Self::convert_to_polkadot_native_asset(Self::weight_to_fee(weight_to_charge))?;
-			T::NonMultiFeeAssetSupport::buy(
+			T::SwappablePaymentAssetSupport::buy(
 				&schedule.owner.clone(),
 				fee_currency,
 				T::PolkadotNativeAssetId::get(),
@@ -1110,7 +1110,7 @@ impl<T: Config> Pallet<T> {
 		match order {
 			Order::Sell { .. } => {
 				let on_initialize_weight =
-					if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
+					if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
 						<T as Config>::WeightInfo::on_initialize_with_sell_trade()
 					} else {
 						<T as Config>::WeightInfo::on_initialize_with_sell_trade_with_insufficient_fee_asset()
@@ -1121,7 +1121,7 @@ impl<T: Config> Pallet<T> {
 			}
 			Order::Buy { .. } => {
 				let on_initialize_weight =
-					if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
+					if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
 						<T as Config>::WeightInfo::on_initialize_with_buy_trade()
 					} else {
 						<T as Config>::WeightInfo::on_initialize_with_buy_trade_with_insufficient_fee_asset()
@@ -1139,14 +1139,14 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Balance, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
-		} else if T::NonMultiFeeAssetSupport::is_transaction_fee_currency(asset_id) {
+		} else if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(asset_id) {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 
 			multiply_by_rational_with_rounding(asset_amount, price.n, price.d, Rounding::Up)
 				.ok_or(ArithmeticError::Overflow)?
 		} else {
 			let fee_amount_in_dot = Self::convert_to_polkadot_native_asset(asset_amount)?;
-			T::NonMultiFeeAssetSupport::calculate_in_given_out(
+			T::SwappablePaymentAssetSupport::calculate_in_given_out(
 				asset_id,
 				T::PolkadotNativeAssetId::get(),
 				fee_amount_in_dot,
