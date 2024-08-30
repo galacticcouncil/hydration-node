@@ -149,7 +149,7 @@ pub fn get_extrinsic_base_weight() -> Weight {
 
 	base_weight.saturating_accrue(multi_payment_overhead);
 
-	return base_weight;
+	base_weight
 }
 
 impl frame_system::Config for Runtime {

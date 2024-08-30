@@ -14,6 +14,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#![allow(unused_assignments)] //We need this as benchmark does not recognize the assignment properly
 
 use super::*;
 use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, RuntimeCall, System, TreasuryAccount};
@@ -43,7 +44,6 @@ type Router<T> = pallet_route_executor::Pallet<T>;
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::Trade;
 use hydradx_traits::OraclePeriod;
-use pallet_otc_settlements::AssetIdOf;
 use pallet_transaction_multi_payment::{DepositAll, PaymentInfo, TransferFees};
 
 const SEED: u32 = 1;
