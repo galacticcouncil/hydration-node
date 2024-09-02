@@ -76,7 +76,7 @@ fn non_native_fee_payment_works_with_oracle_price_based_on_onchain_route() {
 		);
 
 		let dave_new_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(DAVE));
-		assert_eq!(dave_balance, 999993637058691367900);
+		assert_eq!(dave_new_balance, 999993637058691367900);
 	});
 }
 
