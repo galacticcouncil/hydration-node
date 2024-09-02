@@ -162,6 +162,7 @@ where
 	}
 }
 
+//TODO: maybe we need to set IsDotFrom<RelayChain> to accept DOT from relayt?
 pub type Reserves = (
 	IsDotFrom<AssetHubLocation>,
 	IsForeignNativeAssetFrom<AssetHubLocation>,
@@ -239,7 +240,7 @@ parameter_type_with_key! {
 	pub ParachainMinFee: |location: Location| -> Option<u128> {
 		#[allow(clippy::match_ref_pats)] // false positive
 		match (location.parents, location.first_interior()) {
-			(1, Some(Parachain(ASSET_HUB_PARA_ID))) => Some(50_000_000),
+			(1, Some(Parachain(ASSET_HUB_PARA_ID))) => Some(150_000_000),
 			_ => None,
 		}
 	};
