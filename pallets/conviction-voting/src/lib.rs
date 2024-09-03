@@ -26,9 +26,7 @@
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(clippy::mem_replace_with_default)]
 
-use crate::traits::VotingHooks;
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -53,6 +51,7 @@ pub mod weights;
 pub use self::{
 	conviction::Conviction,
 	pallet::*,
+	traits::VotingHooks,
 	types::{Delegations, Tally, UnvoteScope},
 	vote::{AccountVote, Casting, Delegating, Vote, Voting},
 	weights::WeightInfo,
@@ -87,7 +86,6 @@ type ClassOf<T, I = ()> = <<T as Config<I>>::Polls as Polling<TallyOf<T, I>>>::C
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::VotingHooks;
 	use frame_support::{
 		pallet_prelude::{DispatchResultWithPostInfo, IsType, StorageDoubleMap, StorageMap, ValueQuery},
 		traits::ClassCountOf,
@@ -133,7 +131,7 @@ pub mod pallet {
 		type VoteLockingPeriod: Get<BlockNumberFor<Self>>;
 
 		/// Hooks are actions that are executed on certain events.
-		/// Actions: on_vote, on_remove_vote
+		/// Events: on_vote, on_remove_vote, on_remove_unsuccessful_vote
 		type VotingHooks: VotingHooks<Self::AccountId, PollIndexOf<Self, I>, BalanceOf<Self, I>>;
 	}
 
@@ -273,7 +271,7 @@ pub mod pallet {
 		// NOTE: weight must cover an incorrect voting of origin with max votes, this is ensure
 		// because a valid delegation cover decoding a direct voting with max votes.
 		#[pallet::call_index(2)]
-		#[pallet::weight(T::WeightInfo::undelegate(T::MaxVotes::get()))]
+		#[pallet::weight(T::WeightInfo::undelegate(T::MaxVotes::get().into()))]
 		pub fn undelegate(origin: OriginFor<T>, class: ClassOf<T, I>) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 			let votes = Self::try_undelegate(who, class)?;
@@ -422,7 +420,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				// other votes are in place.
 				Self::extend_lock(who, &class, vote.balance());
 
-				// call on_vote hook
+				// Call on_vote hook
 				T::VotingHooks::on_vote(who, poll_index, vote)?;
 				Ok(())
 			})
@@ -456,53 +454,51 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 					.map_err(|_| Error::<T, I>::NotVoter)?;
 				let v = votes.remove(i);
 
-				T::Polls::try_access_poll(poll_index, |poll_status| -> DispatchResult {
-					let is_finished = match poll_status {
-						PollStatus::Ongoing(tally, _) => {
-							ensure!(matches!(scope, UnvoteScope::Any), Error::<T, I>::NoPermission);
-							// Shouldn't be possible to fail, but we handle it gracefully.
-							tally.remove(v.1).ok_or(ArithmeticError::Underflow)?;
-							if let Some(approve) = v.1.as_standard() {
-								tally.reduce(approve, *delegations);
-							}
-							Some(false)
+				T::Polls::try_access_poll(poll_index, |poll_status| match poll_status {
+					PollStatus::Ongoing(tally, _) => {
+						ensure!(matches!(scope, UnvoteScope::Any), Error::<T, I>::NoPermission);
+						// Shouldn't be possible to fail, but we handle it gracefully.
+						tally.remove(v.1).ok_or(ArithmeticError::Underflow)?;
+						if let Some(approve) = v.1.as_standard() {
+							tally.reduce(approve, *delegations);
 						}
-						PollStatus::Completed(end, approved) => {
-							if let Some((lock_periods, balance)) = v.1.locked_if(approved) {
-								let unlock_at =
-									end.saturating_add(T::VoteLockingPeriod::get().saturating_mul(lock_periods.into()));
-								let now = frame_system::Pallet::<T>::block_number();
-								if now < unlock_at {
-									ensure!(matches!(scope, UnvoteScope::Any), Error::<T, I>::NoPermissionYet);
-									prior.accumulate(unlock_at, balance)
-								}
-							} else {
-								// Unsuccessful vote, use special hooks to lock the funds too in case of conviction.
-								if let Some(to_lock) =
-									T::VotingHooks::get_amount_to_lock_for_remove_vote(who, poll_index)
-								{
-									if let AccountVote::Standard { vote, .. } = v.1 {
-										let unlock_at = end.saturating_add(
-											T::VoteLockingPeriod::get()
-												.saturating_mul(vote.conviction.lock_periods().into()),
-										);
-										let now = frame_system::Pallet::<T>::block_number();
-										if now < unlock_at {
-											ensure!(matches!(scope, UnvoteScope::Any), Error::<T, I>::NoPermissionYet);
-											prior.accumulate(unlock_at, to_lock)
-										}
+						T::VotingHooks::on_remove_vote(who, poll_index, Some(true));
+						Ok(())
+					}
+					PollStatus::Completed(end, approved) => {
+						if let Some((lock_periods, balance)) = v.1.locked_if(approved) {
+							let unlock_at =
+								end.saturating_add(T::VoteLockingPeriod::get().saturating_mul(lock_periods.into()));
+							let now = frame_system::Pallet::<T>::block_number();
+							if now < unlock_at {
+								ensure!(matches!(scope, UnvoteScope::Any), Error::<T, I>::NoPermissionYet);
+								prior.accumulate(unlock_at, balance)
+							}
+						} else if v.1.as_standard() == Some(!approved) {
+							// Unsuccessful vote, use special hooks to lock the funds too in case of conviction.
+							if let Some(to_lock) = T::VotingHooks::locked_if_unsuccessful_vote(who, poll_index) {
+								if let AccountVote::Standard { vote, .. } = v.1 {
+									let unlock_at = end.saturating_add(
+										T::VoteLockingPeriod::get()
+											.saturating_mul(vote.conviction.lock_periods().into()),
+									);
+									let now = frame_system::Pallet::<T>::block_number();
+									if now < unlock_at {
+										ensure!(matches!(scope, UnvoteScope::Any), Error::<T, I>::NoPermissionYet);
+										prior.accumulate(unlock_at, to_lock)
 									}
 								}
 							}
-							Some(true)
 						}
-						PollStatus::None => None, // Poll was cancelled.
-					};
-
-					// call on_remove_vote hook
-					T::VotingHooks::on_remove_vote(who, poll_index, is_finished);
-
-					Ok(())
+						// Call on_remove_vote hook
+						T::VotingHooks::on_remove_vote(who, poll_index, Some(false));
+						Ok(())
+					}
+					PollStatus::None => {
+						// Poll was cancelled.
+						T::VotingHooks::on_remove_vote(who, poll_index, None);
+						Ok(())
+					}
 				})
 			} else {
 				Ok(())

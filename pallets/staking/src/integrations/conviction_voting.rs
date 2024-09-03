@@ -85,7 +85,7 @@ where
 		})
 	}
 
-	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex, is_finished: Option<bool>) {
+	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex, ongoing: Option<bool>) {
 		let Some(maybe_position_id) = Pallet::<T>::get_user_position_id(who).ok() else {
 			return;
 		};
@@ -114,8 +114,8 @@ where
 					let points =
 						Pallet::<T>::calculate_points_for_action(Action::DemocracyVote, vote, max_position_vote);
 					// Add points only if referendum is finished
-					if let Some(is_finished) = is_finished {
-						if is_finished {
+					if let Some(is_ongoing) = ongoing {
+						if !is_ongoing {
 							position.action_points = position.action_points.saturating_add(points);
 						}
 					}
@@ -128,7 +128,7 @@ where
 		});
 	}
 
-	fn get_amount_to_lock_for_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
+	fn locked_if_unsuccessful_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
 		let Some(position_id) = Pallet::<T>::get_user_position_id(who).ok()? else {
 			return None;
 		};
