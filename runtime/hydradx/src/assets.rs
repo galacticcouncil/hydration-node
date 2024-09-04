@@ -525,7 +525,9 @@ impl pallet_omnix::Config for Runtime {
 	type AssetId = AssetId;
 	type HubAssetId = LRNA;
 	type TimestampProvider = Timestamp;
+	type BlockNumberProvider = System;
 	type Currency = FungibleCurrencies<Runtime>;
+	type ReservableCurrency = Currencies;
 	type TradeExecutor = Router;
 	type PalletId = OmnixPalletId;
 	type MaxCallData = MaxCallData;

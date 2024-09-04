@@ -1,13 +1,14 @@
 use super::*;
 use frame_support::assert_ok;
 use frame_support::weights::Weight;
-use hydradx_runtime::{Currencies, OmniX, Omnipool, Router};
+use hydradx_runtime::{Currencies, OmniX, Omnipool, Router, System};
 use hydradx_traits::router::AssetPair as Pair;
 use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
 use pallet_omnix::types::{BoundedInstructions, BoundedResolvedIntents, ProposedSolution, Solution};
 use sp_core::crypto::AccountId32;
 use sp_core::Encode;
+use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Hash;
 
 #[test]
@@ -43,7 +44,8 @@ fn submit_solution_should_work() {
 		assert_ok!(OmniX::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			solution,
-			1u128
+			1u64,
+			System::current_block_number()
 		));
 		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 		assert_eq!(dai_balance - initial_dai_balance, 8973613312776918);
@@ -107,7 +109,8 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		assert_ok!(OmniX::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			solution,
-			1u128
+			1u64,
+			System::current_block_number()
 		));
 
 		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
@@ -180,7 +183,8 @@ fn execute_two_intents_solution_should_work() {
 		assert_ok!(OmniX::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			solution,
-			1u128
+			1u64,
+			System::current_block_number()
 		));
 
 		let hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));

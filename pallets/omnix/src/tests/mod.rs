@@ -9,7 +9,7 @@ use frame_support::{construct_runtime, parameter_types, PalletId};
 use hydradx_traits::router::{AmountInAndOut, AssetPair, RouterT, Trade};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use sp_core::H256;
-use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
+use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::transaction_validity::TransactionPriority;
 use sp_runtime::{BuildStorage, DispatchError, DispatchResult};
 
@@ -128,11 +128,22 @@ impl GetByKey<RuntimeCall, TransactionPriority> for DummyOrder {
 	}
 }
 
+pub struct MockBlockNumberProvider;
+
+impl BlockNumberProvider for MockBlockNumberProvider {
+	type BlockNumber = u64;
+
+	fn current_block_number() -> Self::BlockNumber {
+		System::block_number()
+	}
+}
+
 impl pallet_omnix::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type HubAssetId = HubAssetId;
 	type TimestampProvider = DummyTimestampProvider;
+	type BlockNumberProvider = MockBlockNumberProvider;
 	type Currency = Tokens;
 	type TradeExecutor = DummyTradeExecutor;
 	type PalletId = OmniXPalletId;

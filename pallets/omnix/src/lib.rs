@@ -23,7 +23,7 @@ use frame_system::pallet_prelude::*;
 use hydradx_traits::router::RouterT;
 pub use pallet::*;
 use scale_info::TypeInfo;
-use sp_runtime::traits::{AccountIdConversion, Hash};
+use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Hash};
 use sp_runtime::traits::{MaybeSerializeDeserialize, Member};
 use sp_runtime::DispatchError;
 use sp_std::prelude::*;
@@ -35,7 +35,8 @@ pub mod pallet {
 	use crate::engine::{OmniXEngine, SolutionError};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
-	use orml_traits::GetByKey;
+	use orml_traits::{GetByKey, NamedMultiReservableCurrency};
+	use sp_runtime::traits::BlockNumberProvider;
 	use types::Balance;
 
 	#[pallet::pallet]
@@ -62,8 +63,18 @@ pub mod pallet {
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
 
-		///
+		/// Block number provider.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
+
+		/// TODO: this two currencies could be merged into one, howerver it would need to implmenet support in the runtime for this
 		type Currency: Mutate<Self::AccountId, AssetId = Self::AssetId, Balance = types::Balance>;
+
+		type ReservableCurrency: NamedMultiReservableCurrency<
+			Self::AccountId,
+			ReserveIdentifier = types::NamedReserveIdentifier,
+			CurrencyId = Self::AssetId,
+			Balance = Balance,
+		>;
 
 		type TradeExecutor: RouterT<
 			Self::RuntimeOrigin,
@@ -121,6 +132,9 @@ pub mod pallet {
 
 		/// Execution contains too many instructions
 		TooManyInstructions,
+
+		/// Invalid block number
+		InvalidBlockNumber,
 	}
 
 	#[pallet::storage]
@@ -135,12 +149,20 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Intent id sequencer
 	#[pallet::getter(fn solution_score)]
-	pub(super) type SolutionScore<T: Config> = StorageValue<_, (T::AccountId, Balance), OptionQuery>;
+	pub(super) type SolutionScore<T: Config> = StorageValue<_, (T::AccountId, u64), OptionQuery>;
 
 	#[pallet::storage]
 	/// Intent id sequencer
-	#[pallet::getter(fn solution_none)]
-	pub(super) type SolutionNonce<T: Config> = StorageValue<_, u8, ValueQuery>;
+	#[pallet::getter(fn solution_executed)]
+	pub(super) type SolutionExecuted<T: Config> = StorageValue<_, bool, ValueQuery, ExecDefault>;
+
+	pub struct ExecDefault;
+
+	impl Get<bool> for ExecDefault {
+		fn get() -> bool {
+			false
+		}
+	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -197,15 +219,16 @@ pub mod pallet {
 		pub fn submit_solution(
 			origin: OriginFor<T>,
 			solution: ProposedSolution<T::AccountId, T::AssetId>,
-			score: Balance,
+			score: u64,
+			block: BlockNumberFor<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let current_solution = SolutionScore::<T>::get();
-
-			log::info!(
-				target: "omnix::submit_solution",
-				"X current solution: {:?}", current_solution);
+			// double check the target block, although it should be done in the tx validation
+			ensure!(
+				block == T::BlockNumberProvider::current_block_number(),
+				Error::<T>::InvalidBlockNumber
+			);
 
 			let mut solution = Solution {
 				proposer: who.clone(),
@@ -222,90 +245,6 @@ pub mod pallet {
 
 			Ok(())
 		}
-
-		#[pallet::call_index(2)]
-		#[pallet::weight(T::WeightInfo::submit_solution())]
-		pub fn propose_solution(
-			origin: OriginFor<T>,
-			from: T::AccountId,
-			solution: ProposedSolution<T::AccountId, T::AssetId>,
-			score: Balance,
-		) -> DispatchResult {
-			ensure_none(origin)?;
-
-			let current_solution = SolutionScore::<T>::get();
-			log::info!(
-				target: "omnix::propose_solution",
-				"X current solution: {:?}", current_solution);
-
-			let mut solution = Solution {
-				proposer: from.clone(),
-				intents: solution.intents,
-				instructions: solution.instructions,
-				score,
-				weight: Default::default(),
-			};
-
-			OmniXEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&mut solution)?;
-			OmniXEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
-
-			//Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
-
-			Ok(())
-		}
-	}
-
-	#[pallet::validate_unsigned]
-	impl<T: Config> ValidateUnsigned for Pallet<T> {
-		type Call = Call<T>;
-
-		fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
-			log::info!(
-				target: "omnix::pre_dispatch",
-				"pre_dispatch execution");
-			Self::validate_unsigned(TransactionSource::InBlock, call)
-				.map(|_| ())
-				.map_err(Into::into)
-		}
-
-		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			log::info!(
-				target: "omnix::validate_unsigned",
-				"validate_unsigned execution");
-
-			match call {
-				Call::propose_solution {
-					from,
-					solution,
-					score,
-				} => {
-					let (valid, previous_score) = Self::check_proposed_score(from, *score);
-					if !valid {
-						log::info!(
-							target: "omnix::validate_unsigned",
-							"invalid solution");
-						InvalidTransaction::Call.into()
-					}else{
-						let nonce = SolutionNonce::<T>::get();
-						log::info!(
-							target: "omnix::validate_unsigned",
-							"valid solution, current nonce {:?}", nonce);
-
-						let mut tx = ValidTransaction::with_tag_prefix("IceSolutionProposal")
-							.and_provides(("solution", nonce));
-
-						tx = tx.priority(*score as u64)
-							.longevity(64)
-							.propagate(true);
-
-						Self::increment_solution_nonce();
-
-						tx.build()
-					}
-				}
-				_ => InvalidTransaction::Call.into(),
-			}
-		}
 	}
 }
 
@@ -313,10 +252,6 @@ impl<T: Config> Pallet<T> {
 	/// Holding account
 	pub fn holding_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
-	}
-
-	pub fn increment_solution_nonce() {
-		SolutionNonce::<T>::mutate(|nonce| *nonce += 1);
 	}
 
 	pub fn get_intent_id(deadline: Moment, increment: IncrementalIntentId) -> IntentId {
@@ -340,10 +275,17 @@ impl<T: Config> Pallet<T> {
 			.map(|v| Some(v))
 	}
 
-	pub fn check_proposed_score(who: &T::AccountId, score: Balance) -> (bool, Option<Balance>) {
+	pub fn validate_submission(who: &T::AccountId, score: u64, block: BlockNumberFor<T>) -> (bool, Option<u64>) {
 		log::info!(
 			target: "omnix::check_proposed_score",
 			"who: {:?}, score: {:?}", who, score);
+
+		if block != T::BlockNumberProvider::current_block_number() {
+			log::info!(
+				target: "omnix::validate_proposed_score",
+				"invalid block number");
+			return (false, None);
+		}
 
 		if let Some((from, current_score)) = SolutionScore::<T>::get() {
 			log::info!(
@@ -354,43 +296,15 @@ impl<T: Config> Pallet<T> {
 			}
 			if from == *who {
 				(true, Some(current_score))
-			}else{
+			} else {
 				(score > current_score, Some(current_score))
 			}
-
-		}else{
+		} else {
 			log::info!(
 				target: "omnix::validate_proposed_score",
 				"no current score");
 			SolutionScore::<T>::put((who, score));
 			(true, None)
-		}
-	}
-
-	pub fn validate_proposed_score(who: &T::AccountId, score: Balance) -> bool {
-		log::info!(
-			target: "omnix::validate_proposed_score",
-			"who: {:?}, score: {:?}", who, score);
-		//TODO: lock proposal bond
-		if let Some((from, current_score)) = SolutionScore::<T>::get() {
-			log::info!(
-				target: "omnix::validate_proposed_score",
-				"from: {:?}, current score: {:?}", from, current_score);
-			if score > current_score {
-				SolutionScore::<T>::put((who, score));
-			}
-			if from == *who {
-				true
-			}else{
-				score > current_score
-			}
-
-		}else{
-			log::info!(
-				target: "omnix::validate_proposed_score",
-				"no current score");
-			SolutionScore::<T>::put((who, score));
-			true
 		}
 	}
 }

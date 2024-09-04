@@ -11,6 +11,7 @@ pub const MAX_RESOLVED_INTENTS: u32 = 128;
 pub const MAX_PRICES: u32 = 128;
 pub const MAX_INSTRUCTIONS: u32 = 128;
 
+pub type NamedReserveIdentifier = [u8; 8];
 pub type Balance = u128;
 pub type Moment = u64;
 pub type IncrementalIntentId = u64;
@@ -59,7 +60,7 @@ pub struct Solution<AccountId, AssetId> {
 	pub proposer: AccountId,
 	pub intents: BoundedResolvedIntents,
 	pub instructions: BoundedInstructions<AccountId, AssetId>,
-	pub score: Balance,
+	pub score: u64,
 	pub weight: Weight,
 }
 
