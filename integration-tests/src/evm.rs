@@ -9,14 +9,14 @@ use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Enc
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+use hydradx_runtime::evm::EvmAddress;
 use hydradx_runtime::evm::ExtendedAddressMapping;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{
 	evm::precompiles::{
-		handle::EvmDataWriter,
-		multicurrency::{Action, MultiCurrencyPrecompile},
-		Address, Bytes, EvmAddress, HydraDXPrecompiles,
+		handle::EvmDataWriter, multicurrency::MultiCurrencyPrecompile, Address, Bytes, HydraDXPrecompiles,
 	},
+	evm::Function,
 	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
 	TransactionPause, EVM,
 };
@@ -152,7 +152,7 @@ mod account_conversion {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Action::BalanceOf)
+			let data = EvmDataWriter::new_with_selector(Function::BalanceOf)
 				.write(Address::from(evm_address))
 				.build();
 
@@ -195,7 +195,7 @@ mod account_conversion {
 			//Arrange
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 
-			let data = EvmDataWriter::new_with_selector(Action::BalanceOf)
+			let data = EvmDataWriter::new_with_selector(Function::BalanceOf)
 				.write(Address::from(evm_address))
 				.build();
 
@@ -547,7 +547,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let data = EvmDataWriter::new_with_selector(Action::Name).build();
+			let data = EvmDataWriter::new_with_selector(Function::Name).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -583,7 +583,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let data = EvmDataWriter::new_with_selector(Action::Name).build();
+			let data = EvmDataWriter::new_with_selector(Function::Name).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -616,7 +616,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let data = EvmDataWriter::new_with_selector(Action::Name).build();
+			let data = EvmDataWriter::new_with_selector(Function::Name).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -664,7 +664,7 @@ mod currency_precompile {
 			)
 			.unwrap();
 
-			let data = EvmDataWriter::new_with_selector(Action::Symbol).build();
+			let data = EvmDataWriter::new_with_selector(Function::Symbol).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -712,7 +712,7 @@ mod currency_precompile {
 			)
 			.unwrap();
 
-			let data = EvmDataWriter::new_with_selector(Action::Decimals).build();
+			let data = EvmDataWriter::new_with_selector(Function::Decimals).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -751,7 +751,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let data = EvmDataWriter::new_with_selector(Action::TotalSupply).build();
+			let data = EvmDataWriter::new_with_selector(Function::TotalSupply).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -797,7 +797,7 @@ mod currency_precompile {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Action::BalanceOf)
+			let data = EvmDataWriter::new_with_selector(Function::BalanceOf)
 				.write(Address::from(evm_address()))
 				.build();
 
@@ -845,7 +845,7 @@ mod currency_precompile {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Action::Transfer)
+			let data = EvmDataWriter::new_with_selector(Function::Transfer)
 				.write(Address::from(evm_address2()))
 				.write(U256::from(86u128 * UNITS))
 				.build();
@@ -883,7 +883,7 @@ mod currency_precompile {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Action::Approve)
+			let data = EvmDataWriter::new_with_selector(Function::Approve)
 				.write(Address::from(evm_address2()))
 				.write(U256::from(50u128 * UNITS))
 				.build();
@@ -918,7 +918,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let data = EvmDataWriter::new_with_selector(Action::Allowance)
+			let data = EvmDataWriter::new_with_selector(Function::Allowance)
 				.write(Address::from(evm_address()))
 				.write(Address::from(evm_address2()))
 				.build();
@@ -960,7 +960,7 @@ mod currency_precompile {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Action::TransferFrom)
+			let data = EvmDataWriter::new_with_selector(Function::TransferFrom)
 				.write(Address::from(evm_address()))
 				.write(Address::from(evm_address2()))
 				.write(U256::from(50u128 * UNITS))

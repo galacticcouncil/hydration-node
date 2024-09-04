@@ -30,7 +30,7 @@ use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle};
 use orml_traits::{parameter_type_with_key, GetByKey};
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use primitive_types::U128;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
@@ -341,6 +341,8 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }

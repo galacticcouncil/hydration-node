@@ -9,8 +9,6 @@ use frame_support::{
 	traits::{ConstU32, ConstU64, Everything, Nothing},
 	PalletId,
 };
-use hydradx_traits::evm::EvmAddress;
-use hydradx_traits::AssetKind;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
@@ -103,115 +101,13 @@ impl Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
-	type Erc20Currency = Erc20Currency<Runtime>;
-	type BoundErc20 = Runtime;
+	type Erc20Currency = MockErc20Currency<Runtime>;
+	type BoundErc20 = MockBoundErc20<Runtime>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type WeightInfo = ();
 }
 pub type NativeCurrency = NativeCurrencyOf<Runtime>;
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Runtime, PalletBalances, i64, u64>;
-
-pub struct Erc20Currency<T>(PhantomData<T>);
-
-impl<T: Config> MultiCurrency<T::AccountId> for Erc20Currency<T>
-where
-	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
-{
-	type CurrencyId = EvmAddress;
-	type Balance = Balance;
-
-	fn minimum_balance(_currency_id: Self::CurrencyId) -> Self::Balance {
-		todo!()
-	}
-
-	fn total_issuance(_currency_id: Self::CurrencyId) -> Self::Balance {
-		todo!()
-	}
-
-	fn total_balance(_currency_id: Self::CurrencyId, _who: &T::AccountId) -> Self::Balance {
-		todo!()
-	}
-
-	fn free_balance(_currency_id: Self::CurrencyId, _who: &T::AccountId) -> Self::Balance {
-		todo!()
-	}
-
-	fn ensure_can_withdraw(
-		_currency_id: Self::CurrencyId,
-		_who: &T::AccountId,
-		_amount: Self::Balance,
-	) -> DispatchResult {
-		todo!()
-	}
-
-	fn transfer(
-		_currency_id: Self::CurrencyId,
-		_from: &T::AccountId,
-		_to: &T::AccountId,
-		_amount: Self::Balance,
-	) -> DispatchResult {
-		todo!()
-	}
-
-	fn deposit(_currency_id: Self::CurrencyId, _who: &T::AccountId, _amount: Self::Balance) -> DispatchResult {
-		todo!()
-	}
-
-	fn withdraw(_currency_id: Self::CurrencyId, _who: &T::AccountId, _amount: Self::Balance) -> DispatchResult {
-		todo!()
-	}
-
-	fn can_slash(_currency_id: Self::CurrencyId, _who: &T::AccountId, _value: Self::Balance) -> bool {
-		todo!()
-	}
-
-	fn slash(_currency_id: Self::CurrencyId, _who: &T::AccountId, _amount: Self::Balance) -> Self::Balance {
-		todo!()
-	}
-}
-
-impl hydradx_traits::Inspect for Runtime {
-	type AssetId = CurrencyId;
-	type Location = ();
-
-	fn is_sufficient(_id: Self::AssetId) -> bool {
-		todo!()
-	}
-
-	fn exists(_id: Self::AssetId) -> bool {
-		todo!()
-	}
-
-	fn decimals(_id: Self::AssetId) -> Option<u8> {
-		todo!()
-	}
-
-	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
-		todo!()
-	}
-
-	fn is_banned(_id: Self::AssetId) -> bool {
-		todo!()
-	}
-
-	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
-		todo!()
-	}
-
-	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
-		todo!()
-	}
-
-	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
-		todo!()
-	}
-}
-
-impl BoundErc20 for Runtime {
-	fn contract_address(_id: Self::AssetId) -> Option<EvmAddress> {
-		None
-	}
-}
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
 

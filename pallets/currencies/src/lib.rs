@@ -51,7 +51,7 @@ use frame_support::{
 };
 use frame_system::{ensure_root, ensure_signed, pallet_prelude::*};
 use hydradx_traits::evm::EvmAddress;
-use hydradx_traits::BoundErc20;
+use hydradx_traits::{AssetKind, BoundErc20};
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
 	currency::TransferAll,
@@ -1026,5 +1026,104 @@ where
 
 	fn done_transfer(source: &AccountId, dest: &AccountId, amount: Self::Balance) {
 		<Currency as Mutate<AccountId>>::done_transfer(source, dest, amount)
+	}
+}
+
+pub struct MockErc20Currency<T>(PhantomData<T>);
+impl<T: Config> MultiCurrency<T::AccountId> for MockErc20Currency<T> {
+	type CurrencyId = EvmAddress;
+	type Balance = BalanceOf<T>;
+
+	fn minimum_balance(_currency_id: Self::CurrencyId) -> Self::Balance {
+		Default::default()
+	}
+
+	fn total_issuance(_currency_id: Self::CurrencyId) -> Self::Balance {
+		Default::default()
+	}
+
+	fn total_balance(_currency_id: Self::CurrencyId, _who: &T::AccountId) -> Self::Balance {
+		Default::default()
+	}
+
+	fn free_balance(_currency_id: Self::CurrencyId, _who: &T::AccountId) -> Self::Balance {
+		Default::default()
+	}
+
+	fn ensure_can_withdraw(
+		_currency_id: Self::CurrencyId,
+		_who: &T::AccountId,
+		_amount: Self::Balance,
+	) -> DispatchResult {
+		Ok(())
+	}
+
+	fn transfer(
+		_currency_id: Self::CurrencyId,
+		_from: &T::AccountId,
+		_to: &T::AccountId,
+		_amount: Self::Balance,
+	) -> DispatchResult {
+		Ok(())
+	}
+
+	fn deposit(_currency_id: Self::CurrencyId, _who: &T::AccountId, _amount: Self::Balance) -> DispatchResult {
+		Ok(())
+	}
+
+	fn withdraw(_currency_id: Self::CurrencyId, _who: &T::AccountId, _amount: Self::Balance) -> DispatchResult {
+		Ok(())
+	}
+
+	fn can_slash(_currency_id: Self::CurrencyId, _who: &T::AccountId, _value: Self::Balance) -> bool {
+		false
+	}
+
+	fn slash(_currency_id: Self::CurrencyId, _who: &T::AccountId, _amount: Self::Balance) -> Self::Balance {
+		Default::default()
+	}
+}
+
+pub struct MockBoundErc20<T>(PhantomData<T>);
+impl<T: Config> hydradx_traits::Inspect for MockBoundErc20<T> {
+	type AssetId = CurrencyIdOf<T>;
+	type Location = ();
+
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		false
+	}
+
+	fn exists(_id: Self::AssetId) -> bool {
+		false
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		None
+	}
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		None
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		false
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		None
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		None
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		None
+	}
+}
+
+impl<T: Config> BoundErc20 for MockBoundErc20<T> {
+	fn contract_address(_id: Self::AssetId) -> Option<EvmAddress> {
+		None
 	}
 }
