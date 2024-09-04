@@ -16,6 +16,7 @@
 // limitations under the License.
 
 //! ConvictionVoting pallet benchmarking.
+#![allow(clippy::type_complexity)]
 
 use super::*;
 
@@ -88,14 +89,14 @@ benchmarks_instance_pallet! {
 			Voting::Casting(Casting { votes, .. }) => votes,
 			_ => return Err("Votes are not direct".into()),
 		};
-		assert_eq!(votes.len(), r as usize, "Votes were not recorded.");
+		assert_eq!(votes.len(), r, "Votes were not recorded.");
 
 		let index = polls[0];
 	}: vote(RawOrigin::Signed(caller.clone()), index, account_vote)
 	verify {
 		assert_matches!(
 			VotingFor::<T, I>::get(&caller, &class),
-			Voting::Casting(Casting { votes, .. }) if votes.len() == (r + 1) as usize
+			Voting::Casting(Casting { votes, .. }) if votes.len() == (r + 1)
 		);
 	}
 
@@ -125,7 +126,7 @@ benchmarks_instance_pallet! {
 	verify {
 		assert_matches!(
 			VotingFor::<T, I>::get(&caller, &class),
-			Voting::Casting(Casting { votes, .. }) if votes.len() == r as usize
+			Voting::Casting(Casting { votes, .. }) if votes.len() == r
 		);
 	}
 
@@ -154,7 +155,7 @@ benchmarks_instance_pallet! {
 	verify {
 		assert_matches!(
 			VotingFor::<T, I>::get(&caller, &class),
-			Voting::Casting(Casting { votes, .. }) if votes.len() == (r - 1) as usize
+			Voting::Casting(Casting { votes, .. }) if votes.len() == (r - 1)
 		);
 	}
 
@@ -186,7 +187,7 @@ benchmarks_instance_pallet! {
 	verify {
 		assert_matches!(
 			VotingFor::<T, I>::get(&voter, &class),
-			Voting::Casting(Casting { votes, .. }) if votes.len() == (r - 1) as usize
+			Voting::Casting(Casting { votes, .. }) if votes.len() == (r - 1)
 		);
 	}
 
@@ -263,9 +264,9 @@ benchmarks_instance_pallet! {
 
 		// Fill everything up to the max by filling all classes with votes and voting on them all.
 		let (class, all_polls) = fill_voting::<T, I>();
-		assert!(all_polls.len() > 0);
+		assert!(!all_polls.is_empty());
 		for (class, polls) in all_polls.iter() {
-			assert!(polls.len() > 0);
+			assert!(!all_polls.is_empty());
 			for i in polls.iter() {
 				ConvictionVoting::<T, I>::vote(RawOrigin::Signed(caller.clone()).into(), *i, normal_account_vote)?;
 			}

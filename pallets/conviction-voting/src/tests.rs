@@ -16,6 +16,7 @@
 // limitations under the License.
 
 //! The crate's tests.
+#![allow(clippy::manual_next_back)]
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
