@@ -47,10 +47,15 @@ pub use pallet::*;
 pub use crate::types::{AssetDetails, Balance, Name, Symbol};
 use frame_support::storage::with_transaction;
 use frame_support::BoundedVec;
+use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
 	registry::{Create, Inspect, Mutate},
-	AssetKind,
+	AssetKind, BoundErc20,
 };
+use orml_traits::GetByKey;
+use polkadot_xcm::v3::Junction::AccountKey20;
+use polkadot_xcm::v3::Junctions::X1;
+use polkadot_xcm::v3::MultiLocation;
 use sp_runtime::TransactionOutcome;
 
 /// Default value of existential deposit. This value is used if existential deposit wasn't
@@ -625,8 +630,6 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-use orml_traits::GetByKey;
-
 // Return Existential deposit of an asset
 impl<T: Config> GetByKey<T::AssetId, Balance> for Pallet<T> {
 	fn get(k: &T::AssetId) -> Balance {
@@ -754,6 +757,24 @@ impl<T: Config> Create<Balance> for Pallet<T> {
 
 				Self::do_register_asset(None, &details, location)
 			}
+		}
+	}
+}
+
+impl<T> BoundErc20 for Pallet<T>
+where
+	T: Config,
+	T::AssetNativeLocation: Into<MultiLocation>,
+{
+	fn contract_address(id: Self::AssetId) -> Option<EvmAddress> {
+		if AssetKind::Erc20 == Self::asset_type(id)? {
+			let location: MultiLocation = Self::asset_to_location(id).unwrap_or_default().into();
+			match location.interior {
+				X1(AccountKey20 { key, .. }) => Some(key.into()),
+				_ => Some(Default::default()),
+			}
+		} else {
+			None
 		}
 	}
 }

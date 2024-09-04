@@ -41,6 +41,7 @@
 
 use codec::Codec;
 use frame_support::{
+	fail,
 	pallet_prelude::*,
 	traits::{
 		Currency as PalletCurrency, ExistenceRequirement, Get, Imbalance, LockableCurrency as PalletLockableCurrency,
@@ -49,6 +50,8 @@ use frame_support::{
 	},
 };
 use frame_system::{ensure_root, ensure_signed, pallet_prelude::*};
+use hydradx_traits::evm::EvmAddress;
+use hydradx_traits::BoundErc20;
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
 	currency::TransferAll,
@@ -101,6 +104,10 @@ pub mod module {
 			+ BasicReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>
 			+ NamedBasicReservableCurrency<Self::AccountId, ReserveIdentifierOf<Self>, Balance = BalanceOf<Self>>;
 
+		type Erc20Currency: MultiCurrency<Self::AccountId, CurrencyId = EvmAddress, Balance = BalanceOf<Self>>;
+
+		type BoundErc20: BoundErc20<AssetId = CurrencyIdOf<Self>>;
+
 		#[pallet::constant]
 		type GetNativeCurrencyId: Get<CurrencyIdOf<Self>>;
 
@@ -116,6 +123,8 @@ pub mod module {
 		BalanceTooLow,
 		/// Deposit result is not expected
 		DepositFailed,
+		/// Operation is not supported for this currency
+		NotSupported,
 	}
 
 	#[pallet::event]
@@ -225,7 +234,10 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::minimum_balance()
 		} else {
-			T::MultiCurrency::minimum_balance(currency_id)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(contract) => T::Erc20Currency::minimum_balance(contract),
+				None => T::MultiCurrency::minimum_balance(currency_id),
+			}
 		}
 	}
 
@@ -233,7 +245,10 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::total_issuance()
 		} else {
-			T::MultiCurrency::total_issuance(currency_id)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(contract) => T::Erc20Currency::total_issuance(contract),
+				None => T::MultiCurrency::total_issuance(currency_id),
+			}
 		}
 	}
 
@@ -241,7 +256,10 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::total_balance(who)
 		} else {
-			T::MultiCurrency::total_balance(currency_id, who)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(contract) => T::Erc20Currency::total_balance(contract, who),
+				None => T::MultiCurrency::total_balance(currency_id, who),
+			}
 		}
 	}
 
@@ -249,7 +267,10 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::free_balance(who)
 		} else {
-			T::MultiCurrency::free_balance(currency_id, who)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(contract) => T::Erc20Currency::free_balance(contract, who),
+				None => T::MultiCurrency::free_balance(currency_id, who),
+			}
 		}
 	}
 
@@ -257,7 +278,10 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::ensure_can_withdraw(who, amount)
 		} else {
-			T::MultiCurrency::ensure_can_withdraw(currency_id, who, amount)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(contract) => T::Erc20Currency::ensure_can_withdraw(contract, who, amount),
+				None => T::MultiCurrency::ensure_can_withdraw(currency_id, who, amount),
+			}
 		}
 	}
 
@@ -273,7 +297,10 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::transfer(from, to, amount)?;
 		} else {
-			T::MultiCurrency::transfer(currency_id, from, to, amount)?;
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(contract) => T::Erc20Currency::transfer(contract, from, to, amount)?,
+				None => T::MultiCurrency::transfer(currency_id, from, to, amount)?,
+			};
 		}
 		Self::deposit_event(Event::Transferred {
 			currency_id,
@@ -291,7 +318,10 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::deposit(who, amount)?;
 		} else {
-			T::MultiCurrency::deposit(currency_id, who, amount)?;
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(contract) => T::Erc20Currency::deposit(contract, who, amount)?,
+				None => T::MultiCurrency::deposit(currency_id, who, amount)?,
+			}
 		}
 		Self::deposit_event(Event::Deposited {
 			currency_id,
@@ -308,7 +338,10 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::withdraw(who, amount)?;
 		} else {
-			T::MultiCurrency::withdraw(currency_id, who, amount)?;
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(contract) => T::Erc20Currency::withdraw(contract, who, amount)?,
+				None => T::MultiCurrency::withdraw(currency_id, who, amount)?,
+			}
 		}
 		Self::deposit_event(Event::Withdrawn {
 			currency_id,
@@ -322,7 +355,10 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::can_slash(who, amount)
 		} else {
-			T::MultiCurrency::can_slash(currency_id, who, amount)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(contract) => T::Erc20Currency::can_slash(contract, who, amount),
+				None => T::MultiCurrency::can_slash(currency_id, who, amount),
+			}
 		}
 	}
 
@@ -330,7 +366,10 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::slash(who, amount)
 		} else {
-			T::MultiCurrency::slash(currency_id, who, amount)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(contract) => T::Erc20Currency::slash(contract, who, amount),
+				None => T::MultiCurrency::slash(currency_id, who, amount),
+			}
 		}
 	}
 }
@@ -342,7 +381,10 @@ impl<T: Config> MultiCurrencyExtended<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::update_balance(who, by_amount)?;
 		} else {
-			T::MultiCurrency::update_balance(currency_id, who, by_amount)?;
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => fail!(Error::<T>::NotSupported),
+				None => T::MultiCurrency::update_balance(currency_id, who, by_amount)?,
+			}
 		}
 		Self::deposit_event(Event::BalanceUpdated {
 			currency_id,
@@ -365,7 +407,10 @@ impl<T: Config> MultiLockableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::set_lock(lock_id, who, amount)
 		} else {
-			T::MultiCurrency::set_lock(lock_id, currency_id, who, amount)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => fail!(Error::<T>::NotSupported),
+				None => T::MultiCurrency::set_lock(lock_id, currency_id, who, amount),
+			}
 		}
 	}
 
@@ -378,7 +423,10 @@ impl<T: Config> MultiLockableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::extend_lock(lock_id, who, amount)
 		} else {
-			T::MultiCurrency::extend_lock(lock_id, currency_id, who, amount)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => fail!(Error::<T>::NotSupported),
+				None => T::MultiCurrency::extend_lock(lock_id, currency_id, who, amount),
+			}
 		}
 	}
 
@@ -386,7 +434,10 @@ impl<T: Config> MultiLockableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::remove_lock(lock_id, who)
 		} else {
-			T::MultiCurrency::remove_lock(lock_id, currency_id, who)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => fail!(Error::<T>::NotSupported),
+				None => T::MultiCurrency::remove_lock(lock_id, currency_id, who),
+			}
 		}
 	}
 }
@@ -396,7 +447,10 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::can_reserve(who, value)
 		} else {
-			T::MultiCurrency::can_reserve(currency_id, who, value)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => false,
+				None => T::MultiCurrency::can_reserve(currency_id, who, value),
+			}
 		}
 	}
 
@@ -404,7 +458,10 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::slash_reserved(who, value)
 		} else {
-			T::MultiCurrency::slash_reserved(currency_id, who, value)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => Default::default(),
+				None => T::MultiCurrency::slash_reserved(currency_id, who, value),
+			}
 		}
 	}
 
@@ -412,7 +469,10 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::reserved_balance(who)
 		} else {
-			T::MultiCurrency::reserved_balance(currency_id, who)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => Default::default(),
+				None => T::MultiCurrency::reserved_balance(currency_id, who),
+			}
 		}
 	}
 
@@ -420,7 +480,10 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::reserve(who, value)
 		} else {
-			T::MultiCurrency::reserve(currency_id, who, value)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => fail!(Error::<T>::NotSupported),
+				None => T::MultiCurrency::reserve(currency_id, who, value),
+			}
 		}
 	}
 
@@ -428,7 +491,10 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::unreserve(who, value)
 		} else {
-			T::MultiCurrency::unreserve(currency_id, who, value)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => value,
+				None => T::MultiCurrency::unreserve(currency_id, who, value),
+			}
 		}
 	}
 
@@ -442,7 +508,10 @@ impl<T: Config> MultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::repatriate_reserved(slashed, beneficiary, value, status)
 		} else {
-			T::MultiCurrency::repatriate_reserved(currency_id, slashed, beneficiary, value, status)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => fail!(Error::<T>::NotSupported),
+				None => T::MultiCurrency::repatriate_reserved(currency_id, slashed, beneficiary, value, status),
+			}
 		}
 	}
 }
@@ -459,7 +528,10 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::slash_reserved_named(id, who, value)
 		} else {
-			T::MultiCurrency::slash_reserved_named(id, currency_id, who, value)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => Default::default(),
+				None => T::MultiCurrency::slash_reserved_named(id, currency_id, who, value),
+			}
 		}
 	}
 
@@ -471,7 +543,10 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::reserved_balance_named(id, who)
 		} else {
-			T::MultiCurrency::reserved_balance_named(id, currency_id, who)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => Default::default(),
+				None => T::MultiCurrency::reserved_balance_named(id, currency_id, who),
+			}
 		}
 	}
 
@@ -484,7 +559,10 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::reserve_named(id, who, value)
 		} else {
-			T::MultiCurrency::reserve_named(id, currency_id, who, value)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => fail!(Error::<T>::NotSupported),
+				None => T::MultiCurrency::reserve_named(id, currency_id, who, value),
+			}
 		}
 	}
 
@@ -497,7 +575,10 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::unreserve_named(id, who, value)
 		} else {
-			T::MultiCurrency::unreserve_named(id, currency_id, who, value)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => value,
+				None => T::MultiCurrency::unreserve_named(id, currency_id, who, value),
+			}
 		}
 	}
 
@@ -512,7 +593,12 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::repatriate_reserved_named(id, slashed, beneficiary, value, status)
 		} else {
-			T::MultiCurrency::repatriate_reserved_named(id, currency_id, slashed, beneficiary, value, status)
+			match T::BoundErc20::contract_address(currency_id) {
+				Some(_) => fail!(Error::<T>::NotSupported),
+				None => {
+					T::MultiCurrency::repatriate_reserved_named(id, currency_id, slashed, beneficiary, value, status)
+				}
+			}
 		}
 	}
 }

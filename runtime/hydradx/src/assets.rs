@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use super::*;
+use crate::evm::Erc20Currency;
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
@@ -335,6 +336,8 @@ impl pallet_currencies::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type Erc20Currency = Erc20Currency<Runtime>;
+	type BoundErc20 = AssetRegistry;
 	type GetNativeCurrencyId = NativeAssetId;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }

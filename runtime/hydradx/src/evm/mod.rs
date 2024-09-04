@@ -46,10 +46,16 @@ use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
 
 mod accounts_conversion;
+mod erc20_currency;
 mod evm_fee;
+mod executor;
 pub mod permit;
 pub mod precompiles;
 mod runner;
+
+pub use erc20_currency::Erc20Currency;
+pub use erc20_currency::Function;
+pub use executor::Executor;
 
 // Current approximation of the gas per second consumption considering
 // EVM execution over compiled WASM (on 4.4Ghz CPU).
@@ -97,6 +103,7 @@ impl Get<AssetId> for WethAssetId {
 	}
 }
 
+pub type EvmAddress = sp_core::H160;
 type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
 
 parameter_types! {
@@ -183,10 +190,12 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
 	}
 }
 
+type EvmAccounts<T> = pallet_evm_accounts::Pallet<T>;
+
 impl pallet_evm_accounts::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
-	type FeeMultiplier = sp_core::ConstU32<50>;
 	type EvmNonceProvider = EvmNonceProvider;
+	type FeeMultiplier = sp_core::ConstU32<50>;
 	type ControllerOrigin = crate::SuperMajorityTechCommittee;
 	type WeightInfo = crate::weights::pallet_evm_accounts::HydraWeight<crate::Runtime>;
 }

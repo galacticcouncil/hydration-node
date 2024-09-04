@@ -57,6 +57,8 @@ pub trait WeightInfo {
 	fn add_contract_deployer() -> Weight;
 	fn remove_contract_deployer() -> Weight;
 	fn renounce_contract_deployer() -> Weight;
+	fn approve_contract() -> Weight;
+	fn disapprove_contract() -> Weight;
 }
 
 /// Weights for `pallet_evm_accounts` using the HydraDX node and recommended hardware.
@@ -108,5 +110,23 @@ impl WeightInfo for () {
 		//  Estimated: `0`
 		// Minimum execution time: 9_421_000 picoseconds.
 		Weight::from_parts(9_685_000, 0).saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `EVMAccounts::ContractDeployer` (r:0 w:1)
+	/// Proof: `EVMAccounts::ContractDeployer` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	fn approve_contract() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 13_157_000 picoseconds.
+		Weight::from_parts(13_481_000, 0).saturating_add(RocksDbWeight::get().writes(1))
+	}
+	/// Storage: `EVMAccounts::ContractDeployer` (r:0 w:1)
+	/// Proof: `EVMAccounts::ContractDeployer` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	fn disapprove_contract() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 13_196_000 picoseconds.
+		Weight::from_parts(13_517_000, 0).saturating_add(RocksDbWeight::get().writes(1))
 	}
 }

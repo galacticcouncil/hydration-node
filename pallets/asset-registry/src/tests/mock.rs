@@ -27,6 +27,9 @@ use sp_runtime::{
 	BuildStorage,
 };
 
+use codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+
 use frame_support::traits::Everything;
 
 use polkadot_xcm::v3::MultiLocation;
@@ -90,11 +93,14 @@ impl system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-use codec::{Decode, Encode, MaxEncodedLen};
-use scale_info::TypeInfo;
-
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub MultiLocation);
+
+impl From<AssetLocation> for MultiLocation {
+	fn from(location: AssetLocation) -> Self {
+		location.0
+	}
+}
 
 impl pallet_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;

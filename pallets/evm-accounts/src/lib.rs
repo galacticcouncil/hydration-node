@@ -41,12 +41,18 @@
 //! `ControllerOrigin` can add this permission to EVM addresses.
 //! The list of whitelisted accounts is stored in the storage of this pallet.
 //!
+//! ### Approving smart contracts
+//! This pallet is also used to control which contracts are allowed to manage balances and tokens.
+//! `ApprovedContract` storage is used by the currencies precompile to determine whenever contract is allowed to transfer or not.
+//!
 //! ### Dispatchable Functions
 //!
 //! * `bind_evm_address` - Binds a Substrate address to EVM address.
 //! * `add_contract_deployer` - Adds a permission to deploy smart contracts.
 //! * `remove_contract_deployer` - Removes a permission of whitelisted address to deploy smart contracts.
 //! * `renounce_contract_deployer` - Renounce caller's permission to deploy smart contracts.
+//! * `approve_contract` - Approves contract address to manage balances.
+//! * `disapprove_contract` - Disapproves contract address to manage balances.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -114,6 +120,10 @@ pub mod pallet {
 	#[pallet::storage]
 	pub(super) type ContractDeployer<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
 
+	/// Whitelisted contracts that are allowed to manage balances and tokens.
+	#[pallet::storage]
+	pub(super) type ApprovedContract<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -123,6 +133,10 @@ pub mod pallet {
 		DeployerAdded { who: EvmAddress },
 		/// Deployer was removed.
 		DeployerRemoved { who: EvmAddress },
+		/// Contract was approved.
+		ContractApproved { address: EvmAddress },
+		/// Contract was disapproved.
+		ContractDisapproved { address: EvmAddress },
 	}
 
 	#[pallet::error]
@@ -260,10 +274,44 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Adds address of the contract to the list of approved contracts to manage balances.
+		///
+		/// Effectively giving it allowance to for any balances and tokens.
+		///
+		/// Parameters:
+		/// - `origin`:  Must be `ControllerOrigin`.
+		/// - `address`: Contract address that will be approved
+		///
+		/// Emits `ContractApproved` event when successful.
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::approve_contract())]
+		pub fn approve_contract(origin: OriginFor<T>, address: EvmAddress) -> DispatchResult {
+			T::ControllerOrigin::ensure_origin(origin.clone())?;
+			<ApprovedContract<T>>::insert(address, ());
+			Self::deposit_event(Event::ContractApproved { address });
+			Ok(())
+		}
+
+		/// Removes address of the contract from the list of approved contracts to manage balances.
+		///
+		/// Parameters:
+		/// - `origin`:  Must be `ControllerOrigin`.
+		/// - `address`: Contract address that will be disapproved
+		///
+		/// Emits `ContractDisapproved` event when successful.
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::disapprove_contract())]
+		pub fn disapprove_contract(origin: OriginFor<T>, address: EvmAddress) -> DispatchResult {
+			T::ControllerOrigin::ensure_origin(origin.clone())?;
+			<ApprovedContract<T>>::remove(address);
+			Self::deposit_event(Event::ContractDisapproved { address });
+			Ok(())
+		}
 	}
 }
 
-impl<T: Config> InspectEvmAccounts<T::AccountId, EvmAddress> for Pallet<T>
+impl<T: Config> InspectEvmAccounts<T::AccountId> for Pallet<T>
 where
 	T::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
 {
@@ -307,5 +355,10 @@ where
 	/// Returns `True` if the address is allowed to deploy smart contracts.
 	fn can_deploy_contracts(evm_address: EvmAddress) -> bool {
 		ContractDeployer::<T>::contains_key(evm_address)
+	}
+
+	/// Returns `True` if the address is allowed to manage balances and tokens.
+	fn is_approved_contract(evm_address: EvmAddress) -> bool {
+		ApprovedContract::<T>::contains_key(evm_address)
 	}
 }

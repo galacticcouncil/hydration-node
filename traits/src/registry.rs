@@ -1,3 +1,5 @@
+use crate::evm::EvmAddress;
+use frame_support::dispatch::Parameter;
 use sp_std::vec::Vec;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
@@ -7,6 +9,7 @@ pub enum AssetKind {
 	StableSwap,
 	Bond,
 	External,
+	Erc20,
 }
 
 // Deprecated.
@@ -26,8 +29,6 @@ pub trait AccountIdFor<Assets> {
 	/// Create a name to uniquely identify a share token for given assets and an identifier.
 	fn name(assets: &Assets, identifier: Option<&[u8]>) -> Vec<u8>;
 }
-
-use frame_support::dispatch::Parameter;
 
 pub trait Inspect {
 	type AssetId: Parameter;
@@ -173,4 +174,8 @@ pub trait Mutate<Balance>: Inspect {
 
 	/// Set location for existing asset id if it wasn't set yet.
 	fn set_location(asset_id: Self::AssetId, location: Self::Location) -> Result<(), Self::Error>;
+}
+
+pub trait BoundErc20: Inspect {
+	fn contract_address(id: Self::AssetId) -> Option<EvmAddress>;
 }
