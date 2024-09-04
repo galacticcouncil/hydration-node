@@ -1352,7 +1352,6 @@ mod omnipool_router_tests {
 				let extra_ed_charge = UNITS / 10;
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
 
-				let amount_to_sell = amount_to_sell;
 				assert_ok!(Router::sell(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					insufficient_asset_1,

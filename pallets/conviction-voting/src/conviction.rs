@@ -27,9 +27,12 @@ use sp_runtime::{
 use crate::types::Delegations;
 
 /// A value denoting the strength of conviction of a vote.
-#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Default, Encode, Decode, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen,
+)]
 pub enum Conviction {
 	/// 0.1x votes, unlocked.
+	#[default]
 	None,
 	/// 1x votes, locked for an enactment period following a successful vote.
 	Locked1x,
@@ -43,12 +46,6 @@ pub enum Conviction {
 	Locked5x,
 	/// 6x votes, locked for 32x...
 	Locked6x,
-}
-
-impl Default for Conviction {
-	fn default() -> Self {
-		Conviction::None
-	}
 }
 
 impl From<Conviction> for u8 {
