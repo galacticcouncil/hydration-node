@@ -85,3 +85,31 @@ jobs:
       - name: Evaluate result
         if: contains(env.VERSION_UPDATE, 'have not been updated') || contains(env.VERSION_UPDATE, 'versions don''t match') || contains(env.VERSION_UPDATE, 'downgraded')
         run: exit 1
+
+  ecosystem-tests:
+    needs: build  # Make sure this runs after build job to have the wasm artifact
+    permissions: { }
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout polkadot-ecosystem-tests
+        uses: actions/checkout@v2
+        with:
+          repository: galacticcouncil/polkadot-ecosystem-tests
+          ref: 1ad4db1c546f31a4f8e8987ada39dc7ef71100fe
+
+      - name: Download WASM artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: hydradx_runtime.compact.compressed.wasm
+
+      - name: Run ecosystem tests
+        run: |
+          # Set the path to the downloaded WASM file
+          export HYDRADX_RUNTIME_WASM_PATH="$PWD/hydradx_runtime.compact.compressed.wasm"
+          
+          # Run specific tests doing XCM between hydradx and other parachains
+          yarn install
+          yarn test upgrade.test.ts
+        env:
+          HYDRADX_RUNTIME_WASM_PATH: ${{ env.HYDRADX_RUNTIME_WASM_PATH }}
