@@ -480,6 +480,8 @@ impl_runtime_apis! {
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use cumulus_primitives_core::ParaId;
+			use primitives::constants::chain::CORE_ASSET_ID;
+			use sp_std::sync::Arc;
 
 			impl frame_system_benchmarking::Config for Runtime {
 				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
@@ -492,15 +494,19 @@ impl_runtime_apis! {
 				}
 			}
 
-			parameter_types! {
+			frame_support::parameter_types! {
 				pub const RandomParaId: ParaId = ParaId::new(22_222_222);
-				pub const ExistentialDeposit: u128 = 0;
+				pub const ExistentialDeposit: u128 = 1_000_000_000_000;
+				pub AssetLocation: Location = Location::new(0, cumulus_primitives_core::Junctions::X1(
+					Arc::new([
+						cumulus_primitives_core::Junction::GeneralIndex(CORE_ASSET_ID.into())
+						])
+				));
 			}
 
-			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Parent};
+			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain};
 
 			impl pallet_xcm::benchmarking::Config for Runtime {
-				// TODO:
 				type DeliveryHelper = ();
 
 				fn reachable_dest() -> Option<Location> {
@@ -508,22 +514,57 @@ impl_runtime_apis! {
 				}
 
 				fn teleportable_asset_and_dest() -> Option<(Asset, Location)> {
-					Some((
-						Asset {
-							fun: Fungible(ExistentialDeposit::get()),
-							id: AssetId(Parent.into())
-						},
-						Parent.into(),
-					))
-				}
-
-				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
-					// TODO: https://github.com/galacticcouncil/HydraDX-node/issues/840
-					// fix it in next upgrade > 1.7.2
 					None
 				}
 
-				// TODO:
+				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
+					ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(
+								RandomParaId::get()
+							);
+
+					Some((
+						Asset {
+							fun: Fungible(ExistentialDeposit::get()),
+							id: AssetId(AssetLocation::get())
+						},
+						ParentThen(Parachain(RandomParaId::get().into()).into()).into(),
+					))
+				}
+
+				fn set_up_complex_asset_transfer() -> Option<(Assets, u32, Location, Box<dyn FnOnce()>)> {
+					ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(
+								RandomParaId::get()
+							);
+
+					let destination = ParentThen(Parachain(RandomParaId::get().into()).into()).into();
+
+					let fee_asset: Asset = (
+						   AssetLocation::get(),
+						   ExistentialDeposit::get(),
+					 ).into();
+
+					let who = frame_benchmarking::whitelisted_caller();
+					let balance = 10 * ExistentialDeposit::get();
+					let _ = <Balances as frame_support::traits::Currency<_>>::make_free_balance_be(&who, balance );
+
+					assert_eq!(Balances::free_balance(&who), balance);
+
+					let transfer_asset: Asset = (
+						   AssetLocation::get(),
+						   ExistentialDeposit::get(),
+					 ).into();
+
+					let assets: Assets = vec![fee_asset.clone(), transfer_asset].into();
+
+					let fee_index: u32 = 0;
+
+					let verify: Box<dyn FnOnce()> = Box::new(move || {
+						assert!(Balances::free_balance(&who) <= balance - ExistentialDeposit::get());
+					});
+
+					Some((assets, fee_index, destination, verify))
+			   }
+
 				fn get_asset() -> Asset {
 					Asset {
 						id: AssetId(Location::here()),

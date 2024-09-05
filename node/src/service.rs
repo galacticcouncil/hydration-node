@@ -57,7 +57,7 @@ type ParachainClient = TFullClient<
 	Block,
 	RuntimeApi,
 	WasmExecutor<(
-		sp_io::SubstrateHostFunctions,
+		cumulus_client_service::ParachainHostFunctions,
 		frame_benchmarking::benchmarking::HostFunctions,
 	)>,
 >;
@@ -115,10 +115,11 @@ pub fn new_partial(
 		.with_runtime_cache_size(config.runtime_cache_size)
 		.build();
 
-	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts::<Block, RuntimeApi, _>(
+	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
 		config,
 		telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 		executor,
+		true,
 	)?;
 
 	let client = Arc::new(client);

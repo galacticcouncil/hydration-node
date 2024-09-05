@@ -63,7 +63,7 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
-use frame_support::{construct_runtime, pallet_prelude::Hooks, parameter_types, weights::Weight};
+use frame_support::{construct_runtime, pallet_prelude::Hooks, weights::Weight};
 pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
@@ -266,10 +266,7 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 	(
-		frame_support::migrations::RemovePallet<DmpQueuePalletName, <Runtime as frame_system::Config>::DbWeight>,
-		frame_support::migrations::RemovePallet<XcmRateLimiterPalletName, <Runtime as frame_system::Config>::DbWeight>,
-		cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
-		pallet_identity::migration::versioned::V0ToV1<Runtime, 450u64>, // We have currently 379 identities in basllisk, so limit of 450 should be enough
+		pallet_collator_selection::migration::v2::MigrationToV2<Runtime>,
 	),
 >;
 
@@ -279,12 +276,6 @@ where
 {
 	type OverarchingCall = RuntimeCall;
 	type Extrinsic = UncheckedExtrinsic;
-}
-
-// TODO: Remove after the v1.7.2 upgrade
-parameter_types! {
-	pub const DmpQueuePalletName: &'static str = "DmpQueue";
-	pub const XcmRateLimiterPalletName: &'static str = "XcmRateLimiter";
 }
 
 #[cfg(feature = "runtime-benchmarks")]
