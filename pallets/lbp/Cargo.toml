@@ -15,10 +15,10 @@ targets = ["x86_64-unknown-linux-gnu"]
 substrate-wasm-builder = { workspace = true }
 
 [dependencies]
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-primitive-types = { default-features = false, version = "0.12.0" }
-serde = { features = ["derive"], optional = true, version = "1.0.136" }
+codec = { workspace = true }
+scale-info = { workspace = true }
+primitive-types = { workspace = true }
+serde = { workspace = true, optional = true }
 
 ## Local dependencies
 hydra-dx-math = { workspace = true }
@@ -41,8 +41,8 @@ sp-runtime = { workspace = true }
 [dev-dependencies]
 sp-io = { workspace = true }
 test-utils = { workspace = true }
-rug = { version = "1.17.0", features = ["num-traits"] }
-proptest = "1.2.0"
+rug = { workspace = true }
+proptest = { workspace = true }
 
 [features]
 default = ["std"]

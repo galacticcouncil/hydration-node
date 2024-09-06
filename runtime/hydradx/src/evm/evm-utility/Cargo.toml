@@ -5,16 +5,16 @@ authors = ["Acala Developers"]
 edition = "2021"
 
 [dependencies]
-sha3 = { version = "0.10.6", default-features = false }
+sha3 = { workspace = true }
 
 #Substrate dependencies
 sp-std = { workspace = true }
 
 #Evm dependencies
 evm = { git = "https://github.com/rust-blockchain/evm", rev = "13240a8a551586fdef0b5028ed73af80b248092a", default-features = false, features = ["with-codec"] }
-evm-gasometer = { git = "https://github.com/rust-blockchain/evm", rev = "13240a8a551586fdef0b5028ed73af80b248092a", default-features = false }
-evm-runtime = { git = "https://github.com/rust-blockchain/evm", rev = "13240a8a551586fdef0b5028ed73af80b248092a", default-features = false }
-ethereum = { version = "0.14.0", default-features = false, features = ["with-codec"] }
+evm-gasometer = { workspace = true }
+evm-runtime = { workspace = true }
+ethereum = {  workspace = true }
 
 [features]
 default = ["std"]

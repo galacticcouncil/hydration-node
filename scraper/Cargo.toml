@@ -9,11 +9,11 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.1" }
+codec = { workspace = true }
 jsonrpsee = { version = "0.23.2", features = ["server", "macros"] }
-serde = { version = "1.0.197", features = ["derive"] }
+serde = { workspace = true }
 clap = { version = "3.2.11", features = [ "derive" ] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = {workspace = true }
 
 # local dependencies
 hydradx-runtime = { workspace = true }

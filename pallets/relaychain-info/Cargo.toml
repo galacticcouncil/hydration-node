@@ -8,8 +8,8 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/warehouse/tree/master/relaychain-info"
 
 [dependencies]
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+codec = { workspace = true }
+scale-info = { workspace = true }
 
 # Substrate dependencies
 sp-std = { workspace = true }

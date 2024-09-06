@@ -8,9 +8,9 @@ license = 'Apache 2.0'
 repository = "https://github.com/galacticcouncil/warehouse"
 
 [dependencies]
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
-serde = { features = ["derive"], optional = true, version = "1.0.137" }
+codec = { workspace = true }
+scale-info = {workspace = true }
+serde = { workspace = true, optional = true }
 
 # HydraDX dependencies
 hydra-dx-math = { workspace = true }
@@ -28,7 +28,7 @@ sp-runtime = { workspace = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
-proptest = "1.0.0"
+proptest = { workspace = true }
 
 [features]
 default = ['std']
