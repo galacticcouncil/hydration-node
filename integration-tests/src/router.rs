@@ -1944,7 +1944,7 @@ mod omnipool_router_tests {
 	}
 
 	#[test]
-	fn sell_should_with_selling_nonnaitve_when_account_providers_increases_during_trade() {
+	fn sell_should_work_with_selling_nonnaitve_when_account_providers_increases_during_trade() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -5302,6 +5302,142 @@ mod route_spot_price {
 				// The difference of the amount out calculated with spot price should be less than 1%
 				//assert_eq!(relative_difference, FixedU128::from_float(0.003019098511656796)); //TEMP assertion
 				assert!(relative_difference < tolerated_difference);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+}
+
+mod sell_all {
+	use super::*;
+	use hydradx_runtime::Currencies;
+	use hydradx_traits::router::PoolType;
+
+	#[test]
+	fn sell_should_sell_all_user_native_balance() {
+		TestNet::reset();
+
+		let limit = 0;
+		let amount_out = 26577363534770086553;
+
+		Hydra::execute_with(|| {
+			let bob_hdx_balance = Currencies::free_balance(HDX, &BOB.into());
+
+			//Arrange
+			init_omnipool();
+
+			let trades = vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: HDX,
+				asset_out: DAI,
+			}];
+
+			//Act
+			assert_ok!(Router::sell_all(
+				RuntimeOrigin::signed(BOB.into()),
+				HDX,
+				DAI,
+				limit,
+				trades
+			));
+
+			//Assert
+			assert_balance!(BOB.into(), HDX, 0);
+
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_in: bob_hdx_balance,
+				amount_out,
+			}
+			.into()]);
+		});
+	}
+
+	#[test]
+	fn sell_all_should_sell_all_user_nonnative_balance() {
+		TestNet::reset();
+
+		let limit = 0;
+		let amount_out = 35227901268414708;
+
+		Hydra::execute_with(|| {
+			let bob_nonnative_balance = Currencies::free_balance(DAI, &BOB.into());
+
+			//Arrange
+			init_omnipool();
+
+			let trades = vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: DAI,
+				asset_out: HDX,
+			}];
+
+			//Act
+			assert_ok!(Router::sell_all(
+				RuntimeOrigin::signed(BOB.into()),
+				DAI,
+				HDX,
+				limit,
+				trades
+			));
+
+			//Assert
+			assert_balance!(BOB.into(), DAI, 0);
+
+			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
+				asset_in: DAI,
+				asset_out: HDX,
+				amount_in: bob_nonnative_balance,
+				amount_out,
+			}
+			.into()]);
+		});
+	}
+
+	#[test]
+	fn sell_all_should_work_when_selling_all_nonnative_in_stableswap() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+
+				init_omnipool();
+
+				let init_balance = 3000 * UNITS + 1;
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ALICE.into(),
+					stable_asset_1,
+					init_balance as i128,
+				));
+
+				let trades = vec![Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: stable_asset_1,
+					asset_out: pool_id,
+				}];
+
+				assert_balance!(ALICE.into(), pool_id, 0);
+
+				//Act
+				let amount_to_sell = 3000 * UNITS;
+				assert_ok!(Router::sell_all(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					stable_asset_1,
+					pool_id,
+					0,
+					trades
+				));
+
+				//Assert
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)),
+					0
+				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
