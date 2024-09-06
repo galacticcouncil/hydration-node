@@ -6,7 +6,7 @@ use frame_support::storage::with_transaction;
 use frame_support::traits::Get;
 use hydradx_traits::evm::{CallContext, EVM};
 use pallet_evm::runner::stack::SubstrateStackState;
-use pallet_evm::Config;
+use pallet_evm::{AddressMapping, Config};
 use primitive_types::{H160, U256};
 use sp_runtime::{DispatchError, TransactionOutcome};
 
@@ -40,9 +40,12 @@ where
 		let precompiles = T::PrecompilesValue::get();
 		let metadata = StackSubstateMetadata::new(gas, config);
 		let state = SubstrateStackState::new(&vicinity, metadata, None, None);
+		let account = T::AddressMapping::into_account_id(origin);
+		let nonce = frame_system::Account::<T>::get(account.clone()).nonce;
 		let mut executor = StackExecutor::new_with_precompiles(state, config, &precompiles);
-
-		f(&mut executor)
+		let result = f(&mut executor);
+		frame_system::Account::<T>::mutate(account, |a| a.nonce = nonce);
+		result
 	}
 }
 

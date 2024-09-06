@@ -132,6 +132,10 @@ polkadot-service = { workspace = true, features = ["full-node"] }
 polkadot-runtime-parachains = { workspace = true }
 rococo-runtime = { workspace = true }
 
+ethabi = { version = "18.0.0", default-features = false }
+serde_json = "1.0.117"
+hex = "0.4.3"
+
 [dev-dependencies]
 pretty_assertions = "1.2.1"
 pallet-relaychain-info = { workspace = true }

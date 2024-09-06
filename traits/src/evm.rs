@@ -46,6 +46,14 @@ impl CallContext {
 		}
 	}
 
+	pub fn new_call(contract: EvmAddress, sender: EvmAddress) -> Self {
+		Self {
+			contract,
+			sender,
+			origin: sender,
+		}
+	}
+
 	pub fn new_view(contract: EvmAddress) -> Self {
 		Self {
 			contract,

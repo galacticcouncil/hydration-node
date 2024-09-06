@@ -172,21 +172,14 @@ fn decode_integer(value: Vec<u8>) -> Option<U256> {
 	U256::checked_from(value.as_slice())
 }
 
-fn decode_bool(value: Vec<u8>) -> bool {
-	let mut bytes = [0u8; 32];
-	U256::from(1).to_big_endian(&mut bytes);
-	value == bytes
-}
-
 fn handle_result(result: CallResult) -> DispatchResult {
 	let (exit_reason, value) = result;
-	if decode_bool(value) != true {
-		return Err(DispatchError::Other("erc20 invalid return value"));
-	}
 	match exit_reason {
 		ExitReason::Succeed(ExitSucceed::Returned) => Ok(()),
 		ExitReason::Succeed(ExitSucceed::Stopped) => Ok(()),
-		_ => Err(DispatchError::Other("erc20 call failed")),
+		_ => Err(DispatchError::Other(&*Box::leak(
+			format!("evm:0x{}", hex::encode(value)).into_boxed_str(),
+		))),
 	}
 }
 
