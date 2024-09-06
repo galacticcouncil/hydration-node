@@ -1,6 +1,6 @@
 [package]
 name = "pallet-duster"
-version = "3.2.5"
+version = "3.2.6"
 description = "Account duster"
 authors = ["GalacticCouncil"]
 edition = "2021"

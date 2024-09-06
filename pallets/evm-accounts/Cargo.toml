@@ -1,6 +1,6 @@
 [package]
 name = "pallet-evm-accounts"
-version = "1.1.2"
+version = "1.2.0"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -39,18 +39,18 @@ hex-literal = "0.4.1"
 [features]
 default = ["std"]
 std = [
-	"codec/std",
-	"scale-info/std",
-	"sp-std/std",
-	"sp-core/std",
-	"sp-io/std",
-	"frame-support/std",
-	"frame-system/std",
-	"orml-tokens/std",
-	"frame-benchmarking/std",
+    "codec/std",
+    "scale-info/std",
+    "sp-std/std",
+    "sp-core/std",
+    "sp-io/std",
+    "frame-support/std",
+    "frame-system/std",
+    "orml-tokens/std",
+    "frame-benchmarking/std",
 ]
 runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
-	"sp-io",
+    "frame-benchmarking/runtime-benchmarks",
+    "sp-io",
 ]
-try-runtime = [ "frame-support/try-runtime" ]
+try-runtime = ["frame-support/try-runtime"]

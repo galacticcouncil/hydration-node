@@ -4810,7 +4810,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.3.5"
+version = "1.3.6"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4860,7 +4860,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "256.0.0"
+version = "257.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4996,7 +4996,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.4.0"
+version = "3.5.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6647,7 +6647,7 @@ dependencies = [
 
 [[package]]
 name = "module-evm-utility"
-version = "2.21.0"
+version = "2.21.1"
 dependencies = [
  "ethereum",
  "evm",
@@ -7424,7 +7424,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "3.2.4"
+version = "3.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7843,7 +7843,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies"
-version = "2.1.1"
+version = "3.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7863,7 +7863,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7939,7 +7939,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-duster"
-version = "3.2.5"
+version = "3.2.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7963,7 +7963,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-evm-fee"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8139,7 +8139,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.1.2"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8671,7 +8671,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8693,7 +8693,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8861,7 +8861,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.5.1"
+version = "2.5.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9135,7 +9135,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.0.4"
+version = "10.0.5"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11021,7 +11021,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "6.0.3"
+version = "6.1.0"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -11854,7 +11854,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.2"
+version = "1.24.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
