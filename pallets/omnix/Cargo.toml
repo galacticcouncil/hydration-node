@@ -36,6 +36,7 @@ sp-io = { workspace = true, optional = true }
 pretty_assertions = "1.2.1"
 orml-tokens = {workspace = true}
 pallet-balances = { workspace = true}
+pallet-currencies = { workspace = true}
 orml-traits = { workspace = true}
 
 [features]

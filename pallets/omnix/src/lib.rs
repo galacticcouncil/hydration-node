@@ -63,10 +63,14 @@ pub mod pallet {
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
 
+		/// Maximum deadline for intent in seconds.
+		#[pallet::constant]
+		type MaxAllowedIntentDeadline: Get<Moment>;
+
 		/// Block number provider.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
-		/// TODO: this two currencies could be merged into one, howerver it would need to implmenet support in the runtime for this
+		/// TODO: this two currencies could be merged into one, however it would need to implement support in the runtime for this
 		type Currency: Mutate<Self::AccountId, AssetId = Self::AssetId, Balance = types::Balance>;
 
 		type ReservableCurrency: NamedMultiReservableCurrency<
@@ -135,6 +139,9 @@ pub mod pallet {
 
 		/// Invalid block number
 		InvalidBlockNumber,
+
+		/// Invalid deadline
+		InvalidDeadline,
 	}
 
 	#[pallet::storage]
@@ -147,12 +154,12 @@ pub mod pallet {
 	pub(super) type NextIncrementalId<T: Config> = StorageValue<_, IncrementalIntentId, ValueQuery>;
 
 	#[pallet::storage]
-	/// Intent id sequencer
+	/// Temporay storage for the best solution, used to exclude worse solutions when tx are submitted.
 	#[pallet::getter(fn solution_score)]
 	pub(super) type SolutionScore<T: Config> = StorageValue<_, (T::AccountId, u64), OptionQuery>;
 
 	#[pallet::storage]
-	/// Intent id sequencer
+	/// Flag that indicates if the solution was executed in current block.
 	#[pallet::getter(fn solution_executed)]
 	pub(super) type SolutionExecuted<T: Config> = StorageValue<_, bool, ValueQuery, ExecDefault>;
 
@@ -167,7 +174,8 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
-			//SolutionScore::<T>::kill();
+			SolutionScore::<T>::kill(); //TODO: add test for this
+			SolutionExecuted::<T>::kill(); //TODO: add test for this
 		}
 	}
 
@@ -185,8 +193,14 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let now = T::TimestampProvider::now();
+			ensure!(deadline > now, Error::<T>::InvalidDeadline);
+			ensure!(
+				deadline < (now.saturating_add(T::MaxAllowedIntentDeadline::get())),
+				Error::<T>::InvalidDeadline
+			);
+
 			//TODO: check:
-			// - deadline is in the future, not too far in the future
 			// - swap is valid- eg no lrna buying?! asset in!= asset out etc.
 
 			//TODO: reserve IN amount

@@ -8769,6 +8769,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
+ "pallet-currencies",
  "parity-scale-codec",
  "pretty_assertions",
  "scale-info",

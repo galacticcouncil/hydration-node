@@ -8,6 +8,7 @@ use frame_support::traits::{ConstU128, ConstU64, Everything, Time};
 use frame_support::{construct_runtime, parameter_types, PalletId};
 use hydradx_traits::router::{AmountInAndOut, AssetPair, RouterT, Trade};
 use orml_traits::{parameter_type_with_key, GetByKey};
+use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::transaction_validity::TransactionPriority;
@@ -16,6 +17,7 @@ use sp_runtime::{BuildStorage, DispatchError, DispatchResult};
 type Block = frame_system::mocking::MockBlock<Test>;
 pub(crate) type AssetId = u32;
 pub(crate) type AccountId = u64;
+type NamedReserveIdentifier = [u8; 8];
 
 use crate::types::{Balance, IntentId, Moment};
 
@@ -31,6 +33,7 @@ construct_runtime!(
 	{
 		System: frame_system,
 		Balances: pallet_balances,
+		Currencies: pallet_currencies,
 		Tokens: orml_tokens,
 		OmniX: pallet_omnix,
 	}
@@ -99,14 +102,24 @@ impl orml_tokens::Config for Test {
 	type MaxLocks = ();
 	type DustRemovalWhitelist = ();
 	type MaxReserves = ();
-	type ReserveIdentifier = ();
+	type ReserveIdentifier = NamedReserveIdentifier;
 	type CurrencyHooks = ();
+}
+
+impl pallet_currencies::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, i128, u32>;
+	type GetNativeCurrencyId = NativeCurrencyId;
+	type WeightInfo = ();
 }
 
 parameter_types! {
 	pub const HubAssetId: AssetId = LRNA;
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
 	pub const OmniXPalletId: PalletId = PalletId(*b"tstomnix");
+	pub const MaxAllowdIntentDuration: Moment = 86_400_000; //1day
+	pub const NativeCurrencyId: AssetId = 0;
 }
 
 pub struct DummyTimestampProvider;
@@ -143,8 +156,10 @@ impl pallet_omnix::Config for Test {
 	type AssetId = AssetId;
 	type HubAssetId = HubAssetId;
 	type TimestampProvider = DummyTimestampProvider;
+	type MaxAllowedIntentDeadline = MaxAllowdIntentDuration;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type Currency = Tokens;
+	type ReservableCurrency = Currencies;
 	type TradeExecutor = DummyTradeExecutor;
 	type PalletId = OmniXPalletId;
 	type MaxCallData = MaxCallData;
@@ -171,7 +186,17 @@ impl
 		_min_amount_out: Balance,
 		_route: Vec<Trade<AssetId>>,
 	) -> DispatchResult {
-		todo!()
+		unimplemented!()
+	}
+
+	fn sell_all(
+		_origin: RuntimeOrigin,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_min_amount_out: Balance,
+		_route: Vec<Trade<AssetId>>,
+	) -> DispatchResult {
+		unimplemented!()
 	}
 
 	fn buy(
@@ -182,21 +207,21 @@ impl
 		_max_amount_in: Balance,
 		_route: Vec<Trade<AssetId>>,
 	) -> DispatchResult {
-		todo!()
+		unimplemented!()
 	}
 
 	fn calculate_sell_trade_amounts(
 		_route: &[Trade<AssetId>],
 		_amount_in: Balance,
 	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError> {
-		todo!()
+		unimplemented!()
 	}
 
 	fn calculate_buy_trade_amounts(
 		_route: &[Trade<AssetId>],
 		_amount_out: Balance,
 	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError> {
-		todo!()
+		unimplemented!()
 	}
 
 	fn set_route(
@@ -204,7 +229,7 @@ impl
 		_asset_pair: AssetPair<AssetId>,
 		_route: Vec<Trade<AssetId>>,
 	) -> DispatchResultWithPostInfo {
-		todo!()
+		unimplemented!()
 	}
 
 	fn force_insert_route(
@@ -212,7 +237,7 @@ impl
 		_asset_pair: AssetPair<AssetId>,
 		_route: Vec<Trade<AssetId>>,
 	) -> DispatchResultWithPostInfo {
-		todo!()
+		unimplemented!()
 	}
 }
 
