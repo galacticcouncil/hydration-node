@@ -1,4 +1,4 @@
-use crate::types::{Balance, BoundedInstructions, BoundedResolvedIntents, Solution, SwapType};
+use crate::types::{Balance, BoundedInstructions, BoundedResolvedIntents, Intent, ResolvedIntent, Solution, SwapType};
 use crate::Config;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::__private::RuntimeDebug;
@@ -9,7 +9,7 @@ use frame_support::traits::tokens::Preservation;
 use frame_support::traits::OriginTrait;
 use frame_support::{ensure, BoundedVec};
 use hydradx_traits::router::{AmountInAndOut, RouterT, Trade};
-use sp_runtime::DispatchError;
+use sp_runtime::{DispatchError, FixedU128};
 use sp_std::collections::btree_map::BTreeMap;
 
 pub type BoundedRoute<AssetId> = BoundedVec<Trade<AssetId>, ConstU32<5>>;
@@ -48,6 +48,30 @@ pub enum Instruction<AccountId, AssetId> {
 	},
 }
 
+fn ensure_intent_resolution<T: Config>(intent: &Intent<T::AccountId, T::AssetId>, resolved_intent: &ResolvedIntent) -> bool {
+	let amount_in = intent.swap.amount_in;
+	let amount_out = intent.swap.amount_out;
+	let resolved_in = resolved_intent.amount_in;
+	let resolved_out = resolved_intent.amount_out;
+
+	if amount_in == resolved_in {
+		return resolved_out == amount_out;
+	}
+
+	if amount_out == resolved_out {
+		return resolved_in == amount_in;
+	}
+
+	let realized = FixedU128::from_rational(resolved_out, resolved_in);
+	let expected = FixedU128::from_rational(amount_out, amount_in);
+
+	if realized < expected  {
+		return false;
+	}
+	let diff = realized - expected;
+	diff <= FixedU128::from_rational(1, 1000)
+}
+
 pub struct OmniXEngine<T, C, R>(sp_std::marker::PhantomData<(T, C, R)>);
 
 impl<T: Config, C, R> OmniXEngine<T, C, R>
@@ -67,6 +91,11 @@ where
 		for resolved_intent in solution.intents.iter() {
 			let intent =
 				crate::Pallet::<T>::get_intent(resolved_intent.intent_id).ok_or(crate::Error::<T>::IntentNotFound)?;
+
+			ensure!(
+				ensure_intent_resolution::<T>(&intent, resolved_intent),
+				crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+			);
 
 			let is_partial = intent.partial;
 			let asset_in = intent.swap.asset_in;
