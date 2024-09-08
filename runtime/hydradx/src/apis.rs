@@ -16,12 +16,21 @@
 // limitations under the License.
 
 use crate::*;
+use hydradx_traits::NativePriceOracle;
+use primitives::constants::chain::CORE_ASSET_ID;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
-	sp_runtime::{transaction_validity::TransactionSource, ApplyExtrinsicResult, ExtrinsicInclusionMode},
+	sp_runtime::{
+		traits::Convert,
+		transaction_validity::{TransactionSource, TransactionValidity},
+		ApplyExtrinsicResult, ExtrinsicInclusionMode, FixedPointNumber,
+	},
+	weights::WeightToFee as _,
 };
 use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
+use xcm_fee_payment_runtime_api::Error as XcmPaymentApiError;
+use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedXcm, VersionedLocation, VersionedAssets};
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -434,6 +443,65 @@ impl_runtime_apis! {
 		}
 		fn account_id(evm_address: H160) -> AccountId {
 			EVMAccounts::account_id(evm_address)
+		}
+	}
+
+	impl xcm_fee_payment_runtime_api::XcmPaymentApi<Block> for Runtime {
+		fn query_acceptable_payment_assets(xcm_version: polkadot_xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
+			if !matches!(xcm_version, 3 | 4) {
+				return Err(XcmPaymentApiError::UnhandledXcmVersion);
+			}
+
+			let mut asset_locations = vec![
+		AssetLocation(polkadot_xcm::v3::MultiLocation {
+				parents: 1,
+				interior: [
+					polkadot_xcm::v3::Junction::Parachain(ParachainInfo::get().into()),
+					polkadot_xcm::v3::Junction::GeneralIndex(CORE_ASSET_ID.into()),
+				]
+				.into(),
+			}),
+			AssetLocation(polkadot_xcm::v3::MultiLocation {
+				parents: 0,
+				interior: [
+					polkadot_xcm::v3::Junction::GeneralIndex(CORE_ASSET_ID.into()),
+				]
+				.into(),
+			})];
+
+			let mut asset_registry_locations: Vec<AssetLocation> = pallet_asset_registry::LocationAssets::<Runtime>::iter_keys().collect();
+			asset_locations.append(&mut asset_registry_locations);
+
+			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V3(polkadot_xcm::v3::AssetId::Concrete(loc.0)));
+
+			Ok(versioned_locations
+				.filter_map(|asset| asset.into_version(xcm_version).ok())
+				.collect())
+		}
+
+		fn query_weight_to_asset_fee(weight: Weight, asset: VersionedAssetId) -> Result<u128, XcmPaymentApiError> {
+			let v4_xcm_asset_id = asset.into_version(4).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?;
+
+			// get nested polkadot_xcm::AssetId type
+			let xcm_asset_id: &polkadot_xcm::v4::AssetId = v4_xcm_asset_id.try_as().map_err(|_| XcmPaymentApiError::WeightNotComputable)?;
+
+			let asset_id: AssetId = CurrencyIdConvert::convert(xcm_asset_id.clone().0).ok_or(XcmPaymentApiError::AssetNotFound)?;
+
+			let price = MultiTransactionPayment::price(asset_id).ok_or(XcmPaymentApiError::WeightNotComputable)?;
+
+			let fee = WeightToFee::weight_to_fee(&weight);
+
+			let converted_fee = price.checked_mul_int(fee).ok_or(XcmPaymentApiError::WeightNotComputable)?;
+
+			Ok(converted_fee)
+		}
+
+		fn query_xcm_weight(message: VersionedXcm<()>) -> Result<Weight, XcmPaymentApiError> {
+			PolkadotXcm::query_xcm_weight(message)
+		}
+
+		fn query_delivery_fees(destination: VersionedLocation, message: VersionedXcm<()>) -> Result<VersionedAssets, XcmPaymentApiError> {
+			PolkadotXcm::query_delivery_fees(destination, message)
 		}
 	}
 
