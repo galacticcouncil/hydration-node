@@ -51,9 +51,12 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 			let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
 
+			let (_, protocol_fee) = T::Fee::get(&asset_in);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_for_hub_asset_state_changes(
 				&(&asset_in_state).into(),
 				amount_in,
+				protocol_fee,
 				I129 {
 					value: current_imbalance.value,
 					negative: current_imbalance.negative,
@@ -121,9 +124,12 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 			let asset_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
 
+			let (_, protocol_fee) = T::Fee::get(&asset_in);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_hub_asset_state_changes(
 				&(&asset_state).into(),
 				amount_out,
+				protocol_fee,
 				I129 {
 					value: current_imbalance.value,
 					negative: current_imbalance.negative,

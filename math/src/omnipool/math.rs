@@ -256,11 +256,14 @@ pub fn calculate_buy_state_changes(
 pub fn calculate_buy_hub_asset_state_changes(
 	asset_in_state: &AssetReserveState<Balance>,
 	hub_asset_amount: Balance,
-	_imbalance: I129<Balance>,
+	protocol_fee: Permill,
+	imbalance: I129<Balance>,
 	_total_hub_reserve: Balance,
 ) -> Option<HubTradeStateChange<Balance>> {
+	let delta_qi = Permill::one().sub(protocol_fee).mul_floor(hub_asset_amount);
+
 	let (in_reserve, hub_reserve, hub_out_amount) =
-		to_u256!(asset_in_state.reserve, asset_in_state.hub_reserve, hub_asset_amount);
+		to_u256!(asset_in_state.reserve, asset_in_state.hub_reserve, delta_qi);
 
 	//TODO: verify that round up is correct here!
 	let delta_reserve_in = in_reserve
@@ -269,7 +272,8 @@ pub fn calculate_buy_hub_asset_state_changes(
 		.checked_add(U256::one())?;
 
 	// we assume, for now, that buying LRNA is only possible when modify_imbalance = False
-	let delta_l = 0;
+	let fee_amt = hub_asset_amount.saturating_sub(delta_qi);
+	let delta_l = min(fee_amt, imbalance.value);
 
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
@@ -277,7 +281,7 @@ pub fn calculate_buy_hub_asset_state_changes(
 			delta_hub_reserve: Decrease(hub_asset_amount),
 			..Default::default()
 		},
-		delta_imbalance: Increase(delta_l),
+		delta_imbalance: Decrease(delta_l), //TODO: this should decrease ??!
 		fee: TradeFee::default(),
 	})
 }
@@ -285,25 +289,30 @@ pub fn calculate_buy_hub_asset_state_changes(
 pub fn calculate_sell_for_hub_asset_state_changes(
 	asset_in_state: &AssetReserveState<Balance>,
 	amount_in: Balance,
-	_imbalance: I129<Balance>,
+	protocol_fee: Permill,
+	imbalance: I129<Balance>,
 	_total_hub_reserve: Balance,
 ) -> Option<HubTradeStateChange<Balance>> {
 	let (in_reserve, hub_reserve, in_amount) = to_u256!(asset_in_state.reserve, asset_in_state.hub_reserve, amount_in);
 
-	let delta_hub_reserve_out = hub_reserve
+	let delta_qi = hub_reserve
 		.checked_mul(in_amount)?
 		.checked_div(in_reserve.checked_add(in_amount)?)?;
 
-	// we assume, for now, that buying LRNA is only possible when modify_imbalance = False
-	let delta_l = 0;
+	let delta_qi = to_balance!(delta_qi).ok()?;
+
+	let delta_hub_reserve_out = Permill::one().sub(protocol_fee).mul_floor(delta_qi);
+
+	let fee_amt = delta_qi.saturating_sub(delta_hub_reserve_out);
+	let delta_l = min(fee_amt, imbalance.value);
 
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Increase(amount_in),
-			delta_hub_reserve: Decrease(to_balance!(delta_hub_reserve_out).ok()?),
+			delta_hub_reserve: Decrease(delta_hub_reserve_out),
 			..Default::default()
 		},
-		delta_imbalance: Increase(delta_l),
+		delta_imbalance: Decrease(delta_l), // TODO: should decrease?!
 		fee: TradeFee::default(),
 	})
 }

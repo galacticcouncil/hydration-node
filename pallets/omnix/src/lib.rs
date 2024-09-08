@@ -238,7 +238,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			// double check the target block, although it should be done in the tx validation
+			// double-check the target block, although it should be done in the tx validation
 			ensure!(
 				block == T::BlockNumberProvider::current_block_number(),
 				Error::<T>::InvalidBlockNumber

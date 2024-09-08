@@ -2079,9 +2079,12 @@ impl<T: Config> Pallet<T> {
 
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
+		let (_, protocol_fee) = T::Fee::get(&asset_in); //TODO: check with Colin if asset in is correct here
+
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_hub_asset_state_changes(
 			&(&asset_state).into(),
 			hub_asset_amount,
+			protocol_fee,
 			I129 {
 				value: current_imbalance.value,
 				negative: current_imbalance.negative,
@@ -2184,9 +2187,12 @@ impl<T: Config> Pallet<T> {
 
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
+		let (_, protocol_fee) = T::Fee::get(&asset_in); //TODO: check with Colin if asset in is correct here
+
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_for_hub_asset_state_changes(
 			&(&asset_state).into(),
 			amount_in,
+			protocol_fee,
 			I129 {
 				value: current_imbalance.value,
 				negative: current_imbalance.negative,

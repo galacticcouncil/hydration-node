@@ -48,7 +48,10 @@ pub enum Instruction<AccountId, AssetId> {
 	},
 }
 
-fn ensure_intent_resolution<T: Config>(intent: &Intent<T::AccountId, T::AssetId>, resolved_intent: &ResolvedIntent) -> bool {
+fn ensure_intent_resolution<T: Config>(
+	intent: &Intent<T::AccountId, T::AssetId>,
+	resolved_intent: &ResolvedIntent,
+) -> bool {
 	let amount_in = intent.swap.amount_in;
 	let amount_out = intent.swap.amount_out;
 	let resolved_in = resolved_intent.amount_in;
@@ -65,7 +68,7 @@ fn ensure_intent_resolution<T: Config>(intent: &Intent<T::AccountId, T::AssetId>
 	let realized = FixedU128::from_rational(resolved_out, resolved_in);
 	let expected = FixedU128::from_rational(amount_out, amount_in);
 
-	if realized < expected  {
+	if realized < expected {
 		return false;
 	}
 	let diff = realized - expected;
@@ -86,7 +89,7 @@ where
 
 		// Check if resolved intents are valid:
 		// - amounts not exceeding limit
-		// - in case of partial - check ratio
+		// - ensure ratio
 		// - record resolved amount to check transfer instructions
 		for resolved_intent in solution.intents.iter() {
 			let intent =
