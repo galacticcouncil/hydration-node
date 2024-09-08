@@ -63,9 +63,9 @@ pub mod pallet {
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
 
-		/// Maximum deadline for intent in seconds.
+		/// Maximum deadline for intent in milliseconds.
 		#[pallet::constant]
-		type MaxAllowedIntentDeadline: Get<Moment>;
+		type MaxAllowedIntentDuration: Get<Moment>;
 
 		/// Block number provider.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
@@ -196,7 +196,7 @@ pub mod pallet {
 			let now = T::TimestampProvider::now();
 			ensure!(deadline > now, Error::<T>::InvalidDeadline);
 			ensure!(
-				deadline < (now.saturating_add(T::MaxAllowedIntentDeadline::get())),
+				deadline < (now.saturating_add(T::MaxAllowedIntentDuration::get())),
 				Error::<T>::InvalidDeadline
 			);
 

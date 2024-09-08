@@ -20,7 +20,7 @@ fn submit_solution_should_work() {
 			LRNA,
 			pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
 		));
-		let deadline: Moment = NOW + 86_400_000;
+		let deadline: Moment = NOW + 43_200_000;
 		let initial_dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 
 		let intent_ids = submit_intents(vec![(
@@ -86,7 +86,7 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		let initial_hdx_balance = Currencies::free_balance(HDX, &AccountId32::from(BOB));
 		let initial_asset_balance = Currencies::free_balance(assets[0], &AccountId32::from(BOB));
 
-		let deadline: Moment = NOW + 86_400_000;
+		let deadline: Moment = NOW + 43_200_000;
 
 		let intent_ids = submit_intents(vec![(
 			BOB.into(),
@@ -141,7 +141,7 @@ fn execute_two_intents_solution_should_work() {
 		let initial_dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 		let alice_initial_dai_balance = Currencies::free_balance(DAI, &AccountId32::from(ALICE));
 
-		let deadline: Moment = NOW + 86_400_000;
+		let deadline: Moment = NOW + 43_200_000;
 
 		let intent_ids = submit_intents(vec![
 			(

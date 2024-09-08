@@ -508,6 +508,7 @@ impl pallet_omnipool::Config for Runtime {
 parameter_types! {
 	pub const OmnixPalletId: PalletId = PalletId(*b"omnixacc");
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
+	pub const MaxIntentDuration: Moment = 86_400_000; //1day
 }
 pub struct TxPriorityOrder;
 impl GetByKey<RuntimeCall, TransactionPriority> for TxPriorityOrder {
@@ -525,6 +526,7 @@ impl pallet_omnix::Config for Runtime {
 	type AssetId = AssetId;
 	type HubAssetId = LRNA;
 	type TimestampProvider = Timestamp;
+	type MaxAllowedIntentDuration = MaxIntentDuration;
 	type BlockNumberProvider = System;
 	type Currency = FungibleCurrencies<Runtime>;
 	type ReservableCurrency = Currencies;
@@ -1657,6 +1659,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
+use primitives::Moment;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;

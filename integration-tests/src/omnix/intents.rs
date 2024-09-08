@@ -5,7 +5,7 @@ fn submit_intent_should_work() {
 	Hydra::execute_with(|| {
 		crate::utils::pools::setup_omnipool();
 
-		let deadline: Moment = NOW + 86_400_000;
+		let deadline: Moment = NOW + 43_200_000;
 
 		let swap = Swap {
 			asset_in: HDX,
