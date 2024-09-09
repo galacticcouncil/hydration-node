@@ -1,3 +1,5 @@
+use orml_traits::parameters::frame_support::__private::log;
+use sp_runtime::Saturating;
 use crate::traits::OmniXSolver;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
 use pallet_omnix::engine::{BoundedRoute, Instruction};
@@ -95,6 +97,8 @@ where
 			resolved_intents.push(resolved_intent);
 		}
 
+		let mut lrna_aquired = 0u128;
+
 		// Sell all for lrna
 		for (asset_id, amount) in amounts_in.iter() {
 			let amount_out = *amounts_out.get(&asset_id).unwrap_or(&0u128);
@@ -104,6 +108,11 @@ where
 					*asset_id,
 					1u32.into(),
 				));
+				let diff = amount.saturating_sub(amount_out);
+
+				let sold = R::calculate_sell_trade_amounts(&route, diff).unwrap();
+				let amount_out = sold.last().unwrap().amount_out;
+				lrna_aquired.saturating_accrue(amount_out);
 				trades_instructions.push(Instruction::SwapExactIn {
 					asset_in: *asset_id,
 					asset_out: 1u32.into(),                       // LRNA
@@ -114,6 +123,8 @@ where
 			}
 		}
 
+		let mut lrna_sold = 0u128;
+
 		for (asset_id, amount) in amounts_out {
 			let amount_in = *amounts_in.get(&asset_id).unwrap_or(&0u128);
 
@@ -122,6 +133,10 @@ where
 					1u32.into(),
 					asset_id,
 				));
+				let diff = amount.saturating_sub(amount_in);
+				let r = R::calculate_buy_trade_amounts(&route, diff).unwrap();
+				let amount_in = r.last().unwrap().amount_in;
+				lrna_sold.saturating_accrue(amount_in);
 				trades_instructions.push(Instruction::SwapExactOut {
 					asset_in: 1u32.into(), // LRNA
 					asset_out: asset_id,
@@ -131,6 +146,8 @@ where
 				});
 			}
 		}
+		println!("lrna_aqui: {:?}", lrna_aquired);
+		println!("lrna_sold: {:?}", lrna_sold);
 
 		let mut instructions = Vec::new();
 		instructions.extend(transfer_in_instructions);
