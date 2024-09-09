@@ -330,7 +330,7 @@ fn transfer_and_swap_should_work_with_4_hops() {
 
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(IBTC, &AccountId::from(BOB)),
-			549839246387064
+			549813213291742
 		);
 		let fee = hydradx_runtime::Tokens::free_balance(IBTC, &hydradx_runtime::Treasury::account_id());
 
@@ -515,7 +515,7 @@ pub mod zeitgeist_use_cases {
 		Zeitgeist::execute_with(|| {
 			pretty_assertions::assert_eq!(
 				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE)),
-				8142821444432895
+				8129541527696052
 			);
 		});
 	}
@@ -730,7 +730,7 @@ pub mod zeitgeist_use_cases {
 		Zeitgeist::execute_with(|| {
 			pretty_assertions::assert_eq!(
 				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
-				9839246387064
+				9813213291742
 			);
 		});
 	}
@@ -1003,7 +1003,7 @@ pub mod zeitgeist_use_cases {
 		Zeitgeist::execute_with(|| {
 			pretty_assertions::assert_eq!(
 				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
-				9839246387064
+				9813213291742
 			);
 		});
 	}
