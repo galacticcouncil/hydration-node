@@ -8959,7 +8959,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.6.0"
+version = "2.6.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11954,7 +11954,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.3"
+version = "1.23.4"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
