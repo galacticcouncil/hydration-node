@@ -163,7 +163,7 @@ mod account_conversion {
 					caller: evm_address,
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -206,7 +206,7 @@ mod account_conversion {
 					caller: evm_address,
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -559,7 +559,7 @@ mod currency_precompile {
 					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -595,7 +595,7 @@ mod currency_precompile {
 					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: H160::from(hex!("00000000000000000000000000000001ffffffff")),
+				code_address: H160::from(hex!("00000000000000000000000000000001ffffffff")),
 				is_static: true,
 			};
 
@@ -628,7 +628,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -676,7 +676,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -724,7 +724,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -763,7 +763,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -811,7 +811,7 @@ mod currency_precompile {
 					caller: alice_evm_addr(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -860,7 +860,7 @@ mod currency_precompile {
 					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: false,
 			};
 
@@ -898,7 +898,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -933,7 +933,7 @@ mod currency_precompile {
 					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -974,7 +974,7 @@ mod currency_precompile {
 					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -1018,7 +1018,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: false,
 			};
 
@@ -1065,7 +1065,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: false,
 			};
 
@@ -1622,17 +1622,23 @@ pub fn gas_price() -> U256 {
 	U256::from(hydradx_runtime::evm::DEFAULT_BASE_FEE_PER_GAS)
 }
 
-fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
-	MockHandle {
-		input: data,
-		context: Context {
-			address: DISPATCH_ADDR,
-			caller: evm_address(),
-			apparent_value: U256::zero(),
-		},
-		core_address: DISPATCH_ADDR,
-		is_static: true,
+impl MockHandle {
+	pub fn new_dispatch(sender: H160, data: Vec<u8>) -> Self {
+		Self {
+			input: data,
+			context: Context {
+				address: DISPATCH_ADDR,
+				caller: sender,
+				apparent_value: U256::zero(),
+			},
+			code_address: DISPATCH_ADDR,
+			is_static: true,
+		}
 	}
+}
+
+pub fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
+	MockHandle::new_dispatch(evm_address(), data)
 }
 
 pub fn native_asset_ethereum_address() -> H160 {
@@ -1642,7 +1648,7 @@ pub fn native_asset_ethereum_address() -> H160 {
 pub struct MockHandle {
 	pub input: Vec<u8>,
 	pub context: Context,
-	pub core_address: H160,
+	pub code_address: H160,
 	pub is_static: bool,
 }
 
@@ -1683,7 +1689,7 @@ impl PrecompileHandle for MockHandle {
 	}
 
 	fn code_address(&self) -> H160 {
-		self.core_address
+		self.code_address
 	}
 
 	fn input(&self) -> &[u8] {

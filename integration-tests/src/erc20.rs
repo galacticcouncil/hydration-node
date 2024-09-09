@@ -1,13 +1,17 @@
+use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use crate::utils::contracts::*;
 use core::panic;
 use ethabi::ethereum_types::BigEndianHash;
 use fp_evm::ExitReason::Succeed;
+use fp_evm::PrecompileSet;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
+use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::{Erc20Currency, EvmNonceProvider as AccountNonce, Executor, Function};
 use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::RuntimeCall;
 use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::{AssetLocation, Currencies};
 use hydradx_runtime::{EVMAccounts, Runtime};
@@ -25,6 +29,7 @@ use polkadot_xcm::v3::MultiLocation;
 use primitives::AccountId;
 use scraper::{ALICE, BOB};
 use sp_core::keccak_256;
+use sp_core::Encode;
 use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
 use xcm_emulator::TestExt;
@@ -62,7 +67,6 @@ fn executor_call_wont_bump_nonce() {
 	Hydra::execute_with(|| {
 		let token = deploy_token_contract();
 
-		// load nonce of deployer
 		let nonce = AccountNonce::get_nonce(deployer());
 
 		let mut data = Into::<u32>::into(Function::Transfer).to_be_bytes().to_vec();
@@ -400,5 +404,35 @@ fn erc20_currency_is_tradeable_in_omnipool() {
 			1,
 			vec![],
 		));
+	});
+}
+
+#[test]
+fn erc20_currency_transfer_should_be_callable_using_dispatch_precompile() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = deploy_token_contract();
+		let erc20 = bind_erc20(contract);
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			evm_account(),
+			erc20,
+			1000,
+		));
+
+		// Act
+		let call = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: erc20,
+			amount: 100,
+		});
+		let prec = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new();
+		assert_ok!(prec
+			.execute(&mut MockHandle::new_dispatch(evm_address(), call.encode()))
+			.unwrap());
+
+		//Assert
+		assert_eq!(Currencies::free_balance(erc20, &BOB.into()), 100);
 	});
 }
