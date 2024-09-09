@@ -134,7 +134,7 @@ rococo-runtime = { workspace = true }
 
 ethabi = { version = "18.0.0", default-features = false }
 serde_json = "1.0.117"
-hex = "0.4.3"
+hex = { version = "0.4.3", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"

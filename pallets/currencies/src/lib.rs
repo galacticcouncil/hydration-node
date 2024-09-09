@@ -59,6 +59,7 @@ use orml_traits::{
 	LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
 	NamedBasicReservableCurrency, NamedMultiReservableCurrency,
 };
+use sp_std::vec::Vec;
 use orml_utilities::with_transaction_result;
 use sp_runtime::{
 	traits::{CheckedSub, MaybeSerializeDeserialize, StaticLookup, Zero},
