@@ -4924,7 +4924,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "13.1.1"
+version = "13.1.2"
 dependencies = [
  "async-trait",
  "clap 4.5.4",
@@ -5067,7 +5067,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "251.0.0"
+version = "256.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5203,7 +5203,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.4.0"
+version = "3.5.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -9074,7 +9074,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9260,7 +9260,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12458,7 +12458,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.1"
+version = "1.23.3"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
