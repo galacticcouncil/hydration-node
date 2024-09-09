@@ -155,7 +155,28 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 runtime_benchmarks! {
 	{Runtime, pallet_route_executor}
 
-	// Calculates the weight of LBP trade. Used in the calculation to determine the weight of the overhead.
+	// Calculates the weight all the logic of ED handling of insufficient assets
+	skip_ed_handling_for_trade_with_insufficient_assets{
+		let asset_1 = register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_2 = register_external_asset(b"FCB".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		let trade = Trade {
+			pool: PoolType::LBP,
+			asset_in: asset_1,
+			asset_out: asset_2
+		};
+
+	}: {
+		//We assume the worst case, so we change the state 4 times(1 add, 2 modify, 1 kill)
+		Router::disable_ed_handling_for_insufficient_assets(3, 0, trade);
+		Router::disable_ed_handling_for_insufficient_assets(3, 1, trade);
+		Router::disable_ed_handling_for_insufficient_assets(3, 2, trade);
+	}
+	verify {
+
+	}
+
+
 	calculate_and_execute_sell_in_lbp {
 		let c in 0..1;	// if c == 1, calculate_sell_trade_amounts is executed
 

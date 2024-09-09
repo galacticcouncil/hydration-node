@@ -3,46 +3,46 @@ panic = 'unwind'
 
 [workspace]
 members = [
-  'node',
-  'runtime/hydradx',
-  'pallets/omnipool',
-  'pallets/dca',
-  'primitives',
-  'utils/build-script-utils',
-  'integration-tests',
-  'pallets/circuit-breaker',
-  'pallets/omnipool-liquidity-mining',
-  'scraper',
-  'traits',
-  'pallets/relaychain-info',
-  'pallets/route-executor',
-  'pallets/transaction-multi-payment',
-  'pallets/asset-registry',
-  'runtime/adapters',
-  'pallets/collator-rewards',
-  'pallets/transaction-pause',
-  'pallets/ema-oracle',
-  'pallets/liquidity-mining',
-  'pallets/currencies',
-  'pallets/stableswap',
-  'utils/test-utils',
-  'pallets/dynamic-fees',
-  'pallets/duster',
-  'pallets/otc',
-  'pallets/otc-settlements',
-  'pallets/bonds',
-  'pallets/lbp',
-  'pallets/nft',
-  'math',
-  'pallets/staking',
-  'pallets/democracy',
-  'runtime/hydradx/src/evm/evm-utility/macro',
-  'pallets/referrals',
-  'pallets/evm-accounts',
-  'pallets/dynamic-evm-fee',
-  'pallets/xyk-liquidity-mining',
-  'precompiles/call-permit',
-  'runtime-mock'
+    'node',
+    'runtime/hydradx',
+    'pallets/omnipool',
+    'pallets/dca',
+    'primitives',
+    'utils/build-script-utils',
+    'integration-tests',
+    'pallets/circuit-breaker',
+    'pallets/omnipool-liquidity-mining',
+    'scraper',
+    'traits',
+    'pallets/relaychain-info',
+    'pallets/route-executor',
+    'pallets/transaction-multi-payment',
+    'pallets/asset-registry',
+    'runtime/adapters',
+    'pallets/collator-rewards',
+    'pallets/transaction-pause',
+    'pallets/ema-oracle',
+    'pallets/liquidity-mining',
+    'pallets/currencies',
+    'pallets/stableswap',
+    'utils/test-utils',
+    'pallets/dynamic-fees',
+    'pallets/duster',
+    'pallets/otc',
+    'pallets/otc-settlements',
+    'pallets/bonds',
+    'pallets/lbp',
+    'pallets/nft',
+    'math',
+    'pallets/staking',
+    'pallets/democracy',
+    'runtime/hydradx/src/evm/evm-utility/macro',
+    'pallets/referrals',
+    'pallets/evm-accounts',
+    'pallets/dynamic-evm-fee',
+    'pallets/xyk-liquidity-mining',
+    'precompiles/call-permit',
+    'runtime-mock'
 ]
 
 resolver = "2"
@@ -124,23 +124,23 @@ pallet-liquidity-mining = { path = "pallets/liquidity-mining", default-features 
 pallet-nft = { path = "pallets/nft", default-features = false }
 pallet-omnipool = { path = "pallets/omnipool", default-features = false }
 pallet-omnipool-liquidity-mining = { path = "pallets/omnipool-liquidity-mining", default-features = false }
-pallet-otc = { path = "pallets/otc", default-features = false}
-pallet-otc-settlements = { path = "pallets/otc-settlements", default-features = false}
+pallet-otc = { path = "pallets/otc", default-features = false }
+pallet-otc-settlements = { path = "pallets/otc-settlements", default-features = false }
 pallet-relaychain-info = { path = "pallets/relaychain-info", default-features = false }
 pallet-route-executor = { path = "pallets/route-executor", default-features = false }
 pallet-stableswap = { path = "pallets/stableswap", default-features = false }
 pallet-transaction-multi-payment = { path = "pallets/transaction-multi-payment", default-features = false }
 pallet-transaction-pause = { path = "pallets/transaction-pause", default-features = false }
 pallet-staking = { path = "pallets/staking", default-features = false }
-pallet-democracy= { path = "pallets/democracy", default-features = false }
+pallet-democracy = { path = "pallets/democracy", default-features = false }
 warehouse-liquidity-mining = { package = "pallet-liquidity-mining", path = "pallets/liquidity-mining", default-features = false }
-pallet-bonds = { path = "pallets/bonds", default-features = false}
-pallet-lbp = { path = "pallets/lbp", default-features = false}
-pallet-xyk = { path = "pallets/xyk", default-features = false}
-pallet-xyk-liquidity-mining = { path = "pallets/xyk-liquidity-mining", default-features = false}
-pallet-referrals = { path = "pallets/referrals", default-features = false}
-pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false}
-pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false}
+pallet-bonds = { path = "pallets/bonds", default-features = false }
+pallet-lbp = { path = "pallets/lbp", default-features = false }
+pallet-xyk = { path = "pallets/xyk", default-features = false }
+pallet-xyk-liquidity-mining = { path = "pallets/xyk-liquidity-mining", default-features = false }
+pallet-referrals = { path = "pallets/referrals", default-features = false }
+pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false }
+pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
@@ -149,8 +149,8 @@ test-utils = { path = "utils/test-utils", default-features = false }
 
 integration-tests = { path = "integration-tests", default-features = false }
 
-pallet-evm-precompile-call-permit = { path ="precompiles/call-permit", default-features = false }
-precompile-utils = { path ="precompiles/utils", default-features = false }
+pallet-evm-precompile-call-permit = { path = "precompiles/call-permit", default-features = false }
+precompile-utils = { path = "precompiles/utils", default-features = false }
 
 # Frame
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
@@ -319,13 +319,12 @@ pallet-evm-precompile-modexp = { git = "https://github.com/moonbeam-foundation/f
 pallet-evm-precompile-bn128 = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-v1.11.0", default-features = false }
 pallet-evm-precompile-blake2 = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-v1.11.0", default-features = false }
 evm = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-v1.11.0", default-features = false }
+evm-gasometer = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-v1.11.0", default-features = false }
+evm-runtime = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-v1.11.0", default-features = false }
+ethereum = { version = "0.15.0", default-features = false, features = ["with-codec"] }
 
 # EVM from acala
-module-evm-utility-macro = { path = "runtime/hydradx/src/evm/evm-utility/macro", default-features = false}
-
-evm-gasometer = { git = "https://github.com/rust-blockchain/evm", rev = "13240a8a551586fdef0b5028ed73af80b248092a", default-features = false }
-evm-runtime = { git = "https://github.com/rust-blockchain/evm", rev = "13240a8a551586fdef0b5028ed73af80b248092a", default-features = false }
-ethereum = { version = "0.14.0", default-features = false, features = ["with-codec"] }
+module-evm-utility-macro = { path = "runtime/hydradx/src/evm/evm-utility/macro", default-features = false }
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }

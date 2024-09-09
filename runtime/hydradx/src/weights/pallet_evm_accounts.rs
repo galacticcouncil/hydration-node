@@ -108,4 +108,22 @@ impl<T: frame_system::Config> pallet_evm_accounts::WeightInfo for HydraWeight<T>
 		Weight::from_parts(9_685_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+
+	fn approve_contract() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 9_421_000 picoseconds.
+		Weight::from_parts(9_685_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+
+	fn disapprove_contract() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 9_421_000 picoseconds.
+		Weight::from_parts(9_685_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }

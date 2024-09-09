@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use super::*;
+use crate::evm::Erc20Currency;
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
@@ -221,6 +222,10 @@ impl SufficiencyCheck {
 
 impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 	fn on_transfer(asset: AssetId, from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
+		if pallet_route_executor::Pallet::<Runtime>::skip_ed_lock() {
+			return Ok(());
+		}
+
 		//NOTE: `to` is paying ED if `from` is whitelisted.
 		//This can happen if pallet's account transfers insufficient tokens to another account.
 		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(from) {
@@ -240,6 +245,10 @@ impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
 pub struct OnKilledTokenAccount;
 impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 	fn happened((who, asset): &(AccountId, AssetId)) {
+		if pallet_route_executor::Pallet::<Runtime>::skip_ed_unlock() {
+			return;
+		}
+
 		if AssetRegistry::is_sufficient(*asset) || frame_system::Pallet::<Runtime>::account(who).sufficients.is_zero() {
 			return;
 		}
@@ -327,6 +336,8 @@ impl pallet_currencies::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type Erc20Currency = Erc20Currency<Runtime>;
+	type BoundErc20 = AssetRegistry;
 	type GetNativeCurrencyId = NativeAssetId;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
@@ -873,6 +884,10 @@ impl RouterWeightInfo {
 			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_with_fee_in_lbp().proof_size(),
 		)
 	}
+
+	pub fn skip_ed_handling_overweight() -> Weight {
+		weights::pallet_route_executor::HydraWeight::<Runtime>::skip_ed_handling_for_trade_with_insufficient_assets()
+	}
 }
 
 impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
@@ -913,6 +928,14 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			weight.saturating_accrue(amm_weight);
 		}
 
+		//We add the overweight for skipping ED handling if route has multiple trades and we have any insufficient asset
+		if route.len() > 1
+			&& route.iter().any(|trade| {
+				!AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)
+			}) {
+			weight.saturating_accrue(Self::skip_ed_handling_overweight());
+		}
+
 		weight
 	}
 
@@ -951,6 +974,14 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 			};
 			weight.saturating_accrue(amm_weight);
+		}
+
+		//We add the overweight for skipping ED handling if we have any insufficient asset
+		if route.len() > 1
+			&& route.iter().any(|trade| {
+				!AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)
+			}) {
+			weight.saturating_accrue(Self::skip_ed_handling_overweight());
 		}
 
 		weight

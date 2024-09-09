@@ -9,7 +9,8 @@ by any user using signed origin. In the former case, the block producer doesn't 
 ## Notes
 If the OTC order is partially fillable, the pallet tries to close the arbitrage opportunity by finding the amount that 
 aligns the OTC and the Omnipool prices. Executing this trade needs to be profitable, but we are not trying to maximize 
-the profit.
+the profit. If the pallet couldn't find the amount that closes the arb, the amount that reduces the size of the arb is 
+used.
 In the case of not partially fillable OTC orders, the pallet tries to maximize the profit.
 
 ## Dispatachable functions

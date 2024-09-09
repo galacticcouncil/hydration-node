@@ -1,6 +1,6 @@
 [package]
 name = "module-evm-utility"
-version = "2.21.0"
+version = "2.21.1"
 authors = ["Acala Developers"]
 edition = "2021"
 
@@ -11,7 +11,7 @@ sha3 = { workspace = true }
 sp-std = { workspace = true }
 
 #Evm dependencies
-evm = { git = "https://github.com/rust-blockchain/evm", rev = "13240a8a551586fdef0b5028ed73af80b248092a", default-features = false, features = ["with-codec"] }
+evm = { workspace = true, features = ["with-codec"] }
 evm-gasometer = { workspace = true }
 evm-runtime = { workspace = true }
 ethereum = {  workspace = true }
@@ -19,16 +19,16 @@ ethereum = {  workspace = true }
 [features]
 default = ["std"]
 std = [
-	"sha3/std",
-	"sp-std/std",
-	"evm/std",
-	"evm/with-serde",
-	"evm-runtime/std",
-	"evm-gasometer/std",
-	"ethereum/with-serde",
+    "sha3/std",
+    "sp-std/std",
+    "evm/std",
+    "evm/with-serde",
+    "evm-runtime/std",
+    "evm-gasometer/std",
+    "ethereum/with-serde",
 ]
 tracing = [
-	"evm/tracing",
-	"evm-gasometer/tracing",
-	"evm-runtime/tracing",
+    "evm/tracing",
+    "evm-gasometer/tracing",
+    "evm-runtime/tracing",
 ]
