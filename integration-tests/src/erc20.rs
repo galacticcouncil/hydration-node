@@ -2,6 +2,7 @@ use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use crate::utils::contracts::*;
 use core::panic;
+use std::fmt::Write;
 use ethabi::ethereum_types::BigEndianHash;
 use fp_evm::ExitReason::Succeed;
 use fp_evm::PrecompileSet;
@@ -281,7 +282,7 @@ fn bind_erc20(contract: EvmAddress) -> AssetId {
 			AssetKind::Erc20,
 			1,
 			Some(Erc20Currency::<Runtime>::symbol(token).unwrap().try_into().unwrap()),
-			Some(Erc20Currency::<Runtime>::decimals(token).unwrap().try_into().unwrap()),
+			Some(Erc20Currency::<Runtime>::decimals(token).unwrap()),
 			Some(AssetLocation(MultiLocation::new(
 				0,
 				X1(AccountKey20 {
@@ -327,7 +328,10 @@ fn currencies_should_transfer_bound_erc20() {
 
 fn error_signature(definition: &str) -> String {
 	let hash = keccak_256(definition.as_bytes());
-	hash[..4].iter().map(|b| format!("{:02x}", b)).collect()
+	hash[..4].iter().fold(String::new(), |mut acc, b| {
+		write!(&mut acc, "{:02x}", b).unwrap();
+		acc
+	})
 }
 
 #[test]

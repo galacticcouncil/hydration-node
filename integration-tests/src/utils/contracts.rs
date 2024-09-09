@@ -40,7 +40,7 @@ pub fn deploy_contract_code(code: Vec<u8>, deployer: EvmAddress) -> EvmAddress {
 		reason => panic!("{:?}", reason),
 	};
 
-	let deployed = hydradx_runtime::Runtime::account_code_at(address.clone());
+	let deployed = hydradx_runtime::Runtime::account_code_at(address);
 	assert_ne!(deployed, vec![0; deployed.len()]);
 	address
 }

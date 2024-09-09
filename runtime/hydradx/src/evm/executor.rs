@@ -35,8 +35,7 @@ where
 		let gas_price = U256::one();
 		let vicinity = Vicinity {
 			gas_price,
-			origin,
-			..Default::default()
+			origin
 		};
 
 		let config = <T as Config>::config();

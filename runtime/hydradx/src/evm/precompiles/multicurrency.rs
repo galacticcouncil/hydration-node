@@ -268,7 +268,7 @@ where
 		let mut input = handle.read_input()?;
 		input.expect_arguments(3)?;
 
-		let origin: H160 = handle.context().caller.into();
+		let origin: H160 = handle.context().caller;
 		let from: H160 = input.read::<Address>()?.into();
 		let to: H160 = input.read::<Address>()?.into();
 		let amount = input.read::<Balance>()?;
