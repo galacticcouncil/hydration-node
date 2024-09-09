@@ -64,7 +64,7 @@ use sp_runtime::{
 	traits::{CheckedSub, MaybeSerializeDeserialize, StaticLookup, Zero},
 	DispatchError, DispatchResult,
 };
-use sp_std::{fmt::Debug, marker, result};
+use sp_std::{fmt::Debug, marker, result, vec::Vec};
 
 pub mod fungibles;
 mod mock;

@@ -9,6 +9,7 @@ use pallet_evm::runner::stack::SubstrateStackState;
 use pallet_evm::{AddressMapping, Config};
 use primitive_types::{H160, U256};
 use sp_runtime::{DispatchError, TransactionOutcome};
+use sp_std::vec::Vec;
 
 pub struct Executor<R>(sp_std::marker::PhantomData<R>);
 
@@ -56,14 +57,14 @@ where
 {
 	fn call(context: CallContext, data: Vec<u8>, value: U256, gas: u64) -> CallResult {
 		Self::execute(context.origin, gas, |executor| {
-			executor.transact_call(context.sender, context.contract, value, data, gas, vec![])
+			executor.transact_call(context.sender, context.contract, value, data, gas, Vec::new())
 		})
 	}
 
 	fn view(context: CallContext, data: Vec<u8>, gas: u64) -> CallResult {
 		with_transaction(|| {
 			let result = Self::execute(context.origin, gas, |executor| {
-				executor.transact_call(context.sender, context.contract, U256::zero(), data, gas, vec![])
+				executor.transact_call(context.sender, context.contract, U256::zero(), data, gas, Vec::new())
 			});
 			TransactionOutcome::Rollback(Ok::<CallResult, DispatchError>(result))
 		})

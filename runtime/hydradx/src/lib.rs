@@ -266,9 +266,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	(
-		pallet_collator_selection::migration::v2::MigrationToV2<Runtime>,
-	),
+	(pallet_collator_selection::migration::v2::MigrationToV2<Runtime>,),
 >;
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime

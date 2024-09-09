@@ -16,8 +16,6 @@
 // limitations under the License.
 
 use crate::*;
-use hydradx_traits::NativePriceOracle;
-use primitives::constants::chain::CORE_ASSET_ID;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	sp_runtime::{
@@ -27,10 +25,12 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
+use hydradx_traits::NativePriceOracle;
+use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
+use primitives::constants::chain::CORE_ASSET_ID;
 use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
 use xcm_fee_payment_runtime_api::Error as XcmPaymentApiError;
-use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedXcm, VersionedLocation, VersionedAssets};
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
