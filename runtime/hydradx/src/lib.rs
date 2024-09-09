@@ -70,6 +70,7 @@ use frame_support::{
 	weights::Weight,
 };
 pub use hex_literal::hex;
+use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
 pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
@@ -405,6 +406,16 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_currencies_rpc_runtime_api::CurrenciesApi<
+		Block,
+		AssetId,
+		AccountId,
+		Balance,
+	> for Runtime {
+		fn free_balance(asset_id: AssetId, who: AccountId) -> Balance {
+			Currencies::free_balance(asset_id, &who)
+		}
+	}
 
 	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
 		fn account_nonce(account: AccountId) -> Index {

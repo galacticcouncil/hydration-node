@@ -73,6 +73,7 @@ pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-asset-registry = { workspace = true }
 pallet-collator-rewards = { workspace = true }
 pallet-currencies = { workspace = true }
+pallet-currencies-rpc-runtime-api = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-duster = { workspace = true }
@@ -272,6 +273,7 @@ std = [
     "pallet-genesis-history/std",
     "pallet-asset-registry/std",
     "pallet-currencies/std",
+    "pallet-currencies-rpc-runtime-api/std",
     "pallet-omnipool/std",
     "pallet-circuit-breaker/std",
     "pallet-transaction-pause/std",

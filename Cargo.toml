@@ -24,6 +24,7 @@ members = [
     'pallets/ema-oracle',
     'pallets/liquidity-mining',
     'pallets/currencies',
+    'pallets/currencies/rpc/runtime-api',
     'pallets/stableswap',
     'utils/test-utils',
     'pallets/dynamic-fees',
@@ -77,6 +78,7 @@ pallet-circuit-breaker = { path = "pallets/circuit-breaker", default-features = 
 pallet-claims = { path = "pallets/claims", default-features = false }
 pallet-collator-rewards = { path = "pallets/collator-rewards", default-features = false }
 pallet-currencies = { path = "pallets/currencies", default-features = false }
+pallet-currencies-rpc-runtime-api = { path = "pallets/currencies/rpc/runtime-api", default-features = false }
 pallet-dca = { path = "pallets/dca", default-features = false }
 pallet-duster = { path = "pallets/duster", default-features = false }
 pallet-dynamic-fees = { path = "pallets/dynamic-fees", default-features = false }

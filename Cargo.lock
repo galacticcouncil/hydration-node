@@ -4911,6 +4911,7 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
+ "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
  "pallet-democracy 4.3.0",
  "pallet-duster",
@@ -7857,6 +7858,16 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-io",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
+]
+
+[[package]]
+name = "pallet-currencies-rpc-runtime-api"
+version = "1.0.0"
+dependencies = [
+ "sp-api",
+ "sp-core",
  "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
 ]
