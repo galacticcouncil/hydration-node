@@ -110,13 +110,13 @@ where
 				let diff = amount.saturating_sub(amount_out);
 
 				let sold = R::calculate_sell_trade_amounts(&route, diff).unwrap();
-				let amount_out = sold.last().unwrap().amount_out;
-				lrna_aquired.saturating_accrue(amount_out);
+				let lrna_bought = sold.last().unwrap().amount_out;
+				lrna_aquired.saturating_accrue(lrna_bought);
 				trades_instructions.push(Instruction::SwapExactIn {
 					asset_in: *asset_id,
 					asset_out: 1u32.into(),                       // LRNA
 					amount_in: amount.saturating_sub(amount_out), //Swap only difference
-					amount_out: 0,
+					amount_out: lrna_bought,
 					route: BoundedRoute::try_from(route).unwrap(),
 				});
 			}
@@ -134,19 +134,23 @@ where
 				));
 				let diff = amount.saturating_sub(amount_in);
 				let r = R::calculate_buy_trade_amounts(&route, diff).unwrap();
-				let amount_in = r.last().unwrap().amount_in;
-				lrna_sold.saturating_accrue(amount_in);
+				let lrna_in = r.last().unwrap().amount_in;
+				lrna_sold.saturating_accrue(lrna_in);
 				trades_instructions.push(Instruction::SwapExactOut {
 					asset_in: 1u32.into(), // LRNA
 					asset_out: asset_id,
-					amount_in: u128::MAX,                         //TODO: what limit here
+					amount_in: lrna_in,
 					amount_out: amount.saturating_sub(amount_in), //Swap only difference
 					route: BoundedRoute::try_from(route).unwrap(),
 				});
 			}
 		}
-		println!("lrna_aqui: {:?}", lrna_aquired);
-		println!("lrna_sold: {:?}", lrna_sold);
+		assert!(
+			lrna_aquired >= lrna_sold,
+			"lrna_aquired < lrna_sold ({} < {})",
+			lrna_aquired,
+			lrna_sold
+		);
 
 		let mut instructions = Vec::new();
 		instructions.extend(transfer_in_instructions);

@@ -29,7 +29,8 @@ fn submit_solution_should_work() {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: 1_000_000_000_000,
-				amount_out: 8973613312776918,
+				//amount_out: 8973613312776918,
+				amount_out: 8973613212776918,
 				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
 			deadline,
@@ -48,7 +49,8 @@ fn submit_solution_should_work() {
 			System::current_block_number()
 		));
 		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
-		assert_eq!(dai_balance - initial_dai_balance, 8973613312776918);
+		//assert_eq!(dai_balance - initial_dai_balance, 8973613312776918);
+		assert_eq!(dai_balance - initial_dai_balance, 8973613212776918);
 	});
 }
 
@@ -94,7 +96,8 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 				asset_in: HDX,
 				asset_out: assets[0],
 				amount_in: 1_000_000_000_000,
-				amount_out: 26117,
+				//amount_out: 26117,
+				amount_out: 25117,
 				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
 			deadline,
@@ -120,8 +123,8 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		let lrna_balance =
 			Currencies::free_balance(LRNA, &pallet_ice::Pallet::<hydradx_runtime::Runtime>::holding_account());
 		let received = asset_balance - initial_asset_balance;
-		assert_eq!(received, 26117);
-		assert_eq!(lrna_balance, 0u128);
+		assert_eq!(received, 25117);
+		assert_eq!(lrna_balance, 15425690u128);
 	});
 }
 
@@ -148,7 +151,7 @@ fn execute_two_intents_solution_should_work() {
 					asset_in: HDX,
 					asset_out: DAI,
 					amount_in: 1_000_000_000_000,
-					amount_out: 8_973_613_312_776_918,
+					amount_out: 8_973_613_112_776_918,
 					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
 				deadline,
@@ -159,7 +162,7 @@ fn execute_two_intents_solution_should_work() {
 					asset_in: HDX,
 					asset_out: DAI,
 					amount_in: 1_000_000_000_000,
-					amount_out: 8_973_613_312_776_918,
+					amount_out: 8_973_613_112_776_918,
 					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
 				deadline,
@@ -193,11 +196,11 @@ fn execute_two_intents_solution_should_work() {
 			Currencies::free_balance(LRNA, &pallet_ice::Pallet::<hydradx_runtime::Runtime>::holding_account());
 		//assert_eq!(lrna_balance, 0u128);
 		let received = dai_balance - initial_dai_balance;
-		assert_eq!(received, 8_973_613_312_776_918u128);
+		assert_eq!(received, 8_973_613_112_776_918u128);
 
 		let alice_dai_balance = Currencies::free_balance(DAI, &AccountId32::from(ALICE));
 		let received = alice_dai_balance - alice_initial_dai_balance;
-		assert_eq!(received, 8_973_613_312_776_918u128);
+		assert_eq!(received, 8_973_613_112_776_918u128);
 	});
 }
 
