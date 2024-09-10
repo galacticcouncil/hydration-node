@@ -3,7 +3,8 @@
 # this script is used in github workflow to print an overview of crates and its version
 
 set -ex
-alias cargo=cargo --config net.git-fetch-with-cli=true
+shopt -s expand_aliases
+alias cargo="cargo --config net.git-fetch-with-cli=true"
 
 RUNTIME_CRATE="hydradx-runtime"
 PROJECT_PATH=$(cargo locate-project --workspace --message-format plain)
