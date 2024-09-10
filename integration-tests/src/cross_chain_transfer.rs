@@ -16,7 +16,6 @@ use frame_support::weights::Weight;
 use hydradx_runtime::AssetRegistry;
 use hydradx_traits::{registry::Mutate, AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
-use orml_xtokens::Error::AssetHasNoReserve;
 use polkadot_xcm::opaque::v3::{
 	Junction,
 	Junctions::{X1, X2},
