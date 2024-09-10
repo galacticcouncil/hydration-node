@@ -75,9 +75,9 @@ fn ensure_intent_resolution<T: Config>(
 	diff <= FixedU128::from_rational(1, 1000)
 }
 
-pub struct OmniXEngine<T, C, R>(sp_std::marker::PhantomData<(T, C, R)>);
+pub struct ICEEngine<T, C, R>(sp_std::marker::PhantomData<(T, C, R)>);
 
-impl<T: Config, C, R> OmniXEngine<T, C, R>
+impl<T: Config, C, R> ICEEngine<T, C, R>
 where
 	C: Mutate<T::AccountId, AssetId = T::AssetId, Balance = Balance>,
 	R: RouterT<T::RuntimeOrigin, T::AssetId, Balance, Trade<T::AssetId>, AmountInAndOut<Balance>>,

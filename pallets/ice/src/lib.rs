@@ -32,7 +32,7 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::engine::{OmniXEngine, SolutionError};
+	use crate::engine::{ICEEngine, SolutionError};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use orml_traits::{GetByKey, NamedMultiReservableCurrency};
@@ -252,8 +252,8 @@ pub mod pallet {
 				weight: Default::default(),
 			};
 
-			OmniXEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&mut solution)?;
-			OmniXEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
+			ICEEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&mut solution)?;
+			ICEEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
 
 			//Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
 

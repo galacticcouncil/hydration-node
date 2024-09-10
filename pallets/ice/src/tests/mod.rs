@@ -35,7 +35,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Currencies: pallet_currencies,
 		Tokens: orml_tokens,
-		OmniX: pallet_ice,
+		ICE: pallet_ice,
 	}
 );
 
@@ -117,7 +117,7 @@ impl pallet_currencies::Config for Test {
 parameter_types! {
 	pub const HubAssetId: AssetId = LRNA;
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
-	pub const OmniXPalletId: PalletId = PalletId(*b"testicer");
+	pub const ICEPalletId: PalletId = PalletId(*b"testicer");
 	pub const MaxAllowdIntentDuration: Moment = 86_400_000; //1day
 	pub const NativeCurrencyId: AssetId = 0;
 }
@@ -161,7 +161,7 @@ impl pallet_ice::Config for Test {
 	type Currency = Tokens;
 	type ReservableCurrency = Currencies;
 	type TradeExecutor = DummyTradeExecutor;
-	type PalletId = OmniXPalletId;
+	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
 	type PriorityOrder = DummyOrder;
 	type WeightInfo = ();

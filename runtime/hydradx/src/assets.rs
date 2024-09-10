@@ -506,7 +506,7 @@ impl pallet_omnipool::Config for Runtime {
 }
 
 parameter_types! {
-	pub const OmnixPalletId: PalletId = PalletId(*b"iceaccnt");
+	pub const ICEPalletId: PalletId = PalletId(*b"iceaccnt");
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
 	pub const MaxIntentDuration: Moment = 86_400_000; //1day
 }
@@ -531,7 +531,7 @@ impl pallet_ice::Config for Runtime {
 	type Currency = FungibleCurrencies<Runtime>;
 	type ReservableCurrency = Currencies;
 	type TradeExecutor = Router;
-	type PalletId = OmnixPalletId;
+	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
 	type PriorityOrder = TxPriorityOrder;
 	type WeightInfo = ();

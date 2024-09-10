@@ -1,5 +1,5 @@
 use super::*;
-use crate::tests::{ExtBuilder, OmniX};
+use crate::tests::{ExtBuilder, ICE};
 use crate::types::{Intent, Swap, SwapType};
 use crate::Error;
 use frame_support::{assert_noop, assert_ok};
@@ -14,7 +14,7 @@ fn submit_intent_should_work() {
 			amount_out: 200_000_000_000_000,
 			swap_type: SwapType::ExactIn,
 		};
-		assert_ok!(OmniX::submit_intent(
+		assert_ok!(ICE::submit_intent(
 			RuntimeOrigin::signed(ALICE),
 			swap.clone(),
 			NOW + 1_000_000,
@@ -51,7 +51,7 @@ fn submit_intent_should_fail_when_dealdine_is_not_valid() {
 		};
 		// Less
 		assert_noop!(
-			OmniX::submit_intent(
+			ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
 				swap.clone(),
 				NOW - 1_000_000,
@@ -64,12 +64,12 @@ fn submit_intent_should_fail_when_dealdine_is_not_valid() {
 
 		// Equal
 		assert_noop!(
-			OmniX::submit_intent(RuntimeOrigin::signed(ALICE), swap.clone(), NOW, false, None, None,),
+			ICE::submit_intent(RuntimeOrigin::signed(ALICE), swap.clone(), NOW, false, None, None,),
 			Error::<Test>::InvalidDeadline
 		);
 
 		assert_noop!(
-			OmniX::submit_intent(
+			ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
 				swap.clone(),
 				NOW + MaxAllowdIntentDuration::get() + 1,

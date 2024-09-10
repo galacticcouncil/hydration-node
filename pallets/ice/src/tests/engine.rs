@@ -1,6 +1,6 @@
 use super::*;
-use crate::engine::{Instruction, OmniXEngine};
-use crate::tests::{ExtBuilder, OmniX};
+use crate::engine::{ICEEngine, Instruction};
+use crate::tests::{ExtBuilder, ICE};
 use crate::types::{BoundedInstructions, BoundedResolvedIntents, ResolvedIntent, Solution, Swap, SwapType};
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::Weight;
@@ -23,7 +23,7 @@ fn create_solution(
 #[test]
 fn test_validate_solution_with_one_intent() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(OmniX::submit_intent(
+		assert_ok!(ICE::submit_intent(
 			RuntimeOrigin::signed(ALICE),
 			Swap {
 				asset_in: 100,
@@ -49,7 +49,7 @@ fn test_validate_solution_with_one_intent() {
 			vec![],
 		);
 
-		let plan = OmniXEngine::<Test, Tokens, DummyTradeExecutor>::validate_solution(&mut solution);
+		let plan = ICEEngine::<Test, Tokens, DummyTradeExecutor>::validate_solution(&mut solution);
 
 		assert!(plan.is_ok());
 	});
