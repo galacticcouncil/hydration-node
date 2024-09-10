@@ -43,6 +43,29 @@ pub fn deploy_token_contract() -> EvmAddress {
 	deploy_contract("HydraToken", deployer())
 }
 
+pub fn bind_erc20(contract: EvmAddress) -> AssetId {
+	let token = CallContext::new_view(contract);
+	let asset = with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+			None,
+			Some(Erc20Currency::<Runtime>::name(token).unwrap().try_into().unwrap()),
+			AssetKind::Erc20,
+			1,
+			Some(Erc20Currency::<Runtime>::symbol(token).unwrap().try_into().unwrap()),
+			Some(Erc20Currency::<Runtime>::decimals(token).unwrap()),
+			Some(AssetLocation(MultiLocation::new(
+				0,
+				X1(AccountKey20 {
+					key: contract.into(),
+					network: None,
+				}),
+			))),
+			None,
+		))
+	});
+	asset.unwrap()
+}
+
 #[test]
 fn executor_view_should_return_something() {
 	TestNet::reset();
@@ -271,29 +294,6 @@ fn account_should_receive_tokens() {
 			100
 		);
 	});
-}
-
-fn bind_erc20(contract: EvmAddress) -> AssetId {
-	let token = CallContext::new_view(contract);
-	let asset = with_transaction(|| {
-		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
-			None,
-			Some(Erc20Currency::<Runtime>::name(token).unwrap().try_into().unwrap()),
-			AssetKind::Erc20,
-			1,
-			Some(Erc20Currency::<Runtime>::symbol(token).unwrap().try_into().unwrap()),
-			Some(Erc20Currency::<Runtime>::decimals(token).unwrap()),
-			Some(AssetLocation(MultiLocation::new(
-				0,
-				X1(AccountKey20 {
-					key: contract.into(),
-					network: None,
-				}),
-			))),
-			None,
-		))
-	});
-	asset.unwrap()
 }
 
 #[test]
