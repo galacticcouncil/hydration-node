@@ -148,7 +148,6 @@ mod tests {
 	impl_benchmark_test_suite!(new_test_ext(),);
 }
 
-//TODO: refactor these to common
 pub fn get_contract_bytecode(name: &str) -> Vec<u8> {
 	let path = format!(
 		"../../scripts/test-contracts/artifacts/contracts/{}.sol/{}.json",
