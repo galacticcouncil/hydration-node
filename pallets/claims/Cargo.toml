@@ -13,15 +13,15 @@ targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-serde = { version = '1.0.136', default-features = false, features = ['derive']}
-hex = {default-features = false, version = "0.4.3"}
-hex-literal = '0.3.4'
-lazy_static = {features = ['spin_no_std'], version = "1.4.0"}
-rustc-hex = {version = '2.1.0', default-features = false}
+codec = { workspace = true }
+serde = { version = '1.0.136', default-features = false, features = ['derive'] }
+hex = { default-features = false, version = "0.4.3" }
+hex-literal = { workspace = true }
+lazy_static = { features = ['spin_no_std'], version = "1.4.0" }
+rustc-hex = { version = '2.1.0', default-features = false }
 
 # Substrate dependencies
-frame-benchmarking = { workspace = true, optional = true}
+frame-benchmarking = { workspace = true, optional = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-io = { workspace = true }
@@ -38,19 +38,19 @@ sp-core = { workspace = true }
 [features]
 default = ['std']
 runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
+    "frame-benchmarking",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
 ]
 std = [
-  'codec/std',
-  'frame-support/std',
-  'frame-system/std',
-  'primitives/std',
-  'rustc-hex/std',
-  'serde/std',
-  'scale-info/std',
-  'pallet-balances/std',
-  'frame-benchmarking/std'
+    'codec/std',
+    'frame-support/std',
+    'frame-system/std',
+    'primitives/std',
+    'rustc-hex/std',
+    'serde/std',
+    'scale-info/std',
+    'pallet-balances/std',
+    'frame-benchmarking/std'
 ]
-try-runtime = [ "frame-support/try-runtime" ]
+try-runtime = ["frame-support/try-runtime"]

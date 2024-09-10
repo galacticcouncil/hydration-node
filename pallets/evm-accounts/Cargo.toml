@@ -34,7 +34,7 @@ frame-benchmarking = { workspace = true }
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
 test-utils = { workspace = true }
-hex-literal = "0.4.1"
+hex-literal = { workspace = true }
 
 [features]
 default = ["std"]

@@ -4561,12 +4561,6 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hex-literal"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ebdb29d2ea9ed0083cd8cece49bbd968021bd99b0849edb4a9a7ee0fdf6a4e0"
-
-[[package]]
-name = "hex-literal"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
@@ -4747,7 +4741,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "futures",
- "hex-literal 0.3.4",
+ "hex-literal",
  "hydra-dx-build-script-utils",
  "hydradx-runtime",
  "jsonrpsee 0.20.3",
@@ -4884,7 +4878,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex",
- "hex-literal 0.4.1",
+ "hex-literal",
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
@@ -7430,7 +7424,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hex-literal 0.4.1",
+ "hex-literal",
  "hydradx-traits",
  "log",
  "orml-tokens",
@@ -7750,7 +7744,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hex",
- "hex-literal 0.3.4",
+ "hex-literal",
  "lazy_static",
  "pallet-balances",
  "parity-scale-codec",
@@ -8136,7 +8130,7 @@ dependencies = [
  "frame-system",
  "hash-db",
  "hex",
- "hex-literal 0.4.1",
+ "hex-literal",
  "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
@@ -8155,7 +8149,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hex-literal 0.4.1",
+ "hex-literal",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -8213,7 +8207,7 @@ dependencies = [
  "fp-evm",
  "frame-support",
  "frame-system",
- "hex-literal 0.4.1",
+ "hex-literal",
  "libsecp256k1",
  "log",
  "num_enum 0.5.11",
@@ -8290,7 +8284,7 @@ dependencies = [
  "derive_more",
  "frame-support",
  "frame-system",
- "hex-literal 0.4.1",
+ "hex-literal",
  "log",
  "parity-scale-codec",
  "scale-info",
@@ -8826,7 +8820,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hex-literal 0.3.4",
+ "hex-literal",
  "hydra-dx-math",
  "hydradx-traits",
  "orml-tokens",
@@ -10514,7 +10508,7 @@ version = "7.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "bitvec",
- "hex-literal 0.4.1",
+ "hex-literal",
  "log",
  "parity-scale-codec",
  "polkadot-core-primitives",
@@ -10694,7 +10688,7 @@ dependencies = [
  "frame-system",
  "frame-system-rpc-runtime-api",
  "futures",
- "hex-literal 0.4.1",
+ "hex-literal",
  "is_executable",
  "kvdb",
  "kvdb-rocksdb",
@@ -10916,7 +10910,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hex",
- "hex-literal 0.4.1",
+ "hex-literal",
  "impl-trait-for-tuples",
  "log",
  "num_enum 0.5.11",
@@ -11035,7 +11029,7 @@ name = "primitives"
 version = "6.1.0"
 dependencies = [
  "frame-support",
- "hex-literal 0.3.4",
+ "hex-literal",
  "parity-scale-codec",
  "polkadot-primitives",
  "scale-info",
@@ -11709,7 +11703,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.4.1",
+ "hex-literal",
  "log",
  "pallet-asset-rate",
  "pallet-authority-discovery",
@@ -11887,7 +11881,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex",
- "hex-literal 0.4.1",
+ "hex-literal",
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
@@ -16729,7 +16723,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "hex-literal 0.4.1",
+ "hex-literal",
  "log",
  "pallet-asset-rate",
  "pallet-authority-discovery",

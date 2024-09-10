@@ -6,10 +6,10 @@ edition = "2021"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
+codec = { workspace = true }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 serde = { features = ["derive"], optional = true, version = "1.0.136" }
-hex-literal = { version = '0.3.4' }
+hex-literal = { workspace = true }
 static_assertions = "1.1.0"
 
 # Substrate dependencies
