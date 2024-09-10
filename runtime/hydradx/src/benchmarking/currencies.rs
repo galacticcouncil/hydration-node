@@ -21,7 +21,7 @@ use orml_traits::MultiCurrencyExtended;
 use polkadot_xcm::v3::Junction::AccountKey20;
 use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::v3::MultiLocation;
-use primitive_types::{U256};
+use primitive_types::U256;
 
 use super::*;
 
