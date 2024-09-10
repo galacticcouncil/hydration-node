@@ -993,6 +993,50 @@ mod currency_precompile {
 	}
 
 	#[test]
+	fn precompile_for_currency_allowance_should_return_zero_for_disapproved_contract() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			assert_ok!(EVMAccounts::approve_contract(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_address(),
+			));
+			let data = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(evm_address2()))
+				.write(Address::from(evm_address()))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			//Act
+			assert_ok!(EVMAccounts::disapprove_contract(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_address(),
+			));
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			//Assert
+			assert_eq!(
+				result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["0000000000000000000000000000000000000000000000000000000000000000"].to_vec()
+				})
+			);
+		});
+	}
+
+	#[test]
 	fn precompile_for_transfer_from_should_fail_for_not_approved_contract() {
 		TestNet::reset();
 
