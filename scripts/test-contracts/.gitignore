@@ -7,6 +7,7 @@ node_modules
 /cache
 /artifacts/*
 !/artifacts/contracts
+ignition/deployments/*/build-info
 
 # TypeChain files
 /typechain
