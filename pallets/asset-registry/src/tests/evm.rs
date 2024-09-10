@@ -47,7 +47,7 @@ fn ec20_trait_should_return_contract_address() {
 }
 
 #[test]
-fn return_none_when_asset_is_not_erc20() {
+fn contract_address_should_be_none_when_asset_is_not_erc20() {
 	ExtBuilder::default().build().execute_with(|| {
 		let _ = with_transaction(|| {
 			// Arrange
@@ -72,7 +72,7 @@ fn return_none_when_asset_is_not_erc20() {
 }
 
 #[test]
-fn return_zero_when_erc20_has_wrong_location() {
+fn contract_address_should_be_zero_when_erc20_has_wrong_location() {
 	let locations = vec![
 		None,
 		Some(AssetLocation(MultiLocation::new(
