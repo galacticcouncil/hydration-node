@@ -86,6 +86,7 @@ where
 {
 	pub fn validate_solution(solution: &mut Solution<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
 		// Store resolved amounts for each account
+		// This is used to ensure that the transfer instruction does not transfer more than it should
 		let mut amounts_in: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
 		let mut amounts_out: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
 
