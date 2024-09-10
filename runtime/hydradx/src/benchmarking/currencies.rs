@@ -1,8 +1,8 @@
-use std::fs;
+use crate::{AccountId, Amount, AssetId, Balance, Currencies, EVMAccounts, NativeAssetId, Runtime};
 use evm::ExitReason;
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
-use crate::{AccountId, Amount, AssetId, Balance, Currencies, EVMAccounts, NativeAssetId, Runtime};
 use primitives::constants::currency::NATIVE_EXISTENTIAL_DEPOSIT;
+use std::fs;
 
 use sp_std::prelude::*;
 
@@ -15,6 +15,9 @@ use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
 use hex_literal::hex;
 
+use crate::evm::precompiles::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
+use crate::evm::Erc20Currency;
+use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, ERC20};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
@@ -22,9 +25,6 @@ use polkadot_xcm::v3::Junction::AccountKey20;
 use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::v3::MultiLocation;
 use primitive_types::{H160, U256};
-use hydradx_traits::evm::{CallContext, ERC20, EvmAddress, InspectEvmAccounts};
-use crate::evm::Erc20Currency;
-use crate::evm::precompiles::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
 
 use super::*;
 
@@ -160,10 +160,7 @@ pub fn get_contract_bytecode(name: &str) -> Vec<u8> {
 }
 
 pub fn deploy_contract_code(code: Vec<u8>, deployer: EvmAddress) -> EvmAddress {
-	assert_ok!(EVMAccounts::add_contract_deployer(
-		RawOrigin::Root.into(),
-		deployer,
-	));
+	assert_ok!(EVMAccounts::add_contract_deployer(RawOrigin::Root.into(), deployer,));
 
 	let info = crate::Runtime::create(
 		deployer,
@@ -221,4 +218,3 @@ fn bind_erc20(contract: EvmAddress) -> AssetId {
 	});
 	asset.unwrap()
 }
-
