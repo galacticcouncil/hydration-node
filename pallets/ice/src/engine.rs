@@ -206,8 +206,7 @@ where
 			match instruction {
 				Instruction::TransferIn { who, asset_id, amount } => {
 					let r = T::ReservableCurrency::unreserve_named(&T::NamedReserveId::get(), asset_id, &who, amount);
-					//TODO: handle resulted balance to ensure it is enough
-					ensure!(r == Balance::zero(), crate::Error::<T>::InssuficientReservedBalance);
+					ensure!(r == Balance::zero(), crate::Error::<T>::InsufficientReservedBalance);
 					C::transfer(asset_id, &who, &holding_account, amount, Preservation::Expendable)?;
 				}
 				Instruction::TransferOut { who, asset_id, amount } => {

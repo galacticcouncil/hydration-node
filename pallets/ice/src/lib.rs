@@ -145,7 +145,7 @@ pub mod pallet {
 		InvalidDeadline,
 
 		/// Insufficient reserved balance
-		InssuficientReservedBalance,
+		InsufficientReservedBalance,
 	}
 
 	#[pallet::storage]
