@@ -2,7 +2,6 @@ use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use crate::utils::contracts::*;
 use core::panic;
-use std::fmt::Write;
 use ethabi::ethereum_types::BigEndianHash;
 use fp_evm::ExitReason::Succeed;
 use fp_evm::PrecompileSet;
@@ -33,6 +32,7 @@ use sp_core::keccak_256;
 use sp_core::Encode;
 use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
+use std::fmt::Write;
 use xcm_emulator::TestExt;
 
 pub fn deployer() -> EvmAddress {

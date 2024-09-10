@@ -9,9 +9,8 @@ use pallet_evm::runner::stack::SubstrateStackState;
 use pallet_evm::{AddressMapping, Config};
 use primitive_types::{H160, U256};
 use sp_runtime::{DispatchError, TransactionOutcome};
-use sp_std::vec::Vec;
 use sp_std::vec;
-
+use sp_std::vec::Vec;
 
 pub struct Executor<R>(sp_std::marker::PhantomData<R>);
 
@@ -33,10 +32,7 @@ where
 		) -> (ExitReason, Vec<u8>),
 	{
 		let gas_price = U256::one();
-		let vicinity = Vicinity {
-			gas_price,
-			origin
-		};
+		let vicinity = Vicinity { gas_price, origin };
 
 		let config = <T as Config>::config();
 		let precompiles = T::PrecompilesValue::get();

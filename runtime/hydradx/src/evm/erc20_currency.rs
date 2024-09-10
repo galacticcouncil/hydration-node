@@ -10,13 +10,13 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_currencies::{Config, Error};
 use primitives::Balance;
+use scale_info::prelude::format;
 use sp_core::crypto::AccountId32;
 use sp_core::{H160, H256, U256};
 use sp_runtime::traits::{CheckedConversion, Zero};
 use sp_runtime::{DispatchError, SaturatedConversion};
-use sp_std::vec::Vec;
-use scale_info::prelude::format;
 use sp_std::boxed::Box;
+use sp_std::vec::Vec;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
