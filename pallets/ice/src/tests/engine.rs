@@ -22,35 +22,38 @@ fn create_solution(
 
 #[test]
 fn test_validate_solution_with_one_intent() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(ICE::submit_intent(
-			RuntimeOrigin::signed(ALICE),
-			Swap {
-				asset_in: 100,
-				asset_out: 200,
-				amount_in: 100_000_000_000_000,
-				amount_out: 200_000_000_000_000,
-				swap_type: SwapType::ExactIn
-			},
-			NOW + 1_000_000,
-			false,
-			None,
-			None,
-		));
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			assert_ok!(ICE::submit_intent(
+				RuntimeOrigin::signed(ALICE),
+				Swap {
+					asset_in: 100,
+					asset_out: 200,
+					amount_in: 100_000_000_000_000,
+					amount_out: 200_000_000_000_000,
+					swap_type: SwapType::ExactIn
+				},
+				NOW + 1_000_000,
+				false,
+				None,
+				None,
+			));
 
-		let intent_id = get_intent_id(NOW + 1_000_000, 0);
+			let intent_id = get_intent_id(NOW + 1_000_000, 0);
 
-		let mut solution = create_solution(
-			vec![ResolvedIntent {
-				intent_id,
-				amount_in: 100_000_000_000_000,
-				amount_out: 200_000_000_000_000,
-			}],
-			vec![],
-		);
+			let mut solution = create_solution(
+				vec![ResolvedIntent {
+					intent_id,
+					amount_in: 100_000_000_000_000,
+					amount_out: 200_000_000_000_000,
+				}],
+				vec![],
+			);
 
-		let plan = ICEEngine::<Test, Tokens, DummyTradeExecutor>::validate_solution(&mut solution);
+			let plan = ICEEngine::<Test, Tokens, DummyTradeExecutor>::validate_solution(&mut solution);
 
-		assert!(plan.is_ok());
-	});
+			assert!(plan.is_ok());
+		});
 }

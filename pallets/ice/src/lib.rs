@@ -3,7 +3,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod engine;
-pub mod order;
 #[cfg(test)]
 mod tests;
 pub mod types;
@@ -11,7 +10,8 @@ pub mod validity;
 mod weights;
 
 use crate::types::{
-	Balance, CallData, IncrementalIntentId, Intent, IntentId, Moment, ProposedSolution, Solution, Swap,
+	Balance, CallData, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier, ProposedSolution,
+	Solution, Swap,
 };
 use codec::{Encode, HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
@@ -95,7 +95,8 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxCallData: Get<u32>;
 
-		type PriorityOrder: GetByKey<Self::RuntimeCall, TransactionPriority>;
+		#[pallet::constant]
+		type NamedReserveId: Get<NamedReserveIdentifier>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -142,6 +143,9 @@ pub mod pallet {
 
 		/// Invalid deadline
 		InvalidDeadline,
+
+		/// Insufficient reserved balance
+		InssuficientReservedBalance,
 	}
 
 	#[pallet::storage]
@@ -200,10 +204,11 @@ pub mod pallet {
 				Error::<T>::InvalidDeadline
 			);
 
-			//TODO: check:
-			// - swap is valid- eg no lrna buying?! asset in!= asset out etc.
+			//TODO: additional checks:
+			// - no lrna buying
+			// - asset in != asset out
 
-			//TODO: reserve IN amount
+			T::ReservableCurrency::reserve_named(&T::NamedReserveId::get(), swap.asset_in, &who, swap.amount_in)?;
 
 			let incremental_id = Self::get_next_incremental_id().ok_or(Error::<T>::IntendIdsExhausted)?;
 

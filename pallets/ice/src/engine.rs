@@ -3,12 +3,14 @@ use crate::Config;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::__private::RuntimeDebug;
 use frame_support::dispatch::DispatchResult;
-use frame_support::pallet_prelude::{ConstU32, TypeInfo, Weight};
+use frame_support::pallet_prelude::{ConstU32, Get, TypeInfo, Weight};
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use frame_support::traits::OriginTrait;
 use frame_support::{ensure, BoundedVec};
 use hydradx_traits::router::{AmountInAndOut, RouterT, Trade};
+use orml_traits::NamedMultiReservableCurrency;
+use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchError, FixedU128};
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -193,6 +195,7 @@ where
 
 	fn update_intents(_resolved_intents: BoundedResolvedIntents) -> DispatchResult {
 		//TODO: update intent or remove it if completely resolved
+		// handle reserved amounts
 		Ok(())
 	}
 
@@ -202,6 +205,9 @@ where
 		for instruction in solution.instructions {
 			match instruction {
 				Instruction::TransferIn { who, asset_id, amount } => {
+					let r = T::ReservableCurrency::unreserve_named(&T::NamedReserveId::get(), asset_id, &who, amount);
+					//TODO: handle resulted balance to ensure it is enough
+					ensure!(r == Balance::zero(), crate::Error::<T>::InssuficientReservedBalance);
 					C::transfer(asset_id, &who, &holding_account, amount, Preservation::Expendable)?;
 				}
 				Instruction::TransferOut { who, asset_id, amount } => {

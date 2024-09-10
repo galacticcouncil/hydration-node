@@ -509,6 +509,7 @@ parameter_types! {
 	pub const ICEPalletId: PalletId = PalletId(*b"iceaccnt");
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
 	pub const MaxIntentDuration: Moment = 86_400_000; //1day
+	pub ICENamedReserveId: NamedReserveIdentifier = *b"iceinten";
 }
 pub struct TxPriorityOrder;
 impl GetByKey<RuntimeCall, TransactionPriority> for TxPriorityOrder {
@@ -533,7 +534,7 @@ impl pallet_ice::Config for Runtime {
 	type TradeExecutor = Router;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
-	type PriorityOrder = TxPriorityOrder;
+	type NamedReserveId = ICENamedReserveId;
 	type WeightInfo = ();
 }
 

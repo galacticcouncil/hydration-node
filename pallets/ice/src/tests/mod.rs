@@ -8,6 +8,7 @@ use frame_support::traits::{ConstU128, ConstU64, Everything, Time};
 use frame_support::{construct_runtime, parameter_types, PalletId};
 use hydradx_traits::router::{AmountInAndOut, AssetPair, RouterT, Trade};
 use orml_traits::{parameter_type_with_key, GetByKey};
+use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
@@ -101,7 +102,7 @@ impl orml_tokens::Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type DustRemovalWhitelist = ();
-	type MaxReserves = ();
+	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = NamedReserveIdentifier;
 	type CurrencyHooks = ();
 }
@@ -115,11 +116,13 @@ impl pallet_currencies::Config for Test {
 }
 
 parameter_types! {
+	pub const MaxReserves: u32 = 50;
 	pub const HubAssetId: AssetId = LRNA;
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
 	pub const ICEPalletId: PalletId = PalletId(*b"testicer");
 	pub const MaxAllowdIntentDuration: Moment = 86_400_000; //1day
 	pub const NativeCurrencyId: AssetId = 0;
+	pub NamedReserveId: NamedReserveIdentifier = *b"iceinten";
 }
 
 pub struct DummyTimestampProvider;
@@ -158,13 +161,13 @@ impl pallet_ice::Config for Test {
 	type TimestampProvider = DummyTimestampProvider;
 	type MaxAllowedIntentDuration = MaxAllowdIntentDuration;
 	type BlockNumberProvider = MockBlockNumberProvider;
-	type Currency = Tokens;
+	type Currency = FungibleCurrencies<Test>;
 	type ReservableCurrency = Currencies;
 	type TradeExecutor = DummyTradeExecutor;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
-	type PriorityOrder = DummyOrder;
 	type WeightInfo = ();
+	type NamedReserveId = NamedReserveId;
 }
 
 pub struct DummyTradeExecutor;
@@ -241,17 +244,30 @@ impl
 	}
 }
 
-pub struct ExtBuilder;
+pub struct ExtBuilder {
+	endowed_accounts: Vec<(u64, AssetId, Balance)>,
+}
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		ExtBuilder {}
+		Self {
+			endowed_accounts: vec![],
+		}
 	}
 }
 
 impl ExtBuilder {
+	pub fn with_endowed_accounts(mut self, accounts: Vec<(u64, AssetId, Balance)>) -> Self {
+		self.endowed_accounts = accounts;
+		self
+	}
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+		orml_tokens::GenesisConfig::<Test> {
+			balances: self.endowed_accounts,
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
