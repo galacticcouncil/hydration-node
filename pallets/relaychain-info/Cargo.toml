@@ -1,6 +1,6 @@
 [package]
 name = "pallet-relaychain-info"
-version = "0.3.4"
+version = "0.3.5"
 description = "Relaychain info pallet provides various support features for a parachain"
 authors = ["GalacticCouncil"]
 edition = "2021"
