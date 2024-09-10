@@ -1,5 +1,5 @@
 [package]
-name = "pallet-omnix"
+name = "pallet-ice"
 version = "1.0.0"
 authors = ['GalacticCouncil']
 edition = "2021"

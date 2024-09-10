@@ -190,7 +190,7 @@ construct_runtime!(
 		Tokens: orml_tokens = 77,
 		Currencies: pallet_currencies = 79,
 		Vesting: orml_vesting = 81,
-		OmniX: pallet_omnix= 82,
+		ICE: pallet_ice= 82,
 
 		// Frontier and EVM pallets
 		EVM: pallet_evm = 90,
@@ -259,7 +259,7 @@ pub type SignedExtra = (
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	pallet_claims::ValidateClaim<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
-	pallet_omnix::validity::ValidateIceSolution<Runtime>,
+	pallet_ice::validity::ValidateIceSolution<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;

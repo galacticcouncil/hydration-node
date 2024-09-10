@@ -4910,6 +4910,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
+ "pallet-ice",
  "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-omnipool",
@@ -5007,6 +5008,7 @@ dependencies = [
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
+ "pallet-ice",
  "pallet-identity",
  "pallet-lbp",
  "pallet-liquidity-mining",
@@ -5014,7 +5016,6 @@ dependencies = [
  "pallet-multisig",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
- "pallet-omnix",
  "pallet-otc",
  "pallet-otc-settlements",
  "pallet-preimage",
@@ -5146,6 +5147,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "ice-solver"
+version = "0.1.0"
+dependencies = [
+ "hydra-dx-math",
+ "hydradx-traits",
+ "orml-traits",
+ "pallet-ice",
+ "pallet-omnipool",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
 ]
 
 [[package]]
@@ -7232,19 +7246,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "omnix-solver"
-version = "0.1.0"
-dependencies = [
- "hydra-dx-math",
- "hydradx-traits",
- "orml-traits",
- "pallet-omnipool",
- "pallet-omnix",
- "sp-runtime",
- "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
-]
-
-[[package]]
 name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8402,6 +8403,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-ice"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
+]
+
+[[package]]
 name = "pallet-identity"
 version = "28.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
@@ -8750,28 +8773,6 @@ dependencies = [
  "pretty_assertions",
  "primitive-types",
  "primitives",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
-]
-
-[[package]]
-name = "pallet-omnix"
-version = "1.0.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hydradx-traits",
- "log",
- "orml-tokens",
- "orml-traits",
- "pallet-balances",
- "pallet-currencies",
- "parity-scale-codec",
- "pretty_assertions",
  "scale-info",
  "sp-core",
  "sp-io",
@@ -11989,8 +11990,8 @@ dependencies = [
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
+ "ice-solver",
  "libsecp256k1",
- "omnix-solver",
  "orml-tokens",
  "orml-traits",
  "orml-unknown-tokens",
@@ -12017,12 +12018,12 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
+ "pallet-ice",
  "pallet-im-online",
  "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
- "pallet-omnix",
  "pallet-otc",
  "pallet-otc-settlements",
  "pallet-referrals",

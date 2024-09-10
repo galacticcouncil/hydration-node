@@ -1,5 +1,5 @@
 [package]
-name = "omnix-solver"
+name = "ice-solver"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 hydra-dx-math = { workspace =  true}
-pallet-omnix = { workspace = true}
+pallet-ice = { workspace = true}
 pallet-omnipool = { workspace = true}
 sp-std = {workspace = true}
 sp-runtime = {workspace = true}
@@ -20,7 +20,7 @@ hydradx-traits = {workspace = true}
 default = ["std"]
 std = [
     "hydra-dx-math/std",
-    "pallet-omnix/std",
+    "pallet-ice/std",
     "sp-std/std",
     "pallet-omnipool/std",
     "sp-runtime/std",

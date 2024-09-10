@@ -12,9 +12,9 @@ fn submit_intent_should_work() {
 			asset_out: DAI,
 			amount_in: 1_000_000_000_000,
 			amount_out: 0,
-			swap_type: pallet_omnix::types::SwapType::ExactIn,
+			swap_type: pallet_ice::types::SwapType::ExactIn,
 		};
-		assert_ok!(OmniX::submit_intent(
+		assert_ok!(ICE::submit_intent(
 			RuntimeOrigin::signed(BOB.into()),
 			swap.clone(),
 			deadline,
@@ -23,9 +23,9 @@ fn submit_intent_should_work() {
 			None,
 		));
 
-		let intent_id = pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, 0);
+		let intent_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, 0);
 
-		let expected_entry = pallet_omnix::types::Intent {
+		let expected_entry = pallet_ice::types::Intent {
 			who: BOB.into(),
 			swap: swap,
 			deadline: deadline,
@@ -34,7 +34,7 @@ fn submit_intent_should_work() {
 			on_failure: None,
 		};
 		assert_eq!(
-			pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_id),
+			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_id),
 			Some(expected_entry)
 		);
 	});

@@ -1,4 +1,4 @@
-pub trait OmniXSolver<Intent> {
+pub trait ICESolver<Intent> {
 	type Solution;
 	type Error;
 

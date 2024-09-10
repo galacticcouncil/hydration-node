@@ -40,8 +40,8 @@ pallet-staking = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-evm-accounts = { workspace = true }
-pallet-omnix= { workspace = true}
-omnix-solver = { workspace = true}
+pallet-ice = { workspace = true}
+ice-solver = { workspace = true}
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -211,8 +211,8 @@ std = [
     "pallet-dynamic-evm-fee/std",
     "precompile-utils/std",
     "pallet-transaction-pause/std",
-    "pallet-omnix/std",
-    "omnix-solver/std",
+    "pallet-ice/std",
+    "ice-solver/std",
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

@@ -1,11 +1,11 @@
 use super::*;
 use frame_support::assert_ok;
 use frame_support::weights::Weight;
-use hydradx_runtime::{Currencies, OmniX, Omnipool, Router, System};
+use hydradx_runtime::{Currencies, Omnipool, Router, System, ICE};
 use hydradx_traits::router::AssetPair as Pair;
 use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
-use pallet_omnix::types::{BoundedInstructions, BoundedResolvedIntents, ProposedSolution, Solution};
+use pallet_ice::types::{BoundedInstructions, BoundedResolvedIntents, ProposedSolution, Solution};
 use sp_core::crypto::AccountId32;
 use sp_core::Encode;
 use sp_runtime::traits::BlockNumberProvider;
@@ -30,18 +30,18 @@ fn submit_solution_should_work() {
 				asset_out: DAI,
 				amount_in: 1_000_000_000_000,
 				amount_out: 8973613312776918,
-				swap_type: pallet_omnix::types::SwapType::ExactIn,
+				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
 			deadline,
 		)]);
 
 		let solution = solve_intents(vec![(
 			intent_ids[0],
-			pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
+			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 		)])
 		.unwrap();
 
-		assert_ok!(OmniX::submit_solution(
+		assert_ok!(ICE::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			solution,
 			1u64,
@@ -95,18 +95,18 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 				asset_out: assets[0],
 				amount_in: 1_000_000_000_000,
 				amount_out: 26117,
-				swap_type: pallet_omnix::types::SwapType::ExactIn,
+				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
 			deadline,
 		)]);
 
 		let solution = solve_intents(vec![(
 			intent_ids[0],
-			pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
+			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 		)])
 		.unwrap();
 
-		assert_ok!(OmniX::submit_solution(
+		assert_ok!(ICE::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			solution,
 			1u64,
@@ -117,10 +117,8 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		assert_eq!(hdx_balance, initial_hdx_balance - 1_000_000_000_000u128);
 		let asset_balance = Currencies::free_balance(assets[0], &AccountId32::from(BOB));
 
-		let lrna_balance = Currencies::free_balance(
-			LRNA,
-			&pallet_omnix::Pallet::<hydradx_runtime::Runtime>::holding_account(),
-		);
+		let lrna_balance =
+			Currencies::free_balance(LRNA, &pallet_ice::Pallet::<hydradx_runtime::Runtime>::holding_account());
 		let received = asset_balance - initial_asset_balance;
 		assert_eq!(received, 26117);
 		assert_eq!(lrna_balance, 0u128);
@@ -151,7 +149,7 @@ fn execute_two_intents_solution_should_work() {
 					asset_out: DAI,
 					amount_in: 1_000_000_000_000,
 					amount_out: 8_973_613_312_776_918,
-					swap_type: pallet_omnix::types::SwapType::ExactIn,
+					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
 				deadline,
 			),
@@ -162,7 +160,7 @@ fn execute_two_intents_solution_should_work() {
 					asset_out: DAI,
 					amount_in: 1_000_000_000_000,
 					amount_out: 8_973_613_312_776_918,
-					swap_type: pallet_omnix::types::SwapType::ExactIn,
+					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
 				deadline,
 			),
@@ -171,16 +169,16 @@ fn execute_two_intents_solution_should_work() {
 		let solution = solve_intents(vec![
 			(
 				intent_ids[0],
-				pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
+				pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 			),
 			(
 				intent_ids[1],
-				pallet_omnix::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[1]).unwrap(),
+				pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[1]).unwrap(),
 			),
 		])
 		.unwrap();
 
-		assert_ok!(OmniX::submit_solution(
+		assert_ok!(ICE::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			solution,
 			1u64,
@@ -191,10 +189,8 @@ fn execute_two_intents_solution_should_work() {
 		assert_eq!(hdx_balance, initial_hdx_balance - 1_000_000_000_000u128);
 		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 
-		let lrna_balance = Currencies::free_balance(
-			LRNA,
-			&pallet_omnix::Pallet::<hydradx_runtime::Runtime>::holding_account(),
-		);
+		let lrna_balance =
+			Currencies::free_balance(LRNA, &pallet_ice::Pallet::<hydradx_runtime::Runtime>::holding_account());
 		//assert_eq!(lrna_balance, 0u128);
 		let received = dai_balance - initial_dai_balance;
 		assert_eq!(received, 8_973_613_312_776_918u128);

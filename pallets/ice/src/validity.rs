@@ -51,7 +51,7 @@ where
 				let (valid, previous_score) = Pallet::<T>::validate_submission(who, *score, *block);
 				if !valid {
 					log::info!(
-							target: "omnix_ext::validate",
+							target: "ice_ext::validate",
 							"invalid solution");
 					Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1))) //TODO: custom error?!
 				} else {

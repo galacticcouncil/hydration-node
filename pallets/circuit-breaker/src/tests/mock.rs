@@ -224,6 +224,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type HubAssetTradeAllowedFor = Everything;
 }
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);

@@ -71,17 +71,17 @@ mod router_different_pools_tests {
 			));
 
 			let init_balance = 1000 * UNITS;
-			let omnix_account = pallet_omnix::Pallet::<Runtime>::holding_account();
+			let ice_account = pallet_ice::Pallet::<Runtime>::holding_account();
 			assert_ok!(hydradx_runtime::Balances::force_set_balance(
 				RuntimeOrigin::root(),
-				omnix_account.clone(),
+				ice_account.clone(),
 				init_balance
 			));
 
 			let amount_to_buy = 1 * UNITS;
 			//Act
 			assert_ok!(Router::buy(
-				RuntimeOrigin::signed(omnix_account.clone()),
+				RuntimeOrigin::signed(ice_account.clone()),
 				HDX,
 				LRNA,
 				amount_to_buy,
@@ -90,7 +90,7 @@ mod router_different_pools_tests {
 			));
 
 			//Assert
-			assert_balance!(omnix_account.into(), LRNA, amount_to_buy);
+			assert_balance!(ice_account.into(), LRNA, amount_to_buy);
 		});
 	}
 
@@ -109,18 +109,18 @@ mod router_different_pools_tests {
 			));
 
 			let init_balance = 1000 * UNITS;
-			let omnix_account = pallet_omnix::Pallet::<Runtime>::holding_account();
+			let ice_account = pallet_ice::Pallet::<Runtime>::holding_account();
 			assert_ok!(hydradx_runtime::Balances::force_set_balance(
 				RuntimeOrigin::root(),
-				omnix_account.clone(),
+				ice_account.clone(),
 				init_balance
 			));
-			assert_balance!(omnix_account.clone(), LRNA, 0);
+			assert_balance!(ice_account.clone(), LRNA, 0);
 
 			let amount_to_sell = 1 * UNITS;
 			//Act
 			assert_ok!(Router::sell(
-				RuntimeOrigin::signed(omnix_account.clone()),
+				RuntimeOrigin::signed(ice_account.clone()),
 				HDX,
 				LRNA,
 				amount_to_sell,
@@ -129,7 +129,7 @@ mod router_different_pools_tests {
 			));
 
 			//Assert
-			let balance = hydradx_runtime::Currencies::free_balance(LRNA, &omnix_account);
+			let balance = hydradx_runtime::Currencies::free_balance(LRNA, &ice_account);
 			assert!(balance > 0, "The route trade was not successfull");
 		});
 	}

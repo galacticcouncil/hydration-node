@@ -459,7 +459,7 @@ pub struct AllowedHubAssetTraders;
 
 impl Contains<AccountId> for AllowedHubAssetTraders {
 	fn contains(a: &AccountId) -> bool {
-		*a == pallet_omnix::Pallet::<Runtime>::holding_account()
+		*a == pallet_ice::Pallet::<Runtime>::holding_account()
 			|| *a == pallet_route_executor::Pallet::<Runtime>::router_account() //TODO: remove router account - this is problem in setting route with lrna!
 	}
 }
@@ -506,7 +506,7 @@ impl pallet_omnipool::Config for Runtime {
 }
 
 parameter_types! {
-	pub const OmnixPalletId: PalletId = PalletId(*b"omnixacc");
+	pub const OmnixPalletId: PalletId = PalletId(*b"iceaccnt");
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
 	pub const MaxIntentDuration: Moment = 86_400_000; //1day
 }
@@ -521,7 +521,7 @@ impl GetByKey<RuntimeCall, TransactionPriority> for TxPriorityOrder {
 	}
 }
 
-impl pallet_omnix::Config for Runtime {
+impl pallet_ice::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type HubAssetId = LRNA;

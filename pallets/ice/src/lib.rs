@@ -291,19 +291,19 @@ impl<T: Config> Pallet<T> {
 
 	pub fn validate_submission(who: &T::AccountId, score: u64, block: BlockNumberFor<T>) -> (bool, Option<u64>) {
 		log::info!(
-			target: "omnix::check_proposed_score",
+			target: "ice::check_proposed_score",
 			"who: {:?}, score: {:?}", who, score);
 
 		if block != T::BlockNumberProvider::current_block_number() {
 			log::info!(
-				target: "omnix::validate_proposed_score",
+				target: "ice::validate_proposed_score",
 				"invalid block number");
 			return (false, None);
 		}
 
 		if let Some((from, current_score)) = SolutionScore::<T>::get() {
 			log::info!(
-				target: "omnix::check_proposed_score",
+				target: "ice::check_proposed_score",
 				"from: {:?}, current score: {:?}", from, current_score);
 			if score > current_score {
 				SolutionScore::<T>::put((who, score));
@@ -315,7 +315,7 @@ impl<T: Config> Pallet<T> {
 			}
 		} else {
 			log::info!(
-				target: "omnix::validate_proposed_score",
+				target: "ice::validate_proposed_score",
 				"no current score");
 			SolutionScore::<T>::put((who, score));
 			(true, None)

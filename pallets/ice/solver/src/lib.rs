@@ -1,9 +1,8 @@
-use orml_traits::parameters::frame_support::__private::log;
-use sp_runtime::Saturating;
-use crate::traits::OmniXSolver;
+use crate::traits::ICESolver;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
-use pallet_omnix::engine::{BoundedRoute, Instruction};
-use pallet_omnix::types::{Balance, Intent, IntentId, ResolvedIntent};
+use pallet_ice::engine::{BoundedRoute, Instruction};
+use pallet_ice::types::{Balance, Intent, IntentId, ResolvedIntent};
+use sp_runtime::Saturating;
 use sp_std::collections::btree_map::BTreeMap;
 
 pub mod traits;
@@ -15,24 +14,24 @@ pub struct SolverSolution<AccountId, AssetId> {
 
 pub struct SimpleSolver<T, R, RP>(sp_std::marker::PhantomData<(T, R, RP)>);
 
-impl<T: pallet_omnix::Config, R, RP> OmniXSolver<(IntentId, Intent<T::AccountId, <T as pallet_omnix::Config>::AssetId>)>
+impl<T: pallet_ice::Config, R, RP> ICESolver<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>
 	for SimpleSolver<T, R, RP>
 where
-	<T as pallet_omnix::Config>::AssetId: From<u32>,
+	<T as pallet_ice::Config>::AssetId: From<u32>,
 	R: RouterT<
 		T::RuntimeOrigin,
-		<T as pallet_omnix::Config>::AssetId,
+		<T as pallet_ice::Config>::AssetId,
 		u128,
-		hydradx_traits::router::Trade<<T as pallet_omnix::Config>::AssetId>,
+		hydradx_traits::router::Trade<<T as pallet_ice::Config>::AssetId>,
 		hydradx_traits::router::AmountInAndOut<u128>,
 	>,
-	RP: RouteProvider<<T as pallet_omnix::Config>::AssetId>,
+	RP: RouteProvider<<T as pallet_ice::Config>::AssetId>,
 {
 	type Solution = SolverSolution<T::AccountId, T::AssetId>;
 	type Error = ();
 
 	fn solve(
-		intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_omnix::Config>::AssetId>)>,
+		intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>,
 	) -> Result<Self::Solution, Self::Error> {
 		let mut resolved_intents = Vec::new();
 
@@ -71,7 +70,7 @@ where
 				.or_insert(amount_out);
 
 			/*
-			let route = RP::get_route(AssetPair::<<T as pallet_omnix::Config>::AssetId>::new(
+			let route = RP::get_route(AssetPair::<<T as pallet_ice::Config>::AssetId>::new(
 				asset_in,
 				1u32.into(),
 			));
@@ -79,7 +78,7 @@ where
 			let r = R::calculate_sell_trade_amounts(&route, amount_in).unwrap();
 			let lrna_out = r.last().unwrap().amount_out;
 
-			let route = RP::get_route(AssetPair::<<T as pallet_omnix::Config>::AssetId>::new(
+			let route = RP::get_route(AssetPair::<<T as pallet_ice::Config>::AssetId>::new(
 				1u32.into(),
 				asset_out,
 			));
@@ -104,7 +103,7 @@ where
 			let amount_out = *amounts_out.get(&asset_id).unwrap_or(&0u128);
 
 			if *amount > amount_out {
-				let route = RP::get_route(AssetPair::<<T as pallet_omnix::Config>::AssetId>::new(
+				let route = RP::get_route(AssetPair::<<T as pallet_ice::Config>::AssetId>::new(
 					*asset_id,
 					1u32.into(),
 				));
@@ -129,7 +128,7 @@ where
 			let amount_in = *amounts_in.get(&asset_id).unwrap_or(&0u128);
 
 			if amount > amount_in {
-				let route = RP::get_route(AssetPair::<<T as pallet_omnix::Config>::AssetId>::new(
+				let route = RP::get_route(AssetPair::<<T as pallet_ice::Config>::AssetId>::new(
 					1u32.into(),
 					asset_id,
 				));

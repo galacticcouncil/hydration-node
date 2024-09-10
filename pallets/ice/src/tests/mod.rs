@@ -1,7 +1,7 @@
 mod engine;
 mod intents;
 
-use crate as pallet_omnix;
+use crate as pallet_ice;
 use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::pallet_prelude::ConstU32;
 use frame_support::traits::{ConstU128, ConstU64, Everything, Time};
@@ -35,7 +35,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Currencies: pallet_currencies,
 		Tokens: orml_tokens,
-		OmniX: pallet_omnix,
+		OmniX: pallet_ice,
 	}
 );
 
@@ -117,7 +117,7 @@ impl pallet_currencies::Config for Test {
 parameter_types! {
 	pub const HubAssetId: AssetId = LRNA;
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
-	pub const OmniXPalletId: PalletId = PalletId(*b"tstomnix");
+	pub const OmniXPalletId: PalletId = PalletId(*b"testicer");
 	pub const MaxAllowdIntentDuration: Moment = 86_400_000; //1day
 	pub const NativeCurrencyId: AssetId = 0;
 }
@@ -151,12 +151,12 @@ impl BlockNumberProvider for MockBlockNumberProvider {
 	}
 }
 
-impl pallet_omnix::Config for Test {
+impl pallet_ice::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type HubAssetId = HubAssetId;
 	type TimestampProvider = DummyTimestampProvider;
-	type MaxAllowedIntentDeadline = MaxAllowdIntentDuration;
+	type MaxAllowedIntentDuration = MaxAllowdIntentDuration;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type Currency = Tokens;
 	type ReservableCurrency = Currencies;

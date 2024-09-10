@@ -32,7 +32,7 @@ fn tx_priority_should_be_correct() {
 		let tip2: u128 = 10_000_000_000_000;
 
 		let call = add_call;
-		let r = pallet_omnix::order::SetPriority::<hydradx_runtime::Runtime>::new()
+		let r = pallet_ice::order::SetPriority::<hydradx_runtime::Runtime>::new()
 			.validate(&AccountId::from(BOB), &call, &call.get_dispatch_info(), len)
 			.unwrap();
 
@@ -45,7 +45,7 @@ fn tx_priority_should_be_correct() {
 		dbg!(r.combine_with(r0).priority);
 
 		let call = sell_call;
-		let r = pallet_omnix::order::SetPriority::<hydradx_runtime::Runtime>::new()
+		let r = pallet_ice::order::SetPriority::<hydradx_runtime::Runtime>::new()
 			.validate(&AccountId::from(BOB), &call, &call.get_dispatch_info(), len)
 			.unwrap();
 
