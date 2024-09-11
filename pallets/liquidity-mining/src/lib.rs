@@ -568,6 +568,50 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			Ok(())
 		})
 	}
+	/*		*/
+
+	/// TODO DOC
+	fn update_global_farm(
+		who: T::AccountId,
+		global_farm_id: GlobalFarmId,
+		planned_yielding_periods: PeriodOf<T>,
+		yield_per_period: Perquintill,
+		min_deposit: Balance,
+	) -> Result<(), DispatchError> {
+		//TODO: same origin as create glboal farm
+		//TODO: add validation as we have in global farm
+		//TODO and return error if use specify yield farm that is not in global farm
+		//TODO: send event but oinly in the omnipool liq
+		//TODO: add invariant test too
+
+		<GlobalFarm<T, I>>::try_mutate(global_farm_id, |maybe_global_farm| {
+			let global_farm = maybe_global_farm.as_mut().ok_or(Error::<T, I>::GlobalFarmNotFound)?;
+
+			ensure!(global_farm.state.is_active(), Error::<T, I>::GlobalFarmNotFound);
+
+			ensure!(who == global_farm.owner, Error::<T, I>::Forbidden);
+
+			//Sync farms to get right accumulated_rpz and pending rewards
+			let current_period = Self::get_current_period(global_farm.blocks_per_period)?;
+			Self::sync_global_farm(global_farm, current_period)?;
+
+			//Calculate the new max reward period
+			let pot = Self::pot_account_id().ok_or(Error::<T, I>::ErrorGetAccountId)?;
+			let total_rewards = T::MultiCurrency::free_balance(global_farm.reward_currency, &pot);
+			let planned_periods =
+				TryInto::<u128>::try_into(planned_yielding_periods).map_err(|_| ArithmeticError::Overflow)?;
+			let new_max_reward_period = total_rewards.checked_div(planned_periods).ok_or(Error::<T, I>::InvalidPlannedYieldingPeriods)?;
+
+            //Update global farm fields
+			global_farm.planned_yielding_periods = planned_yielding_periods;
+			global_farm.yield_per_period = yield_per_period;
+			global_farm.min_deposit = min_deposit;
+
+			global_farm.max_reward_per_period = new_max_reward_period;
+
+			Ok(())
+		})
+	}
 
 	/// Terminate existing liquidity mining program. Undistributed rewards are transferred to
 	/// owner(`who`).
