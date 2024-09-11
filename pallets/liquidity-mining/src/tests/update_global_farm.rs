@@ -199,7 +199,6 @@ fn update_global_farm_should_work() {
 
 			//Act
 			assert_ok!(LiquidityMining::update_global_farm(
-				GC,
 				GC_FARM,
 				planned_yielding_periods,
 				yield_per_period,
@@ -245,7 +244,6 @@ fn update_global_farm_should_fail_with_invalid_deposit() {
 
 			//Act
 			assert_noop!(LiquidityMining::update_global_farm(
-				GC,
 				GC_FARM,
 				planned_yielding_periods,
 				yield_per_period,
@@ -269,7 +267,6 @@ fn update_global_farm_should_fail_when_planning_yield_period_is_too_small() {
 
 			//Act
 			assert_noop!(LiquidityMining::update_global_farm(
-				GC,
 				GC_FARM,
 				planned_yielding_periods,
 				yield_per_period,
@@ -293,7 +290,6 @@ fn update_global_farm_should_fail_when_yield_period_is_zero() {
 
 			//Act
 			assert_noop!(LiquidityMining::update_global_farm(
-				GC,
 				GC_FARM,
 				planned_yielding_periods,
 				zero_yield_per_period,
