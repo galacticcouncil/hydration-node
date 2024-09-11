@@ -887,7 +887,20 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Update global farm parameters.
+		/// This extrinsic updates global farm's main parameters.
+		///
+		/// The dispatch origin for this call must be `T::CreateOrigin`.
+		/// !!!WARN: `T::CreateOrigin` has power over funds of `owner`'s account and it should be
+		/// configured to trusted origin e.g Sudo or Governance.
+		///
+		/// Parameters:
+		/// - `origin`: account allowed to create new liquidity mining program(root, governance).
+		/// - `global_farm_id`: id of the global farm to update.
+		/// - `planned_yielding_periods`: planned number of periods to distribute `total_rewards`.
+		/// - `yield_per_period`: percentage return on `reward_currency` of all farms.
+		/// - `min_deposit`: minimum amount of LP shares to be deposited into the liquidity mining by each user.
+		///
+		/// Emits `GlobalFarmUpdated` event when successful.
 		#[pallet::call_index(12)]
 		#[pallet::weight(<T as Config>::WeightInfo::create_global_farm())]
 		pub fn update_global_farm(
