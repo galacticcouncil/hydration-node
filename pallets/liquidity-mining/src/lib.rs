@@ -568,17 +568,21 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			Ok(())
 		})
 	}
-	/*		*/
 
-	/// TODO DOC and in readme
+	/// Update global farm's main fields.
+	///
+	///
+	/// Parameters:
+	/// - `global_farm_id`: global farm id.
+	/// - `planned_yielding_periods`: planned number of periods to distribute `total_rewards`.
+	/// - `yield_per_period`: percentage return on `reward_currency` of all pools.
+	/// - `min_deposit`: minimum amount of LP shares to be deposited into liquidity mining by each user.
 	fn update_global_farm(
 		global_farm_id: GlobalFarmId,
 		planned_yielding_periods: PeriodOf<T>,
 		yield_per_period: Perquintill,
 		min_deposit: Balance,
 	) -> Result<(), DispatchError> {
-		//TODO: same origin as create glboal farm
-		//TODO: send event but oinly in the omnipool liq
 		//TODO: add invariant test too
 		ensure!(min_deposit.ge(&MIN_DEPOSIT), Error::<T, I>::InvalidMinDeposit);
 		ensure!(
@@ -592,7 +596,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 
 			ensure!(global_farm.state.is_active(), Error::<T, I>::GlobalFarmNotFound);
 
-			//Sync farms to get right accumulated_rpz and pending rewards
+			//Sync global farm to get right accumulated_rpz and pending rewards
 			let current_period = Self::get_current_period(global_farm.blocks_per_period)?;
 			Self::sync_global_farm(global_farm, current_period)?;
 
@@ -607,7 +611,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			global_farm.planned_yielding_periods = planned_yielding_periods;
 			global_farm.yield_per_period = yield_per_period;
 			global_farm.min_deposit = min_deposit;
-
 			global_farm.max_reward_per_period = new_max_reward_period;
 
 			Ok(())
