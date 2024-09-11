@@ -570,7 +570,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	}
 	/*		*/
 
-	/// TODO DOC
+	/// TODO DOC and in readme
 	fn update_global_farm(
 		who: T::AccountId,
 		global_farm_id: GlobalFarmId,
@@ -579,16 +579,19 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		min_deposit: Balance,
 	) -> Result<(), DispatchError> {
 		//TODO: same origin as create glboal farm
-		//TODO: add validation as we have in global farm
-		//TODO and return error if use specify yield farm that is not in global farm
 		//TODO: send event but oinly in the omnipool liq
 		//TODO: add invariant test too
+		ensure!(min_deposit.ge(&MIN_DEPOSIT), Error::<T, I>::InvalidMinDeposit);
+		ensure!(
+			planned_yielding_periods >= T::MinPlannedYieldingPeriods::get(),
+			Error::<T, I>::InvalidPlannedYieldingPeriods
+		);
+		ensure!(!yield_per_period.is_zero(), Error::<T, I>::InvalidYieldPerPeriod);
 
 		<GlobalFarm<T, I>>::try_mutate(global_farm_id, |maybe_global_farm| {
 			let global_farm = maybe_global_farm.as_mut().ok_or(Error::<T, I>::GlobalFarmNotFound)?;
 
 			ensure!(global_farm.state.is_active(), Error::<T, I>::GlobalFarmNotFound);
-
 			ensure!(who == global_farm.owner, Error::<T, I>::Forbidden);
 
 			//Sync farms to get right accumulated_rpz and pending rewards
