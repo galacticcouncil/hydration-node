@@ -40,6 +40,8 @@ pub mod xcm;
 
 pub use assets::*;
 pub use governance::*;
+use pallet_asset_registry::AssetType;
+use pallet_currencies_rpc_runtime_api::AccountData;
 pub use system::*;
 pub use xcm::*;
 
@@ -114,7 +116,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 257,
+	spec_version: 258,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -412,6 +414,76 @@ impl_runtime_apis! {
 		AccountId,
 		Balance,
 	> for Runtime {
+		fn account(asset_id: AssetId, who: AccountId) -> AccountData<Balance> {
+			if asset_id == NativeAssetId::get() {
+				let data = System::account(&who).data;
+				AccountData {
+					free: data.free,
+					reserved: data.reserved,
+					frozen: data.frozen,
+				}
+			} else if matches!(AssetRegistry::asset_type(asset_id), Some(AssetKind::Erc20)) {
+				AccountData {
+					free: Self::free_balance(asset_id, who),
+					..Default::default()
+				}
+			} else {
+				let data = Tokens::accounts(who, asset_id);
+				AccountData {
+					free: data.free,
+					reserved: data.reserved,
+					frozen: data.frozen,
+				}
+			}
+		}
+
+		fn accounts(who: AccountId) -> Vec<(AssetId, AccountData<Balance>)> {
+			let mut result = Vec::new();
+
+			let balance = System::account(&who).data;
+			result.push((
+				NativeAssetId::get(),
+				AccountData {
+					free: balance.free,
+					reserved: balance.reserved,
+					frozen: balance.frozen,
+				}
+			));
+
+			result.extend(
+				orml_tokens::Accounts::<Runtime>::iter_prefix(&who)
+					.map(|(asset_id, data)| (
+						asset_id,
+						AccountData {
+							free: data.free,
+							reserved: data.reserved,
+							frozen: data.frozen,
+						}
+					))
+			);
+
+			result.extend(
+				pallet_asset_registry::Assets::<Runtime>::iter()
+					.filter(|(_, info)| info.asset_type == AssetType::Erc20)
+					.filter_map(|(asset_id, _)| {
+						let free = Self::free_balance(asset_id, who.clone());
+						if free > 0 {
+							Some((
+								asset_id,
+								AccountData {
+									free,
+									..Default::default()
+								}
+							))
+						} else {
+							None
+						}
+					})
+			);
+
+			result
+		}
+
 		fn free_balance(asset_id: AssetId, who: AccountId) -> Balance {
 			Currencies::free_balance(asset_id, &who)
 		}

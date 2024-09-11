@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "257.0.0"
+version = "258.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -163,7 +163,7 @@ precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { workspace = true }
 hex = { workspace = true }
-serde_json = { version = "1.0.117",default-features = false }
+serde_json = { version = "1.0.117", default-features = false }
 
 [features]
 default = ["std"]
