@@ -277,6 +277,37 @@ fn alice_should_have_free_balance() {
 }
 
 #[test]
+fn native_evm_account_should_have_free_balance() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let contract = deploy_token_contract();
+		let asset = bind_erc20(contract);
+		assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
+			CallContext {
+				contract,
+				sender: deployer(),
+				origin: deployer()
+			},
+			evm_address(),
+			100
+		));
+
+		assert_eq!(
+			Erc20Currency::<Runtime>::balance_of(CallContext::new_view(contract), evm_address()),
+			100
+		);
+		assert_eq!(
+			Erc20Currency::<Runtime>::free_balance(contract, &EVMAccounts::account_id(evm_address())),
+			100
+		);
+		assert_eq!(
+			Currencies::free_balance(asset, &EVMAccounts::account_id(evm_address())),
+			100
+		);
+	});
+}
+
+#[test]
 fn account_should_receive_tokens() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
