@@ -45,12 +45,13 @@ fn hydra_should_receive_asset_when_transferred_from_rococo_relay_chain() {
 
 	Rococo::execute_with(|| {
 		//Act
-		assert_ok!(rococo_runtime::XcmPallet::reserve_transfer_assets(
+		assert_ok!(rococo_runtime::XcmPallet::limited_reserve_transfer_assets(
 			rococo_runtime::RuntimeOrigin::signed(ALICE.into()),
 			Box::new(Parachain(HYDRA_PARA_ID).into_versioned()),
 			Box::new(Junction::AccountId32 { id: BOB, network: None }.into_versioned()),
 			Box::new((Here, 300 * UNITS).into()),
 			0,
+			WeightLimit::Unlimited,
 		));
 
 		//Assert
