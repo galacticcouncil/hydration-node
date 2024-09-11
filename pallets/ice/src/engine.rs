@@ -13,6 +13,7 @@ use orml_traits::NamedMultiReservableCurrency;
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchError, FixedU128};
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec::Vec;
 
 pub type BoundedRoute<AssetId> = BoundedVec<Trade<AssetId>, ConstU32<5>>;
 
@@ -84,11 +85,14 @@ where
 	C: Mutate<T::AccountId, AssetId = T::AssetId, Balance = Balance>,
 	R: RouterT<T::RuntimeOrigin, T::AssetId, Balance, Trade<T::AssetId>, AmountInAndOut<Balance>>,
 {
-	pub fn validate_solution(solution: &mut Solution<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
+	pub fn validate_solution(solution: &mut Solution<T::AccountId, T::AssetId>) -> Result<Vec<(T::AssetId, Balance)>, DispatchError> {
 		// Store resolved amounts for each account
 		// This is used to ensure that the transfer instruction does not transfer more than it should
-		let mut amounts_in: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
-		let mut amounts_out: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
+		let mut acc_amounts_in: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
+		let mut acc_amounts_out: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
+
+		let mut amounts_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+		let mut amounts_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
 
 		// Check if resolved intents are valid:
 		// - amounts not exceeding limit
@@ -106,6 +110,15 @@ where
 			let is_partial = intent.partial;
 			let asset_in = intent.swap.asset_in;
 			let asset_out = intent.swap.asset_out;
+
+			let resolved_amount_in = resolved_intent.amount_in;
+			let resolved_amount_out = resolved_intent.amount_out;
+
+			amounts_in
+				.entry(asset_in)
+				.and_modify(|v| *v = v.saturating_add(resolved_amount_in))
+				.or_insert(resolved_amount_in);
+			amounts_out.entry(asset_out).and_modify(|v| *v = v.saturating_add(resolved_amount_out)).or_insert(resolved_amount_out);
 
 			match intent.swap.swap_type {
 				SwapType::ExactIn => {
@@ -125,11 +138,11 @@ where
 						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
 					);
 
-					amounts_in
+					acc_amounts_in
 						.entry((intent.who.clone(), asset_in))
 						.and_modify(|v| *v = v.saturating_add(resolved_intent.amount_in))
 						.or_insert(resolved_intent.amount_in);
-					amounts_out
+					acc_amounts_out
 						.entry((intent.who.clone(), asset_out))
 						.and_modify(|v| *v = v.saturating_add(resolved_intent.amount_out))
 						.or_insert(resolved_intent.amount_out);
@@ -151,11 +164,11 @@ where
 						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
 					);
 
-					amounts_in
+					acc_amounts_in
 						.entry((intent.who.clone(), asset_in))
 						.and_modify(|v| *v = v.saturating_add(resolved_intent.amount_in))
 						.or_insert(resolved_intent.amount_in);
-					amounts_out
+					acc_amounts_out
 						.entry((intent.who.clone(), asset_out))
 						.and_modify(|v| *v = v.saturating_add(resolved_intent.amount_out))
 						.or_insert(resolved_intent.amount_in);
@@ -168,13 +181,13 @@ where
 			match instruction {
 				Instruction::TransferIn { who, asset_id, amount } => {
 					ensure!(
-						*amounts_in.get(&(who.clone(), *asset_id)).unwrap_or(&0u128) == *amount,
+						*acc_amounts_in.get(&(who.clone(), *asset_id)).unwrap_or(&0u128) == *amount,
 						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectTransferInstruction)
 					);
 				}
 				Instruction::TransferOut { who, asset_id, amount } => {
 					ensure!(
-						*amounts_out.get(&(who.clone(), *asset_id)).unwrap_or(&0u128) == *amount,
+						*acc_amounts_out.get(&(who.clone(), *asset_id)).unwrap_or(&0u128) == *amount,
 						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
 					);
 				}
@@ -183,9 +196,19 @@ where
 			}
 		}
 
+		let mut matched_amounts = Vec::new();
+
+		//TODO: we just checked the resolved amounts in and out, we should probably verify that the traded amounts is actually the matched amount?!
+		for (asset_id, amount) in amounts_in.iter() {
+			let Some(amount_out) = amounts_out.get(asset_id) else {
+				continue;
+			};
+			matched_amounts.push((*asset_id, amount.abs_diff(*amount_out)));
+		}
+
 		solution.weight = Self::calculate_weight(&solution.instructions)?;
 
-		Ok(())
+		Ok(matched_amounts)
 	}
 
 	fn calculate_weight(

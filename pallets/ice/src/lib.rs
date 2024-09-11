@@ -105,11 +105,11 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Solution was noted
-		SolutionNoted { proposer: T::AccountId, hash: T::Hash },
-
 		/// New intent was submitted
 		IntentSubmitted(IntentId, Intent<T::AccountId, T::AssetId>),
+		
+		/// Solution was executed
+		SolutionExecuted{who: T::AccountId},
 	}
 
 	#[pallet::error]
@@ -146,6 +146,9 @@ pub mod pallet {
 
 		/// Insufficient reserved balance
 		InsufficientReservedBalance,
+
+		/// Invalid solution score
+		InvalidScore,
 	}
 
 	#[pallet::storage]
@@ -257,10 +260,17 @@ pub mod pallet {
 				weight: Default::default(),
 			};
 
-			ICEEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&mut solution)?;
+			let matched_amounts = ICEEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&mut solution)?;
+			let calculated_score = Self::score_solution(&solution, matched_amounts);
+			
+			if score != calculated_score {
+				//TODO: slash him, bob!
+				return Err(Error::<T>::InvalidScore.into());
+			}
+
 			ICEEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
 
-			//Self::deposit_event(Event::SolutionNoted { proposer: who, hash });
+			Self::deposit_event(Event::SolutionExecuted{ who});
 
 			Ok(())
 		}
@@ -325,5 +335,18 @@ impl<T: Config> Pallet<T> {
 			SolutionScore::<T>::put((who, score));
 			(true, None)
 		}
+	}
+
+	fn score_solution(solution: &Solution<T::AccountId, T::AssetId>, matched_amounts: Vec<(T::AssetId, Balance)>) -> u64 {
+		let resolved_intents = solution.intents.iter().count() as u128;
+
+		let mut hub_amount = resolved_intents * 1_000_000_000_000u128;
+
+		for (asset, amount) in matched_amounts {
+			//TODO: convert amount to hub amount using provided price from oracle
+		}
+
+		// round down
+		(hub_amount / 1_000_000u128) as u64
 	}
 }
