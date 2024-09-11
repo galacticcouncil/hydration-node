@@ -181,6 +181,14 @@ pub mod pallet {
 			lrna_price_adjustment: FixedU128,
 		},
 
+		/// Global farm was updated
+		GlobalFarmUpdated {
+			id: GlobalFarmId,
+			planned_yielding_periods: PeriodOf<T>,
+			yield_per_period: Perquintill,
+			min_deposit: Balance,
+		},
+
 		/// Global farm was terminated.
 		GlobalFarmTerminated {
 			global_farm_id: GlobalFarmId,
@@ -875,6 +883,35 @@ pub mod pallet {
 
 				Self::deposit_event(Event::DepositDestroyed { who: owner, deposit_id });
 			}
+
+			Ok(())
+		}
+
+		/// Update global farm parameters.
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_global_farm())]
+		pub fn update_global_farm(
+			origin: OriginFor<T>,
+			global_farm_id: GlobalFarmId,
+			planned_yielding_periods: crate::PeriodOf<T>,
+			yield_per_period: Perquintill,
+			min_deposit: Balance,
+		) -> DispatchResult {
+			T::CreateOrigin::ensure_origin(origin)?;
+
+			T::LiquidityMiningHandler::update_global_farm(
+				global_farm_id,
+				planned_yielding_periods,
+				yield_per_period,
+				min_deposit,
+			)?;
+
+			Self::deposit_event(Event::GlobalFarmUpdated {
+				id: global_farm_id,
+				planned_yielding_periods,
+				yield_per_period,
+				min_deposit,
+			});
 
 			Ok(())
 		}

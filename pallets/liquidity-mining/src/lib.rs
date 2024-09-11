@@ -572,7 +572,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 
 	/// TODO DOC and in readme
 	fn update_global_farm(
-		who: T::AccountId,
 		global_farm_id: GlobalFarmId,
 		planned_yielding_periods: PeriodOf<T>,
 		yield_per_period: Perquintill,
@@ -592,7 +591,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			let global_farm = maybe_global_farm.as_mut().ok_or(Error::<T, I>::GlobalFarmNotFound)?;
 
 			ensure!(global_farm.state.is_active(), Error::<T, I>::GlobalFarmNotFound);
-			ensure!(who == global_farm.owner, Error::<T, I>::Forbidden);
 
 			//Sync farms to get right accumulated_rpz and pending rewards
 			let current_period = Self::get_current_period(global_farm.blocks_per_period)?;
@@ -1861,6 +1859,10 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 		price_adjustment: FixedU128,
 	) -> Result<(), Self::Error> {
 		Self::update_global_farm_price_adjustment(who, global_farm_id, price_adjustment)
+	}
+
+	fn update_global_farm(global_farm_id: GlobalFarmId, planned_yielding_periods: Self::Period, yield_per_period: Perquintill, min_deposit: Self::Balance) -> Result<(), Self::Error> {
+		Self::update_global_farm(global_farm_id, planned_yielding_periods, yield_per_period, min_deposit)
 	}
 
 	fn terminate_global_farm(
