@@ -4854,7 +4854,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "257.0.0"
+version = "258.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -7861,9 +7861,10 @@ dependencies = [
 name = "pallet-currencies-rpc-runtime-api"
 version = "1.0.0"
 dependencies = [
+ "parity-scale-codec",
+ "scale-info",
  "sp-api",
  "sp-core",
- "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
 ]
 

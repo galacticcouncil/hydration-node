@@ -1,6 +1,5 @@
-endpoint: wss://rpc.hydradx.cloud
+endpoint: wss://rpc.nice.hydration.cloud
 mock-signature-host: true
-#block: 1872160
 db: ./db.sqlite
 wasm-override: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
 
