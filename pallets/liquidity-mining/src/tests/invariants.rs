@@ -886,3 +886,38 @@ fn invariant_4() {
             .unwrap();
     });
 }
+
+
+/*
+TODO: continue
+fn planned_yielding_periods() -> impl Strategy<Value = PeriodOf<Test>> {
+	1_000u64..1_000_000_000u64
+}
+
+fn percentage() -> impl Strategy<Value = u64> {
+	1..100u64
+}
+
+fn min_deposit() -> impl Strategy<Value = Balance> {
+	1000..10000000u128
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1_000))]
+	#[test]
+	fn update_global_farm_invariants(
+		(mut farm, current_period) in get_global_farm_and_current_period(),
+		planned_yield_period in planned_yielding_periods(),
+		perc in percentage(),
+		min_deposit in min_deposit(),
+	) {
+		let yield_per_period = Perquintill::from_percent(perc);
+		new_test_ext().execute_with(|| {
+			let _ = with_transaction(|| {
+				LiquidityMining::update_global_farm(farm.id, planned_yield_period, yield_per_period,min_deposit).unwrap();
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+}*/
