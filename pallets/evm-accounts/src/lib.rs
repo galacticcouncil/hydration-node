@@ -311,6 +311,13 @@ pub mod pallet {
 	}
 }
 
+impl<T: Config> Pallet<T> {
+	fn _is_evm_account(account_id: &[u8; 32]) -> bool {
+		let account_ref = account_id.as_ref();
+		&account_ref[0..4] == b"ETH\0" && account_ref[24..32] == [0u8; 8]
+	}
+}
+
 impl<T: Config> InspectEvmAccounts<T::AccountId> for Pallet<T>
 where
 	T::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
@@ -318,13 +325,17 @@ where
 	/// Returns `True` if the account is EVM truncated account.
 	fn is_evm_account(account_id: T::AccountId) -> bool {
 		let account_ref = account_id.as_ref();
-		&account_ref[0..4] == b"ETH\0" && account_ref[24..32] == [0u8; 8]
+		Self::_is_evm_account(account_ref)
 	}
 
 	/// Get the EVM address from the substrate address.
 	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
 		let acc = account_id.as_ref();
-		EvmAddress::from_slice(&acc[..20])
+		if Self::_is_evm_account(&acc) {
+			EvmAddress::from_slice(&acc[4..24])
+		} else {
+			EvmAddress::from_slice(&acc[..20])
+		}
 	}
 
 	/// Get the truncated address from the EVM address.
