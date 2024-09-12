@@ -340,6 +340,7 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			));
 
 			set_block_number(120);
+
 			//bob
 			assert_ok!(LiquidityMining2::deposit_lp_shares(
 				GLOBAL_FARM,
@@ -361,7 +362,21 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			set_block_number(130);
 
 			//Claim rewards, leading to farms sync
-			let _ = LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
+			let (_,_,_,unclaimeable) = LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
+
+			//Withdraw and redeposit for ALICE
+			let (_, withdran_amount,_) = LiquidityMining2::withdraw_lp_shares(
+				ALICE_DEPOSIT,
+				YIELD_FARM_A,
+				unclaimeable
+			).unwrap();
+			let alice_new_deposit_id = LiquidityMining2::deposit_lp_shares(
+				GLOBAL_FARM,
+				YIELD_FARM_A,
+				BSX_TKN1_AMM,
+				withdran_amount,
+				|_, _, _| { Ok(5_000 * ONE) }
+			).unwrap();
 
 			assert_eq!(
 				Tokens::free_balance(BSX, &LiquidityMining2::farm_account_id(GLOBAL_FARM).unwrap()),
@@ -383,7 +398,7 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 
 			//Check that alice has things to claim
 			let (_, _, claimed, unclaimable) =
-				LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
+				LiquidityMining2::claim_rewards(ALICE, alice_new_deposit_id, YIELD_FARM_A, false).unwrap();
 			assert_eq!(claimed, 124999999999999333);
 			assert_eq!(unclaimable, 0);
 
@@ -413,11 +428,11 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			//Assert that user has nothing else to claim
 			set_block_number(600);
 			let (_, _, claimed, unclaimable) =
-				LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
+				LiquidityMining2::claim_rewards(ALICE, alice_new_deposit_id, YIELD_FARM_A, false).unwrap();
 			assert_eq!(claimed, 0);
 			assert_eq!(unclaimable, 0);
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
-				ALICE_DEPOSIT,
+				alice_new_deposit_id,
 				YIELD_FARM_A,
 				unclaimable
 			));
