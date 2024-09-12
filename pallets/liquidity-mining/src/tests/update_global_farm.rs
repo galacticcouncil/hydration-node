@@ -215,7 +215,7 @@ fn update_global_farm_should_work() {
 					min_deposit,
 					accumulated_rpz: FixedU128::from_inner(491_000_000_000_000_000_000_u128),
 					pending_rewards: 343195125000000000000,
-					max_reward_per_period:  344478675000,
+					max_reward_per_period:  29655521325000,
 					..global_farm_0
 				},
 			);

@@ -375,7 +375,7 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			);
 
 			let planned_yielding_periods: BlockNumber = 30_u64;
-			let yield_per_period = Perquintill::from_percent(1);
+			let yield_per_period = Perquintill::from_float(0.45);
 			let min_deposit = 20_000;
 			assert_ok!(LiquidityMining2::update_global_farm(GLOBAL_FARM, planned_yielding_periods,yield_per_period,min_deposit));
 
@@ -384,22 +384,22 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			//Check that alice has things to claim
 			let (_, _, claimed, unclaimable) =
 				LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
-			assert_eq!(claimed, 2055555555555547);
+			assert_eq!(claimed, 124999999999999333);
 			assert_eq!(unclaimable, 0);
 
 			// Check that BOB has things to claim
 			let (_, _, claimed, unclaimable)  = LiquidityMining2::claim_rewards(BOB, BOB_DEPOSIT, YIELD_FARM_B, false).unwrap();
-			assert_eq!(claimed, 1763888888888886);
+			assert_eq!(claimed, 32499999999999833);
 			assert_eq!(unclaimable, 0);
 
 			// Check that Charlie has things to claim
 			let (_, _, claimed, unclaimable) = LiquidityMining2::claim_rewards(CHARLIE, CHARLIE_DEPOSIT, YIELD_FARM_B, false).unwrap();
-			assert_eq!(claimed, 1763888888888886);
+			assert_eq!(claimed, 32499999999999833);
 			assert_eq!(unclaimable, 0);
 
 			assert_eq!(
 				Tokens::free_balance(BSX, &LiquidityMining2::pot_account_id().unwrap()),
-				2
+				1
 			);
 
 			assert_eq!(LiquidityMining2::global_farm(GLOBAL_FARM).unwrap().updated_at, 50);
@@ -410,45 +410,27 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 				50
 			);
 
-			set_block_number(1000);
+			//Assert that user has nothing else to claim
+			set_block_number(600);
 			let (_, _, claimed, unclaimable) =
 				LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
-			assert_eq!(claimed, 2777777777777766);
+			assert_eq!(claimed, 0);
 			assert_eq!(unclaimable, 0);
 
 			let (_, _, claimed, unclaimable)  = LiquidityMining2::claim_rewards(BOB, BOB_DEPOSIT, YIELD_FARM_B, false).unwrap();
-			assert_eq!(claimed, 694444444444442);
+			assert_eq!(claimed, 0);
 			assert_eq!(unclaimable, 0);
 
 			let (_, _, claimed, unclaimable) = LiquidityMining2::claim_rewards(CHARLIE, CHARLIE_DEPOSIT, YIELD_FARM_B, false).unwrap();
-			assert_eq!(claimed, 694444444444442);
+			assert_eq!(claimed, 0);
 			assert_eq!(unclaimable, 0);
 
-			assert_eq!(
-				Tokens::free_balance(BSX, &LiquidityMining2::pot_account_id().unwrap()),
-				2
-			);
-
-			set_block_number(5000);
-			let (_, _, claimed, unclaimable) =
-				LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
-			assert_eq!(claimed, 22222222222222133);
-			assert_eq!(unclaimable, 0);
-
-			let (_, _, claimed, unclaimable)  = LiquidityMining2::claim_rewards(BOB, BOB_DEPOSIT, YIELD_FARM_B, false).unwrap();
-			assert_eq!(claimed, 5555555555555533);
-			assert_eq!(unclaimable, 0);
-
-			let (_, _, claimed, unclaimable) = LiquidityMining2::claim_rewards(CHARLIE, CHARLIE_DEPOSIT, YIELD_FARM_B, false).unwrap();
-			assert_eq!(claimed, 5555555555555533);
-			assert_eq!(unclaimable, 0);
-
-			assert_eq!(LiquidityMining2::global_farm(GLOBAL_FARM).unwrap().updated_at, 500);
+			assert_eq!(LiquidityMining2::global_farm(GLOBAL_FARM).unwrap().updated_at, 60);
 			assert_eq!(
 				LiquidityMining2::yield_farm((BSX_TKN2_AMM, GLOBAL_FARM, YIELD_FARM_B))
 					.unwrap()
 					.updated_at,
-				500
+				60
 			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))

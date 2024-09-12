@@ -601,11 +601,12 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			Self::sync_global_farm(global_farm, current_period)?;
 
 			//Calculate the new max reward period
-			let pot = Self::pot_account_id().ok_or(Error::<T, I>::ErrorGetAccountId)?;
-			let total_rewards = T::MultiCurrency::free_balance(global_farm.reward_currency, &pot);
+			let global_farm_account = Self::farm_account_id(global_farm.id)?;
+			let total_rewards = T::MultiCurrency::free_balance(global_farm.reward_currency, &global_farm_account);
 			let planned_periods =
 				TryInto::<u128>::try_into(planned_yielding_periods).map_err(|_| ArithmeticError::Overflow)?;
 			let new_max_reward_period = total_rewards.checked_div(planned_periods).ok_or(Error::<T, I>::InvalidPlannedYieldingPeriods)?;
+			ensure!(!new_max_reward_period.is_zero(), Error::<T, I>::InvalidPlannedYieldingPeriods);
 
             //Update global farm fields
 			global_farm.planned_yielding_periods = planned_yielding_periods;
