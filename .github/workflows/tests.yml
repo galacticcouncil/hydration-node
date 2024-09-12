@@ -33,7 +33,7 @@ jobs:
       - name: Version info
         run: ./target/release/hydradx --version
       - name: Upload release binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: hydradx
           path: target/release/hydradx
