@@ -532,6 +532,8 @@ impl pallet_ice::Config for Runtime {
 	type Currency = FungibleCurrencies<Runtime>;
 	type ReservableCurrency = Currencies;
 	type TradeExecutor = Router;
+	type PriceProvider =
+		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
 	type NamedReserveId = ICENamedReserveId;
