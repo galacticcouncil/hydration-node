@@ -1,5 +1,8 @@
-use crate::types::{Balance, BoundedInstructions, BoundedResolvedIntents, Intent, ResolvedIntent, Solution, SwapType};
-use crate::Config;
+use crate::pallet::Intents;
+use crate::types::{
+	Balance, BoundedInstructions, BoundedResolvedIntents, Intent, ResolvedIntent, Solution, Swap, SwapType,
+};
+use crate::{Config, Error};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::__private::RuntimeDebug;
 use frame_support::dispatch::DispatchResult;
@@ -85,7 +88,9 @@ where
 	C: Mutate<T::AccountId, AssetId = T::AssetId, Balance = Balance>,
 	R: RouterT<T::RuntimeOrigin, T::AssetId, Balance, Trade<T::AssetId>, AmountInAndOut<Balance>>,
 {
-	pub fn validate_solution(solution: &mut Solution<T::AccountId, T::AssetId>) -> Result<Vec<(T::AssetId, Balance)>, DispatchError> {
+	pub fn validate_solution(
+		solution: &mut Solution<T::AccountId, T::AssetId>,
+	) -> Result<Vec<(T::AssetId, Balance)>, DispatchError> {
 		// Store resolved amounts for each account
 		// This is used to ensure that the transfer instruction does not transfer more than it should
 		let mut acc_amounts_in: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
@@ -118,7 +123,10 @@ where
 				.entry(asset_in)
 				.and_modify(|v| *v = v.saturating_add(resolved_amount_in))
 				.or_insert(resolved_amount_in);
-			amounts_out.entry(asset_out).and_modify(|v| *v = v.saturating_add(resolved_amount_out)).or_insert(resolved_amount_out);
+			amounts_out
+				.entry(asset_out)
+				.and_modify(|v| *v = v.saturating_add(resolved_amount_out))
+				.or_insert(resolved_amount_out);
 
 			match intent.swap.swap_type {
 				SwapType::ExactIn => {
@@ -177,6 +185,9 @@ where
 		}
 
 		// Validate instructions, correct transfer amounts, valid trades , calculate weight
+		//TODO: needs to validate tht all the resolved intents are used in the instructions
+		// meaning that transfer sends actual resolved amount. Because now, we ony checked the transfers,
+		// but we dont check if all resolved amounts are transferred.
 		for instruction in solution.instructions.iter() {
 			match instruction {
 				Instruction::TransferIn { who, asset_id, amount } => {
@@ -217,9 +228,48 @@ where
 		Ok(Weight::default())
 	}
 
-	fn update_intents(_resolved_intents: BoundedResolvedIntents) -> DispatchResult {
-		//TODO: update intent or remove it if completely resolved
-		// handle reserved amounts
+	fn update_intents(resolved_intents: BoundedResolvedIntents) -> DispatchResult {
+		//TODO:
+		// handle reserved amounts?? should be already handled in execution
+
+		for resolved_intent in resolved_intents.iter() {
+			let intent = Intents::<T>::take(&resolved_intent.intent_id).ok_or(crate::Error::<T>::IntentNotFound)?;
+
+			let is_partial = intent.partial;
+			let asset_in = intent.swap.asset_in;
+			let asset_out = intent.swap.asset_out;
+
+			let amount_in = intent.swap.amount_in;
+			let amount_out = intent.swap.amount_out;
+
+			let resolved_amount_in = resolved_intent.amount_in;
+			let resolved_amount_out = resolved_intent.amount_out;
+
+			let partially_resolved = resolved_amount_out != amount_out;
+
+			if partially_resolved && !is_partial {
+				return Err(Error::<T>::InvalidSolution(SolutionError::IncorrectTransferInstruction).into());
+				//todo: better error
+			}
+
+			if partially_resolved {
+				let new_intent = Intent {
+					who: intent.who.clone(),
+					swap: Swap {
+						asset_in,
+						asset_out,
+						amount_in: amount_in.saturating_sub(resolved_amount_in),
+						amount_out: amount_out.saturating_sub(resolved_amount_out),
+						swap_type: intent.swap.swap_type,
+					},
+					deadline: intent.deadline,
+					partial: true,
+					on_success: intent.on_success,
+					on_failure: intent.on_failure,
+				};
+				Intents::<T>::insert(resolved_intent.intent_id, new_intent);
+			}
+		}
 		Ok(())
 	}
 

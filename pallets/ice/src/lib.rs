@@ -20,12 +20,14 @@ use frame_support::traits::Time;
 use frame_support::{dispatch::DispatchResult, traits::Get};
 use frame_support::{Blake2_128Concat, Parameter};
 use frame_system::pallet_prelude::*;
+use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::RouterT;
 pub use pallet::*;
 use scale_info::TypeInfo;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Hash};
 use sp_runtime::traits::{MaybeSerializeDeserialize, Member};
-use sp_runtime::DispatchError;
+use sp_runtime::{ArithmeticError, DispatchError, Rounding, Saturating};
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
@@ -35,6 +37,8 @@ pub mod pallet {
 	use crate::engine::{ICEEngine, SolutionError};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
+	use hydra_dx_math::ratio::Ratio;
+	use hydradx_traits::price::PriceProvider;
 	use orml_traits::{GetByKey, NamedMultiReservableCurrency};
 	use sp_runtime::traits::BlockNumberProvider;
 	use types::Balance;
@@ -88,6 +92,9 @@ pub mod pallet {
 			hydradx_traits::router::AmountInAndOut<crate::types::Balance>,
 		>;
 
+		/// Price provider
+		type PriceProvider: PriceProvider<Self::AssetId, Price = Ratio>;
+
 		/// Pallet id.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
@@ -107,9 +114,9 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// New intent was submitted
 		IntentSubmitted(IntentId, Intent<T::AccountId, T::AssetId>),
-		
+
 		/// Solution was executed
-		SolutionExecuted{who: T::AccountId},
+		SolutionExecuted { who: T::AccountId },
 	}
 
 	#[pallet::error]
@@ -261,8 +268,8 @@ pub mod pallet {
 			};
 
 			let matched_amounts = ICEEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&mut solution)?;
-			let calculated_score = Self::score_solution(&solution, matched_amounts);
-			
+			let calculated_score = Self::score_solution(&solution, matched_amounts)?;
+
 			if score != calculated_score {
 				//TODO: slash him, bob!
 				return Err(Error::<T>::InvalidScore.into());
@@ -270,7 +277,9 @@ pub mod pallet {
 
 			ICEEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
 
-			Self::deposit_event(Event::SolutionExecuted{ who});
+			Self::clear_expired_intents();
+
+			Self::deposit_event(Event::SolutionExecuted { who });
 
 			Ok(())
 		}
@@ -337,16 +346,37 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn score_solution(solution: &Solution<T::AccountId, T::AssetId>, matched_amounts: Vec<(T::AssetId, Balance)>) -> u64 {
+	fn score_solution(
+		solution: &Solution<T::AccountId, T::AssetId>,
+		matched_amounts: Vec<(T::AssetId, Balance)>,
+	) -> Result<u64, DispatchError> {
 		let resolved_intents = solution.intents.iter().count() as u128;
 
 		let mut hub_amount = resolved_intents * 1_000_000_000_000u128;
 
-		for (asset, amount) in matched_amounts {
-			//TODO: convert amount to hub amount using provided price from oracle
+		for (asset_id, amount) in matched_amounts {
+			let price = T::PriceProvider::get_price(T::HubAssetId::get(), asset_id).ok_or(Error::<T>::MissingPrice)?;
+			let converted = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down)
+				.ok_or(ArithmeticError::Overflow)?;
+			hub_amount.saturating_accrue(converted);
 		}
 
 		// round down
-		(hub_amount / 1_000_000u128) as u64
+		Ok((hub_amount / 1_000_000u128) as u64)
+	}
+
+	fn clear_expired_intents() {
+		//TODO: perhaps better way to do this is to use a priority queue/ordered list or something.
+		let now = T::TimestampProvider::now();
+		let mut to_remove = Vec::new();
+		for (intent_id, intent) in Intents::<T>::iter() {
+			if intent.deadline < now {
+				to_remove.push(intent_id);
+			}
+		}
+
+		for intent_id in to_remove {
+			Intents::<T>::remove(intent_id);
+		}
 	}
 }

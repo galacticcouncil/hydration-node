@@ -6,6 +6,8 @@ use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::pallet_prelude::ConstU32;
 use frame_support::traits::{ConstU128, ConstU64, Everything, Time};
 use frame_support::{construct_runtime, parameter_types, PalletId};
+use hydra_dx_math::ratio::Ratio;
+use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AmountInAndOut, AssetPair, RouterT, Trade};
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::fungibles::FungibleCurrencies;
@@ -168,6 +170,7 @@ impl pallet_ice::Config for Test {
 	type MaxCallData = MaxCallData;
 	type WeightInfo = ();
 	type NamedReserveId = NamedReserveId;
+	type PriceProvider = MockPriceProvider;
 }
 
 pub struct DummyTradeExecutor;
@@ -241,6 +244,16 @@ impl
 		_route: Vec<Trade<AssetId>>,
 	) -> DispatchResultWithPostInfo {
 		unimplemented!()
+	}
+}
+
+pub struct MockPriceProvider;
+
+impl PriceProvider<AssetId> for MockPriceProvider {
+	type Price = Ratio;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Option<Ratio> {
+		Some(Ratio::new(1, 1))
 	}
 }
 
