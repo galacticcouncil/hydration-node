@@ -416,14 +416,29 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 				LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
 			assert_eq!(claimed, 0);
 			assert_eq!(unclaimable, 0);
+			assert_ok!(LiquidityMining2::withdraw_lp_shares(
+				ALICE_DEPOSIT,
+				YIELD_FARM_A,
+				unclaimable
+			));
 
 			let (_, _, claimed, unclaimable)  = LiquidityMining2::claim_rewards(BOB, BOB_DEPOSIT, YIELD_FARM_B, false).unwrap();
 			assert_eq!(claimed, 0);
 			assert_eq!(unclaimable, 0);
+			assert_ok!(LiquidityMining2::withdraw_lp_shares(
+				BOB_DEPOSIT,
+				YIELD_FARM_B,
+				unclaimable
+			));
 
 			let (_, _, claimed, unclaimable) = LiquidityMining2::claim_rewards(CHARLIE, CHARLIE_DEPOSIT, YIELD_FARM_B, false).unwrap();
 			assert_eq!(claimed, 0);
 			assert_eq!(unclaimable, 0);
+			assert_ok!(LiquidityMining2::withdraw_lp_shares(
+				CHARLIE_DEPOSIT,
+				YIELD_FARM_B,
+				unclaimable
+			));
 
 			assert_eq!(LiquidityMining2::global_farm(GLOBAL_FARM).unwrap().updated_at, 60);
 			assert_eq!(
