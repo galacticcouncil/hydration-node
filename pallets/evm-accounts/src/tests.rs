@@ -113,6 +113,18 @@ fn bind_address_should_fail_when_nonce_is_not_zero() {
 }
 
 #[test]
+fn bind_address_should_fail_when_binding_evm_truncated_account() {
+	ExtBuilder::default().build().execute_with(|| {
+		let evm_address = H160::from(hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"]);
+		let account_id = EVMAccounts::account_id(evm_address);
+		assert_noop!(
+			EVMAccounts::bind_evm_address(RuntimeOrigin::signed(account_id)),
+			Error::<Test>::TruncatedAccountAlreadyUsed
+		);
+	});
+}
+
+#[test]
 fn bind_address_should_fail_when_already_bound() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE),));

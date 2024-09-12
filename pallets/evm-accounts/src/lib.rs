@@ -142,7 +142,7 @@ pub mod pallet {
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
-		/// EVM Account's nonce is not zero
+		/// Active EVM account cannot be bound
 		TruncatedAccountAlreadyUsed,
 		/// Address is already bound
 		AddressAlreadyBound,
@@ -201,6 +201,10 @@ pub mod pallet {
 				Error::<T>::AddressAlreadyBound
 			);
 
+			ensure!(
+				!Self::is_evm_account(who.clone()),
+				Error::<T>::TruncatedAccountAlreadyUsed
+			);
 			let nonce = T::EvmNonceProvider::get_nonce(evm_address);
 			ensure!(nonce.is_zero(), Error::<T>::TruncatedAccountAlreadyUsed);
 
