@@ -38,7 +38,7 @@ jobs:
           name: hydradx
           path: target/release/hydradx
       - name: Upload release wasm
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: hydradx_runtime.compact.compressed.wasm
           path: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
@@ -99,7 +99,7 @@ jobs:
           ref: 1ad4db1c546f31a4f8e8987ada39dc7ef71100fe
 
       - name: Download WASM artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: hydradx_runtime.compact.compressed.wasm
 
