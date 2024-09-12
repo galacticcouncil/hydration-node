@@ -605,10 +605,15 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			let total_rewards = T::MultiCurrency::free_balance(global_farm.reward_currency, &global_farm_account);
 			let planned_periods =
 				TryInto::<u128>::try_into(planned_yielding_periods).map_err(|_| ArithmeticError::Overflow)?;
-			let new_max_reward_period = total_rewards.checked_div(planned_periods).ok_or(Error::<T, I>::InvalidPlannedYieldingPeriods)?;
-			ensure!(!new_max_reward_period.is_zero(), Error::<T, I>::InvalidPlannedYieldingPeriods);
+			let new_max_reward_period = total_rewards
+				.checked_div(planned_periods)
+				.ok_or(Error::<T, I>::InvalidPlannedYieldingPeriods)?;
+			ensure!(
+				!new_max_reward_period.is_zero(),
+				Error::<T, I>::InvalidPlannedYieldingPeriods
+			);
 
-            //Update global farm fields
+			//Update global farm fields
 			global_farm.planned_yielding_periods = planned_yielding_periods;
 			global_farm.yield_per_period = yield_per_period;
 			global_farm.min_deposit = min_deposit;
@@ -1865,7 +1870,12 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 		Self::update_global_farm_price_adjustment(who, global_farm_id, price_adjustment)
 	}
 
-	fn update_global_farm(global_farm_id: GlobalFarmId, planned_yielding_periods: Self::Period, yield_per_period: Perquintill, min_deposit: Self::Balance) -> Result<(), Self::Error> {
+	fn update_global_farm(
+		global_farm_id: GlobalFarmId,
+		planned_yielding_periods: Self::Period,
+		yield_per_period: Perquintill,
+		min_deposit: Self::Balance,
+	) -> Result<(), Self::Error> {
 		Self::update_global_farm(global_farm_id, planned_yielding_periods, yield_per_period, min_deposit)
 	}
 

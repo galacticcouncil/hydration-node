@@ -887,7 +887,6 @@ fn invariant_4() {
     });
 }
 
-
 /*
 TODO: continue
 fn planned_yielding_periods() -> impl Strategy<Value = PeriodOf<Test>> {

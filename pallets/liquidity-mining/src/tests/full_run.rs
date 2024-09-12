@@ -362,21 +362,20 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			set_block_number(130);
 
 			//Claim rewards, leading to farms sync
-			let (_,_,_,unclaimeable) = LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
+			let (_, _, _, unclaimeable) =
+				LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
 
 			//Withdraw and redeposit for ALICE
-			let (_, withdran_amount,_) = LiquidityMining2::withdraw_lp_shares(
-				ALICE_DEPOSIT,
-				YIELD_FARM_A,
-				unclaimeable
-			).unwrap();
+			let (_, withdran_amount, _) =
+				LiquidityMining2::withdraw_lp_shares(ALICE_DEPOSIT, YIELD_FARM_A, unclaimeable).unwrap();
 			let alice_new_deposit_id = LiquidityMining2::deposit_lp_shares(
 				GLOBAL_FARM,
 				YIELD_FARM_A,
 				BSX_TKN1_AMM,
 				withdran_amount,
-				|_, _, _| { Ok(5_000 * ONE) }
-			).unwrap();
+				|_, _, _| Ok(5_000 * ONE),
+			)
+			.unwrap();
 
 			assert_eq!(
 				Tokens::free_balance(BSX, &LiquidityMining2::farm_account_id(GLOBAL_FARM).unwrap()),
@@ -392,7 +391,12 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			let planned_yielding_periods: BlockNumber = 30_u64;
 			let yield_per_period = Perquintill::from_float(0.45);
 			let min_deposit = 20_000;
-			assert_ok!(LiquidityMining2::update_global_farm(GLOBAL_FARM, planned_yielding_periods,yield_per_period,min_deposit));
+			assert_ok!(LiquidityMining2::update_global_farm(
+				GLOBAL_FARM,
+				planned_yielding_periods,
+				yield_per_period,
+				min_deposit
+			));
 
 			set_block_number(501);
 
@@ -403,12 +407,14 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			assert_eq!(unclaimable, 0);
 
 			// Check that BOB has things to claim
-			let (_, _, claimed, unclaimable)  = LiquidityMining2::claim_rewards(BOB, BOB_DEPOSIT, YIELD_FARM_B, false).unwrap();
+			let (_, _, claimed, unclaimable) =
+				LiquidityMining2::claim_rewards(BOB, BOB_DEPOSIT, YIELD_FARM_B, false).unwrap();
 			assert_eq!(claimed, 32499999999999833);
 			assert_eq!(unclaimable, 0);
 
 			// Check that Charlie has things to claim
-			let (_, _, claimed, unclaimable) = LiquidityMining2::claim_rewards(CHARLIE, CHARLIE_DEPOSIT, YIELD_FARM_B, false).unwrap();
+			let (_, _, claimed, unclaimable) =
+				LiquidityMining2::claim_rewards(CHARLIE, CHARLIE_DEPOSIT, YIELD_FARM_B, false).unwrap();
 			assert_eq!(claimed, 32499999999999833);
 			assert_eq!(unclaimable, 0);
 
@@ -437,7 +443,8 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 				unclaimable
 			));
 
-			let (_, _, claimed, unclaimable)  = LiquidityMining2::claim_rewards(BOB, BOB_DEPOSIT, YIELD_FARM_B, false).unwrap();
+			let (_, _, claimed, unclaimable) =
+				LiquidityMining2::claim_rewards(BOB, BOB_DEPOSIT, YIELD_FARM_B, false).unwrap();
 			assert_eq!(claimed, 0);
 			assert_eq!(unclaimable, 0);
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
@@ -446,7 +453,8 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 				unclaimable
 			));
 
-			let (_, _, claimed, unclaimable) = LiquidityMining2::claim_rewards(CHARLIE, CHARLIE_DEPOSIT, YIELD_FARM_B, false).unwrap();
+			let (_, _, claimed, unclaimable) =
+				LiquidityMining2::claim_rewards(CHARLIE, CHARLIE_DEPOSIT, YIELD_FARM_B, false).unwrap();
 			assert_eq!(claimed, 0);
 			assert_eq!(unclaimable, 0);
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(

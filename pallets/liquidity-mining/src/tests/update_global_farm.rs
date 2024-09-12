@@ -16,9 +16,9 @@
 // limitations under the License.
 
 use super::*;
+use crate::tests::mock::MinPlannedYieldingPeriods;
 use pretty_assertions::assert_eq;
 use test_ext::*;
-use crate::tests::mock::MinPlannedYieldingPeriods;
 
 #[test]
 fn update_global_farm_price_adjustment_should_work() {
@@ -215,7 +215,7 @@ fn update_global_farm_should_work() {
 					min_deposit,
 					accumulated_rpz: FixedU128::from_inner(491_000_000_000_000_000_000_u128),
 					pending_rewards: 343195125000000000000,
-					max_reward_per_period:  29655521325000,
+					max_reward_per_period: 29655521325000,
 					..global_farm_0
 				},
 			);
@@ -243,12 +243,15 @@ fn update_global_farm_should_fail_with_invalid_deposit() {
 			set_block_number(100_000);
 
 			//Act
-			assert_noop!(LiquidityMining::update_global_farm(
-				GC_FARM,
-				planned_yielding_periods,
-				yield_per_period,
-				MIN_DEPOSIT - 1,
-			), Error::<Test, Instance1>::InvalidMinDeposit);
+			assert_noop!(
+				LiquidityMining::update_global_farm(
+					GC_FARM,
+					planned_yielding_periods,
+					yield_per_period,
+					MIN_DEPOSIT - 1,
+				),
+				Error::<Test, Instance1>::InvalidMinDeposit
+			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
@@ -266,12 +269,10 @@ fn update_global_farm_should_fail_when_planning_yield_period_is_too_small() {
 			set_block_number(100_000);
 
 			//Act
-			assert_noop!(LiquidityMining::update_global_farm(
-				GC_FARM,
-				planned_yielding_periods,
-				yield_per_period,
-				MIN_DEPOSIT,
-			), Error::<Test, Instance1>::InvalidPlannedYieldingPeriods);
+			assert_noop!(
+				LiquidityMining::update_global_farm(GC_FARM, planned_yielding_periods, yield_per_period, MIN_DEPOSIT,),
+				Error::<Test, Instance1>::InvalidPlannedYieldingPeriods
+			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
@@ -289,15 +290,17 @@ fn update_global_farm_should_fail_when_yield_period_is_zero() {
 			set_block_number(100_000);
 
 			//Act
-			assert_noop!(LiquidityMining::update_global_farm(
-				GC_FARM,
-				planned_yielding_periods,
-				zero_yield_per_period,
-				MIN_DEPOSIT,
-			), Error::<Test, Instance1>::InvalidYieldPerPeriod);
+			assert_noop!(
+				LiquidityMining::update_global_farm(
+					GC_FARM,
+					planned_yielding_periods,
+					zero_yield_per_period,
+					MIN_DEPOSIT,
+				),
+				Error::<Test, Instance1>::InvalidYieldPerPeriod
+			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
 	});
 }
-
