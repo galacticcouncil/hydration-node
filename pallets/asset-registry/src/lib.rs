@@ -767,11 +767,12 @@ where
 	T::AssetNativeLocation: Into<MultiLocation>,
 {
 	fn contract_address(id: Self::AssetId) -> Option<EvmAddress> {
-		if AssetKind::Erc20 == Self::asset_type(id)? {
+		if Self::asset_type(id)? == AssetKind::Erc20 {
 			let location: MultiLocation = Self::asset_to_location(id).unwrap_or_default().into();
-			match location.interior {
-				X1(AccountKey20 { key, .. }) => Some(key.into()),
-				_ => Some(Default::default()),
+			if let X1(AccountKey20 { key, .. }) = location.interior {
+				Some(key.into())
+			} else {
+				Some(Default::default())
 			}
 		} else {
 			None
