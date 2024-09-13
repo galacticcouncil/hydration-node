@@ -317,8 +317,7 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	fn _is_evm_account(account_id: &[u8; 32]) -> bool {
-		let account_ref = account_id.as_ref();
-		&account_ref[0..4] == b"ETH\0" && account_ref[24..32] == [0u8; 8]
+		&account_id[0..4] == b"ETH\0" && account_id[24..32] == [0u8; 8]
 	}
 }
 
@@ -335,7 +334,7 @@ where
 	/// Get the EVM address from the substrate address.
 	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
 		let acc = account_id.as_ref();
-		if Self::_is_evm_account(&acc) {
+		if Self::_is_evm_account(acc) {
 			EvmAddress::from_slice(&acc[4..24])
 		} else {
 			EvmAddress::from_slice(&acc[..20])
