@@ -3,11 +3,16 @@ mod solution;
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use hydradx_runtime::{Router, RuntimeOrigin, ICE};
+use hydradx_adapters::price::OraclePriceProviderUsingRoute;
+use hydradx_adapters::OraclePriceProvider;
+use hydradx_runtime::{EmaOracle, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT};
 use ice_solver::traits::ICESolver;
 use pallet_ice::types::{BoundedInstructions, BoundedResolvedIntents, IntentId, ProposedSolution, Swap};
 use primitives::{AccountId, AssetId, Moment};
 use xcm_emulator::TestExt;
+
+type PriceP =
+	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
 
 pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -> Vec<IntentId> {
 	let mut intent_ids = Vec::new();
@@ -30,12 +35,15 @@ pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -
 
 pub(crate) fn solve_intents(
 	intents: Vec<(IntentId, pallet_ice::types::Intent<AccountId, AssetId>)>,
-) -> Result<ProposedSolution<AccountId, AssetId>, ()> {
-	let solved = ice_solver::SimpleSolver::<hydradx_runtime::Runtime, Router, Router>::solve(intents)?;
+) -> Result<(ProposedSolution<AccountId, AssetId>, u64), ()> {
+	let solved = ice_solver::SimpleSolver::<hydradx_runtime::Runtime, Router, Router, PriceP>::solve(intents)?;
 	let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
 	let instructions = BoundedInstructions::try_from(solved.instructions).unwrap();
-	Ok(ProposedSolution::<AccountId, AssetId> {
-		intents: resolved_intents.clone(),
-		instructions,
-	})
+	Ok((
+		ProposedSolution::<AccountId, AssetId> {
+			intents: resolved_intents.clone(),
+			instructions,
+		},
+		solved.score,
+	))
 }

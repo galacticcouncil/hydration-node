@@ -1,7 +1,10 @@
 use crate::traits::ICESolver;
+use hydra_dx_math::ratio::Ratio;
+use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
 use pallet_ice::engine::{BoundedRoute, Instruction};
 use pallet_ice::types::{Balance, Intent, IntentId, ResolvedIntent};
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::Saturating;
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -10,12 +13,13 @@ pub mod traits;
 pub struct SolverSolution<AccountId, AssetId> {
 	pub intents: Vec<ResolvedIntent>,
 	pub instructions: Vec<Instruction<AccountId, AssetId>>,
+	pub score: u64,
 }
 
-pub struct SimpleSolver<T, R, RP>(sp_std::marker::PhantomData<(T, R, RP)>);
+pub struct SimpleSolver<T, R, RP, PP>(sp_std::marker::PhantomData<(T, R, RP, PP)>);
 
-impl<T: pallet_ice::Config, R, RP> ICESolver<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>
-	for SimpleSolver<T, R, RP>
+impl<T: pallet_ice::Config, R, RP, PP> ICESolver<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>
+	for SimpleSolver<T, R, RP, PP>
 where
 	<T as pallet_ice::Config>::AssetId: From<u32>,
 	R: RouterT<
@@ -26,6 +30,7 @@ where
 		hydradx_traits::router::AmountInAndOut<u128>,
 	>,
 	RP: RouteProvider<<T as pallet_ice::Config>::AssetId>,
+	PP: PriceProvider<<T as pallet_ice::Config>::AssetId, Price = Ratio>,
 {
 	type Solution = SolverSolution<T::AccountId, T::AssetId>;
 	type Error = ();
@@ -98,9 +103,13 @@ where
 
 		let mut lrna_aquired = 0u128;
 
+		let mut matched_amounts = Vec::new();
+
 		// Sell all for lrna
 		for (asset_id, amount) in amounts_in.iter() {
 			let amount_out = *amounts_out.get(&asset_id).unwrap_or(&0u128);
+
+			matched_amounts.push((*asset_id, (*amount).min(amount_out)));
 
 			if *amount > amount_out {
 				let route = RP::get_route(AssetPair::<<T as pallet_ice::Config>::AssetId>::new(
@@ -152,6 +161,15 @@ where
 			lrna_sold
 		);
 
+		// Score
+		let mut score = resolved_intents.iter().count() as u128 * 1_000_000_000_000;
+		for (asset_id, amount) in matched_amounts {
+			let price = PP::get_price(1u32.into(), asset_id).unwrap();
+			let h = multiply_by_rational_with_rounding(amount, price.n, price.d, sp_runtime::Rounding::Up).unwrap();
+			score.saturating_accrue(h);
+		}
+		let score = (score / 1_000_000) as u64;
+
 		let mut instructions = Vec::new();
 		instructions.extend(transfer_in_instructions);
 		instructions.extend(trades_instructions);
@@ -160,6 +178,7 @@ where
 		Ok(SolverSolution {
 			intents: resolved_intents,
 			instructions,
+			score,
 		})
 	}
 }

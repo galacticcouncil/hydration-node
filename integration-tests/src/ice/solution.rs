@@ -36,7 +36,7 @@ fn submit_solution_should_work() {
 			deadline,
 		)]);
 
-		let solution = solve_intents(vec![(
+		let (solution, score) = solve_intents(vec![(
 			intent_ids[0],
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 		)])
@@ -45,7 +45,7 @@ fn submit_solution_should_work() {
 		assert_ok!(ICE::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			solution,
-			1u64,
+			score,
 			System::current_block_number()
 		));
 		let dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
@@ -103,7 +103,7 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 			deadline,
 		)]);
 
-		let solution = solve_intents(vec![(
+		let (solution, score) = solve_intents(vec![(
 			intent_ids[0],
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 		)])
@@ -112,7 +112,7 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 		assert_ok!(ICE::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			solution,
-			1u64,
+			score,
 			System::current_block_number()
 		));
 
@@ -169,7 +169,7 @@ fn execute_two_intents_solution_should_work() {
 			),
 		]);
 
-		let solution = solve_intents(vec![
+		let (solution, score) = solve_intents(vec![
 			(
 				intent_ids[0],
 				pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
@@ -184,7 +184,7 @@ fn execute_two_intents_solution_should_work() {
 		assert_ok!(ICE::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			solution,
-			1u64,
+			score,
 			System::current_block_number()
 		));
 

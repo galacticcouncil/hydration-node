@@ -211,10 +211,8 @@ where
 
 		//TODO: we just checked the resolved amounts in and out, we should probably verify that the traded amounts is actually the matched amount?!
 		for (asset_id, amount) in amounts_in.iter() {
-			let Some(amount_out) = amounts_out.get(asset_id) else {
-				continue;
-			};
-			matched_amounts.push((*asset_id, amount.abs_diff(*amount_out)));
+			let amount_out = amounts_out.get(asset_id).unwrap_or(&0u128);
+			matched_amounts.push((*asset_id, *(amount.min(amount_out))));
 		}
 
 		solution.weight = Self::calculate_weight(&solution.instructions)?;
