@@ -35,13 +35,13 @@ fn test_validate_solution_with_one_intent() {
 					amount_out: 200_000_000_000_000,
 					swap_type: SwapType::ExactIn
 				},
-				NOW + 1_000_000,
+				DEFAULT_NOW + 1_000_000,
 				false,
 				None,
 				None,
 			));
 
-			let intent_id = get_intent_id(NOW + 1_000_000, 0);
+			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 
 			let mut solution = create_solution(
 				vec![ResolvedIntent {

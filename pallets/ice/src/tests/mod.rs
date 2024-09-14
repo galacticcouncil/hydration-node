@@ -18,6 +18,7 @@ use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::transaction_validity::TransactionPriority;
 use sp_runtime::{BuildStorage, DispatchError, DispatchResult};
+use std::cell::RefCell;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 pub(crate) type AssetId = u32;
@@ -31,7 +32,10 @@ pub const BOB: AccountId = 2;
 
 pub(crate) const LRNA: AssetId = 1;
 
-pub const NOW: Moment = 1689844300000; // unix time in milliseconds
+pub const DEFAULT_NOW: Moment = 1689844300000; // unix time in milliseconds
+thread_local! {
+	pub static NOW: RefCell<Moment> = RefCell::new(DEFAULT_NOW);
+}
 
 construct_runtime!(
 	pub enum Test
@@ -136,7 +140,7 @@ impl Time for DummyTimestampProvider {
 
 	fn now() -> Self::Moment {
 		//TODO: perhaps use some static value which is possible to set as part of test
-		NOW
+		NOW.with(|now| *now.borrow())
 	}
 }
 

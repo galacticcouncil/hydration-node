@@ -21,20 +21,20 @@ fn submit_intent_should_store_correct_intent_information() {
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
 				swap.clone(),
-				NOW + 1_000_000,
+				DEFAULT_NOW + 1_000_000,
 				false,
 				None,
 				None,
 			));
 
-			let intent_id = get_intent_id(NOW + 1_000_000, 0);
+			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 			let intent = crate::Pallet::<Test>::get_intent(intent_id);
 			assert!(intent.is_some());
 			let intent = intent.unwrap();
 			let expected_intent = Intent {
 				who: ALICE,
 				swap,
-				deadline: NOW + 1_000_000,
+				deadline: DEFAULT_NOW + 1_000_000,
 				partial: false,
 				on_success: None,
 				on_failure: None,
@@ -59,7 +59,7 @@ fn submit_intent_should_reserve_amount_in() {
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
 				swap.clone(),
-				NOW + 1_000_000,
+				DEFAULT_NOW + 1_000_000,
 				false,
 				None,
 				None,
@@ -87,7 +87,7 @@ fn submit_intent_should_fail_when_deadline_is_not_valid() {
 			ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
 				swap.clone(),
-				NOW - 1_000_000,
+				DEFAULT_NOW - 1_000_000,
 				false,
 				None,
 				None,
@@ -97,7 +97,14 @@ fn submit_intent_should_fail_when_deadline_is_not_valid() {
 
 		// Equal
 		assert_noop!(
-			ICE::submit_intent(RuntimeOrigin::signed(ALICE), swap.clone(), NOW, false, None, None,),
+			ICE::submit_intent(
+				RuntimeOrigin::signed(ALICE),
+				swap.clone(),
+				DEFAULT_NOW,
+				false,
+				None,
+				None,
+			),
 			Error::<Test>::InvalidDeadline
 		);
 
@@ -106,7 +113,7 @@ fn submit_intent_should_fail_when_deadline_is_not_valid() {
 			ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
 				swap.clone(),
-				NOW + MaxAllowdIntentDuration::get() + 1,
+				DEFAULT_NOW + MaxAllowdIntentDuration::get() + 1,
 				false,
 				None,
 				None,
@@ -133,7 +140,7 @@ fn submit_intent_should_fail_when_it_cant_reserve_sufficient_amount() {
 				ICE::submit_intent(
 					RuntimeOrigin::signed(ALICE),
 					swap.clone(),
-					NOW + 1_000_000,
+					DEFAULT_NOW + 1_000_000,
 					false,
 					None,
 					None,
@@ -161,7 +168,7 @@ fn submit_intent_should_fail_when_on_success_call_length_is_exceeded() {
 				ICE::submit_intent(
 					RuntimeOrigin::signed(ALICE),
 					swap.clone(),
-					NOW + 1_000_000,
+					DEFAULT_NOW + 1_000_000,
 					false,
 					Some(on_success),
 					None,
@@ -189,7 +196,7 @@ fn submit_intent_should_fail_when_on_fail_call_length_is_exceeded() {
 				ICE::submit_intent(
 					RuntimeOrigin::signed(ALICE),
 					swap.clone(),
-					NOW + 1_000_000,
+					DEFAULT_NOW + 1_000_000,
 					false,
 					None,
 					Some(on_fail),
