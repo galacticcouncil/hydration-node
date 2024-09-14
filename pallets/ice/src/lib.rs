@@ -313,36 +313,23 @@ impl<T: Config> Pallet<T> {
 			.map(|v| Some(v))
 	}
 
-	pub fn validate_submission(who: &T::AccountId, score: u64, block: BlockNumberFor<T>) -> (bool, Option<u64>) {
-		log::info!(
-			target: "ice::check_proposed_score",
-			"who: {:?}, score: {:?}", who, score);
-
+	pub fn validate_submission(who: &T::AccountId, score: u64, block: BlockNumberFor<T>) -> bool {
 		if block != T::BlockNumberProvider::current_block_number() {
-			log::info!(
-				target: "ice::validate_proposed_score",
-				"invalid block number");
-			return (false, None);
+			return false;
 		}
 
 		if let Some((from, current_score)) = SolutionScore::<T>::get() {
-			log::info!(
-				target: "ice::check_proposed_score",
-				"from: {:?}, current score: {:?}", from, current_score);
 			if score > current_score {
 				SolutionScore::<T>::put((who, score));
 			}
 			if from == *who {
-				(true, Some(current_score))
+				true
 			} else {
-				(score > current_score, Some(current_score))
+				score > current_score
 			}
 		} else {
-			log::info!(
-				target: "ice::validate_proposed_score",
-				"no current score");
 			SolutionScore::<T>::put((who, score));
-			(true, None)
+			true
 		}
 	}
 

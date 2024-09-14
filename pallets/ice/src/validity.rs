@@ -48,19 +48,16 @@ where
 	) -> TransactionValidity {
 		match call.is_sub_type() {
 			Some(Call::submit_solution { score, block, .. }) => {
-				let (valid, previous_score) = Pallet::<T>::validate_submission(who, *score, *block);
-				if !valid {
-					log::info!(
-							target: "ice_ext::validate",
-							"invalid solution");
-					Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1))) //TODO: custom error?!
-				} else {
+				let valid = Pallet::<T>::validate_submission(who, *score, *block);
+				if valid {
 					ValidTransaction::with_tag_prefix("IceSolutionProposal")
 						.and_provides(("solution", *score))
 						.priority(*score)
 						.longevity(1)
 						.propagate(true)
 						.build()
+				} else {
+					Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(1))) //TODO: custom error?!
 				}
 			}
 			_ => Ok(Default::default()),

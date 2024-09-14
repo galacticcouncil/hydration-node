@@ -73,7 +73,7 @@ fn submit_intent_should_reserve_amount_in() {
 }
 
 #[test]
-fn submit_intent_should_fail_when_dealdine_is_not_valid() {
+fn submit_intent_should_fail_when_deadline_is_not_valid() {
 	ExtBuilder::default().build().execute_with(|| {
 		let swap = Swap {
 			asset_in: 100,
@@ -82,7 +82,7 @@ fn submit_intent_should_fail_when_dealdine_is_not_valid() {
 			amount_out: 200_000_000_000_000,
 			swap_type: SwapType::ExactIn,
 		};
-		// Less
+		// Past
 		assert_noop!(
 			ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
@@ -101,6 +101,7 @@ fn submit_intent_should_fail_when_dealdine_is_not_valid() {
 			Error::<Test>::InvalidDeadline
 		);
 
+		// Future
 		assert_noop!(
 			ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
@@ -113,4 +114,87 @@ fn submit_intent_should_fail_when_dealdine_is_not_valid() {
 			Error::<Test>::InvalidDeadline
 		);
 	});
+}
+
+#[test]
+fn submit_intent_should_fail_when_it_cant_reserve_sufficient_amount() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			assert_noop!(
+				ICE::submit_intent(
+					RuntimeOrigin::signed(ALICE),
+					swap.clone(),
+					NOW + 1_000_000,
+					false,
+					None,
+					None,
+				),
+				orml_tokens::Error::<Test>::BalanceTooLow
+			);
+		});
+}
+
+#[test]
+fn submit_intent_should_fail_when_on_success_call_length_is_exceeded() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let on_success = vec![0u8; (MaxCallData::get() + 1) as usize];
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			assert_noop!(
+				ICE::submit_intent(
+					RuntimeOrigin::signed(ALICE),
+					swap.clone(),
+					NOW + 1_000_000,
+					false,
+					Some(on_success),
+					None,
+				),
+				Error::<Test>::TooLong
+			);
+		});
+}
+
+#[test]
+fn submit_intent_should_fail_when_on_fail_call_length_is_exceeded() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let on_fail = vec![0u8; (MaxCallData::get() + 1) as usize];
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			assert_noop!(
+				ICE::submit_intent(
+					RuntimeOrigin::signed(ALICE),
+					swap.clone(),
+					NOW + 1_000_000,
+					false,
+					None,
+					Some(on_fail),
+				),
+				Error::<Test>::TooLong
+			);
+		});
 }
