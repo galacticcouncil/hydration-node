@@ -140,11 +140,11 @@ where
 							resolved_intent.amount_in == intent.swap.amount_in,
 							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
 						);
+						ensure!(
+							resolved_intent.amount_out >= intent.swap.amount_out,
+							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+						);
 					}
-					ensure!(
-						resolved_intent.amount_out >= intent.swap.amount_out,
-						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
-					);
 
 					acc_amounts_in
 						.entry((intent.who.clone(), asset_in))
@@ -166,11 +166,11 @@ where
 							resolved_intent.amount_out == intent.swap.amount_out,
 							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
 						);
+						ensure!(
+							resolved_intent.amount_in <= intent.swap.amount_in,
+							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+						);
 					}
-					ensure!(
-						resolved_intent.amount_in <= intent.swap.amount_in,
-						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
-					);
 
 					acc_amounts_in
 						.entry((intent.who.clone(), asset_in))

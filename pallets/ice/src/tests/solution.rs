@@ -193,6 +193,91 @@ fn submit_solution_should_clear_expired_intents() {
 }
 
 #[test]
+fn submit_solution_should_update_partial_resolved_intent() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			assert_ok!(ICE::submit_intent(
+				RuntimeOrigin::signed(ALICE),
+				swap.clone(),
+				DEFAULT_NOW + 1_000_000,
+				true,
+				None,
+				None,
+			));
+
+			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
+
+			let resolved_intents = vec![ResolvedIntent {
+				intent_id,
+				amount_in: 100_000_000_000_000 / 2,
+				amount_out: 200_000_000_000_000 / 2,
+			}];
+			let route = vec![];
+
+			let instructions = vec![
+				Instruction::TransferIn {
+					who: ALICE,
+					asset_id: 100,
+					amount: 100_000_000_000_000 / 2,
+				},
+				Instruction::SwapExactIn {
+					asset_in: 100,
+					asset_out: 200,
+					amount_in: 100_000_000_000_000 / 2,
+					amount_out: 200_000_000_000_000 / 2,
+					route: BoundedRoute::try_from(route).unwrap(),
+				},
+				Instruction::TransferOut {
+					who: ALICE,
+					asset_id: 200,
+					amount: 200_000_000_000_000 / 2,
+				},
+			];
+
+			let proposed_solution = ProposedSolution {
+				intents: BoundedResolvedIntents::try_from(resolved_intents).unwrap(),
+				instructions: BoundedInstructions::try_from(instructions).unwrap(),
+			};
+			let score = 1_000_000u64;
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(ALICE),
+				proposed_solution,
+				score,
+				1
+			));
+
+			let intent = Intents::<Test>::get(&intent_id);
+			assert_eq!(
+				intent,
+				Some(Intent {
+					who: ALICE,
+					swap: Swap {
+						asset_in: 100,
+						asset_out: 200,
+						amount_in: 100_000_000_000_000 / 2,
+						amount_out: 200_000_000_000_000 / 2,
+						swap_type: SwapType::ExactIn,
+					},
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: true,
+					on_success: None,
+					on_failure: None,
+				})
+			);
+		});
+}
+
+#[test]
 fn submit_solution_should_fail_when_intent_does_not_exists() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
