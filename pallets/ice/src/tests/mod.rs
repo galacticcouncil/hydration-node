@@ -1,15 +1,17 @@
 mod engine;
 mod intents;
+mod solution;
 
 use crate as pallet_ice;
 use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::pallet_prelude::ConstU32;
 use frame_support::traits::{ConstU128, ConstU64, Everything, Time};
 use frame_support::{construct_runtime, parameter_types, PalletId};
+use frame_system::ensure_signed;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AmountInAndOut, AssetPair, RouterT, Trade};
-use orml_traits::{parameter_type_with_key, GetByKey};
+use orml_traits::{parameter_type_with_key, GetByKey, MultiCurrency};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::H256;
@@ -185,14 +187,17 @@ impl
 	> for DummyTradeExecutor
 {
 	fn sell(
-		_origin: RuntimeOrigin,
-		_asset_in: AssetId,
-		_asset_out: AssetId,
-		_amount_in: Balance,
-		_min_amount_out: Balance,
+		origin: RuntimeOrigin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_amount_out: Balance,
 		_route: Vec<Trade<AssetId>>,
 	) -> DispatchResult {
-		unimplemented!()
+		let who = ensure_signed(origin)?;
+		Currencies::withdraw(asset_in, &who, amount_in)?;
+		Currencies::deposit(asset_out, &who, min_amount_out)?;
+		Ok(())
 	}
 
 	fn sell_all(
