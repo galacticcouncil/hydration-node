@@ -172,11 +172,12 @@ impl pallet_ice::Config for Test {
 	type Currency = FungibleCurrencies<Test>;
 	type ReservableCurrency = Currencies;
 	type TradeExecutor = DummyTradeExecutor;
+	type Weigher = ();
+	type PriceProvider = MockPriceProvider;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
-	type WeightInfo = ();
 	type NamedReserveId = NamedReserveId;
-	type PriceProvider = MockPriceProvider;
+	type WeightInfo = ();
 }
 
 pub struct DummyTradeExecutor;

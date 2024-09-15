@@ -5,6 +5,7 @@
 pub mod engine;
 #[cfg(test)]
 mod tests;
+mod traits;
 pub mod types;
 pub mod validity;
 mod weights;
@@ -76,7 +77,7 @@ pub mod pallet {
 
 		type ReservableCurrency: NamedMultiReservableCurrency<
 			Self::AccountId,
-			ReserveIdentifier = types::NamedReserveIdentifier,
+			ReserveIdentifier = NamedReserveIdentifier,
 			CurrencyId = Self::AssetId,
 			Balance = Balance,
 		>;
@@ -84,10 +85,13 @@ pub mod pallet {
 		type TradeExecutor: RouterT<
 			Self::RuntimeOrigin,
 			Self::AssetId,
-			crate::types::Balance,
+			Balance,
 			hydradx_traits::router::Trade<Self::AssetId>,
-			hydradx_traits::router::AmountInAndOut<crate::types::Balance>,
+			hydradx_traits::router::AmountInAndOut<Balance>,
 		>;
+
+		/// The means of determining a solution's weight.
+		type Weigher: traits::IceWeightBounds<Self::RuntimeCall>;
 
 		/// Price provider
 		type PriceProvider: PriceProvider<Self::AssetId, Price = Ratio>;
