@@ -245,7 +245,13 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::submit_solution())] //TODO: calculate weight based on given instructions
+		#[pallet::weight( {
+			let mut w = T::WeightInfo::submit_solution();
+			for i in solution.instructions.iter() {
+				//TODO: match instruction and ask weigher for weight and accrue
+			}
+			w
+		})]
 		pub fn submit_solution(
 			origin: OriginFor<T>,
 			solution: ProposedSolution<T::AccountId, T::AssetId>,
