@@ -3,7 +3,6 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::ConstU32;
-use frame_support::weights::Weight;
 use sp_runtime::BoundedVec;
 
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;

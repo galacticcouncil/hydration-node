@@ -147,7 +147,7 @@ impl Time for DummyTimestampProvider {
 pub struct DummyOrder;
 
 impl GetByKey<RuntimeCall, TransactionPriority> for DummyOrder {
-	fn get(k: &RuntimeCall) -> TransactionPriority {
+	fn get(_k: &RuntimeCall) -> TransactionPriority {
 		0
 	}
 }
@@ -261,7 +261,7 @@ pub struct MockPriceProvider;
 impl PriceProvider<AssetId> for MockPriceProvider {
 	type Price = Ratio;
 
-	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Option<Ratio> {
+	fn get_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Ratio> {
 		Some(Ratio::new(1, 1))
 	}
 }

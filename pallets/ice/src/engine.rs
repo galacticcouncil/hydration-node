@@ -1,12 +1,10 @@
 use crate::pallet::Intents;
-use crate::types::{
-	Balance, BoundedInstructions, BoundedResolvedIntents, Intent, ResolvedIntent, Solution, Swap, SwapType,
-};
+use crate::types::{Balance, BoundedResolvedIntents, Intent, ResolvedIntent, Solution, Swap, SwapType};
 use crate::{Config, Error};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::__private::RuntimeDebug;
 use frame_support::dispatch::DispatchResult;
-use frame_support::pallet_prelude::{ConstU32, Get, TypeInfo, Weight};
+use frame_support::pallet_prelude::{ConstU32, Get, TypeInfo};
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use frame_support::traits::OriginTrait;

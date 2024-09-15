@@ -2,10 +2,9 @@ use crate::{Call, Config, Pallet};
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::IsSubType;
-use orml_traits::GetByKey;
 use sp_runtime::traits::{DispatchInfoOf, SignedExtension};
 use sp_runtime::transaction_validity::{
-	InvalidTransaction, TransactionPriority, TransactionValidity, TransactionValidityError, ValidTransaction,
+	InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
 };
 use sp_std::marker::PhantomData;
 

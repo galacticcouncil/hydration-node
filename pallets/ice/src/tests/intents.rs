@@ -3,7 +3,7 @@ use crate::tests::{ExtBuilder, ICE};
 use crate::types::{Intent, Swap, SwapType};
 use crate::Error;
 use frame_support::{assert_noop, assert_ok};
-use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
+use orml_traits::NamedMultiReservableCurrency;
 
 #[test]
 fn submit_intent_should_store_correct_intent_information() {

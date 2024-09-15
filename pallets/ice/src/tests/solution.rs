@@ -1,5 +1,5 @@
 use super::*;
-use crate::engine::{BoundedRoute, Instruction, SolutionError};
+use crate::engine::{BoundedRoute, Instruction};
 use crate::pallet::Intents;
 use crate::tests::{ExtBuilder, ICE};
 use crate::types::{
@@ -7,7 +7,6 @@ use crate::types::{
 };
 use crate::Error;
 use frame_support::{assert_noop, assert_ok};
-use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
 
 fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (ProposedSolution<AccountId, AssetId>, u64) {
 	// TODO: extend to support multiple intents

@@ -10,24 +10,21 @@ pub mod validity;
 mod weights;
 
 use crate::types::{
-	Balance, CallData, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier, ProposedSolution,
-	Solution, Swap,
+	CallData, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier, ProposedSolution, Solution, Swap,
 };
-use codec::{Encode, HasCompact, MaxEncodedLen};
+use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Time;
 use frame_support::{dispatch::DispatchResult, traits::Get};
 use frame_support::{Blake2_128Concat, Parameter};
 use frame_system::pallet_prelude::*;
-use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::RouterT;
 pub use pallet::*;
 use scale_info::TypeInfo;
-use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Hash};
+use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
 use sp_runtime::traits::{MaybeSerializeDeserialize, Member};
-use sp_runtime::{ArithmeticError, DispatchError, Rounding, Saturating};
+use sp_runtime::DispatchError;
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
@@ -39,7 +36,7 @@ pub mod pallet {
 	use frame_support::PalletId;
 	use hydra_dx_math::ratio::Ratio;
 	use hydradx_traits::price::PriceProvider;
-	use orml_traits::{GetByKey, NamedMultiReservableCurrency};
+	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::traits::BlockNumberProvider;
 	use types::Balance;
 

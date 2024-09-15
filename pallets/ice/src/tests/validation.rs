@@ -3,7 +3,6 @@ use crate::engine::{ICEEngine, Instruction};
 use crate::tests::{ExtBuilder, ICE};
 use crate::types::{BoundedInstructions, BoundedResolvedIntents, ResolvedIntent, Solution, Swap, SwapType};
 use frame_support::assert_ok;
-use frame_support::pallet_prelude::Weight;
 
 fn create_solution(
 	intents: Vec<ResolvedIntent>,
