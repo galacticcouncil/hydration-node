@@ -50,9 +50,7 @@ fn validate_solution_should_work_when_solution_contains_one_intent_swap_exact_in
 				vec![],
 			);
 
-			assert_ok!(ICEEngine::<Test, Tokens, DummyTradeExecutor>::validate_solution(
-				&solution
-			));
+			assert_ok!(ICEEngine::<Test>::validate_solution(&solution));
 		});
 }
 
@@ -88,7 +86,7 @@ fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_in() 
 				vec![],
 			);
 
-			assert!(ICEEngine::<Test, Tokens, DummyTradeExecutor>::validate_solution(&mut solution).is_err());
+			assert!(ICEEngine::<Test>::validate_solution(&mut solution).is_err());
 		});
 }
 
@@ -124,7 +122,7 @@ fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_out()
 				vec![],
 			);
 
-			assert!(ICEEngine::<Test, Tokens, DummyTradeExecutor>::validate_solution(&mut solution).is_err());
+			assert!(ICEEngine::<Test>::validate_solution(&mut solution).is_err());
 		});
 }
 
@@ -160,7 +158,7 @@ fn validate_solution_should_fail_when_solution_contains_intent_updated_but_not_r
 				vec![],
 			);
 
-			assert!(ICEEngine::<Test, Tokens, DummyTradeExecutor>::validate_solution(&mut solution).is_err());
+			assert!(ICEEngine::<Test>::validate_solution(&mut solution).is_err());
 		});
 }
 

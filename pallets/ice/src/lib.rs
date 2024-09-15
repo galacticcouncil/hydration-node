@@ -273,12 +273,12 @@ pub mod pallet {
 				score,
 			};
 
-			if let Err(e) = ICEEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&solution) {
+			if let Err(e) = ICEEngine::<T>::validate_solution(&solution) {
 				//TODO: slash him, bob!
 				return Err(e);
 			}
 
-			ICEEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
+			ICEEngine::<T>::execute_solution(solution)?;
 
 			Self::clear_expired_intents();
 

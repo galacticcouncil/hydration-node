@@ -81,13 +81,9 @@ fn ensure_intent_resolution<T: Config>(
 	diff <= FixedU128::from_rational(1, 1000)
 }
 
-pub struct ICEEngine<T, C, R>(sp_std::marker::PhantomData<(T, C, R)>);
+pub struct ICEEngine<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config, C, R> ICEEngine<T, C, R>
-where
-	C: Mutate<T::AccountId, AssetId = T::AssetId, Balance = Balance>,
-	R: RouterT<T::RuntimeOrigin, T::AssetId, Balance, Trade<T::AssetId>, AmountInAndOut<Balance>>,
-{
+impl<T: Config> ICEEngine<T> {
 	pub fn validate_solution(solution: &Solution<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
 		// Store resolved amounts for each account
 		// This is used to ensure that the transfer instruction does not transfer more than it should
@@ -292,10 +288,10 @@ where
 				Instruction::TransferIn { who, asset_id, amount } => {
 					let r = T::ReservableCurrency::unreserve_named(&T::NamedReserveId::get(), asset_id, &who, amount);
 					ensure!(r == Balance::zero(), crate::Error::<T>::InsufficientReservedBalance);
-					C::transfer(asset_id, &who, &holding_account, amount, Preservation::Expendable)?;
+					T::Currency::transfer(asset_id, &who, &holding_account, amount, Preservation::Expendable)?;
 				}
 				Instruction::TransferOut { who, asset_id, amount } => {
-					C::transfer(asset_id, &holding_account, &who, amount, Preservation::Expendable)?;
+					T::Currency::transfer(asset_id, &holding_account, &who, amount, Preservation::Expendable)?;
 				}
 				Instruction::SwapExactIn {
 					asset_in,
@@ -305,7 +301,7 @@ where
 					route,
 				} => {
 					let origin = T::RuntimeOrigin::signed(holding_account.clone().into());
-					R::sell(
+					T::TradeExecutor::sell(
 						origin,
 						asset_in,
 						asset_out,
@@ -322,7 +318,7 @@ where
 					route,
 				} => {
 					let origin = T::RuntimeOrigin::signed(holding_account.clone().into());
-					R::buy(
+					T::TradeExecutor::buy(
 						origin,
 						asset_in,
 						asset_out,
