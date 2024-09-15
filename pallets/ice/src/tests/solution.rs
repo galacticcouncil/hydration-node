@@ -1,9 +1,9 @@
 use super::*;
-use crate::engine::{BoundedRoute, Instruction};
+use crate::engine::Instruction;
 use crate::pallet::Intents;
 use crate::tests::{ExtBuilder, ICE};
 use crate::types::{
-	BoundedInstructions, BoundedResolvedIntents, Intent, ProposedSolution, ResolvedIntent, Swap, SwapType,
+	BoundedInstructions, BoundedResolvedIntents, BoundedRoute, Intent, ProposedSolution, ResolvedIntent, Swap, SwapType,
 };
 use crate::Error;
 use frame_support::{assert_noop, assert_ok};

@@ -1,10 +1,9 @@
 use crate::pallet::Intents;
-use crate::types::{Balance, BoundedResolvedIntents, Intent, ResolvedIntent, Solution, Swap, SwapType};
+use crate::types::{Balance, BoundedResolvedIntents, BoundedRoute, Intent, ResolvedIntent, Solution, Swap, SwapType};
 use crate::{Config, Error};
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::__private::RuntimeDebug;
 use frame_support::dispatch::DispatchResult;
-use frame_support::pallet_prelude::{ConstU32, Get, TypeInfo};
+use frame_support::pallet_prelude::{ConstU32, Get, RuntimeDebug, TypeInfo};
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use frame_support::traits::OriginTrait;
@@ -17,14 +16,6 @@ use sp_runtime::traits::Zero;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128, Rounding, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
-
-pub type BoundedRoute<AssetId> = BoundedVec<Trade<AssetId>, ConstU32<5>>;
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, frame_support::PalletError, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub enum SolutionError {
-	IncorrectIntentAmountResolution,
-	IncorrectTransferInstruction,
-}
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Instruction<AccountId, AssetId> {
@@ -54,10 +45,7 @@ pub enum Instruction<AccountId, AssetId> {
 	},
 }
 
-fn ensure_intent_resolution<T: Config>(
-	intent: &Intent<T::AccountId, T::AssetId>,
-	resolved_intent: &ResolvedIntent,
-) -> bool {
+fn ensure_intent_price<T: Config>(intent: &Intent<T::AccountId, T::AssetId>, resolved_intent: &ResolvedIntent) -> bool {
 	let amount_in = intent.swap.amount_in;
 	let amount_out = intent.swap.amount_out;
 	let resolved_in = resolved_intent.amount_in;
@@ -98,12 +86,11 @@ impl<T: Config> ICEEngine<T> {
 		// - ensure ratio
 		// - record resolved amount to check transfer instructions
 		for resolved_intent in solution.intents.iter() {
-			let intent =
-				crate::Pallet::<T>::get_intent(resolved_intent.intent_id).ok_or(crate::Error::<T>::IntentNotFound)?;
+			let intent = crate::Pallet::<T>::get_intent(resolved_intent.intent_id).ok_or(Error::<T>::IntentNotFound)?;
 
 			ensure!(
-				ensure_intent_resolution::<T>(&intent, resolved_intent),
-				crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+				ensure_intent_price::<T>(&intent, resolved_intent),
+				Error::<T>::IntentLimitPriceViolation
 			);
 
 			let is_partial = intent.partial;
@@ -127,16 +114,16 @@ impl<T: Config> ICEEngine<T> {
 					if is_partial {
 						ensure!(
 							resolved_intent.amount_in <= intent.swap.amount_in,
-							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+							Error::<T>::IncorrectIntentAmountResolution
 						);
 					} else {
 						ensure!(
 							resolved_intent.amount_in == intent.swap.amount_in,
-							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+							crate::Error::<T>::IncorrectIntentAmountResolution
 						);
 						ensure!(
 							resolved_intent.amount_out >= intent.swap.amount_out,
-							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+							Error::<T>::IncorrectIntentAmountResolution
 						);
 					}
 
@@ -153,16 +140,16 @@ impl<T: Config> ICEEngine<T> {
 					if is_partial {
 						ensure!(
 							resolved_intent.amount_out <= intent.swap.amount_out,
-							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+							Error::<T>::IncorrectIntentAmountResolution
 						);
 					} else {
 						ensure!(
 							resolved_intent.amount_out == intent.swap.amount_out,
-							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+							Error::<T>::IncorrectIntentAmountResolution
 						);
 						ensure!(
 							resolved_intent.amount_in <= intent.swap.amount_in,
-							crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+							Error::<T>::IncorrectIntentAmountResolution
 						);
 					}
 
@@ -187,13 +174,13 @@ impl<T: Config> ICEEngine<T> {
 				Instruction::TransferIn { who, asset_id, amount } => {
 					ensure!(
 						*acc_amounts_in.get(&(who.clone(), *asset_id)).unwrap_or(&0u128) == *amount,
-						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectTransferInstruction)
+						Error::<T>::InvalidTransferInstruction
 					);
 				}
 				Instruction::TransferOut { who, asset_id, amount } => {
 					ensure!(
 						*acc_amounts_out.get(&(who.clone(), *asset_id)).unwrap_or(&0u128) == *amount,
-						crate::Error::<T>::InvalidSolution(SolutionError::IncorrectIntentAmountResolution)
+						Error::<T>::InvalidTransferInstruction
 					);
 				}
 				Instruction::SwapExactIn { .. } => {}
@@ -211,7 +198,7 @@ impl<T: Config> ICEEngine<T> {
 
 		let calculated_score = Self::score_solution(&solution, matched_amounts)?;
 
-		ensure!(calculated_score == solution.score, crate::Error::<T>::InvalidScore);
+		ensure!(calculated_score == solution.score, Error::<T>::InvalidScore);
 
 		Ok(())
 	}
@@ -254,9 +241,9 @@ impl<T: Config> ICEEngine<T> {
 
 			let partially_resolved = resolved_amount_out != amount_out;
 
+			// This should be handled by the validation, but just in case
 			if partially_resolved && !is_partial {
-				return Err(Error::<T>::InvalidSolution(SolutionError::IncorrectTransferInstruction).into());
-				//todo: better error
+				return Err(Error::<T>::IncorrectIntentAmountResolution.into());
 			}
 
 			if partially_resolved {

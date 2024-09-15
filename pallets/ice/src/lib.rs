@@ -32,7 +32,7 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::engine::{ICEEngine, SolutionError};
+	use crate::engine::ICEEngine;
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use hydra_dx_math::ratio::Ratio;
@@ -128,23 +128,11 @@ pub mod pallet {
 		/// Data too long
 		TooLong,
 
-		/// Provided solution is invalid
-		InvalidSolution(SolutionError),
-
-		/// One or more prices provided for solution are invalid
-		InvalidPrices,
-
 		/// Intent not found
 		IntentNotFound,
 
-		/// Solution not found
-		SolutionNotFound,
-
 		/// Price is missing in provided solution
 		MissingPrice,
-
-		/// Execution contains too many instructions
-		TooManyInstructions,
 
 		/// Invalid block number
 		InvalidBlockNumber,
@@ -157,6 +145,15 @@ pub mod pallet {
 
 		/// Invalid solution score
 		InvalidScore,
+
+		///
+		IncorrectIntentAmountResolution,
+
+		///
+		InvalidTransferInstruction,
+
+		///
+		IntentLimitPriceViolation,
 	}
 
 	#[pallet::storage]
