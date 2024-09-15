@@ -16,30 +16,6 @@ use sp_runtime::{ArithmeticError, DispatchError, FixedU128, Rounding, Saturating
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
 
-fn ensure_intent_price<T: Config>(intent: &Intent<T::AccountId, T::AssetId>, resolved_intent: &ResolvedIntent) -> bool {
-	let amount_in = intent.swap.amount_in;
-	let amount_out = intent.swap.amount_out;
-	let resolved_in = resolved_intent.amount_in;
-	let resolved_out = resolved_intent.amount_out;
-
-	if amount_in == resolved_in {
-		return resolved_out == amount_out;
-	}
-
-	if amount_out == resolved_out {
-		return resolved_in == amount_in;
-	}
-
-	let realized = FixedU128::from_rational(resolved_out, resolved_in);
-	let expected = FixedU128::from_rational(amount_out, amount_in);
-
-	if realized < expected {
-		return false;
-	}
-	let diff = realized - expected;
-	diff <= FixedU128::from_rational(1, 1000)
-}
-
 pub struct ICEEngine<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> ICEEngine<T> {
@@ -292,4 +268,28 @@ impl<T: Config> ICEEngine<T> {
 
 		Ok(())
 	}
+}
+
+fn ensure_intent_price<T: Config>(intent: &Intent<T::AccountId, T::AssetId>, resolved_intent: &ResolvedIntent) -> bool {
+	let amount_in = intent.swap.amount_in;
+	let amount_out = intent.swap.amount_out;
+	let resolved_in = resolved_intent.amount_in;
+	let resolved_out = resolved_intent.amount_out;
+
+	if amount_in == resolved_in {
+		return resolved_out == amount_out;
+	}
+
+	if amount_out == resolved_out {
+		return resolved_in == amount_in;
+	}
+
+	let realized = FixedU128::from_rational(resolved_out, resolved_in);
+	let expected = FixedU128::from_rational(amount_out, amount_in);
+
+	if realized < expected {
+		return false;
+	}
+	let diff = realized - expected;
+	diff <= FixedU128::from_rational(1, 1000)
 }

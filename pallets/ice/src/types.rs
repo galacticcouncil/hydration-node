@@ -29,8 +29,6 @@ pub struct Intent<AccountId, AssetId> {
 	pub partial: bool,
 	pub on_success: Option<CallData>,
 	pub on_failure: Option<CallData>,
-	//TODO: nonce?!
-	// nonce: Nonce,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
