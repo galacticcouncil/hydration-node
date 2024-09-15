@@ -1,4 +1,3 @@
-use crate::engine::Instruction;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{RuntimeDebug, TypeInfo};
 use frame_support::traits::ConstU32;
@@ -68,4 +67,32 @@ pub struct Solution<AccountId, AssetId> {
 pub struct ProposedSolution<AccountId, AssetId> {
 	pub intents: BoundedResolvedIntents,
 	pub instructions: BoundedInstructions<AccountId, AssetId>,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum Instruction<AccountId, AssetId> {
+	TransferIn {
+		who: AccountId,
+		asset_id: AssetId,
+		amount: Balance,
+	},
+	TransferOut {
+		who: AccountId,
+		asset_id: AssetId,
+		amount: Balance,
+	},
+	SwapExactIn {
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		amount_out: Balance,
+		route: BoundedRoute<AssetId>,
+	},
+	SwapExactOut {
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		amount_out: Balance,
+		route: BoundedRoute<AssetId>,
+	},
 }

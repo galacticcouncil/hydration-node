@@ -1,7 +1,9 @@
 use super::*;
-use crate::engine::{ICEEngine, Instruction};
+use crate::engine::ICEEngine;
 use crate::tests::{ExtBuilder, ICE};
-use crate::types::{BoundedInstructions, BoundedResolvedIntents, ResolvedIntent, Solution, Swap, SwapType};
+use crate::types::{
+	BoundedInstructions, BoundedResolvedIntents, Instruction, ResolvedIntent, Solution, Swap, SwapType,
+};
 use frame_support::assert_ok;
 
 fn create_solution(

@@ -1,7 +1,7 @@
 use super::*;
-use crate::engine::Instruction;
 use crate::pallet::Intents;
 use crate::tests::{ExtBuilder, ICE};
+use crate::types::Instruction;
 use crate::types::{
 	BoundedInstructions, BoundedResolvedIntents, BoundedRoute, Intent, ProposedSolution, ResolvedIntent, Swap, SwapType,
 };

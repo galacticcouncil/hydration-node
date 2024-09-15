@@ -1,10 +1,9 @@
 use crate::pallet::Intents;
-use crate::types::{Balance, BoundedResolvedIntents, BoundedRoute, Intent, ResolvedIntent, Solution, Swap, SwapType};
+use crate::types::{Balance, BoundedResolvedIntents, Instruction, Intent, ResolvedIntent, Solution, Swap, SwapType};
 use crate::{Config, Error};
-use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
-use frame_support::pallet_prelude::{Get, RuntimeDebug, TypeInfo};
+use frame_support::pallet_prelude::Get;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use frame_support::traits::OriginTrait;
@@ -16,34 +15,6 @@ use sp_runtime::traits::Zero;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128, Rounding, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub enum Instruction<AccountId, AssetId> {
-	TransferIn {
-		who: AccountId,
-		asset_id: AssetId,
-		amount: Balance,
-	},
-	TransferOut {
-		who: AccountId,
-		asset_id: AssetId,
-		amount: Balance,
-	},
-	SwapExactIn {
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		amount_out: Balance,
-		route: BoundedRoute<AssetId>,
-	},
-	SwapExactOut {
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		amount_out: Balance,
-		route: BoundedRoute<AssetId>,
-	},
-}
 
 fn ensure_intent_price<T: Config>(intent: &Intent<T::AccountId, T::AssetId>, resolved_intent: &ResolvedIntent) -> bool {
 	let amount_in = intent.swap.amount_in;
