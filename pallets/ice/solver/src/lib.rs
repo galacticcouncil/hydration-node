@@ -15,7 +15,9 @@ pub struct SolverSolution<AccountId, AssetId> {
 	pub instructions: Vec<Instruction<AccountId, AssetId>>,
 	pub score: u64,
 }
-
+// IMPORTANT: This is NOT a real solver!!
+// This is a simple solver that just sells all assets for LRNA and then buys back the assets that are needed.
+// Used for testing purposes only.
 pub struct SimpleSolver<T, R, RP, PP>(sp_std::marker::PhantomData<(T, R, RP, PP)>);
 
 impl<T: pallet_ice::Config, R, RP, PP> ICESolver<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>
