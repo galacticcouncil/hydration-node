@@ -244,7 +244,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::submit_solution())]
+		#[pallet::weight(T::WeightInfo::submit_solution())] //TODO: calculate weight based on given instructions
 		pub fn submit_solution(
 			origin: OriginFor<T>,
 			solution: ProposedSolution<T::AccountId, T::AssetId>,
@@ -259,20 +259,16 @@ pub mod pallet {
 				Error::<T>::InvalidBlockNumber
 			);
 
-			let mut solution = Solution {
+			let solution = Solution {
 				proposer: who.clone(),
 				intents: solution.intents,
 				instructions: solution.instructions,
 				score,
-				weight: Default::default(),
 			};
 
-			let matched_amounts = ICEEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&mut solution)?;
-			let calculated_score = Self::score_solution(&solution, matched_amounts)?;
-
-			if score != calculated_score {
+			if let Err(e) = ICEEngine::<T, T::Currency, T::TradeExecutor>::validate_solution(&solution) {
 				//TODO: slash him, bob!
-				return Err(Error::<T>::InvalidScore.into());
+				return Err(e);
 			}
 
 			ICEEngine::<T, T::Currency, T::TradeExecutor>::execute_solution(solution)?;
@@ -331,25 +327,6 @@ impl<T: Config> Pallet<T> {
 			SolutionScore::<T>::put((who, score));
 			true
 		}
-	}
-
-	fn score_solution(
-		solution: &Solution<T::AccountId, T::AssetId>,
-		matched_amounts: Vec<(T::AssetId, Balance)>,
-	) -> Result<u64, DispatchError> {
-		let resolved_intents = solution.intents.iter().count() as u128;
-
-		let mut hub_amount = resolved_intents * 1_000_000_000_000u128;
-
-		for (asset_id, amount) in matched_amounts {
-			let price = T::PriceProvider::get_price(T::HubAssetId::get(), asset_id).ok_or(Error::<T>::MissingPrice)?;
-			let converted = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down)
-				.ok_or(ArithmeticError::Overflow)?;
-			hub_amount.saturating_accrue(converted);
-		}
-
-		// round down
-		Ok((hub_amount / 1_000_000u128) as u64)
 	}
 
 	fn clear_expired_intents() {

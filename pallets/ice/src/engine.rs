@@ -11,10 +11,12 @@ use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use frame_support::traits::OriginTrait;
 use frame_support::{ensure, BoundedVec};
+use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AmountInAndOut, RouterT, Trade};
 use orml_traits::NamedMultiReservableCurrency;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::Zero;
-use sp_runtime::{DispatchError, FixedU128};
+use sp_runtime::{ArithmeticError, DispatchError, FixedU128, Rounding, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
 
@@ -88,9 +90,7 @@ where
 	C: Mutate<T::AccountId, AssetId = T::AssetId, Balance = Balance>,
 	R: RouterT<T::RuntimeOrigin, T::AssetId, Balance, Trade<T::AssetId>, AmountInAndOut<Balance>>,
 {
-	pub fn validate_solution(
-		solution: &mut Solution<T::AccountId, T::AssetId>,
-	) -> Result<Vec<(T::AssetId, Balance)>, DispatchError> {
+	pub fn validate_solution(solution: &Solution<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
 		// Store resolved amounts for each account
 		// This is used to ensure that the transfer instruction does not transfer more than it should
 		let mut acc_amounts_in: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
@@ -215,15 +215,30 @@ where
 			matched_amounts.push((*asset_id, *(amount.min(amount_out))));
 		}
 
-		solution.weight = Self::calculate_weight(&solution.instructions)?;
+		let calculated_score = Self::score_solution(&solution, matched_amounts)?;
 
-		Ok(matched_amounts)
+		ensure!(calculated_score == solution.score, crate::Error::<T>::InvalidScore);
+
+		Ok(())
 	}
 
-	fn calculate_weight(
-		_instructions: &BoundedInstructions<T::AccountId, T::AssetId>,
-	) -> Result<Weight, DispatchError> {
-		Ok(Weight::default())
+	fn score_solution(
+		solution: &Solution<T::AccountId, T::AssetId>,
+		matched_amounts: Vec<(T::AssetId, Balance)>,
+	) -> Result<u64, DispatchError> {
+		let resolved_intents = solution.intents.iter().count() as u128;
+
+		let mut hub_amount = resolved_intents * 1_000_000_000_000u128;
+
+		for (asset_id, amount) in matched_amounts {
+			let price = T::PriceProvider::get_price(T::HubAssetId::get(), asset_id).ok_or(Error::<T>::MissingPrice)?;
+			let converted = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Down)
+				.ok_or(ArithmeticError::Overflow)?;
+			hub_amount.saturating_accrue(converted);
+		}
+
+		// round down
+		Ok((hub_amount / 1_000_000u128) as u64)
 	}
 
 	fn update_intents(resolved_intents: BoundedResolvedIntents) -> DispatchResult {

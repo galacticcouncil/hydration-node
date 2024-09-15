@@ -61,7 +61,6 @@ pub struct Solution<AccountId, AssetId> {
 	pub intents: BoundedResolvedIntents,
 	pub instructions: BoundedInstructions<AccountId, AssetId>,
 	pub score: u64,
-	pub weight: Weight,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
