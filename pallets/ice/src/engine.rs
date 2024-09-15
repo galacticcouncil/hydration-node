@@ -3,13 +3,13 @@ use crate::types::{Balance, BoundedResolvedIntents, BoundedRoute, Intent, Resolv
 use crate::{Config, Error};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::dispatch::DispatchResult;
-use frame_support::pallet_prelude::{ConstU32, Get, RuntimeDebug, TypeInfo};
+use frame_support::ensure;
+use frame_support::pallet_prelude::{Get, RuntimeDebug, TypeInfo};
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use frame_support::traits::OriginTrait;
-use frame_support::{ensure, BoundedVec};
 use hydradx_traits::price::PriceProvider;
-use hydradx_traits::router::{AmountInAndOut, RouterT, Trade};
+use hydradx_traits::router::RouterT;
 use orml_traits::NamedMultiReservableCurrency;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::Zero;
