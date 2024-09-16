@@ -93,7 +93,7 @@ pub mod pallet {
 		>;
 
 		/// The means of determining a solution's weight.
-		type Weigher: traits::IceWeightBounds<Self::RuntimeCall>;
+		type Weigher: IceWeightBounds<Self::RuntimeCall, Vec<hydradx_traits::router::Trade<Self::AssetId>>>;
 
 		/// Price provider
 		type PriceProvider: PriceProvider<Self::AssetId, Price = Ratio>;
@@ -254,11 +254,11 @@ pub mod pallet {
 					Instruction::TransferOut { .. } => {
 						w.saturating_accrue(T::Weigher::transfer_weight());
 					},
-					Instruction::SwapExactIn { .. } => {
-						w.saturating_accrue(T::Weigher::swap_weight());
+					Instruction::SwapExactIn { route, .. } => {
+						w.saturating_accrue(T::Weigher::swap_weight(&route));
 					},
-					Instruction::SwapExactOut { .. } => {
-						w.saturating_accrue(T::Weigher::swap_weight());
+					Instruction::SwapExactOut { route, .. } => {
+						w.saturating_accrue(T::Weigher::swap_weight(&route));
 					}
 				}
 			}
