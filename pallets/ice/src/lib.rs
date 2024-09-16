@@ -255,10 +255,10 @@ pub mod pallet {
 						w.saturating_accrue(T::Weigher::transfer_weight());
 					},
 					Instruction::SwapExactIn { route, .. } => {
-						w.saturating_accrue(T::Weigher::swap_weight(&route));
+						w.saturating_accrue(T::Weigher::sell_weight(&route));
 					},
 					Instruction::SwapExactOut { route, .. } => {
-						w.saturating_accrue(T::Weigher::swap_weight(&route));
+						w.saturating_accrue(T::Weigher::buy_weight(&route));
 					}
 				}
 			}
