@@ -511,16 +511,6 @@ parameter_types! {
 	pub const MaxIntentDuration: Moment = 86_400_000; //1day
 	pub ICENamedReserveId: NamedReserveIdentifier = *b"iceinten";
 }
-pub struct TxPriorityOrder;
-impl GetByKey<RuntimeCall, TransactionPriority> for TxPriorityOrder {
-	fn get(call: &RuntimeCall) -> TransactionPriority {
-		match call.is_sub_type() {
-			Some(pallet_omnipool::Call::add_liquidity { .. }) => 0,
-			Some(pallet_omnipool::Call::sell { .. }) => 1_000_000_000_000_000_000,
-			_ => 0,
-		}
-	}
-}
 
 impl pallet_ice::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -532,6 +522,7 @@ impl pallet_ice::Config for Runtime {
 	type Currency = FungibleCurrencies<Runtime>;
 	type ReservableCurrency = Currencies;
 	type TradeExecutor = Router;
+	type Weigher = (); //TODO: add correct weights
 	type PriceProvider =
 		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
 	type PalletId = ICEPalletId;
@@ -1300,7 +1291,6 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
-use frame_support::traits::IsSubType;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1310,7 +1300,6 @@ use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
-use sp_runtime::transaction_validity::TransactionPriority;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
 
