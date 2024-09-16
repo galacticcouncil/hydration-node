@@ -33,6 +33,8 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use super::*;
 	use crate::engine::ICEEngine;
+	use crate::traits::IceWeightBounds;
+	use crate::types::Instruction;
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use hydra_dx_math::ratio::Ratio;
@@ -244,8 +246,22 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight( {
 			let mut w = T::WeightInfo::submit_solution();
-			for i in solution.instructions.iter() {
+			for instruction in solution.instructions.iter() {
 				//TODO: match instruction and ask weigher for weight and accrue
+				match instruction {
+					Instruction::TransferIn { .. } => {
+						w.saturating_accrue(T::Weigher::transfer_weight());
+					},
+					Instruction::TransferOut { .. } => {
+						w.saturating_accrue(T::Weigher::transfer_weight());
+					},
+					Instruction::SwapExactIn { .. } => {
+						w.saturating_accrue(T::Weigher::swap_weight());
+					},
+					Instruction::SwapExactOut { .. } => {
+						w.saturating_accrue(T::Weigher::swap_weight());
+					}
+				}
 			}
 			w
 		})]
