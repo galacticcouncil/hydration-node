@@ -247,7 +247,6 @@ pub mod pallet {
 		#[pallet::weight( {
 			let mut w = T::WeightInfo::submit_solution();
 			for instruction in solution.instructions.iter() {
-				//TODO: match instruction and ask weigher for weight and accrue
 				match instruction {
 					Instruction::TransferIn { .. } => {
 						w.saturating_accrue(T::Weigher::transfer_weight());
