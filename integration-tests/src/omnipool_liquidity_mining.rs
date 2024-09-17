@@ -1238,6 +1238,64 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 	});
 }
 
+#[test]
+fn update_global_farm_should_work() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_id = 1;
+		let yield_farm_id = 2;
+
+		//Arrange
+		init_omnipool();
+
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
+		set_relaychain_block_number(100);
+		create_global_farm(None, None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_id, ETH);
+
+		set_relaychain_block_number(300);
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CHARLIE.into(),
+			ETH,
+			10_000 * UNITS as i128,
+		));
+		let position_id = omnipool_add_liquidity(CHARLIE.into(), ETH, 1_000 * UNITS);
+
+		set_relaychain_block_number(400);
+
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			global_farm_id,
+			yield_farm_id,
+			position_id
+		));
+
+		//Act
+		let planned_yielding_periods: BlockNumber = 1_000_000_000_u32;
+		let yield_per_period = Perquintill::from_percent(20);
+		let min_deposit = 20_000;
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::update_global_farm(
+			RuntimeOrigin::root(),
+			global_farm_id,
+			planned_yielding_periods,
+			yield_per_period,
+			min_deposit
+		));
+
+		//Assert
+		let g_farm = warehouse_liquidity_mining::GlobalFarm::<hydradx_runtime::Runtime, Instance1>::get(global_farm_id).unwrap();
+		assert_eq!(g_farm.planned_yielding_periods, planned_yielding_periods);
+		assert_eq!(g_farm.yield_per_period, yield_per_period);
+		assert_eq!(g_farm.min_deposit, min_deposit);
+	});
+}
+
 pub fn expect_reward_claimed_events(e: Vec<RuntimeEvent>) {
 	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
 
