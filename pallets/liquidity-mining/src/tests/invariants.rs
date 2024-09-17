@@ -506,6 +506,20 @@ prop_compose! {
 	}
 }
 
+prop_compose! {
+	fn arb_deposit2()(
+		shares in 1_000 * ONE..1_000_000 * ONE,
+		valued_shares in 10_001..10_000_000 * ONE,
+		g_idx in 0..3_usize,
+		y_idx in 0..2_usize,
+	) -> Deposit {
+		let g_farm = G_FARMS.with(|v| v.borrow()[g_idx].clone());
+		let y_farm = &g_farm.yield_farms[y_idx];
+
+		Deposit {global_farm_id: g_farm.id,yield_farm_id: y_farm.0, amm_pool_id: y_farm.1, shares, valued_shares}
+	}
+}
+
 #[test]
 //https://www.notion.so/Liquidity-mining-spec-b30ccfe470a74173b82c3702b1e8fca1#87868f45e4d04ecb92374c5f795a493d
 //
@@ -898,6 +912,10 @@ fn percentage() -> impl Strategy<Value = u64> {
 fn min_deposit() -> impl Strategy<Value = Balance> {
 	1000..10000000u128
 }
+fn min_deposit2() -> impl Strategy<Value = Balance> {
+	1000..10_000u128
+}
+
 
 //Number of blocks added to current block number in each test case run. This number should be
 //reasonable smaller than total of runned test to make sure lot of claims is executed and
@@ -1175,3 +1193,98 @@ fn update_global_farm_invariant_4() {
 
 
 
+
+#[test]
+//Update global farm for invariant one
+//https://www.notion.so/Liquidity-mining-spec-b30ccfe470a74173b82c3702b1e8fca1#87868f45e4d04ecb92374c5f795a493d
+
+fn update_global_farm_invariant_first() {
+	//Number of sucessfull test cases that must execute for the test as a whole to pass.
+	let successfull_cases = 1_000;
+	//Number of blocks added to current block number in each test case run. This number should be
+	//reasonable smaller than total of runned test to make sure lot of claims is executed and
+	//multiple claims for same deposit to happen.
+	let blocks_offset_range = 1..10_u64;
+	//Index of deposit in `deposit` vec. This idx is used in each test case run and execute claim
+	//if deposit exits.
+
+	let deposit_idx_range = 0..500_usize;
+
+	invariants_externalities().execute_with(|| {
+		let mut runner = TestRunner::new(Config {
+			cases: successfull_cases,
+			source_file: Some("liquidity-mining/src/tests/invariants.rs"),
+			test_name: Some("update_global_farm_invariant_first"),
+			..Config::default()
+		});
+		let deposits: RefCell<Vec<Deposit>> = RefCell::new(Vec::new());
+
+		runner
+			.run(
+				&(arb_deposit2(), blocks_offset_range, deposit_idx_range, planned_yielding_periods(), percentage(), min_deposit()),
+				|(d, blocks_offset, deposit_idx, planned_yielding_period, percent, min_deposit)| {
+					deposits.borrow_mut().push(d.clone());
+
+					let yield_per_period = Perquintill::from_percent(percent);
+
+					//Act
+					let _ = with_transaction(|| {
+						LiquidityMining::update_global_farm(d.global_farm_id, planned_yielding_period, yield_per_period, 1000).unwrap();
+						TransactionOutcome::Commit(DispatchResult::Ok(()))
+					});
+
+					let _ = with_transaction(|| {
+						assert_ok!(LiquidityMining::deposit_lp_shares(
+							d.global_farm_id,
+							d.yield_farm_id,
+							d.amm_pool_id,
+							d.shares,
+							|_, _, _| -> Result<Balance, DispatchError> { Ok(d.valued_shares) }
+						));
+
+						set_block_number(mock::System::block_number() + blocks_offset);
+
+						//claim rewards only if deposit exists
+						if deposit_idx < deposits.borrow().len() {
+							let d = &deposits.borrow()[deposit_idx];
+							let deposit_id = deposit_idx as u128 + 1;
+
+							assert_ok!(LiquidityMining::claim_rewards(ALICE, deposit_id, d.yield_farm_id, true));
+						}
+
+						TransactionOutcome::Commit(DispatchResult::Ok(()))
+					});
+
+
+					//Assert:
+					G_FARMS.with(|v| {
+						v.borrow().clone().into_iter().for_each(|gf| {
+							let g_farm_balance = Tokens::free_balance(
+								gf.reward_currency,
+								&LiquidityMining::farm_account_id(gf.id).unwrap(),
+							);
+							let g_farm_1 = LiquidityMining::global_farm(gf.id).unwrap();
+
+							//1.1 assert
+							let s_1 = g_farm_balance + g_farm_1.accumulated_paid_rewards + g_farm_1.pending_rewards;
+							//NOTE: This should be precise.
+							assert_eq!(gf.total_rewards, s_1);
+
+							//1.2 assert
+							let s_1: u128 = g_farm_1.max_reward_per_period * g_farm_1.planned_yielding_periods as u128;
+							//NOTE: Approax becasue of div in max_reward_per_period calculation.
+							assert_eq_approx!(
+								gf.total_rewards,
+								s_1,
+								5_000_000,
+								"total_rewards = max_reward_per_period * planned_yielding_periods"
+							);
+						})
+					});
+
+					Ok(())
+				},
+			)
+			.unwrap();
+	});
+}

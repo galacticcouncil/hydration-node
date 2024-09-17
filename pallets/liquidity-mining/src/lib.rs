@@ -583,7 +583,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		yield_per_period: Perquintill,
 		min_deposit: Balance,
 	) -> Result<(), DispatchError> {
-		//TODO: add invariant test too
 		ensure!(min_deposit.ge(&MIN_DEPOSIT), Error::<T, I>::InvalidMinDeposit);
 		ensure!(
 			planned_yielding_periods >= T::MinPlannedYieldingPeriods::get(),
