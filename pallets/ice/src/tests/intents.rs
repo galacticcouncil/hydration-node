@@ -229,5 +229,12 @@ fn test_correct_intent_id() {
 			crate::Pallet::<Test>::get_intent_id(DEFAULT_NOW, 2),
 			31172125326516865653853388800002
 		);
+
+		// revert example
+		let intent_id = 31172125326516865653853388800001u128;
+		let deadline = (intent_id >> 64) as u64;
+		let increment = intent_id as u64;
+		assert_eq!(deadline, DEFAULT_NOW);
+		assert_eq!(increment, 1);
 	});
 }
