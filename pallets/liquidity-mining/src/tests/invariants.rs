@@ -506,20 +506,6 @@ prop_compose! {
 	}
 }
 
-prop_compose! {
-	fn arb_deposit2()(
-		shares in 1_000 * ONE..1_000_000 * ONE,
-		valued_shares in 10_001..10_000_000 * ONE,
-		g_idx in 0..3_usize,
-		y_idx in 0..2_usize,
-	) -> Deposit {
-		let g_farm = G_FARMS.with(|v| v.borrow()[g_idx].clone());
-		let y_farm = &g_farm.yield_farms[y_idx];
-
-		Deposit {global_farm_id: g_farm.id,yield_farm_id: y_farm.0, amm_pool_id: y_farm.1, shares, valued_shares}
-	}
-}
-
 #[test]
 //https://www.notion.so/Liquidity-mining-spec-b30ccfe470a74173b82c3702b1e8fca1#87868f45e4d04ecb92374c5f795a493d
 //
@@ -943,7 +929,7 @@ fn update_global_farm_invariant_1() {
 		runner
 			.run(
 				&(
-					arb_deposit2(),
+					arb_deposit(),
 					blocks_offset_range,
 					deposit_idx_range,
 					planned_yielding_periods(),
