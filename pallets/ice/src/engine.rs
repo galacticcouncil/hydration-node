@@ -19,7 +19,7 @@ use sp_std::vec::Vec;
 pub struct ICEEngine<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> ICEEngine<T> {
-	pub fn validate_solution(solution: &Solution<T::AccountId, T::AssetId>) -> Result<(), DispatchError> {
+	pub fn validate_solution(solution: &Solution<T::AccountId, T::AssetId>, score: u64) -> Result<(), DispatchError> {
 		// Store resolved amounts for each account
 		// This is used to ensure that the transfer instruction does not transfer more than it should
 		let mut acc_amounts_in: BTreeMap<(T::AccountId, T::AssetId), Balance> = BTreeMap::new();
@@ -145,7 +145,7 @@ impl<T: Config> ICEEngine<T> {
 
 		let calculated_score = Self::score_solution(&solution, matched_amounts)?;
 
-		ensure!(calculated_score == solution.score, Error::<T>::InvalidScore);
+		ensure!(calculated_score == score, Error::<T>::InvalidScore);
 
 		Ok(())
 	}

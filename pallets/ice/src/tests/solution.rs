@@ -1,14 +1,12 @@
 use super::*;
 use crate::pallet::Intents;
 use crate::tests::{ExtBuilder, ICE};
-use crate::types::Instruction;
-use crate::types::{
-	BoundedInstructions, BoundedResolvedIntents, BoundedRoute, Intent, ProposedSolution, ResolvedIntent, Swap, SwapType,
-};
+use crate::types::{BoundedInstructions, BoundedResolvedIntents, BoundedRoute, Intent, ResolvedIntent, Swap, SwapType};
+use crate::types::{Instruction, Solution};
 use crate::Error;
 use frame_support::{assert_noop, assert_ok};
 
-fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (ProposedSolution<AccountId, AssetId>, u64) {
+fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (Solution<AccountId, AssetId>, u64) {
 	// TODO: extend to support multiple intents
 	// currently only one intent is supported
 
@@ -41,7 +39,7 @@ fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (ProposedSolutio
 		},
 	];
 
-	let proposed_solution = ProposedSolution {
+	let proposed_solution = Solution {
 		intents: BoundedResolvedIntents::try_from(resolved_intents).unwrap(),
 		instructions: BoundedInstructions::try_from(instructions).unwrap(),
 	};
@@ -242,7 +240,7 @@ fn submit_solution_should_update_partial_resolved_intent() {
 				},
 			];
 
-			let proposed_solution = ProposedSolution {
+			let proposed_solution = Solution {
 				intents: BoundedResolvedIntents::try_from(resolved_intents).unwrap(),
 				instructions: BoundedInstructions::try_from(instructions).unwrap(),
 			};

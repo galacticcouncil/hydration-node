@@ -10,9 +10,7 @@ pub mod types;
 pub mod validity;
 mod weights;
 
-use crate::types::{
-	CallData, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier, ProposedSolution, Solution, Swap,
-};
+use crate::types::{CallData, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier, Solution, Swap};
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
@@ -266,7 +264,7 @@ pub mod pallet {
 		})]
 		pub fn submit_solution(
 			origin: OriginFor<T>,
-			solution: ProposedSolution<T::AccountId, T::AssetId>,
+			solution: Solution<T::AccountId, T::AssetId>,
 			score: u64,
 			block: BlockNumberFor<T>,
 		) -> DispatchResult {
@@ -278,14 +276,7 @@ pub mod pallet {
 				Error::<T>::InvalidBlockNumber
 			);
 
-			let solution = Solution {
-				proposer: who.clone(),
-				intents: solution.intents,
-				instructions: solution.instructions,
-				score,
-			};
-
-			if let Err(e) = ICEEngine::<T>::validate_solution(&solution) {
+			if let Err(e) = ICEEngine::<T>::validate_solution(&solution, score) {
 				//TODO: slash him, bob!
 				return Err(e);
 			}

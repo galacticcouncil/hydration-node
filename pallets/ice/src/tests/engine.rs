@@ -12,12 +12,7 @@ fn create_solution(
 ) -> Solution<AccountId, AssetId> {
 	let intents = BoundedResolvedIntents::try_from(intents).unwrap();
 	let instructions = BoundedInstructions::try_from(instructions).unwrap();
-	Solution {
-		proposer: ALICE,
-		intents,
-		instructions,
-		score: 1000000,
-	}
+	Solution { intents, instructions }
 }
 
 #[test]
@@ -52,7 +47,7 @@ fn validate_solution_should_work_when_solution_contains_one_intent_swap_exact_in
 				vec![],
 			);
 
-			assert_ok!(ICEEngine::<Test>::validate_solution(&solution));
+			assert_ok!(ICEEngine::<Test>::validate_solution(&solution, 1000000));
 		});
 }
 
@@ -79,7 +74,7 @@ fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_in() 
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 
-			let mut solution = create_solution(
+			let solution = create_solution(
 				vec![ResolvedIntent {
 					intent_id,
 					amount_in: 100_000_000_000_000,
@@ -88,7 +83,7 @@ fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_in() 
 				vec![],
 			);
 
-			assert!(ICEEngine::<Test>::validate_solution(&mut solution).is_err());
+			assert!(ICEEngine::<Test>::validate_solution(&solution, 1000000).is_err());
 		});
 }
 
@@ -115,7 +110,7 @@ fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_out()
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 
-			let mut solution = create_solution(
+			let solution = create_solution(
 				vec![ResolvedIntent {
 					intent_id,
 					amount_in: 100_000_000_000_000,
@@ -124,7 +119,7 @@ fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_out()
 				vec![],
 			);
 
-			assert!(ICEEngine::<Test>::validate_solution(&mut solution).is_err());
+			assert!(ICEEngine::<Test>::validate_solution(&solution, 1000000).is_err());
 		});
 }
 
@@ -151,7 +146,7 @@ fn validate_solution_should_fail_when_solution_contains_intent_updated_but_not_r
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 
-			let mut solution = create_solution(
+			let solution = create_solution(
 				vec![ResolvedIntent {
 					intent_id,
 					amount_in: 100_000_000_000_000,
@@ -160,7 +155,7 @@ fn validate_solution_should_fail_when_solution_contains_intent_updated_but_not_r
 				vec![],
 			);
 
-			assert!(ICEEngine::<Test>::validate_solution(&mut solution).is_err());
+			assert!(ICEEngine::<Test>::validate_solution(&solution, 1000000).is_err());
 		});
 }
 

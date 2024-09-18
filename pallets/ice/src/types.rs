@@ -55,14 +55,6 @@ pub struct ResolvedIntent {
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Solution<AccountId, AssetId> {
-	pub proposer: AccountId,
-	pub intents: BoundedResolvedIntents,
-	pub instructions: BoundedInstructions<AccountId, AssetId>,
-	pub score: u64,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct ProposedSolution<AccountId, AssetId> {
 	pub intents: BoundedResolvedIntents,
 	pub instructions: BoundedInstructions<AccountId, AssetId>,
 }
