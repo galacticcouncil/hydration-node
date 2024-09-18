@@ -8692,7 +8692,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.3.2"
+version = "4.3.3"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -9424,7 +9424,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.4.4"
+version = "6.4.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
