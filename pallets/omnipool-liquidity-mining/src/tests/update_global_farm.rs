@@ -50,15 +50,13 @@ fn update_global_farm_should_work() {
 			let min_deposit = 20_000;
 
 			//Act
-			assert_ok!(
-				OmnipoolMining::update_global_farm(
-					RuntimeOrigin::root(),
-					global_farm_id,
-					planned_yielding_periods,
-					yield_per_period,
-					min_deposit,
-				),
-			);
+			assert_ok!(OmnipoolMining::update_global_farm(
+				RuntimeOrigin::root(),
+				global_farm_id,
+				planned_yielding_periods,
+				yield_per_period,
+				min_deposit,
+			),);
 
 			//Assert
 			assert_last_event!(crate::Event::GlobalFarmUpdated {

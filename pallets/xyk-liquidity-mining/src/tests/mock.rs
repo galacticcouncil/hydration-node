@@ -813,7 +813,12 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 		Err(sp_runtime::DispatchError::Other("Not implemented"))
 	}
 
-	fn update_global_farm(global_farm_id: GlobalFarmId, planned_yielding_periods: Self::Period, yield_per_period: Perquintill, min_deposit: Self::Balance) -> Result<(), Self::Error> {
+	fn update_global_farm(
+		global_farm_id: GlobalFarmId,
+		planned_yielding_periods: Self::Period,
+		yield_per_period: Perquintill,
+		min_deposit: Self::Balance,
+	) -> Result<(), Self::Error> {
 		GLOBAL_FARMS.with(|v| {
 			let mut p = v.borrow_mut();
 

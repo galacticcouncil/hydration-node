@@ -962,7 +962,7 @@ fn update_global_farm_invariant_1() {
 							yield_per_period,
 							1_000,
 						)
-							.unwrap();
+						.unwrap();
 						TransactionOutcome::Commit(DispatchResult::Ok(()))
 					});
 					let g_farm = LiquidityMining::global_farm(d.global_farm_id).unwrap();
@@ -1010,7 +1010,10 @@ fn update_global_farm_invariant_1() {
 								+ distributed_before_update.borrow()[gf.id as usize];
 
 							//NOTE: Approax becasue of div in max_reward_per_period calculation.
-							assert!(gf.total_rewards >= s_1, "total_rewards >= distributed + max_reward_per_period * planned_yielding_periods");
+							assert!(
+								gf.total_rewards >= s_1,
+								"total_rewards >= distributed + max_reward_per_period * planned_yielding_periods"
+							);
 							assert_eq_approx!(
 								gf.total_rewards,
 								s_1,
