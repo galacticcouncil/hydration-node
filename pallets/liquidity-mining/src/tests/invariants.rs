@@ -1175,7 +1175,6 @@ fn update_global_farm_invariant_2_3() {
 						})
 					});
 
-
 					Ok(())
 				},
 			)

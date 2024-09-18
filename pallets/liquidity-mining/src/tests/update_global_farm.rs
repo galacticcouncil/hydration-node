@@ -328,12 +328,7 @@ fn claim_rewards_should_work_after_claiming_rewards() {
 
 			//Assert
 			assert_eq!(
-				LiquidityMining::claim_rewards(
-					ALICE,
-					PREDEFINED_DEPOSIT_IDS[0],
-					GC_BSX_TKN1_YIELD_FARM_ID,
-					false
-				)
+				LiquidityMining::claim_rewards(ALICE, PREDEFINED_DEPOSIT_IDS[0], GC_BSX_TKN1_YIELD_FARM_ID, false)
 					.unwrap(),
 				(GC_FARM, BSX, 28495477087879389002, 142022912120610998)
 			);
