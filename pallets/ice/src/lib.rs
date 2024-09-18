@@ -196,7 +196,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::submit_intent())]
+		#[pallet::weight(T::WeightInfo::submit_intent())] //TODO: should probably include length of on_sucess/on_failuere calls too
 		pub fn submit_intent(
 			origin: OriginFor<T>,
 			swap: Swap<T::AssetId>,
