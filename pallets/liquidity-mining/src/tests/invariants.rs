@@ -1018,10 +1018,10 @@ fn update_global_farm_invariant_1() {
 }
 
 #[test]
-//Update global farm for invariants 1,2,3
+//Update global farm for invariants 2,3
 //https://www.notion.so/Liquidity-mining-spec-b30ccfe470a74173b82c3702b1e8fca1#422dea2e23744859baeb704dbdb3caca
 //
-fn update_global_farm_invariant_1_2_3() {
+fn update_global_farm_invariant_2_3() {
 	//Number of sucessfull test cases that must execute for the test as a whole to pass.
 	let successfull_cases = 1_000;
 	//Number of blocks added to current block number in each test case run. This number should be
@@ -1138,43 +1138,43 @@ fn update_global_farm_invariant_1_2_3() {
 
 					//INVARIANT 3
 					//Calculate necessary values and assert
-					let (total_rewards_sum, farm_balances_sum, pot_balance_sum) = G_FARMS.with(|v| {
-						let mut total_rewards_sum = 0_u128;
-						let mut farm_balances_sum = 0_u128;
-						let mut pot_balance_sum = 0_u128;
-						let mut already_summed_balances: Vec<AssetId> = Vec::new();
-
-						v.borrow().clone().into_iter().for_each(|gf| {
-							farm_balances_sum += Tokens::free_balance(
-								gf.reward_currency,
-								&LiquidityMining::farm_account_id(gf.id).unwrap(),
-							);
-
-							total_rewards_sum += gf.total_rewards;
-
-							if !already_summed_balances.contains(&gf.reward_currency) {
-								pot_balance_sum += Tokens::total_balance(gf.reward_currency, &pot);
-								already_summed_balances.push(gf.reward_currency);
-							}
-						});
-						(total_rewards_sum, farm_balances_sum, pot_balance_sum)
-					});
-
 					let last_deposit_id = LiquidityMining::deposit_id();
-					let mut claimed_by_users_sum = 0_u128;
+					let mut claimed_by_user_per_yield_farm: HashMap<(GlobalFarmId, YieldFarmId), u128> = HashMap::new();
 					for i in 1..=last_deposit_id {
 						let d = LiquidityMining::deposit(i).unwrap();
 
 						let claimed_amount = d.yield_farm_entries[0].accumulated_claimed_rewards;
-						claimed_by_users_sum += claimed_amount;
+						let global_farm_id = d.yield_farm_entries[0].global_farm_id;
+						let yield_farm_id = d.yield_farm_entries[0].yield_farm_id;
+						*claimed_by_user_per_yield_farm
+							.entry((global_farm_id, yield_farm_id))
+							.or_insert(0) += claimed_amount;
 					}
 
-					//WARN: There is no room for rounding errors in this invariant. Any discrepancy
-					//in this assert means we are loosing tokens somewhere.
-					assert_eq!(
-						total_rewards_sum,
-						farm_balances_sum + pot_balance_sum + claimed_by_users_sum,
-					);
+					G_FARMS.with(|v| {
+						v.borrow().clone().into_iter().for_each(|gf| {
+							let g_farm = LiquidityMining::global_farm(gf.id).unwrap();
+							let mut y_farms_let_to_distribute_sum = 0_u128;
+
+							let mut claimed_by_yield_farms_in_global_farm = 0_u128;
+							gf.yield_farms.iter().for_each(|yf| {
+								y_farms_let_to_distribute_sum += LiquidityMining::yield_farm((yf.1, gf.id, yf.0))
+									.unwrap()
+									.left_to_distribute;
+
+								//NOTE this run for each iteration of test so record in HashMap may
+								//not exists if deposit doesn't exists yet.
+								claimed_by_yield_farms_in_global_farm +=
+									claimed_by_user_per_yield_farm.get(&(gf.id, yf.0)).unwrap_or(&0_u128);
+							});
+
+							assert_eq!(
+								g_farm.accumulated_paid_rewards,
+								y_farms_let_to_distribute_sum + claimed_by_yield_farms_in_global_farm
+							);
+						})
+					});
+
 
 					Ok(())
 				},
