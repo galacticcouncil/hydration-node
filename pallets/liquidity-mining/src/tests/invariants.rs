@@ -919,7 +919,7 @@ fn update_global_farm_invariant_1() {
 		let mut runner = TestRunner::new(Config {
 			cases: successfull_cases,
 			source_file: Some("liquidity-mining/src/tests/invariants.rs"),
-			test_name: Some("update_global_farm_invariant_first"),
+			test_name: Some("update_global_farm_invariant_1"),
 			..Config::default()
 		});
 		let deposits: RefCell<Vec<Deposit>> = RefCell::new(Vec::new());
@@ -952,6 +952,7 @@ fn update_global_farm_invariant_1() {
 						TransactionOutcome::Commit(DispatchResult::Ok(()))
 					});
 					let g_farm = LiquidityMining::global_farm(d.global_farm_id).unwrap();
+					//NOTE: `update_global_farm()` distributes rewards before update so this must be done after function execution but before any interaction with farm.
 					distributed_before_update.borrow_mut()[d.global_farm_id as usize] =
 						g_farm.accumulated_paid_rewards + g_farm.pending_rewards;
 
