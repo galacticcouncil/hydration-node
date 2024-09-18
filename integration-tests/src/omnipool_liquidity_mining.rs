@@ -1302,7 +1302,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			CHARLIE.into()
 		);
 
-		set_relaychain_block_number(400);
+		set_relaychain_block_number(550);
 		let deposit_id_2 = 2;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -1346,9 +1346,9 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			charlie_new_hdx_balance_after_first_claim > charlie_hdx_balance_0,
 			"Charlie's balance should be increased"
 		);
-		assert_eq!(charlie_new_hdx_balance_after_first_claim, 1000136935112266);
+		assert_eq!(charlie_new_hdx_balance_after_first_claim, 1000030740535405);
 
-		//Act 3 - claim rewards for differnt yield-farm-entry in the same period should work.
+		//Act 2 - claim rewards for differnt yield-farm-entry in the same period should work.
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
@@ -1362,7 +1362,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			charlie_new_hdx_balance_after_2nd_claim > charlie_new_hdx_balance_after_first_claim,
 			"Charlie's balance should be increased"
 		);
-		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000137314927403);
+		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000031130694537);
 	});
 }
 
