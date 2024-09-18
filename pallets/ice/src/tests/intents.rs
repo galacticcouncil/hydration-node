@@ -213,6 +213,10 @@ fn test_correct_intent_id() {
 		assert_eq!(crate::Pallet::<Test>::get_intent_id(100, 1), 1844674407370955161601);
 		assert_eq!(crate::Pallet::<Test>::get_intent_id(100, 2), 1844674407370955161602);
 
+		assert_eq!(crate::Pallet::<Test>::get_intent_id(100, 0), 1844674407370955161600);
+		assert_eq!(crate::Pallet::<Test>::get_intent_id(101, 1), 1863121151444664713217);
+		assert_eq!(crate::Pallet::<Test>::get_intent_id(102, 2), 1881567895518374264834);
+
 		assert_eq!(
 			crate::Pallet::<Test>::get_intent_id(DEFAULT_NOW, 0),
 			31172125326516865653853388800000
