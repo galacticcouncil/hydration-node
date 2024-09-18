@@ -912,22 +912,6 @@ fn percentage() -> impl Strategy<Value = u64> {
 fn min_deposit() -> impl Strategy<Value = Balance> {
 	1000..10000000u128
 }
-fn min_deposit2() -> impl Strategy<Value = Balance> {
-	1000..10_000u128
-}
-
-//Number of blocks added to current block number in each test case run. This number should be
-//reasonable smaller than total of runned test to make sure lot of claims is executed and
-//multiple claims for same deposit to happen.
-fn blocks_offset_range() -> impl Strategy<Value = u64> {
-	1..10u64
-}
-
-//Index of deposit in `deposit` vec. This idx is used in each test case run and execute claim
-//if deposit exits
-fn deposit_idx_range() -> impl Strategy<Value = usize> {
-	0..500_usize
-}
 
 #[test]
 //Update global farm for invariant one
