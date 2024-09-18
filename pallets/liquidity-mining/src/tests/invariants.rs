@@ -996,11 +996,11 @@ fn update_global_farm_invariant_1() {
 							let s_1: u128 = g_farm_1.max_reward_per_period * g_farm_1.planned_yielding_periods as u128
 								+ distributed_before_update.borrow()[gf.id as usize];
 
-							//NOTE: Approax becasue of div in max_reward_per_period calculation.
 							assert!(
 								gf.total_rewards >= s_1,
 								"total_rewards >= distributed + max_reward_per_period * planned_yielding_periods"
 							);
+							//NOTE: Approax becasue of div in max_reward_per_period calculation.
 							assert_eq_approx!(
 								gf.total_rewards,
 								s_1,
