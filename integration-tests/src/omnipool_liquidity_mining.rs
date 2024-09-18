@@ -1323,7 +1323,9 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			min_deposit
 		));
 		//Assert
-		let g_farm = warehouse_liquidity_mining::GlobalFarm::<hydradx_runtime::Runtime, Instance1>::get(global_farm_1_id).unwrap();
+		let g_farm =
+			warehouse_liquidity_mining::GlobalFarm::<hydradx_runtime::Runtime, Instance1>::get(global_farm_1_id)
+				.unwrap();
 		assert_eq!(g_farm.planned_yielding_periods, planned_yielding_periods);
 		assert_eq!(g_farm.yield_per_period, yield_per_period);
 		assert_eq!(g_farm.min_deposit, min_deposit);
@@ -1340,7 +1342,10 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 		//Assert
 		//NOTE: can't assert state in the deposit because fields are private
 		let charlie_new_hdx_balance_after_first_claim = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
-		assert!(charlie_new_hdx_balance_after_first_claim > charlie_hdx_balance_0, "Charlie's balance should be increased");
+		assert!(
+			charlie_new_hdx_balance_after_first_claim > charlie_hdx_balance_0,
+			"Charlie's balance should be increased"
+		);
 		assert_eq!(charlie_new_hdx_balance_after_first_claim, 1000136935112266);
 
 		//Act 3 - claim rewards for differnt yield-farm-entry in the same period should work.
@@ -1353,7 +1358,10 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 		//Assert
 		//NOTE: can't assert state in the deposit because fields are private
 		let charlie_new_hdx_balance_after_2nd_claim = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
-		assert!(charlie_new_hdx_balance_after_2nd_claim > charlie_new_hdx_balance_after_first_claim, "Charlie's balance should be increased");
+		assert!(
+			charlie_new_hdx_balance_after_2nd_claim > charlie_new_hdx_balance_after_first_claim,
+			"Charlie's balance should be increased"
+		);
 		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000137314927403);
 	});
 }
