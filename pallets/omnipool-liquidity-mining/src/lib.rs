@@ -902,7 +902,7 @@ pub mod pallet {
 		///
 		/// Emits `GlobalFarmUpdated` event when successful.
 		#[pallet::call_index(12)]
-		#[pallet::weight(<T as Config>::WeightInfo::create_global_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_global_farm())]
 		pub fn update_global_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
