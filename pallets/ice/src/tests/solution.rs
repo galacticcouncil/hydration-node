@@ -63,11 +63,14 @@ fn submit_solution_should_work_when_contains_only_one_intent() {
 			};
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
-				swap.clone(),
-				DEFAULT_NOW + 1_000_000,
-				false,
-				None,
-				None,
+				Intent {
+					who: ALICE,
+					swap: swap.clone(),
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
+				},
 			));
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
@@ -114,11 +117,14 @@ fn submit_solution_should_fail_when_score_is_different() {
 			};
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
-				swap.clone(),
-				DEFAULT_NOW + 1_000_000,
-				false,
-				None,
-				None,
+				Intent {
+					who: ALICE,
+					swap: swap.clone(),
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
+				},
 			));
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
@@ -146,11 +152,14 @@ fn submit_solution_should_clear_expired_intents() {
 			};
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
-				swap.clone(),
-				DEFAULT_NOW + 1_000_000,
-				false,
-				None,
-				None,
+				Intent {
+					who: ALICE,
+					swap: swap.clone(),
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
+				},
 			));
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 
@@ -163,11 +172,14 @@ fn submit_solution_should_clear_expired_intents() {
 			};
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(BOB),
-				swap.clone(),
-				DEFAULT_NOW + 1_000,
-				false,
-				None,
-				None,
+				Intent {
+					who: BOB,
+					swap: swap.clone(),
+					deadline: DEFAULT_NOW + 1_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
+				},
 			));
 			let expired_intent_id = get_intent_id(DEFAULT_NOW + 1_000, 1);
 
@@ -204,11 +216,14 @@ fn submit_solution_should_update_partial_resolved_intent() {
 			};
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
-				swap.clone(),
-				DEFAULT_NOW + 1_000_000,
-				true,
-				None,
-				None,
+				Intent {
+					who: ALICE,
+					swap: swap.clone(),
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: true,
+					on_success: None,
+					on_failure: None,
+				},
 			));
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);

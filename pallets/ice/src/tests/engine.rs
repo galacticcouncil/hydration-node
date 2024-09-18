@@ -2,7 +2,7 @@ use super::*;
 use crate::engine::ICEEngine;
 use crate::tests::{ExtBuilder, ICE};
 use crate::types::{
-	BoundedInstructions, BoundedResolvedIntents, Instruction, ResolvedIntent, Solution, Swap, SwapType,
+	BoundedInstructions, BoundedResolvedIntents, Instruction, Intent, ResolvedIntent, Solution, Swap, SwapType,
 };
 use frame_support::assert_ok;
 
@@ -23,17 +23,20 @@ fn validate_solution_should_work_when_solution_contains_one_intent_swap_exact_in
 		.execute_with(|| {
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
-				Swap {
-					asset_in: 100,
-					asset_out: 200,
-					amount_in: 100_000_000_000_000,
-					amount_out: 200_000_000_000_000,
-					swap_type: SwapType::ExactIn
+				Intent {
+					who: ALICE,
+					swap: Swap {
+						asset_in: 100,
+						asset_out: 200,
+						amount_in: 100_000_000_000_000,
+						amount_out: 200_000_000_000_000,
+						swap_type: SwapType::ExactIn,
+					},
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
 				},
-				DEFAULT_NOW + 1_000_000,
-				false,
-				None,
-				None,
 			));
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
@@ -59,17 +62,20 @@ fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_in() 
 		.execute_with(|| {
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
-				Swap {
-					asset_in: 100,
-					asset_out: 200,
-					amount_in: 100_000_000_000_000,
-					amount_out: 200_000_000_000_000,
-					swap_type: SwapType::ExactIn
+				Intent {
+					who: ALICE,
+					swap: Swap {
+						asset_in: 100,
+						asset_out: 200,
+						amount_in: 100_000_000_000_000,
+						amount_out: 200_000_000_000_000,
+						swap_type: SwapType::ExactIn,
+					},
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
 				},
-				DEFAULT_NOW + 1_000_000,
-				false,
-				None,
-				None,
 			));
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
@@ -95,17 +101,20 @@ fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_out()
 		.execute_with(|| {
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
-				Swap {
-					asset_in: 100,
-					asset_out: 200,
-					amount_in: 100_000_000_000_000,
-					amount_out: 200_000_000_000_000,
-					swap_type: SwapType::ExactIn
+				Intent {
+					who: ALICE,
+					swap: Swap {
+						asset_in: 100,
+						asset_out: 200,
+						amount_in: 100_000_000_000_000,
+						amount_out: 200_000_000_000_000,
+						swap_type: SwapType::ExactIn,
+					},
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
 				},
-				DEFAULT_NOW + 1_000_000,
-				false,
-				None,
-				None,
 			));
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
@@ -131,17 +140,20 @@ fn validate_solution_should_fail_when_solution_contains_intent_updated_but_not_r
 		.execute_with(|| {
 			assert_ok!(ICE::submit_intent(
 				RuntimeOrigin::signed(ALICE),
-				Swap {
-					asset_in: 100,
-					asset_out: 200,
-					amount_in: 100_000_000_000_000,
-					amount_out: 200_000_000_000_000,
-					swap_type: SwapType::ExactIn
+				Intent {
+					who: ALICE,
+					swap: Swap {
+						asset_in: 100,
+						asset_out: 200,
+						amount_in: 100_000_000_000_000,
+						amount_out: 200_000_000_000_000,
+						swap_type: SwapType::ExactIn,
+					},
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
 				},
-				DEFAULT_NOW + 1_000_000,
-				false,
-				None,
-				None,
 			));
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);

@@ -10,7 +10,7 @@ pub mod types;
 pub mod validity;
 mod weights;
 
-use crate::types::{CallData, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier, Solution, Swap};
+use crate::types::{IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier, Solution};
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
@@ -23,7 +23,6 @@ pub use pallet::*;
 use scale_info::TypeInfo;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
 use sp_runtime::traits::{MaybeSerializeDeserialize, Member};
-use sp_runtime::DispatchError;
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
@@ -195,20 +194,13 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::submit_intent())] //TODO: should probably include length of on_sucess/on_failuere calls too
-		pub fn submit_intent(
-			origin: OriginFor<T>,
-			swap: Swap<T::AssetId>,
-			deadline: Moment,
-			partial: bool,
-			on_success: Option<Vec<u8>>,
-			on_failure: Option<Vec<u8>>,
-		) -> DispatchResult {
+		pub fn submit_intent(origin: OriginFor<T>, intent: Intent<T::AccountId, T::AssetId>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let now = T::TimestampProvider::now();
-			ensure!(deadline > now, Error::<T>::InvalidDeadline);
+			ensure!(intent.deadline > now, Error::<T>::InvalidDeadline);
 			ensure!(
-				deadline < (now.saturating_add(T::MaxAllowedIntentDuration::get())),
+				intent.deadline < (now.saturating_add(T::MaxAllowedIntentDuration::get())),
 				Error::<T>::InvalidDeadline
 			);
 
@@ -216,23 +208,15 @@ pub mod pallet {
 			// - no lrna buying
 			// - asset in != asset out
 
-			T::ReservableCurrency::reserve_named(&T::NamedReserveId::get(), swap.asset_in, &who, swap.amount_in)?;
+			T::ReservableCurrency::reserve_named(
+				&T::NamedReserveId::get(),
+				intent.swap.asset_in,
+				&who,
+				intent.swap.amount_in,
+			)?;
 
 			let incremental_id = Self::get_next_incremental_id().ok_or(Error::<T>::IntendIdsExhausted)?;
-
-			let on_success = Self::try_into_call_data(on_success)?;
-			let on_failure = Self::try_into_call_data(on_failure)?;
-
-			let intent = Intent {
-				who,
-				swap,
-				deadline,
-				partial,
-				on_success,
-				on_failure,
-			};
-
-			let intent_id = Self::get_intent_id(deadline, incremental_id);
+			let intent_id = Self::get_intent_id(intent.deadline, incremental_id);
 
 			Intents::<T>::insert(intent_id, &intent);
 
@@ -308,15 +292,6 @@ impl<T: Config> Pallet<T> {
 			*id = id.checked_add(1)?;
 			Some(current_id)
 		})
-	}
-
-	pub(crate) fn try_into_call_data(v: Option<Vec<u8>>) -> Result<Option<CallData>, DispatchError> {
-		let Some(data) = v else {
-			return Ok(None);
-		};
-		CallData::try_from(data)
-			.map_err(|_| Error::<T>::TooLong.into())
-			.map(|v| Some(v))
 	}
 
 	pub fn validate_submission(who: &T::AccountId, score: u64, block: BlockNumberFor<T>) -> bool {
