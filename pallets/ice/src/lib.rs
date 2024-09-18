@@ -153,6 +153,9 @@ pub mod pallet {
 
 		///
 		IntentLimitPriceViolation,
+
+		/// Solution already executed in this block
+		AlreadyExecuted,
 	}
 
 	#[pallet::storage]
@@ -193,7 +196,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::submit_intent())] //TODO: should probably include length of on_sucess/on_failuere calls too
+		#[pallet::weight(T::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
 		pub fn submit_intent(origin: OriginFor<T>, intent: Intent<T::AccountId, T::AssetId>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -254,6 +257,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			// check if the solution was already executed in this block
+			// This is to prevent multiple solutions to be executed in the same block.
+			// Although it should be handled by the tx validation, it is better to have it here too.
+			// So we dont slash the user for the tx that should have been rejected.
+			ensure!(!SolutionExecuted::<T>::get(), Error::<T>::AlreadyExecuted);
+
 			// double-check the target block, although it should be done in the tx validation
 			ensure!(
 				block == T::BlockNumberProvider::current_block_number(),
@@ -270,6 +279,8 @@ pub mod pallet {
 			Self::clear_expired_intents();
 
 			Self::deposit_event(Event::SolutionExecuted { who });
+
+			SolutionExecuted::<T>::set(true);
 
 			Ok(())
 		}
