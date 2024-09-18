@@ -205,3 +205,25 @@ fn submit_intent_should_fail_when_on_fail_call_length_is_exceeded() {
 			);
 		});
 }
+
+#[test]
+fn test_correct_intent_id() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(crate::Pallet::<Test>::get_intent_id(100, 0), 1844674407370955161600);
+		assert_eq!(crate::Pallet::<Test>::get_intent_id(100, 1), 1844674407370955161601);
+		assert_eq!(crate::Pallet::<Test>::get_intent_id(100, 2), 1844674407370955161602);
+
+		assert_eq!(
+			crate::Pallet::<Test>::get_intent_id(DEFAULT_NOW, 0),
+			31172125326516865653853388800000
+		);
+		assert_eq!(
+			crate::Pallet::<Test>::get_intent_id(DEFAULT_NOW, 1),
+			31172125326516865653853388800001
+		);
+		assert_eq!(
+			crate::Pallet::<Test>::get_intent_id(DEFAULT_NOW, 2),
+			31172125326516865653853388800002
+		);
+	});
+}

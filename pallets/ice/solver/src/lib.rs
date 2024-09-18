@@ -2,7 +2,7 @@ use crate::traits::ICESolver;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
-use pallet_ice::types::{Balance, Instruction, Intent, IntentId, ResolvedIntent, BoundedRoute};
+use pallet_ice::types::{Balance, BoundedRoute, Instruction, Intent, IntentId, ResolvedIntent};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::Saturating;
 use sp_std::collections::btree_map::BTreeMap;
