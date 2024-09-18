@@ -595,7 +595,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 
 			ensure!(global_farm.state.is_active(), Error::<T, I>::GlobalFarmNotFound);
 
-			//Sync global farm to get right accumulated_rpz and pending rewards
 			let current_period = Self::get_current_period(global_farm.blocks_per_period)?;
 			Self::sync_global_farm(global_farm, current_period)?;
 
@@ -612,7 +611,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				Error::<T, I>::InvalidPlannedYieldingPeriods
 			);
 
-			//Update global farm fields
 			global_farm.planned_yielding_periods = planned_yielding_periods;
 			global_farm.yield_per_period = yield_per_period;
 			global_farm.min_deposit = min_deposit;
