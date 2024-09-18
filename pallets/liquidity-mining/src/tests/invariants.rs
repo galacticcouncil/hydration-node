@@ -1037,7 +1037,7 @@ fn update_global_farm_invariant_2_3() {
 		let mut runner = TestRunner::new(Config {
 			cases: successfull_cases,
 			source_file: Some("liquidity-mining/src/tests/invariants.rs"),
-			test_name: Some("update_global_farm_invariant_1_2_3"),
+			test_name: Some("update_global_farm_invariant_2_3"),
 			..Config::default()
 		});
 		let deposits: RefCell<Vec<Deposit>> = RefCell::new(Vec::new());
