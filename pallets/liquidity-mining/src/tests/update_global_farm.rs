@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use super::*;
+use crate::tests::mock::MinPlannedYieldingPeriods;
 use pretty_assertions::assert_eq;
 use test_ext::*;
 
@@ -181,4 +182,125 @@ fn update_global_farm_price_adjustment_should_fail_when_farm_is_already_terminat
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
 	})
+}
+
+#[test]
+fn update_global_farm_should_work() {
+	predefined_test_ext_with_deposits().execute_with(|| {
+		let _ = with_transaction(|| {
+			//Arrange
+			let planned_yielding_periods: BlockNumber = 1_000_000_000_u64;
+			let yield_per_period = Perquintill::from_percent(20);
+			let min_deposit = 20_000;
+
+			let global_farm_0 = LiquidityMining::global_farm(GC_FARM).unwrap();
+
+			set_block_number(100_000);
+
+			//Act
+			assert_ok!(LiquidityMining::update_global_farm(
+				GC_FARM,
+				planned_yielding_periods,
+				yield_per_period,
+				min_deposit,
+			));
+
+			//Assert that global farm is updated
+			assert_eq!(
+				LiquidityMining::global_farm(GC_FARM).unwrap(),
+				GlobalFarmData {
+					updated_at: 1_000,
+					planned_yielding_periods,
+					yield_per_period,
+					min_deposit,
+					accumulated_rpz: FixedU128::from_inner(491_000_000_000_000_000_000_u128),
+					pending_rewards: 343195125000000000000,
+					max_reward_per_period: 29655521325000,
+					..global_farm_0
+				},
+			);
+			frame_system::Pallet::<Test>::assert_has_event(mock::RuntimeEvent::LiquidityMining(
+				Event::GlobalFarmAccRPZUpdated {
+					global_farm_id: global_farm_0.id,
+					accumulated_rpz: FixedU128::from_inner(491_000_000_000_000_000_000_u128),
+					total_shares_z: global_farm_0.total_shares_z,
+				},
+			));
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
+
+#[test]
+fn update_global_farm_should_fail_with_invalid_deposit() {
+	predefined_test_ext_with_deposits().execute_with(|| {
+		let _ = with_transaction(|| {
+			//Arrange
+			let planned_yielding_periods: BlockNumber = 1_000_000_000_u64;
+			let yield_per_period = Perquintill::from_percent(20);
+
+			set_block_number(100_000);
+
+			//Act
+			assert_noop!(
+				LiquidityMining::update_global_farm(
+					GC_FARM,
+					planned_yielding_periods,
+					yield_per_period,
+					MIN_DEPOSIT - 1,
+				),
+				Error::<Test, Instance1>::InvalidMinDeposit
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
+
+#[test]
+fn update_global_farm_should_fail_when_planning_yield_period_is_too_small() {
+	predefined_test_ext_with_deposits().execute_with(|| {
+		let _ = with_transaction(|| {
+			//Arrange
+			let planned_yielding_periods: BlockNumber = MinPlannedYieldingPeriods::get() - 1;
+			let yield_per_period = Perquintill::from_percent(20);
+
+			set_block_number(100_000);
+
+			//Act
+			assert_noop!(
+				LiquidityMining::update_global_farm(GC_FARM, planned_yielding_periods, yield_per_period, MIN_DEPOSIT,),
+				Error::<Test, Instance1>::InvalidPlannedYieldingPeriods
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
+
+#[test]
+fn update_global_farm_should_fail_when_yield_period_is_zero() {
+	predefined_test_ext_with_deposits().execute_with(|| {
+		let _ = with_transaction(|| {
+			//Arrange
+			let planned_yielding_periods: BlockNumber = MinPlannedYieldingPeriods::get();
+			let zero_yield_per_period = Perquintill::from_percent(0);
+
+			set_block_number(100_000);
+
+			//Act
+			assert_noop!(
+				LiquidityMining::update_global_farm(
+					GC_FARM,
+					planned_yielding_periods,
+					zero_yield_per_period,
+					MIN_DEPOSIT,
+				),
+				Error::<Test, Instance1>::InvalidYieldPerPeriod
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
 }

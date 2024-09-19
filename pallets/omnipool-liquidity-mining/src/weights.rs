@@ -51,6 +51,7 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_omnipool_liquidity_mining.
 pub trait WeightInfo {
 	fn create_global_farm() -> Weight;
+	fn update_global_farm() -> Weight;
 	fn terminate_global_farm() -> Weight;
 	fn create_yield_farm() -> Weight;
 	fn update_yield_farm() -> Weight;
@@ -84,6 +85,21 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(5_u64))
 			.saturating_add(RocksDbWeight::get().writes(5_u64))
 	}
+
+	/// Storage: `OmnipoolWarehouseLM::GlobalFarm` (r:1 w:1)
+	/// Proof: `OmnipoolWarehouseLM::GlobalFarm` (`max_values`: None, `max_size`: Some(205), added: 2680, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:1 w:0)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	fn update_global_farm() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `573`
+		//  Estimated: `3670`
+		// Minimum execution time: 22_855_000 picoseconds.
+		Weight::from_parts(23_088_000, 3670)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+
 	/// Storage: `OmnipoolWarehouseLM::GlobalFarm` (r:1 w:1)
 	/// Proof: `OmnipoolWarehouseLM::GlobalFarm` (`max_values`: None, `max_size`: Some(205), added: 2680, mode: `MaxEncodedLen`)
 	/// Storage: `System::Account` (r:2 w:2)

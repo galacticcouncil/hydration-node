@@ -54,13 +54,13 @@ pub struct GlobalFarmData<T: Config<I>, I: 'static = ()> {
 	pub reward_currency: T::AssetId,
 	pub(super) pending_rewards: Balance,
 	pub(super) accumulated_paid_rewards: Balance,
-	pub(super) yield_per_period: Perquintill,
-	pub(super) planned_yielding_periods: PeriodOf<T>,
+	pub yield_per_period: Perquintill,
+	pub planned_yielding_periods: PeriodOf<T>,
 	pub(super) blocks_per_period: BlockNumberFor<T>,
 	pub incentivized_asset: T::AssetId,
 	pub(super) max_reward_per_period: Balance,
 	// min. LP shares user must deposit to start yield farming.
-	pub(super) min_deposit: Balance,
+	pub min_deposit: Balance,
 	// This include `active` and `stopped` yield farms.
 	pub(super) live_yield_farms_count: u32,
 	// This include `active`, `stopped`, `terminated` - this count is decreased only if yield
