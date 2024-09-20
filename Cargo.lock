@@ -11888,6 +11888,8 @@ dependencies = [
  "hydradx-runtime",
  "hydradx-traits",
  "libsecp256k1",
+ "module-evm-utility-macro",
+ "num_enum 0.5.11",
  "orml-tokens",
  "orml-traits",
  "orml-unknown-tokens",

@@ -1,7 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("@nomicfoundation/hardhat-verify");
 const {vars} = require("hardhat/config");
-const PRIVKEY = vars.get("PRIVKEY");
+const PRIVKEY = vars.get("PRIVKEY", "42d8d953e4f9246093a33e9ca6daa078501012f784adfe4bbed57918ff13be14");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
