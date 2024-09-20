@@ -37,7 +37,9 @@ use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, Route
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
+use hydradx_traits::IncrementalIdProvider;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use primitives::IncrementalId;
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TransactionOutcome};
@@ -107,6 +109,7 @@ pub mod pallet {
 			Self::AccountId,
 			Self::AssetId,
 			Self::Balance,
+			IncrementalId,
 			Error = DispatchError,
 		>;
 
@@ -126,6 +129,7 @@ pub mod pallet {
 		/// Origin able to set route without validation
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		type BatchIdProvider: IncrementalIdProvider<IncrementalId>;
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
 	}
@@ -490,6 +494,7 @@ impl<T: Config> Pallet<T> {
 			let user_balance_of_asset_in_before_trade =
 				T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
 
+			let next_batch_id = T::BatchIdProvider::next_id();
 			let execution_result = T::AMM::execute_sell(
 				origin.clone(),
 				trade.pool,
@@ -497,6 +502,7 @@ impl<T: Config> Pallet<T> {
 				trade.asset_out,
 				trade_amount.amount_in,
 				trade_amount.amount_out,
+				Some(next_batch_id),
 			);
 
 			handle_execution_error!(execution_result);
@@ -687,6 +693,7 @@ impl<T: Config> Pallet<T> {
 			PoolType::Stableswap(pool_id) => pool_id,
 			PoolType::XYK => first_route.asset_out,
 			PoolType::LBP => first_route.asset_out,
+			_ => return Err(Error::<T>::PoolNotSupported.into()),
 		};
 
 		let asset_in_liquidity = T::AMM::get_liquidity_depth(first_route.pool, first_route.asset_in, asset_b);

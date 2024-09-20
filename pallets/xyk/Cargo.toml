@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-xyk'
-version = "6.4.4"
+version = "6.5.0"
 description = 'XYK automated market maker'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -29,6 +29,7 @@ orml-traits = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
+pallet-trade-event = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -65,5 +66,6 @@ std = [
     'frame-benchmarking/std',
     "scale-info/std",
     "pallet-asset-registry/std",
+    "pallet-trade-event/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

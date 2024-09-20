@@ -40,6 +40,7 @@ use sp_std::{vec, vec::Vec};
 
 use crate::types::{Amount, AssetId, AssetPair, Balance};
 use hydra_dx_math::ratio::Ratio;
+use pallet_trade_event::IncrementalIdType;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
 #[cfg(test)]
@@ -75,7 +76,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_trade_event::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Registry support
@@ -249,6 +250,7 @@ pub mod pallet {
 		},
 
 		/// Asset sale executed.
+		/// Deprecated. Replaced by pallet_trade_event::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: AssetId,
@@ -261,6 +263,7 @@ pub mod pallet {
 		},
 
 		/// Asset purchase executed.
+		/// Deprecated. Replaced by pallet_trade_event::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			asset_out: AssetId,
@@ -627,7 +630,7 @@ pub mod pallet {
 		///
 		/// `max_limit` - minimum amount of `asset_out` / amount of asset_out to be obtained from the pool in exchange for `asset_in`.
 		///
-		/// Emits `SellExecuted` when successful.
+		/// Emits `pallet_trade_event::Swapped` when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell() + <T as Config>::AMMHandler::on_trade_weight())]
 		pub fn sell(
@@ -640,7 +643,14 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _>>::sell(&who, AssetPair { asset_in, asset_out }, amount, max_limit, discount)?;
+			<Self as AMM<_, _, _, _, _>>::sell(
+				&who,
+				AssetPair { asset_in, asset_out },
+				amount,
+				max_limit,
+				discount,
+				None,
+			)?;
 
 			Ok(())
 		}
@@ -651,7 +661,7 @@ pub mod pallet {
 		///
 		/// `max_limit` - maximum amount of `asset_in` to be sold in exchange for `asset_out`.
 		///
-		/// Emits `BuyExecuted` when successful.
+		/// Emits `pallet_trade_event::Swapped` when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy() + <T as Config>::AMMHandler::on_trade_weight())]
 		pub fn buy(
@@ -664,7 +674,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _>>::buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit, discount)?;
+			<Self as AMM<_, _, _, _, _>>::buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit, discount)?;
 
 			Ok(())
 		}
@@ -705,7 +715,7 @@ impl<T: Config> Pallet<T> {
 }
 
 // Implementation of AMM API which makes possible to plug the AMM pool into the exchange pallet.
-impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
+impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance, IncrementalIdType> for Pallet<T> {
 	fn exists(assets: AssetPair) -> bool {
 		<ShareToken<T>>::contains_key(&Self::get_pair_id(assets))
 	}
@@ -854,7 +864,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	/// Perform necessary storage/state changes.
 	/// Note : the execution should not return error as everything was previously verified and validated.
 	#[transactional]
-	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>) -> DispatchResult {
+	fn execute_sell(
+		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
+		batch_id: Option<IncrementalIdType>,
+	) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
 		if transfer.discount && transfer.discount_amount > 0u128 {
@@ -889,6 +902,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		)
 		.map_err(|(_w, e)| e)?;
 
+		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::<T>::SellExecuted {
 			who: transfer.origin.clone(),
 			asset_in: transfer.assets.asset_in,
@@ -899,6 +913,18 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			fee_amount: transfer.fee.1,
 			pool: pair_account,
 		});
+
+		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+			transfer.origin.clone(),
+			pallet_trade_event::PoolType::XYK,
+			pallet_trade_event::TradeOperation::Sell,
+			transfer.assets.asset_in,
+			transfer.assets.asset_out,
+			transfer.amount,
+			transfer.amount_b,
+			vec![transfer.fee],
+			batch_id,
+		);
 
 		Ok(())
 	}
@@ -1051,6 +1077,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		)
 		.map_err(|(_w, e)| e)?;
 
+		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::<T>::BuyExecuted {
 			who: transfer.origin.clone(),
 			asset_out: transfer.assets.asset_out,
@@ -1061,6 +1088,18 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			fee_amount: transfer.fee.1,
 			pool: pair_account,
 		});
+
+		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+			transfer.origin.clone(),
+			pallet_trade_event::PoolType::XYK,
+			pallet_trade_event::TradeOperation::Buy,
+			transfer.assets.asset_in,
+			transfer.assets.asset_out,
+			transfer.amount,
+			transfer.amount_b,
+			vec![transfer.fee],
+			None,
+		);
 
 		Ok(())
 	}

@@ -53,7 +53,7 @@ pub struct AMMTransfer<AccountId, AssetId, AssetPair, Balance> {
 }
 
 /// Traits for handling AMM Pool trades.
-pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
+pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero, IncrementalId> {
 	/// Check if both assets exist in a pool.
 	fn exists(assets: AssetPair) -> bool;
 
@@ -80,7 +80,10 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
 
 	/// Execute buy for given validated transfer.
-	fn execute_sell(transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>) -> dispatch::DispatchResult;
+	fn execute_sell(
+		transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>,
+		batch_id: Option<IncrementalId>,
+	) -> dispatch::DispatchResult;
 
 	/// Perform asset swap.
 	/// Call execute following the validation.
@@ -90,8 +93,13 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 		amount: Amount,
 		min_bought: Amount,
 		discount: bool,
+		batch_id: Option<IncrementalId>,
 	) -> dispatch::DispatchResult {
-		Self::execute_sell(&Self::validate_sell(origin, assets, amount, min_bought, discount)?)?;
+		Self::execute_sell(
+			&Self::validate_sell(origin, assets, amount, min_bought, discount)?,
+			batch_id,
+		)?;
+
 		Ok(())
 	}
 
@@ -267,4 +275,8 @@ pub trait AccountFeeCurrency<AccountId> {
 pub trait AccountFeeCurrencyBalanceInCurrency<AssetId, AccountId> {
 	type Output;
 	fn get_balance_in_currency(to_currency: AssetId, account: &AccountId) -> Self::Output;
+}
+
+pub trait IncrementalIdProvider<IncrementalId> {
+	fn next_id() -> IncrementalId;
 }

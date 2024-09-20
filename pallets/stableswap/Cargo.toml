@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-stableswap'
-version = '3.6.4'
+version = '3.7.0'
 description = 'AMM for correlated assets'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -19,6 +19,10 @@ scale-info = { version = "2.1.2", default-features = false, features = ["derive"
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
 serde = { features = ["derive"], optional = true, version = "1.0.137" }
 
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+pallet-trade-event = { workspace = true }
+
 # primitives
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
@@ -31,9 +35,6 @@ frame-system = { workspace = true }
 
 # Math
 hydra-dx-math = { workspace = true }
-
-# HydraDX dependencies
-hydradx-traits = { workspace = true }
 
 # ORML dependencies
 orml-traits = { workspace = true }
@@ -70,5 +71,6 @@ std = [
     "frame-benchmarking/std",
     'orml-traits/std',
     "hydra-dx-math/std",
+    "pallet-trade-event/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

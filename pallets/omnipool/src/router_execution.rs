@@ -5,13 +5,14 @@ use hydra_dx_math::omnipool::types::I129;
 
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::{GetByKey, MultiCurrency};
+use pallet_trade_event::IncrementalIdType;
 use sp_runtime::traits::Get;
 use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 
 // dev note: The code is calculate sell and buy is copied from the corresponding functions.
 // This is not ideal and should be refactored to avoid code duplication.
-impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> for Pallet<T> {
+impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance, IncrementalIdType> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -131,12 +132,13 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		asset_out: T::AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
+		batch_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if pool_type != PoolType::Omnipool {
 			return Err(ExecutorError::NotSupported);
 		}
 
-		Self::sell(who, asset_in, asset_out, amount_in, min_limit).map_err(ExecutorError::Error)
+		Self::do_sell(who, asset_in, asset_out, amount_in, min_limit, batch_id).map_err(ExecutorError::Error)
 	}
 
 	fn execute_buy(

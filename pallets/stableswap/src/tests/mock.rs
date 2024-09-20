@@ -81,6 +81,7 @@ construct_runtime!(
 		System: frame_system,
 		Tokens: orml_tokens,
 		Stableswap: pallet_stableswap,
+		TradeEvent: pallet_trade_event,
 	}
 );
 
@@ -165,6 +166,10 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 			Ok(())
 		})
 	}
+}
+
+impl pallet_trade_event::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 impl Config for Test {

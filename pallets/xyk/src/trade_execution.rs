@@ -5,10 +5,11 @@ use frame_support::traits::Get;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
+use pallet_trade_event::IncrementalIdType;
 use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 
-impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
+impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance, IncrementalIdType> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -100,12 +101,26 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>
 		asset_out: AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
+		batch_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if pool_type != PoolType::XYK {
 			return Err(ExecutorError::NotSupported);
 		}
 
-		Self::sell(who, asset_in, asset_out, amount_in, min_limit, false).map_err(ExecutorError::Error)
+		let who = crate::ensure_signed(who).map_err(|e| ExecutorError::Error(e.into()))?;
+
+		<Self as AMM<_, _, _, _, _>>::sell(
+			&who,
+			AssetPair { asset_in, asset_out },
+			amount_in,
+			min_limit,
+			false,
+			batch_id,
+		)
+		.map_err(ExecutorError::Error)?;
+
+		Ok(())
+		// Self::sell(who, asset_in, asset_out, amount_in, min_limit, false).map_err(ExecutorError::Error)
 	}
 
 	fn execute_buy(

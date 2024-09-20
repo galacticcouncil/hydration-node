@@ -86,6 +86,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
+		TradeEvent: pallet_trade_event,
 	}
 );
 
@@ -173,6 +174,10 @@ parameter_types! {
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
+}
+
+impl pallet_trade_event::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 impl Config for Test {

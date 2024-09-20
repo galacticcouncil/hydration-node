@@ -920,6 +920,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				_ => Weight::MAX,
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -968,6 +969,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				_ => Weight::MAX,
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1000,6 +1002,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				_ => Weight::MAX,
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1024,6 +1027,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				_ => Weight::MAX,
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1048,6 +1052,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				_ => Weight::MAX,
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1080,6 +1085,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0)
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				_ => Weight::MAX,
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1093,6 +1099,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0)
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				_ => Weight::MAX,
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1125,6 +1132,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::calculate_spot_price_with_fee()
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
+				_ => Weight::MAX,
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1156,6 +1164,7 @@ impl pallet_route_executor::Config for Runtime {
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
+	type BatchIdProvider = TradeEvent;
 	type OraclePeriod = RouteValidationOraclePeriod;
 }
 
@@ -1523,6 +1532,10 @@ impl pallet_referrals::Config for Runtime {
 	type WeightInfo = weights::pallet_referrals::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
+}
+
+impl pallet_trade_event::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

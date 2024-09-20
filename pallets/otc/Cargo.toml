@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-otc'
-version = '2.0.1'
+version = '2.1.0'
 description = 'A pallet for trustless over-the-counter trading'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -12,6 +12,10 @@ repository = "https://github.com/galacticcouncil/Hydradx-node"
 codec = { package = "parity-scale-codec", version = "3.4.0", features = ["derive", "max-encoded-len"], default-features = false }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+pallet-trade-event = { workspace = true }
+
 # primitives
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
@@ -20,9 +24,6 @@ sp-core = { workspace = true }
 # FRAME
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-
-# HydraDX dependencies
-hydradx-traits = { workspace = true }
 
 # ORML dependencies
 orml-traits = { workspace = true }
@@ -52,7 +53,8 @@ std = [
   'orml-tokens/std',
   'orml-traits/std',
   'hydradx-traits/std',
-  'frame-benchmarking/std'
+  'frame-benchmarking/std',
+  "pallet-trade-event/std",
 ]
 
 runtime-benchmarks = [

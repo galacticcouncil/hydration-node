@@ -112,7 +112,7 @@ pub mod pallet {
 		type Currencies: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Balance>;
 
 		/// AMM helper functions.
-		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance>
+		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance, primitives::IncrementalId>
 			+ AMMPosition<AssetId, Balance, Error = DispatchError>;
 
 		/// The origin account that can create new liquidity mining program.

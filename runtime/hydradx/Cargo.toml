@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "256.0.0"
+version = "257.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -38,6 +38,7 @@ pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
+pallet-trade-event = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
@@ -323,6 +324,7 @@ std = [
     "parachains-common/std",
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",
+    "pallet-trade-event/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -394,6 +396,7 @@ try-runtime = [
     "pallet-xyk-liquidity-mining/try-runtime",
     "pallet-message-queue/try-runtime",
     "pallet-state-trie-migration/try-runtime",
+    "pallet-trade-event/try-runtime",
 ]
 
 metadata-hash = [
