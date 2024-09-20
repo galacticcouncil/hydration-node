@@ -268,6 +268,7 @@ pub mod pallet {
 		///   of asset_out multiplied by ExistentialDepositMultiplier
 		///
 		/// Events:
+		/// `PartiallyFilled` event when successful. Deprecated.
 		/// `pallet_trade_event::Swapped` event when successful.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::partial_fill_order())]
@@ -329,6 +330,7 @@ pub mod pallet {
 		/// - `order_id`: ID of the order
 		///
 		/// Events:
+		/// `Filled` event when successful. Deprecated.
 		/// `pallet_trade_event::Swapped` event when successful.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::fill_order())]

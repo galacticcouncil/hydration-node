@@ -713,6 +713,7 @@ pub mod pallet {
 		/// - `amount_in`: Amount of asset to be sold to the pool
 		/// - `min_buy_amount`: Minimum amount required to receive
 		///
+		/// Emits `SellExecuted` event when successful. Deprecated.
 		/// Emits `pallet_trade_event::Swapped` event when successful.
 		///
 		#[pallet::call_index(7)]
@@ -740,6 +741,7 @@ pub mod pallet {
 		/// - `amount_out`: Amount of asset to receive from the pool
 		/// - `max_sell_amount`: Maximum amount allowed to be sold
 		///
+		/// Emits `BuyExecuted` event when successful. Deprecated.
 		/// Emits `pallet_trade_event::Swapped` event when successful.
 		///
 		#[pallet::call_index(8)]

@@ -630,6 +630,7 @@ pub mod pallet {
 		///
 		/// `max_limit` - minimum amount of `asset_out` / amount of asset_out to be obtained from the pool in exchange for `asset_in`.
 		///
+		/// Emits `SellExecuted` when successful. Deprecated.
 		/// Emits `pallet_trade_event::Swapped` when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell() + <T as Config>::AMMHandler::on_trade_weight())]
@@ -660,7 +661,7 @@ pub mod pallet {
 		/// Executes a swap of `asset_in` for `asset_out`. Price is determined by the liquidity pool.
 		///
 		/// `max_limit` - maximum amount of `asset_in` to be sold in exchange for `asset_out`.
-		///
+		/// Emits `BuyExecuted` when successful. Deprecated.
 		/// Emits `pallet_trade_event::Swapped` when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy() + <T as Config>::AMMHandler::on_trade_weight())]

@@ -1026,6 +1026,7 @@ pub mod pallet {
 		/// - `amount`: Amount of asset sold
 		/// - `min_buy_amount`: Minimum amount required to receive
 		///
+		/// Emits `SellExecuted` event when successful. Deprecated.
 		/// Emits `pallet_trade_event::Swapped` event when successful.
 		///
 		#[pallet::call_index(5)]
@@ -1058,6 +1059,7 @@ pub mod pallet {
 		/// - `amount`: Amount of asset sold
 		/// - `max_sell_amount`: Maximum amount to be sold.
 		///
+		/// Emits `BuyExecuted` event when successful. Deprecated.
 		/// Emits `pallet_trade_event::Swapped` event when successful.
 		///
 		#[pallet::call_index(6)]
