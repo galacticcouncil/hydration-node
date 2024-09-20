@@ -874,6 +874,49 @@ mod currency_precompile {
 	}
 
 	#[test]
+	fn precompile_with_code_transfer_should_work() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			pallet_evm::AccountCodes::<hydradx_runtime::Runtime>::insert(
+				native_asset_ethereum_address(),
+				&hex!["365f5f375f5f365f73bebebebebebebebebebebebebebebebebebebebe5af43d5f5f3e5f3d91602a57fd5bf3"][..],
+			);
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_account(),
+				HDX,
+				100 * UNITS as i128,
+			));
+
+			let data = EvmDataWriter::new_with_selector(Function::Transfer)
+				.write(Address::from(evm_address2()))
+				.write(U256::from(86u128 * UNITS))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: evm_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			//Act
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			//Assert
+			assert_eq!(result.unwrap().exit_status, ExitSucceed::Returned);
+			assert_balance!(evm_account2(), HDX, 86u128 * UNITS);
+		});
+	}
+
+	#[test]
 	fn precompile_for_currency_approve_allowance_should_fail_as_not_supported() {
 		TestNet::reset();
 
