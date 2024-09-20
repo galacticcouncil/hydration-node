@@ -47,6 +47,7 @@ where
 	) -> TransactionValidity {
 		match call.is_sub_type() {
 			Some(Call::submit_solution { score, block, .. }) => {
+				// TODO: check if who has enough for bond
 				let valid = Pallet::<T>::validate_submission(who, *score, *block);
 				if valid {
 					ValidTransaction::with_tag_prefix("IceSolutionProposal")
