@@ -31,7 +31,7 @@ pub mod pallet {
 	use super::*;
 	use crate::engine::ICEEngine;
 	use crate::traits::IceWeightBounds;
-	use crate::types::Instruction;
+	use crate::types::{BoundedResolvedIntents, BoundedTrades, Instruction, TradeInstruction};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use hydra_dx_math::ratio::Ratio;
@@ -231,18 +231,12 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight( {
 			let mut w = T::WeightInfo::submit_solution();
-			for instruction in solution.instructions.iter() {
+			for instruction in trades.iter() {
 				match instruction {
-					Instruction::TransferIn { .. } => {
-						w.saturating_accrue(T::Weigher::transfer_weight());
-					},
-					Instruction::TransferOut { .. } => {
-						w.saturating_accrue(T::Weigher::transfer_weight());
-					},
-					Instruction::SwapExactIn { route, .. } => {
+					TradeInstruction::SwapExactIn { route, .. } => {
 						w.saturating_accrue(T::Weigher::sell_weight(&route));
 					},
-					Instruction::SwapExactOut { route, .. } => {
+					TradeInstruction::SwapExactOut { route, .. } => {
 						w.saturating_accrue(T::Weigher::buy_weight(&route));
 					}
 				}
@@ -251,7 +245,8 @@ pub mod pallet {
 		})]
 		pub fn submit_solution(
 			origin: OriginFor<T>,
-			solution: Solution<T::AccountId, T::AssetId>,
+			intents: BoundedResolvedIntents,
+			trades: BoundedTrades<T::AssetId>,
 			score: u64,
 			block: BlockNumberFor<T>,
 		) -> DispatchResult {
@@ -269,19 +264,18 @@ pub mod pallet {
 				Error::<T>::InvalidBlockNumber
 			);
 
-			if let Err(e) = ICEEngine::<T>::validate_solution(&solution, score) {
-				//TODO: slash him, bob!
-				return Err(e);
+			match ICEEngine::<T>::prepare_solution(intents, trades, score) {
+				Ok(solution) => {
+					ICEEngine::<T>::execute_solution(solution)?;
+					Self::clear_expired_intents();
+					Self::deposit_event(Event::SolutionExecuted { who });
+					SolutionExecuted::<T>::set(true);
+				}
+				Err(e) => {
+					//TODO: slash him, bob!
+					return Err(e);
+				}
 			}
-
-			ICEEngine::<T>::execute_solution(solution)?;
-
-			Self::clear_expired_intents();
-
-			Self::deposit_event(Event::SolutionExecuted { who });
-
-			SolutionExecuted::<T>::set(true);
-
 			Ok(())
 		}
 	}

@@ -1,5 +1,8 @@
 use crate::pallet::Intents;
-use crate::types::{Balance, BoundedResolvedIntents, Instruction, Intent, ResolvedIntent, Solution, Swap, SwapType};
+use crate::types::{
+	Balance, BoundedInstructions, BoundedResolvedIntents, BoundedTrades, Instruction, Intent, ResolvedIntent, Solution,
+	Swap, SwapType, TradeInstructionTransform,
+};
 use crate::{Config, Error};
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
@@ -11,7 +14,7 @@ use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::RouterT;
 use orml_traits::NamedMultiReservableCurrency;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::traits::Zero;
+use sp_runtime::traits::{Convert, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128, Rounding, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
@@ -19,6 +22,121 @@ use sp_std::vec::Vec;
 pub struct ICEEngine<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> ICEEngine<T> {
+	pub fn prepare_solution(
+		intents: BoundedResolvedIntents,
+		trades: BoundedTrades<T::AssetId>,
+		score: u64,
+	) -> Result<Solution<T::AccountId, T::AssetId>, DispatchError> {
+		// 1. Validate resolved intents - limit price
+		// 2. Build list of transfers in and transfers out
+		// 3. Merge with list of trades
+		// 4. Calculate matched amount and score the solution
+		// 5. Ensure score solution is correct
+		// 6. How to validate trades ?! do we need ?
+
+		let mut amounts_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+		let mut amounts_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+
+		let mut transfers_in: Vec<Instruction<T::AccountId, T::AssetId>> = Vec::new();
+		let mut transfers_out: Vec<Instruction<T::AccountId, T::AssetId>> = Vec::new();
+
+		for resolved_intent in intents.iter() {
+			let intent = Intents::<T>::get(resolved_intent.intent_id).ok_or(Error::<T>::IntentNotFound)?;
+
+			ensure!(
+				ensure_intent_price::<T>(&intent, &resolved_intent),
+				Error::<T>::IntentLimitPriceViolation
+			);
+
+			let is_partial = intent.partial;
+			let asset_in = intent.swap.asset_in;
+			let asset_out = intent.swap.asset_out;
+
+			let resolved_amount_in = resolved_intent.amount_in;
+			let resolved_amount_out = resolved_intent.amount_out;
+
+			amounts_in
+				.entry(asset_in)
+				.and_modify(|v| *v = v.saturating_add(resolved_amount_in))
+				.or_insert(resolved_amount_in);
+			amounts_out
+				.entry(asset_out)
+				.and_modify(|v| *v = v.saturating_add(resolved_amount_out))
+				.or_insert(resolved_amount_out);
+
+			transfers_in.push(Instruction::TransferIn {
+				who: intent.who.clone(),
+				asset_id: asset_in,
+				amount: resolved_amount_in,
+			});
+			transfers_out.push(Instruction::TransferOut {
+				who: intent.who.clone(),
+				asset_id: asset_out,
+				amount: resolved_amount_out,
+			});
+
+			match intent.swap.swap_type {
+				SwapType::ExactIn => {
+					if is_partial {
+						ensure!(
+							resolved_intent.amount_in <= intent.swap.amount_in,
+							Error::<T>::IncorrectIntentAmountResolution
+						);
+					} else {
+						ensure!(
+							resolved_intent.amount_in == intent.swap.amount_in,
+							Error::<T>::IncorrectIntentAmountResolution
+						);
+						ensure!(
+							resolved_intent.amount_out >= intent.swap.amount_out,
+							Error::<T>::IncorrectIntentAmountResolution
+						);
+					}
+				}
+				SwapType::ExactOut => {
+					if is_partial {
+						ensure!(
+							resolved_intent.amount_out <= intent.swap.amount_out,
+							Error::<T>::IncorrectIntentAmountResolution
+						);
+					} else {
+						ensure!(
+							resolved_intent.amount_out == intent.swap.amount_out,
+							Error::<T>::IncorrectIntentAmountResolution
+						);
+						ensure!(
+							resolved_intent.amount_in <= intent.swap.amount_in,
+							Error::<T>::IncorrectIntentAmountResolution
+						);
+					}
+				}
+			}
+		}
+
+		let mut matched_amounts = Vec::new();
+		//TODO: we just checked the resolved amounts in and out, we should probably verify that the traded amounts is actually the difference?!
+		for (asset_id, amount) in amounts_in.iter() {
+			let amount_out = amounts_out.get(asset_id).unwrap_or(&0u128);
+			matched_amounts.push((*asset_id, *(amount.min(amount_out))));
+		}
+
+		let mut instructions = Vec::new();
+
+		instructions.extend(transfers_in.into_iter());
+		instructions.extend(TradeInstructionTransform::convert(trades).into_iter());
+		instructions.extend(transfers_out.into_iter());
+
+		let solution = Solution {
+			intents,
+			instructions: BoundedInstructions::truncate_from(instructions),
+		};
+
+		let calculated_score = Self::score_solution(&solution, matched_amounts)?;
+
+		ensure!(calculated_score == score, Error::<T>::InvalidScore);
+		Ok(solution)
+	}
+
 	pub fn validate_solution(solution: &Solution<T::AccountId, T::AssetId>, score: u64) -> Result<(), DispatchError> {
 		// Store resolved amounts for each account
 		// This is used to ensure that the transfer instruction does not transfer more than it should

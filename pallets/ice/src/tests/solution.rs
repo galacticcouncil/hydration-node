@@ -1,12 +1,15 @@
 use super::*;
 use crate::pallet::Intents;
 use crate::tests::{ExtBuilder, ICE};
-use crate::types::{BoundedInstructions, BoundedResolvedIntents, BoundedRoute, Intent, ResolvedIntent, Swap, SwapType};
+use crate::types::{
+	BoundedInstructions, BoundedResolvedIntents, BoundedRoute, BoundedTrades, Intent, ResolvedIntent, Swap, SwapType,
+	TradeInstruction,
+};
 use crate::types::{Instruction, Solution};
 use crate::Error;
 use frame_support::{assert_noop, assert_ok};
 
-fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (Solution<AccountId, AssetId>, u64) {
+fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (BoundedResolvedIntents, BoundedTrades<AssetId>, u64) {
 	// TODO: extend to support multiple intents
 	// currently only one intent is supported
 
@@ -19,33 +22,19 @@ fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (Solution<Accoun
 	}];
 	let route = vec![];
 
-	let instructions = vec![
-		Instruction::TransferIn {
-			who: ALICE,
-			asset_id: 100,
-			amount: 100_000_000_000_000,
-		},
-		Instruction::SwapExactIn {
-			asset_in: 100,
-			asset_out: 200,
-			amount_in: 100_000_000_000_000,
-			amount_out: 200_000_000_000_000,
-			route: BoundedRoute::try_from(route).unwrap(),
-		},
-		Instruction::TransferOut {
-			who: ALICE,
-			asset_id: 200,
-			amount: 200_000_000_000_000,
-		},
-	];
+	let instructions = vec![TradeInstruction::SwapExactIn {
+		asset_in: 100,
+		asset_out: 200,
+		amount_in: 100_000_000_000_000,
+		amount_out: 200_000_000_000_000,
+		route: BoundedRoute::try_from(route).unwrap(),
+	}];
 
-	let proposed_solution = Solution {
-		intents: BoundedResolvedIntents::try_from(resolved_intents).unwrap(),
-		instructions: BoundedInstructions::try_from(instructions).unwrap(),
-	};
+	let resolved_intents = BoundedResolvedIntents::try_from(resolved_intents).unwrap();
+	let trades = BoundedTrades::try_from(instructions).unwrap();
 	let score = 1_000_000u64;
 
-	(proposed_solution, score)
+	(resolved_intents, trades, score)
 }
 
 #[test]
@@ -75,11 +64,12 @@ fn submit_solution_should_work_when_contains_only_one_intent() {
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 
-			let (proposed_solution, score) = create_solution_for_given_intents(vec![intent_id]);
+			let (resolved_intents, trades, score) = create_solution_for_given_intents(vec![intent_id]);
 
 			assert_ok!(ICE::submit_solution(
 				RuntimeOrigin::signed(ALICE),
-				proposed_solution,
+				resolved_intents,
+				trades,
 				score,
 				1
 			));
@@ -93,10 +83,10 @@ fn submit_solution_should_fail_when_block_number_is_different() {
 		.build()
 		.execute_with(|| {
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
-			let (proposed_solution, score) = create_solution_for_given_intents(vec![intent_id]);
+			let (resolved_intents, trades, score) = create_solution_for_given_intents(vec![intent_id]);
 
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::signed(ALICE), proposed_solution, score, 2),
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, trades, score, 2),
 				Error::<Test>::InvalidBlockNumber
 			);
 		});
@@ -128,10 +118,10 @@ fn submit_solution_should_fail_when_score_is_different() {
 			));
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
-			let (proposed_solution, score) = create_solution_for_given_intents(vec![intent_id]);
+			let (resolved_intents, trades, score) = create_solution_for_given_intents(vec![intent_id]);
 
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::signed(ALICE), proposed_solution, score + 1, 1),
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, trades, score + 1, 1),
 				Error::<Test>::InvalidScore
 			);
 		});
@@ -183,7 +173,7 @@ fn submit_solution_should_clear_expired_intents() {
 			));
 			let expired_intent_id = get_intent_id(DEFAULT_NOW + 1_000, 1);
 
-			let (proposed_solution, score) = create_solution_for_given_intents(vec![intent_id]);
+			let (resolved_intents, trades, score) = create_solution_for_given_intents(vec![intent_id]);
 
 			// move time forward
 			NOW.with(|now| {
@@ -192,7 +182,8 @@ fn submit_solution_should_clear_expired_intents() {
 
 			assert_ok!(ICE::submit_solution(
 				RuntimeOrigin::signed(ALICE),
-				proposed_solution,
+				resolved_intents,
+				trades,
 				score,
 				1
 			),);
@@ -235,35 +226,22 @@ fn submit_solution_should_update_partial_resolved_intent() {
 			}];
 			let route = vec![];
 
-			let instructions = vec![
-				Instruction::TransferIn {
-					who: ALICE,
-					asset_id: 100,
-					amount: 100_000_000_000_000 / 2,
-				},
-				Instruction::SwapExactIn {
-					asset_in: 100,
-					asset_out: 200,
-					amount_in: 100_000_000_000_000 / 2,
-					amount_out: 200_000_000_000_000 / 2,
-					route: BoundedRoute::try_from(route).unwrap(),
-				},
-				Instruction::TransferOut {
-					who: ALICE,
-					asset_id: 200,
-					amount: 200_000_000_000_000 / 2,
-				},
-			];
+			let instructions = vec![TradeInstruction::SwapExactIn {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000 / 2,
+				amount_out: 200_000_000_000_000 / 2,
+				route: BoundedRoute::try_from(route).unwrap(),
+			}];
 
-			let proposed_solution = Solution {
-				intents: BoundedResolvedIntents::try_from(resolved_intents).unwrap(),
-				instructions: BoundedInstructions::try_from(instructions).unwrap(),
-			};
+			let resolved_intents = BoundedResolvedIntents::try_from(resolved_intents).unwrap();
+			let trades = BoundedTrades::try_from(instructions).unwrap();
 			let score = 1_000_000u64;
 
 			assert_ok!(ICE::submit_solution(
 				RuntimeOrigin::signed(ALICE),
-				proposed_solution,
+				resolved_intents,
+				trades,
 				score,
 				1
 			));
@@ -297,10 +275,10 @@ fn submit_solution_should_fail_when_intent_does_not_exists() {
 		.execute_with(|| {
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 
-			let (proposed_solution, score) = create_solution_for_given_intents(vec![intent_id]);
+			let (resolved_intents, trades, score) = create_solution_for_given_intents(vec![intent_id]);
 
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::signed(ALICE), proposed_solution, score, 1),
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, trades, score, 1),
 				Error::<Test>::IntentNotFound
 			);
 		});
