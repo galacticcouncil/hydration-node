@@ -649,37 +649,30 @@ fn transfer_foreign_asset_from_acala_to_hydra_should_not_work() {
 }
 
 #[test]
-fn transfer_dot_reserve_from_asset_hub_to_hydra_should_not_work() {
+fn transfer_dot_reserve_from_asset_hub_to_hydra_should_work() {
 	//Arrange
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		let _ = with_transaction(|| {
-			register_foreign_asset();
-			assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-				DOT,
-				hydradx_runtime::AssetLocation(MultiLocation::new(1, polkadot_xcm::opaque::v3::Junctions::Here))
-			));
+		add_currency_price(DOT, FixedU128::from(1));
 
-			add_currency_price(FOREIGN_ASSET, FixedU128::from(1));
-			add_currency_price(DOT, FixedU128::from(1));
+		assert_ok!(hydradx_runtime::Tokens::deposit(
+			DOT,
+			&AccountId::from(ALICE),
+			3000 * UNITS
+		));
 
-			TransactionOutcome::Commit(DispatchResult::Ok(()))
-		});
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			DOT,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, polkadot_xcm::opaque::v3::Junctions::Here))
+		));
 	});
 
 	AssetHub::execute_with(|| {
 		let _ = with_transaction(|| {
-			register_foreign_asset();
 			register_dot();
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
-
-		assert_ok!(hydradx_runtime::Tokens::deposit(
-			FOREIGN_ASSET,
-			&AccountId::from(ALICE),
-			3000 * UNITS
-		));
 
 		assert_ok!(hydradx_runtime::Tokens::deposit(
 			DOT,
@@ -700,7 +693,8 @@ fn transfer_dot_reserve_from_asset_hub_to_hydra_should_not_work() {
 			}])),
 		);
 
-		let xcm = xcm_for_deposit_reserve_asset_to_hydra::<hydradx_runtime::RuntimeCall>(dot, bob_beneficiary);
+		let xcm =
+			xcm_transfer_reserve_asset_and_deposit_asset_to_hydra::<hydradx_runtime::RuntimeCall>(dot, bob_beneficiary);
 
 		//Act
 		let res = hydradx_runtime::PolkadotXcm::execute(
@@ -720,7 +714,71 @@ fn transfer_dot_reserve_from_asset_hub_to_hydra_should_not_work() {
 
 	//Assert
 	Hydra::execute_with(|| {
-		assert_xcm_message_processing_failed();
+		assert_xcm_message_processing_passed();
+
+		let fee = hydradx_runtime::Tokens::free_balance(DOT, &hydradx_runtime::Treasury::account_id());
+		assert!(fee > 0, "treasury should have received fees");
+		//Check if the foreign asset from Assethub has been deposited successfully
+		assert_eq!(
+			hydradx_runtime::Currencies::free_balance(DOT, &AccountId::from(BOB)),
+			100 * UNITS - fee
+		);
+	});
+}
+
+
+#[test]
+fn transfer_dot_from_hydra_to_asset_hub() {
+	AssetHub::execute_with(|| {
+		let _ = with_transaction(|| {
+			register_dot();
+			add_currency_price(DOT, FixedU128::from(1));
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+
+	//Arrange
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			DOT,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, polkadot_xcm::opaque::v3::Junctions::Here))
+		));
+
+		//Act
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			3 * UNITS,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(ASSET_HUB_PARA_ID),
+						Junction::AccountId32 { id: BOB, network: None }
+					)
+				)
+				.into_versioned()
+			),
+			WeightLimit::Unlimited,
+		));
+
+		//Assert
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(DOT, &AccountId::from(ALICE)),
+			2000 * UNITS - 3 * UNITS
+		);
+	});
+
+	//Needed to process horizontal xcm messages
+	Rococo::execute_with(|| {});
+
+	AssetHub::execute_with(|| {
+		assert_xcm_message_processing_passed();
+
+		assert_eq!(
+			hydradx_runtime::Currencies::free_balance(DOT, &AccountId::from(BOB)),
+			2_899_374_643_624 // 3 * HDX - fee
+		);
 	});
 }
 
@@ -1012,3 +1070,67 @@ fn rococo_xcm_execute_extrinsic_should_be_allowed() {
 		),);
 	});
 }
+
+fn xcm_transfer_reserve_asset_and_deposit_asset_to_hydra<RC: Decode + GetDispatchInfo>(
+	assets: Asset,
+	beneficiary: Location,
+) -> VersionedXcm<RC> {
+	use rococo_runtime::xcm_config::BaseXcmWeight;
+	use xcm_builder::FixedWeightBounds;
+	use xcm_executor::traits::WeightBounds;
+
+	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
+
+	let dest = Location::new(
+		1,
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)])),
+	);
+
+	let max_assets = 1 + 1;
+
+	let context = cumulus_primitives_core::Junctions::X2(Arc::new([
+		cumulus_primitives_core::Junction::GlobalConsensus(cumulus_primitives_core::NetworkId::Polkadot),
+		cumulus_primitives_core::Junction::Parachain(ASSET_HUB_PARA_ID),
+	]));
+
+	let fee_asset = assets.clone().reanchored(&dest, &context).expect("should reanchor");
+	let fees = fee_asset.clone();
+
+	let weight_limit = {
+		let mut remote_message = Xcm(vec![
+			ReserveAssetDeposited::<RC>(assets.clone().into()),
+			ClearOrigin,
+			BuyExecution {
+				fees: fees.clone(),
+				weight_limit: Limited(Weight::zero()),
+			},
+			DepositAsset {
+				assets: Wild(AllCounted(max_assets)),
+				beneficiary: beneficiary.clone(),
+			},
+		]);
+		// use local weight for remote message and hope for the best.
+		let remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
+		Limited(remote_weight)
+	};
+	// executed on remote (on hydra)
+	let xcm = Xcm(vec![
+		//ReserveAssetDeposited(assets.clone()),
+		BuyExecution { fees, weight_limit },
+		DepositAsset {
+			assets: Wild(AllCounted(max_assets)),
+			beneficiary,
+		},
+	]);
+	// executed on local (AssetHub)
+	let message = Xcm(vec![
+		SetFeesMode { jit_withdraw: true },
+		TransferReserveAsset {
+			assets: assets.into(),
+			dest,
+			xcm,
+		},
+	]);
+	VersionedXcm::from(message)
+}
+
