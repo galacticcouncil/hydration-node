@@ -291,6 +291,23 @@ benchmarks! {
 
 	}: _(RawOrigin::Root,  G_FARM_TOTAL_REWARDS, planned_yielding_periods, blocks_per_period, REWARD_CURRENCY.into(), owner, yield_per_period, min_deposit, FixedU128::one())
 
+	update_global_farm {
+		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let global_farm_id = 1;
+		let yield_farm_id = 2;
+
+		initialize_omnipool::<T>()?;
+
+		initialize_global_farm::<T>(owner.clone())?;
+		initialize_yield_farm::<T>(owner.clone(), global_farm_id, BTC.into())?;
+
+		let planned_yielding_periods = BlockNumberFor::<T>::from(100_000_u32);
+		let yield_per_period = Perquintill::from_percent(20);
+		let min_deposit = 1_000;
+
+	}: _(RawOrigin::Root, global_farm_id, planned_yielding_periods, yield_per_period, min_deposit)
+
+
 	terminate_global_farm {
 		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
 		let global_farm_id = 1;
