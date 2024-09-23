@@ -1,17 +1,19 @@
 #![cfg(test)]
 use crate::polkadot_test_net::Rococo;
 use crate::polkadot_test_net::*;
+use xcm_emulator::ConvertLocation;
+use xcm_executor::traits::TransferType;
 
 use frame_support::{assert_noop, assert_ok};
 
-use polkadot_xcm::{v4::prelude::*, VersionedAssets, VersionedXcm};
+use polkadot_xcm::{v4::prelude::*, VersionedAssetId, VersionedAssets, VersionedXcm};
 
 use cumulus_primitives_core::ParaId;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::storage::with_transaction;
 use frame_support::traits::OnInitialize;
 use frame_support::weights::Weight;
-use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::{AssetRegistry, LocationToAccountId};
 use hydradx_traits::{registry::Mutate, AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
 use polkadot_xcm::opaque::v3::{
@@ -726,46 +728,86 @@ fn transfer_dot_reserve_from_asset_hub_to_hydra_should_work() {
 	});
 }
 
-
 #[test]
 fn transfer_dot_from_hydra_to_asset_hub() {
+	let init_hydra_para_dot_balance_on_ah = 2000 * UNITS;
+	let hydra_at_ah = Location::new(
+		1,
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)])),
+	);
+
+	let hydra_parachain_account_at_ah = LocationToAccountId::convert_location(&hydra_at_ah).unwrap();
+
+	let transfer_amount = 3 * UNITS;
+
 	AssetHub::execute_with(|| {
 		let _ = with_transaction(|| {
 			register_dot();
 			add_currency_price(DOT, FixedU128::from(1));
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
+
+		assert_ok!(hydradx_runtime::Tokens::deposit(
+			DOT,
+			&hydra_parachain_account_at_ah,
+			init_hydra_para_dot_balance_on_ah
+		));
 	});
 
 	//Arrange
 	Hydra::execute_with(|| {
+		let dot_multiloc = MultiLocation::new(1, polkadot_xcm::opaque::v3::Junctions::Here);
+
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			DOT,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, polkadot_xcm::opaque::v3::Junctions::Here))
+			hydradx_runtime::AssetLocation(dot_multiloc)
 		));
 
+		let dot_loc = Location::new(1, cumulus_primitives_core::Junctions::Here);
+
+		let dot: Asset = Asset {
+			id: cumulus_primitives_core::AssetId(dot_loc.clone()),
+			fun: Fungible(transfer_amount),
+		};
+
+		let bob_beneficiary = Location::new(
+			0,
+			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+				id: BOB,
+				network: None,
+			}])),
+		);
+
+		let deposit_xcm = Xcm(vec![
+			DepositAsset {
+				assets: Wild(WildAsset::AllCounted(1)),
+				beneficiary: bob_beneficiary.clone(),
+			},
+		]);
+
 		//Act
-		assert_ok!(hydradx_runtime::XTokens::transfer(
+		assert_ok!(hydradx_runtime::PolkadotXcm::transfer_assets_using_type_and_then(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			DOT,
-			3 * UNITS,
 			Box::new(
 				MultiLocation::new(
 					1,
-					X2(
+					X1(
 						Junction::Parachain(ASSET_HUB_PARA_ID),
-						Junction::AccountId32 { id: BOB, network: None }
 					)
 				)
 				.into_versioned()
 			),
+			Box::new(dot.into()),
+			Box::new(TransferType::DestinationReserve),
+			Box::new(VersionedAssetId::V4(cumulus_primitives_core::AssetId(dot_loc))),
+			Box::new(TransferType::DestinationReserve),
+			Box::new(VersionedXcm::from(deposit_xcm)),
 			WeightLimit::Unlimited,
 		));
 
-		//Assert
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(DOT, &AccountId::from(ALICE)),
-			2000 * UNITS - 3 * UNITS
+			init_hydra_para_dot_balance_on_ah - transfer_amount
 		);
 	});
 
@@ -775,9 +817,18 @@ fn transfer_dot_from_hydra_to_asset_hub() {
 	AssetHub::execute_with(|| {
 		assert_xcm_message_processing_passed();
 
+		//We check if the hydra parachain account balance is reduced on AH, meaning AH is responsible for reserve tracking
+		let hydra_sovereign_account_dot_balance = hydradx_runtime::Currencies::free_balance(DOT, &hydra_parachain_account_at_ah);
+		assert_eq!(
+			hydra_sovereign_account_dot_balance,
+			init_hydra_para_dot_balance_on_ah - transfer_amount
+		);
+
+		let fee = hydradx_runtime::Currencies::free_balance(DOT, &hydradx_runtime::Treasury::account_id());
+
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(DOT, &AccountId::from(BOB)),
-			2_899_374_643_624 // 3 * HDX - fee
+			transfer_amount - fee
 		);
 	});
 }
