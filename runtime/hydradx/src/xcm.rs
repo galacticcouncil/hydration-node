@@ -143,8 +143,8 @@ where
 
 pub struct IsDotFrom<Origin>(PhantomData<Origin>);
 impl<Origin> ContainsPair<Asset, Location> for IsDotFrom<Origin>
-	where
-		Origin: Get<Location>,
+where
+	Origin: Get<Location>,
 {
 	fn contains(asset: &Asset, origin: &Location) -> bool {
 		let loc = Origin::get();
@@ -161,7 +161,6 @@ impl<Origin> ContainsPair<Asset, Location> for IsDotFrom<Origin>
 			)
 	}
 }
-
 
 pub type Reserves = (
 	IsDotFrom<AssetHubLocation>,
