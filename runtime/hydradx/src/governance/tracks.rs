@@ -43,7 +43,7 @@ const APP_RECIP: Curve = Curve::make_reciprocal(1, 7, percent(80), percent(50), 
 const SUP_LINEAR: Curve = Curve::make_linear(7, 7, percent(0), percent(50));
 const SUP_RECIP: Curve = Curve::make_reciprocal(5, 7, percent(1), percent(0), percent(50));
 const SUP_FAST_RECIP: Curve = Curve::make_reciprocal(3, 7, percent(1), percent(0), percent(50));
-const SUP_WHITELISTED_CALLER: Curve = Curve::make_reciprocal(1, 28, percent(20), percent(5), percent(50));
+const SUP_WHITELISTED_CALLER: Curve = Curve::make_reciprocal(1, 28, percent(3), percent(2), percent(50));
 
 const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9] = [
 	(
@@ -67,8 +67,8 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 			max_deciding: 3,
 			decision_deposit: 50_000 * UNITS,
 			prepare_period: 10 * MINUTES,
-			decision_period: 7 * DAYS,
-			confirm_period: 10 * MINUTES,
+			decision_period: 3 * DAYS,
+			confirm_period: 4 * HOURS,
 			min_enactment_period: 10 * MINUTES,
 			min_approval: APP_RECIP,
 			min_support: SUP_WHITELISTED_CALLER,
@@ -95,7 +95,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 			max_deciding: 3,
 			decision_deposit: 2_500_000 * UNITS,
 			prepare_period: 60 * MINUTES,
-			decision_period: 7 * DAYS,
+			decision_period: 3 * DAYS,
 			confirm_period: 3 * HOURS,
 			min_enactment_period: 10 * MINUTES,
 			min_approval: APP_LINEAR_FLAT,
