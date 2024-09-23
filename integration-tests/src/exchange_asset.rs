@@ -326,8 +326,7 @@ fn transfer_and_swap_should_work_with_4_hops() {
 	Interlay::execute_with(|| {});
 
 	Acala::execute_with(|| {
-		assert!(
-			hydradx_runtime::Currencies::free_balance(IBTC, &AccountId::from(BOB)) > 0);
+		assert!(hydradx_runtime::Currencies::free_balance(IBTC, &AccountId::from(BOB)) > 0);
 		let fee = hydradx_runtime::Tokens::free_balance(IBTC, &hydradx_runtime::Treasury::account_id());
 
 		assert!(fee > 0, "treasury should have received fees, but it didn't");
@@ -509,9 +508,7 @@ pub mod zeitgeist_use_cases {
 
 		//Assert that swap amount out is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
-			assert!(
-				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE)) > 0
-			);
+			assert!(hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE)) > 0);
 		});
 	}
 
@@ -723,8 +720,7 @@ pub mod zeitgeist_use_cases {
 
 		//Assert that swap amount out of IBTC is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
-			assert!(
-				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)) > 0);
+			assert!(hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)) > 0);
 		});
 	}
 
@@ -994,8 +990,7 @@ pub mod zeitgeist_use_cases {
 
 		//Assert that swap amount out of IBTC is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
-			assert!(
-				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)) > 0);
+			assert!(hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)) > 0);
 		});
 	}
 }
