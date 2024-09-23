@@ -179,3 +179,11 @@ pub trait Mutate<Balance>: Inspect {
 pub trait BoundErc20: Inspect {
 	fn contract_address(id: Self::AssetId) -> Option<EvmAddress>;
 }
+
+pub trait RegisterAssetHook<AssetId> {
+	fn on_register_asset(asset_id: AssetId);
+}
+
+impl<AssetId> RegisterAssetHook<AssetId> for () {
+	fn on_register_asset(_: AssetId) {}
+}

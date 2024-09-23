@@ -1732,6 +1732,10 @@ pub fn native_asset_ethereum_address() -> H160 {
 	H160::from(hex!("0000000000000000000000000000000100000000"))
 }
 
+pub fn dai_ethereum_address() -> H160 {
+	H160::from(hex!("0000000000000000000000000000000100000002"))
+}
+
 pub struct MockHandle {
 	pub input: Vec<u8>,
 	pub context: Context,

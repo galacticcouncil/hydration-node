@@ -300,6 +300,7 @@ impl pallet_asset_registry::Config for Test {
 	type MinStringLimit = MinRegistryStringLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
+	type RegisterAssetHook = ();
 	type WeightInfo = ();
 }
 

@@ -64,6 +64,7 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
+use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use frame_support::{
 	construct_runtime,
 	genesis_builder_helper::{build_config, create_default_config},
@@ -279,6 +280,7 @@ pub type Executive = frame_executive::Executive<
 		frame_support::migrations::RemovePallet<XcmRateLimiterPalletName, <Runtime as frame_system::Config>::DbWeight>,
 		cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
 		pallet_identity::migration::versioned::V0ToV1<Runtime, 450u64>, // We have currently 379 identities in basllisk, so limit of 450 should be enough
+		SetCodeForErc20Precompile,
 	),
 >;
 

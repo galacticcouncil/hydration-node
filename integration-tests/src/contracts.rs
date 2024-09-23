@@ -1,4 +1,4 @@
-use crate::evm::native_asset_ethereum_address;
+use crate::evm::dai_ethereum_address;
 use crate::polkadot_test_net::Hydra;
 use crate::polkadot_test_net::TestNet;
 use crate::polkadot_test_net::ALICE;
@@ -67,12 +67,22 @@ fn contract_check_fails_on_eoa() {
 }
 
 #[test]
-fn contract_check_fails_on_precompile() {
+fn contract_check_fails_on_precompile_without_code() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let checker = deploy_contract("ContractCheck", deployer());
+		pallet_evm::AccountCodes::<Runtime>::remove(dai_ethereum_address());
+		assert_eq!(is_contract(checker, dai_ethereum_address()), false);
+	});
+}
+
+#[test]
+fn contract_check_succeeds_on_currencies_precompile() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let checker = deploy_contract("ContractCheck", deployer());
 
-		assert_eq!(is_contract(checker, native_asset_ethereum_address()), false);
+		assert_eq!(is_contract(checker, dai_ethereum_address()), true);
 	});
 }
 
@@ -82,10 +92,10 @@ fn contract_check_succeeds_on_precompile_with_code() {
 	Hydra::execute_with(|| {
 		let checker = deploy_contract("ContractCheck", deployer());
 		pallet_evm::AccountCodes::<Runtime>::insert(
-			native_asset_ethereum_address(),
+			dai_ethereum_address(),
 			&hex!["365f5f375f5f365f73bebebebebebebebebebebebebebebebebebebebe5af43d5f5f3e5f3d91602a57fd5bf3"][..],
 		);
-		assert_eq!(is_contract(checker, native_asset_ethereum_address()), true);
+		assert_eq!(is_contract(checker, dai_ethereum_address()), true);
 	});
 }
 
@@ -94,7 +104,7 @@ fn contract_check_succeeds_on_precompile_with_invalid_code() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let checker = deploy_contract("ContractCheck", deployer());
-		pallet_evm::AccountCodes::<Runtime>::insert(native_asset_ethereum_address(), &hex!["00"][..]);
-		assert_eq!(is_contract(checker, native_asset_ethereum_address()), true);
+		pallet_evm::AccountCodes::<Runtime>::insert(dai_ethereum_address(), &hex!["00"][..]);
+		assert_eq!(is_contract(checker, dai_ethereum_address()), true);
 	});
 }

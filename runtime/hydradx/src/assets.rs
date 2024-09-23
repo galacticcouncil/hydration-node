@@ -45,6 +45,7 @@ use primitives::constants::{
 };
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedPointNumber, Percent};
 
+use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
@@ -409,6 +410,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type MinStringLimit = MinRegistryStrLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type RegExternalWeightMultiplier = RegExternalWeightMultiplier;
+	type RegisterAssetHook = SetCodeForErc20Precompile;
 	type WeightInfo = weights::pallet_asset_registry::HydraWeight<Runtime>;
 }
 

@@ -50,7 +50,7 @@ use frame_support::BoundedVec;
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
 	registry::{Create, Inspect, Mutate},
-	AssetKind, BoundErc20,
+	AssetKind, BoundErc20, RegisterAssetHook,
 };
 use orml_traits::GetByKey;
 use polkadot_xcm::v3::Junction::AccountKey20;
@@ -114,6 +114,9 @@ pub mod pallet {
 		/// Weight multiplier for `register_external` extrinsic
 		#[pallet::constant]
 		type RegExternalWeightMultiplier: Get<u64>;
+
+		/// Hook executed after new asset is registered
+		type RegisterAssetHook: RegisterAssetHook<Self::AssetId>;
 
 		/// Weight information for the extrinsics
 		type WeightInfo: WeightInfo;
@@ -604,6 +607,8 @@ impl<T: Config> Pallet<T> {
 		if let Some(loc) = location {
 			Self::do_set_location(asset_id, loc)?;
 		}
+
+		T::RegisterAssetHook::on_register_asset(asset_id);
 
 		Self::deposit_event(Event::Registered {
 			asset_id,
