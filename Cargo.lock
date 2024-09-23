@@ -5077,7 +5077,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.5.0"
+version = "3.6.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8492,7 +8492,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.3.4"
+version = "4.4.0"
 dependencies = [
  "fixed",
  "frame-support",
@@ -8742,7 +8742,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.1.9"
+version = "2.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9448,7 +9448,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.4.4"
+version = "6.4.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9474,7 +9474,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "frame-support",
  "frame-system",
