@@ -209,71 +209,7 @@ pub mod pallet {
 			min_amount_out: T::Balance,
 			route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResult {
-			let who = ensure_signed(origin.clone())?;
-
-			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
-
-			Self::ensure_route_size(route.len())?;
-
-			let asset_pair = AssetPair::new(asset_in, asset_out);
-			let route = Self::get_route_or_default(route, asset_pair)?;
-			Self::ensure_route_arguments(&asset_pair, &route)?;
-
-			let user_balance_of_asset_out_before_trade =
-				T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
-
-			let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
-
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
-			ensure!(
-				last_trade_amount.amount_out >= min_amount_out,
-				Error::<T>::TradingLimitReached
-			);
-
-			let route_length = route.len();
-			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
-				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
-
-				let user_balance_of_asset_in_before_trade =
-					T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
-
-				let execution_result = T::AMM::execute_sell(
-					origin.clone(),
-					trade.pool,
-					trade.asset_in,
-					trade.asset_out,
-					trade_amount.amount_in,
-					trade_amount.amount_out,
-				);
-
-				handle_execution_error!(execution_result);
-
-				Self::ensure_that_user_spent_asset_in_at_least(
-					who.clone(),
-					trade.asset_in,
-					user_balance_of_asset_in_before_trade,
-					trade_amount.amount_in,
-				)?;
-			}
-
-			SkipEd::<T>::kill();
-
-			Self::ensure_that_user_received_asset_out_at_most(
-				who,
-				asset_in,
-				asset_out,
-				user_balance_of_asset_out_before_trade,
-				last_trade_amount.amount_out,
-			)?;
-
-			Self::deposit_event(Event::Executed {
-				asset_in,
-				asset_out,
-				amount_in,
-				amount_out: last_trade_amount.amount_out,
-			});
-
-			Ok(())
+			Self::do_sell(origin, asset_in, asset_out, amount_in, min_amount_out, route)
 		}
 
 		/// Executes a buy with a series of trades specified in the route.
@@ -479,6 +415,36 @@ pub mod pallet {
 
 			Self::insert_route(asset_pair, new_route)
 		}
+
+		/// Executes a sell with a series of trades specified in the route.
+		/// It sells all reducible user balance of `asset_in`
+		/// The price for each trade is determined by the corresponding AMM.
+		///
+		/// - `origin`: The executor of the trade
+		/// - `asset_in`: The identifier of the asset to sell
+		/// - `asset_out`: The identifier of the asset to receive
+		/// - `min_amount_out`: The minimum amount of `asset_out` to receive.
+		/// - `route`: Series of [`Trade<AssetId>`] to be executed. A [`Trade<AssetId>`] specifies the asset pair (`asset_in`, `asset_out`) and the AMM (`pool`) in which the trade is executed.
+		/// 		   If not specified, than the on-chain route is used.
+		/// 		   If no on-chain is present, then omnipool route is used as default
+		///
+		/// Emits `RouteExecuted` when successful.
+		///
+		#[pallet::call_index(4)]
+		#[pallet::weight(T::WeightInfo::sell_weight(route))]
+		#[transactional]
+		pub fn sell_all(
+			origin: OriginFor<T>,
+			asset_in: T::AssetId,
+			asset_out: T::AssetId,
+			min_amount_out: T::Balance,
+			route: Vec<Trade<T::AssetId>>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+			let amount_in = T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+
+			Self::do_sell(origin, asset_in, asset_out, amount_in, min_amount_out, route)
+		}
 	}
 }
 
@@ -486,6 +452,81 @@ impl<T: Config> Pallet<T> {
 	/// Pallet account address for do dry-run sell execution as validation
 	pub fn router_account() -> T::AccountId {
 		PalletId(*b"routerex").into_account_truncating()
+	}
+
+	fn do_sell(
+		origin: T::RuntimeOrigin,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_in: T::Balance,
+		min_amount_out: T::Balance,
+		route: Vec<Trade<T::AssetId>>,
+	) -> Result<(), DispatchError> {
+		let who = ensure_signed(origin.clone())?;
+
+		ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
+
+		Self::ensure_route_size(route.len())?;
+
+		let asset_pair = AssetPair::new(asset_in, asset_out);
+		let route = Self::get_route_or_default(route, asset_pair)?;
+		Self::ensure_route_arguments(&asset_pair, &route)?;
+
+		let user_balance_of_asset_out_before_trade =
+			T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
+
+		let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
+
+		let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
+		ensure!(
+			last_trade_amount.amount_out >= min_amount_out,
+			Error::<T>::TradingLimitReached
+		);
+
+		let route_length = route.len();
+		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
+			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
+
+			let user_balance_of_asset_in_before_trade =
+				T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+
+			let execution_result = T::AMM::execute_sell(
+				origin.clone(),
+				trade.pool,
+				trade.asset_in,
+				trade.asset_out,
+				trade_amount.amount_in,
+				trade_amount.amount_out,
+			);
+
+			handle_execution_error!(execution_result);
+
+			Self::ensure_that_user_spent_asset_in_at_least(
+				who.clone(),
+				trade.asset_in,
+				user_balance_of_asset_in_before_trade,
+				trade_amount.amount_in,
+			)?;
+		}
+
+		SkipEd::<T>::kill();
+
+		Self::ensure_that_user_received_asset_out_at_most(
+			who,
+			asset_in,
+			asset_out,
+			user_balance_of_asset_out_before_trade,
+			last_trade_amount.amount_out,
+		)?;
+
+		Self::deposit_event(Event::Executed {
+			asset_in,
+			asset_out,
+			amount_in,
+			amount_out: last_trade_amount.amount_out,
+		});
+
+		Ok(())
 	}
 
 	fn ensure_route_size(route_length: usize) -> Result<(), DispatchError> {
@@ -775,6 +816,16 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 		Pallet::<T>::sell(origin, asset_in, asset_out, amount_in, min_amount_out, route)
 	}
 
+	fn sell_all(
+		origin: T::RuntimeOrigin,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		min_amount_out: T::Balance,
+		route: Vec<Trade<T::AssetId>>,
+	) -> DispatchResult {
+		Pallet::<T>::sell_all(origin, asset_in, asset_out, min_amount_out, route)
+	}
+
 	fn buy(
 		origin: T::RuntimeOrigin,
 		asset_in: T::AssetId,
@@ -829,6 +880,16 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 		_min_amount_out: T::Balance,
 		_route: Vec<Trade<T::AssetId>>,
 	) -> DispatchResult {
+		Ok(())
+	}
+
+	fn sell_all(
+		_origin: T::RuntimeOrigin,
+		_asset_in: T::AssetId,
+		_asset_out: T::AssetId,
+		_min_amount_out: T::Balance,
+		_route: Vec<Trade<T::AssetId>>,
+	) -> sp_runtime::DispatchResult {
 		Ok(())
 	}
 
