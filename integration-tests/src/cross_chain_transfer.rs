@@ -778,25 +778,15 @@ fn transfer_dot_from_hydra_to_asset_hub() {
 			}])),
 		);
 
-		let deposit_xcm = Xcm(vec![
-			DepositAsset {
-				assets: Wild(WildAsset::AllCounted(1)),
-				beneficiary: bob_beneficiary.clone(),
-			},
-		]);
+		let deposit_xcm = Xcm(vec![DepositAsset {
+			assets: Wild(WildAsset::AllCounted(1)),
+			beneficiary: bob_beneficiary.clone(),
+		}]);
 
 		//Act
 		assert_ok!(hydradx_runtime::PolkadotXcm::transfer_assets_using_type_and_then(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			Box::new(
-				MultiLocation::new(
-					1,
-					X1(
-						Junction::Parachain(ASSET_HUB_PARA_ID),
-					)
-				)
-				.into_versioned()
-			),
+			Box::new(MultiLocation::new(1, X1(Junction::Parachain(ASSET_HUB_PARA_ID),)).into_versioned()),
 			Box::new(dot.into()),
 			Box::new(TransferType::DestinationReserve),
 			Box::new(VersionedAssetId::V4(cumulus_primitives_core::AssetId(dot_loc))),
@@ -818,7 +808,8 @@ fn transfer_dot_from_hydra_to_asset_hub() {
 		assert_xcm_message_processing_passed();
 
 		//We check if the hydra parachain account balance is reduced on AH, meaning AH is responsible for reserve tracking
-		let hydra_sovereign_account_dot_balance = hydradx_runtime::Currencies::free_balance(DOT, &hydra_parachain_account_at_ah);
+		let hydra_sovereign_account_dot_balance =
+			hydradx_runtime::Currencies::free_balance(DOT, &hydra_parachain_account_at_ah);
 		assert_eq!(
 			hydra_sovereign_account_dot_balance,
 			init_hydra_para_dot_balance_on_ah - transfer_amount
@@ -1184,4 +1175,3 @@ fn xcm_transfer_reserve_asset_and_deposit_asset_to_hydra<RC: Decode + GetDispatc
 	]);
 	VersionedXcm::from(message)
 }
-
