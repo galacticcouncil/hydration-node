@@ -4989,7 +4989,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.3.1",
+ "pallet-democracy 4.3.0",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -5073,7 +5073,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.5.0"
+version = "3.6.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7938,7 +7938,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.6.0"
+version = "1.5.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7957,7 +7957,6 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-omnipool",
  "pallet-route-executor",
- "pallet-xyk",
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types",
@@ -7977,7 +7976,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.3.1"
+version = "4.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8445,7 +8444,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.8.5"
+version = "4.8.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8470,7 +8469,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.3.5"
+version = "4.4.0"
 dependencies = [
  "fixed",
  "frame-support",
@@ -8693,7 +8692,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.3.2"
+version = "4.3.3"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8720,7 +8719,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.1.8"
+version = "2.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9072,7 +9071,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-democracy 4.3.1",
+ "pallet-democracy 4.3.0",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -9211,7 +9210,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.1.0"
+version = "10.0.4"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9225,7 +9224,6 @@ dependencies = [
  "pallet-evm-accounts",
  "pallet-transaction-payment",
  "pallet-utility",
- "pallet-xyk",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -9426,7 +9424,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.5.0"
+version = "6.4.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11238,9 +11236,9 @@ dependencies = [
 
 [[package]]
 name = "proptest"
-version = "1.5.0"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4c2511913b88df1637da85cc8d96ec8e43a3f8bb8ccb71ee1ac240d6f3df58d"
+checksum = "31b476131c3c86cb68032fdc5cb6d5a1045e3e42d96b69fa599fd77701e1f5bf"
 dependencies = [
  "bit-set",
  "bit-vec",
@@ -11931,7 +11929,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.2"
+version = "1.23.4"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -11952,7 +11950,6 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal 0.4.1",
- "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
@@ -11974,7 +11971,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.3.1",
+ "pallet-democracy 4.3.0",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -12016,7 +12013,6 @@ dependencies = [
  "precompile-utils",
  "pretty_assertions",
  "primitives",
- "proptest",
  "rococo-runtime",
  "sc-consensus-grandpa",
  "scraper",

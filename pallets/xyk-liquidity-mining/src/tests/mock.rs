@@ -161,13 +161,13 @@ thread_local! {
 #[derive(Copy, Clone)]
 pub struct DymmyGlobalFarm {
 	total_rewards: Balance,
-	_planned_yielding_periods: PeriodOf<Test>,
+	planned_yielding_periods: PeriodOf<Test>,
 	_blocks_per_period: BlockNumber,
 	incentivized_asset: AssetId,
 	reward_currency: AssetId,
 	_owner: AccountId,
-	_yield_per_period: Perquintill,
-	_min_deposit: Balance,
+	yield_per_period: Perquintill,
+	min_deposit: Balance,
 	price_adjustment: FixedU128,
 	_max_reward_per_period: Balance,
 }
@@ -530,13 +530,13 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 				farm_id,
 				DymmyGlobalFarm {
 					total_rewards,
-					_planned_yielding_periods: planned_yielding_periods,
+					planned_yielding_periods,
 					_blocks_per_period: blocks_per_period,
 					incentivized_asset,
 					reward_currency,
 					_owner: owner,
-					_yield_per_period: yield_per_period,
-					_min_deposit: min_deposit,
+					yield_per_period,
+					min_deposit,
 					price_adjustment,
 					_max_reward_per_period: max_reward_per_period,
 				},
@@ -812,6 +812,25 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 	) -> Result<(YieldFarmId, Self::Balance), Self::Error> {
 		//NOTE: Basilisk is not using this fn.
 		Err(sp_runtime::DispatchError::Other("Not implemented"))
+	}
+
+	fn update_global_farm(
+		global_farm_id: GlobalFarmId,
+		planned_yielding_periods: Self::Period,
+		yield_per_period: Perquintill,
+		min_deposit: Self::Balance,
+	) -> Result<(), Self::Error> {
+		GLOBAL_FARMS.with(|v| {
+			let mut p = v.borrow_mut();
+
+			let global_farm = p.get_mut(&global_farm_id).unwrap();
+
+			global_farm.planned_yielding_periods = planned_yielding_periods;
+			global_farm.yield_per_period = yield_per_period;
+			global_farm.min_deposit = min_deposit;
+
+			Ok(())
+		})
 	}
 }
 
