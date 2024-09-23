@@ -1135,17 +1135,17 @@ impl<T: Config> Pallet<T> {
 
 	fn convert_native_amount_to_currency(
 		asset_id: T::AssetId,
-		asset_amount: Balance,
+		native_asset_amount: Balance,
 	) -> Result<Balance, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
-			asset_amount
+			native_asset_amount
 		} else if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(asset_id) {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 
-			multiply_by_rational_with_rounding(asset_amount, price.n, price.d, Rounding::Up)
+			multiply_by_rational_with_rounding(native_asset_amount, price.n, price.d, Rounding::Up)
 				.ok_or(ArithmeticError::Overflow)?
 		} else {
-			let fee_amount_in_dot = Self::convert_to_polkadot_native_asset(asset_amount)?;
+			let fee_amount_in_dot = Self::convert_to_polkadot_native_asset(native_asset_amount)?;
 			T::SwappablePaymentAssetSupport::calculate_in_given_out(
 				asset_id,
 				T::PolkadotNativeAssetId::get(),
