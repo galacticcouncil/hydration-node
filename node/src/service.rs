@@ -20,8 +20,8 @@
 #![allow(clippy::all)]
 
 use hydradx_runtime::{
+	apis::RuntimeApi,
 	opaque::{Block, Hash},
-	RuntimeApi,
 };
 use std::{sync::Arc, time::Duration};
 
@@ -57,7 +57,7 @@ type ParachainClient = TFullClient<
 	Block,
 	RuntimeApi,
 	WasmExecutor<(
-		sp_io::SubstrateHostFunctions,
+		cumulus_client_service::ParachainHostFunctions,
 		frame_benchmarking::benchmarking::HostFunctions,
 	)>,
 >;
@@ -83,7 +83,7 @@ pub fn new_partial(
 			evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
 			Option<Telemetry>,
 			Option<TelemetryWorkerHandle>,
-			Arc<FrontierBackend<Block>>,
+			Arc<FrontierBackend<Block, ParachainClient>>,
 			FilterPool,
 			FeeHistoryCache,
 		),
@@ -115,10 +115,11 @@ pub fn new_partial(
 		.with_runtime_cache_size(config.runtime_cache_size)
 		.build();
 
-	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts::<Block, RuntimeApi, _>(
+	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
 		config,
 		telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 		executor,
+		true,
 	)?;
 
 	let client = Arc::new(client);
@@ -200,7 +201,9 @@ async fn start_node_impl(
 	let params = new_partial(&parachain_config)?;
 	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) =
 		params.other;
-	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
+	let net_config = sc_network::config::FullNetworkConfiguration::<_, _, sc_network::NetworkWorker<Block, Hash>>::new(
+		&parachain_config.network,
+	);
 
 	let client = params.client.clone();
 	let backend = params.backend.clone();
@@ -225,13 +228,13 @@ async fn start_node_impl(
 	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
 		build_network(BuildNetworkParams {
 			parachain_config: &parachain_config,
-			net_config,
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			para_id,
 			spawn_handle: task_manager.spawn_handle(),
 			relay_chain_interface: relay_chain_interface.clone(),
 			import_queue: params.import_queue,
+			net_config,
 			sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
 		})
 		.await?;
@@ -247,7 +250,7 @@ async fn start_node_impl(
 				keystore: Some(params.keystore_container.keystore()),
 				offchain_db: backend.offchain_storage(),
 				transaction_pool: Some(OffchainTransactionPoolFactory::new(transaction_pool.clone())),
-				network_provider: network.clone(),
+				network_provider: Arc::new(network.clone()),
 				is_validator: parachain_config.role.is_authority(),
 				enable_http_requests: false,
 				custom_extensions: move |_| vec![],
@@ -257,7 +260,7 @@ async fn start_node_impl(
 		);
 	}
 
-	let overrides = evm::overrides_handle(client.clone());
+	let overrides = Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone()));
 	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
 		task_manager.spawn_handle(),
 		overrides.clone(),
@@ -415,8 +418,6 @@ fn build_import_queue(
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
 ) -> Result<sc_consensus::DefaultImportQueue<Block>, sc_service::Error> {
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
-
 	Ok(
 		cumulus_client_consensus_aura::equivocation_import_queue::fully_verifying_import_queue::<
 			sp_consensus_aura::sr25519::AuthorityPair,
@@ -431,7 +432,6 @@ fn build_import_queue(
 				let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 				Ok(timestamp)
 			},
-			slot_duration,
 			&task_manager.spawn_essential_handle(),
 			config.prometheus_registry(),
 			telemetry,
@@ -460,8 +460,6 @@ fn start_consensus(
 	// NOTE: because we use Aura here explicitly, we can use `CollatorSybilResistance::Resistant`
 	// when starting the network.
 
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
-
 	let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
 		task_manager.spawn_handle(),
 		client.clone(),
@@ -489,7 +487,6 @@ fn start_consensus(
 		collator_key,
 		para_id,
 		overseer_handle,
-		slot_duration,
 		relay_chain_slot_duration,
 		proposer,
 		collator_service,

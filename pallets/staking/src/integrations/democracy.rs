@@ -128,21 +128,17 @@ where
 	}
 
 	fn remove_vote_locks_if_needed(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
-		let Some(position_id) = Pallet::<T>::get_user_position_id(who).ok()? else {
-			return None;
-		};
+		let position_id = Pallet::<T>::get_user_position_id(who).ok()??;
 
 		if let Some(vote) = ProcessedVotes::<T>::get(who, ref_index) {
 			return Some(vote.amount);
 		}
 
-		let Some(vote_idx) = PositionVotes::<T>::get(position_id)
+		let vote_idx = PositionVotes::<T>::get(position_id)
 			.votes
 			.iter()
-			.position(|(idx, _)| *idx == ref_index)
-		else {
-			return None;
-		};
+			.position(|(idx, _)| *idx == ref_index)?;
+
 		let (ref_idx, vote) = PositionVotes::<T>::get(position_id).votes[vote_idx];
 		debug_assert_eq!(ref_idx, ref_index, "Referendum index mismatch");
 		Some(vote.amount)

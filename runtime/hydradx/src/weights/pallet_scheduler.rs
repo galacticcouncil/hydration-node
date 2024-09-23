@@ -201,4 +201,24 @@ impl<T: frame_system::Config> pallet_scheduler::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
+
+	fn schedule_retry(_s: u32) -> Weight {
+		Weight::zero()
+	}
+
+	fn set_retry() -> Weight {
+		Weight::zero()
+	}
+
+	fn set_retry_named() -> Weight {
+		Weight::zero()
+	}
+
+	fn cancel_retry() -> Weight {
+		Weight::zero()
+	}
+
+	fn cancel_retry_named() -> Weight {
+		Weight::zero()
+	}
 }

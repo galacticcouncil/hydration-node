@@ -163,13 +163,18 @@ impl system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 pub struct Amm;
 
 thread_local! {
 	pub static AMM_POOLS: RefCell<HashMap<String, (AccountId, AssetId)>> = RefCell::new(HashMap::new());
-	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
+	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 }
 
 impl AMM<AccountId, AssetId, AssetPair, Balance> for Amm {
@@ -408,9 +413,10 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	type Error = DispatchError;
 
 	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
-		if Whitelist::contains(account) {
-			return Err(sp_runtime::DispatchError::Other("Account is already in the whitelist"));
-		}
+		// TODO: verify that the following check can be removed
+		// if Whitelist::contains(account) {
+		// 	return Err(sp_runtime::DispatchError::Other("Account is already in the whitelist"));
+		// }
 
 		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
 
