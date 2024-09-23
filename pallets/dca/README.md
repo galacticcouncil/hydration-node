@@ -23,6 +23,9 @@ A trade is executed and replanned as long as there is remaining budget from the 
 For both successful and failed trades, a fee is deducted from the schedule owner. 
 The fee is deducted in the sold (`amount_in`) currency.
 
+In case of insufficient asset as `asset_in`, the fee is still taken from the sold currency, 
+but the amount is swapped for DOT as we don't want to accumulate insufficient assets in treasury.
+
 A trade can fail due to two main reasons:
 
 1. Price Stability Error: If the price difference between the short oracle price and the last block oracle price 

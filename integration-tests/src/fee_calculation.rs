@@ -4,16 +4,20 @@ use crate::{oracle::hydradx_run_to_block, polkadot_test_net::*};
 use frame_support::assert_ok;
 use frame_support::dispatch::DispatchClass;
 use frame_support::dispatch::GetDispatchInfo;
+use frame_support::weights::constants::RocksDbWeight;
+use frame_support::weights::WeightToFee as WeightToFeeTrait;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
-use hydradx_runtime::Tokens;
 use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::EVM;
+use hydradx_runtime::{ExtrinsicBaseWeight, Runtime, Tokens, WeightToFee};
 use orml_traits::MultiCurrency;
 use pallet_evm::FeeCalculator;
+use primitives::constants::chain::Weight;
 use primitives::constants::currency::UNITS;
 use primitives::constants::time::HOURS;
 use sp_core::Encode;
 use sp_core::U256;
+use sp_io::storage::changes_root;
 use sp_runtime::{FixedU128, Permill};
 use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;
@@ -21,6 +25,29 @@ use xcm_emulator::TestExt;
 pub const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
 const HDX_USD_SPOT_PRICE: f64 = 0.0266; //Current HDX price in USD on CoinGecko on 22th Feb, 2024
 pub const ETH_USD_SPOT_PRICE: f64 = 2907.92; //Current HDX price in USD on CoinGecko on 22th Feb, 2024
+
+#[ignore]
+#[test]
+fn check_weight_to_fee() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		let mut base = frame_support::weights::constants::ExtrinsicBaseWeight::get(); //(124414000,0)
+
+		let fee = hydradx_runtime::WeightToFee::weight_to_fee(&base);
+
+		let w = Weight::from_parts(191_035_000, 11322)
+			.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().reads(24_u64))
+			.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().writes(6_u64));
+
+		base.saturating_accrue(w);
+		let fee2 = hydradx_runtime::WeightToFee::weight_to_fee(&base); //(1515449000, 11322)
+		assert_eq!(fee, fee2)
+	});
+}
 
 #[ignore]
 #[test]
@@ -151,6 +178,13 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 			1000000 * UNITS as i128,
 		));
 
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account(),
+			WETH,
+			100000000 * UNITS as i128,
+		));
+
 		init_omnipool();
 		let block_weight = hydradx_runtime::BlockWeights::get()
 			.get(DispatchClass::Normal)
@@ -180,7 +214,8 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 
 			let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
 
-			println!("{b:?} - fee: ${fee_in_cent:?}  - evm_fee: ${evm_fee_in_cent:?} - multiplier: {next:?} - gas {gas_price:?}");
+			println!("{b:?} - fee: {fee:?}");
+			//println!("{b:?} - fee: ${fee_in_cent:?}  - evm_fee: ${evm_fee_in_cent:?} - multiplier: {next:?} - gas {gas_price:?}");
 		}
 	});
 }

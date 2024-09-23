@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.23.4"
+version = "1.23.5"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -24,6 +24,7 @@ pallet-stableswap = { workspace = true }
 pallet-referrals = { workspace = true }
 pallet-asset-registry = { workspace = true }
 hydradx-traits = { workspace = true }
+hydra-dx-math = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-currencies = { workspace = true }
 pallet-duster = { workspace = true }
@@ -138,6 +139,7 @@ pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 test-utils = { workspace = true }
 libsecp256k1 = { workspace = true }
+proptest = "1.5.0"
 
 
 [features]
