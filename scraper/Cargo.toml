@@ -10,9 +10,9 @@ repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
 codec = { workspace = true }
-jsonrpsee = { version = "0.23.2", features = ["server", "macros"] }
+jsonrpsee = { workspace = true }
 serde = { workspace = true }
-clap = { version = "3.2.11", features = [ "derive" ] }
+clap = { workspace = true }
 tokio = {workspace = true }
 
 # local dependencies
