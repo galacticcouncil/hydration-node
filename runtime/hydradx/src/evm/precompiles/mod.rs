@@ -96,7 +96,7 @@ pub const CALLPERMIT: H160 = H160(hex!("000000000000000000000000000000000000080a
 
 pub const ETH_PRECOMPILE_END: H160 = BLAKE2F;
 
-fn is_standard_precompile(address: H160) -> bool {
+pub fn is_standard_precompile(address: H160) -> bool {
 	!address.is_zero() && address <= ETH_PRECOMPILE_END
 }
 
@@ -151,12 +151,15 @@ where
 	}
 
 	fn is_precompile(&self, address: H160, _remaining_gas: u64) -> IsPrecompileResult {
-		let is_precompile = address == DISPATCH_ADDR || is_asset_address(address) || is_standard_precompile(address);
 		IsPrecompileResult::Answer {
-			is_precompile,
+			is_precompile: is_precompile(address),
 			extra_cost: 0,
 		}
 	}
+}
+
+pub fn is_precompile(address: H160) -> bool {
+	address == DISPATCH_ADDR || is_asset_address(address) || is_standard_precompile(address)
 }
 
 // This is a reimplementation of the upstream u64->H160 conversion
