@@ -19,10 +19,11 @@ use frame_support::{dispatch::DispatchResult, traits::Get};
 use frame_support::{Blake2_128Concat, Parameter};
 use frame_system::pallet_prelude::*;
 use hydradx_traits::router::RouterT;
+use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use scale_info::TypeInfo;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
-use sp_runtime::traits::{MaybeSerializeDeserialize, Member};
+use sp_runtime::traits::{MaybeSerializeDeserialize, Member, Zero};
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
@@ -36,7 +37,6 @@ pub mod pallet {
 	use frame_support::PalletId;
 	use hydra_dx_math::ratio::Ratio;
 	use hydradx_traits::price::PriceProvider;
-	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::traits::BlockNumberProvider;
 	use types::Balance;
 
@@ -328,11 +328,18 @@ impl<T: Config> Pallet<T> {
 		let mut to_remove = Vec::new();
 		for (intent_id, intent) in Intents::<T>::iter() {
 			if intent.deadline < now {
-				to_remove.push(intent_id);
+				to_remove.push((intent_id, intent));
 			}
 		}
 
-		for intent_id in to_remove {
+		for (intent_id, intent) in to_remove {
+			let remainder = T::ReservableCurrency::unreserve_named(
+				&T::NamedReserveId::get(),
+				intent.swap.asset_in,
+				&intent.who,
+				intent.swap.amount_in,
+			); //TODO: add test
+			debug_assert!(remainder.is_zero());
 			Intents::<T>::remove(intent_id);
 		}
 	}
