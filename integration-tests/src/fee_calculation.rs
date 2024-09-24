@@ -189,7 +189,7 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 			.max_total
 			.unwrap();
 
-		for (nonce, b) in (2..HOURS).enumerate() {
+		for b in 2..HOURS {
 			//=HOURS {
 			hydradx_run_to_block(b);
 			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
@@ -203,10 +203,6 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 
 			let info = call.get_dispatch_info();
 			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
-
-			let fee_in_cent = (fee as f64 * HDX_USD_SPOT_PRICE) / 1000000000000.0;
-
-			let evm_fee_in_cent = round(get_evm_fee_in_cent(nonce as u128));
 
 			println!("{b:?} - fee: {fee:?}");
 		}
