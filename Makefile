@@ -18,11 +18,11 @@ build-benchmarks:
 
 .PHONY: test
 test:
-	$(cargo) test --locked
+	SKIP_WASM_BUILD=1 $(cargo) test --locked
 
 .PHONY: test-release
 test-release:
-	$(cargo) test --release --locked
+	SKIP_WASM_BUILD=1 $(cargo) test --release --locked
 
 .PHONY: test-benchmarks
 test-benchmarks:
