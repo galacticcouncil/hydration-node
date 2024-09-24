@@ -51,157 +51,157 @@ pub struct WeightInfo<T>(PhantomData<T>);
 /// Weights for `orml_tokens` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> orml_tokens::WeightInfo for HydraWeight<T> {
-	/// Storage: `Router::SkipEd` (r:1 w:0)
-	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: `Duster::AccountBlacklist` (r:1 w:0)
-	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
-	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Accounts` (r:4 w:4)
-	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:3 w:0)
-	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencyPrice` (r:1 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:3 w:3)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Locks` (r:1 w:1)
-	/// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Freezes` (r:1 w:0)
-	/// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::ExistentialDepositCounter` (r:1 w:1)
-	/// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	fn transfer() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `3409`
-		//  Estimated: `11322`
-		// Minimum execution time: 236_275_000 picoseconds.
-		Weight::from_parts(238_011_000, 11322)
-			.saturating_add(T::DbWeight::get().reads(22_u64))
-			.saturating_add(T::DbWeight::get().writes(9_u64))
-	}
-	/// Storage: `Tokens::Accounts` (r:4 w:4)
-	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:3 w:3)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `Router::SkipEd` (r:1 w:0)
-	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: `Duster::AccountBlacklist` (r:1 w:0)
-	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
-	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:3 w:0)
-	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencyPrice` (r:1 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Locks` (r:1 w:1)
-	/// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Freezes` (r:1 w:0)
-	/// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::ExistentialDepositCounter` (r:1 w:1)
-	/// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	fn transfer_all() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `3461`
-		//  Estimated: `11322`
-		// Minimum execution time: 239_843_000 picoseconds.
-		Weight::from_parts(240_783_000, 11322)
-			.saturating_add(T::DbWeight::get().reads(22_u64))
-			.saturating_add(T::DbWeight::get().writes(9_u64))
-	}
-	/// Storage: `Router::SkipEd` (r:1 w:0)
-	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: `Duster::AccountBlacklist` (r:1 w:0)
-	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
-	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Accounts` (r:4 w:4)
-	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:3 w:0)
-	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencyPrice` (r:1 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:3 w:2)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Locks` (r:1 w:1)
-	/// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Freezes` (r:1 w:0)
-	/// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::ExistentialDepositCounter` (r:1 w:1)
-	/// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	fn transfer_keep_alive() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `3459`
-		//  Estimated: `11322`
-		// Minimum execution time: 166_129_000 picoseconds.
-		Weight::from_parts(167_508_000, 11322)
-			.saturating_add(T::DbWeight::get().reads(22_u64))
-			.saturating_add(T::DbWeight::get().writes(8_u64))
-	}
-	/// Storage: `Router::SkipEd` (r:1 w:0)
-	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: `Duster::AccountBlacklist` (r:1 w:0)
-	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
-	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Accounts` (r:4 w:4)
-	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:3 w:0)
-	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencyPrice` (r:1 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:3 w:3)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Locks` (r:1 w:1)
-	/// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
-	/// Storage: `Balances::Freezes` (r:1 w:0)
-	/// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::ExistentialDepositCounter` (r:1 w:1)
-	/// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	fn force_transfer() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `3461`
-		//  Estimated: `11322`
-		// Minimum execution time: 236_404_000 picoseconds.
-		Weight::from_parts(238_736_000, 11322)
-			.saturating_add(T::DbWeight::get().reads(22_u64))
-			.saturating_add(T::DbWeight::get().writes(9_u64))
-	}
-	/// Storage: `Tokens::Accounts` (r:1 w:1)
-	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::TotalIssuance` (r:1 w:1)
-	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:0)
-	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	fn set_balance() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `2209`
-		//  Estimated: `3593`
-		// Minimum execution time: 54_715_000 picoseconds.
-		Weight::from_parts(55_351_000, 3593)
-			.saturating_add(T::DbWeight::get().reads(6_u64))
-			.saturating_add(T::DbWeight::get().writes(3_u64))
-	}
+    /// Storage: `Router::SkipEd` (r:1 w:0)
+    /// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+    /// Storage: `Duster::AccountBlacklist` (r:1 w:0)
+    /// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
+    /// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
+    /// Storage: `Tokens::Accounts` (r:4 w:4)
+    /// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::Assets` (r:2 w:0)
+    /// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:3 w:0)
+    /// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AcceptedCurrencyPrice` (r:1 w:0)
+    /// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+    /// Storage: `System::Account` (r:3 w:3)
+    /// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
+    /// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+    /// Storage: `Balances::Locks` (r:1 w:1)
+    /// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
+    /// Storage: `Balances::Freezes` (r:1 w:0)
+    /// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::ExistentialDepositCounter` (r:1 w:1)
+    /// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
+    fn transfer() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `3409`
+        //  Estimated: `11322`
+        // Minimum execution time: 237_730_000 picoseconds.
+        Weight::from_parts(239_119_000, 11322)
+            .saturating_add(T::DbWeight::get().reads(22_u64))
+            .saturating_add(T::DbWeight::get().writes(9_u64))
+    }
+    /// Storage: `Tokens::Accounts` (r:4 w:4)
+    /// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+    /// Storage: `System::Account` (r:3 w:3)
+    /// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+    /// Storage: `Router::SkipEd` (r:1 w:0)
+    /// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+    /// Storage: `Duster::AccountBlacklist` (r:1 w:0)
+    /// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
+    /// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::Assets` (r:2 w:0)
+    /// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:3 w:0)
+    /// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AcceptedCurrencyPrice` (r:1 w:0)
+    /// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
+    /// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+    /// Storage: `Balances::Locks` (r:1 w:1)
+    /// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
+    /// Storage: `Balances::Freezes` (r:1 w:0)
+    /// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::ExistentialDepositCounter` (r:1 w:1)
+    /// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
+    fn transfer_all() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `3461`
+        //  Estimated: `11322`
+        // Minimum execution time: 241_359_000 picoseconds.
+        Weight::from_parts(242_887_000, 11322)
+            .saturating_add(T::DbWeight::get().reads(22_u64))
+            .saturating_add(T::DbWeight::get().writes(9_u64))
+    }
+    /// Storage: `Router::SkipEd` (r:1 w:0)
+    /// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+    /// Storage: `Duster::AccountBlacklist` (r:1 w:0)
+    /// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
+    /// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
+    /// Storage: `Tokens::Accounts` (r:4 w:4)
+    /// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::Assets` (r:2 w:0)
+    /// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:3 w:0)
+    /// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AcceptedCurrencyPrice` (r:1 w:0)
+    /// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+    /// Storage: `System::Account` (r:3 w:2)
+    /// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
+    /// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+    /// Storage: `Balances::Locks` (r:1 w:1)
+    /// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
+    /// Storage: `Balances::Freezes` (r:1 w:0)
+    /// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::ExistentialDepositCounter` (r:1 w:1)
+    /// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
+    fn transfer_keep_alive() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `3459`
+        //  Estimated: `11322`
+        // Minimum execution time: 166_510_000 picoseconds.
+        Weight::from_parts(167_910_000, 11322)
+            .saturating_add(T::DbWeight::get().reads(22_u64))
+            .saturating_add(T::DbWeight::get().writes(8_u64))
+    }
+    /// Storage: `Router::SkipEd` (r:1 w:0)
+    /// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+    /// Storage: `Duster::AccountBlacklist` (r:1 w:0)
+    /// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
+    /// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
+    /// Storage: `Tokens::Accounts` (r:4 w:4)
+    /// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::Assets` (r:2 w:0)
+    /// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:3 w:0)
+    /// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AcceptedCurrencyPrice` (r:1 w:0)
+    /// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+    /// Storage: `System::Account` (r:3 w:3)
+    /// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
+    /// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+    /// Storage: `Balances::Locks` (r:1 w:1)
+    /// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
+    /// Storage: `Balances::Freezes` (r:1 w:0)
+    /// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::ExistentialDepositCounter` (r:1 w:1)
+    /// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
+    fn force_transfer() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `3461`
+        //  Estimated: `11322`
+        // Minimum execution time: 238_730_000 picoseconds.
+        Weight::from_parts(240_390_000, 11322)
+            .saturating_add(T::DbWeight::get().reads(22_u64))
+            .saturating_add(T::DbWeight::get().writes(9_u64))
+    }
+    /// Storage: `Tokens::Accounts` (r:1 w:1)
+    /// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+    /// Storage: `AssetRegistry::Assets` (r:1 w:0)
+    /// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+    /// Storage: `Tokens::TotalIssuance` (r:1 w:1)
+    /// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+    /// Storage: `System::Account` (r:1 w:1)
+    /// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:0)
+    /// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+    /// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
+    /// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+    fn set_balance() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `2209`
+        //  Estimated: `3593`
+        // Minimum execution time: 55_376_000 picoseconds.
+        Weight::from_parts(56_132_000, 3593)
+            .saturating_add(T::DbWeight::get().reads(6_u64))
+            .saturating_add(T::DbWeight::get().writes(3_u64))
+    }
 }

@@ -42,7 +42,7 @@ use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::DAYS,
 };
-use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedPointNumber, Percent};
+use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, Percent};
 
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -57,6 +57,7 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use hydradx_traits::AMM;
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Happened,
@@ -70,7 +71,6 @@ use pallet_staking::{
 };
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use sp_std::num::NonZeroU16;
-
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;
 	pub const MaxLocks: u32 = 50;
@@ -136,6 +136,9 @@ impl SufficiencyCheck {
 	/// It is called from `PreDeposit` and `PreTransfer`.
 	/// If transferred asset is not sufficient asset, it calculates ED amount in user's fee asset
 	/// and transfers it from user to treasury account.
+	///
+	/// If user's fee asset is not sufficient asset, it calculates ED amount in DOT and transfers it to treasury through a swap
+	///
 	/// Function also locks corresponding HDX amount in the treasury because returned ED to the users
 	/// when the account is killed is in the HDX. We are collecting little bit more (currencty 10%)than
 	/// we are paying back when account is killed.
@@ -173,19 +176,48 @@ impl SufficiencyCheck {
 		if !orml_tokens::Accounts::<Runtime>::contains_key(to, asset) && !AssetRegistry::is_sufficient(asset) {
 			let fee_payment_asset = MultiTransactionPayment::account_currency(paying_account);
 
-			let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)
-				.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
-				.saturating_mul_int(InsufficientEDinHDX::get())
-				.max(1);
+			let ed_in_fee_asset = if AssetRegistry::is_sufficient(fee_payment_asset) {
+				let ed_in_fee_asset = MultiTransactionPayment::price(fee_payment_asset)
+					.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
+					.saturating_mul_int(InsufficientEDinHDX::get())
+					.max(1);
 
-			//NOTE: Account doesn't have enough funds to pay ED if this fail.
-			<Currencies as MultiCurrency<AccountId>>::transfer(
-				fee_payment_asset,
-				paying_account,
-				&TreasuryAccount::get(),
-				ed_in_fee_asset,
-			)
-			.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
+				//NOTE: Account doesn't have enough funds to pay ED if this fail.
+				<Currencies as MultiCurrency<AccountId>>::transfer(
+					fee_payment_asset,
+					paying_account,
+					&TreasuryAccount::get(),
+					ed_in_fee_asset,
+				)
+				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
+
+				ed_in_fee_asset
+			} else {
+				let dot_asset_id = DotAssetId::get();
+
+				let ed_in_dot = MultiTransactionPayment::price(dot_asset_id)
+					.ok_or(pallet_transaction_multi_payment::Error::<Runtime>::UnsupportedCurrency)?
+					.saturating_mul_int(InsufficientEDinHDX::get())
+					.max(1);
+
+				let amount_in_without_fee =
+					XykPaymentAssetSupport::calculate_in_given_out(fee_payment_asset, dot_asset_id, ed_in_dot)?;
+				let trade_fee = XykPaymentAssetSupport::calculate_fee_amount(amount_in_without_fee)?;
+				let ed_in_fee_asset = amount_in_without_fee.saturating_add(trade_fee);
+
+				//NOTE: Account doesn't have enough funds to pay ED if this fail.
+				XykPaymentAssetSupport::buy(
+					paying_account,
+					fee_payment_asset,
+					DotAssetId::get(),
+					ed_in_dot,
+					ed_in_fee_asset,
+					&TreasuryAccount::get(),
+				)
+				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
+
+				ed_in_fee_asset
+			};
 
 			//NOTE: we are locking little bit less than charging.
 			let to_lock = pallet_balances::Locks::<Runtime>::get(TreasuryAccount::get())
@@ -743,6 +775,21 @@ impl SpotPriceProvider<AssetId> for DummySpotPriceProvider {
 	}
 }
 
+pub const DOT_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::MultiLocation::parent());
+
+pub struct DotAssetId;
+impl Get<AssetId> for DotAssetId {
+	fn get() -> AssetId {
+		let invalid_id =
+			pallet_asset_registry::Pallet::<crate::Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
+
+		match pallet_asset_registry::Pallet::<crate::Runtime>::location_to_asset(DOT_ASSET_LOCATION) {
+			Some(asset_id) => asset_id,
+			None => invalid_id,
+		}
+	}
+}
+
 parameter_types! {
 	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
 	pub MaxSchedulesPerBlock: u32 = 20;
@@ -817,6 +864,8 @@ impl pallet_dca::Config for Runtime {
 		DCAOraclePeriod,
 	>;
 	type RetryOnError = RetryOnErrorForDca;
+	type PolkadotNativeAssetId = DotAssetId;
+	type SwappablePaymentAssetSupport = XykPaymentAssetSupport;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -1256,6 +1305,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1616,6 +1666,8 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
+use pallet_xyk::types::AssetPair;
+use primitives::constants::chain::CORE_ASSET_ID;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;
@@ -1693,5 +1745,57 @@ impl PriceProvider<AssetId> for ReferralsDummyPriceProvider {
 			return Some(EmaPrice::one());
 		}
 		Some(EmaPrice::new(1_000_000_000_000, 2_000_000_000_000_000_000))
+	}
+}
+
+pub struct XykPaymentAssetSupport;
+
+impl InspectTransactionFeeCurrency<AssetId> for XykPaymentAssetSupport {
+	fn is_transaction_fee_currency(asset: AssetId) -> bool {
+		asset == CORE_ASSET_ID || MultiTransactionPayment::contains(&asset)
+	}
+}
+
+impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAssetSupport {
+	fn is_trade_supported(from: AssetId, into: AssetId) -> bool {
+		XYK::exists(pallet_xyk::types::AssetPair::new(from, into))
+	}
+
+	fn calculate_fee_amount(swap_amount: Balance) -> Result<Balance, DispatchError> {
+		let xyk_exchange_rate = XYKExchangeFee::get();
+
+		hydra_dx_math::fee::calculate_pool_trade_fee(swap_amount, xyk_exchange_rate)
+			.ok_or(ArithmeticError::Overflow.into())
+	}
+
+	fn calculate_in_given_out(
+		insuff_asset_id: AssetId,
+		asset_out: AssetId,
+		asset_out_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		let asset_pair_account = XYK::get_pair_id(AssetPair::new(insuff_asset_id, asset_out));
+		let out_reserve = Currencies::free_balance(asset_out, &asset_pair_account);
+		let in_reserve = Currencies::free_balance(insuff_asset_id, &asset_pair_account.clone());
+
+		hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, asset_out_amount)
+			.map_err(|_err| ArithmeticError::Overflow.into())
+	}
+
+	fn buy(
+		origin: &AccountId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+		max_limit: Balance,
+		dest: &AccountId,
+	) -> DispatchResult {
+		XYK::buy_for(
+			origin,
+			pallet_xyk::types::AssetPair { asset_in, asset_out },
+			amount,
+			max_limit,
+			false,
+			dest,
+		)
 	}
 }

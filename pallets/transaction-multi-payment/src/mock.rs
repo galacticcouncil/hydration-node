@@ -34,11 +34,12 @@ use frame_support::{
 use frame_system as system;
 use hydradx_traits::{
 	router::{RouteProvider, Trade},
-	AssetPairAccountIdFor, OraclePeriod, PriceOracle,
+	AssetKind, AssetPairAccountIdFor, OraclePeriod, PriceOracle,
 };
 use orml_traits::{currency::MutationHooks, parameter_type_with_key};
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::{H160, H256, U256};
+use sp_runtime::DispatchError;
 use sp_std::cell::RefCell;
 
 pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
@@ -56,9 +57,11 @@ pub const FEE_RECEIVER: AccountId = AccountId::new([5; 32]);
 
 pub const HDX: AssetId = 0;
 pub const WETH: AssetId = 20;
+pub const DOT: AssetId = 5;
 pub const SUPPORTED_CURRENCY: AssetId = 2000;
 pub const SUPPORTED_CURRENCY_WITH_PRICE: AssetId = 3000;
 pub const UNSUPPORTED_CURRENCY: AssetId = 4000;
+pub const INSUFFICIENT_CURRENCY: AssetId = 10000;
 pub const SUPPORTED_CURRENCY_NO_BALANCE: AssetId = 5000; // Used for insufficient balance testing
 pub const HIGH_ED_CURRENCY: AssetId = 6000;
 pub const HIGH_VALUE_CURRENCY: AssetId = 7000;
@@ -102,6 +105,7 @@ parameter_types! {
 
 	pub const HdxAssetId: u32 = HDX;
 	pub const EvmAssetId: u32 = WETH;
+	pub const DotAssetId: u32 = DOT;
 	pub const ExistentialDeposit: u128 = 2;
 	pub const MaxLocks: u32 = 50;
 	pub const RegistryStringLimit: u32 = 100;
@@ -168,12 +172,89 @@ impl Config for Test {
 	type WeightInfo = ();
 	type WeightToFee = IdentityFee<Balance>;
 	type NativeAssetId = HdxAssetId;
+	type PolkadotNativeAssetId = DotAssetId;
 	type EvmAssetId = EvmAssetId;
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
 	type TryCallCurrency<'a> = NoCallCurrency<Test>;
+	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
 }
 
+pub struct MockedInsufficientAssetSupport;
+
+impl InspectTransactionFeeCurrency<AssetId> for MockedInsufficientAssetSupport {
+	fn is_transaction_fee_currency(_asset: AssetId) -> bool {
+		true
+	}
+}
+
+impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
+	fn is_trade_supported(_from: AssetId, _into: AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn buy(
+		_origin: &AccountId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_amount: Balance,
+		_max_limit: Balance,
+		_dest: &AccountId,
+	) -> DispatchResult {
+		unimplemented!()
+	}
+
+	fn calculate_fee_amount(_swap_amount: Balance) -> Result<Balance, DispatchError> {
+		unimplemented!()
+	}
+
+	fn calculate_in_given_out(
+		_insuff_asset_id: AssetId,
+		_asset_out: AssetId,
+		_asset_out_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		unimplemented!()
+	}
+}
+
+pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> hydradx_traits::registry::Inspect for DummyRegistry<T> {
+	type AssetId = AssetId;
+	type Location = u8;
+
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
+	}
+
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		id < INSUFFICIENT_CURRENCY
+	}
+
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
+	}
+
+	fn exists(_asset_id: AssetId) -> bool {
+		true
+	}
+
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
+	}
+
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		unimplemented!()
+	}
+}
 pub struct DefaultRouteProvider;
 
 impl RouteProvider<AssetId> for DefaultRouteProvider {}

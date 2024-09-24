@@ -854,6 +854,30 @@ pub fn set_zero_reward_for_referrals(asset_id: AssetId) {
 	));
 }
 
+use hydradx_runtime::XYK;
+pub fn create_xyk_pool(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		asset_a,
+		amount_a as i128,
+	));
+	assert_ok!(Currencies::update_balance(
+		hydradx_runtime::RuntimeOrigin::root(),
+		DAVE.into(),
+		asset_b,
+		amount_b as i128,
+	));
+
+	assert_ok!(XYK::create_pool(
+		RuntimeOrigin::signed(DAVE.into()),
+		asset_a,
+		amount_a,
+		asset_b,
+		amount_b,
+	));
+}
+
 use xcm_emulator::pallet_message_queue;
 
 pub fn assert_xcm_message_processing_failed() {
