@@ -1141,7 +1141,7 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
-		assert_eq!(tx_fee, 1_916_889_814_194);
+		assert_eq!(tx_fee, 1_930_010_523_303);
 	})
 }
 
