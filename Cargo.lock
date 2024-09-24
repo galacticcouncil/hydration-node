@@ -4996,7 +4996,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "258.0.0"
+version = "259.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5047,7 +5047,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.3.1",
+ "pallet-democracy 4.3.2",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -8084,7 +8084,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.3.1"
+version = "4.3.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8550,7 +8550,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.8.5"
+version = "4.8.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8575,7 +8575,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.4.1"
+version = "4.4.2"
 dependencies = [
  "fixed",
  "frame-support",
@@ -9195,7 +9195,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-democracy 4.3.1",
+ "pallet-democracy 4.3.2",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -9576,7 +9576,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.1.13"
+version = "1.1.14"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -12259,7 +12259,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.5"
+version = "1.23.6"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12302,7 +12302,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.3.1",
+ "pallet-democracy 4.3.2",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
