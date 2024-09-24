@@ -54,16 +54,12 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1336361000;
-pub const BUY_DCA_FEE_IN_DAI: Balance = 1175997680;
-pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1338448000;
-pub const SELL_DCA_FEE_IN_DAI: Balance = 1177834240;
-
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const BTC: AssetId = 3;
 pub const FORBIDDEN_ASSET: AssetId = 4;
+pub const DOT: AssetId = 5;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
@@ -646,6 +642,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
+	pub PolkadotNativeCurrencyId: AssetId = DOT;
 	pub MinBudgetInNativeCurrency: Balance= MIN_BUDGET.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
@@ -654,8 +651,8 @@ parameter_types! {
 	pub BumpChance: Percent = Percent::from_percent(0);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
+	pub ExchangeFeeRate: (u32, u32) = (3, 1000);
 }
-use rand::SeedableRng;
 
 pub struct RandomnessProviderMock {}
 
@@ -697,6 +694,45 @@ impl Config for Test {
 	type MinimumTradingLimit = MinTradeAmount;
 	type NativePriceOracle = NativePriceOracleMock;
 	type RetryOnError = ();
+	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
+	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
+}
+
+pub struct MockedInsufficientAssetSupport;
+
+impl InspectTransactionFeeCurrency<AssetId> for MockedInsufficientAssetSupport {
+	fn is_transaction_fee_currency(_asset: AssetId) -> bool {
+		true
+	}
+}
+
+impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
+	fn is_trade_supported(_from: AssetId, _into: AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn buy(
+		_origin: &AccountId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_amount: Balance,
+		_max_limit: Balance,
+		_dest: &AccountId,
+	) -> DispatchResult {
+		unimplemented!()
+	}
+
+	fn calculate_fee_amount(_swap_amount: Balance) -> Result<Balance, DispatchError> {
+		unimplemented!()
+	}
+
+	fn calculate_in_given_out(
+		_insuff_asset_id: AssetId,
+		_asset_out: AssetId,
+		_asset_out_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		unimplemented!()
+	}
 }
 
 pub struct NativePriceOracleMock;
@@ -725,10 +761,12 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
-use rand::rngs::StdRng;
+use rand::prelude::StdRng;
+use rand::SeedableRng;
 use smallvec::smallvec;
 
 pub struct DummyNFT;
@@ -783,23 +821,23 @@ impl<T: Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
-	type AssetId = T::AssetId;
+	type AssetId = AssetId;
 	type Location = u8;
 
 	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
 		unimplemented!()
 	}
 
-	fn is_sufficient(_id: Self::AssetId) -> bool {
-		true
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		id <= 2000
 	}
 
 	fn decimals(_id: Self::AssetId) -> Option<u8> {
 		unimplemented!()
 	}
 
-	fn exists(asset_id: T::AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+	fn exists(asset_id: AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
 		asset.is_some()
 	}
 
