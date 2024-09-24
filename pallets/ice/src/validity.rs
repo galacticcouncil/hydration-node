@@ -1,7 +1,7 @@
 use crate::{Call, Config, Pallet};
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::TypeInfo;
-use frame_support::traits::IsSubType;
+use frame_support::traits::{Get, IsSubType};
 use sp_runtime::traits::{DispatchInfoOf, SignedExtension};
 use sp_runtime::transaction_validity::{
 	InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
@@ -47,7 +47,9 @@ where
 	) -> TransactionValidity {
 		match call.is_sub_type() {
 			Some(Call::submit_solution { score, block, .. }) => {
-				// TODO: check if who has enough for bond
+				if !Pallet::<T>::ensure_proposal_bond(who) {
+					return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment)); //TODO: custom error?
+				}
 				let valid = Pallet::<T>::validate_submission(who, *score, *block);
 				if valid {
 					ValidTransaction::with_tag_prefix("IceSolutionProposal")

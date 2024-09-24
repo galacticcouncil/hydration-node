@@ -14,6 +14,8 @@ use crate::types::{IncrementalIntentId, Intent, IntentId, Moment, NamedReserveId
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
+use frame_support::traits::fungibles::Inspect;
+use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::Time;
 use frame_support::{dispatch::DispatchResult, traits::Get};
 use frame_support::{Blake2_128Concat, Parameter};
@@ -58,7 +60,12 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
+		/// Native asset Id
+		#[pallet::constant]
+		type NativeAssetId: Get<Self::AssetId>;
+
 		/// Asset Id of hub asset
+		#[pallet::constant]
 		type HubAssetId: Get<Self::AssetId>;
 
 		/// Provider for the current timestamp.
@@ -101,6 +108,14 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxCallData: Get<u32>;
+
+		/// The bond required to propose a new solution.
+		#[pallet::constant]
+		type ProposalBond: Get<Balance>;
+
+		/// The account which receives slashed bonds in case of invalid solution.
+		#[pallet::constant]
+		type SlashReceiver: Get<Self::AccountId>;
 
 		#[pallet::constant]
 		type NamedReserveId: Get<NamedReserveIdentifier>;
@@ -275,7 +290,14 @@ pub mod pallet {
 					SolutionExecuted::<T>::set(true);
 				}
 				Err(e) => {
-					//TODO: slash him, bob!
+					//TODO: add test
+					T::Currency::transfer(
+						T::NativeAssetId::get(),
+						&who,
+						&T::SlashReceiver::get(),
+						T::ProposalBond::get(),
+						Preservation::Protect,
+					)?;
 					return Err(e);
 				}
 			}
@@ -342,5 +364,12 @@ impl<T: Config> Pallet<T> {
 			debug_assert!(remainder.is_zero());
 			Intents::<T>::remove(intent_id);
 		}
+	}
+
+	fn ensure_proposal_bond(who: &T::AccountId) -> bool {
+		let required_bond = T::ProposalBond::get();
+		let balance =
+			T::Currency::reducible_balance(T::NativeAssetId::get(), who, Preservation::Protect, Fortitude::Force); //TODO: check params
+		balance > required_bond
 	}
 }

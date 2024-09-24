@@ -29,6 +29,7 @@ use crate::types::{Balance, IntentId, Moment};
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
+pub const RECEIVER: AccountId = 3;
 
 pub(crate) const LRNA: AssetId = 1;
 
@@ -125,11 +126,14 @@ impl pallet_currencies::Config for Test {
 
 parameter_types! {
 	pub const MaxReserves: u32 = 50;
+	pub const NativeAssetId: AssetId = 0;
 	pub const HubAssetId: AssetId = LRNA;
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
 	pub const ICEPalletId: PalletId = PalletId(*b"testicer");
 	pub const MaxAllowdIntentDuration: Moment = 86_400_000; //1day
 	pub const NativeCurrencyId: AssetId = 0;
+	pub const ProposalBond: Balance = 1;
+	pub const SlashReceiver: AccountId = RECEIVER;
 	pub NamedReserveId: NamedReserveIdentifier = *b"iceinten";
 }
 
@@ -165,6 +169,7 @@ impl BlockNumberProvider for MockBlockNumberProvider {
 impl pallet_ice::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
+	type NativeAssetId = NativeAssetId;
 	type HubAssetId = HubAssetId;
 	type TimestampProvider = DummyTimestampProvider;
 	type MaxAllowedIntentDuration = MaxAllowdIntentDuration;
@@ -176,6 +181,8 @@ impl pallet_ice::Config for Test {
 	type PriceProvider = MockPriceProvider;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
+	type ProposalBond = ProposalBond;
+	type SlashReceiver = SlashReceiver;
 	type NamedReserveId = NamedReserveId;
 	type WeightInfo = ();
 }
