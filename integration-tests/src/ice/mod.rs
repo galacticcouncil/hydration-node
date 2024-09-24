@@ -7,7 +7,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_runtime::{EmaOracle, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT};
 use ice_solver::traits::ICESolver;
-use pallet_ice::types::{BoundedInstructions, BoundedResolvedIntents, IntentId, ProposedSolution, Swap};
+use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
 use primitives::{AccountId, AssetId, Moment};
 use xcm_emulator::TestExt;
 
@@ -19,12 +19,15 @@ pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -
 	for (who, swap, deadline) in intents {
 		let increment_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::next_incremental_id();
 		assert_ok!(ICE::submit_intent(
-			RuntimeOrigin::signed(who),
-			swap,
-			deadline,
-			false,
-			None,
-			None,
+			RuntimeOrigin::signed(who.clone()),
+			Intent {
+				who,
+				swap,
+				deadline,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			}
 		));
 		let intent_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, increment_id);
 		intent_ids.push(intent_id);
@@ -35,15 +38,9 @@ pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -
 
 pub(crate) fn solve_intents(
 	intents: Vec<(IntentId, pallet_ice::types::Intent<AccountId, AssetId>)>,
-) -> Result<(ProposedSolution<AccountId, AssetId>, u64), ()> {
+) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()> {
 	let solved = ice_solver::SimpleSolver::<hydradx_runtime::Runtime, Router, Router, PriceP>::solve(intents)?;
 	let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-	let instructions = BoundedInstructions::try_from(solved.instructions).unwrap();
-	Ok((
-		ProposedSolution::<AccountId, AssetId> {
-			intents: resolved_intents.clone(),
-			instructions,
-		},
-		solved.score,
-	))
+	let trades = BoundedTrades::try_from(solved.trades).unwrap();
+	Ok((resolved_intents, trades, solved.score))
 }

@@ -2,16 +2,16 @@ use crate::traits::ICESolver;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
-use pallet_ice::types::{Balance, BoundedRoute, Instruction, Intent, IntentId, ResolvedIntent};
+use pallet_ice::types::{Balance, BoundedRoute, Intent, IntentId, ResolvedIntent, TradeInstruction};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::Saturating;
 use sp_std::collections::btree_map::BTreeMap;
 
 pub mod traits;
 
-pub struct SolverSolution<AccountId, AssetId> {
+pub struct SolverSolution<AssetId> {
 	pub intents: Vec<ResolvedIntent>,
-	pub instructions: Vec<Instruction<AccountId, AssetId>>,
+	pub trades: Vec<TradeInstruction<AssetId>>,
 	pub score: u64,
 }
 // IMPORTANT: This is NOT a real solver!!
@@ -33,7 +33,7 @@ where
 	RP: RouteProvider<<T as pallet_ice::Config>::AssetId>,
 	PP: PriceProvider<<T as pallet_ice::Config>::AssetId, Price = Ratio>,
 {
-	type Solution = SolverSolution<T::AccountId, T::AssetId>;
+	type Solution = SolverSolution<T::AssetId>;
 	type Error = ();
 
 	fn solve(
@@ -41,8 +41,6 @@ where
 	) -> Result<Self::Solution, Self::Error> {
 		let mut resolved_intents = Vec::new();
 
-		let mut transfer_in_instructions: Vec<Instruction<T::AccountId, T::AssetId>> = Vec::new();
-		let mut transfer_out_instructions = Vec::new();
 		let mut trades_instructions = Vec::new();
 
 		let mut amounts_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
@@ -53,18 +51,6 @@ where
 			let asset_out = intent.swap.asset_out;
 			let amount_in = intent.swap.amount_in;
 			let amount_out = intent.swap.amount_out;
-
-			transfer_in_instructions.push(Instruction::TransferIn {
-				who: intent.who.clone(),
-				asset_id: asset_in,
-				amount: amount_in,
-			});
-
-			transfer_out_instructions.push(Instruction::TransferOut {
-				who: intent.who.clone(),
-				asset_id: asset_out,
-				amount: amount_out,
-			});
 
 			amounts_in
 				.entry(asset_in)
@@ -122,7 +108,7 @@ where
 				let sold = R::calculate_sell_trade_amounts(&route, diff).unwrap();
 				let lrna_bought = sold.last().unwrap().amount_out;
 				lrna_aquired.saturating_accrue(lrna_bought);
-				trades_instructions.push(Instruction::SwapExactIn {
+				trades_instructions.push(TradeInstruction::SwapExactIn {
 					asset_in: *asset_id,
 					asset_out: 1u32.into(),                       // LRNA
 					amount_in: amount.saturating_sub(amount_out), //Swap only difference
@@ -146,7 +132,7 @@ where
 				let r = R::calculate_buy_trade_amounts(&route, diff).unwrap();
 				let lrna_in = r.last().unwrap().amount_in;
 				lrna_sold.saturating_accrue(lrna_in);
-				trades_instructions.push(Instruction::SwapExactOut {
+				trades_instructions.push(TradeInstruction::SwapExactOut {
 					asset_in: 1u32.into(), // LRNA
 					asset_out: asset_id,
 					amount_in: lrna_in,
@@ -171,14 +157,9 @@ where
 		}
 		let score = (score / 1_000_000) as u64;
 
-		let mut instructions = Vec::new();
-		instructions.extend(transfer_in_instructions);
-		instructions.extend(trades_instructions);
-		instructions.extend(transfer_out_instructions);
-
 		Ok(SolverSolution {
 			intents: resolved_intents,
-			instructions,
+			trades: trades_instructions,
 			score,
 		})
 	}

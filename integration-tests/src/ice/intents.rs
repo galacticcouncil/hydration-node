@@ -11,16 +11,19 @@ fn submit_intent_should_work() {
 			asset_in: HDX,
 			asset_out: DAI,
 			amount_in: 1_000_000_000_000,
-			amount_out: 0,
+			amount_out: 2_000_000_000_000,
 			swap_type: pallet_ice::types::SwapType::ExactIn,
 		};
 		assert_ok!(ICE::submit_intent(
 			RuntimeOrigin::signed(BOB.into()),
-			swap.clone(),
-			deadline,
-			false,
-			None,
-			None,
+			Intent {
+				who: BOB.into(),
+				swap: swap.clone(),
+				deadline: deadline,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			}
 		));
 
 		let intent_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, 0);
