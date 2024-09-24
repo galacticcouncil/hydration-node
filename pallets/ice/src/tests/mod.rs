@@ -274,18 +274,10 @@ impl PriceProvider<AssetId> for MockPriceProvider {
 	}
 }
 
+#[derive(Default)]
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
 	native_amounts: Vec<(u64, Balance)>,
-}
-
-impl Default for ExtBuilder {
-	fn default() -> Self {
-		Self {
-			endowed_accounts: vec![],
-			native_amounts: vec![],
-		}
-	}
 }
 
 impl ExtBuilder {

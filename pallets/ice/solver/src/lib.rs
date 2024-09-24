@@ -94,7 +94,7 @@ where
 
 		// Sell all for lrna
 		for (asset_id, amount) in amounts_in.iter() {
-			let amount_out = *amounts_out.get(&asset_id).unwrap_or(&0u128);
+			let amount_out = *amounts_out.get(asset_id).unwrap_or(&0u128);
 
 			matched_amounts.push((*asset_id, (*amount).min(amount_out)));
 
@@ -149,7 +149,7 @@ where
 		);
 
 		// Score
-		let mut score = resolved_intents.iter().count() as u128 * 1_000_000_000_000;
+		let mut score = resolved_intents.len() as u128 * 1_000_000_000_000;
 		for (asset_id, amount) in matched_amounts {
 			let price = PP::get_price(1u32.into(), asset_id).unwrap();
 			let h = multiply_by_rational_with_rounding(amount, price.n, price.d, sp_runtime::Rounding::Up).unwrap();

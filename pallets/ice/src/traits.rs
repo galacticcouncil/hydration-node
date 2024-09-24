@@ -9,18 +9,18 @@ pub trait IceWeightBounds<RuntimeCall, Route> {
 
 impl<RuntimeCall, Route> IceWeightBounds<RuntimeCall, Route> for () {
 	fn transfer_weight() -> Weight {
-		Weight::from(0)
+		Weight::zero()
 	}
 
 	fn sell_weight(_route: Route) -> Weight {
-		Weight::from(0)
+		Weight::zero()
 	}
 
 	fn buy_weight(_route: Route) -> Weight {
-		Weight::from(0)
+		Weight::zero()
 	}
 
 	fn call_weight(_call: &RuntimeCall) -> Weight {
-		Weight::from(0)
+		Weight::zero()
 	}
 }

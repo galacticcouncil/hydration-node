@@ -1991,7 +1991,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxInRatioExceeded
 		);
 
-		let lrna_balance = T::Currency::free_balance(T::HubAssetId::get(), &who);
+		let lrna_balance = T::Currency::free_balance(T::HubAssetId::get(), who);
 		debug_assert!(
 			lrna_balance >= *state_changes.asset.delta_hub_reserve,
 			"Insufficient LRNA balance {:?} >= {:?}",

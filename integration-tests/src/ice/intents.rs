@@ -19,7 +19,7 @@ fn submit_intent_should_work() {
 			Intent {
 				who: BOB.into(),
 				swap: swap.clone(),
-				deadline: deadline,
+				deadline,
 				partial: false,
 				on_success: None,
 				on_failure: None,
@@ -30,8 +30,8 @@ fn submit_intent_should_work() {
 
 		let expected_entry = pallet_ice::types::Intent {
 			who: BOB.into(),
-			swap: swap,
-			deadline: deadline,
+			swap,
+			deadline,
 			partial: false,
 			on_success: None,
 			on_failure: None,

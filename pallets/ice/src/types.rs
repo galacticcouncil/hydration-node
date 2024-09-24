@@ -4,6 +4,7 @@ use frame_support::traits::ConstU32;
 use hydradx_traits::router::Trade;
 use sp_runtime::traits::Convert;
 use sp_runtime::BoundedVec;
+use sp_std::vec::Vec;
 
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
 pub const MAX_RESOLVED_INTENTS: u32 = 128;

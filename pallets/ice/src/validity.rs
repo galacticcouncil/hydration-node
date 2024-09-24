@@ -24,6 +24,12 @@ impl<T: Config + Send + Sync> ValidateIceSolution<T> {
 	}
 }
 
+impl<T: Config + Send + Sync> Default for ValidateIceSolution<T> {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl<T: Config + Send + Sync> SignedExtension for ValidateIceSolution<T>
 where
 	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>>,

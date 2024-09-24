@@ -90,7 +90,7 @@ mod router_different_pools_tests {
 			));
 
 			//Assert
-			assert_balance!(ice_account.into(), LRNA, amount_to_buy);
+			assert_balance!(ice_account, LRNA, amount_to_buy);
 		});
 	}
 
@@ -1431,7 +1431,6 @@ mod omnipool_router_tests {
 				let extra_ed_charge = UNITS / 10;
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
 
-				let amount_to_sell = amount_to_sell;
 				assert_ok!(Router::sell(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					insufficient_asset_1,
@@ -5424,7 +5423,6 @@ mod sell_all {
 				assert_balance!(ALICE.into(), pool_id, 0);
 
 				//Act
-				let amount_to_sell = 3000 * UNITS;
 				assert_ok!(Router::sell_all(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					stable_asset_1,

@@ -44,7 +44,7 @@ impl<T: Config> ICEEngine<T> {
 			let intent = Intents::<T>::get(resolved_intent.intent_id).ok_or(Error::<T>::IntentNotFound)?;
 
 			ensure!(
-				ensure_intent_price::<T>(&intent, &resolved_intent),
+				ensure_intent_price::<T>(&intent, resolved_intent),
 				Error::<T>::IntentLimitPriceViolation
 			);
 
@@ -121,9 +121,9 @@ impl<T: Config> ICEEngine<T> {
 
 		let mut instructions = Vec::new();
 
-		instructions.extend(transfers_in.into_iter());
-		instructions.extend(TradeInstructionTransform::convert(trades).into_iter());
-		instructions.extend(transfers_out.into_iter());
+		instructions.extend(transfers_in);
+		instructions.extend(TradeInstructionTransform::convert(trades));
+		instructions.extend(transfers_out);
 
 		let solution = Solution {
 			intents,
@@ -260,7 +260,7 @@ impl<T: Config> ICEEngine<T> {
 			matched_amounts.push((*asset_id, *(amount.min(amount_out))));
 		}
 
-		let calculated_score = Self::score_solution(&solution, matched_amounts)?;
+		let calculated_score = Self::score_solution(solution, matched_amounts)?;
 
 		ensure!(calculated_score == score, Error::<T>::InvalidScore);
 
@@ -291,7 +291,7 @@ impl<T: Config> ICEEngine<T> {
 		// handle reserved amounts?? should be already handled in execution
 
 		for resolved_intent in resolved_intents.iter() {
-			let intent = Intents::<T>::take(&resolved_intent.intent_id).ok_or(crate::Error::<T>::IntentNotFound)?;
+			let intent = Intents::<T>::take(resolved_intent.intent_id).ok_or(crate::Error::<T>::IntentNotFound)?;
 
 			let is_partial = intent.partial;
 			let asset_in = intent.swap.asset_in;
@@ -351,7 +351,7 @@ impl<T: Config> ICEEngine<T> {
 					amount_out,
 					route,
 				} => {
-					let origin = T::RuntimeOrigin::signed(holding_account.clone().into());
+					let origin = T::RuntimeOrigin::signed(holding_account.clone());
 					T::TradeExecutor::sell(
 						origin,
 						asset_in,
@@ -368,7 +368,7 @@ impl<T: Config> ICEEngine<T> {
 					amount_out,
 					route,
 				} => {
-					let origin = T::RuntimeOrigin::signed(holding_account.clone().into());
+					let origin = T::RuntimeOrigin::signed(holding_account.clone());
 					T::TradeExecutor::buy(
 						origin,
 						asset_in,

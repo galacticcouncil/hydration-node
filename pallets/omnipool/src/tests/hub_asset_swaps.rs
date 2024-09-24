@@ -94,7 +94,7 @@ fn sell_asset_for_hub_asset_should_work() {
 				0
 			),);
 
-			pretty_assertions::assert_eq!(Tokens::free_balance(HDX, &HUB_ASSET_TRADER), 1900_000_000_000_000);
+			pretty_assertions::assert_eq!(Tokens::free_balance(HDX, &HUB_ASSET_TRADER), 1_900_000_000_000_000);
 			pretty_assertions::assert_eq!(Tokens::free_balance(LRNA, &HUB_ASSET_TRADER), 99009900990099);
 			pretty_assertions::assert_eq!(
 				Tokens::free_balance(HDX, &Omnipool::protocol_account()),
@@ -152,7 +152,7 @@ fn buy_hub_asset_should_work() {
 				u128::MAX
 			),);
 
-			pretty_assertions::assert_eq!(Tokens::free_balance(HDX, &HUB_ASSET_TRADER), 1898_989_898_989_898);
+			pretty_assertions::assert_eq!(Tokens::free_balance(HDX, &HUB_ASSET_TRADER), 1_898_989_898_989_898);
 			pretty_assertions::assert_eq!(Tokens::free_balance(LRNA, &HUB_ASSET_TRADER), 100 * ONE);
 			pretty_assertions::assert_eq!(
 				Tokens::free_balance(HDX, &Omnipool::protocol_account()),

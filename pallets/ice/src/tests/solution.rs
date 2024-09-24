@@ -185,7 +185,7 @@ fn submit_solution_should_clear_expired_intents() {
 				score,
 				1
 			),);
-			let intent = Intents::<Test>::get(&expired_intent_id);
+			let intent = Intents::<Test>::get(expired_intent_id);
 			assert_eq!(intent, None);
 		});
 }
@@ -244,7 +244,7 @@ fn submit_solution_should_update_partial_resolved_intent() {
 				1
 			));
 
-			let intent = Intents::<Test>::get(&intent_id);
+			let intent = Intents::<Test>::get(intent_id);
 			assert_eq!(
 				intent,
 				Some(Intent {
@@ -346,9 +346,9 @@ fn on_finalize_should_clear_temporary_storage() {
 				1
 			));
 
-			assert_eq!(SolutionExecuted::<Test>::get(), true);
+			assert!(SolutionExecuted::<Test>::get());
 			ICE::on_finalize(System::block_number());
 			assert_eq!(SolutionScore::<Test>::get(), None);
-			assert_eq!(SolutionExecuted::<Test>::get(), false);
+			assert!(!SolutionExecuted::<Test>::get());
 		});
 }

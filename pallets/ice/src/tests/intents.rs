@@ -152,7 +152,7 @@ fn submit_intent_should_fail_when_it_cant_reserve_sufficient_amount() {
 					RuntimeOrigin::signed(ALICE),
 					Intent {
 						who: ALICE,
-						swap: swap.clone(),
+						swap,
 						deadline: DEFAULT_NOW + 1_000_000,
 						partial: false,
 						on_success: None,
@@ -212,7 +212,7 @@ fn submit_intent_should_fail_when_amount_in_is_zero() {
 			};
 			let intent = Intent {
 				who: ALICE,
-				swap: swap,
+				swap,
 				deadline: DEFAULT_NOW + 1_000_000,
 				partial: false,
 				on_success: None,
@@ -240,7 +240,7 @@ fn submit_intent_should_fail_when_amount_out_is_zero() {
 			};
 			let intent = Intent {
 				who: ALICE,
-				swap: swap,
+				swap,
 				deadline: DEFAULT_NOW + 1_000_000,
 				partial: false,
 				on_success: None,
@@ -268,7 +268,7 @@ fn submit_intent_should_fail_when_asset_out_is_hub_asset() {
 			};
 			let intent = Intent {
 				who: ALICE,
-				swap: swap,
+				swap,
 				deadline: DEFAULT_NOW + 1_000_000,
 				partial: false,
 				on_success: None,
