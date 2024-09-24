@@ -231,6 +231,9 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight( {
 			let mut w = T::WeightInfo::submit_solution();
+			let intent_count = intents.len() as u64;
+			let transfer_weight = T::Weigher::transfer_weight() * intent_count * 2; // transfer in and out
+			w.saturating_accrue(transfer_weight);
 			for instruction in trades.iter() {
 				match instruction {
 					TradeInstruction::SwapExactIn { route, .. } => {
