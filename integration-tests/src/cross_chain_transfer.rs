@@ -730,7 +730,7 @@ fn transfer_dot_reserve_from_asset_hub_to_hydra_should_work() {
 
 #[test]
 fn transfer_dot_from_hydra_to_asset_hub() {
-	let init_hydra_para_dot_balance_on_ah = 2000 * UNITS;
+	let init_hydra_para_dot_balance_on_ah = 4000 * UNITS;
 	let hydra_at_ah = Location::new(
 		1,
 		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)])),
@@ -797,7 +797,7 @@ fn transfer_dot_from_hydra_to_asset_hub() {
 
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(DOT, &AccountId::from(ALICE)),
-			init_hydra_para_dot_balance_on_ah - transfer_amount
+			ALICE_INITIAL_DOT_BALANCE - transfer_amount
 		);
 	});
 
