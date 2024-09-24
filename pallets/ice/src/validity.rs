@@ -1,7 +1,7 @@
 use crate::{Call, Config, Pallet};
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::TypeInfo;
-use frame_support::traits::{Get, IsSubType};
+use frame_support::traits::IsSubType;
 use sp_runtime::traits::{DispatchInfoOf, SignedExtension};
 use sp_runtime::transaction_validity::{
 	InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,

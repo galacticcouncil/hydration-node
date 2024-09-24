@@ -1,18 +1,15 @@
 use super::*;
-use crate::pallet::Intents;
+use crate::pallet::{Intents, SolutionExecuted, SolutionScore};
 use crate::tests::{ExtBuilder, ICE};
 use crate::types::{
-	BoundedInstructions, BoundedResolvedIntents, BoundedRoute, BoundedTrades, Intent, ResolvedIntent, Swap, SwapType,
-	TradeInstruction,
+	BoundedResolvedIntents, BoundedRoute, BoundedTrades, Intent, ResolvedIntent, Swap, SwapType, TradeInstruction,
 };
-use crate::types::{Instruction, Solution};
 use crate::Error;
+use frame_support::pallet_prelude::Hooks;
 use frame_support::{assert_noop, assert_ok};
 
 fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (BoundedResolvedIntents, BoundedTrades<AssetId>, u64) {
-	// TODO: extend to support multiple intents
 	// currently only one intent is supported
-
 	let intent_id = intents[0];
 
 	let resolved_intents = vec![ResolvedIntent {
@@ -96,6 +93,7 @@ fn submit_solution_should_fail_when_block_number_is_different() {
 fn submit_solution_should_fail_when_score_is_different() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.with_native_amount(ALICE, 1_000_000_000_000)
 		.build()
 		.execute_with(|| {
 			let swap = Swap {
@@ -271,6 +269,7 @@ fn submit_solution_should_update_partial_resolved_intent() {
 fn submit_solution_should_fail_when_intent_does_not_exists() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.with_native_amount(ALICE, 1_000_000_000_000)
 		.build()
 		.execute_with(|| {
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
@@ -281,5 +280,75 @@ fn submit_solution_should_fail_when_intent_does_not_exists() {
 				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, trades, score, 1),
 				Error::<Test>::IntentNotFound
 			);
+		});
+}
+
+#[test]
+fn submit_solution_should_slash_proposer_when_solution_is_invalid() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.with_native_amount(ALICE, 1_000_000_000_000)
+		.build()
+		.execute_with(|| {
+			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
+
+			let (resolved_intents, trades, score) = create_solution_for_given_intents(vec![intent_id]);
+
+			assert_noop!(
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, trades, score, 1),
+				Error::<Test>::IntentNotFound
+			);
+
+			//TODO: uncomment when slashing is resolved
+			/*
+			let balance = Balances::free_balance(&ALICE);
+			assert_eq!(balance, 0);
+			let balance = Balances::free_balance(&RECEIVER);
+			assert_eq!(balance, 1_000_000_000_000);
+			 */
+		});
+}
+
+#[test]
+fn on_finalize_should_clear_temporary_storage() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			assert_ok!(ICE::submit_intent(
+				RuntimeOrigin::signed(ALICE),
+				Intent {
+					who: ALICE,
+					swap: swap.clone(),
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
+				},
+			));
+
+			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
+
+			let (resolved_intents, trades, score) = create_solution_for_given_intents(vec![intent_id]);
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(ALICE),
+				resolved_intents,
+				trades,
+				score,
+				1
+			));
+
+			assert_eq!(SolutionExecuted::<Test>::get(), true);
+			ICE::on_finalize(System::block_number());
+			assert_eq!(SolutionScore::<Test>::get(), None);
+			assert_eq!(SolutionExecuted::<Test>::get(), false);
 		});
 }

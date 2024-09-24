@@ -2,21 +2,22 @@ use super::*;
 use crate::engine::ICEEngine;
 use crate::tests::{ExtBuilder, ICE};
 use crate::types::{
-	BoundedInstructions, BoundedResolvedIntents, Instruction, Intent, ResolvedIntent, Solution, Swap, SwapType,
+	BoundedInstructions, BoundedResolvedIntents, BoundedRoute, BoundedTrades, Instruction, Intent, ResolvedIntent,
+	Solution, Swap, SwapType, TradeInstruction,
 };
 use frame_support::assert_ok;
 
 fn create_solution(
 	intents: Vec<ResolvedIntent>,
-	instructions: Vec<Instruction<AccountId, AssetId>>,
-) -> Solution<AccountId, AssetId> {
+	trades: Vec<TradeInstruction<AssetId>>,
+) -> (BoundedResolvedIntents, BoundedTrades<AssetId>) {
 	let intents = BoundedResolvedIntents::try_from(intents).unwrap();
-	let instructions = BoundedInstructions::try_from(instructions).unwrap();
-	Solution { intents, instructions }
+	let trades = BoundedTrades::try_from(trades).unwrap();
+	(intents, trades)
 }
 
 #[test]
-fn validate_solution_should_work_when_solution_contains_one_intent_swap_exact_in() {
+fn preparee_solution_should_work_when_solution_contains_one_intent_swap_exact_in() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
 		.build()
@@ -41,7 +42,7 @@ fn validate_solution_should_work_when_solution_contains_one_intent_swap_exact_in
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 
-			let solution = create_solution(
+			let (intents, trades) = create_solution(
 				vec![ResolvedIntent {
 					intent_id,
 					amount_in: 100_000_000_000_000,
@@ -50,12 +51,13 @@ fn validate_solution_should_work_when_solution_contains_one_intent_swap_exact_in
 				vec![],
 			);
 
-			assert_ok!(ICEEngine::<Test>::validate_solution(&solution, 1000000));
+			let r = ICEEngine::<Test>::prepare_solution(intents, trades, 1000000);
+			assert_ok!(r);
 		});
 }
 
 #[test]
-fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_in() {
+fn preparee_solution_should_return_correct_result_when_solution_is_valid() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
 		.build()
@@ -80,99 +82,59 @@ fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_in() 
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 
-			let solution = create_solution(
+			let (intents, trades) = create_solution(
 				vec![ResolvedIntent {
 					intent_id,
 					amount_in: 100_000_000_000_000,
 					amount_out: 200_000_000_000_000,
 				}],
-				vec![],
+				vec![TradeInstruction::SwapExactIn {
+					asset_in: 100,
+					asset_out: 200,
+					amount_in: 100_000_000_000_000,
+					amount_out: 200_000_000_000_000,
+					route: BoundedRoute::try_from(vec![]).unwrap(),
+				}],
 			);
 
-			assert!(ICEEngine::<Test>::validate_solution(&solution, 1000000).is_err());
-		});
-}
-
-#[test]
-fn validate_solution_should_fail_when_solution_does_not_correctly_transfer_out() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
-		.build()
-		.execute_with(|| {
-			assert_ok!(ICE::submit_intent(
-				RuntimeOrigin::signed(ALICE),
-				Intent {
+			let r = ICEEngine::<Test>::prepare_solution(intents, trades, 1000000);
+			assert_ok!(&r);
+			let solution = r.unwrap();
+			let expected_intents = BoundedResolvedIntents::try_from(vec![ResolvedIntent {
+				intent_id,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+			}])
+			.unwrap();
+			let expected_trades = BoundedInstructions::try_from(vec![
+				Instruction::TransferIn {
 					who: ALICE,
-					swap: Swap {
-						asset_in: 100,
-						asset_out: 200,
-						amount_in: 100_000_000_000_000,
-						amount_out: 200_000_000_000_000,
-						swap_type: SwapType::ExactIn,
-					},
-					deadline: DEFAULT_NOW + 1_000_000,
-					partial: false,
-					on_success: None,
-					on_failure: None,
+					asset_id: 100,
+					amount: 100_000_000_000_000,
 				},
-			));
-
-			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
-
-			let solution = create_solution(
-				vec![ResolvedIntent {
-					intent_id,
+				Instruction::SwapExactIn {
+					asset_in: 100,
+					asset_out: 200,
 					amount_in: 100_000_000_000_000,
 					amount_out: 200_000_000_000_000,
-				}],
-				vec![],
-			);
-
-			assert!(ICEEngine::<Test>::validate_solution(&solution, 1000000).is_err());
-		});
-}
-
-#[test]
-fn validate_solution_should_fail_when_solution_contains_intent_updated_but_not_resolved() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
-		.build()
-		.execute_with(|| {
-			assert_ok!(ICE::submit_intent(
-				RuntimeOrigin::signed(ALICE),
-				Intent {
+					route: BoundedRoute::try_from(vec![]).unwrap(),
+				},
+				Instruction::TransferOut {
 					who: ALICE,
-					swap: Swap {
-						asset_in: 100,
-						asset_out: 200,
-						amount_in: 100_000_000_000_000,
-						amount_out: 200_000_000_000_000,
-						swap_type: SwapType::ExactIn,
-					},
-					deadline: DEFAULT_NOW + 1_000_000,
-					partial: false,
-					on_success: None,
-					on_failure: None,
+					asset_id: 200,
+					amount: 200_000_000_000_000,
 				},
-			));
-
-			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
-
-			let solution = create_solution(
-				vec![ResolvedIntent {
-					intent_id,
-					amount_in: 100_000_000_000_000,
-					amount_out: 200_000_000_000_000,
-				}],
-				vec![],
+			])
+			.unwrap();
+			assert_eq!(
+				solution,
+				Solution {
+					intents: expected_intents,
+					instructions: expected_trades,
+				}
 			);
-
-			assert!(ICEEngine::<Test>::validate_solution(&solution, 1000000).is_err());
 		});
 }
-
-#[test]
-fn validate_solution_should_return_correct_matched_amounts() {}
 
 #[test]
 fn validate_solution_should_fail_when_resolved_intent_does_exist() {}
@@ -182,15 +144,3 @@ fn validate_solution_should_fail_when_resolved_intent_is_already_past_deadline()
 
 #[test]
 fn validate_solution_should_fail_when_limit_price_is_not_respected_in_partial_intent() {}
-
-#[test]
-fn validate_solution_should_fail_when_contains_incorrect_transfer_in_amount_in_exact_in_swap() {}
-
-#[test]
-fn validate_solution_should_fail_when_contains_incorrect_transfer_in_amount_in_exact_out_swap() {}
-
-#[test]
-fn validate_solution_should_fail_when_contains_incorrect_transfer_out_amount_in_exact_in_swap() {}
-
-#[test]
-fn validate_solution_should_fail_when_contains_incorrect_transfer_out_amount_in_exact_out_swap() {}

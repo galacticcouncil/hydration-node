@@ -132,7 +132,7 @@ parameter_types! {
 	pub const ICEPalletId: PalletId = PalletId(*b"testicer");
 	pub const MaxAllowdIntentDuration: Moment = 86_400_000; //1day
 	pub const NativeCurrencyId: AssetId = 0;
-	pub const ProposalBond: Balance = 1;
+	pub const ProposalBond: Balance = 1_000_000_000_000;
 	pub const SlashReceiver: AccountId = RECEIVER;
 	pub NamedReserveId: NamedReserveIdentifier = *b"iceinten";
 }
@@ -276,12 +276,14 @@ impl PriceProvider<AssetId> for MockPriceProvider {
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
+	native_amounts: Vec<(u64, Balance)>,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			endowed_accounts: vec![],
+			native_amounts: vec![],
 		}
 	}
 }
@@ -291,6 +293,11 @@ impl ExtBuilder {
 		self.endowed_accounts = accounts;
 		self
 	}
+
+	pub fn with_native_amount(mut self, account: u64, amount: Balance) -> Self {
+		self.native_amounts.push((account, amount));
+		self
+	}
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 		orml_tokens::GenesisConfig::<Test> {
@@ -298,6 +305,12 @@ impl ExtBuilder {
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
+		pallet_balances::GenesisConfig::<Test> {
+			balances: self.native_amounts,
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {

@@ -196,3 +196,87 @@ fn test_correct_intent_id() {
 		assert_eq!(increment, 1);
 	});
 }
+
+#[test]
+fn submit_intent_should_fail_when_amount_in_is_zero() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 0,
+				amount_out: 1_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: ALICE,
+				swap: swap,
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			};
+			assert_noop!(
+				ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
+				Error::<Test>::InvalidIntent
+			);
+		});
+}
+
+#[test]
+fn submit_intent_should_fail_when_amount_out_is_zero() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 1_000_000_000_000,
+				amount_out: 0,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: ALICE,
+				swap: swap,
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			};
+			assert_noop!(
+				ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
+				Error::<Test>::InvalidIntent
+			);
+		});
+}
+
+#[test]
+fn submit_intent_should_fail_when_asset_out_is_hub_asset() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: HubAssetId::get(),
+				amount_in: 1_000_000_000_000,
+				amount_out: 1_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: ALICE,
+				swap: swap,
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			};
+			assert_noop!(
+				ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
+				Error::<Test>::InvalidIntent
+			);
+		});
+}

@@ -10,7 +10,7 @@ pub mod types;
 pub mod validity;
 mod weights;
 
-use crate::types::{IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier, Solution};
+use crate::types::{IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier};
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
@@ -34,7 +34,7 @@ pub mod pallet {
 	use super::*;
 	use crate::engine::ICEEngine;
 	use crate::traits::IceWeightBounds;
-	use crate::types::{BoundedResolvedIntents, BoundedTrades, Instruction, TradeInstruction};
+	use crate::types::{BoundedResolvedIntents, BoundedTrades, TradeInstruction};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use hydra_dx_math::ratio::Ratio;
@@ -171,6 +171,9 @@ pub mod pallet {
 
 		/// Solution already executed in this block
 		AlreadyExecuted,
+
+		/// Invalid intent parameters
+		InvalidIntent,
 	}
 
 	#[pallet::storage]
@@ -203,8 +206,8 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
-			SolutionScore::<T>::kill(); //TODO: add test for this
-			SolutionExecuted::<T>::kill(); //TODO: add test for this
+			SolutionScore::<T>::kill();
+			SolutionExecuted::<T>::kill();
 		}
 	}
 
@@ -222,9 +225,10 @@ pub mod pallet {
 				Error::<T>::InvalidDeadline
 			);
 
-			//TODO: additional checks:
-			// - no lrna buying
-			// - asset in != asset out
+			ensure!(intent.swap.amount_in > Balance::zero(), Error::<T>::InvalidIntent);
+			ensure!(intent.swap.amount_out > Balance::zero(), Error::<T>::InvalidIntent);
+			ensure!(intent.swap.asset_in != intent.swap.asset_out, Error::<T>::InvalidIntent);
+			ensure!(intent.swap.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
 
 			T::ReservableCurrency::reserve_named(
 				&T::NamedReserveId::get(),
@@ -290,13 +294,13 @@ pub mod pallet {
 					SolutionExecuted::<T>::set(true);
 				}
 				Err(e) => {
-					//TODO: add test
+					//TODO: this does not actually work here, because in case of error, there cannot be storage update no more.
 					T::Currency::transfer(
 						T::NativeAssetId::get(),
 						&who,
 						&T::SlashReceiver::get(),
 						T::ProposalBond::get(),
-						Preservation::Protect,
+						Preservation::Expendable,
 					)?;
 					return Err(e);
 				}

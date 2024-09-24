@@ -114,7 +114,6 @@ impl<T: Config> ICEEngine<T> {
 		}
 
 		let mut matched_amounts = Vec::new();
-		//TODO: we just checked the resolved amounts in and out, we should probably verify that the traded amounts is actually the difference?!
 		for (asset_id, amount) in amounts_in.iter() {
 			let amount_out = amounts_out.get(asset_id).unwrap_or(&0u128);
 			matched_amounts.push((*asset_id, *(amount.min(amount_out))));
