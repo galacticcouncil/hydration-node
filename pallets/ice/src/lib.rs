@@ -5,7 +5,7 @@
 pub mod engine;
 #[cfg(test)]
 mod tests;
-mod traits;
+pub mod traits;
 pub mod types;
 pub mod validity;
 mod weights;
@@ -256,10 +256,10 @@ pub mod pallet {
 			for instruction in trades.iter() {
 				match instruction {
 					TradeInstruction::SwapExactIn { route, .. } => {
-						w.saturating_accrue(T::Weigher::sell_weight(&route));
+						w.saturating_accrue(T::Weigher::sell_weight(route.to_vec()));
 					},
 					TradeInstruction::SwapExactOut { route, .. } => {
-						w.saturating_accrue(T::Weigher::buy_weight(&route));
+						w.saturating_accrue(T::Weigher::buy_weight(route.to_vec()));
 					}
 				}
 			}

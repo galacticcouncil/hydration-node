@@ -29,7 +29,7 @@ pub use hydradx_traits::{
 	router::{inverse_route, PoolType, Trade},
 	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
 };
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, WeightInfo};
 use pallet_omnipool::{
 	traits::{EnsurePriceWithin, OmnipoolHooks},
 	weights::WeightInfo as OmnipoolWeights,
@@ -509,12 +509,36 @@ parameter_types! {
 	pub const ICEPalletId: PalletId = PalletId(*b"iceaccnt");
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
 	pub const MaxIntentDuration: Moment = 86_400_000; //1day
+	pub const IceProposalBond: Balance = 100_000_000_000_000; // TODO: good value?
 	pub ICENamedReserveId: NamedReserveIdentifier = *b"iceinten";
+}
+
+pub struct IceWeigher<R>(PhantomData<R>);
+
+impl<R: AmmTradeWeights<Trade<AssetId>>> IceWeightBounds<RuntimeCall, Vec<Trade<AssetId>>> for IceWeigher<R> {
+	fn transfer_weight() -> Weight {
+		// we take the non native transfer weight even in case of native transfer, to make things simpler.
+		weights::pallet_currencies::HydraWeight::<Runtime>::transfer_non_native_currency()
+	}
+
+	fn sell_weight(route: Vec<Trade<AssetId>>) -> Weight {
+		R::sell_weight(&route)
+	}
+
+	fn buy_weight(route: Vec<Trade<AssetId>>) -> Weight {
+		R::buy_weight(&route)
+	}
+
+	fn call_weight(_call: &RuntimeCall) -> Weight {
+		//TODO: add correct weights - not used atm.
+		Weight::zero()
+	}
 }
 
 impl pallet_ice::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
+	type NativeAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
 	type TimestampProvider = Timestamp;
 	type MaxAllowedIntentDuration = MaxIntentDuration;
@@ -522,11 +546,13 @@ impl pallet_ice::Config for Runtime {
 	type Currency = FungibleCurrencies<Runtime>;
 	type ReservableCurrency = Currencies;
 	type TradeExecutor = Router;
-	type Weigher = (); //TODO: add correct weights
+	type Weigher = IceWeigher<RouterWeightInfo>;
 	type PriceProvider =
 		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
+	type ProposalBond = IceProposalBond;
+	type SlashReceiver = TreasuryAccount;
 	type NamedReserveId = ICENamedReserveId;
 	type WeightInfo = ();
 }
@@ -1296,6 +1322,7 @@ use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
 use hydradx_traits::router::RefundEdCalculator;
+use pallet_ice::traits::IceWeightBounds;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
