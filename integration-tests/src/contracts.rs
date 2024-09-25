@@ -67,6 +67,16 @@ fn contract_check_fails_on_eoa() {
 }
 
 #[test]
+fn contract_check_fails_on_precompile_without_code() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let checker = deploy_contract("ContractCheck", deployer());
+		pallet_evm::AccountCodes::<Runtime>::remove(dai_ethereum_address());
+		assert_eq!(is_contract(checker, dai_ethereum_address()), false);
+	});
+}
+
+#[test]
 fn contract_check_succeeds_on_currencies_precompile() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
