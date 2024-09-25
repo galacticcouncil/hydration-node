@@ -126,10 +126,10 @@ fn contract_check_should_succeed_when_called_from_extrinsic() {
 			(10_000_000 * UNITS) as i128,
 		));
 		/// For reference with code set in storage this always succeeds
-		// pallet_evm::AccountCodes::<Runtime>::insert(
-		// 	dai_ethereum_address(),
-		// 	&hex!["365f5f375f5f365f73bebebebebebebebebebebebebebebebebebebebe5af43d5f5f3e5f3d91602a57fd5bf3"][..],
-		// );
+		/*pallet_evm::AccountCodes::<Runtime>::insert(
+		dai_ethereum_address(),
+		&hex!["365f5f375f5f365f73bebebebebebebebebebebebebebebebebebebebe5af43d5f5f3e5f3d91602a57fd5bf3"][..],
+		);*/
 
 		// Act
 		assert_ok!(hydradx_runtime::EVM::call(
