@@ -77,6 +77,7 @@ use frame_system::{
 	Origin,
 };
 use hydradx_adapters::RelayChainBlockHashProvider;
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::NativePriceOracle;
@@ -91,7 +92,6 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding,
 };
-
 use sp_std::vec::Vec;
 use sp_std::{cmp::min, vec};
 
@@ -104,9 +104,8 @@ pub mod weights;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
-pub use pallet::*;
-
 use crate::types::*;
+pub use pallet::*;
 
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
@@ -121,6 +120,7 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
+	use hydradx_traits::fee::SwappablePaymentAssetTrader;
 	use hydradx_traits::{NativePriceOracle, PriceOracle};
 	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::Percent;
@@ -226,6 +226,9 @@ pub mod pallet {
 		///Relay chain block hash provider for randomness
 		type RelayChainBlockHashProvider: RelayChainBlockHashProvider;
 
+		/// Supporting swappable assets as fee currencies
+		type SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<Self::AccountId, Self::AssetId, Balance>;
+
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
 
@@ -281,6 +284,10 @@ pub mod pallet {
 		/// Native Asset Id
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::AssetId>;
+
+		/// Polkadot Native Asset Id (DOT)
+		#[pallet::constant]
+		type PolkadotNativeAssetId: Get<Self::AssetId>;
 
 		///Minimum budget to be able to schedule a DCA, specified in native currency
 		#[pallet::constant]
@@ -943,14 +950,36 @@ impl<T: Config> Pallet<T> {
 		let fee_currency = schedule.order.get_asset_in();
 		let fee_amount_in_sold_asset = Self::convert_weight_to_fee(weight_to_charge, fee_currency)?;
 
-		Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
+		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(fee_currency) {
+			Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
 
-		T::Currencies::transfer(
-			fee_currency,
-			&schedule.owner,
-			&T::FeeReceiver::get(),
-			fee_amount_in_sold_asset,
-		)?;
+			T::Currencies::transfer(
+				fee_currency,
+				&schedule.owner,
+				&T::FeeReceiver::get(),
+				fee_amount_in_sold_asset,
+			)?;
+		} else {
+			//We buy DOT with insufficient asset, for the treasury
+			//The DOT we need to buy is calculated the same way how we convert weight to insufficient fee
+			let pool_trade_fee = T::SwappablePaymentAssetSupport::calculate_fee_amount(fee_amount_in_sold_asset)?;
+
+			//Since there is a trade fee involved in xyk buy swap, we need to unallocate that, together with amount_in
+			let effective_amount_in = fee_amount_in_sold_asset
+				.checked_add(pool_trade_fee)
+				.ok_or(ArithmeticError::Overflow)?;
+			Self::unallocate_amount(schedule_id, schedule, effective_amount_in)?;
+
+			let fee_in_dot = Self::convert_to_polkadot_native_asset(Self::weight_to_fee(weight_to_charge))?;
+			T::SwappablePaymentAssetSupport::buy(
+				&schedule.owner.clone(),
+				fee_currency,
+				T::PolkadotNativeAssetId::get(),
+				fee_in_dot,
+				effective_amount_in,
+				&T::FeeReceiver::get(),
+			)?;
+		}
 
 		Ok(())
 	}
@@ -1079,27 +1108,65 @@ impl<T: Config> Pallet<T> {
 	fn get_trade_weight(order: &Order<T::AssetId>) -> Weight {
 		let route = &order.get_route_or_default::<T::RouteProvider>();
 		match order {
-			Order::Sell { .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade()
-				.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route)),
-			Order::Buy { .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade()
-				.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route)),
+			Order::Sell { .. } => {
+				let on_initialize_weight =
+					if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
+						<T as Config>::WeightInfo::on_initialize_with_sell_trade()
+					} else {
+						<T as Config>::WeightInfo::on_initialize_with_sell_trade_with_insufficient_fee_asset()
+					};
+
+				on_initialize_weight
+					.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route))
+			}
+			Order::Buy { .. } => {
+				let on_initialize_weight =
+					if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
+						<T as Config>::WeightInfo::on_initialize_with_buy_trade()
+					} else {
+						<T as Config>::WeightInfo::on_initialize_with_buy_trade_with_insufficient_fee_asset()
+					};
+
+				on_initialize_weight
+					.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route))
+			}
 		}
 	}
 
 	fn convert_native_amount_to_currency(
 		asset_id: T::AssetId,
-		asset_amount: Balance,
+		native_asset_amount: Balance,
 	) -> Result<Balance, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
-			asset_amount
-		} else {
+			native_asset_amount
+		} else if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(asset_id) {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 
-			multiply_by_rational_with_rounding(asset_amount, price.n, price.d, Rounding::Up)
+			multiply_by_rational_with_rounding(native_asset_amount, price.n, price.d, Rounding::Up)
 				.ok_or(ArithmeticError::Overflow)?
+		} else {
+			let fee_amount_in_dot = Self::convert_to_polkadot_native_asset(native_asset_amount)?;
+			T::SwappablePaymentAssetSupport::calculate_in_given_out(
+				asset_id,
+				T::PolkadotNativeAssetId::get(),
+				fee_amount_in_dot,
+			)?
 		};
 
 		Ok(amount)
+	}
+
+	fn convert_to_polkadot_native_asset(fee_amount_in_native: Balance) -> Result<Balance, DispatchError> {
+		let dot_per_hdx_price =
+			T::NativePriceOracle::price(T::PolkadotNativeAssetId::get()).ok_or(Error::<T>::CalculatingPriceError)?;
+
+		Ok(multiply_by_rational_with_rounding(
+			fee_amount_in_native,
+			dot_per_hdx_price.n,
+			dot_per_hdx_price.d,
+			Rounding::Up,
+		)
+		.ok_or(ArithmeticError::Overflow)?)
 	}
 
 	fn get_price_from_last_block_oracle(route: &[Trade<T::AssetId>]) -> Result<FixedU128, DispatchError> {

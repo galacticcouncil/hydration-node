@@ -14,12 +14,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#![allow(unused_assignments)] //We need this as benchmark does not recognize the assignment properly
 
 use super::*;
-use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, System};
+use crate::{
+	AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, RuntimeCall, System,
+	TreasuryAccount,
+};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
+use frame_support::dispatch::GetDispatchInfo;
 use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::RawOrigin;
 use hydradx_traits::evm::InspectEvmAccounts;
@@ -29,9 +34,11 @@ use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
+use pallet_transaction_payment::OnChargeTransaction;
 use primitives::{BlockNumber, Price};
 use sp_core::Get;
 use sp_runtime::traits::SaturatedConversion;
+use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidityError};
 use sp_runtime::FixedU128;
 
 type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
@@ -40,6 +47,7 @@ type Router<T> = pallet_route_executor::Pallet<T>;
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::Trade;
 use hydradx_traits::OraclePeriod;
+use pallet_transaction_multi_payment::{DepositAll, PaymentInfo, TransferFees};
 
 const SEED: u32 = 1;
 
@@ -75,10 +83,11 @@ runtime_benchmarks! {
 		let caller: AccountId = account("caller", 0, SEED);
 		let fallback_account: AccountId = account("fallback_account", 1, SEED);
 
-		let asset_id = register_asset(b"TST".to_vec(), 100u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_id = setup_insufficient_asset_with_dot().unwrap();
 
 		MultiPaymentPallet::<Runtime>::add_currency(RawOrigin::Root.into(), asset_id, Price::from(1)).map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
 
+		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(0, &caller, 100_000_000_000_000_i128)?;//Needed to prevent ED error
 		update_balance(asset_id, &caller,100_000_000_000_000);
 
 	}: { MultiPaymentPallet::<Runtime>::set_currency(RawOrigin::Signed(caller.clone()).into(), asset_id)? }
@@ -166,6 +175,31 @@ runtime_benchmarks! {
 	verify{
 		assert_eq!(MultiPaymentPallet::<Runtime>::get_currency(caller_evm_acc), Some(<Runtime as pallet_transaction_multi_payment::Config>::EvmAssetId::get()));
 	}
+
+	//Used for calculating multi payment overhead for BaseExtrinsicWeight
+	withdraw_fee {
+		let fee_asset = setup_insufficient_asset_with_dot()?;
+
+		let from: AccountId = account("from", 0, SEED);
+		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(0, &from, (10_000 * UNITS) as i128)?;
+		update_balance(fee_asset, &from, 1_000 * UNITS);
+
+		MultiTransactionPayment::set_currency(
+			RawOrigin::Signed(from.clone()).into(),
+			fee_asset
+		)?;
+	   let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+
+		let info = call.get_dispatch_info();
+		let fee= 295599811918u128;
+		let tip = 0;
+		let mut tx_result : Result<Option<PaymentInfo<Balance, pallet_transaction_multi_payment::AssetIdOf<Runtime>, Price>>, TransactionValidityError> = Err(TransactionValidityError::Invalid(InvalidTransaction::Payment));
+	}: {
+		tx_result = <TransferFees<Currencies, DepositAll<Runtime>, TreasuryAccount> as OnChargeTransaction<Runtime>>::withdraw_fee(&from, &call, &info, fee, tip);
+	}
+	verify {
+		assert!(tx_result.is_ok());
+	}
 }
 
 fn create_xyk_pool<T: pallet_xyk::Config>(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_b: Balance)
@@ -242,14 +276,26 @@ fn set_period(to: u32) {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::NativeExistentialDeposit;
 	use orml_benchmarking::impl_benchmark_test_suite;
 	use sp_runtime::BuildStorage;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::<crate::Runtime>::default()
+		let mut t = frame_system::GenesisConfig::<Runtime>::default()
 			.build_storage()
-			.unwrap()
-			.into()
+			.unwrap();
+
+		pallet_asset_registry::GenesisConfig::<crate::Runtime> {
+			registered_assets: vec![],
+			native_asset_name: b"HDX".to_vec().try_into().unwrap(),
+			native_existential_deposit: NativeExistentialDeposit::get(),
+			native_decimals: 12,
+			native_symbol: b"HDX".to_vec().try_into().unwrap(),
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		sp_io::TestExternalities::new(t)
 	}
 
 	impl_benchmark_test_suite!(new_test_ext(),);
