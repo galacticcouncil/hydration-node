@@ -181,6 +181,14 @@ pub mod pallet {
 			lrna_price_adjustment: FixedU128,
 		},
 
+		/// Global farm was updated
+		GlobalFarmUpdated {
+			id: GlobalFarmId,
+			planned_yielding_periods: PeriodOf<T>,
+			yield_per_period: Perquintill,
+			min_deposit: Balance,
+		},
+
 		/// Global farm was terminated.
 		GlobalFarmTerminated {
 			global_farm_id: GlobalFarmId,
@@ -875,6 +883,48 @@ pub mod pallet {
 
 				Self::deposit_event(Event::DepositDestroyed { who: owner, deposit_id });
 			}
+
+			Ok(())
+		}
+
+		/// This extrinsic updates global farm's main parameters.
+		///
+		/// The dispatch origin for this call must be `T::CreateOrigin`.
+		/// !!!WARN: `T::CreateOrigin` has power over funds of `owner`'s account and it should be
+		/// configured to trusted origin e.g Sudo or Governance.
+		///
+		/// Parameters:
+		/// - `origin`: account allowed to create new liquidity mining program(root, governance).
+		/// - `global_farm_id`: id of the global farm to update.
+		/// - `planned_yielding_periods`: planned number of periods to distribute `total_rewards`.
+		/// - `yield_per_period`: percentage return on `reward_currency` of all farms.
+		/// - `min_deposit`: minimum amount of LP shares to be deposited into the liquidity mining by each user.
+		///
+		/// Emits `GlobalFarmUpdated` event when successful.
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_global_farm())]
+		pub fn update_global_farm(
+			origin: OriginFor<T>,
+			global_farm_id: GlobalFarmId,
+			planned_yielding_periods: crate::PeriodOf<T>,
+			yield_per_period: Perquintill,
+			min_deposit: Balance,
+		) -> DispatchResult {
+			T::CreateOrigin::ensure_origin(origin)?;
+
+			T::LiquidityMiningHandler::update_global_farm(
+				global_farm_id,
+				planned_yielding_periods,
+				yield_per_period,
+				min_deposit,
+			)?;
+
+			Self::deposit_event(Event::GlobalFarmUpdated {
+				id: global_farm_id,
+				planned_yielding_periods,
+				yield_per_period,
+				min_deposit,
+			});
 
 			Ok(())
 		}

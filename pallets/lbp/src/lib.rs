@@ -28,6 +28,7 @@ use frame_support::sp_runtime::{
 	DispatchError, RuntimeDebug,
 };
 use frame_support::{
+	dispatch,
 	dispatch::DispatchResult,
 	ensure,
 	traits::{EnsureOrigin, Get, LockIdentifier},
@@ -1262,7 +1263,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 		}
 	}
 
-	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, BalanceOf<T>>) -> DispatchResult {
+	fn execute_buy(
+		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, BalanceOf<T>>,
+		_destination: Option<&T::AccountId>,
+	) -> dispatch::DispatchResult {
 		Self::execute_trade(transfer)?;
 
 		// TODO: Deprecated, remove when ready
