@@ -132,13 +132,13 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance, 
 		asset_out: T::AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
-		batch_id: Option<IncrementalIdType>,
+		event_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if pool_type != PoolType::Omnipool {
 			return Err(ExecutorError::NotSupported);
 		}
 
-		Self::do_sell(who, asset_in, asset_out, amount_in, min_limit, batch_id).map_err(ExecutorError::Error)
+		Self::do_sell(who, asset_in, asset_out, amount_in, min_limit, event_id).map_err(ExecutorError::Error)
 	}
 
 	fn execute_buy(
@@ -148,13 +148,13 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance, 
 		asset_out: T::AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
-		batch_id: Option<IncrementalIdType>,
+		event_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if pool_type != PoolType::Omnipool {
 			return Err(ExecutorError::NotSupported);
 		}
 
-		Self::do_buy(who, asset_out, asset_in, amount_out, max_limit, batch_id).map_err(ExecutorError::Error)
+		Self::do_buy(who, asset_out, asset_in, amount_out, max_limit, event_id).map_err(ExecutorError::Error)
 	}
 
 	fn get_liquidity_depth(

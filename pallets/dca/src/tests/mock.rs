@@ -448,7 +448,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId
 		asset_out: AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
-		_batch_id: Option<IncrementalId>,
+		_event_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::Omnipool) {
 			return Err(ExecutorError::NotSupported);
@@ -488,7 +488,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
-		_batch_id: Option<IncrementalId>,
+		_event_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::Omnipool) {
 			return Err(ExecutorError::NotSupported);
@@ -573,7 +573,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId
 		asset_out: AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
-		_batch_id: Option<IncrementalId>,
+		_event_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::XYK) {
 			return Err(ExecutorError::NotSupported);
@@ -606,7 +606,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
-		_batch_id: Option<IncrementalId>,
+		_event_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::XYK) {
 			return Err(ExecutorError::NotSupported);

@@ -383,7 +383,7 @@ macro_rules! impl_fake_executor {
 				asset_out: AssetId,
 				amount_in: Balance,
 				_min_limit: Balance,
-				_batch_id: Option<IncrementalId>,
+				_event_id: Option<IncrementalId>,
 			) -> Result<(), ExecutorError<Self::Error>> {
 				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
 				if !matches!(pool_type, $pool_type) {
@@ -422,7 +422,7 @@ macro_rules! impl_fake_executor {
 				asset_out: AssetId,
 				amount_out: Balance,
 				_max_limit: Balance,
-				_batch_id: Option<IncrementalId>,
+				_event_id: Option<IncrementalId>,
 			) -> Result<(), ExecutorError<Self::Error>> {
 				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
 

@@ -83,7 +83,7 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero, IncrementalId> {
 	/// Execute buy for given validated transfer.
 	fn execute_sell(
 		transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>,
-		batch_id: Option<IncrementalId>,
+		event_id: Option<IncrementalId>,
 	) -> dispatch::DispatchResult;
 
 	/// Perform asset swap.
@@ -94,11 +94,11 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero, IncrementalId> {
 		amount: Amount,
 		min_bought: Amount,
 		discount: bool,
-		batch_id: Option<IncrementalId>,
+		event_id: Option<IncrementalId>,
 	) -> dispatch::DispatchResult {
 		Self::execute_sell(
 			&Self::validate_sell(origin, assets, amount, min_bought, discount)?,
-			batch_id,
+			event_id,
 		)?;
 
 		Ok(())
@@ -118,7 +118,7 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero, IncrementalId> {
 	fn execute_buy(
 		transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>,
 		destination: Option<&AccountId>,
-		batch_id: Option<IncrementalId>,
+		event_id: Option<IncrementalId>,
 	) -> dispatch::DispatchResult;
 
 	/// Perform asset swap.
@@ -128,12 +128,12 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero, IncrementalId> {
 		amount: Amount,
 		max_limit: Amount,
 		discount: bool,
-		batch_id: Option<IncrementalId>,
+		event_id: Option<IncrementalId>,
 	) -> dispatch::DispatchResult {
 		Self::execute_buy(
 			&Self::validate_buy(origin, assets, amount, max_limit, discount)?,
 			None,
-			batch_id,
+			event_id,
 		)?;
 
 		Ok(())

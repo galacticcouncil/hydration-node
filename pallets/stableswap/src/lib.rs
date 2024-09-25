@@ -806,7 +806,7 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		amount_in: Balance,
 		min_buy_amount: Balance,
-		batch_id: Option<IncrementalIdType>,
+		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		let who = frame_system::ensure_signed(origin)?;
 
@@ -863,7 +863,7 @@ impl<T: Config> Pallet<T> {
 			amount_in,
 			amount_out,
 			vec![(asset_out.into(), fee_amount)],
-			batch_id,
+			event_id,
 		);
 
 		#[cfg(feature = "try-runtime")]
@@ -879,7 +879,7 @@ impl<T: Config> Pallet<T> {
 		asset_in: T::AssetId,
 		amount_out: Balance,
 		max_sell_amount: Balance,
-		batch_id: Option<IncrementalIdType>,
+		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		let who = ensure_signed(origin)?;
 
@@ -939,7 +939,7 @@ impl<T: Config> Pallet<T> {
 			amount_in,
 			amount_out,
 			vec![(asset_in.into(), fee_amount)],
-			batch_id,
+			event_id,
 		);
 
 		#[cfg(feature = "try-runtime")]

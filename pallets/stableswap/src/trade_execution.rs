@@ -143,7 +143,7 @@ where
 		asset_out: T::AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
-		batch_id: Option<IncrementalIdType>,
+		event_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
@@ -161,7 +161,7 @@ where
 					)
 					.map_err(ExecutorError::Error)
 				} else {
-					Self::do_sell(who, pool_id, asset_in, asset_out, amount_in, min_limit, batch_id)
+					Self::do_sell(who, pool_id, asset_in, asset_out, amount_in, min_limit, event_id)
 						.map_err(ExecutorError::Error)
 				}
 			}
@@ -176,7 +176,7 @@ where
 		asset_out: T::AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
-		batch_id: Option<IncrementalIdType>,
+		event_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
@@ -187,7 +187,7 @@ where
 					Self::withdraw_asset_amount(who, pool_id, asset_out, amount_out, max_limit)
 						.map_err(ExecutorError::Error)
 				} else {
-					Self::do_buy(who, pool_id, asset_out, asset_in, amount_out, max_limit, batch_id)
+					Self::do_buy(who, pool_id, asset_out, asset_in, amount_out, max_limit, event_id)
 						.map_err(ExecutorError::Error)
 				}
 			}

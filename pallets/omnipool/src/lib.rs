@@ -1491,7 +1491,7 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		amount: Balance,
 		min_buy_amount: Balance,
-		batch_id: Option<IncrementalIdType>,
+		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		let who = frame_system::ensure_signed(origin.clone())?;
 
@@ -1680,7 +1680,7 @@ impl<T: Config> Pallet<T> {
 			amount,
 			*state_changes.asset_out.delta_reserve,
 			vec![], // TODO
-			batch_id,
+			event_id,
 		);
 
 		#[cfg(feature = "try-runtime")]
@@ -1698,7 +1698,7 @@ impl<T: Config> Pallet<T> {
 		asset_in: T::AssetId,
 		amount: Balance,
 		max_sell_amount: Balance,
-		batch_id: Option<IncrementalIdType>,
+		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		let who = ensure_signed(origin.clone())?;
 
@@ -1881,7 +1881,7 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset_in.delta_reserve,
 			*state_changes.asset_out.delta_reserve,
 			vec![], // TODO
-			batch_id,
+			event_id,
 		);
 
 		#[cfg(feature = "try-runtime")]

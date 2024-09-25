@@ -210,14 +210,14 @@ impl AMM<AccountId, AssetId, AssetPair, Balance, IncrementalId> for Amm {
 	fn execute_buy(
 		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, u128>,
 		_destination: Option<&AccountId>,
-		_batch_id: Option<IncrementalId>,
+		_event_id: Option<IncrementalId>,
 	) -> dispatch::DispatchResult {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}
 
 	fn execute_sell(
 		_transfer: &hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-		_batch_id: Option<IncrementalId>,
+		_event_id: Option<IncrementalId>,
 	) -> frame_support::dispatch::DispatchResult {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}

@@ -63,7 +63,7 @@ pub mod pallet {
 			amount_in: Balance,
 			amount_out: Balance,
 			fees: Vec<(AssetId, Balance)>,
-			batch_id: Option<u32>,
+			event_id: Option<u32>,
 		},
 	}
 
@@ -88,7 +88,7 @@ impl<T: Config> Pallet<T> {
 		amount_in: Balance,
 		amount_out: Balance,
 		fees: Vec<(AssetId, Balance)>,
-		batch_id: Option<u32>,
+		event_id: Option<u32>,
 	) {
 		Self::deposit_event(Event::<T>::Swapped {
 			who,
@@ -99,7 +99,7 @@ impl<T: Config> Pallet<T> {
 			amount_in,
 			amount_out,
 			fees,
-			batch_id,
+			event_id: event_id,
 		});
 	}
 }

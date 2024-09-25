@@ -112,7 +112,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance,
 		asset_out: AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
-		batch_id: Option<IncrementalIdType>,
+		event_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if pool_type != PoolType::LBP {
 			return Err(ExecutorError::NotSupported);
@@ -126,7 +126,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance,
 			amount_in,
 			min_limit,
 			false,
-			batch_id,
+			event_id,
 		)
 		.map_err(ExecutorError::Error)?;
 
@@ -140,7 +140,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance,
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
-		batch_id: Option<IncrementalIdType>,
+		event_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if pool_type != PoolType::LBP {
 			return Err(ExecutorError::NotSupported);
@@ -154,7 +154,7 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance,
 			amount_out,
 			max_limit,
 			false,
-			batch_id,
+			event_id,
 		)
 		.map_err(ExecutorError::Error)?;
 

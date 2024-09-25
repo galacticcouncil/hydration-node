@@ -258,7 +258,7 @@ pub mod pallet {
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
 			let route_length = route.len();
-			let next_batch_id = T::BatchIdProvider::next_id();
+			let next_event_id = T::BatchIdProvider::next_id();
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 				let user_balance_of_asset_out_before_trade =
@@ -270,7 +270,7 @@ pub mod pallet {
 					trade.asset_out,
 					trade_amount.amount_out,
 					trade_amount.amount_in,
-					Some(next_batch_id),
+					Some(next_event_id),
 				);
 
 				handle_execution_error!(execution_result);
@@ -490,7 +490,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let route_length = route.len();
-		let next_batch_id = T::BatchIdProvider::next_id();
+		let next_event_id = T::BatchIdProvider::next_id();
 		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
 			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 
@@ -504,7 +504,7 @@ impl<T: Config> Pallet<T> {
 				trade.asset_out,
 				trade_amount.amount_in,
 				trade_amount.amount_out,
-				Some(next_batch_id),
+				Some(next_event_id),
 			);
 
 			handle_execution_error!(execution_result);
