@@ -86,7 +86,7 @@ frame_support::construct_runtime!(
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
 		CircuitBreaker: pallet_circuit_breaker,
-		TradeEvent: pallet_trade_event,
+		TradeEvent: pallet_amm_support,
 	}
 );
 
@@ -227,7 +227,7 @@ impl pallet_omnipool::Config for Test {
 	type Fee = FeeProvider;
 }
 
-impl pallet_trade_event::Config for Test {
+impl pallet_amm_support::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 

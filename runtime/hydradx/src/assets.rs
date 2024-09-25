@@ -1584,7 +1584,7 @@ impl pallet_referrals::Config for Runtime {
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
-impl pallet_trade_event::Config for Runtime {
+impl pallet_amm_support::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 }
 

@@ -185,7 +185,7 @@ construct_runtime!(
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
-		TradeEvent: pallet_trade_event = 76,
+		TradeEvent: pallet_amm_support = 76,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

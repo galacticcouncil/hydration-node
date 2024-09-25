@@ -41,7 +41,7 @@ use sp_std::{vec, vec::Vec};
 use crate::types::{Amount, AssetId, AssetPair, Balance};
 use hydra_dx_math::ratio::Ratio;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use pallet_trade_event::IncrementalIdType;
+use pallet_amm_support::IncrementalIdType;
 
 #[cfg(test)]
 mod tests;
@@ -76,7 +76,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_trade_event::Config {
+	pub trait Config: frame_system::Config + pallet_amm_support::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Registry support
@@ -250,7 +250,7 @@ pub mod pallet {
 		},
 
 		/// Asset sale executed.
-		/// Deprecated. Replaced by pallet_trade_event::Swapped
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: AssetId,
@@ -263,7 +263,7 @@ pub mod pallet {
 		},
 
 		/// Asset purchase executed.
-		/// Deprecated. Replaced by pallet_trade_event::Swapped
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			asset_out: AssetId,
@@ -631,7 +631,7 @@ pub mod pallet {
 		/// `max_limit` - minimum amount of `asset_out` / amount of asset_out to be obtained from the pool in exchange for `asset_in`.
 		///
 		/// Emits `SellExecuted` when successful. Deprecated.
-		/// Emits `pallet_trade_event::Swapped` when successful.
+		/// Emits `pallet_amm_support::Swapped` when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell() + <T as Config>::AMMHandler::on_trade_weight())]
 		pub fn sell(
@@ -662,7 +662,7 @@ pub mod pallet {
 		///
 		/// `max_limit` - maximum amount of `asset_in` to be sold in exchange for `asset_out`.
 		/// Emits `BuyExecuted` when successful. Deprecated.
-		/// Emits `pallet_trade_event::Swapped` when successful.
+		/// Emits `pallet_amm_support::Swapped` when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy() + <T as Config>::AMMHandler::on_trade_weight())]
 		pub fn buy(
@@ -922,10 +922,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance, IncrementalIdType
 			pool: pair_account,
 		});
 
-		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
-			pallet_trade_event::PoolType::XYK,
-			pallet_trade_event::TradeOperation::Sell,
+			pallet_amm_support::PoolType::XYK,
+			pallet_amm_support::TradeOperation::Sell,
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
 			transfer.amount,
@@ -1101,10 +1101,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance, IncrementalIdType
 			pool: pair_account,
 		});
 
-		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
-			pallet_trade_event::PoolType::XYK,
-			pallet_trade_event::TradeOperation::Buy,
+			pallet_amm_support::PoolType::XYK,
+			pallet_amm_support::TradeOperation::Buy,
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
 			transfer.amount,

@@ -81,7 +81,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_trade_event::Config {
+	pub trait Config: frame_system::Config + pallet_amm_support::Config {
 		/// Identifier for the class of asset.
 		type AssetId: Member + Parameter + Copy + HasCompact + MaybeSerializeDeserialize + MaxEncodedLen + Into<u32>;
 
@@ -124,7 +124,7 @@ pub mod pallet {
 		/// An Order has been cancelled
 		Cancelled { order_id: OrderId },
 		/// An Order has been completely filled
-		/// Deprecated. Replaced by pallet_trade_event::Swapped
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		Filled {
 			order_id: OrderId,
 			who: T::AccountId,
@@ -133,7 +133,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// An Order has been partially filled
-		/// Deprecated. Replaced by pallet_trade_event::Swapped
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		PartiallyFilled {
 			order_id: OrderId,
 			who: T::AccountId,
@@ -269,7 +269,7 @@ pub mod pallet {
 		///
 		/// Events:
 		/// `PartiallyFilled` event when successful. Deprecated.
-		/// `pallet_trade_event::Swapped` event when successful.
+		/// `pallet_amm_support::Swapped` event when successful.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::partial_fill_order())]
 		pub fn partial_fill_order(origin: OriginFor<T>, order_id: OrderId, amount_in: Balance) -> DispatchResult {
@@ -308,10 +308,10 @@ pub mod pallet {
 					fee,
 				});
 
-				pallet_trade_event::Pallet::<T>::deposit_trade_event(
+				pallet_amm_support::Pallet::<T>::deposit_trade_event(
 					who,
-					pallet_trade_event::PoolType::OTC(order_id),
-					pallet_trade_event::TradeOperation::Sell,
+					pallet_amm_support::PoolType::OTC(order_id),
+					pallet_amm_support::TradeOperation::Sell,
 					order.asset_in.into(),
 					order.asset_out.into(),
 					order.amount_in,
@@ -331,7 +331,7 @@ pub mod pallet {
 		///
 		/// Events:
 		/// `Filled` event when successful. Deprecated.
-		/// `pallet_trade_event::Swapped` event when successful.
+		/// `pallet_amm_support::Swapped` event when successful.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::fill_order())]
 		pub fn fill_order(origin: OriginFor<T>, order_id: OrderId) -> DispatchResult {
@@ -352,10 +352,10 @@ pub mod pallet {
 				fee,
 			});
 
-			pallet_trade_event::Pallet::<T>::deposit_trade_event(
+			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,
-				pallet_trade_event::PoolType::OTC(order_id),
-				pallet_trade_event::TradeOperation::Sell,
+				pallet_amm_support::PoolType::OTC(order_id),
+				pallet_amm_support::TradeOperation::Sell,
 				order.asset_in.into(),
 				order.asset_out.into(),
 				order.amount_in,

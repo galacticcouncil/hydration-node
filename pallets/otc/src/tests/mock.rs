@@ -57,7 +57,7 @@ frame_support::construct_runtime!(
 		 System: frame_system,
 		 OTC: otc,
 		 Tokens: orml_tokens,
-		 TradeEvent: pallet_trade_event,
+		 TradeEvent: pallet_amm_support,
 	 }
 );
 
@@ -140,7 +140,7 @@ impl orml_tokens::Config for Test {
 	type CurrencyHooks = ();
 }
 
-impl pallet_trade_event::Config for Test {
+impl pallet_amm_support::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 

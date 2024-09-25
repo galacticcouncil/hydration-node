@@ -23,7 +23,7 @@ serde = { features = ["derive"], optional = true, version = "1.0.136" }
 # HydraDX dependencies
 hydra-dx-math = { workspace = true }
 hydradx-traits = { workspace = true }
-pallet-trade-event = { workspace = true }
+pallet-amm-support = { workspace = true }
 
 ## ORML dependencies
 orml-traits = { workspace = true }
@@ -67,6 +67,6 @@ std = [
     'frame-benchmarking/std',
     "scale-info/std",
     "hydra-dx-math/std",
-    "pallet-trade-event/std",
+    "pallet-amm-support/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

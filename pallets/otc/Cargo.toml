@@ -14,7 +14,7 @@ scale-info = { version = "2.1.2", default-features = false, features = ["derive"
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
-pallet-trade-event = { workspace = true }
+pallet-amm-support = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -54,7 +54,7 @@ std = [
   'orml-traits/std',
   'hydradx-traits/std',
   'frame-benchmarking/std',
-  "pallet-trade-event/std",
+  "pallet-amm-support/std",
 ]
 
 runtime-benchmarks = [

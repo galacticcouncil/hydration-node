@@ -5,7 +5,7 @@ use hydra_dx_math::omnipool::types::I129;
 
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::{GetByKey, MultiCurrency};
-use pallet_trade_event::IncrementalIdType;
+use pallet_amm_support::IncrementalIdType;
 use sp_runtime::traits::Get;
 use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};

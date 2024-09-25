@@ -1,12 +1,12 @@
 [package]
-name = "pallet-trade-event"
+name = "pallet-amm-support"
 version = "1.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
 homepage = 'https://github.com/galacticcouncil/hydration-node'
 repository = 'https://github.com/galacticcouncil/hydration-node'
-description = "Trade event pallet provides unified event for AMMs"
+description = "Support for AMMs"
 readme = "README.md"
 
 [dependencies]

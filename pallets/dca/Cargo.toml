@@ -52,7 +52,7 @@ primitives = { path = "../../primitives", default-features = false }
 pallet-route-executor = { workspace = true }
 smallvec = "1.9.0"
 pallet-balances = { workspace = true }
-pallet-trade-event = { workspace = true }
+pallet-amm-support = { workspace = true }
 pallet-currencies = { workspace = true }
 lazy_static = { features = ["spin_no_std"], version = "1.4.0", default-features = false }
 sp-api = { workspace = true }

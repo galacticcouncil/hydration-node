@@ -75,7 +75,7 @@ use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, T
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
-use pallet_trade_event::IncrementalIdType;
+use pallet_amm_support::IncrementalIdType;
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
 
@@ -113,7 +113,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_trade_event::Config {
+	pub trait Config: frame_system::Config + pallet_amm_support::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -208,7 +208,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// Sell trade executed. Trade fee paid in asset leaving the pool (already subtracted from amount_out).
-		/// Deprecated. Replaced by pallet_trade_event::Swapped
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			pool_id: T::AssetId,
@@ -219,7 +219,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// Buy trade executed. Trade fee paid in asset entering the pool (already included in amount_in).
-		/// Deprecated. Replaced by pallet_trade_event::Swapped
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			pool_id: T::AssetId,
@@ -716,7 +716,7 @@ pub mod pallet {
 		/// - `min_buy_amount`: Minimum amount required to receive
 		///
 		/// Emits `SellExecuted` event when successful. Deprecated.
-		/// Emits `pallet_trade_event::Swapped` event when successful.
+		/// Emits `pallet_amm_support::Swapped` event when successful.
 		///
 		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell()
@@ -744,7 +744,7 @@ pub mod pallet {
 		/// - `max_sell_amount`: Maximum amount allowed to be sold
 		///
 		/// Emits `BuyExecuted` event when successful. Deprecated.
-		/// Emits `pallet_trade_event::Swapped` event when successful.
+		/// Emits `pallet_amm_support::Swapped` event when successful.
 		///
 		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy()
@@ -854,10 +854,10 @@ impl<T: Config> Pallet<T> {
 			fee: fee_amount,
 		});
 
-		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who,
-			pallet_trade_event::PoolType::Stableswap(pool_id.into()),
-			pallet_trade_event::TradeOperation::Sell,
+			pallet_amm_support::PoolType::Stableswap(pool_id.into()),
+			pallet_amm_support::TradeOperation::Sell,
 			asset_in.into(),
 			asset_out.into(),
 			amount_in,
@@ -930,10 +930,10 @@ impl<T: Config> Pallet<T> {
 			fee: fee_amount,
 		});
 
-		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who,
-			pallet_trade_event::PoolType::Stableswap(pool_id.into()),
-			pallet_trade_event::TradeOperation::Buy,
+			pallet_amm_support::PoolType::Stableswap(pool_id.into()),
+			pallet_amm_support::TradeOperation::Buy,
 			asset_in.into(),
 			asset_out.into(),
 			amount_in,

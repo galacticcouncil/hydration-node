@@ -20,7 +20,7 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
-pallet-trade-event = { workspace = true }
+pallet-amm-support = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -69,7 +69,7 @@ std = [
 	"pallet-balances/std",
 	"orml-tokens/std",
 	"frame-benchmarking/std",
-	"pallet-trade-event/std",
+	"pallet-amm-support/std",
 	'hydradx-traits/std',
 	'hydra-dx-math/std',
 	'orml-traits/std',

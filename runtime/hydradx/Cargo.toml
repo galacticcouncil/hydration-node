@@ -38,7 +38,7 @@ pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
-pallet-trade-event = { workspace = true }
+pallet-amm-support = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
@@ -324,7 +324,7 @@ std = [
     "parachains-common/std",
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",
-    "pallet-trade-event/std",
+    "pallet-amm-support/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -396,7 +396,7 @@ try-runtime = [
     "pallet-xyk-liquidity-mining/try-runtime",
     "pallet-message-queue/try-runtime",
     "pallet-state-trie-migration/try-runtime",
-    "pallet-trade-event/try-runtime",
+    "pallet-amm-support/try-runtime",
 ]
 
 metadata-hash = [

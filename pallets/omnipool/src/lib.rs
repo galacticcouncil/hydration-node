@@ -115,7 +115,7 @@ pub mod weights;
 use crate::traits::{AssetInfo, OmnipoolHooks};
 use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbalance, Tradability};
 pub use pallet::*;
-use pallet_trade_event::IncrementalIdType;
+use pallet_amm_support::IncrementalIdType;
 pub use weights::WeightInfo;
 
 /// NFT class id type of provided nft implementation
@@ -140,7 +140,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_trade_event::Config {
+	pub trait Config: frame_system::Config + pallet_amm_support::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -304,7 +304,7 @@ pub mod pallet {
 			shares_removed: Balance,
 		},
 		/// Sell trade executed.
-		/// Deprecated. Replaced by pallet_trade_event::Swapped
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -317,7 +317,7 @@ pub mod pallet {
 			protocol_fee_amount: Balance,
 		},
 		/// Buy trade executed.
-		/// Deprecated. Replaced by pallet_trade_event::Swapped
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -1028,7 +1028,7 @@ pub mod pallet {
 		/// - `min_buy_amount`: Minimum amount required to receive
 		///
 		/// Emits `SellExecuted` event when successful. Deprecated.
-		/// Emits `pallet_trade_event::Swapped` event when successful.
+		/// Emits `pallet_amm_support::Swapped` event when successful.
 		///
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell()
@@ -1061,7 +1061,7 @@ pub mod pallet {
 		/// - `max_sell_amount`: Maximum amount to be sold.
 		///
 		/// Emits `BuyExecuted` event when successful. Deprecated.
-		/// Emits `pallet_trade_event::Swapped` event when successful.
+		/// Emits `pallet_amm_support::Swapped` event when successful.
 		///
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy()
@@ -1671,10 +1671,10 @@ impl<T: Config> Pallet<T> {
 			hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
 		});
 
-		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
-			pallet_trade_event::PoolType::Omnipool,
-			pallet_trade_event::TradeOperation::Sell,
+			pallet_amm_support::PoolType::Omnipool,
+			pallet_amm_support::TradeOperation::Sell,
 			asset_in.into(),
 			asset_out.into(),
 			amount,
@@ -1872,10 +1872,10 @@ impl<T: Config> Pallet<T> {
 			hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
 		});
 
-		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
-			pallet_trade_event::PoolType::Omnipool,
-			pallet_trade_event::TradeOperation::Buy,
+			pallet_amm_support::PoolType::Omnipool,
+			pallet_amm_support::TradeOperation::Buy,
 			asset_in.into(),
 			asset_out.into(),
 			*state_changes.asset_in.delta_reserve,
@@ -1996,10 +1996,10 @@ impl<T: Config> Pallet<T> {
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
-		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
-			pallet_trade_event::PoolType::Omnipool,
-			pallet_trade_event::TradeOperation::Sell,
+			pallet_amm_support::PoolType::Omnipool,
+			pallet_amm_support::TradeOperation::Sell,
 			T::HubAssetId::get().into(),
 			asset_out.into(),
 			*state_changes.asset.delta_hub_reserve,
@@ -2116,10 +2116,10 @@ impl<T: Config> Pallet<T> {
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
-		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
-			pallet_trade_event::PoolType::Omnipool,
-			pallet_trade_event::TradeOperation::Buy,
+			pallet_amm_support::PoolType::Omnipool,
+			pallet_amm_support::TradeOperation::Buy,
 			T::HubAssetId::get().into(),
 			asset_out.into(),
 			*state_changes.asset.delta_hub_reserve,

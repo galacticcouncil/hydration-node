@@ -5,7 +5,7 @@ use frame_support::traits::Get;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use pallet_trade_event::IncrementalIdType;
+use pallet_amm_support::IncrementalIdType;
 use sp_runtime::DispatchError::Corruption;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 

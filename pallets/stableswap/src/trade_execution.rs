@@ -3,7 +3,7 @@ use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
-use pallet_trade_event::IncrementalIdType;
+use pallet_amm_support::IncrementalIdType;
 use sp_core::Get;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
 use sp_std::vec;

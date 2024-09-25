@@ -39,7 +39,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
 use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
-use pallet_trade_event::IncrementalIdType;
+use pallet_amm_support::IncrementalIdType;
 
 use scale_info::TypeInfo;
 
@@ -185,7 +185,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_trade_event::Config {
+	pub trait Config: frame_system::Config + pallet_amm_support::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Multi currency for transfer of currencies
@@ -343,7 +343,7 @@ pub mod pallet {
 		},
 
 		/// Sale executed.
-		/// Deprecated. Replaced by pallet_trade_event::Swapped
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: AssetId,
@@ -355,7 +355,7 @@ pub mod pallet {
 		},
 
 		/// Purchase executed.
-		/// Deprecated. Replaced by pallet_trade_event::Swapped
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			asset_out: AssetId,
@@ -722,7 +722,7 @@ pub mod pallet {
 		/// - `max_limit`: minimum amount of `asset_out` / amount of asset_out to be obtained from the pool in exchange for `asset_in`.
 		///
 		/// Emits `SellExecuted` when successful. Deprecated.
-		/// Emits `pallet_trade_event::Swapped` when successful.
+		/// Emits `pallet_amm_support::Swapped` when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		pub fn sell(
@@ -760,7 +760,7 @@ pub mod pallet {
 		/// - `max_limit`: maximum amount of `asset_in` to be sold in exchange for `asset_out`.
 		///
 		/// Emits `BuyExecuted` when successful. Deprecated.
-		/// Emits `pallet_trade_event::Swapped` when successful.
+		/// Emits `pallet_amm_support::Swapped` when successful.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		pub fn buy(
@@ -1128,10 +1128,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 			fee_amount: transfer.fee.1,
 		});
 
-		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
-			pallet_trade_event::PoolType::LBP,
-			pallet_trade_event::TradeOperation::Sell,
+			pallet_amm_support::PoolType::LBP,
+			pallet_amm_support::TradeOperation::Sell,
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
 			transfer.amount,
@@ -1279,10 +1279,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 			fee_amount: transfer.fee.1,
 		});
 
-		pallet_trade_event::Pallet::<T>::deposit_trade_event(
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
-			pallet_trade_event::PoolType::LBP,
-			pallet_trade_event::TradeOperation::Buy,
+			pallet_amm_support::PoolType::LBP,
+			pallet_amm_support::TradeOperation::Buy,
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
 			transfer.amount,

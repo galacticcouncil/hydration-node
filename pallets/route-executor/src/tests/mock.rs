@@ -51,7 +51,7 @@ frame_support::construct_runtime!(
 		 Tokens: orml_tokens,
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
-		 TradeEvent: pallet_trade_event,
+		 TradeEvent: pallet_amm_support,
 	 }
 );
 
@@ -138,7 +138,7 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_trade_event::Config for Test {
+impl pallet_amm_support::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 
