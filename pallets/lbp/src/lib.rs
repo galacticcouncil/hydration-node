@@ -38,8 +38,8 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
 use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
-use pallet_trade_event::IncrementalIdType;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
+use pallet_trade_event::IncrementalIdType;
 
 use scale_info::TypeInfo;
 
@@ -943,9 +943,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalIdType>
-	for Pallet<T>
-{
+impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalIdType> for Pallet<T> {
 	fn exists(assets: AssetPair) -> bool {
 		let pair_account = Self::pair_account_from_assets(assets.asset_in, assets.asset_out);
 		<PoolData<T>>::contains_key(&pair_account)

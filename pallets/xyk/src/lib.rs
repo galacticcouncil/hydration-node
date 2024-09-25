@@ -40,8 +40,8 @@ use sp_std::{vec, vec::Vec};
 
 use crate::types::{Amount, AssetId, AssetPair, Balance};
 use hydra_dx_math::ratio::Ratio;
-use pallet_trade_event::IncrementalIdType;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use pallet_trade_event::IncrementalIdType;
 
 #[cfg(test)]
 mod tests;
