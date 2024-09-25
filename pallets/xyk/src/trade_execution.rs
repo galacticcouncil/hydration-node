@@ -120,7 +120,6 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance,
 		.map_err(ExecutorError::Error)?;
 
 		Ok(())
-		// Self::sell(who, asset_in, asset_out, amount_in, min_limit, false).map_err(ExecutorError::Error)
 	}
 
 	fn execute_buy(
@@ -130,12 +129,25 @@ impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance,
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
+		batch_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if pool_type != PoolType::XYK {
 			return Err(ExecutorError::NotSupported);
 		}
 
-		Self::buy(who, asset_out, asset_in, amount_out, max_limit, false).map_err(ExecutorError::Error)
+		let who = crate::ensure_signed(who).map_err(|e| ExecutorError::Error(e.into()))?;
+
+		<Self as AMM<_, _, _, _, _>>::buy(
+			&who,
+			AssetPair { asset_in, asset_out },
+			amount_out,
+			max_limit,
+			false,
+			batch_id,
+		)
+		.map_err(ExecutorError::Error)?;
+
+		Ok(())
 	}
 
 	fn get_liquidity_depth(

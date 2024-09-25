@@ -23,6 +23,7 @@ use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
 use frame_support::PalletId;
+use primitives::IncrementalId;
 
 use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
@@ -79,6 +80,7 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 EmaOracle: pallet_ema_oracle,
+		 TradeEvent: pallet_trade_event,
 	 }
 );
 
@@ -350,6 +352,10 @@ parameter_types! {
 
 }
 
+impl pallet_trade_event::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 type Pools = (OmniPool, Xyk);
 
 impl pallet_route_executor::Config for Test {
@@ -361,11 +367,12 @@ impl pallet_route_executor::Config for Test {
 	type AMM = Pools;
 	type InspectRegistry = DummyRegistry<Test>;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
-	type WeightInfo = ();
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
+	type BatchIdProvider = TradeEvent;
+	type WeightInfo = ();
 }
 
 pub struct MockedEdCalculator;
@@ -396,7 +403,7 @@ pub const CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY: Balance = 10 * ONE;
 pub struct OmniPool;
 pub struct Xyk;
 
-impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool {
+impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId> for OmniPool {
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -441,6 +448,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		asset_out: AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
+		_batch_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::Omnipool) {
 			return Err(ExecutorError::NotSupported);
@@ -480,6 +488,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
+		_batch_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::Omnipool) {
 			return Err(ExecutorError::NotSupported);
@@ -528,7 +537,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 pub const XYK_SELL_CALCULATION_RESULT: Balance = ONE * 5 / 4;
 pub const XYK_BUY_CALCULATION_RESULT: Balance = ONE / 3;
 
-impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
+impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId> for Xyk {
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -564,6 +573,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 		asset_out: AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
+		_batch_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::XYK) {
 			return Err(ExecutorError::NotSupported);
@@ -596,6 +606,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
+		_batch_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::XYK) {
 			return Err(ExecutorError::NotSupported);

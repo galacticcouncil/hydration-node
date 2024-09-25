@@ -101,6 +101,7 @@ construct_runtime!(
 		RouteExecutor: pallet_route_executor,
 		Currencies: pallet_currencies,
 		XYK: pallet_xyk,
+		TradeEvent: pallet_trade_event,
 	}
 );
 
@@ -257,6 +258,10 @@ impl pallet_xyk::Config for Test {
 	type NonDustableWhitelistHandler = DummyDuster;
 }
 
+impl pallet_trade_event::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 pub struct Whitelist;
 
 impl Contains<AccountId> for Whitelist {
@@ -335,6 +340,7 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePeriod = RouteValidationOraclePeriod;
+	type BatchIdProvider = TradeEvent;
 	type WeightInfo = ();
 }
 

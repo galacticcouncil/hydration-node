@@ -74,6 +74,7 @@ frame_support::construct_runtime!(
 		 Omnipool: pallet_omnipool,
 		 Router: pallet_route_executor,
 		 OtcSettlements: pallet_otc_settlements,
+		 TradeEvent: pallet_trade_event,
 	 }
 );
 
@@ -156,6 +157,7 @@ impl pallet_route_executor::Config for Test {
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type BatchIdProvider = TradeEvent;
 	type WeightInfo = ();
 }
 
@@ -249,6 +251,10 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type GetNativeCurrencyId = HDXAssetId;
 	type WeightInfo = ();
+}
+
+impl pallet_trade_event::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 parameter_types! {

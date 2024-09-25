@@ -34,6 +34,7 @@ test-utils = { workspace = true }
 sp-io = { workspace = true }
 sp-core = { workspace = true }
 orml-tokens = { workspace = true }
+primitives = { workspace = true }
 pallet-balances = { workspace = true }
 # This can be updated to lates after rust update(>=1.61)
 fixed = { version = "=1.15.0", default-features = false }

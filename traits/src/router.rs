@@ -184,6 +184,7 @@ pub trait TradeExecution<Origin, AccountId, AssetId, Balance, IncrementalId> {
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
+		batch_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>>;
 
 	fn get_liquidity_depth(
@@ -271,10 +272,11 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy, Incre
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
+		batch_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		for_tuples!(
 			#(
-				let value = match Tuple::execute_buy(who.clone(), pool_type,asset_in, asset_out, amount_out, max_limit) {
+				let value = match Tuple::execute_buy(who.clone(), pool_type,asset_in, asset_out, amount_out, max_limit, batch_id) {
 					Ok(result) => return Ok(result),
 					Err(v) if v == ExecutorError::NotSupported => v,
 					Err(v) => return Err(v),

@@ -86,6 +86,7 @@ frame_support::construct_runtime!(
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
 		CircuitBreaker: pallet_circuit_breaker,
+		TradeEvent: pallet_trade_event,
 	}
 );
 
@@ -224,6 +225,10 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+}
+
+impl pallet_trade_event::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);

@@ -31,7 +31,7 @@ use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMPosition, AMMTransfe
 use orml_traits::parameter_type_with_key;
 use pallet_liquidity_mining::{FarmMultiplier, YieldFarmId};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
-use primitives::{Amount, ItemId};
+use primitives::{Amount, IncrementalId, ItemId};
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
@@ -198,7 +198,7 @@ pub struct DummyFarmEntry {
 
 pub struct DummyAMM;
 
-impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
+impl AMM<AccountId, AssetId, AssetPair, Balance, IncrementalId> for DummyAMM {
 	fn get_max_out_ratio() -> u128 {
 		0_u32.into()
 	}
@@ -238,12 +238,14 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
 	fn execute_buy(
 		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, u128>,
 		_destination: Option<&AccountId>,
+		_batch_id: Option<IncrementalId>,
 	) -> dispatch::DispatchResult {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}
 
 	fn execute_sell(
 		_transfer: &hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
+		_batch_id: Option<IncrementalId>,
 	) -> frame_support::dispatch::DispatchResult {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}

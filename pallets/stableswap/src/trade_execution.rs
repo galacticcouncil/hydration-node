@@ -176,6 +176,7 @@ where
 		asset_out: T::AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
+		batch_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
@@ -186,7 +187,8 @@ where
 					Self::withdraw_asset_amount(who, pool_id, asset_out, amount_out, max_limit)
 						.map_err(ExecutorError::Error)
 				} else {
-					Self::buy(who, pool_id, asset_out, asset_in, amount_out, max_limit).map_err(ExecutorError::Error)
+					Self::do_buy(who, pool_id, asset_out, asset_in, amount_out, max_limit, batch_id)
+						.map_err(ExecutorError::Error)
 				}
 			}
 			_ => Err(ExecutorError::NotSupported),

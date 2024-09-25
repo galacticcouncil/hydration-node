@@ -28,6 +28,7 @@ use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, TradeE
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pretty_assertions::assert_eq;
+use primitives::IncrementalId;
 use sp_core::H256;
 use sp_runtime::FixedU128;
 use sp_runtime::{
@@ -50,6 +51,7 @@ frame_support::construct_runtime!(
 		 Tokens: orml_tokens,
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
+		 TradeEvent: pallet_trade_event,
 	 }
 );
 
@@ -136,6 +138,10 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
+impl pallet_trade_event::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 type Pools = (XYK, StableSwap, OmniPool, LBP);
 
 parameter_types! {
@@ -158,6 +164,7 @@ impl Config for Test {
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type BatchIdProvider = TradeEvent;
 	type WeightInfo = ();
 }
 
@@ -332,7 +339,7 @@ type OriginForRuntime = OriginFor<Test>;
 
 macro_rules! impl_fake_executor {
 	($pool_struct:ident, $pool_type: pat, $sell_calculation_result: expr, $buy_calculation_result: expr) => {
-		impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for $pool_struct {
+		impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId> for $pool_struct {
 			type Error = DispatchError;
 
 			fn calculate_sell(
@@ -376,6 +383,7 @@ macro_rules! impl_fake_executor {
 				asset_out: AssetId,
 				amount_in: Balance,
 				_min_limit: Balance,
+				_batch_id: Option<IncrementalId>,
 			) -> Result<(), ExecutorError<Self::Error>> {
 				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
 				if !matches!(pool_type, $pool_type) {
@@ -414,6 +422,7 @@ macro_rules! impl_fake_executor {
 				asset_out: AssetId,
 				amount_out: Balance,
 				_max_limit: Balance,
+				_batch_id: Option<IncrementalId>,
 			) -> Result<(), ExecutorError<Self::Error>> {
 				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
 

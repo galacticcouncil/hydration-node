@@ -51,6 +51,7 @@ sp-io = { workspace = true, optional = true }
 [dev-dependencies]
 sp-io = { workspace = true }
 sp-core = { workspace = true }
+pallet-trade-event = { workspace = true }
 orml-tokens = { workspace = true }
 pretty_assertions = "1.2.1"
 

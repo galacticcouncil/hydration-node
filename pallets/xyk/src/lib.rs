@@ -675,7 +675,14 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _, _>>::buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit, discount)?;
+			<Self as AMM<_, _, _, _, _>>::buy(
+				&who,
+				AssetPair { asset_in, asset_out },
+				amount,
+				max_limit,
+				discount,
+				None,
+			)?;
 
 			Ok(())
 		}
@@ -1046,6 +1053,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance, IncrementalIdType
 	fn execute_buy(
 		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
 		destination: Option<&T::AccountId>,
+		batch_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
@@ -1102,7 +1110,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance, IncrementalIdType
 			transfer.amount,
 			transfer.amount_b,
 			vec![transfer.fee],
-			None,
+			batch_id,
 		);
 
 		Ok(())
