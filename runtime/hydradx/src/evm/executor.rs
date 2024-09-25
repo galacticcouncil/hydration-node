@@ -5,8 +5,8 @@ use fp_evm::Vicinity;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Get;
 use hydradx_traits::evm::{CallContext, EVM};
-use pallet_evm::runner::stack::{Recorded, SubstrateStackState};
-use pallet_evm::{AddressMapping, Config};
+use pallet_evm::runner::stack::{SubstrateStackState};
+use pallet_evm::{AccountCodesMetadata, AddressMapping, CodeMetadata, Config};
 use primitive_types::{H160, U256};
 use sp_runtime::{DispatchError, TransactionOutcome};
 use sp_std::vec;
@@ -243,7 +243,36 @@ impl<'vicinity, 'config, T: Config> StackState<'config> for CustomSubstrateStack
 	}
 
 	fn code_size(&self, address: H160) -> U256 {
-		self.inner.code_size(address)
+		let meta = {
+			//The original (super) code_size logic is copied, with the only difference that we use our custom code(address) function
+			if let Some(meta) = <AccountCodesMetadata<T>>::get(address) {
+				meta
+			} else {
+				let code = self.code(address);
+
+				// If code is empty we return precomputed hash for empty code.
+				// We don't store it as this address could get code deployed in the future.
+				if code.is_empty() {
+					const EMPTY_CODE_HASH: [u8; 32] = hex_literal::hex!(
+                    "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+                );
+					CodeMetadata {
+						size: 0,
+						hash: EMPTY_CODE_HASH.into(),
+					}
+				} else {
+					let size = code.len() as u64;
+					let hash = H256::from(sp_io::hashing::keccak_256(&code));
+
+					let meta = CodeMetadata { size, hash };
+
+					<AccountCodesMetadata<T>>::insert(address, meta);
+					meta
+				}
+			}
+		};
+
+		U256::from(meta.size)
 	}
 
 	fn code_hash(&self, address: H160) -> H256 {
