@@ -99,6 +99,16 @@ fn contract_check_succeeds_on_precompile_with_code() {
 }
 
 #[test]
+fn contract_check_fails_on_precompile_without_code() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let checker = deploy_contract("ContractCheck", deployer());
+		pallet_evm::AccountCodes::<Runtime>::remove(dai_ethereum_address());
+		assert_eq!(is_contract(checker, dai_ethereum_address()), false);
+	});
+}
+
+#[test]
 fn contract_check_succeeds_on_precompile_with_invalid_code() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
@@ -126,10 +136,10 @@ fn contract_check_should_succeed_when_called_from_extrinsic() {
 			(10_000_000 * UNITS) as i128,
 		));
 		/// For reference with code set in storage this always succeeds
-		/*pallet_evm::AccountCodes::<Runtime>::insert(
+		pallet_evm::AccountCodes::<Runtime>::insert(
 		dai_ethereum_address(),
 		&hex!["365f5f375f5f365f73bebebebebebebebebebebebebebebebebebebebe5af43d5f5f3e5f3d91602a57fd5bf3"][..],
-		);*/
+		);
 
 		// Act
 		assert_ok!(hydradx_runtime::EVM::call(

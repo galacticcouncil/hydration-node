@@ -72,7 +72,6 @@ pub fn is_asset_address(address: H160) -> bool {
 	&address.to_fixed_bytes()[0..16] == asset_address_prefix
 }
 
-//TODO: delete if not used
 pub struct SetCodeForErc20Precompile;
 
 impl RegisterAssetHook<AssetId> for SetCodeForErc20Precompile {

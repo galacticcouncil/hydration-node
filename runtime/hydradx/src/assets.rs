@@ -442,7 +442,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type MinStringLimit = MinRegistryStrLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type RegExternalWeightMultiplier = RegExternalWeightMultiplier;
-	type RegisterAssetHook = ();//TODO: delete
+	type RegisterAssetHook = SetCodeForErc20Precompile;
 	type WeightInfo = weights::pallet_asset_registry::HydraWeight<Runtime>;
 }
 
