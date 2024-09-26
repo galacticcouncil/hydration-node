@@ -17,6 +17,7 @@ mod fee_calculation;
 mod global_account_derivation;
 mod ice;
 mod insufficient_assets_ed;
+mod multi_payment;
 mod non_native_fee;
 mod omnipool_init;
 mod omnipool_liquidity_mining;

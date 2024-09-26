@@ -569,6 +569,57 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		})
 	}
 
+	/// Update global farm's main fields.
+	///
+	///
+	/// Parameters:
+	/// - `global_farm_id`: global farm id.
+	/// - `planned_yielding_periods`: planned number of periods to distribute `total_rewards`.
+	/// - `yield_per_period`: percentage return on `reward_currency` of all pools.
+	/// - `min_deposit`: minimum amount of LP shares to be deposited into liquidity mining by each user.
+	fn update_global_farm(
+		global_farm_id: GlobalFarmId,
+		planned_yielding_periods: PeriodOf<T>,
+		yield_per_period: Perquintill,
+		min_deposit: Balance,
+	) -> Result<(), DispatchError> {
+		ensure!(min_deposit.ge(&MIN_DEPOSIT), Error::<T, I>::InvalidMinDeposit);
+		ensure!(
+			planned_yielding_periods >= T::MinPlannedYieldingPeriods::get(),
+			Error::<T, I>::InvalidPlannedYieldingPeriods
+		);
+		ensure!(!yield_per_period.is_zero(), Error::<T, I>::InvalidYieldPerPeriod);
+
+		<GlobalFarm<T, I>>::try_mutate(global_farm_id, |maybe_global_farm| {
+			let global_farm = maybe_global_farm.as_mut().ok_or(Error::<T, I>::GlobalFarmNotFound)?;
+
+			ensure!(global_farm.state.is_active(), Error::<T, I>::GlobalFarmNotFound);
+
+			let current_period = Self::get_current_period(global_farm.blocks_per_period)?;
+			Self::sync_global_farm(global_farm, current_period)?;
+
+			//Calculate the new max reward period
+			let global_farm_account = Self::farm_account_id(global_farm.id)?;
+			let total_rewards = T::MultiCurrency::free_balance(global_farm.reward_currency, &global_farm_account);
+			let planned_periods =
+				TryInto::<u128>::try_into(planned_yielding_periods).map_err(|_| ArithmeticError::Overflow)?;
+			let new_max_reward_period = total_rewards
+				.checked_div(planned_periods)
+				.ok_or(Error::<T, I>::InvalidPlannedYieldingPeriods)?;
+			ensure!(
+				!new_max_reward_period.is_zero(),
+				Error::<T, I>::InvalidPlannedYieldingPeriods
+			);
+
+			global_farm.planned_yielding_periods = planned_yielding_periods;
+			global_farm.yield_per_period = yield_per_period;
+			global_farm.min_deposit = min_deposit;
+			global_farm.max_reward_per_period = new_max_reward_period;
+
+			Ok(())
+		})
+	}
+
 	/// Terminate existing liquidity mining program. Undistributed rewards are transferred to
 	/// owner(`who`).
 	///
@@ -1814,6 +1865,15 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 		price_adjustment: FixedU128,
 	) -> Result<(), Self::Error> {
 		Self::update_global_farm_price_adjustment(who, global_farm_id, price_adjustment)
+	}
+
+	fn update_global_farm(
+		global_farm_id: GlobalFarmId,
+		planned_yielding_periods: Self::Period,
+		yield_per_period: Perquintill,
+		min_deposit: Self::Balance,
+	) -> Result<(), Self::Error> {
+		Self::update_global_farm(global_farm_id, planned_yielding_periods, yield_per_period, min_deposit)
 	}
 
 	fn terminate_global_farm(

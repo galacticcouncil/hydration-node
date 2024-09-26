@@ -24,7 +24,7 @@ use test_utils::assert_balance_approx;
 
 use rand::Rng;
 
-//This test test full run LM. Global farm is not full but it's running longer than expected. Users
+//This test tests full run LM. Global farm is not full but it's running longer than expected. Users
 //should be able to claim expected amount.
 //This test case is without loyalty factor.
 #[test]
@@ -278,6 +278,197 @@ fn non_full_farm_distribute_everything_and_update_farms() {
 					.unwrap()
 					.updated_at,
 				100
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
+
+#[test]
+fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
+	new_test_ext().execute_with(|| {
+		let _ = with_transaction(|| {
+			const GLOBAL_FARM: GlobalFarmId = 1;
+			const YIELD_FARM_A: YieldFarmId = 2;
+			const YIELD_FARM_B: YieldFarmId = 3;
+
+			const ALICE_DEPOSIT: DepositId = 1;
+			const BOB_DEPOSIT: DepositId = 2;
+			const CHARLIE_DEPOSIT: DepositId = 3;
+
+			//initialize farms
+			set_block_number(100);
+			assert_ok!(LiquidityMining2::create_global_farm(
+				200_000 * ONE,
+				20,
+				10,
+				BSX,
+				BSX,
+				GC,
+				Perquintill::from_float(0.5),
+				1_000,
+				One::one(),
+			));
+
+			assert_ok!(LiquidityMining2::create_yield_farm(
+				GC,
+				GLOBAL_FARM,
+				FixedU128::from(2_u128),
+				None,
+				BSX_TKN1_AMM,
+				vec![BSX, TKN1],
+			));
+
+			assert_ok!(LiquidityMining2::create_yield_farm(
+				GC,
+				GLOBAL_FARM,
+				FixedU128::from(1_u128),
+				None,
+				BSX_TKN2_AMM,
+				vec![BSX, TKN2],
+			));
+
+			set_block_number(110);
+			//alice
+			assert_ok!(LiquidityMining2::deposit_lp_shares(
+				GLOBAL_FARM,
+				YIELD_FARM_A,
+				BSX_TKN1_AMM,
+				5_000 * ONE,
+				|_, _, _| { Ok(5_000 * ONE) }
+			));
+
+			set_block_number(120);
+
+			//bob
+			assert_ok!(LiquidityMining2::deposit_lp_shares(
+				GLOBAL_FARM,
+				YIELD_FARM_B,
+				BSX_TKN2_AMM,
+				2_500 * ONE,
+				|_, _, _| { Ok(2_500 * ONE) }
+			));
+
+			//charlie
+			assert_ok!(LiquidityMining2::deposit_lp_shares(
+				GLOBAL_FARM,
+				YIELD_FARM_B,
+				BSX_TKN2_AMM,
+				2_500 * ONE,
+				|_, _, _| { Ok(2_500 * ONE) }
+			));
+
+			set_block_number(130);
+
+			//Claim rewards, leading to farms sync
+			let (_, _, _, unclaimeable) =
+				LiquidityMining2::claim_rewards(ALICE, ALICE_DEPOSIT, YIELD_FARM_A, false).unwrap();
+
+			//Withdraw and redeposit for ALICE
+			let (_, withdran_amount, _) =
+				LiquidityMining2::withdraw_lp_shares(ALICE_DEPOSIT, YIELD_FARM_A, unclaimeable).unwrap();
+			let alice_new_deposit_id = LiquidityMining2::deposit_lp_shares(
+				GLOBAL_FARM,
+				YIELD_FARM_A,
+				BSX_TKN1_AMM,
+				withdran_amount,
+				|_, _, _| Ok(5_000 * ONE),
+			)
+			.unwrap();
+
+			assert_eq!(
+				Tokens::free_balance(BSX, &LiquidityMining2::farm_account_id(GLOBAL_FARM).unwrap()),
+				187500000000000000
+			);
+
+			//We check that not everything has been claimed yet
+			assert_eq!(
+				Tokens::free_balance(BSX, &LiquidityMining2::pot_account_id().unwrap()),
+				2500000000000000
+			);
+
+			let planned_yielding_periods: BlockNumber = 30_u64;
+			let yield_per_period = Perquintill::from_float(0.45);
+			let min_deposit = 20_000;
+			assert_ok!(LiquidityMining2::update_global_farm(
+				GLOBAL_FARM,
+				planned_yielding_periods,
+				yield_per_period,
+				min_deposit
+			));
+
+			set_block_number(501);
+
+			//Check that alice has things to claim
+			let (_, _, claimed, unclaimable) =
+				LiquidityMining2::claim_rewards(ALICE, alice_new_deposit_id, YIELD_FARM_A, false).unwrap();
+			assert_eq!(claimed, 124999999999999333);
+			assert_eq!(unclaimable, 0);
+
+			// Check that BOB has things to claim
+			let (_, _, claimed, unclaimable) =
+				LiquidityMining2::claim_rewards(BOB, BOB_DEPOSIT, YIELD_FARM_B, false).unwrap();
+			assert_eq!(claimed, 32499999999999833);
+			assert_eq!(unclaimable, 0);
+
+			// Check that Charlie has things to claim
+			let (_, _, claimed, unclaimable) =
+				LiquidityMining2::claim_rewards(CHARLIE, CHARLIE_DEPOSIT, YIELD_FARM_B, false).unwrap();
+			assert_eq!(claimed, 32499999999999833);
+			assert_eq!(unclaimable, 0);
+
+			assert_eq!(
+				Tokens::free_balance(BSX, &LiquidityMining2::pot_account_id().unwrap()),
+				1
+			);
+
+			assert_eq!(LiquidityMining2::global_farm(GLOBAL_FARM).unwrap().updated_at, 50);
+			assert_eq!(
+				LiquidityMining2::yield_farm((BSX_TKN1_AMM, GLOBAL_FARM, YIELD_FARM_A))
+					.unwrap()
+					.updated_at,
+				50
+			);
+
+			//Assert that user has nothing else to claim
+			set_block_number(600);
+			let (_, _, claimed, unclaimable) =
+				LiquidityMining2::claim_rewards(ALICE, alice_new_deposit_id, YIELD_FARM_A, false).unwrap();
+			assert_eq!(claimed, 0);
+			assert_eq!(unclaimable, 0);
+			assert_ok!(LiquidityMining2::withdraw_lp_shares(
+				alice_new_deposit_id,
+				YIELD_FARM_A,
+				unclaimable
+			));
+
+			let (_, _, claimed, unclaimable) =
+				LiquidityMining2::claim_rewards(BOB, BOB_DEPOSIT, YIELD_FARM_B, false).unwrap();
+			assert_eq!(claimed, 0);
+			assert_eq!(unclaimable, 0);
+			assert_ok!(LiquidityMining2::withdraw_lp_shares(
+				BOB_DEPOSIT,
+				YIELD_FARM_B,
+				unclaimable
+			));
+
+			let (_, _, claimed, unclaimable) =
+				LiquidityMining2::claim_rewards(CHARLIE, CHARLIE_DEPOSIT, YIELD_FARM_B, false).unwrap();
+			assert_eq!(claimed, 0);
+			assert_eq!(unclaimable, 0);
+			assert_ok!(LiquidityMining2::withdraw_lp_shares(
+				CHARLIE_DEPOSIT,
+				YIELD_FARM_B,
+				unclaimable
+			));
+
+			assert_eq!(LiquidityMining2::global_farm(GLOBAL_FARM).unwrap().updated_at, 60);
+			assert_eq!(
+				LiquidityMining2::yield_farm((BSX_TKN2_AMM, GLOBAL_FARM, YIELD_FARM_B))
+					.unwrap()
+					.updated_at,
+				60
 			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))

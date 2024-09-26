@@ -52,6 +52,14 @@ pub trait Mutate<AccountId, AssetId, BlockNumber> {
 		price_adjustment: FixedU128,
 	) -> Result<(), Self::Error>;
 
+	/// Update global farm parameters
+	fn update_global_farm(
+		global_farm_id: GlobalFarmId,
+		planned_yielding_periods: Self::Period,
+		yield_per_period: Perquintill,
+		min_deposit: Self::Balance,
+	) -> Result<(), Self::Error>;
+
 	/// Terminate existing global farm.
 	///
 	/// Returns: `(reward currency, undistributed rewards, destination account)`
