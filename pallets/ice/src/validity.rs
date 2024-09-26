@@ -2,10 +2,11 @@ use crate::{Call, Config, Pallet};
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::IsSubType;
-use sp_runtime::traits::{DispatchInfoOf, SignedExtension};
+use sp_runtime::traits::{DispatchInfoOf, PostDispatchInfoOf, SignedExtension};
 use sp_runtime::transaction_validity::{
 	InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
 };
+use sp_runtime::DispatchResult;
 use sp_std::marker::PhantomData;
 
 #[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
@@ -38,7 +39,7 @@ where
 	type AccountId = T::AccountId;
 	type Call = <T as frame_system::Config>::RuntimeCall;
 	type AdditionalSigned = ();
-	type Pre = ();
+	type Pre = Option<T::AccountId>;
 
 	fn additional_signed(&self) -> Result<(), TransactionValidityError> {
 		Ok(())
@@ -79,6 +80,39 @@ where
 		info: &DispatchInfoOf<Self::Call>,
 		len: usize,
 	) -> Result<Self::Pre, TransactionValidityError> {
-		self.validate(who, call, info, len).map(|_| ())
+		match call.is_sub_type() {
+			Some(Call::submit_solution { .. }) => self.validate(who, call, info, len).map(|_| Some(who.clone())),
+			_ => Ok(None),
+		}
+	}
+
+	fn post_dispatch(
+		pre: Option<Self::Pre>,
+		_info: &DispatchInfoOf<Self::Call>,
+		_post_info: &PostDispatchInfoOf<Self::Call>,
+		_len: usize,
+		result: &DispatchResult,
+	) -> Result<(), TransactionValidityError> {
+		// if the result is ok, nothing to do
+		if result.is_ok() {
+			return Ok(());
+		}
+		// if pre contains None, we dont need to do anything as it was not a submit_solution call
+		let Some(maybe_who) = pre else {
+			// we cant return error from post dispatch
+			return Ok(());
+		};
+		let Some(who) = maybe_who else {
+			// we cant return error from post dispatch
+			return Ok(());
+		};
+		// Now we know that the call was submit_solution and it failed, we can slash the proposer
+		let r = Pallet::<T>::slash_bond(&who);
+
+		// if the slashing failed, we cant return error from post dispatch as it would cause block to be invalid
+		if r.is_err() {
+			log::error!("Failed to slash proposer: {:?}", r.err());
+		}
+		Ok(())
 	}
 }

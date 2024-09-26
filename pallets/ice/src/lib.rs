@@ -10,11 +10,11 @@ pub mod types;
 pub mod validity;
 mod weights;
 
-use crate::types::{IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier};
+use crate::types::{Balance, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier};
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
-use frame_support::traits::fungibles::Inspect;
+use frame_support::traits::fungibles::{Inspect, Mutate};
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::Time;
 use frame_support::{dispatch::DispatchResult, traits::Get};
@@ -375,5 +375,15 @@ impl<T: Config> Pallet<T> {
 		let balance =
 			T::Currency::reducible_balance(T::NativeAssetId::get(), who, Preservation::Protect, Fortitude::Force); //TODO: check params
 		balance > required_bond
+	}
+
+	fn slash_bond(who: &T::AccountId) -> Result<Balance, DispatchError> {
+		T::Currency::transfer(
+			T::NativeAssetId::get(),
+			who,
+			&T::SlashReceiver::get(),
+			T::ProposalBond::get(),
+			Preservation::Expendable,
+		)
 	}
 }

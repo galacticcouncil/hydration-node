@@ -4,6 +4,7 @@ use hydradx_runtime::{Currencies, Omnipool, Router, System, ICE};
 use hydradx_traits::router::AssetPair as Pair;
 use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
+use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades};
 use sp_core::crypto::AccountId32;
 use sp_runtime::traits::BlockNumberProvider;
 
@@ -280,5 +281,66 @@ fn test_omnipool_stable_swap() {
 		let stable_balance = Currencies::free_balance(assets[0], &AccountId32::from(BOB));
 
 		assert_eq!(stable_balance - initial_stable_balance, 26105);
+	});
+}
+
+use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
+use sp_runtime::traits::SignedExtension;
+#[test]
+fn validate_submission_should_slash_proposer_when_solution_is_invalid() {
+	Hydra::execute_with(|| {
+		let call = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::<hydradx_runtime::Runtime>::submit_solution {
+			intents: BoundedResolvedIntents::try_from(vec![]).unwrap(),
+			trades: BoundedTrades::try_from(vec![]).unwrap(),
+			score: 0,
+			block: 0,
+		});
+		let info = call.get_dispatch_info();
+		let info_len = 146;
+
+		let pre = pallet_ice::validity::ValidateIceSolution::<hydradx_runtime::Runtime>::new().pre_dispatch(
+			&AccountId::from(ALICE),
+			&call,
+			&info,
+			info_len,
+		);
+
+		assert_ok!(&pre);
+		assert_eq!(pre.unwrap(), Some(ALICE.into()));
+
+		assert_ok!(
+			pallet_ice::validity::ValidateIceSolution::<hydradx_runtime::Runtime>::post_dispatch(
+				Some(pre.unwrap()),
+				&info,
+				&PostDispatchInfo::default(),
+				info_len,
+				&Err(pallet_ice::Error::<hydradx_runtime::Runtime>::InvalidScore.into())
+			)
+		);
+
+		//TODO: assert balance
+		assert!(false);
+	});
+}
+
+#[test]
+fn validate_submission_should_fail_when_proposer_does_not_have_enough_for_bond() {
+	Hydra::execute_with(|| {
+		let call = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::<hydradx_runtime::Runtime>::submit_solution {
+			intents: BoundedResolvedIntents::try_from(vec![]).unwrap(),
+			trades: BoundedTrades::try_from(vec![]).unwrap(),
+			score: 0,
+			block: 0,
+		});
+		let info = call.get_dispatch_info();
+		let info_len = 146;
+
+		let pre = pallet_ice::validity::ValidateIceSolution::<hydradx_runtime::Runtime>::new().pre_dispatch(
+			&AccountId::from(ALICE),
+			&call,
+			&info,
+			info_len,
+		);
+		assert!(pre.is_err());
 	});
 }

@@ -537,7 +537,6 @@ impl pallet_omnipool::Config for Runtime {
 	type HubAssetTradeAllowedFor = AllowedHubAssetTraders;
 }
 
-
 parameter_types! {
 	pub const ICEPalletId: PalletId = PalletId(*b"iceaccnt");
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
@@ -581,7 +580,7 @@ impl pallet_ice::Config for Runtime {
 	type TradeExecutor = Router;
 	type Weigher = IceWeigher<RouterWeightInfo>;
 	type PriceProvider =
-	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
+		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
 	type ProposalBond = IceProposalBond;
@@ -1729,9 +1728,9 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
-use primitives::Moment;
 use pallet_xyk::types::AssetPair;
 use primitives::constants::chain::CORE_ASSET_ID;
+use primitives::Moment;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;
