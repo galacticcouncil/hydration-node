@@ -342,7 +342,7 @@ fn validate_submission_should_fail_when_proposer_does_not_have_enough_for_bond()
 			intents: BoundedResolvedIntents::try_from(vec![]).unwrap(),
 			trades: BoundedTrades::try_from(vec![]).unwrap(),
 			score: 0,
-			block: 0,
+			block: System::current_block_number(),
 		});
 		let info = call.get_dispatch_info();
 		let info_len = 146;
@@ -358,7 +358,7 @@ fn validate_submission_should_fail_when_proposer_does_not_have_enough_for_bond()
 }
 
 #[test]
-fn validate_submission_should_slash_proposer_when_block_number_is_differenct() {
+fn validate_submission_should_slash_proposer_when_block_number_is_different() {
 	Hydra::execute_with(|| {
 		let bond_amount = <hydradx_runtime::Runtime as pallet_ice::Config>::ProposalBond::get();
 		assert_ok!(Currencies::update_balance(
