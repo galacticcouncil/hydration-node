@@ -182,10 +182,10 @@ fn max_multiplier() {
 #[cfg(test)]
 mod xcm_fee_payment_api_tests {
 	use super::*;
-	use xcm_fee_payment_runtime_api::runtime_decl_for_xcm_payment_api::XcmPaymentApiV1;
 	use frame_support::assert_ok;
 	use polkadot_xcm::v4::prelude::*;
 	use polkadot_xcm::VersionedAssetId::V4;
+	use xcm_fee_payment_runtime_api::runtime_decl_for_xcm_payment_api::XcmPaymentApiV1;
 	use xcm_fee_payment_runtime_api::Error as XcmPaymentApiError;
 
 	#[test]
