@@ -1,5 +1,6 @@
 use super::*;
 use frame_support::assert_ok;
+use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
 use hydradx_runtime::{Currencies, Omnipool, Router, System, ICE};
 use hydradx_traits::router::AssetPair as Pair;
 use hydradx_traits::router::{PoolType, Trade};
@@ -7,6 +8,7 @@ use orml_traits::MultiCurrency;
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades};
 use sp_core::crypto::AccountId32;
 use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::traits::SignedExtension;
 
 #[test]
 fn submit_solution_should_work() {
@@ -284,16 +286,24 @@ fn test_omnipool_stable_swap() {
 	});
 }
 
-use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
-use sp_runtime::traits::SignedExtension;
 #[test]
 fn validate_submission_should_slash_proposer_when_solution_is_invalid() {
 	Hydra::execute_with(|| {
+		let bond_amount = <hydradx_runtime::Runtime as pallet_ice::Config>::ProposalBond::get();
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			HDX,
+			bond_amount as i128,
+		));
+
+		let initial_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
+
 		let call = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::<hydradx_runtime::Runtime>::submit_solution {
 			intents: BoundedResolvedIntents::try_from(vec![]).unwrap(),
 			trades: BoundedTrades::try_from(vec![]).unwrap(),
 			score: 0,
-			block: 0,
+			block: System::current_block_number(),
 		});
 		let info = call.get_dispatch_info();
 		let info_len = 146;
@@ -306,7 +316,7 @@ fn validate_submission_should_slash_proposer_when_solution_is_invalid() {
 		);
 
 		assert_ok!(&pre);
-		assert_eq!(pre.unwrap(), Some(ALICE.into()));
+		assert_eq!(pre.clone().unwrap(), Some(ALICE.into()));
 
 		assert_ok!(
 			pallet_ice::validity::ValidateIceSolution::<hydradx_runtime::Runtime>::post_dispatch(
@@ -318,8 +328,10 @@ fn validate_submission_should_slash_proposer_when_solution_is_invalid() {
 			)
 		);
 
-		//TODO: assert balance
-		assert!(false);
+		assert_eq!(
+			Currencies::free_balance(HDX, &AccountId32::from(ALICE)),
+			initial_balance - bond_amount
+		);
 	});
 }
 
@@ -342,5 +354,41 @@ fn validate_submission_should_fail_when_proposer_does_not_have_enough_for_bond()
 			info_len,
 		);
 		assert!(pre.is_err());
+	});
+}
+
+#[test]
+fn validate_submission_should_slash_proposer_when_block_number_is_differenct() {
+	Hydra::execute_with(|| {
+		let bond_amount = <hydradx_runtime::Runtime as pallet_ice::Config>::ProposalBond::get();
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			HDX,
+			bond_amount as i128,
+		));
+
+		let initial_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
+
+		let call = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::<hydradx_runtime::Runtime>::submit_solution {
+			intents: BoundedResolvedIntents::try_from(vec![]).unwrap(),
+			trades: BoundedTrades::try_from(vec![]).unwrap(),
+			score: 0,
+			block: System::current_block_number() + 1,
+		});
+		let info = call.get_dispatch_info();
+		let info_len = 146;
+
+		let pre = pallet_ice::validity::ValidateIceSolution::<hydradx_runtime::Runtime>::new().pre_dispatch(
+			&AccountId::from(ALICE),
+			&call,
+			&info,
+			info_len,
+		);
+		assert!(pre.is_err());
+		assert_eq!(
+			Currencies::free_balance(HDX, &AccountId32::from(ALICE)),
+			initial_balance
+		);
 	});
 }
