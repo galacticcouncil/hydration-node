@@ -73,6 +73,7 @@ pub enum PoolType<AssetId> {
 	Stableswap(AssetId),
 	Omnipool,
 	OTC(u32),
+	ICE,
 }
 
 #[derive(Debug, PartialEq, Eq)]

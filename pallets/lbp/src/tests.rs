@@ -1829,7 +1829,7 @@ fn execute_sell_should_work() {
 		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 2_000_000_000);
 
-		assert_ok!(LBPPallet::execute_sell(&t));
+		assert_ok!(LBPPallet::execute_sell(&t, None));
 
 		expect_events(vec![Event::SellExecuted {
 			who: ALICE,
@@ -1886,7 +1886,7 @@ fn execute_sell_should_not_work() {
 		assert_eq!(Currency::free_balance(KUSD, &KUSD_BSX_POOL_ID), 1_000_000_000);
 		assert_eq!(Currency::free_balance(BSX, &KUSD_BSX_POOL_ID), 2_000_000_000);
 
-		assert_noop!(LBPPallet::execute_sell(&t), orml_tokens::Error::<Test>::BalanceTooLow);
+		assert_noop!(LBPPallet::execute_sell(&t, None), orml_tokens::Error::<Test>::BalanceTooLow);
 
 		assert_eq!(Currency::free_balance(KUSD, &ALICE), 999_999_000_000_000);
 		assert_eq!(Currency::free_balance(BSX, &ALICE), 999_998_000_000_000);
@@ -1961,7 +1961,7 @@ fn execute_buy_should_work() {
 		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 2_000_000_000);
 
-		assert_ok!(LBPPallet::execute_buy(&t, None));
+		assert_ok!(LBPPallet::execute_buy(&t, None, None));
 
 		assert_eq!(Currency::free_balance(asset_in, &ALICE), 999_998_991_999_000);
 		assert_eq!(Currency::free_balance(asset_out, &ALICE), 999_998_020_000_000);
@@ -2012,7 +2012,7 @@ fn execute_buy_should_not_work() {
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 2_000_000_000);
 
 		assert_noop!(
-			LBPPallet::execute_buy(&t, None),
+			LBPPallet::execute_buy(&t, None, None),
 			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 
@@ -3692,7 +3692,7 @@ fn collected_fees_should_be_locked_and_unlocked_after_liquidity_is_removed() {
 		run_to_sale_start();
 		let Pool { fee_collector, .. } = LBPPallet::pool_data(KUSD_BSX_POOL_ID).unwrap();
 		let (fee_asset, fee_amount) = SAMPLE_AMM_TRANSFER.fee;
-		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER, None));
+		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER, None, None));
 
 		// collector receives locked fee
 		assert_eq!(Currency::free_balance(fee_asset, &fee_collector), fee_amount);
@@ -3723,8 +3723,8 @@ fn collected_fees_are_continually_locked() {
 		run_to_sale_start();
 		let Pool { fee_collector, .. } = LBPPallet::pool_data(KUSD_BSX_POOL_ID).unwrap();
 		let (fee_asset, fee_amount) = SAMPLE_AMM_TRANSFER.fee;
-		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER, None));
-		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER, None));
+		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER, None, None));
+		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER, None, None));
 		let total = 2 * fee_amount;
 		assert_eq!(Currency::free_balance(fee_asset, &fee_collector), total);
 		assert_eq!(
