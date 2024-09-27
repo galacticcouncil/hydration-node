@@ -1128,9 +1128,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 			fee_amount: transfer.fee.1,
 		});
 
+		let pool_account = Self::get_pair_id(transfer.assets);
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
-			pallet_amm_support::PoolType::LBP,
+			pool_account,
+			pallet_amm_support::Filler::LBP,
 			pallet_amm_support::TradeOperation::Sell,
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
@@ -1279,9 +1281,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 			fee_amount: transfer.fee.1,
 		});
 
+		let pool_account = Self::get_pair_id(transfer.assets);
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
-			pallet_amm_support::PoolType::LBP,
+			pool_account,
+			pallet_amm_support::Filler::LBP,
 			pallet_amm_support::TradeOperation::Buy,
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,

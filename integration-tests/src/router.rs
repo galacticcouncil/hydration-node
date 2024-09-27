@@ -157,6 +157,7 @@ mod router_different_pools_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -223,6 +224,7 @@ mod router_different_pools_tests {
 					asset_out: stable_asset_2,
 					amount_in: amount_to_sell,
 					amount_out,
+					event_id: 0,
 				}
 				.into()]);
 
@@ -286,6 +288,7 @@ mod router_different_pools_tests {
 				asset_out: DOT,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -352,6 +355,7 @@ mod router_different_pools_tests {
 					asset_out: stable_asset_2,
 					amount_in,
 					amount_out: amount_to_buy,
+					event_id: 0,
 				}
 				.into()]);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -802,6 +806,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -1976,6 +1981,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2019,6 +2025,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2094,6 +2101,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2199,6 +2207,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2311,6 +2320,7 @@ mod lbp_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2354,6 +2364,7 @@ mod lbp_router_tests {
 				asset_out: HDX,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2406,6 +2417,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2458,6 +2470,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2501,6 +2514,7 @@ mod lbp_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out: received_amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2576,6 +2590,7 @@ mod lbp_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2619,6 +2634,7 @@ mod lbp_router_tests {
 				asset_out: HDX,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2671,6 +2687,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2723,6 +2740,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2766,6 +2784,7 @@ mod lbp_router_tests {
 				asset_out: DAI,
 				amount_in: spent_amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2868,6 +2887,7 @@ mod xyk_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2931,6 +2951,7 @@ mod xyk_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -3096,6 +3117,7 @@ mod xyk_router_tests {
 				asset_out: DOT,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -3151,6 +3173,7 @@ mod xyk_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -3214,6 +3237,7 @@ mod xyk_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -4935,6 +4959,7 @@ mod with_on_chain_and_default_route {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -4972,6 +4997,7 @@ mod with_on_chain_and_default_route {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -5333,6 +5359,7 @@ mod sell_all {
 				asset_out: DAI,
 				amount_in: bob_hdx_balance,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -5374,6 +5401,7 @@ mod sell_all {
 				asset_out: HDX,
 				amount_in: bob_nonnative_balance,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});

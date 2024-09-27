@@ -39,6 +39,7 @@ pub use hydradx_traits::router::{
 };
 use hydradx_traits::IncrementalIdProvider;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use pallet_amm_support::IncrementalIdType;
 use primitives::IncrementalId;
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
@@ -143,6 +144,7 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: T::Balance,
 			amount_out: T::Balance,
+			event_id: IncrementalIdType,
 		},
 		///The route with trades has been successfully executed
 		RouteUpdated { asset_ids: Vec<T::AssetId> },
@@ -298,6 +300,7 @@ pub mod pallet {
 				asset_out,
 				amount_in: first_trade.amount_in,
 				amount_out,
+				event_id: next_event_id,
 			});
 
 			Ok(())
@@ -532,6 +535,7 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in,
 			amount_out: last_trade_amount.amount_out,
+			event_id: next_event_id,
 		});
 
 		Ok(())
@@ -695,7 +699,6 @@ impl<T: Config> Pallet<T> {
 			PoolType::Stableswap(pool_id) => pool_id,
 			PoolType::XYK => first_route.asset_out,
 			PoolType::LBP => first_route.asset_out,
-			_ => return Err(Error::<T>::PoolNotSupported.into()),
 		};
 
 		let asset_in_liquidity = T::AMM::get_liquidity_depth(first_route.pool, first_route.asset_in, asset_b);

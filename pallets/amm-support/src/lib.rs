@@ -21,7 +21,7 @@ type AssetId = u32;
 type Balance = u128;
 
 pub use hydradx_traits::{
-	router::{PoolType, TradeOperation},
+	router::{Filler, TradeOperation},
 	IncrementalIdProvider,
 };
 pub use primitives::IncrementalId as IncrementalIdType;
@@ -55,8 +55,9 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Trade executed.
 		Swapped {
-			who: T::AccountId,
-			pool: PoolType<AssetId>,
+			swapper: T::AccountId,
+			filler: T::AccountId,
+			filler_type: Filler,
 			operation: TradeOperation,
 			asset_in: AssetId,
 			asset_out: AssetId,
@@ -80,26 +81,28 @@ impl<T: Config> Pallet<T> {
 
 	#[allow(clippy::too_many_arguments)]
 	pub fn deposit_trade_event(
-		who: T::AccountId,
-		pool: PoolType<AssetId>,
+		swapper: T::AccountId,
+		filler: T::AccountId,
+		filler_type: Filler,
 		operation: TradeOperation,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_in: Balance,
 		amount_out: Balance,
 		fees: Vec<(AssetId, Balance)>,
-		event_id: Option<u32>,
+		event_id: Option<IncrementalIdType>,
 	) {
 		Self::deposit_event(Event::<T>::Swapped {
-			who,
-			pool,
+			swapper,
+			filler,
+			filler_type,
 			operation,
 			asset_in,
 			asset_out,
 			amount_in,
 			amount_out,
 			fees,
-			event_id: event_id,
+			event_id,
 		});
 	}
 }

@@ -72,7 +72,15 @@ pub enum PoolType<AssetId> {
 	LBP,
 	Stableswap(AssetId),
 	Omnipool,
-	OTC(u32),
+}
+
+#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+pub enum Filler {
+	Omnipool,
+	Stableswap,
+	XYK,
+	LBP,
+	OTC,
 	ICE,
 }
 

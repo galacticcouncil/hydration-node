@@ -308,9 +308,11 @@ pub mod pallet {
 					fee,
 				});
 
+				// TODO: order_id is missing
 				pallet_amm_support::Pallet::<T>::deposit_trade_event(
 					who,
-					pallet_amm_support::PoolType::OTC(order_id),
+					order.owner.clone(),
+					pallet_amm_support::Filler::OTC,
 					pallet_amm_support::TradeOperation::Sell,
 					order.asset_in.into(),
 					order.asset_out.into(),
@@ -352,9 +354,11 @@ pub mod pallet {
 				fee,
 			});
 
+			// TODO: order_id is missing
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,
-				pallet_amm_support::PoolType::OTC(order_id),
+				order.owner,
+				pallet_amm_support::Filler::OTC,
 				pallet_amm_support::TradeOperation::Sell,
 				order.asset_in.into(),
 				order.asset_out.into(),

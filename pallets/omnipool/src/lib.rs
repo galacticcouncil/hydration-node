@@ -1673,7 +1673,8 @@ impl<T: Config> Pallet<T> {
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
-			pallet_amm_support::PoolType::Omnipool,
+			Self::protocol_account(),
+			pallet_amm_support::Filler::Omnipool,
 			pallet_amm_support::TradeOperation::Sell,
 			asset_in.into(),
 			asset_out.into(),
@@ -1874,7 +1875,8 @@ impl<T: Config> Pallet<T> {
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
-			pallet_amm_support::PoolType::Omnipool,
+			Self::protocol_account(),
+			pallet_amm_support::Filler::Omnipool,
 			pallet_amm_support::TradeOperation::Buy,
 			asset_in.into(),
 			asset_out.into(),
@@ -1998,7 +2000,8 @@ impl<T: Config> Pallet<T> {
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
-			pallet_amm_support::PoolType::Omnipool,
+			Self::protocol_account(),
+			pallet_amm_support::Filler::Omnipool,
 			pallet_amm_support::TradeOperation::Sell,
 			T::HubAssetId::get().into(),
 			asset_out.into(),
@@ -2118,7 +2121,8 @@ impl<T: Config> Pallet<T> {
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
-			pallet_amm_support::PoolType::Omnipool,
+			Self::protocol_account(),
+			pallet_amm_support::Filler::Omnipool,
 			pallet_amm_support::TradeOperation::Buy,
 			T::HubAssetId::get().into(),
 			asset_out.into(),

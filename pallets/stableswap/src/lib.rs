@@ -856,7 +856,8 @@ impl<T: Config> Pallet<T> {
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who,
-			pallet_amm_support::PoolType::Stableswap(pool_id.into()),
+			pool_account,
+			pallet_amm_support::Filler::Stableswap,
 			pallet_amm_support::TradeOperation::Sell,
 			asset_in.into(),
 			asset_out.into(),
@@ -932,7 +933,8 @@ impl<T: Config> Pallet<T> {
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who,
-			pallet_amm_support::PoolType::Stableswap(pool_id.into()),
+			pool_account,
+			pallet_amm_support::Filler::Stableswap,
 			pallet_amm_support::TradeOperation::Buy,
 			asset_in.into(),
 			asset_out.into(),
