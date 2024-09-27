@@ -733,7 +733,7 @@ fn transfer_dot_reserve_from_asset_hub_to_hydra_should_work() {
 }
 
 #[test]
-fn transfer_dot_from_hydra_to_asset_hub() {
+fn transfer_dot_from_hydra_to_asset_hub_should_work() {
 	let init_hydra_para_dot_balance_on_ah = 4000 * UNITS;
 	let hydra_at_ah = Location::new(
 		1,
