@@ -47,13 +47,6 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
-use pallet_transaction_multi_payment::{DepositAll, TransferFees};
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
-use primitives::constants::{
-	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
-	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
-	time::{DAYS, HOURS, SLOT_DURATION},
-};
 use scale_info::TypeInfo;
 
 pub struct CallFilter;
