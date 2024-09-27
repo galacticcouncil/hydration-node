@@ -655,7 +655,7 @@ fn transfer_foreign_asset_from_acala_to_hydra_should_not_work() {
 }
 
 #[test]
-fn transfer_dot_reserve_from_asset_hub_to_hydra_should_work() {
+fn transfer_dot_from_asset_hub_to_hydra_should_work() {
 	//Arrange
 	TestNet::reset();
 
