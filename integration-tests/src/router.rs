@@ -5407,7 +5407,6 @@ mod sell_all {
 				assert_balance!(ALICE.into(), pool_id, 0);
 
 				//Act
-				let amount_to_sell = 3000 * UNITS;
 				assert_ok!(Router::sell_all(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					stable_asset_1,

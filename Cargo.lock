@@ -172,9 +172,9 @@ dependencies = [
 
 [[package]]
 name = "anstyle"
-version = "1.0.4"
+version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7079075b41f533b8c61d2a4d073c4676e1f8b249ff94a393b0595db304e0dd87"
+checksum = "038dfcf04a5feb68e9c60b21c9625a54c2c0616e79b72b0fd87075a056ae1d1b"
 
 [[package]]
 name = "anstyle-parse"
@@ -230,7 +230,7 @@ dependencies = [
  "proc-macro-error",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -584,7 +584,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
- "synstructure 0.12.6",
+ "synstructure",
 ]
 
 [[package]]
@@ -773,7 +773,7 @@ checksum = "fdf6721fb0140e4f897002dd086c06f6c27775df19cfe1fccb21181a48fd2c98"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -958,7 +958,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -1518,23 +1518,23 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.7"
+version = "4.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5db83dced34638ad474f39f250d7fea9598bdd239eaced1bdf45d597da0f433f"
+checksum = "90bc066a67923782aa8515dbaea16946c5bcc5addbd668bb80af688e53e548a0"
 dependencies = [
  "clap_builder",
- "clap_derive 4.5.5",
+ "clap_derive 4.5.4",
 ]
 
 [[package]]
 name = "clap_builder"
-version = "4.5.7"
+version = "4.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7e204572485eb3fbf28f871612191521df159bc3e15a9f5064c66dba3a8c05f"
+checksum = "ae129e2e766ae0ec03484e609954119f123cc1fe650337e155d03b022f24f7b4"
 dependencies = [
  "anstream",
  "anstyle",
- "clap_lex 0.7.1",
+ "clap_lex 0.7.0",
  "strsim 0.11.1",
  "terminal_size",
 ]
@@ -1554,14 +1554,14 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.5.5"
+version = "4.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c780290ccf4fb26629baa7a1081e68ced113f1d3ec302fa5948f1c381ebf06c6"
+checksum = "528131438037fd55894f62d6e9f068b8f45ac57ffa77517819645d10aed04f64"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -1575,9 +1575,9 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "0.7.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b82cf0babdbd58558212896d1a4272303a57bdb245c2bf1147185fb45640e70"
+checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 
 [[package]]
 name = "coarsetime"
@@ -1621,7 +1621,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/w3f/ring-proof#665f5f51af5734c7b6d90b985dd6861d4c5b4752"
+source = "git+https://github.com/w3f/ring-proof#96137b150288a66bc9e4df495efc64769b5d1321"
 dependencies = [
  "ark-ec",
  "ark-ff",
@@ -2029,7 +2029,7 @@ name = "cumulus-client-cli"
 version = "0.7.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
- "clap 4.5.7",
+ "clap 4.5.4",
  "parity-scale-codec",
  "sc-chain-spec",
  "sc-cli",
@@ -2317,7 +2317,7 @@ dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -2638,7 +2638,7 @@ checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -2678,7 +2678,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "scratch",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -2695,7 +2695,7 @@ checksum = "5c6888cd161769d65134846d4d4981d5a6654307cc46ec83fb917e530aea5f84"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -2787,7 +2787,7 @@ checksum = "d65d7ce8132b7c0e54497a4d9a55a1c2a0912a0d786cf894472ba818fba45762"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -2895,7 +2895,7 @@ checksum = "487585f4d0c6655fe74905e2504d8ad6908e4db67f744eb140876906c2f3175d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -2935,9 +2935,9 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "syn 2.0.67",
+ "syn 2.0.61",
  "termcolor",
- "toml 0.8.14",
+ "toml 0.8.12",
  "walkdir",
 ]
 
@@ -3114,7 +3114,7 @@ checksum = "f95e2801cd355d4a1a3e3953ce6ee5ae9603a5c833455343a8bfe3f44d418246"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -3125,7 +3125,7 @@ checksum = "c2ad8cef1d801a4686bfd8919f0b30eac4c8e48968c437a6405ded4fb5272d2b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -3302,7 +3302,7 @@ dependencies = [
 [[package]]
 name = "evm"
 version = "0.41.1"
-source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.7.2#fd602351387b3a3745110e93a66eab9be59fb801"
+source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.7.2#d8991ec727ad0fb64fe9957a3cd307387a6701e4"
 dependencies = [
  "auto_impl",
  "environmental",
@@ -3333,7 +3333,7 @@ dependencies = [
 [[package]]
 name = "evm-core"
 version = "0.41.0"
-source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.7.2#fd602351387b3a3745110e93a66eab9be59fb801"
+source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.7.2#d8991ec727ad0fb64fe9957a3cd307387a6701e4"
 dependencies = [
  "parity-scale-codec",
  "primitive-types",
@@ -3355,7 +3355,7 @@ dependencies = [
 [[package]]
 name = "evm-gasometer"
 version = "0.41.0"
-source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.7.2#fd602351387b3a3745110e93a66eab9be59fb801"
+source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.7.2#d8991ec727ad0fb64fe9957a3cd307387a6701e4"
 dependencies = [
  "environmental",
  "evm-core 0.41.0",
@@ -3378,7 +3378,7 @@ dependencies = [
 [[package]]
 name = "evm-runtime"
 version = "0.41.0"
-source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.7.2#fd602351387b3a3745110e93a66eab9be59fb801"
+source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.7.2#d8991ec727ad0fb64fe9957a3cd307387a6701e4"
 dependencies = [
  "auto_impl",
  "environmental",
@@ -3418,7 +3418,7 @@ dependencies = [
  "fs-err",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -3482,7 +3482,7 @@ dependencies = [
 [[package]]
 name = "fc-api"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "async-trait",
  "fp-storage",
@@ -3494,7 +3494,7 @@ dependencies = [
 [[package]]
 name = "fc-consensus"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "async-trait",
  "fp-consensus",
@@ -3510,7 +3510,7 @@ dependencies = [
 [[package]]
 name = "fc-db"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "async-trait",
  "fc-api",
@@ -3531,7 +3531,7 @@ dependencies = [
 [[package]]
 name = "fc-mapping-sync"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "fc-db",
  "fc-storage",
@@ -3552,7 +3552,7 @@ dependencies = [
 [[package]]
 name = "fc-rpc"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "ethereum 0.15.0",
  "ethereum-types",
@@ -3607,7 +3607,7 @@ dependencies = [
 [[package]]
 name = "fc-rpc-core"
 version = "1.1.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "ethereum 0.15.0",
  "ethereum-types",
@@ -3622,7 +3622,7 @@ dependencies = [
 [[package]]
 name = "fc-storage"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "ethereum 0.15.0",
  "ethereum-types",
@@ -3791,7 +3791,7 @@ dependencies = [
 [[package]]
 name = "fp-account"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "hex",
  "impl-serde",
@@ -3810,7 +3810,7 @@ dependencies = [
 [[package]]
 name = "fp-consensus"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "ethereum 0.15.0",
  "parity-scale-codec",
@@ -3822,7 +3822,7 @@ dependencies = [
 [[package]]
 name = "fp-ethereum"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "ethereum 0.15.0",
  "ethereum-types",
@@ -3835,7 +3835,7 @@ dependencies = [
 [[package]]
 name = "fp-evm"
 version = "3.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "evm 0.41.1",
  "frame-support",
@@ -3851,7 +3851,7 @@ dependencies = [
 [[package]]
 name = "fp-rpc"
 version = "3.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "ethereum 0.15.0",
  "ethereum-types",
@@ -3868,7 +3868,7 @@ dependencies = [
 [[package]]
 name = "fp-self-contained"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -3880,7 +3880,7 @@ dependencies = [
 [[package]]
 name = "fp-storage"
 version = "2.0.0"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "parity-scale-codec",
  "serde",
@@ -3925,7 +3925,7 @@ dependencies = [
  "Inflector",
  "array-bytes 6.2.2",
  "chrono",
- "clap 4.5.7",
+ "clap 4.5.4",
  "comfy-table",
  "frame-benchmarking",
  "frame-support",
@@ -3973,7 +3973,7 @@ dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -4117,7 +4117,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "sp-crypto-hashing",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -4129,7 +4129,7 @@ dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -4139,7 +4139,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -4318,7 +4318,7 @@ checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -4798,7 +4798,7 @@ name = "hydradx"
 version = "13.1.2"
 dependencies = [
  "async-trait",
- "clap 4.5.7",
+ "clap 4.5.4",
  "cumulus-client-cli",
  "cumulus-client-collator",
  "cumulus-client-consensus-aura",
@@ -4938,7 +4938,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "257.0.0"
+version = "259.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4990,7 +4990,7 @@ dependencies = [
  "pallet-conviction-voting 28.0.0",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.3.0",
+ "pallet-democracy 4.3.1",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -5077,7 +5077,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.6.0"
+version = "3.7.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -5774,9 +5774,9 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "libc"
-version = "0.2.155"
+version = "0.2.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97b3888a4aecf77e811145cadf6eef5901f4782c53886191b2f693f24761847c"
+checksum = "ae743338b92ff9146ce83992f766a31066a91a8c84a45e0e9f21e7cf6de6d346"
 
 [[package]]
 name = "libloading"
@@ -6413,7 +6413,7 @@ dependencies = [
  "macro_magic_core",
  "macro_magic_macros",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -6427,7 +6427,7 @@ dependencies = [
  "macro_magic_core_macros",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -6438,7 +6438,7 @@ checksum = "9ea73aa640dc01d62a590d48c0c3521ed739d53b27f919b25c3551e233481654"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -6449,7 +6449,7 @@ checksum = "ef9d79ae96aaba821963320eb2b6e34d17df1e5a83d8a1985c29cc5be59577b3"
 dependencies = [
  "macro_magic_core",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -6465,7 +6465,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -6849,7 +6849,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
- "synstructure 0.12.6",
+ "synstructure",
 ]
 
 [[package]]
@@ -6865,16 +6865,16 @@ dependencies = [
 
 [[package]]
 name = "multihash-derive-impl"
-version = "0.1.1"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3958713ce794e12f7c6326fac9aa274c68d74c4881dd37b3e2662b8a2046bb19"
+checksum = "d38685e08adb338659871ecfc6ee47ba9b22dcc8abcf6975d379cc49145c3040"
 dependencies = [
- "proc-macro-crate 2.0.0",
+ "proc-macro-crate 1.3.1",
  "proc-macro-error",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
- "synstructure 0.13.1",
+ "syn 1.0.109",
+ "synstructure",
 ]
 
 [[package]]
@@ -7196,7 +7196,7 @@ dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -7961,7 +7961,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.5.2"
+version = "1.6.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7980,6 +7980,7 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-omnipool",
  "pallet-route-executor",
+ "pallet-xyk",
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types",
@@ -7999,7 +8000,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.3.0"
+version = "4.3.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8188,7 +8189,7 @@ dependencies = [
 [[package]]
 name = "pallet-ethereum"
 version = "4.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "environmental",
  "ethereum 0.15.0",
@@ -8212,7 +8213,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm"
 version = "6.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "environmental",
  "evm 0.41.1",
@@ -8265,7 +8266,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-chain-id"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8276,7 +8277,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-blake2"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "fp-evm",
 ]
@@ -8284,7 +8285,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-bn128"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "fp-evm",
  "sp-core",
@@ -8323,7 +8324,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-dispatch"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8335,7 +8336,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-modexp"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "fp-evm",
  "num",
@@ -8344,7 +8345,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-simple"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#7f424fb9fc1ca9158a59be54cb183beaff9f799a"
+source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.7.2#91f1c7a447f987d732f87f86c3e02d506d426a99"
 dependencies = [
  "fp-evm",
  "ripemd",
@@ -8467,7 +8468,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.8.4"
+version = "4.8.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8492,7 +8493,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.4.0"
+version = "4.4.1"
 dependencies = [
  "fixed",
  "frame-support",
@@ -9138,7 +9139,7 @@ dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -9234,7 +9235,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.0.4"
+version = "10.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9248,6 +9249,7 @@ dependencies = [
  "pallet-evm-accounts",
  "pallet-transaction-payment",
  "pallet-utility",
+ "pallet-xyk",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -9448,7 +9450,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.4.5"
+version = "6.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9474,7 +9476,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9549,9 +9551,9 @@ dependencies = [
 
 [[package]]
 name = "parity-scale-codec"
-version = "3.6.12"
+version = "3.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "306800abfa29c7f16596b5970a588435e3d5b3149683d00c12b699cc19f895ee"
+checksum = "881331e34fa842a2fb61cc2db9643a8fedc615e47cfcc52597d1af0db9a7e8fe"
 dependencies = [
  "arrayvec 0.7.4",
  "bitvec",
@@ -9564,11 +9566,11 @@ dependencies = [
 
 [[package]]
 name = "parity-scale-codec-derive"
-version = "3.6.12"
+version = "3.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d830939c76d294956402033aee57a6da7b438f2294eb94864c37b0569053a42c"
+checksum = "be30eaf4b0a9fba5336683b38de57bb86d179a35862ba6bfcf57625d006bde5b"
 dependencies = [
- "proc-macro-crate 3.1.0",
+ "proc-macro-crate 2.0.0",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -9722,7 +9724,7 @@ dependencies = [
  "pest_meta",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -9763,7 +9765,7 @@ checksum = "4359fd9c9171ec6e8c62926d6faaf553a8dc3f64e1507e76da7911b4f6a04405"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -9939,7 +9941,7 @@ version = "7.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "cfg-if",
- "clap 4.5.7",
+ "clap 4.5.4",
  "frame-benchmarking-cli",
  "futures",
  "log",
@@ -11101,7 +11103,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae005bd773ab59b4725093fd7df83fd7892f7d8eafb48dbd7de6e024e4215f9d"
 dependencies = [
  "proc-macro2",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -11209,14 +11211,14 @@ checksum = "834da187cfe638ae8abb0203f0b33e5ccdb02a28e7199f2f47b3e2754f50edca"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.86"
+version = "1.0.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e719e8df665df0d1c8fbfd238015744736151d4445ec0836b8e628aae103b77"
+checksum = "8ad3d49ab951a01fbaafe34f2ec74122942fe18a3f9814c3268f1bb72042131b"
 dependencies = [
  "unicode-ident",
 ]
@@ -11255,14 +11257,14 @@ checksum = "440f724eba9f6996b75d63681b0a92b06947f1457076d503a4d2e2c8f56442b8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
 name = "proptest"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31b476131c3c86cb68032fdc5cb6d5a1045e3e42d96b69fa599fd77701e1f5bf"
+checksum = "b4c2511913b88df1637da85cc8d96ec8e43a3f8bb8ccb71ee1ac240d6f3df58d"
 dependencies = [
  "bit-set",
  "bit-vec",
@@ -11290,12 +11292,12 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.12.6"
+version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "deb1435c188b76130da55f17a466d252ff7b1418b2ad3e037d127b94e3411f29"
+checksum = "d0f5d036824e4761737860779c906171497f6d55681139d8312388f8fe398922"
 dependencies = [
  "bytes",
- "prost-derive 0.12.6",
+ "prost-derive 0.12.5",
 ]
 
 [[package]]
@@ -11335,15 +11337,15 @@ dependencies = [
 
 [[package]]
 name = "prost-derive"
-version = "0.12.6"
+version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81bddcdb20abf9501610992b6759a4c888aef7d1a7247ef75e2404275ac24af1"
+checksum = "9554e3ab233f0a932403704f1a1d08c30d5ccd931adfdfa1e8b5a19b52c1d55a"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -11618,7 +11620,7 @@ checksum = "2566c4bf6845f2c2e83b27043c3f5dfcd5ba8f2937d6c00dc009bfb51a079dc4"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -11700,14 +11702,13 @@ dependencies = [
 [[package]]
 name = "ring"
 version = "0.1.0"
-source = "git+https://github.com/w3f/ring-proof#665f5f51af5734c7b6d90b985dd6861d4c5b4752"
+source = "git+https://github.com/w3f/ring-proof#96137b150288a66bc9e4df495efc64769b5d1321"
 dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-poly",
  "ark-serialize",
  "ark-std",
- "arrayvec 0.7.4",
  "blake2 0.10.6",
  "common",
  "fflonk",
@@ -11954,7 +11955,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.4"
+version = "1.23.6"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -11975,6 +11976,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal 0.4.1",
+ "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
@@ -11997,7 +11999,7 @@ dependencies = [
  "pallet-conviction-voting 28.0.0",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.3.0",
+ "pallet-democracy 4.3.1",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -12040,6 +12042,7 @@ dependencies = [
  "precompile-utils",
  "pretty_assertions",
  "primitives",
+ "proptest",
  "rococo-runtime",
  "sc-consensus-grandpa",
  "scraper",
@@ -12314,7 +12317,7 @@ dependencies = [
  "multihash 0.18.1",
  "multihash-codetable",
  "parity-scale-codec",
- "prost 0.12.6",
+ "prost 0.12.4",
  "prost-build",
  "rand",
  "sc-client-api",
@@ -12400,7 +12403,7 @@ dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -12411,7 +12414,7 @@ dependencies = [
  "array-bytes 6.2.2",
  "bip39",
  "chrono",
- "clap 4.5.7",
+ "clap 4.5.4",
  "fdlimit",
  "futures",
  "itertools 0.10.5",
@@ -12928,7 +12931,7 @@ dependencies = [
  "futures",
  "libp2p-identity",
  "log",
- "prost 0.12.6",
+ "prost 0.12.4",
  "prost-build",
  "sc-client-api",
  "sc-network",
@@ -12985,7 +12988,7 @@ dependencies = [
  "libp2p-identity",
  "log",
  "parity-scale-codec",
- "prost 0.12.6",
+ "prost 0.12.4",
  "prost-build",
  "sc-client-api",
  "sc-network",
@@ -13010,7 +13013,7 @@ dependencies = [
  "log",
  "mockall",
  "parity-scale-codec",
- "prost 0.12.6",
+ "prost 0.12.4",
  "prost-build",
  "sc-client-api",
  "sc-consensus",
@@ -13269,7 +13272,7 @@ name = "sc-storage-monitor"
 version = "0.16.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
- "clap 4.5.7",
+ "clap 4.5.4",
  "fs4",
  "log",
  "sp-core",
@@ -13374,7 +13377,7 @@ dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -13702,9 +13705,9 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serde"
-version = "1.0.203"
+version = "1.0.201"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7253ab4de971e72fb7be983802300c30b5a7f0c2e56fab8abfc6a214307c0094"
+checksum = "780f1cebed1629e4753a1a38a3c72d30b97ec044f0aef68cb26650a3c5cf363c"
 dependencies = [
  "serde_derive",
 ]
@@ -13720,13 +13723,13 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.203"
+version = "1.0.201"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "500cbc0ebeb6f46627f50f3f5811ccf6bf00643be300b4c3eabc0ef55dc5b5ba"
+checksum = "c5e405930b9796f1c00bee880d03fc7e0bb4b9a11afc776885ffe84320da2865"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -13742,9 +13745,9 @@ dependencies = [
 
 [[package]]
 name = "serde_spanned"
-version = "0.6.6"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79e674e01f999af37c49f70a6ede167a8a60b2503e56c5599532a65baa5969a0"
+checksum = "eb3622f419d1296904700073ea6cc23ad690adbd66f13ea683df73298736f0c1"
 dependencies = [
  "serde",
 ]
@@ -14150,7 +14153,7 @@ dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -14398,7 +14401,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -14436,7 +14439,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 dependencies = [
  "quote",
  "sp-crypto-hashing",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -14451,11 +14454,11 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -14465,13 +14468,13 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -14683,7 +14686,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -14719,14 +14722,14 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
 dependencies = [
  "Inflector",
  "expander 2.0.0",
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -14739,7 +14742,7 @@ dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -14820,7 +14823,7 @@ dependencies = [
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
 
 [[package]]
 name = "sp-std"
@@ -14830,7 +14833,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -14869,7 +14872,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
 dependencies = [
  "parity-scale-codec",
  "sp-std 14.0.0 (git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2)",
@@ -14963,13 +14966,13 @@ dependencies = [
  "parity-scale-codec",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",
@@ -15233,7 +15236,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -15350,7 +15353,7 @@ dependencies = [
  "sp-version",
  "strum 0.24.1",
  "tempfile",
- "toml 0.8.14",
+ "toml 0.8.12",
  "walkdir",
  "wasm-opt",
 ]
@@ -15386,9 +15389,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.67"
+version = "2.0.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff8655ed1d86f3af4ee3fd3263786bc14245ad17c4c7e85ba7187fb3ae028c90"
+checksum = "c993ed8ccba56ae856363b1845da7266a7cb78e1d146c8a32d54b45a8b831fc9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -15405,17 +15408,6 @@ dependencies = [
  "quote",
  "syn 1.0.109",
  "unicode-xid",
-]
-
-[[package]]
-name = "synstructure"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8af7666ab7b6390ab78131fb5b0fce11d6b7a6951602017c35fa82800708971"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.67",
 ]
 
 [[package]]
@@ -15516,7 +15508,7 @@ dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -15540,7 +15532,7 @@ checksum = "5c89e72a01ed4c579669add59014b9a524d609c0c88c6a585ce37485879f6ffb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
  "test-case-core",
 ]
 
@@ -15584,7 +15576,7 @@ checksum = "e4c60d69f36615a077cc7663b9cb8e42275722d23e58a7fa3d2c7f2915d09d04"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -15595,7 +15587,7 @@ checksum = "01742297787513b79cf8e29d1056ede1313e2420b7b3b15d0a768b4921f549df"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -15722,9 +15714,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.38.0"
+version = "1.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba4f4a02a7a80d6f274636f0aa95c7e383b912d41fe721a31f29e29698585a4a"
+checksum = "1adbebffeca75fcfd058afa480fb6c0b81e165a0323f9c9d39c9697e37c46787"
 dependencies = [
  "backtrace",
  "bytes",
@@ -15741,13 +15733,13 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "2.3.0"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f5ae998a069d4b5aba8ee9dad856af7d520c3699e6159b185c2acd48155d39a"
+checksum = "5b8a1e28f2deaa14e508979454cb3a223b10b938b45af148bc0986de36f1923b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -15821,21 +15813,21 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.8.14"
+version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f49eb2ab21d2f26bd6db7bf383edc527a7ebaee412d17af4d40fdccd442f335"
+checksum = "e9dd1545e8208b4a5af1aa9bbd0b4cf7e9ea08fabc5d0a5c67fcaafa17433aa3"
 dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "toml_edit 0.22.14",
+ "toml_edit 0.22.12",
 ]
 
 [[package]]
 name = "toml_datetime"
-version = "0.6.6"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4badfd56924ae69bcc9039335b2e017639ce3f9b001c393c1b2d1ef846ce2cbf"
+checksum = "3550f4e9685620ac18a50ed434eb3aec30db8ba93b0287467bca5826ea25baf1"
 dependencies = [
  "serde",
 ]
@@ -15877,15 +15869,15 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.22.14"
+version = "0.22.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f21c7aaf97f1bd9ca9d4f9e73b0a6c74bd5afef56f2bc931943a6e1c37e04e38"
+checksum = "d3328d4f68a705b2a4498da1d580585d39a6510f98318a2cec3018a7ec61ddef"
 dependencies = [
  "indexmap 2.1.0",
  "serde",
  "serde_spanned",
  "toml_datetime",
- "winnow 0.6.13",
+ "winnow 0.6.8",
 ]
 
 [[package]]
@@ -15953,7 +15945,7 @@ checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -15996,7 +15988,7 @@ dependencies = [
  "proc-macro-crate 3.1.0",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -16133,7 +16125,7 @@ version = "0.38.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "async-trait",
- "clap 4.5.7",
+ "clap 4.5.4",
  "frame-remote-externalities",
  "hex",
  "log",
@@ -16350,9 +16342,9 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
 name = "w3f-bls"
-version = "0.1.4"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c5da5fa2c6afa2c9158eaa7cd9aee249765eb32b5fb0c63ad8b9e79336a47ec"
+checksum = "7335e4c132c28cc43caef6adb339789e599e39adbe78da0c4d547fad48cbc331"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-381",
@@ -16439,7 +16431,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
  "wasm-bindgen-shared",
 ]
 
@@ -16473,7 +16465,7 @@ checksum = "f0eb82fcb7930ae6219a7ecfd55b217f5f0893484b7a13022ebb2b2bf20b5283"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -17247,9 +17239,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.6.13"
+version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59b5e5f6c299a3c7890b876a2a587f3115162487e704907d9b6cd29473052ba1"
+checksum = "c3c52e9c97a68071b23e836c9380edae937f17b9c4667bd021973efc689f618d"
 dependencies = [
  "memchr",
 ]
@@ -17356,7 +17348,7 @@ dependencies = [
  "Inflector",
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -17405,7 +17397,7 @@ checksum = "9ce1b18ccd8e73a9321186f97e46f9f04b778851177567b1975109d26a08d2a6"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]
@@ -17425,7 +17417,7 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.67",
+ "syn 2.0.61",
 ]
 
 [[package]]

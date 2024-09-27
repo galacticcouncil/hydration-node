@@ -18,6 +18,13 @@
 use super::*;
 
 use crate::origins::GeneralAdmin;
+use pallet_transaction_multi_payment::{DepositAll, TransferFees, WeightInfo};
+use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+use primitives::constants::{
+	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
+	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
+	time::{DAYS, HOURS, SLOT_DURATION},
+};
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use core::cmp::Ordering;
@@ -107,11 +114,9 @@ impl Contains<RuntimeCall> for CallFilter {
 		}
 
 		match call {
-			RuntimeCall::PolkadotXcm(pallet_xcm::Call::send { .. }) => true,
 			// create and create2 are only allowed through RPC or Runtime API
 			RuntimeCall::EVM(pallet_evm::Call::create { .. }) => false,
 			RuntimeCall::EVM(pallet_evm::Call::create2 { .. }) => false,
-			RuntimeCall::PolkadotXcm(_) => false,
 			RuntimeCall::OrmlXcm(_) => false,
 			_ => true,
 		}
@@ -146,12 +151,23 @@ parameter_types! {
 		})
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
-	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
+	pub ExtrinsicBaseWeight: Weight = get_extrinsic_base_weight();
 	pub const BlockHashCount: BlockNumber = 2400;
 	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: frame_system::limits::BlockLength =
 		frame_system::limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u16 = 63;
+}
+
+//We get the base and add the multi payment overhead until we have proper solution for calculating ExtrinsicBaseWeight by using the benchmark overhead command.
+pub fn get_extrinsic_base_weight() -> Weight {
+	let mut base_weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
+	let multi_payment_overhead =
+		crate::weights::pallet_transaction_multi_payment::HydraWeight::<Runtime>::withdraw_fee();
+
+	base_weight.saturating_accrue(multi_payment_overhead);
+
+	base_weight
 }
 
 impl frame_system::Config for Runtime {
@@ -509,7 +525,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 
 pub struct WeightToFee;
 
-pub const SUBSTRATE_FEE_DIVIDER: u128 = 4; // We use this to divide fee related constant as HDX price is high (~0.26$), but we want to reduce the fee price
+pub const SUBSTRATE_FEE_DIVIDER: u128 = 6; // To scale down the fee (based on manually evaluating market price data)
 
 impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
@@ -527,7 +543,7 @@ impl WeightToFeePolynomial for WeightToFee {
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
 		let p = CENTS / SUBSTRATE_FEE_DIVIDER; // 1_000_000_000_000 / SUBSTRATE_FEE_DIVIDER
-		let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time()); // 7_919_840_000
+		let q = 10 * Balance::from(frame_support::weights::constants::ExtrinsicBaseWeight::get().ref_time());
 		smallvec::smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,
@@ -569,11 +585,13 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type WeightInfo = weights::pallet_transaction_multi_payment::HydraWeight<Runtime>;
 	type NativeAssetId = NativeAssetId;
+	type PolkadotNativeAssetId = DotAssetId;
 	type EvmAssetId = evm::WethAssetId;
 	type InspectEvmAccounts = EVMAccounts;
 	type WeightToFee = WeightToFee;
 	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
 	type TryCallCurrency<'a> = pallet_transaction_multi_payment::TryCallCurrency<Runtime>;
+	type SwappablePaymentAssetSupport = assets::XykPaymentAssetSupport;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
