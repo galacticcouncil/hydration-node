@@ -668,7 +668,7 @@ parameter_types! {
 	pub const XYKLmMaxEntriesPerDeposit: u8 = 5; //NOTE: Rebenchmark when this change
 	pub const XYKLmMaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms
 	pub const XYKLmMinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks
-	pub const XYKLmMinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT * 100;
+	pub const XYKLmMinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT;
 	pub const XYKLmOracle: [u8; 8] = XYK_SOURCE;
 }
 
