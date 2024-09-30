@@ -1,5 +1,5 @@
 pub use super::mock::*;
-use crate::{Error, Event};
+use crate::{Error, Event, AMMTransfer};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
@@ -70,9 +70,89 @@ fn sell_test() {
 				pool: pair_account,
 			}
 			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: ALICE,
+				filler: pair_account,
+				filler_type: pallet_amm_support::Filler::XYK,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount_in: 456444678,
+				amount_out: 1363483591788,
+				fees: vec![(asset_b, 2732432046, pair_account)],
+				event_id: None,
+			}
+			.into(),
 		]);
 	});
 }
+
+#[test]
+fn execute_sell_should_use_event_id() {
+	new_test_ext().execute_with(|| {
+		let user_1 = ALICE;
+		let asset_a = ACA;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(user_1),
+			asset_a,
+			200_000_000_000,
+			asset_b,
+			600_000_000_000_000,
+		));
+
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+
+		let t = AMMTransfer {
+			origin: user_1,
+			assets: AssetPair { asset_in: asset_a, asset_out: asset_b },
+			amount: 456_444_678,
+			amount_b: 1363483591788,
+			discount: false,
+			discount_amount: 0_u128,
+			fee: (asset_b, 2732432046),
+		};
+
+		let event_id = Some(7);
+		assert_ok!(XYK::execute_sell(
+			&t,
+			event_id,
+		));
+
+		expect_events(vec![
+			Event::SellExecuted {
+				who: ALICE,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount: 456444678,
+				sale_price: 1363483591788,
+				fee_asset: asset_b,
+				fee_amount: 2732432046,
+				pool: pair_account,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: ALICE,
+				filler: pair_account,
+				filler_type: pallet_amm_support::Filler::XYK,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount_in: 456444678,
+				amount_out: 1363483591788,
+				fees: vec![(asset_b, 2732432046, pair_account)],
+				event_id,
+			}
+			.into(),
+		]);
+	});
+}
+
+
 
 #[test]
 fn work_flow_happy_path_should_work() {
@@ -366,6 +446,19 @@ fn sell_with_correct_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: user_1,
+				filler: pair_account,
+				filler_type: pallet_amm_support::Filler::XYK,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount_in: 100_000,
+				amount_out: 19_762_378,
+				fees: vec![(asset_b, 39_602, pair_account)],
+				event_id: None,
+			}
+			.into(),
 		]);
 	});
 }
@@ -571,6 +664,19 @@ fn single_buy_should_work() {
 				fee_asset: asset_b,
 				fee_amount: 44_137_926,
 				pool: pair_account,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: user_1,
+				filler: pair_account,
+				filler_type: pallet_amm_support::Filler::XYK,
+				operation: pallet_amm_support::TradeOperation::Buy,
+				asset_in: asset_b,
+				asset_out: asset_a,
+				amount_in: 6_666_666,
+				amount_out: 22_068_963_235,
+				fees: vec![(asset_b, 44_137_926, pair_account)],
+				event_id: None,
 			}
 			.into(),
 		]);

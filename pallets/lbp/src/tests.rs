@@ -1830,7 +1830,8 @@ fn execute_sell_should_work() {
 		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 2_000_000_000);
 
-		assert_ok!(LBPPallet::execute_sell(&t, None));
+		let event_id = Some(7);
+		assert_ok!(LBPPallet::execute_sell(&t, event_id));
 
 		expect_events(vec![
 			Event::SellExecuted {
@@ -1853,7 +1854,7 @@ fn execute_sell_should_work() {
 				amount_in,
 				amount_out: amount_b,
 				fees: vec![(asset_in, 1_000, pool_data.fee_collector)],
-				event_id: None,
+				event_id,
 			}
 			.into(),
 		]);
@@ -1970,7 +1971,8 @@ fn execute_buy_should_work() {
 		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 2_000_000_000);
 
-		assert_ok!(LBPPallet::execute_buy(&t, None, None));
+		let event_id = Some(7);
+		assert_ok!(LBPPallet::execute_buy(&t, None, event_id));
 
 		assert_eq!(Currency::free_balance(asset_in, &ALICE), 999_998_991_999_000);
 		assert_eq!(Currency::free_balance(asset_out, &ALICE), 999_998_020_000_000);
@@ -2001,7 +2003,7 @@ fn execute_buy_should_work() {
 				amount_in,
 				amount_out: amount_b,
 				fees: vec![(asset_in, 1_000, pool_data.fee_collector)],
-				event_id: None,
+				event_id,
 			}
 			.into(),
 		]);

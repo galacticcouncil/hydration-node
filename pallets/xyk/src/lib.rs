@@ -924,14 +924,14 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance, IncrementalIdType
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
-			pair_account,
+			pair_account.clone(),
 			pallet_amm_support::Filler::XYK,
 			pallet_amm_support::TradeOperation::Sell,
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
 			transfer.amount,
 			transfer.amount_b,
-			vec![transfer.fee],
+			vec![(transfer.fee.0, transfer.fee.1, pair_account)],
 			event_id,
 		);
 
@@ -1104,14 +1104,14 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance, IncrementalIdType
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
-			pair_account,
+			pair_account.clone(),
 			pallet_amm_support::Filler::XYK,
 			pallet_amm_support::TradeOperation::Buy,
 			transfer.assets.asset_in,
 			transfer.assets.asset_out,
 			transfer.amount,
 			transfer.amount_b,
-			vec![transfer.fee],
+			vec![(transfer.fee.0, transfer.fee.1, pair_account)],
 			event_id,
 		);
 
