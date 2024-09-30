@@ -111,11 +111,11 @@ where
 		let context = handle.context();
 		let address = handle.code_address();
 
-		// Filter known precompile addresses except Ethereum officials
-		if address > ETH_PRECOMPILE_END && context.address != address {
+		// Disallow calling custom precompiles with DELEGATECALL or CALLCODE
+		if context.address != address && is_precompile(address) && !is_standard_precompile(address) {
 			return Some(Err(PrecompileFailure::Revert {
 				exit_status: ExitRevert::Reverted,
-				output: "cannot be called with DELEGATECALL or CALLCODE".into(),
+				output: "precompile cannot be called with DELEGATECALL or CALLCODE".into(),
 			}));
 		}
 
