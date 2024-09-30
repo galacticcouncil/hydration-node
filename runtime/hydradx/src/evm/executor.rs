@@ -1,24 +1,16 @@
-use std::marker::PhantomData;
-use evm::executor::stack::{IsPrecompileResult, PrecompileSet, StackExecutor, StackSubstateMetadata};
+use evm::executor::stack::{StackExecutor, StackSubstateMetadata};
 use evm::ExitFatal::Other;
 use evm::ExitReason;
-use fp_evm::{CallInfo, CreateInfo, ExecutionInfoV2, FeeCalculator, TransactionValidationError, Vicinity, WeightInfo};
+use fp_evm::Vicinity;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Get;
 use hydradx_traits::evm::{CallContext, EVM};
-use pallet_evm::runner::stack::{SubstrateStackState};
-use pallet_evm::{AccountCodes, AccountCodesMetadata, AddressMapping, CodeMetadata, Config, Error, Log, OnChargeEVMTransaction, Runner, RunnerError};
+use pallet_evm::runner::stack::SubstrateStackState;
+use pallet_evm::{AddressMapping, Config};
 use primitive_types::{H160, U256};
 use sp_runtime::{DispatchError, TransactionOutcome};
 use sp_std::vec;
 use sp_std::vec::Vec;
-use evm::backend::{Backend, Basic};
-use evm::executor::stack::{StackState};
-use evm::{ExitError, Transfer};
-use frame_support::weights::Weight;
-use hex_literal::hex;
-use sp_core::{H256,};
-use crate::evm::precompiles::{is_precompile};
 
 pub struct Executor<R>(sp_std::marker::PhantomData<R>);
 
