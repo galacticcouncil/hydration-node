@@ -63,7 +63,7 @@ pub mod pallet {
 			asset_out: AssetId,
 			amount_in: Balance,
 			amount_out: Balance,
-			fees: Vec<(AssetId, Balance)>,
+			fees: Vec<(AssetId, Balance, T::AccountId)>, // (asset, fee amount, fee recipient)
 			event_id: Option<u32>,
 		},
 	}
@@ -89,7 +89,7 @@ impl<T: Config> Pallet<T> {
 		asset_out: AssetId,
 		amount_in: Balance,
 		amount_out: Balance,
-		fees: Vec<(AssetId, Balance)>,
+		fees: Vec<(AssetId, Balance, T::AccountId)>,
 		event_id: Option<IncrementalIdType>,
 	) {
 		Self::deposit_event(Event::<T>::Swapped {

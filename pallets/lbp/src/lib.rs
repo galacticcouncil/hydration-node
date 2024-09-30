@@ -28,7 +28,6 @@ use frame_support::sp_runtime::{
 	DispatchError, RuntimeDebug,
 };
 use frame_support::{
-	dispatch,
 	dispatch::DispatchResult,
 	ensure,
 	traits::{EnsureOrigin, Get, LockIdentifier},
@@ -1129,6 +1128,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 		});
 
 		let pool_account = Self::get_pair_id(transfer.assets);
+		let pool = <PoolData<T>>::try_get(&pool_account).map_err(|_| Error::<T>::PoolNotFound)?;
+
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
 			pool_account,
@@ -1138,7 +1139,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 			transfer.assets.asset_out,
 			transfer.amount,
 			transfer.amount_b,
-			vec![transfer.fee],
+			vec![(transfer.fee.0, transfer.fee.1, pool.fee_collector)],
 			event_id,
 		);
 
@@ -1267,7 +1268,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, BalanceOf<T>>,
 		_destination: Option<&T::AccountId>,
 		event_id: Option<IncrementalIdType>,
-	) -> dispatch::DispatchResult {
+	) -> DispatchResult {
 		Self::execute_trade(transfer)?;
 
 		// TODO: Deprecated, remove when ready
@@ -1282,6 +1283,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 		});
 
 		let pool_account = Self::get_pair_id(transfer.assets);
+		let pool = <PoolData<T>>::try_get(&pool_account).map_err(|_| Error::<T>::PoolNotFound)?;
+
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
 			pool_account,
@@ -1291,7 +1294,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 			transfer.assets.asset_out,
 			transfer.amount,
 			transfer.amount_b,
-			vec![transfer.fee],
+			vec![(transfer.fee.0, transfer.fee.1, pool.fee_collector)],
 			event_id,
 		);
 
