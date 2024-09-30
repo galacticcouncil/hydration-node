@@ -142,7 +142,6 @@ fn contract_check_should_succeed_when_called_from_extrinsic() {
 			WETH,
 			(10_000_000 * UNITS) as i128,
 		));
-		/// For reference with code set in storage this always succeeds
 		pallet_evm::AccountCodes::<Runtime>::insert(
 			dai_ethereum_address(),
 			&hex!["365f5f375f5f365f73bebebebebebebebebebebebebebebebebebebebe5af43d5f5f3e5f3d91602a57fd5bf3"][..],
@@ -177,7 +176,7 @@ fn proxy_should_be_initialized_correctly() {
 		controller_code.extend_from_slice(H256::from(deployer()).as_bytes());
 		let controller = deploy_contract_code(controller_code, deployer());
 		let implementation = deploy_contract("Treasury-Implementation", deployer());
-		let mut implementation_init = EvmDataWriter::new_with_selector(Function::Initialize)
+		let implementation_init = EvmDataWriter::new_with_selector(Function::Initialize)
 			.write(H256::from(EvmAddress::default()))
 			.build();
 		let (res, _) = Executor::<Runtime>::call(
@@ -193,10 +192,10 @@ fn proxy_should_be_initialized_correctly() {
 		assert_eq!(res, Succeed(Stopped), "Failed to initialize implementation");
 
 		// Act
-		let mut payload = EvmDataWriter::new_with_selector(Function::Initialize)
-			.write(H256::from(implementation))
+		let payload = EvmDataWriter::new_with_selector(Function::Initialize)
+			.write(H256::from(controller))
 			.build();
-		let mut proxy_init = EvmDataWriter::new_with_selector(Function::InitializePayload)
+		let proxy_init = EvmDataWriter::new_with_selector(Function::InitializePayload)
 			.write(H256::from(implementation))
 			.write(H256::from(deployer()))
 			.write(Bytes(payload))
