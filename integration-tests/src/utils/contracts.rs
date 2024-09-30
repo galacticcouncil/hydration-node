@@ -27,7 +27,7 @@ pub fn deploy_contract_code(code: Vec<u8>, deployer: EvmAddress) -> EvmAddress {
 		deployer,
 		code.clone(),
 		U256::zero(),
-		U256::from(2000000u64),
+		U256::from(15000000u64),
 		None,
 		None,
 		None,
