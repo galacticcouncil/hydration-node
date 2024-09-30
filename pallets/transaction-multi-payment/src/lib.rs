@@ -292,17 +292,7 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
-				ensure!(
-					currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
-					Error::<T>::UnsupportedCurrency
-				);
-			} else {
-				ensure!(
-					T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
-					Error::<T>::UnsupportedCurrency
-				);
-			}
+			Pallet::<T>::validate_currency(currency)?;
 
 			<AccountCurrencyMap<T>>::insert(who.clone(), currency);
 
@@ -590,6 +580,22 @@ impl<T: Config> Pallet<T> {
 		T::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
 			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d))
 	}
+
+	fn validate_currency(currency: <T::Currencies as MultiCurrency<T::AccountId>>::CurrencyId) -> DispatchResult {
+		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
+			ensure!(
+					currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+					Error::<T>::UnsupportedCurrency
+				);
+		} else {
+			ensure!(
+					T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
+					Error::<T>::UnsupportedCurrency
+				);
+		}
+
+		Ok(())
+	}
 }
 
 fn convert_fee_with_price<B>(fee: B, price: FixedU128) -> Option<B>
@@ -652,7 +658,10 @@ where
 			// `calls` can be empty Vec
 			match calls.first() {
 				Some(first_call) => match first_call.is_sub_type() {
-					Some(Call::set_currency { currency }) => *currency,
+					Some(Call::set_currency { currency }) => {
+						Pallet::<T>::validate_currency(*currency).map_err(|_|TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+						*currency
+					},
 					_ => Pallet::<T>::account_currency(who),
 				},
 				_ => Pallet::<T>::account_currency(who),
