@@ -45,8 +45,7 @@ fn complete_fill_order_should_work() {
 		assert_ok!(OTC::fill_order(RuntimeOrigin::signed(BOB), 0));
 
 		// Assert
-		let order = OTC::orders(0);
-		assert!(order.is_none());
+		assert!(OTC::orders(0).is_none());
 
 		let fee = OTC::calculate_fee(amount_out);
 
@@ -71,14 +70,29 @@ fn complete_fill_order_should_work() {
 			TREASURY_INITIAL_BALANCE + fee
 		);
 
-		expect_events(vec![Event::Filled {
-			order_id: 0,
-			who: BOB,
-			amount_in: 20 * ONE,
-			amount_out: 100 * ONE,
-			fee: ONE,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::Filled {
+				order_id: 0,
+				who: BOB,
+				amount_in: 20 * ONE,
+				amount_out: 100 * ONE,
+				fee: ONE,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB,
+				filler: ALICE,
+				filler_type: pallet_amm_support::Filler::OTC,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: DAI,
+				asset_out: HDX,
+				amount_in: 20 * ONE,
+				amount_out: 100 * ONE,
+				fees: vec![(HDX, ONE, <Test as crate::Config>::FeeReceiver::get().into())],
+				event_id: None,
+			}
+			.into(),
+		]);
 	});
 }
 
@@ -133,14 +147,29 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 			TREASURY_INITIAL_BALANCE + fee
 		);
 
-		expect_events(vec![Event::Filled {
-			order_id: 0,
-			who: BOB,
-			amount_in: 20 * ONE,
-			amount_out: 100 * ONE,
-			fee: ONE,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::Filled {
+				order_id: 0,
+				who: BOB,
+				amount_in: 20 * ONE,
+				amount_out: 100 * ONE,
+				fee: ONE,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB,
+				filler: ALICE,
+				filler_type: pallet_amm_support::Filler::OTC,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: DAI,
+				asset_out: HDX,
+				amount_in: 20 * ONE,
+				amount_out: 100 * ONE,
+				fees: vec![(HDX, ONE, <Test as crate::Config>::FeeReceiver::get().into())],
+				event_id: None,
+			}
+			.into(),
+		]);
 	});
 }
 
@@ -207,14 +236,29 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 			TREASURY_INITIAL_BALANCE + fee
 		);
 
-		expect_events(vec![Event::Filled {
-			order_id: 0,
-			who: BOB,
-			amount_in: 20 * ONE,
-			amount_out: 100 * ONE,
-			fee: ONE,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::Filled {
+				order_id: 0,
+				who: BOB,
+				amount_in: 20 * ONE,
+				amount_out: 100 * ONE,
+				fee: ONE,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB,
+				filler: ALICE,
+				filler_type: pallet_amm_support::Filler::OTC,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: DAI,
+				asset_out: HDX,
+				amount_in: 20 * ONE,
+				amount_out: 100 * ONE,
+				fees: vec![(HDX, ONE, <Test as crate::Config>::FeeReceiver::get().into())],
+				event_id: None,
+			}
+			.into(),
+		]);
 	});
 }
 

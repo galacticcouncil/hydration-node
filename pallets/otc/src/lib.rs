@@ -316,9 +316,9 @@ pub mod pallet {
 					pallet_amm_support::TradeOperation::Sell,
 					order.asset_in.into(),
 					order.asset_out.into(),
-					order.amount_in,
-					order.amount_out,
-					vec![(order.asset_out.into(), fee)],
+					amount_in,
+					amount_out,
+					vec![(order.asset_out.into(), fee, T::FeeReceiver::get().into())],
 					None,
 				);
 
@@ -364,7 +364,7 @@ pub mod pallet {
 				order.asset_out.into(),
 				order.amount_in,
 				order.amount_out,
-				vec![(order.asset_out.into(), fee)],
+				vec![(order.asset_out.into(), fee, T::FeeReceiver::get().into())],
 				None,
 			);
 

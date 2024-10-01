@@ -83,14 +83,29 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 			TREASURY_INITIAL_BALANCE + fee
 		);
 
-		expect_events(vec![Event::PartiallyFilled {
-			order_id: 0,
-			who: BOB,
-			amount_in: 5 * ONE,
-			amount_out: expected_amount_out,
-			fee,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::PartiallyFilled {
+				order_id: 0,
+				who: BOB,
+				amount_in: 5 * ONE,
+				amount_out: expected_amount_out,
+				fee,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB,
+				filler: order.owner,
+				filler_type: pallet_amm_support::Filler::OTC,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: order.asset_in,
+				asset_out: order.asset_out,
+				amount_in: 5 * ONE,
+				amount_out: expected_amount_out,
+				fees: vec![(order.asset_out, fee, <Test as crate::Config>::FeeReceiver::get().into())],
+				event_id: None,
+			}
+			.into(),
+		]);
 	});
 }
 
