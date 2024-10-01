@@ -856,14 +856,14 @@ impl<T: Config> Pallet<T> {
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who,
-			pool_account,
+			pool_account.clone(),
 			pallet_amm_support::Filler::Stableswap,
 			pallet_amm_support::TradeOperation::Sell,
 			asset_in.into(),
 			asset_out.into(),
 			amount_in,
 			amount_out,
-			vec![(asset_out.into(), fee_amount)],
+			vec![(asset_out.into(), fee_amount, pool_account)],
 			event_id,
 		);
 
@@ -933,14 +933,14 @@ impl<T: Config> Pallet<T> {
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who,
-			pool_account,
+			pool_account.clone(),
 			pallet_amm_support::Filler::Stableswap,
 			pallet_amm_support::TradeOperation::Buy,
 			asset_in.into(),
 			asset_out.into(),
 			amount_in,
 			amount_out,
-			vec![(asset_in.into(), fee_amount)],
+			vec![(asset_in.into(), fee_amount, pool_account)],
 			event_id,
 		);
 
