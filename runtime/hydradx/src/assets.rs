@@ -1205,7 +1205,7 @@ impl pallet_route_executor::Config for Runtime {
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
-	type BatchIdProvider = TradeEvent;
+	type BatchIdProvider = AmmSupport;
 	type OraclePeriod = RouteValidationOraclePeriod;
 }
 

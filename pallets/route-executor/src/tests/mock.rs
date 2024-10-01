@@ -51,7 +51,7 @@ frame_support::construct_runtime!(
 		 Tokens: orml_tokens,
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
-		 TradeEvent: pallet_amm_support,
+		 AmmSupport: pallet_amm_support,
 	 }
 );
 
@@ -164,7 +164,7 @@ impl Config for Test {
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	type BatchIdProvider = TradeEvent;
+	type BatchIdProvider = AmmSupport;
 	type WeightInfo = ();
 }
 

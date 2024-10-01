@@ -74,7 +74,7 @@ frame_support::construct_runtime!(
 		 Omnipool: pallet_omnipool,
 		 Router: pallet_route_executor,
 		 OtcSettlements: pallet_otc_settlements,
-		 TradeEvent: pallet_amm_support,
+		 AmmSupport: pallet_amm_support,
 	 }
 );
 
@@ -157,7 +157,7 @@ impl pallet_route_executor::Config for Test {
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	type BatchIdProvider = TradeEvent;
+	type BatchIdProvider = AmmSupport;
 	type WeightInfo = ();
 }
 

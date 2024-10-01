@@ -61,7 +61,7 @@ frame_support::construct_runtime!(
 		 XYK: xyk,
 		 Currency: orml_tokens,
 		 AssetRegistry: pallet_asset_registry,
-		 TradeEvent: pallet_amm_support,
+		 AmmSupport: pallet_amm_support,
 	 }
 
 );

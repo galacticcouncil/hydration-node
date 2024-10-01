@@ -86,7 +86,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
-		TradeEvent: pallet_amm_support,
+		AmmSupport: pallet_amm_support,
 	}
 );
 

@@ -110,7 +110,7 @@ construct_runtime!(
 		WarehouseLM: warehouse_liquidity_mining::<Instance1>,
 		OmnipoolMining: omnipool_liquidity_mining,
 		EmaOracle: pallet_ema_oracle,
-		TradeEvent: pallet_amm_support,
+		AmmSupport: pallet_amm_support,
 	}
 );
 

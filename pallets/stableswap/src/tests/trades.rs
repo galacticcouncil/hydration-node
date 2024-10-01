@@ -1,6 +1,6 @@
 use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
-use crate::{assert_balance, to_precision, Error};
+use crate::{assert_balance, to_precision, Error, Event};
 use std::num::NonZeroU16;
 
 use frame_support::{assert_noop, assert_ok};
@@ -53,6 +53,32 @@ fn sell_should_work_when_correct_input_provided() {
 			assert_balance!(BOB, asset_b, expected);
 			assert_balance!(pool_account, asset_a, 130 * ONE);
 			assert_balance!(pool_account, asset_b, 100 * ONE - expected);
+
+			expect_events(vec![
+				Event::SellExecuted {
+					who: BOB,
+					pool_id,
+					asset_in: asset_a,
+					asset_out: asset_b,
+					amount_in: 30000000000000,
+					amount_out: 29902625420922,
+					fee: 0,
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_amm_support::Filler::Stableswap,
+					operation: pallet_amm_support::TradeOperation::Sell,
+					asset_in: asset_a,
+					asset_out: asset_b,
+					amount_in: 30000000000000,
+					amount_out: 29902625420922,
+					fees: vec![(asset_b, 0, pool_account)],
+					event_id: None,
+				}
+				.into(),
+			]);
 		});
 }
 
@@ -103,6 +129,32 @@ fn buy_should_work_when_correct_input_provided() {
 			assert_balance!(BOB, asset_b, 30 * ONE);
 			assert_balance!(pool_account, asset_a, 100 * ONE + expected_to_sell);
 			assert_balance!(pool_account, asset_b, 70 * ONE);
+
+			expect_events(vec![
+				Event::BuyExecuted {
+					who: BOB,
+					pool_id,
+					asset_in: asset_a,
+					asset_out: asset_b,
+					amount_in: 30098072706882,
+					amount_out: 30000000000000,
+					fee: 0,
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_amm_support::Filler::Stableswap,
+					operation: pallet_amm_support::TradeOperation::Buy,
+					asset_in: asset_a,
+					asset_out: asset_b,
+					amount_in: 30098072706882,
+					amount_out: 30000000000000,
+					fees: vec![(asset_a, 0, pool_account)],
+					event_id: None,
+				}
+				.into(),
+			]);
 		});
 }
 

@@ -80,7 +80,7 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 EmaOracle: pallet_ema_oracle,
-		 TradeEvent: pallet_amm_support,
+		 AmmSupport: pallet_amm_support,
 	 }
 );
 
@@ -371,7 +371,7 @@ impl pallet_route_executor::Config for Test {
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
-	type BatchIdProvider = TradeEvent;
+	type BatchIdProvider = AmmSupport;
 	type WeightInfo = ();
 }
 

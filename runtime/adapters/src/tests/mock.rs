@@ -101,7 +101,7 @@ construct_runtime!(
 		RouteExecutor: pallet_route_executor,
 		Currencies: pallet_currencies,
 		XYK: pallet_xyk,
-		TradeEvent: pallet_amm_support,
+		AmmSupport: pallet_amm_support,
 	}
 );
 
@@ -340,7 +340,7 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePeriod = RouteValidationOraclePeriod;
-	type BatchIdProvider = TradeEvent;
+	type BatchIdProvider = AmmSupport;
 	type WeightInfo = ();
 }
 

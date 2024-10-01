@@ -86,7 +86,7 @@ frame_support::construct_runtime!(
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
 		CircuitBreaker: pallet_circuit_breaker,
-		TradeEvent: pallet_amm_support,
+		AmmSupport: pallet_amm_support,
 	}
 );
 
