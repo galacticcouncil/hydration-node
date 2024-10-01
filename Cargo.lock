@@ -172,9 +172,9 @@ dependencies = [
 
 [[package]]
 name = "anstyle"
-version = "1.0.7"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "038dfcf04a5feb68e9c60b21c9625a54c2c0616e79b72b0fd87075a056ae1d1b"
+checksum = "7079075b41f533b8c61d2a4d073c4676e1f8b249ff94a393b0595db304e0dd87"
 
 [[package]]
 name = "anstyle-parse"
@@ -1621,7 +1621,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/w3f/ring-proof#96137b150288a66bc9e4df495efc64769b5d1321"
+source = "git+https://github.com/w3f/ring-proof#626c9598be949aa3dbdd72e8a40531f68b01d6c2"
 dependencies = [
  "ark-ec",
  "ark-ff",
@@ -4910,6 +4910,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
+ "pallet-ice",
  "pallet-lbp",
  "pallet-liquidity-mining",
  "pallet-omnipool",
@@ -5007,6 +5008,7 @@ dependencies = [
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
+ "pallet-ice",
  "pallet-identity",
  "pallet-lbp",
  "pallet-liquidity-mining",
@@ -5145,6 +5147,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "ice-solver"
+version = "0.1.0"
+dependencies = [
+ "hydra-dx-math",
+ "hydradx-traits",
+ "orml-traits",
+ "pallet-ice",
+ "pallet-omnipool",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
 ]
 
 [[package]]
@@ -7124,11 +7139,10 @@ dependencies = [
 
 [[package]]
 name = "num-rational"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0638a1c9d0a3c0914158145bc76cff373a75a627e6ecbfb71cbe6f453a5a19b0"
+checksum = "f83d14da390562dca69fc84082e73e548e1ad308d24accdedd2720017cb37824"
 dependencies = [
- "autocfg",
  "num-bigint",
  "num-integer",
  "num-traits",
@@ -7136,9 +7150,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.17"
+version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39e3200413f237f41ab11ad6d161bc7239c84dcb631773ccd7de3dfe4b5c267c"
+checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
@@ -8386,6 +8400,29 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
+]
+
+[[package]]
+name = "pallet-ice"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
 ]
 
@@ -11678,13 +11715,14 @@ dependencies = [
 [[package]]
 name = "ring"
 version = "0.1.0"
-source = "git+https://github.com/w3f/ring-proof#96137b150288a66bc9e4df495efc64769b5d1321"
+source = "git+https://github.com/w3f/ring-proof#626c9598be949aa3dbdd72e8a40531f68b01d6c2"
 dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-poly",
  "ark-serialize",
  "ark-std",
+ "arrayvec 0.7.4",
  "blake2 0.10.6",
  "common",
  "fflonk",
@@ -11956,6 +11994,7 @@ dependencies = [
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
+ "ice-solver",
  "libsecp256k1",
  "orml-tokens",
  "orml-traits",
@@ -11983,6 +12022,7 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
+ "pallet-ice",
  "pallet-im-online",
  "pallet-lbp",
  "pallet-liquidity-mining",
@@ -14375,7 +14415,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -14428,7 +14468,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -14448,7 +14488,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -14660,7 +14700,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -14696,7 +14736,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "Inflector",
  "expander 2.0.0",
@@ -14797,7 +14837,7 @@ dependencies = [
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 
 [[package]]
 name = "sp-std"
@@ -14807,7 +14847,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -14846,7 +14886,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "parity-scale-codec",
  "sp-std 14.0.0 (git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2)",
@@ -14946,7 +14986,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#c00ca35b403a95e344d03e229b3f85baa3b96c89"
+source = "git+https://github.com/paritytech//polkadot-sdk?branch=release-polkadot-v1.7.2#e73d252e3e13b27a1127bde9a7c47febf70cc9ab"
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",

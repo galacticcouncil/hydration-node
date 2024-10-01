@@ -12,6 +12,7 @@ mod sell;
 
 mod add_liquidity_with_limit;
 mod barrier;
+mod hub_asset_swaps;
 mod imbalance;
 pub(crate) mod mock;
 mod positions;
