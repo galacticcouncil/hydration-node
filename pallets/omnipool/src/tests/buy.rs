@@ -435,6 +435,22 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 				asset_fee_amount: 5_555_555_555_556,
 				protocol_fee_amount: 0,
 			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: LP1,
+				filler: Omnipool::protocol_account(),
+				filler_type: pallet_amm_support::Filler::Omnipool,
+				operation: pallet_amm_support::TradeOperation::Buy,
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: expected_sold_amount,
+				amount_out: buy_amount,
+				fees: vec![
+					(200, 5555555555556, Omnipool::protocol_account()),
+					(1, 0, Omnipool::protocol_account())
+				],
+				event_id: None,
+			}
 			.into()]);
 		});
 }
@@ -480,7 +496,24 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount() {
 				asset_fee_amount: 0,
 				protocol_fee_amount: 5698005698005,
 			}
-			.into()]);
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: LP1,
+				filler: Omnipool::protocol_account(),
+				filler_type: pallet_amm_support::Filler::Omnipool,
+				operation: pallet_amm_support::TradeOperation::Buy,
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: expected_sold_amount,
+				amount_out: buy_amount,
+				fees: vec![
+					(200, 0, Omnipool::protocol_account()),
+					(1, 5698005698005, Omnipool::protocol_account())
+				],
+				event_id: None,
+			}
+			.into()
+			]);
 		});
 }
 
@@ -524,7 +557,24 @@ fn sell_should_get_same_amount() {
 				asset_fee_amount: 5555555555556,
 				protocol_fee_amount: 0,
 			}
-			.into()]);
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: LP1,
+				filler: Omnipool::protocol_account(),
+				filler_type: pallet_amm_support::Filler::Omnipool,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: expected_sold_amount,
+				amount_out: buy_amount,
+				fees: vec![
+					(200, 5555555555556, Omnipool::protocol_account()),
+					(1, 0, Omnipool::protocol_account())
+				],
+				event_id: None,
+			}
+			.into(),
+			]);
 		});
 }
 

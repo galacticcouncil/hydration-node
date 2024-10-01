@@ -1486,14 +1486,14 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_sell(
-		origin: frame_system::pallet_prelude::OriginFor<T>,
+		origin: OriginFor<T>,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		amount: Balance,
 		min_buy_amount: Balance,
 		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
-		let who = frame_system::ensure_signed(origin.clone())?;
+		let who = ensure_signed(origin.clone())?;
 
 		ensure!(asset_in != asset_out, Error::<T>::SameAssetTradeNotAllowed);
 
@@ -1680,7 +1680,10 @@ impl<T: Config> Pallet<T> {
 			asset_out.into(),
 			amount,
 			*state_changes.asset_out.delta_reserve,
-			vec![], // TODO
+			vec![
+				(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account()),
+				(T::HubAssetId::get().into(), state_changes.fee.protocol_fee, Self::protocol_account())
+			],
 			event_id,
 		);
 
@@ -1882,7 +1885,10 @@ impl<T: Config> Pallet<T> {
 			asset_out.into(),
 			*state_changes.asset_in.delta_reserve,
 			*state_changes.asset_out.delta_reserve,
-			vec![], // TODO
+			vec![
+				(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account()),
+				(T::HubAssetId::get().into(), state_changes.fee.protocol_fee, Self::protocol_account())
+			],
 			event_id,
 		);
 
@@ -2007,7 +2013,9 @@ impl<T: Config> Pallet<T> {
 			asset_out.into(),
 			*state_changes.asset.delta_hub_reserve,
 			*state_changes.asset.delta_reserve,
-			vec![], // TODO
+			vec![
+				(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account()),
+			],
 			None,
 		);
 
@@ -2128,7 +2136,9 @@ impl<T: Config> Pallet<T> {
 			asset_out.into(),
 			*state_changes.asset.delta_hub_reserve,
 			*state_changes.asset.delta_reserve,
-			vec![], // TODO
+			vec![
+				(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account()),
+			],
 			None,
 		);
 
