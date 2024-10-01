@@ -299,6 +299,59 @@ pub mod pallet {
 			}
 			Ok(())
 		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight( {
+			let mut w = T::WeightInfo::submit_solution();
+			let intent_count = intents.len() as u64;
+			let transfer_weight = T::Weigher::transfer_weight() * intent_count * 2; // transfer in and out
+			w.saturating_accrue(transfer_weight);
+			for instruction in trades.iter() {
+			match instruction {
+					TradeInstruction::SwapExactIn { route, .. } => {
+						w.saturating_accrue(T::Weigher::sell_weight(route.to_vec()));
+					},
+					TradeInstruction::SwapExactOut { route, .. } => {
+						w.saturating_accrue(T::Weigher::buy_weight(route.to_vec()));
+					}
+				}
+			}
+			w
+		})]
+		pub fn propose_solution(
+			origin: OriginFor<T>,
+			intents: BoundedResolvedIntents,
+			trades: BoundedTrades<T::AssetId>,
+			score: u64,
+			block: BlockNumberFor<T>,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+
+			// check if the solution was already executed in this block
+			// This is to prevent multiple solutions to be executed in the same block.
+			// Although it should be handled by the tx validation, it is better to have it here too.
+			// So we dont slash the user for the tx that should have been rejected.
+			ensure!(!SolutionExecuted::<T>::get(), Error::<T>::AlreadyExecuted);
+
+			// double-check the target block, although it should be done in the tx validation
+			ensure!(
+				block == T::BlockNumberProvider::current_block_number(),
+				Error::<T>::InvalidBlockNumber
+			);
+
+			match ICEEngine::<T>::prepare_solution(intents, trades, score) {
+				Ok(solution) => {
+					ICEEngine::<T>::execute_solution(solution)?;
+					Self::clear_expired_intents();
+					//Self::deposit_event(Event::SolutionExecuted { who });
+					SolutionExecuted::<T>::set(true);
+				}
+				Err(e) => {
+					return Err(e);
+				}
+			}
+			Ok(())
+		}
 	}
 }
 
