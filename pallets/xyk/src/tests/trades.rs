@@ -1,5 +1,5 @@
 pub use super::mock::*;
-use crate::{Error, Event, AMMTransfer};
+use crate::{AMMTransfer, Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
@@ -109,7 +109,10 @@ fn execute_sell_should_use_event_id() {
 
 		let t = AMMTransfer {
 			origin: user_1,
-			assets: AssetPair { asset_in: asset_a, asset_out: asset_b },
+			assets: AssetPair {
+				asset_in: asset_a,
+				asset_out: asset_b,
+			},
 			amount: 456_444_678,
 			amount_b: 1363483591788,
 			discount: false,
@@ -118,10 +121,7 @@ fn execute_sell_should_use_event_id() {
 		};
 
 		let event_id = Some(7);
-		assert_ok!(XYK::execute_sell(
-			&t,
-			event_id,
-		));
+		assert_ok!(XYK::execute_sell(&t, event_id,));
 
 		expect_events(vec![
 			Event::SellExecuted {
@@ -151,8 +151,6 @@ fn execute_sell_should_use_event_id() {
 		]);
 	});
 }
-
-
 
 #[test]
 fn work_flow_happy_path_should_work() {

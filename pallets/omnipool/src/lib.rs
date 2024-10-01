@@ -1682,7 +1682,11 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset_out.delta_reserve,
 			vec![
 				(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account()),
-				(T::HubAssetId::get().into(), state_changes.fee.protocol_fee, Self::protocol_account())
+				(
+					T::HubAssetId::get().into(),
+					state_changes.fee.protocol_fee,
+					Self::protocol_account(),
+				),
 			],
 			event_id,
 		);
@@ -1887,7 +1891,11 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset_out.delta_reserve,
 			vec![
 				(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account()),
-				(T::HubAssetId::get().into(), state_changes.fee.protocol_fee, Self::protocol_account())
+				(
+					T::HubAssetId::get().into(),
+					state_changes.fee.protocol_fee,
+					Self::protocol_account(),
+				),
 			],
 			event_id,
 		);
@@ -2013,9 +2021,7 @@ impl<T: Config> Pallet<T> {
 			asset_out.into(),
 			*state_changes.asset.delta_hub_reserve,
 			*state_changes.asset.delta_reserve,
-			vec![
-				(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account()),
-			],
+			vec![(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account())],
 			None,
 		);
 
@@ -2136,9 +2142,7 @@ impl<T: Config> Pallet<T> {
 			asset_out.into(),
 			*state_changes.asset.delta_hub_reserve,
 			*state_changes.asset.delta_reserve,
-			vec![
-				(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account()),
-			],
+			vec![(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account())],
 			None,
 		);
 
