@@ -7,6 +7,7 @@ use crate::types::{
 use crate::Error;
 use frame_support::pallet_prelude::Hooks;
 use frame_support::{assert_noop, assert_ok};
+use orml_traits::NamedMultiReservableCurrency;
 
 fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (BoundedResolvedIntents, BoundedTrades<AssetId>, u64) {
 	// currently only one intent is supported
@@ -191,6 +192,84 @@ fn submit_solution_should_clear_expired_intents() {
 }
 
 #[test]
+fn submit_solution_should_unreserved_amount_when_clearing_expired_intents() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000), (BOB, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			assert_ok!(ICE::submit_intent(
+				RuntimeOrigin::signed(ALICE),
+				Intent {
+					who: ALICE,
+					swap: swap.clone(),
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
+				},
+			));
+			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
+
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+
+			let bob_free_balance = Currencies::free_balance(100, &BOB);
+			assert_ok!(ICE::submit_intent(
+				RuntimeOrigin::signed(BOB),
+				Intent {
+					who: BOB,
+					swap: swap.clone(),
+					deadline: DEFAULT_NOW + 1_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
+				},
+			));
+			let expired_intent_id = get_intent_id(DEFAULT_NOW + 1_000, 1);
+
+			assert_eq!(
+				100_000_000_000_000,
+				Currencies::reserved_balance_named(&NamedReserveId::get(), 100, &BOB)
+			);
+			assert_eq!(
+				bob_free_balance - 100_000_000_000_000,
+				Currencies::free_balance(100, &BOB)
+			);
+
+			let (resolved_intents, trades, score) = create_solution_for_given_intents(vec![intent_id]);
+
+			// move time forward
+			NOW.with(|now| {
+				*now.borrow_mut() += 2000;
+			});
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(ALICE),
+				resolved_intents,
+				trades,
+				score,
+				1
+			),);
+			let intent = Intents::<Test>::get(expired_intent_id);
+			assert_eq!(intent, None);
+			assert_eq!(0, Currencies::reserved_balance_named(&NamedReserveId::get(), 100, &BOB));
+			assert_eq!(bob_free_balance, Currencies::free_balance(100, &BOB));
+		});
+}
+
+#[test]
 fn submit_solution_should_update_partial_resolved_intent() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
@@ -280,32 +359,6 @@ fn submit_solution_should_fail_when_intent_does_not_exists() {
 				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, trades, score, 1),
 				Error::<Test>::IntentNotFound
 			);
-		});
-}
-
-#[test]
-fn submit_solution_should_slash_proposer_when_solution_is_invalid() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
-		.with_native_amount(ALICE, 1_000_000_000_000)
-		.build()
-		.execute_with(|| {
-			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
-
-			let (resolved_intents, trades, score) = create_solution_for_given_intents(vec![intent_id]);
-
-			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, trades, score, 1),
-				Error::<Test>::IntentNotFound
-			);
-
-			//TODO: uncomment when slashing is resolved
-			/*
-			let balance = Balances::free_balance(&ALICE);
-			assert_eq!(balance, 0);
-			let balance = Balances::free_balance(&RECEIVER);
-			assert_eq!(balance, 1_000_000_000_000);
-			 */
 		});
 }
 

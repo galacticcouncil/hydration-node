@@ -294,14 +294,6 @@ pub mod pallet {
 					SolutionExecuted::<T>::set(true);
 				}
 				Err(e) => {
-					//TODO: this does not actually work here, because in case of error, there cannot be storage update no more.
-					T::Currency::transfer(
-						T::NativeAssetId::get(),
-						&who,
-						&T::SlashReceiver::get(),
-						T::ProposalBond::get(),
-						Preservation::Expendable,
-					)?;
 					return Err(e);
 				}
 			}
