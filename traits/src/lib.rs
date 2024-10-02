@@ -305,5 +305,5 @@ pub trait AccountFeeCurrencyBalanceInCurrency<AssetId, AccountId> {
 }
 
 pub trait IncrementalIdProvider<IncrementalId> {
-	fn next_id() -> IncrementalId;
+	fn next_id() -> Result<IncrementalId, DispatchError>;
 }

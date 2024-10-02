@@ -20,6 +20,7 @@
 type AssetId = u32;
 type Balance = u128;
 
+use frame_support::sp_runtime::{ArithmeticError, DispatchError};
 pub use hydradx_traits::{
 	router::{Filler, TradeOperation},
 	IncrementalIdProvider,
@@ -37,7 +38,11 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 
+	/// The current storage version.
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -46,7 +51,7 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	/// Incremental ID
+	/// Next available incremental ID
 	#[pallet::getter(fn incremental_id)]
 	pub(super) type IncrementalId<T: Config> = StorageValue<_, IncrementalIdType, ValueQuery>;
 
@@ -76,10 +81,13 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn next_incremental_id() -> IncrementalIdType {
-		let next_incremental_id = Self::incremental_id();
-		<IncrementalId<T>>::set(next_incremental_id + 1); // TODO: checked math
-		next_incremental_id
+	/// Returns next incremental ID and updates the storage.
+	pub fn next_incremental_id() -> Result<IncrementalIdType, DispatchError> {
+		IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
+			let inc_id = *current_id;
+			*current_id = current_id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
+			Ok(inc_id)
+		})
 	}
 
 	#[allow(clippy::too_many_arguments)]
@@ -111,7 +119,7 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> IncrementalIdProvider<IncrementalIdType> for Pallet<T> {
-	fn next_id() -> IncrementalIdType {
+	fn next_id() -> Result<IncrementalIdType, DispatchError> {
 		Self::next_incremental_id()
 	}
 }
