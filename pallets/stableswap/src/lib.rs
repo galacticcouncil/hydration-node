@@ -55,7 +55,10 @@ extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional, PalletId};
-use frame_system::pallet_prelude::BlockNumberFor;
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::{BlockNumberFor, OriginFor},
+};
 use hydradx_traits::{registry::Inspect, AccountIdFor};
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
@@ -72,6 +75,7 @@ use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, T
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
+use pallet_amm_support::IncrementalIdType;
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
 
@@ -99,7 +103,6 @@ pub mod pallet {
 	use codec::HasCompact;
 	use core::ops::RangeInclusive;
 	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
 	use hydradx_traits::pools::DustRemovalAccountWhitelist;
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 	use sp_runtime::ArithmeticError;
@@ -110,7 +113,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_amm_support::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -126,7 +129,8 @@ pub mod pallet {
 			+ HasCompact
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
-			+ TypeInfo;
+			+ TypeInfo
+			+ Into<u32>;
 
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
@@ -204,6 +208,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// Sell trade executed. Trade fee paid in asset leaving the pool (already subtracted from amount_out).
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			pool_id: T::AssetId,
@@ -214,6 +219,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// Buy trade executed. Trade fee paid in asset entering the pool (already included in amount_in).
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			pool_id: T::AssetId,
@@ -709,7 +715,8 @@ pub mod pallet {
 		/// - `amount_in`: Amount of asset to be sold to the pool
 		/// - `min_buy_amount`: Minimum amount required to receive
 		///
-		/// Emits `SellExecuted` event when successful.
+		/// Emits `SellExecuted` event when successful. Deprecated.
+		/// Emits `pallet_amm_support::Swapped` event when successful.
 		///
 		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell()
@@ -723,55 +730,7 @@ pub mod pallet {
 			amount_in: Balance,
 			min_buy_amount: Balance,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
-
-			ensure!(
-				Self::is_asset_allowed(pool_id, asset_in, Tradability::SELL)
-					&& Self::is_asset_allowed(pool_id, asset_out, Tradability::BUY),
-				Error::<T>::NotAllowed
-			);
-
-			ensure!(
-				amount_in >= T::MinTradingLimit::get(),
-				Error::<T>::InsufficientTradingAmount
-			);
-
-			ensure!(
-				T::Currency::free_balance(asset_in, &who) >= amount_in,
-				Error::<T>::InsufficientBalance
-			);
-
-			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
-			let pool_account = Self::pool_account(pool_id);
-			let initial_reserves = pool
-				.reserves_with_decimals::<T>(&pool_account)
-				.ok_or(Error::<T>::UnknownDecimals)?;
-
-			let (amount_out, fee_amount) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in)?;
-			ensure!(amount_out >= min_buy_amount, Error::<T>::BuyLimitNotReached);
-
-			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
-			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
-
-			//All done and updated. Let's call on_trade hook.
-			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
-
-			Self::deposit_event(Event::SellExecuted {
-				who,
-				pool_id,
-				asset_in,
-				asset_out,
-				amount_in,
-				amount_out,
-				fee: fee_amount,
-			});
-
-			#[cfg(feature = "try-runtime")]
-			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
-
-			Ok(())
+			Self::do_sell(origin, pool_id, asset_in, asset_out, amount_in, min_buy_amount, None)
 		}
 
 		/// Execute a swap of `asset_in` for `asset_out`.
@@ -784,7 +743,8 @@ pub mod pallet {
 		/// - `amount_out`: Amount of asset to receive from the pool
 		/// - `max_sell_amount`: Maximum amount allowed to be sold
 		///
-		/// Emits `BuyExecuted` event when successful.
+		/// Emits `BuyExecuted` event when successful. Deprecated.
+		/// Emits `pallet_amm_support::Swapped` event when successful.
 		///
 		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy()
@@ -798,58 +758,7 @@ pub mod pallet {
 			amount_out: Balance,
 			max_sell_amount: Balance,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
-
-			ensure!(
-				Self::is_asset_allowed(pool_id, asset_in, Tradability::SELL)
-					&& Self::is_asset_allowed(pool_id, asset_out, Tradability::BUY),
-				Error::<T>::NotAllowed
-			);
-
-			ensure!(
-				amount_out >= T::MinTradingLimit::get(),
-				Error::<T>::InsufficientTradingAmount
-			);
-
-			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
-			let pool_account = Self::pool_account(pool_id);
-			let initial_reserves = pool
-				.reserves_with_decimals::<T>(&pool_account)
-				.ok_or(Error::<T>::UnknownDecimals)?;
-
-			let (amount_in, fee_amount) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out)?;
-
-			let pool_account = Self::pool_account(pool_id);
-
-			ensure!(amount_in <= max_sell_amount, Error::<T>::SellLimitExceeded);
-
-			ensure!(
-				T::Currency::free_balance(asset_in, &who) >= amount_in,
-				Error::<T>::InsufficientBalance
-			);
-
-			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
-			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
-
-			//All done and updated. Let's call on_trade_hook.
-			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
-
-			Self::deposit_event(Event::BuyExecuted {
-				who,
-				pool_id,
-				asset_in,
-				asset_out,
-				amount_in,
-				amount_out,
-				fee: fee_amount,
-			});
-
-			#[cfg(feature = "try-runtime")]
-			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
-
-			Ok(())
+			Self::do_buy(origin, pool_id, asset_out, asset_in, amount_out, max_sell_amount, None)
 		}
 
 		#[pallet::call_index(9)]
@@ -888,6 +797,157 @@ impl<T: Config> Pallet<T> {
 	/// Account address to be used to dry-run sell for determining spot price of stable assets
 	pub fn pallet_account() -> T::AccountId {
 		PalletId(*b"stblpool").into_account_truncating()
+	}
+
+	fn do_sell(
+		origin: OriginFor<T>,
+		pool_id: T::AssetId,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_in: Balance,
+		min_buy_amount: Balance,
+		event_id: Option<IncrementalIdType>,
+	) -> DispatchResult {
+		let who = frame_system::ensure_signed(origin)?;
+
+		ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
+
+		ensure!(
+			Self::is_asset_allowed(pool_id, asset_in, Tradability::SELL)
+				&& Self::is_asset_allowed(pool_id, asset_out, Tradability::BUY),
+			Error::<T>::NotAllowed
+		);
+
+		ensure!(
+			amount_in >= T::MinTradingLimit::get(),
+			Error::<T>::InsufficientTradingAmount
+		);
+
+		ensure!(
+			T::Currency::free_balance(asset_in, &who) >= amount_in,
+			Error::<T>::InsufficientBalance
+		);
+
+		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		let pool_account = Self::pool_account(pool_id);
+		let initial_reserves = pool
+			.reserves_with_decimals::<T>(&pool_account)
+			.ok_or(Error::<T>::UnknownDecimals)?;
+
+		let (amount_out, fee_amount) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in)?;
+		ensure!(amount_out >= min_buy_amount, Error::<T>::BuyLimitNotReached);
+
+		T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
+		T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
+
+		//All done and updated. Let's call on_trade hook.
+		Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
+
+		// TODO: Deprecated, remove when ready
+		Self::deposit_event(Event::SellExecuted {
+			who: who.clone(),
+			pool_id,
+			asset_in,
+			asset_out,
+			amount_in,
+			amount_out,
+			fee: fee_amount,
+		});
+
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
+			who,
+			pool_account.clone(),
+			pallet_amm_support::Filler::Stableswap,
+			pallet_amm_support::TradeOperation::Sell,
+			asset_in.into(),
+			asset_out.into(),
+			amount_in,
+			amount_out,
+			vec![(asset_out.into(), fee_amount, pool_account)],
+			event_id,
+		);
+
+		#[cfg(feature = "try-runtime")]
+		Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
+
+		Ok(())
+	}
+
+	fn do_buy(
+		origin: OriginFor<T>,
+		pool_id: T::AssetId,
+		asset_out: T::AssetId,
+		asset_in: T::AssetId,
+		amount_out: Balance,
+		max_sell_amount: Balance,
+		event_id: Option<IncrementalIdType>,
+	) -> DispatchResult {
+		let who = ensure_signed(origin)?;
+
+		ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
+
+		ensure!(
+			Self::is_asset_allowed(pool_id, asset_in, Tradability::SELL)
+				&& Self::is_asset_allowed(pool_id, asset_out, Tradability::BUY),
+			Error::<T>::NotAllowed
+		);
+
+		ensure!(
+			amount_out >= T::MinTradingLimit::get(),
+			Error::<T>::InsufficientTradingAmount
+		);
+
+		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		let pool_account = Self::pool_account(pool_id);
+		let initial_reserves = pool
+			.reserves_with_decimals::<T>(&pool_account)
+			.ok_or(Error::<T>::UnknownDecimals)?;
+
+		let (amount_in, fee_amount) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out)?;
+
+		let pool_account = Self::pool_account(pool_id);
+
+		ensure!(amount_in <= max_sell_amount, Error::<T>::SellLimitExceeded);
+
+		ensure!(
+			T::Currency::free_balance(asset_in, &who) >= amount_in,
+			Error::<T>::InsufficientBalance
+		);
+
+		T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
+		T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
+
+		//All done and updated. Let's call on_trade_hook.
+		Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
+
+		// TODO: Deprecated, remove when ready
+		Self::deposit_event(Event::BuyExecuted {
+			who: who.clone(),
+			pool_id,
+			asset_in,
+			asset_out,
+			amount_in,
+			amount_out,
+			fee: fee_amount,
+		});
+
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
+			who,
+			pool_account.clone(),
+			pallet_amm_support::Filler::Stableswap,
+			pallet_amm_support::TradeOperation::Buy,
+			asset_in.into(),
+			asset_out.into(),
+			amount_in,
+			amount_out,
+			vec![(asset_in.into(), fee_amount, pool_account)],
+			event_id,
+		);
+
+		#[cfg(feature = "try-runtime")]
+		Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
+
+		Ok(())
 	}
 
 	/// Calculates out amount given in amount.
@@ -1178,9 +1238,7 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn retrieve_decimals(asset_id: T::AssetId) -> Option<u8> {
 		T::AssetInspection::decimals(asset_id)
 	}
-}
 
-impl<T: Config> Pallet<T> {
 	fn calculate_shares(pool_id: T::AssetId, assets: &[AssetAmount<T::AssetId>]) -> Result<Balance, DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		let pool_account = Self::pool_account(pool_id);

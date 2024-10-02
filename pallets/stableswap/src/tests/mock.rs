@@ -81,11 +81,12 @@ construct_runtime!(
 		System: frame_system,
 		Tokens: orml_tokens,
 		Stableswap: pallet_stableswap,
+		AmmSupport: pallet_amm_support,
 	}
 );
 
 impl frame_system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
+	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
@@ -165,6 +166,10 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 			Ok(())
 		})
 	}
+}
+
+impl pallet_amm_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 impl Config for Test {
@@ -275,6 +280,8 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
+			frame_system::Pallet::<Test>::set_block_number(1);
+
 			for (_who, pool, initial_liquid) in self.created_pools {
 				let pool_id = retrieve_current_asset_id();
 				REGISTERED_ASSETS.with(|v| {
@@ -435,4 +442,8 @@ pub(crate) fn last_liquidity_changed_hook_state() -> Option<(AssetId, PoolState<
 
 pub(crate) fn last_trade_hook_state() -> Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)> {
 	LAST_TRADE_HOOK.with(|v| v.borrow().clone())
+}
+
+pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
+	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }

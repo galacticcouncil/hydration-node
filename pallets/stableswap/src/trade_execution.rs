@@ -3,11 +3,12 @@ use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
+use pallet_amm_support::IncrementalIdType;
 use sp_core::Get;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
 use sp_std::vec;
 
-impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T>
+impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance, IncrementalIdType> for Pallet<T>
 where
 	u32: sp_std::convert::From<T::AssetId>,
 	sp_std::vec::Vec<(u32, AssetReserve)>: FromIterator<(T::AssetId, AssetReserve)>,
@@ -142,6 +143,7 @@ where
 		asset_out: T::AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
+		event_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
@@ -159,7 +161,8 @@ where
 					)
 					.map_err(ExecutorError::Error)
 				} else {
-					Self::sell(who, pool_id, asset_in, asset_out, amount_in, min_limit).map_err(ExecutorError::Error)
+					Self::do_sell(who, pool_id, asset_in, asset_out, amount_in, min_limit, event_id)
+						.map_err(ExecutorError::Error)
 				}
 			}
 			_ => Err(ExecutorError::NotSupported),
@@ -173,6 +176,7 @@ where
 		asset_out: T::AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
+		event_id: Option<IncrementalIdType>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
@@ -183,7 +187,8 @@ where
 					Self::withdraw_asset_amount(who, pool_id, asset_out, amount_out, max_limit)
 						.map_err(ExecutorError::Error)
 				} else {
-					Self::buy(who, pool_id, asset_out, asset_in, amount_out, max_limit).map_err(ExecutorError::Error)
+					Self::do_buy(who, pool_id, asset_out, asset_in, amount_out, max_limit, event_id)
+						.map_err(ExecutorError::Error)
 				}
 			}
 			_ => Err(ExecutorError::NotSupported),

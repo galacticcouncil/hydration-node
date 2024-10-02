@@ -57,6 +57,7 @@ frame_support::construct_runtime!(
 		 System: frame_system,
 		 OTC: otc,
 		 Tokens: orml_tokens,
+		 AmmSupport: pallet_amm_support,
 	 }
 );
 
@@ -137,6 +138,10 @@ impl orml_tokens::Config for Test {
 	type ReserveIdentifier = NamedReserveIdentifier;
 	type MaxReserves = MaxReserves;
 	type CurrencyHooks = ();
+}
+
+impl pallet_amm_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);

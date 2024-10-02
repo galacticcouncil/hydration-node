@@ -37,7 +37,10 @@ use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, Route
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
+use hydradx_traits::IncrementalIdProvider;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use pallet_amm_support::IncrementalIdType;
+use primitives::IncrementalId;
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TransactionOutcome};
@@ -107,6 +110,7 @@ pub mod pallet {
 			Self::AccountId,
 			Self::AssetId,
 			Self::Balance,
+			IncrementalId,
 			Error = DispatchError,
 		>;
 
@@ -126,6 +130,7 @@ pub mod pallet {
 		/// Origin able to set route without validation
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		type BatchIdProvider: IncrementalIdProvider<IncrementalId>;
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
 	}
@@ -139,6 +144,7 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: T::Balance,
 			amount_out: T::Balance,
+			event_id: IncrementalIdType,
 		},
 		///The route with trades has been successfully executed
 		RouteUpdated { asset_ids: Vec<T::AssetId> },
@@ -254,6 +260,7 @@ pub mod pallet {
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
 			let route_length = route.len();
+			let next_event_id = T::BatchIdProvider::next_id().map_err(|_| ArithmeticError::Overflow)?;
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 				let user_balance_of_asset_out_before_trade =
@@ -265,6 +272,7 @@ pub mod pallet {
 					trade.asset_out,
 					trade_amount.amount_out,
 					trade_amount.amount_in,
+					Some(next_event_id),
 				);
 
 				handle_execution_error!(execution_result);
@@ -292,6 +300,7 @@ pub mod pallet {
 				asset_out,
 				amount_in: first_trade.amount_in,
 				amount_out,
+				event_id: next_event_id,
 			});
 
 			Ok(())
@@ -484,6 +493,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let route_length = route.len();
+		let next_event_id = T::BatchIdProvider::next_id().map_err(|_| ArithmeticError::Overflow)?;
 		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
 			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 
@@ -497,6 +507,7 @@ impl<T: Config> Pallet<T> {
 				trade.asset_out,
 				trade_amount.amount_in,
 				trade_amount.amount_out,
+				Some(next_event_id),
 			);
 
 			handle_execution_error!(execution_result);
@@ -524,6 +535,7 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in,
 			amount_out: last_trade_amount.amount_out,
+			event_id: next_event_id,
 		});
 
 		Ok(())

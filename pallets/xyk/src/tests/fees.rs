@@ -129,17 +129,32 @@ fn discount_sell_fees_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 600_000_019_986_006);
 		assert_eq!(Currency::free_balance(HDX, &ALICE), 997_999_999_972_014);
 
-		expect_events(vec![Event::SellExecuted {
-			who: ALICE,
-			asset_in: asset_a,
-			asset_out: asset_b,
-			amount: 10_000_000,
-			sale_price: 19_986_006,
-			fee_asset: asset_b,
-			fee_amount: 13_993,
-			pool: pair_account,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::SellExecuted {
+				who: ALICE,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount: 10_000_000,
+				sale_price: 19_986_006,
+				fee_asset: asset_b,
+				fee_amount: 13_993,
+				pool: pair_account,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: ALICE,
+				filler: pair_account,
+				filler_type: pallet_amm_support::Filler::XYK,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount_in: 10_000_000,
+				amount_out: 19_986_006,
+				fees: vec![(asset_b, 13_993, pair_account)],
+				event_id: None,
+			}
+			.into(),
+		]);
 	});
 
 	// 0.1% discount fee
@@ -200,17 +215,32 @@ fn discount_sell_fees_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 600_000_019_980_009);
 		assert_eq!(Currency::free_balance(HDX, &ALICE), 997_999_999_960_020);
 
-		expect_events(vec![Event::SellExecuted {
-			who: ALICE,
-			asset_in: asset_a,
-			asset_out: asset_b,
-			amount: 10_000_000,
-			sale_price: 19_980_009,
-			fee_asset: asset_b,
-			fee_amount: 19_990,
-			pool: pair_account,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::SellExecuted {
+				who: ALICE,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount: 10_000_000,
+				sale_price: 19_980_009,
+				fee_asset: asset_b,
+				fee_amount: 19_990,
+				pool: pair_account,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: ALICE,
+				filler: pair_account,
+				filler_type: pallet_amm_support::Filler::XYK,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount_in: 10_000_000,
+				amount_out: 19_980_009,
+				fees: vec![(asset_b, 19_990, pair_account)],
+				event_id: None,
+			}
+			.into(),
+		]);
 	});
 
 	// zero discount fee
@@ -264,17 +294,32 @@ fn discount_sell_fees_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 798_999_990_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 600_000_019_999_999);
 
-		expect_events(vec![Event::SellExecuted {
-			who: ALICE,
-			asset_in: asset_a,
-			asset_out: asset_b,
-			amount: 10_000_000,
-			sale_price: 19_999_999,
-			fee_asset: asset_b,
-			fee_amount: 0,
-			pool: pair_account,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::SellExecuted {
+				who: ALICE,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount: 10_000_000,
+				sale_price: 19_999_999,
+				fee_asset: asset_b,
+				fee_amount: 0,
+				pool: pair_account,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: ALICE,
+				filler: pair_account,
+				filler_type: pallet_amm_support::Filler::XYK,
+				operation: pallet_amm_support::TradeOperation::Sell,
+				asset_in: asset_a,
+				asset_out: asset_b,
+				amount_in: 10_000_000,
+				amount_out: 19_999_999,
+				fees: vec![(asset_b, 0, pair_account)],
+				event_id: None,
+			}
+			.into(),
+		]);
 	});
 }
 
@@ -345,17 +390,32 @@ fn discount_buy_fees_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 599_999_979_985_998); // compare to values in previous test to see difference!
 		assert_eq!(Currency::free_balance(HDX, &ALICE), 997_999_999_972_000);
 
-		expect_events(vec![Event::BuyExecuted {
-			who: ALICE,
-			asset_out: asset_a,
-			asset_in: asset_b,
-			amount: 10_000_000,
-			buy_price: 20_000_002,
-			fee_asset: asset_b,
-			fee_amount: 14_000,
-			pool: pair_account,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::BuyExecuted {
+				who: ALICE,
+				asset_in: asset_b,
+				asset_out: asset_a,
+				amount: 10_000_000,
+				buy_price: 20_000_002,
+				fee_asset: asset_b,
+				fee_amount: 14_000,
+				pool: pair_account,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: ALICE,
+				filler: pair_account,
+				filler_type: pallet_amm_support::Filler::XYK,
+				operation: pallet_amm_support::TradeOperation::Buy,
+				asset_in: asset_b,
+				asset_out: asset_a,
+				amount_in: 10_000_000,
+				amount_out: 20_000_002,
+				fees: vec![(asset_b, 14_000, pair_account)],
+				event_id: None,
+			}
+			.into(),
+		]);
 	});
 
 	// 0.1% discount fee
@@ -418,17 +478,32 @@ fn discount_buy_fees_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 599_999_979_979_998); // compare to values in previous test to see difference!
 		assert_eq!(Currency::free_balance(HDX, &ALICE), 997_999_999_960_000);
 
-		expect_events(vec![Event::BuyExecuted {
-			who: ALICE,
-			asset_out: asset_a,
-			asset_in: asset_b,
-			amount: 10_000_000,
-			buy_price: 20_000_002,
-			fee_asset: asset_b,
-			fee_amount: 20_000,
-			pool: pair_account,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::BuyExecuted {
+				who: ALICE,
+				asset_in: asset_b,
+				asset_out: asset_a,
+				amount: 10_000_000,
+				buy_price: 20_000_002,
+				fee_asset: asset_b,
+				fee_amount: 20_000,
+				pool: pair_account,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: ALICE,
+				filler: pair_account,
+				filler_type: pallet_amm_support::Filler::XYK,
+				operation: pallet_amm_support::TradeOperation::Buy,
+				asset_in: asset_b,
+				asset_out: asset_a,
+				amount_in: 10_000_000,
+				amount_out: 20_000_002,
+				fees: vec![(asset_b, 20_000, pair_account)],
+				event_id: None,
+			}
+			.into(),
+		]);
 	});
 
 	// zero discount fee
@@ -483,16 +558,31 @@ fn discount_buy_fees_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 799_000_010_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 599_999_979_999_998);
 
-		expect_events(vec![Event::BuyExecuted {
-			who: ALICE,
-			asset_out: asset_a,
-			asset_in: asset_b,
-			amount: 10_000_000,
-			buy_price: 20_000_002,
-			fee_asset: asset_b,
-			fee_amount: 0,
-			pool: pair_account,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::BuyExecuted {
+				who: ALICE,
+				asset_in: asset_b,
+				asset_out: asset_a,
+				amount: 10_000_000,
+				buy_price: 20_000_002,
+				fee_asset: asset_b,
+				fee_amount: 0,
+				pool: pair_account,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: ALICE,
+				filler: pair_account,
+				filler_type: pallet_amm_support::Filler::XYK,
+				operation: pallet_amm_support::TradeOperation::Buy,
+				asset_in: asset_b,
+				asset_out: asset_a,
+				amount_in: 10_000_000,
+				amount_out: 20_000_002,
+				fees: vec![(asset_b, 0, pair_account)],
+				event_id: None,
+			}
+			.into(),
+		]);
 	});
 }

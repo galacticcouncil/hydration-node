@@ -1485,7 +1485,7 @@ fn ed_should_be_paid_in_insufficient_asset_through_dot() {
 				hydradx_runtime::Currencies::free_balance(insufficient_asset, &ALICE.into());
 
 			//Act
-			assert_ok!(Tokens::deposit(insufficient_asset2, &ALICE.into(), 1 * UNITS));
+			assert_ok!(Tokens::deposit(insufficient_asset2, &ALICE.into(), UNITS));
 
 			//Assert
 			let alice_new_insuff_balance = hydradx_runtime::Currencies::free_balance(insufficient_asset, &ALICE.into());

@@ -1205,6 +1205,7 @@ impl pallet_route_executor::Config for Runtime {
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
+	type BatchIdProvider = AmmSupport;
 	type OraclePeriod = RouteValidationOraclePeriod;
 }
 
@@ -1573,6 +1574,10 @@ impl pallet_referrals::Config for Runtime {
 	type WeightInfo = weights::pallet_referrals::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
+}
+
+impl pallet_amm_support::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

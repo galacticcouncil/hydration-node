@@ -36,7 +36,7 @@ use sp_runtime::{
 	DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome,
 };
 
-use hydradx_runtime::InsufficientEDinHDX;
+use hydradx_runtime::{AccountIdFor, InsufficientEDinHDX};
 use orml_traits::MultiCurrency;
 pub const LBP_SALE_START: BlockNumber = 10;
 pub const LBP_SALE_END: BlockNumber = 40;
@@ -152,13 +152,71 @@ mod router_different_pools_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_out);
 
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: DAI,
-				asset_out: DOT,
-				amount_in: amount_to_sell,
-				amount_out,
-			}
-			.into()]);
+			expect_hydra_events(vec![
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
+					filler_type: pallet_amm_support::Filler::LBP,
+					operation: pallet_amm_support::TradeOperation::Sell,
+					asset_in: DAI,
+					asset_out: LRNA,
+					amount_in: 9980000000,
+					amount_out: 5640664064,
+					fees: vec![(
+						DAI,
+						20000000,
+						LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+							.unwrap()
+							.fee_collector,
+					)],
+					event_id: Some(0),
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::Sell,
+					asset_in: LRNA,
+					asset_out: HDX,
+					amount_in: 5640664064,
+					amount_out: 4682924837974,
+					fees: vec![(HDX, 11736653730, Omnipool::protocol_account())],
+					event_id: Some(0),
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}),
+					filler_type: pallet_amm_support::Filler::XYK,
+					operation: pallet_amm_support::TradeOperation::Sell,
+					asset_in: HDX,
+					asset_out: DOT,
+					amount_in: 4682924837974,
+					amount_out: 2230008413831,
+					fees: vec![(
+						DOT,
+						6710155707,
+						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						}),
+					)],
+					event_id: Some(0),
+				}
+				.into(),
+				pallet_route_executor::Event::Executed {
+					asset_in: DAI,
+					asset_out: DOT,
+					amount_in: amount_to_sell,
+					amount_out,
+					event_id: 0,
+				}
+				.into(),
+			]);
 		});
 
 		TestNet::reset();
@@ -218,13 +276,81 @@ mod router_different_pools_tests {
 				assert_balance!(BOB.into(), stable_asset_1, 0);
 				assert_balance!(BOB.into(), stable_asset_2, amount_out);
 
-				expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-					asset_in: DAI,
-					asset_out: stable_asset_2,
-					amount_in: amount_to_sell,
-					amount_out,
-				}
-				.into()]);
+				expect_hydra_events(vec![
+					pallet_amm_support::Event::Swapped {
+						swapper: BOB.into(),
+						filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
+						filler_type: pallet_amm_support::Filler::LBP,
+						operation: pallet_amm_support::TradeOperation::Sell,
+						asset_in: DAI,
+						asset_out: HDX,
+						amount_in: 9980000000,
+						amount_out: 5640664064,
+						fees: vec![(
+							DAI,
+							20000000,
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
+								.unwrap()
+								.fee_collector,
+						)],
+						event_id: Some(0),
+					}
+					.into(),
+					pallet_amm_support::Event::Swapped {
+						swapper: BOB.into(),
+						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: stable_asset_1,
+						}),
+						filler_type: pallet_amm_support::Filler::XYK,
+						operation: pallet_amm_support::TradeOperation::Sell,
+						asset_in: HDX,
+						asset_out: stable_asset_1,
+						amount_in: 5640664064,
+						amount_out: 2811712439,
+						fees: vec![(
+							stable_asset_1,
+							8460516,
+							XYK::get_pair_id(pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: stable_asset_1,
+							}),
+						)],
+						event_id: Some(0),
+					}
+					.into(),
+					pallet_amm_support::Event::Swapped {
+						swapper: BOB.into(),
+						filler: <Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+							&stable_pool_id,
+							Some(pallet_stableswap::POOL_IDENTIFIER),
+						),
+						filler_type: pallet_amm_support::Filler::Stableswap,
+						operation: pallet_amm_support::TradeOperation::Sell,
+						asset_in: stable_asset_1,
+						asset_out: stable_asset_2,
+						amount_in: 2811712439,
+						amount_out: 2783595233,
+						fees: vec![(
+							stable_asset_2,
+							28117123,
+							<Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+								&stable_pool_id,
+								Some(pallet_stableswap::POOL_IDENTIFIER),
+							),
+						)],
+						event_id: Some(0),
+					}
+					.into(),
+					pallet_route_executor::Event::Executed {
+						asset_in: DAI,
+						asset_out: stable_asset_2,
+						amount_in: amount_to_sell,
+						amount_out,
+						event_id: 0,
+					}
+					.into(),
+				]);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -281,13 +407,71 @@ mod router_different_pools_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_to_buy);
 
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: DAI,
-				asset_out: DOT,
-				amount_in,
-				amount_out: amount_to_buy,
-			}
-			.into()]);
+			expect_hydra_events(vec![
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
+					filler_type: pallet_amm_support::Filler::LBP,
+					operation: pallet_amm_support::TradeOperation::Buy,
+					asset_in: DAI,
+					asset_out: LRNA,
+					amount_in: 4362157193,
+					amount_out: 2465566245,
+					fees: vec![(
+						DAI,
+						8741796,
+						LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+							.unwrap()
+							.fee_collector,
+					)],
+					event_id: Some(0),
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::Buy,
+					asset_in: LRNA,
+					asset_out: HDX,
+					amount_in: 2465566245,
+					amount_out: 2046938775509,
+					fees: vec![(HDX, 5130172370, Omnipool::protocol_account())],
+					event_id: Some(0),
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}),
+					filler_type: pallet_amm_support::Filler::XYK,
+					operation: pallet_amm_support::TradeOperation::Buy,
+					asset_in: HDX,
+					asset_out: DOT,
+					amount_in: 1000000000000,
+					amount_out: 2040816326531,
+					fees: vec![(
+						HDX,
+						6122448978,
+						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						}),
+					)],
+					event_id: Some(0),
+				}
+				.into(),
+				pallet_route_executor::Event::Executed {
+					asset_in: DAI,
+					asset_out: DOT,
+					amount_in,
+					amount_out: amount_to_buy,
+					event_id: 0,
+				}
+				.into(),
+			]);
 		});
 
 		TestNet::reset();
@@ -347,15 +531,203 @@ mod router_different_pools_tests {
 				assert_balance!(BOB.into(), stable_asset_1, 0);
 				assert_balance!(BOB.into(), stable_asset_2, amount_to_buy);
 
-				expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-					asset_in: DAI,
-					asset_out: stable_asset_2,
-					amount_in,
-					amount_out: amount_to_buy,
-				}
-				.into()]);
+				expect_hydra_events(vec![
+					pallet_amm_support::Event::Swapped {
+						swapper: BOB.into(),
+						filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
+						filler_type: pallet_amm_support::Filler::LBP,
+						operation: pallet_amm_support::TradeOperation::Buy,
+						asset_in: DAI,
+						asset_out: HDX,
+						amount_in: 3746042043754,
+						amount_out: 2067851065323,
+						fees: vec![(
+							DAI,
+							7507098284,
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
+								.unwrap()
+								.fee_collector,
+						)],
+						event_id: Some(0),
+					}
+					.into(),
+					pallet_amm_support::Event::Swapped {
+						swapper: BOB.into(),
+						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: stable_asset_1,
+						}),
+						filler_type: pallet_amm_support::Filler::XYK,
+						operation: pallet_amm_support::TradeOperation::Buy,
+						asset_in: HDX,
+						asset_out: stable_asset_1,
+						amount_in: 1010010000114,
+						amount_out: 2061666067122,
+						fees: vec![(
+							HDX,
+							6184998201,
+							XYK::get_pair_id(pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: stable_asset_1,
+							}),
+						)],
+						event_id: Some(0),
+					}
+					.into(),
+					pallet_amm_support::Event::Swapped {
+						swapper: BOB.into(),
+						filler: <Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+							&stable_pool_id,
+							Some(pallet_stableswap::POOL_IDENTIFIER),
+						),
+						filler_type: pallet_amm_support::Filler::Stableswap,
+						operation: pallet_amm_support::TradeOperation::Buy,
+						asset_in: stable_asset_1,
+						asset_out: stable_asset_2,
+						amount_in: 1010010000114,
+						amount_out: 1000000000000,
+						fees: vec![(
+							stable_asset_1,
+							10000099012,
+							<Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+								&stable_pool_id,
+								Some(pallet_stableswap::POOL_IDENTIFIER),
+							),
+						)],
+						event_id: Some(0),
+					}
+					.into(),
+					pallet_route_executor::Event::Executed {
+						asset_in: DAI,
+						asset_out: stable_asset_2,
+						amount_in,
+						amount_out: amount_to_buy,
+						event_id: 0,
+					}
+					.into(),
+				]);
+
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
+		});
+	}
+
+	#[test]
+	fn multiple_trades_should_increase_event_id() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			create_xyk_pool(HDX, DOT);
+
+			let amount_to_sell = UNITS / 100;
+			let limit = 0;
+			let trades = vec![Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: DOT,
+			}];
+
+			//Act
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				HDX,
+				DOT,
+				amount_to_sell,
+				limit,
+				trades.clone()
+			));
+
+			assert_ok!(Router::buy(
+				RuntimeOrigin::signed(BOB.into()),
+				HDX,
+				DOT,
+				amount_to_sell,
+				10 * amount_to_sell,
+				trades.clone()
+			));
+
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				HDX,
+				DOT,
+				amount_to_sell,
+				limit,
+				trades
+			));
+
+			//Assert
+			expect_hydra_events(vec![
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}),
+					filler_type: pallet_amm_support::Filler::XYK,
+					operation: pallet_amm_support::TradeOperation::Sell,
+					asset_in: HDX,
+					asset_out: DOT,
+					amount_in: 10000000000,
+					amount_out: 4984501549,
+					fees: vec![(
+						DOT,
+						14998500,
+						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						}),
+					)],
+					event_id: Some(0),
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}),
+					filler_type: pallet_amm_support::Filler::XYK,
+					operation: pallet_amm_support::TradeOperation::Buy,
+					asset_in: HDX,
+					asset_out: DOT,
+					amount_in: 10000000000,
+					amount_out: 20007996198,
+					fees: vec![(
+						HDX,
+						60023988,
+						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						}),
+					)],
+					event_id: Some(1),
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}),
+					filler_type: pallet_amm_support::Filler::XYK,
+					operation: pallet_amm_support::TradeOperation::Sell,
+					asset_in: HDX,
+					asset_out: DOT,
+					amount_in: 10000000000,
+					amount_out: 4981510054,
+					fees: vec![(
+						DOT,
+						14989497,
+						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						}),
+					)],
+					event_id: Some(2),
+				}
+				.into(),
+			]);
 		});
 	}
 
@@ -802,6 +1174,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -1976,6 +2349,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2014,13 +2388,32 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: amount_to_sell,
-				amount_out,
-			}
-			.into()]);
+			expect_hydra_last_events(vec![
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::Sell,
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell,
+					amount_out,
+					fees: vec![
+						(DAI, 667155563986401, Omnipool::protocol_account()),
+						(LRNA, 6007435, Omnipool::protocol_account()),
+					],
+					event_id: Some(0),
+				}
+				.into(),
+				pallet_route_executor::Event::Executed {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell,
+					amount_out,
+					event_id: 0,
+				}
+				.into(),
+			]);
 		});
 
 		TestNet::reset();
@@ -2039,18 +2432,41 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			expect_hydra_last_events(vec![pallet_omnipool::Event::SellExecuted {
-				who: BOB.into(),
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: amount_to_sell,
-				amount_out,
-				hub_amount_in: 12014871681,
-				hub_amount_out: 12008864246,
-				asset_fee_amount: 667_155_563_986_401,
-				protocol_fee_amount: 6_007_435,
-			}
-			.into()]);
+			expect_hydra_last_events(vec![
+				pallet_omnipool::Event::SellExecuted {
+					who: BOB.into(),
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell,
+					amount_out,
+					hub_amount_in: 12014871681,
+					hub_amount_out: 12008864246,
+					asset_fee_amount: 667_155_563_986_401,
+					protocol_fee_amount: 6_007_435,
+				}
+				.into(),
+				pallet_omnipool::Event::HubAmountUpdated {
+					hub_amount_in: 12014871681,
+					hub_amount_out: 12008864246,
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::Sell,
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell,
+					amount_out,
+					fees: vec![
+						(DAI, 667155563986401, Omnipool::protocol_account()),
+						(LRNA, 6007435, Omnipool::protocol_account()),
+					],
+					event_id: None,
+				}
+				.into(),
+			]);
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
@@ -2094,6 +2510,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2194,13 +2611,32 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in,
-				amount_out: amount_to_buy,
-			}
-			.into()]);
+			expect_hydra_last_events(vec![
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::Buy,
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in,
+					amount_out: amount_to_buy,
+					fees: vec![
+						(DAI, 2506265665, Omnipool::protocol_account()),
+						(LRNA, 22, Omnipool::protocol_account()),
+					],
+					event_id: Some(0),
+				}
+				.into(),
+				pallet_route_executor::Event::Executed {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in,
+					amount_out: amount_to_buy,
+					event_id: 0,
+				}
+				.into(),
+			]);
 		});
 
 		TestNet::reset();
@@ -2219,18 +2655,41 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
-				who: BOB.into(),
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in,
-				amount_out: amount_to_buy,
-				hub_amount_in: 45135,
-				hub_amount_out: 45113,
-				asset_fee_amount: 2_506_265_665,
-				protocol_fee_amount: 22,
-			}
-			.into()]);
+			expect_hydra_last_events(vec![
+				pallet_omnipool::Event::BuyExecuted {
+					who: BOB.into(),
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in,
+					amount_out: amount_to_buy,
+					hub_amount_in: 45135,
+					hub_amount_out: 45113,
+					asset_fee_amount: 2_506_265_665,
+					protocol_fee_amount: 22,
+				}
+				.into(),
+				pallet_omnipool::Event::HubAmountUpdated {
+					hub_amount_in: 45135,
+					hub_amount_out: 45113,
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::Buy,
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in,
+					amount_out: amount_to_buy,
+					fees: vec![
+						(DAI, 2_506_265_665, Omnipool::protocol_account()),
+						(LRNA, 22, Omnipool::protocol_account()),
+					],
+					event_id: None,
+				}
+				.into(),
+			]);
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -2311,6 +2770,7 @@ mod lbp_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2354,6 +2814,7 @@ mod lbp_router_tests {
 				asset_out: HDX,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2406,6 +2867,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2458,6 +2920,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2496,13 +2959,37 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + received_amount_out);
 
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: amount_to_sell,
-				amount_out: received_amount_out,
-			}
-			.into()]);
+			let fee = 20000000000;
+
+			expect_hydra_last_events(vec![
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
+					filler_type: pallet_amm_support::Filler::LBP,
+					operation: pallet_amm_support::TradeOperation::Sell,
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell - fee,
+					amount_out: received_amount_out,
+					fees: vec![(
+						HDX,
+						fee,
+						LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
+							.unwrap()
+							.fee_collector,
+					)],
+					event_id: Some(0),
+				}
+				.into(),
+				pallet_route_executor::Event::Executed {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell,
+					amount_out: received_amount_out,
+					event_id: 0,
+				}
+				.into(),
+			]);
 		});
 
 		TestNet::reset();
@@ -2522,16 +3009,37 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			expect_hydra_last_events(vec![pallet_lbp::Event::SellExecuted {
-				who: BOB.into(),
-				asset_in: HDX,
-				asset_out: DAI,
-				amount: 9_980_000_000_000,
-				sale_price: received_amount_out,
-				fee_asset: HDX,
-				fee_amount: 20_000_000_000,
-			}
-			.into()]);
+			expect_hydra_last_events(vec![
+				pallet_lbp::Event::SellExecuted {
+					who: BOB.into(),
+					asset_in: HDX,
+					asset_out: DAI,
+					amount: 9_980_000_000_000,
+					sale_price: received_amount_out,
+					fee_asset: HDX,
+					fee_amount: 20_000_000_000,
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
+					filler_type: pallet_amm_support::Filler::LBP,
+					operation: pallet_amm_support::TradeOperation::Sell,
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: 9_980_000_000_000,
+					amount_out: received_amount_out,
+					fees: vec![(
+						HDX,
+						20_000_000_000,
+						LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
+							.unwrap()
+							.fee_collector,
+					)],
+					event_id: None,
+				}
+				.into(),
+			]);
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + received_amount_out);
@@ -2576,6 +3084,7 @@ mod lbp_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2619,6 +3128,7 @@ mod lbp_router_tests {
 				asset_out: HDX,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2671,6 +3181,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2723,6 +3234,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2766,6 +3278,7 @@ mod lbp_router_tests {
 				asset_out: DAI,
 				amount_in: spent_amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2868,6 +3381,7 @@ mod xyk_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2931,6 +3445,7 @@ mod xyk_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -3096,6 +3611,7 @@ mod xyk_router_tests {
 				asset_out: DOT,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -3151,6 +3667,7 @@ mod xyk_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -3214,6 +3731,7 @@ mod xyk_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -4935,6 +5453,7 @@ mod with_on_chain_and_default_route {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -4972,6 +5491,7 @@ mod with_on_chain_and_default_route {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -5333,6 +5853,7 @@ mod sell_all {
 				asset_out: DAI,
 				amount_in: bob_hdx_balance,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -5374,6 +5895,7 @@ mod sell_all {
 				asset_out: HDX,
 				amount_in: bob_nonnative_balance,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});

@@ -81,9 +81,9 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_amm_support::Config {
 		/// Identifier for the class of asset.
-		type AssetId: Member + Parameter + Copy + HasCompact + MaybeSerializeDeserialize + MaxEncodedLen;
+		type AssetId: Member + Parameter + Copy + HasCompact + MaybeSerializeDeserialize + MaxEncodedLen + Into<u32>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry.
 		type AssetRegistry: Inspect<AssetId = Self::AssetId>;
@@ -124,6 +124,7 @@ pub mod pallet {
 		/// An Order has been cancelled
 		Cancelled { order_id: OrderId },
 		/// An Order has been completely filled
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		Filled {
 			order_id: OrderId,
 			who: T::AccountId,
@@ -132,6 +133,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// An Order has been partially filled
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		PartiallyFilled {
 			order_id: OrderId,
 			who: T::AccountId,
@@ -266,7 +268,8 @@ pub mod pallet {
 		///   of asset_out multiplied by ExistentialDepositMultiplier
 		///
 		/// Events:
-		/// `PartiallyFilled` event when successful.
+		/// `PartiallyFilled` event when successful. Deprecated.
+		/// `pallet_amm_support::Swapped` event when successful.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::partial_fill_order())]
 		pub fn partial_fill_order(origin: OriginFor<T>, order_id: OrderId, amount_in: Balance) -> DispatchResult {
@@ -296,13 +299,29 @@ pub mod pallet {
 
 				Self::execute_order(order, &who, amount_in, amount_out, fee)?;
 
+				// TODO: Deprecated, remove when ready
 				Self::deposit_event(Event::PartiallyFilled {
 					order_id,
-					who,
+					who: who.clone(),
 					amount_in,
 					amount_out,
 					fee,
 				});
+
+				// TODO: order_id is missing
+				pallet_amm_support::Pallet::<T>::deposit_trade_event(
+					who,
+					order.owner.clone(),
+					pallet_amm_support::Filler::OTC,
+					pallet_amm_support::TradeOperation::Sell,
+					order.asset_in.into(),
+					order.asset_out.into(),
+					amount_in,
+					amount_out,
+					vec![(order.asset_out.into(), fee, T::FeeReceiver::get())],
+					None,
+				);
+
 				Ok(())
 			})
 		}
@@ -313,7 +332,8 @@ pub mod pallet {
 		/// - `order_id`: ID of the order
 		///
 		/// Events:
-		/// `Filled` event when successful.
+		/// `Filled` event when successful. Deprecated.
+		/// `pallet_amm_support::Swapped` event when successful.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::fill_order())]
 		pub fn fill_order(origin: OriginFor<T>, order_id: OrderId) -> DispatchResult {
@@ -325,13 +345,29 @@ pub mod pallet {
 			Self::execute_order(&order, &who, order.amount_in, order.amount_out, fee)?;
 			<Orders<T>>::remove(order_id);
 
+			// TODO: Deprecated, remove when ready
 			Self::deposit_event(Event::Filled {
 				order_id,
-				who,
+				who: who.clone(),
 				amount_in: order.amount_in,
 				amount_out: order.amount_out,
 				fee,
 			});
+
+			// TODO: order_id is missing
+			pallet_amm_support::Pallet::<T>::deposit_trade_event(
+				who,
+				order.owner,
+				pallet_amm_support::Filler::OTC,
+				pallet_amm_support::TradeOperation::Sell,
+				order.asset_in.into(),
+				order.asset_out.into(),
+				order.amount_in,
+				order.amount_out,
+				vec![(order.asset_out.into(), fee, T::FeeReceiver::get())],
+				None,
+			);
+
 			Ok(())
 		}
 

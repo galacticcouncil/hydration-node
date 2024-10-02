@@ -75,3 +75,6 @@ pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 
 /// Block type.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+
+/// Incremental ID type
+pub type IncrementalId = u32;
