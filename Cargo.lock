@@ -7479,6 +7479,8 @@ dependencies = [
  "primitives",
  "scale-info",
  "sp-api",
+ "sp-core",
+ "sp-io",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
 ]
 

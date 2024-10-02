@@ -26,6 +26,9 @@ pub use hydradx_traits::{
 };
 pub use primitives::IncrementalId as IncrementalIdType;
 
+#[cfg(test)]
+mod tests;
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
