@@ -297,25 +297,20 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 				asset_id: HDX,
 				profit: 17_736_110_470_326,
 			}
-				.into(),
+			.into(),
 			pallet_amm_support::Event::Swapped {
 				swapper: OtcSettlements::account_id(),
 				filler: otc.owner,
-				filler_type:  pallet_amm_support::Filler::OTC,
-				operation:  pallet_amm_support::TradeOperation::Sell,
+				filler_type: pallet_amm_support::Filler::OTC,
+				operation: pallet_amm_support::TradeOperation::Sell,
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: 2413749694825193,
 				amount_out: 4948186874391645,
-				fees: vec![
-					(
-						DAI,
-						49481868743917,
-						<Test as pallet_otc::Config>::FeeReceiver::get(),
-					),
-				],
+				fees: vec![(DAI, 49481868743917, <Test as pallet_otc::Config>::FeeReceiver::get())],
 				event_id: None,
-			}.into()
+			}
+			.into(),
 		]);
 	});
 }
