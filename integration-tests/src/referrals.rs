@@ -339,18 +339,41 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 			u128::MAX,
 		));
 
-		expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
-			who: BOB.into(),
-			asset_in: DAI,
-			asset_out: HDX,
-			amount_in: 26_835_579_541_620_354,
-			amount_out: 1_000_000_000_000,
-			hub_amount_in: 1_209_746_177,
-			hub_amount_out: 1_209_141_304,
-			asset_fee_amount: 2_794_789_078,
-			protocol_fee_amount: 604_873,
-		}
-		.into()]);
+		expect_hydra_last_events(vec![
+			pallet_omnipool::Event::BuyExecuted {
+				who: BOB.into(),
+				asset_in: DAI,
+				asset_out: HDX,
+				amount_in: 26_835_579_541_620_354,
+				amount_out: 1_000_000_000_000,
+				hub_amount_in: 1_209_746_177,
+				hub_amount_out: 1_209_141_304,
+				asset_fee_amount: 2_794_789_078,
+				protocol_fee_amount: 604_873,
+			}
+			.into(),
+			pallet_omnipool::Event::HubAmountUpdated {
+				hub_amount_in: 1_209_746_177,
+				hub_amount_out: 1_209_141_304,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: pallet_amm_support::Filler::Omnipool,
+				operation: pallet_amm_support::TradeOperation::Buy,
+				asset_in: DAI,
+				asset_out: HDX,
+				amount_in: 26_835_579_541_620_354,
+				amount_out: 1_000_000_000_000,
+				fees: vec![
+					(HDX, 2_794_789_078, Omnipool::protocol_account()),
+					(LRNA, 604_873, Omnipool::protocol_account()),
+				],
+				event_id: None,
+			}
+			.into(),
+		]);
 
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
@@ -376,18 +399,41 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 			u128::MAX,
 		));
 
-		expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
-			who: BOB.into(),
-			asset_in: HDX,
-			asset_out: DAI,
-			amount_in: 37_506_757_329_085,
-			amount_out: 1_000_000_000_000_000_000,
-			hub_amount_in: 45_222_713_080,
-			hub_amount_out: 45_200_101_724,
-			asset_fee_amount: 2_644_977_450_514_458,
-			protocol_fee_amount: 22_611_356,
-		}
-		.into()]);
+		expect_hydra_last_events(vec![
+			pallet_omnipool::Event::BuyExecuted {
+				who: BOB.into(),
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_in: 37_506_757_329_085,
+				amount_out: 1_000_000_000_000_000_000,
+				hub_amount_in: 45_222_713_080,
+				hub_amount_out: 45_200_101_724,
+				asset_fee_amount: 2_644_977_450_514_458,
+				protocol_fee_amount: 22_611_356,
+			}
+			.into(),
+			pallet_omnipool::Event::HubAmountUpdated {
+				hub_amount_in: 45_222_713_080,
+				hub_amount_out: 45_200_101_724,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: pallet_amm_support::Filler::Omnipool,
+				operation: pallet_amm_support::TradeOperation::Buy,
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_in: 37_506_757_329_085,
+				amount_out: 1_000_000_000_000_000_000,
+				fees: vec![
+					(DAI, 2_644_977_450_514_458, Omnipool::protocol_account()),
+					(LRNA, 22_611_356, Omnipool::protocol_account()),
+				],
+				event_id: None,
+			}
+			.into(),
+		]);
 
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
