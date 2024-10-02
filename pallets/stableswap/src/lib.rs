@@ -800,7 +800,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_sell(
-		origin: frame_system::pallet_prelude::OriginFor<T>,
+		origin: OriginFor<T>,
 		pool_id: T::AssetId,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,

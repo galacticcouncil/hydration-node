@@ -257,7 +257,7 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 				fees: vec![(HDX, ONE, <Test as crate::Config>::FeeReceiver::get().into())],
 				event_id: None,
 			}
-			.into(),
+			.into()
 		]);
 	});
 }

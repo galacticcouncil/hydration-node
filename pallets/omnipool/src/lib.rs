@@ -1510,7 +1510,7 @@ impl<T: Config> Pallet<T> {
 		// Special handling when one of the asset is Hub Asset
 		// Math is simplified and asset_in is actually part of asset_out state in this case
 		if asset_in == T::HubAssetId::get() {
-			return Self::sell_hub_asset(origin, &who, asset_out, amount, min_buy_amount);
+			return Self::sell_hub_asset(origin, &who, asset_out, amount, min_buy_amount, event_id);
 		}
 
 		if asset_out == T::HubAssetId::get() {
@@ -1723,7 +1723,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		if asset_in == T::HubAssetId::get() {
-			return Self::buy_asset_for_hub_asset(origin, &who, asset_out, amount, max_sell_amount);
+			return Self::buy_asset_for_hub_asset(origin, &who, asset_out, amount, max_sell_amount, event_id);
 		}
 
 		let asset_in_state = Self::load_asset_state(asset_in)?;
@@ -1917,6 +1917,7 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		amount: Balance,
 		limit: Balance,
+		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		ensure!(
 			HubAssetTradability::<T>::get().contains(Tradability::SELL),
@@ -2022,7 +2023,7 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_hub_reserve,
 			*state_changes.asset.delta_reserve,
 			vec![(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account())],
-			None,
+			event_id,
 		);
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
@@ -2038,6 +2039,7 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		amount: Balance,
 		limit: Balance,
+		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		ensure!(
 			HubAssetTradability::<T>::get().contains(Tradability::SELL),
@@ -2143,7 +2145,7 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_hub_reserve,
 			*state_changes.asset.delta_reserve,
 			vec![(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account())],
-			None,
+			event_id,
 		);
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
