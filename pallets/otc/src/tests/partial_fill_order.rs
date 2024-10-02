@@ -101,7 +101,7 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 				asset_out: order.asset_out,
 				amount_in: 5 * ONE,
 				amount_out: expected_amount_out,
-				fees: vec![(order.asset_out, fee, <Test as crate::Config>::FeeReceiver::get().into())],
+				fees: vec![(order.asset_out, fee, <Test as crate::Config>::FeeReceiver::get())],
 				event_id: None,
 			}
 			.into(),

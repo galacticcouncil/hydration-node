@@ -189,7 +189,7 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 			.max_total
 			.unwrap();
 
-		for (nonce, b) in (2..HOURS).enumerate() {
+		for b in 2..HOURS {
 			//=HOURS {
 			hydradx_run_to_block(b);
 			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);

@@ -318,7 +318,7 @@ pub mod pallet {
 					order.asset_out.into(),
 					amount_in,
 					amount_out,
-					vec![(order.asset_out.into(), fee, T::FeeReceiver::get().into())],
+					vec![(order.asset_out.into(), fee, T::FeeReceiver::get())],
 					None,
 				);
 
@@ -364,7 +364,7 @@ pub mod pallet {
 				order.asset_out.into(),
 				order.amount_in,
 				order.amount_out,
-				vec![(order.asset_out.into(), fee, T::FeeReceiver::get().into())],
+				vec![(order.asset_out.into(), fee, T::FeeReceiver::get())],
 				None,
 			);
 

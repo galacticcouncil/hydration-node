@@ -1809,7 +1809,7 @@ fn execute_sell_should_work() {
 		let asset_in = KUSD;
 		let asset_out = BSX;
 		let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
-		let pool_data = <PoolData<Test>>::try_get(&pool_id).unwrap();
+		let pool_data = <PoolData<Test>>::try_get(pool_id).unwrap();
 
 		let amount_in = 8_000_000_u128;
 		let amount_b = 20_000_000_u128;
@@ -1949,7 +1949,7 @@ fn execute_buy_should_work() {
 		let asset_in = KUSD;
 		let asset_out = BSX;
 		let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
-		let pool_data = <PoolData<Test>>::try_get(&pool_id).unwrap();
+		let pool_data = <PoolData<Test>>::try_get(pool_id).unwrap();
 
 		let amount_in = 8_000_000_u128;
 		let amount_b = 20_000_000_u128;
@@ -2301,7 +2301,7 @@ fn buy_should_work() {
 		let asset_in = KUSD;
 		let asset_out = BSX;
 		let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
-		let pool_data = <PoolData<Test>>::try_get(&pool_id).unwrap();
+		let pool_data = <PoolData<Test>>::try_get(pool_id).unwrap();
 
 		//start sale
 		set_block_number(11);
@@ -2447,7 +2447,7 @@ fn buy_should_work_when_limit_is_set_above_account_balance() {
 		let asset_in = KUSD;
 		let asset_out = BSX;
 		let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
-		let pool_data = <PoolData<Test>>::try_get(&pool_id).unwrap();
+		let pool_data = <PoolData<Test>>::try_get(pool_id).unwrap();
 
 		//start sale
 		set_block_number(11);
@@ -2575,7 +2575,7 @@ fn sell_should_work() {
 		let asset_in = KUSD;
 		let asset_out = BSX;
 		let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
-		let pool_data = <PoolData<Test>>::try_get(&pool_id).unwrap();
+		let pool_data = <PoolData<Test>>::try_get(pool_id).unwrap();
 
 		//start sale
 		set_block_number(11);
