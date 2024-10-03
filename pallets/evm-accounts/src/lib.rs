@@ -289,9 +289,7 @@ where
 
 	/// Return the Substrate address bound to the EVM account. If not bound, returns `None`.
 	fn bound_account_id(evm_address: EvmAddress) -> Option<T::AccountId> {
-		let Some(last_12_bytes) = AccountExtension::<T>::get(evm_address) else {
-			return None;
-		};
+		let last_12_bytes = AccountExtension::<T>::get(evm_address)?;
 		let mut data: [u8; 32] = [0u8; 32];
 		data[..20].copy_from_slice(evm_address.0.as_ref());
 		data[20..32].copy_from_slice(&last_12_bytes);

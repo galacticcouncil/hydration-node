@@ -1,6 +1,6 @@
 [package]
 name = "hydra-dx-build-script-utils"
-version = "1.0.3"
+version = "1.0.4"
 description = "Crate with utility functions for `build.rs` scripts."
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"
@@ -12,5 +12,5 @@ repository = "https://github.com/paritytech/substrate/"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-platforms = "1.1"
-cargo-lock = "9.0.0"
+platforms = { workspace = true }
+cargo-lock = { workspace = true }

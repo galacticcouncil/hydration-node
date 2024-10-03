@@ -70,7 +70,7 @@ thread_local! {
 	pub static TIER_VOLUME: RefCell<HashMap<Level, Option<Balance>>> = RefCell::new(HashMap::default());
 	pub static TIER_REWARDS: RefCell<HashMap<Level, FeeDistribution>> = RefCell::new(HashMap::default());
 	pub static SEED_AMOUNT: RefCell<Balance> = RefCell::new(Balance::zero());
-	pub static EXTERNAL_ACCOUNT: RefCell<Option<AccountId>> = RefCell::new(None);
+	pub static EXTERNAL_ACCOUNT: RefCell<Option<AccountId>> = const { RefCell::new(None) };
 }
 
 construct_runtime!(
@@ -173,6 +173,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_type_with_key! {

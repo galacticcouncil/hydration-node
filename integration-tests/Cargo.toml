@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.23.6"
+version = "1.23.7"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -11,7 +11,7 @@ repository = "https://github.com/galacticcouncil/HydraDX-node"
 [dependencies]
 hex-literal = { workspace = true }
 frame-remote-externalities = { workspace = true }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true }
 scraper = { workspace = true }
 primitives = { workspace = true }
 hydradx-runtime = { workspace = true }
@@ -134,7 +134,7 @@ polkadot-runtime-parachains = { workspace = true }
 rococo-runtime = { workspace = true }
 
 [dev-dependencies]
-pretty_assertions = "1.2.1"
+pretty_assertions = {  workspace = true }
 pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 test-utils = { workspace = true }

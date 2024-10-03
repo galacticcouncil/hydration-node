@@ -1,6 +1,6 @@
 [package]
 name = "pallet-dynamic-evm-fee"
-version = "1.0.2"
+version = "1.0.3"
 description = "Storing and mutating the dynamic fee for EVM transactions."
 authors = ["GalacticCoucil"]
 edition = "2021"
@@ -11,8 +11,8 @@ repository = "https://github.com/galacticcouncil/warehouse"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+codec = { workspace = true }
+scale-info = { workspace = true }
 log = { workspace = true }
 
 # ORML dependencies

@@ -72,7 +72,7 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 const MAX_BLOCK_WEIGHT: Weight = Weight::from_parts(1024, 0);
 
 thread_local! {
-	static EXTRINSIC_BASE_WEIGHT: RefCell<Weight> = RefCell::new(Weight::zero());
+	static EXTRINSIC_BASE_WEIGHT: RefCell<Weight> = const { RefCell::new(Weight::zero()) };
 }
 
 pub struct ExtrinsicBaseWeight;
@@ -156,6 +156,11 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 impl Config for Test {
@@ -502,8 +507,8 @@ pub struct ValidationData {
 }
 
 thread_local! {
-	static PERMIT_VALIDATION: RefCell<Vec<ValidationData>> = RefCell::new(vec![]);
-	static PERMIT_DISPATCH: RefCell<Vec<PermitDispatchData>> = RefCell::new(vec![]);
+	static PERMIT_VALIDATION: RefCell<Vec<ValidationData>> = const { RefCell::new(vec![]) };
+	static PERMIT_DISPATCH: RefCell<Vec<PermitDispatchData>> = const { RefCell::new(vec![]) };
 }
 
 pub struct PermitDispatchHandler;
