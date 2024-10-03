@@ -414,7 +414,9 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	type Error = DispatchError;
 
 	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
-		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
+		if !Whitelist::contains(account) {
+			DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
+		}
 
 		Ok(())
 	}
