@@ -26,7 +26,6 @@ use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use fc_db::kv::Backend as FrontierBackend;
 pub use fc_rpc::{EthBlockDataCacheTask, StorageOverride, StorageOverrideHandler};
-use fc_rpc_core::types::TransactionRequest;
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
 use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
@@ -45,34 +44,6 @@ use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 
-pub struct HydraDxEGA;
-
-impl fc_rpc::EstimateGasAdapter for HydraDxEGA {
-	fn adapt_request(mut request: TransactionRequest) -> TransactionRequest {
-		// Redirect any call to batch precompile:
-		// force usage of batchAll method for estimation
-		use sp_core::H160;
-		const BATCH_PRECOMPILE_ADDRESS: H160 = H160(hex_literal::hex!("0000000000000000000000000000000000000808"));
-		const BATCH_PRECOMPILE_BATCH_ALL_SELECTOR: [u8; 4] = hex_literal::hex!("96e292b8");
-		if request.to == Some(BATCH_PRECOMPILE_ADDRESS) {
-			match (&mut request.data.input, &mut request.data.data) {
-				(Some(ref mut input), _) => {
-					if input.0.len() >= 4 {
-						input.0[..4].copy_from_slice(&BATCH_PRECOMPILE_BATCH_ALL_SELECTOR);
-					}
-				}
-				(None, Some(ref mut data)) => {
-					if data.0.len() >= 4 {
-						data.0[..4].copy_from_slice(&BATCH_PRECOMPILE_BATCH_ALL_SELECTOR);
-					}
-				}
-				(_, _) => {}
-			};
-		}
-		request
-	}
-}
-
 pub struct HydraDxEthConfig<C, BE>(std::marker::PhantomData<(C, BE)>);
 
 impl<C, BE> fc_rpc::EthConfig<Block, C> for HydraDxEthConfig<C, BE>
@@ -80,7 +51,7 @@ where
 	C: sc_client_api::StorageProvider<Block, BE> + Sync + Send + 'static,
 	BE: Backend<Block> + 'static,
 {
-	type EstimateGasAdapter = HydraDxEGA;
+	type EstimateGasAdapter = ();
 	type RuntimeStorageOverride = fc_rpc::frontier_backend_client::SystemAccountId20StorageOverride<Block, C, BE>;
 }
 
