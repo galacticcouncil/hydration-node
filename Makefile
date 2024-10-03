@@ -1,4 +1,11 @@
 cargo := cargo --config net.git-fetch-with-cli=true
+ifeq ($(shell uname),Darwin)
+    # macOS-specific commands
+    sha256sum := shasum -a 256
+else
+    # Default commands for other systems
+    sha256sum := sha256sum
+endif
 
 .PHONY: build
 build:
@@ -62,9 +69,9 @@ docker:
 	docker build -t hydra-dx .
 
 checksum:
-	sha256sum target/release/hydradx > target/release/hydradx.sha256
+	$(sha256sum) target/release/hydradx > target/release/hydradx.sha256
 	cp target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
-	sha256sum target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
+	$(sha256sum) target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
 
 release: build-release checksum
 
