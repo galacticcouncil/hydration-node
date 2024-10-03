@@ -14,6 +14,7 @@ sp-runtime = {workspace = true}
 orml-traits = {workspace = true}
 hydradx-traits = {workspace = true}
 
+totsu = "0.10.2"
 
 
 [features]

@@ -8,6 +8,7 @@ use sp_runtime::Saturating;
 use sp_std::collections::btree_map::BTreeMap;
 
 pub mod traits;
+pub mod cvx;
 
 pub struct SolverSolution<AssetId> {
 	pub intents: Vec<ResolvedIntent>,
