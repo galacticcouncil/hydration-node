@@ -66,9 +66,9 @@ frame_support::construct_runtime!(
 );
 
 thread_local! {
-		static EXCHANGE_FEE: RefCell<(u32, u32)> = RefCell::new((2, 1_000));
-		static DISCOUNTED_FEE: RefCell<(u32, u32)> = RefCell::new((7, 10_000));
-		static MAX_OUT_RATIO: RefCell<u128> = RefCell::new(3);
+		static EXCHANGE_FEE: RefCell<(u32, u32)> = const { RefCell::new((2, 1_000)) };
+		static DISCOUNTED_FEE: RefCell<(u32, u32)> = const { RefCell::new((7, 10_000)) };
+		static MAX_OUT_RATIO: RefCell<u128> = const { RefCell::new(3) };
 }
 
 struct ExchangeFee;
@@ -145,6 +145,11 @@ impl system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_type_with_key! {

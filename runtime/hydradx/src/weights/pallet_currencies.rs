@@ -22,12 +22,15 @@
 //! DATE: 2024-09-10, STEPS: `50`, REPEAT: `20`, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! WORST CASE MAP SIZE: `1000000`
 //! HOSTNAME: `bench-bot`, CPU: `Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz`
-//! WASM-EXECUTION: `Compiled`, CHAIN: `None`, DB CACHE: `1024`
+//! WASM-EXECUTION: `Compiled`, CHAIN: `Some("dev")`, DB CACHE: `1024`
 
 // Executed Command:
-// ./target/release/hydradx
+// target/release/hydradx
 // benchmark
 // pallet
+// --chain=dev
+// --steps=50
+// --repeat=20
 // --wasm-execution=compiled
 // --pallet
 // pallet-currencies

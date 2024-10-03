@@ -59,9 +59,9 @@ pub const HIGH_ED: Balance = 5;
 pub const DEFAULT_ETH_HDX_ORACLE_PRICE: Ratio = Ratio::new(8945857934143137845, FixedU128::DIV);
 
 thread_local! {
-	static EXTRINSIC_BASE_WEIGHT: RefCell<Weight> = RefCell::new(Weight::zero());
-	static MULTIPLIER: RefCell<Multiplier> = RefCell::new(Multiplier::from_rational(1,1000));
-	static ETH_HDX_ORACLE_PRICE: RefCell<Ratio> = RefCell::new(DEFAULT_ETH_HDX_ORACLE_PRICE);
+	static EXTRINSIC_BASE_WEIGHT: RefCell<Weight> = const { RefCell::new(Weight::zero()) };
+	static MULTIPLIER: RefCell<Multiplier> = const { RefCell::new(Multiplier::from_rational(1,1000)) };
+	static ETH_HDX_ORACLE_PRICE: RefCell<Ratio> = const { RefCell::new(DEFAULT_ETH_HDX_ORACLE_PRICE) };
 }
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -118,6 +118,11 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 pub struct MultiplierProviderMock;

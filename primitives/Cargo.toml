@@ -7,10 +7,10 @@ repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
 codec = { workspace = true }
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-serde = { features = ["derive"], optional = true, version = "1.0.136" }
+scale-info = { workspace = true }
+serde = { workspace = true, optional = true }
 hex-literal = { workspace = true }
-static_assertions = "1.1.0"
+static_assertions = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }

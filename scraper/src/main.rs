@@ -10,10 +10,10 @@ use substrate_rpc_client::{ws_client, ChainApi};
 struct StorageCmd {
 	/// The block hash at which to get the runtime state. Will be latest finalized head if not
 	/// provided.
-	#[clap(long)]
+	#[arg(long)]
 	at: Option<<Block as BlockT>::Hash>,
 	/// The pallets to scrape. If empty, entire chain state will be scraped.
-	#[clap(long, multiple_values = true)]
+	#[arg(long, num_args = 0..)]
 	pallet: Vec<String>,
 	#[allow(missing_docs)]
 	#[clap(flatten)]
@@ -42,10 +42,10 @@ enum Command {
 #[derive(Parser, Debug)]
 struct SharedParams {
 	/// The url to connect to.
-	#[clap(short, long)]
+	#[arg(short, long)]
 	uri: String,
 	/// The path where to save the storage file.
-	#[clap(long)]
+	#[arg(long)]
 	path: Option<PathBuf>,
 }
 

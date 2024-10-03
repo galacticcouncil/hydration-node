@@ -12,10 +12,10 @@ repository = "https://github.com/paritytech/substrate/"
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
-serde = { features = ["derive"], default-features = false, version = "1.0.136" }
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-derive_more = "0.99.17"
+serde = { workspace = true }
+codec = { workspace = true }
+scale-info = { workspace = true }
+derive_more = { workspace = true }
 log = { workspace = true }
 
 frame-support = { workspace = true }
