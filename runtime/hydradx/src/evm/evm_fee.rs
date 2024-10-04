@@ -130,7 +130,7 @@ where
 					.ok_or(Error::<T>::WithdrawFailed)?;
 
 				let amount_in =
-					SwappablePaymentAssetSupport::calculate_in_given_out(account_fee_currency, dot, fee_in_dot.into())
+					SwappablePaymentAssetSupport::calculate_in_given_out(account_fee_currency, dot, fee_in_dot)
 						.map_err(|_| Error::<T>::WithdrawFailed)?;
 				let pool_fee = SwappablePaymentAssetSupport::calculate_fee_amount(amount_in)
 					.map_err(|_| Error::<T>::WithdrawFailed)?;
@@ -140,7 +140,7 @@ where
 					&account_id.clone(),
 					account_fee_currency,
 					dot,
-					fee_in_dot.into(),
+					fee_in_dot,
 					max_limit,
 					&account_id.clone(),
 				)

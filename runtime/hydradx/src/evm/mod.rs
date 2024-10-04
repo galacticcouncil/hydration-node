@@ -26,7 +26,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{DotAssetId, NativeAssetId, TreasuryAccount, XykPaymentAssetSupport, LRNA};
+use crate::{DotAssetId, NativeAssetId, XykPaymentAssetSupport, LRNA};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
@@ -37,7 +37,6 @@ use frame_support::{
 use hex_literal::hex;
 use hydradx_adapters::price::ConvertAmount;
 use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
-use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
