@@ -76,9 +76,9 @@ pub struct SetCodeForErc20Precompile;
 
 impl RegisterAssetHook<AssetId> for SetCodeForErc20Precompile {
 	fn on_register_asset(asset_id: AssetId) {
-		HydraErc20Mapping::encode_evm_address(asset_id).map(|evm_address| {
+		if let Some(evm_address) = HydraErc20Mapping::encode_evm_address(asset_id) {
 			pallet_evm::AccountCodes::<Runtime>::insert(evm_address, &hex!["00"][..]);
-		});
+		}
 	}
 }
 
@@ -88,12 +88,12 @@ impl frame_support::traits::OnRuntimeUpgrade for SetCodeForErc20Precompile {
 		let mut writes = 0;
 		pallet_asset_registry::Assets::<Runtime>::iter().for_each(|(asset_id, _)| {
 			reads += 1;
-			HydraErc20Mapping::encode_evm_address(asset_id).map(|evm_address| {
+			if let Some(evm_address) = HydraErc20Mapping::encode_evm_address(asset_id) {
 				if !pallet_evm::AccountCodes::<Runtime>::contains_key(evm_address) {
 					Self::on_register_asset(asset_id);
 					writes += 1;
 				}
-			});
+			}
 		});
 		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(reads, writes)
 	}

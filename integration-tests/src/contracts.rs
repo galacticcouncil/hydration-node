@@ -56,10 +56,7 @@ fn is_contract(checker: EvmAddress, address: EvmAddress) -> bool {
 		origin: Default::default(),
 	};
 	let (res, _) = Executor::<Runtime>::call(context, data, U256::zero(), 100_000);
-	match res {
-		Succeed(_) => true,
-		_ => false,
-	}
+	matches!(res, Succeed(_))
 }
 
 #[test]
