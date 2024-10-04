@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-use crate::dca::add_dot_as_payment_currency;
 use crate::polkadot_test_net::*;
 use crate::utils::accounts::*;
 use frame_support::dispatch::GetDispatchInfo;
@@ -938,8 +937,6 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 #[test]
 fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset() {
 	TestNet::reset();
-	let user_evm_address = alith_evm_address();
-	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
 
 	Hydra::execute_with(|| {
@@ -1073,8 +1070,6 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 #[test]
 fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset() {
 	TestNet::reset();
-	let user_evm_address = alith_evm_address();
-	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
 
 	Hydra::execute_with(|| {
