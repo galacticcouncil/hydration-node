@@ -4946,7 +4946,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.3.6"
+version = "1.3.7"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
