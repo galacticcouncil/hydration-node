@@ -10,6 +10,9 @@ use primitives::{AccountId, AssetId, Moment};
 use xcm_emulator::TestExt;
 
 
+type PriceP =
+OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
+
 pub(crate) fn solve_intents(
     intents: Vec<(IntentId, pallet_ice::types::Intent<AccountId, AssetId>)>,
 ) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()> {
