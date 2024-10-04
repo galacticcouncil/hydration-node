@@ -41,3 +41,4 @@ pub mod terminate_yield_farm;
 pub mod update_global_farm;
 pub mod update_yield_farm;
 pub mod withdraw_shares;
+pub mod claim_rewards;

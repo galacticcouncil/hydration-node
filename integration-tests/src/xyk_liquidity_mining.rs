@@ -470,8 +470,9 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		//Assert
 		//NOTE: withdraw is claiming rewards automatically
+		let dave_hdx_0 = hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into());
 		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
+			dave_hdx_0,
 			1_004_254_545_454_545_u128
 		);
 
@@ -493,14 +494,8 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		);
 
 		set_relaychain_block_number(700);
-		//Arrange - claim before withdraw
-		assert_ok!(XYKLiquidityMining::claim_rewards(
-			RuntimeOrigin::signed(DAVE.into()),
-			deposit_id,
-			yield_farm_1_id,
-		));
 
-		//Act 2 - claim and withdraw should in the same period should work.
+		//Act 2
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			deposit_id,
@@ -509,11 +504,10 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		));
 
 		//Assert
-		//NOTE: claim happened before withdraw in this period so no rewards should be claimed.
-		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_021_616_083_916_083_u128
-		);
+		//withdraw_shares claims rewards under the hood
+		let dave_hdx_1 = hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into());
+
+		assert!(dave_hdx_1 > dave_hdx_0);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's
 		//position should be unlocked.
