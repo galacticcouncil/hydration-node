@@ -41,7 +41,7 @@ pub struct AssetLocation(pub polkadot_xcm::v3::Location);
 
 impl From<AssetLocation> for Option<Location> {
 	fn from(location: AssetLocation) -> Option<Location> {
-		xcm_builder::V4V3LocationConverter::convert_back(&location.0)
+		xcm_builder::WithLatestLocationConverter::convert_back(&location.0)
 	}
 }
 
@@ -144,7 +144,29 @@ where
 	}
 }
 
+pub struct IsDotFrom<Origin>(PhantomData<Origin>);
+impl<Origin> ContainsPair<Asset, Location> for IsDotFrom<Origin>
+where
+	Origin: Get<Location>,
+{
+	fn contains(asset: &Asset, origin: &Location) -> bool {
+		let loc = Origin::get();
+		&loc == origin
+			&& matches!(
+				asset,
+				Asset {
+					id: AssetId(Location {
+						parents: 1,
+						interior: Here
+					}),
+					fun: Fungible(_),
+				},
+			)
+	}
+}
+
 pub type Reserves = (
+	IsDotFrom<AssetHubLocation>,
 	IsForeignNativeAssetFrom<AssetHubLocation>,
 	MultiNativeAsset<AbsoluteReserveProvider>,
 );
@@ -191,6 +213,9 @@ impl Config for XcmConfig {
 	type SafeCallFilter = Everything;
 	type Aliasers = Nothing;
 	type TransactionalProcessor = xcm_builder::FrameTransactionalProcessor;
+	type HrmpNewChannelOpenRequestHandler = ();
+	type HrmpChannelClosingHandler = ();
+	type HrmpChannelAcceptedHandler = ();
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -220,7 +245,7 @@ parameter_type_with_key! {
 	pub ParachainMinFee: |location: Location| -> Option<u128> {
 		#[allow(clippy::match_ref_pats)] // false positive
 		match (location.parents, location.first_interior()) {
-			(1, Some(Parachain(ASSET_HUB_PARA_ID))) => Some(50_000_000),
+			(1, Some(Parachain(ASSET_HUB_PARA_ID))) => Some(150_000_000),
 			_ => None,
 		}
 	};
@@ -300,6 +325,7 @@ impl pallet_message_queue::Config for Runtime {
 	type HeapSize = MessageQueueHeapSize;
 	type MaxStale = MessageQueueMaxStale;
 	type ServiceWeight = MessageQueueServiceWeight;
+	type IdleMaxServiceWeight = MessageQueueServiceWeight;
 }
 
 pub struct CurrencyIdConvert;

@@ -48,7 +48,7 @@ pub(crate) type Fee = Perquintill;
 
 thread_local! {
 	pub static ORACLE: RefCell<Box<dyn CustomOracle>> = RefCell::new(Box::new(Oracle::new()));
-	pub static BLOCK: RefCell<usize> = RefCell::new(0);
+	pub static BLOCK: RefCell<usize> = const { RefCell::new(0) };
 	pub static ASSET_FEE_PARAMS: RefCell<FeeParams<Fee>> = RefCell::new(fee_params_default());
 	pub static PROTOCOL_FEE_PARAMS: RefCell<FeeParams<Fee>> = RefCell::new(fee_params_default());
 }
@@ -95,6 +95,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_types! {

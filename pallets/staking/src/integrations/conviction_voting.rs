@@ -137,13 +137,11 @@ where
 			return Some(vote.amount);
 		}
 
-		let Some(vote_idx) = PositionVotes::<T>::get(position_id)
+		let vote_idx = PositionVotes::<T>::get(position_id)
 			.votes
 			.iter()
-			.position(|(idx, _)| *idx == ref_index)
-		else {
-			return None;
-		};
+			.position(|(idx, _)| *idx == ref_index)?;
+
 		let (ref_idx, vote) = PositionVotes::<T>::get(position_id).votes[vote_idx];
 		debug_assert_eq!(ref_idx, ref_index, "Referendum index mismatch");
 		Some(vote.amount)

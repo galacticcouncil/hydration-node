@@ -137,7 +137,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type ChainId = crate::EVMChainId;
 	type Currency = WethCurrency;
 	type FeeCalculator = crate::DynamicEvmFee;
-	type FindAuthor = FindAuthorTruncated<Aura>;
+	type FindAuthor = FindAuthorTruncated<crate::Runtime, Aura>;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type OnChargeTransaction = evm_fee::TransferEvmFees<
 		evm_fee::DepositEvmFeeToTreasury,
