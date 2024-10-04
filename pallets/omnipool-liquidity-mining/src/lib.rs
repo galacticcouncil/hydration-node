@@ -788,12 +788,11 @@ pub mod pallet {
 		#[pallet::call_index(10)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
 		pub fn claim_rewards(
-			origin: OriginFor<T>,
-			deposit_id: DepositId,
-			yield_farm_id: YieldFarmId,
+			_origin: OriginFor<T>,
+			_deposit_id: DepositId,
+			_yield_farm_id: YieldFarmId,
 		) -> DispatchResult {
-			ensure!(false, Error::<T>::Disabled);
-			Ok(())
+			return Err(Error::<T>::Disabled.into());
 		}
 
 		/// This function claim rewards and withdraw LP shares from yield farm. Omnipool position

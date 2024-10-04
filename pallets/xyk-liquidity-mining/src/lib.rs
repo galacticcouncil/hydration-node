@@ -800,8 +800,7 @@ pub mod pallet {
 			_deposit_id: DepositId,
 			_yield_farm_id: YieldFarmId,
 		) -> DispatchResult {
-			ensure!(false, Error::<T>::Disabled);
-			Ok(())
+			return Err(Error::<T>::Disabled.into());
 		}
 
 		/// Withdraw LP shares from liq. mining with reward claiming if possible.
