@@ -308,7 +308,7 @@ pub mod pallet {
 		PriceAdjustmentNotAvailable,
 
 		/// The extrinsic is disabled for now.
-		Disabled
+		Disabled,
 	}
 
 	//NOTE: these errors should never happen.

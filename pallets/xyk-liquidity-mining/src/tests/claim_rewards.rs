@@ -44,7 +44,9 @@ fn claim_rewards_should_be_disabled() {
 			set_block_number(10_000);
 
 			//Act
-			assert_noop!(LiquidityMining::claim_rewards(Origin::signed(CHARLIE), 1, 2), Error::<Test>::Disabled);
-
+			assert_noop!(
+				LiquidityMining::claim_rewards(Origin::signed(CHARLIE), 1, 2),
+				Error::<Test>::Disabled
+			);
 		});
 }

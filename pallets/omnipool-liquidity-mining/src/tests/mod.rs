@@ -29,6 +29,7 @@ pub fn has_event(event: mock::RuntimeEvent) -> bool {
 	System::events().iter().any(|record| record.event == event)
 }
 
+pub mod claim_rewards;
 pub mod create_global_farm;
 pub mod create_yield_farm;
 pub mod deposit_shares;
@@ -41,4 +42,3 @@ pub mod terminate_yield_farm;
 pub mod update_global_farm;
 pub mod update_yield_farm;
 pub mod withdraw_shares;
-pub mod claim_rewards;

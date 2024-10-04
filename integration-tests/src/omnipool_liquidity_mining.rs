@@ -1230,7 +1230,6 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 	});
 }
 
-
 pub fn expect_reward_claimed_events(e: Vec<RuntimeEvent>) {
 	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
 
