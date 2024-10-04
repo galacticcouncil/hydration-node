@@ -4,12 +4,11 @@ use crate::{oracle::hydradx_run_to_block, polkadot_test_net::*};
 use frame_support::assert_ok;
 use frame_support::dispatch::DispatchClass;
 use frame_support::dispatch::GetDispatchInfo;
-use frame_support::weights::constants::RocksDbWeight;
 use frame_support::weights::WeightToFee as WeightToFeeTrait;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::EVM;
-use hydradx_runtime::{ExtrinsicBaseWeight, Runtime, Tokens, WeightToFee};
+use hydradx_runtime::{Runtime, Tokens};
 use orml_traits::MultiCurrency;
 use pallet_evm::FeeCalculator;
 use primitives::constants::chain::Weight;
@@ -17,7 +16,6 @@ use primitives::constants::currency::UNITS;
 use primitives::constants::time::HOURS;
 use sp_core::Encode;
 use sp_core::U256;
-use sp_io::storage::changes_root;
 use sp_runtime::{FixedU128, Permill};
 use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;
@@ -191,7 +189,7 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 			.max_total
 			.unwrap();
 
-		for (nonce, b) in (2..HOURS).enumerate() {
+		for b in 2..HOURS {
 			//=HOURS {
 			hydradx_run_to_block(b);
 			hydradx_runtime::System::set_block_consumed_resources(block_weight, 0);
@@ -206,16 +204,7 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 			let info = call.get_dispatch_info();
 			let fee = TransactionPayment::compute_fee(SWAP_ENCODED_LEN, &info, 0);
 
-			let fee_in_cent = (fee as f64 * HDX_USD_SPOT_PRICE) / 1000000000000.0;
-			let fee_in_cent = round(fee_in_cent);
-
-			let evm_fee_in_cent = round(get_evm_fee_in_cent(nonce as u128));
-			let next = TransactionPayment::next_fee_multiplier();
-
-			let gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
-
 			println!("{b:?} - fee: {fee:?}");
-			//println!("{b:?} - fee: ${fee_in_cent:?}  - evm_fee: ${evm_fee_in_cent:?} - multiplier: {next:?} - gas {gas_price:?}");
 		}
 	});
 }

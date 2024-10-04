@@ -30,7 +30,7 @@ use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
 	sp_runtime::{
-		traits::{ConstU32, IdentityLookup},
+		traits::{ConstU32, ConstU64, IdentityLookup},
 		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
 	},
 	traits::{ConstBool, Contains, InstanceFilter, SortedMembers},
@@ -198,6 +198,11 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_types! {
@@ -239,6 +244,7 @@ impl pallet_aura::Config for Runtime {
 	type MaxAuthorities = MaxAuthorities;
 	type DisabledValidators = ();
 	type AllowMultipleBlocksPerSlot = ConstBool<false>;
+	type SlotDuration = ConstU64<SLOT_DURATION>;
 }
 
 impl staging_parachain_info::Config for Runtime {}
@@ -561,7 +567,7 @@ impl pallet_transaction_pause::Config for Runtime {
 pub struct TechCommAccounts;
 impl SortedMembers<AccountId> for TechCommAccounts {
 	fn sorted_members() -> Vec<AccountId> {
-		TechnicalCommittee::members()
+		pallet_collective::Members::<Runtime, TechnicalCollective>::get()
 	}
 }
 
