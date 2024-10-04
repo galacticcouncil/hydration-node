@@ -1,5 +1,6 @@
 use frame_support::migrations::VersionedMigration;
 use frame_support::{traits::Get, weights::Weight};
+use sp_std::vec::Vec;
 
 use crate::*;
 
