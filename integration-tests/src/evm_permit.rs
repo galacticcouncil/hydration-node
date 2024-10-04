@@ -1,31 +1,47 @@
 #![cfg(test)]
 
+use crate::dca::add_dot_as_payment_currency;
 use crate::polkadot_test_net::*;
 use crate::utils::accounts::*;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::pallet_prelude::ValidateUnsigned;
+use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
 use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
 use frame_system::RawOrigin;
+use hydra_dx_math::types::Ratio;
+use hydradx_adapters::price::ConvertAmount;
 use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
+use hydradx_runtime::types::ShortOraclePrice;
+use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::DOT_ASSET_LOCATION;
+use hydradx_runtime::XYK;
 use hydradx_runtime::{
-	Balances, Currencies, EVMAccounts, MultiTransactionPayment, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
+	Balances, Currencies, DotAssetId, EVMAccounts, MultiTransactionPayment, Omnipool, RuntimeCall, RuntimeOrigin,
+	Tokens, XykPaymentAssetSupport,
 };
+use hydradx_traits::AssetKind;
+use hydradx_traits::Create;
+use hydradx_traits::Mutate as AssetRegistryMutate;
 use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_evm_accounts::EvmNonceProvider;
 use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
+use primitives::constants::currency::UNITS;
 use primitives::{AssetId, Balance};
+use scraper::BOB;
 use sp_core::{H256, U256};
+use sp_runtime::traits::Convert;
 use sp_runtime::traits::SignedExtension;
 use sp_runtime::transaction_validity::InvalidTransaction;
 use sp_runtime::transaction_validity::TransactionValidityError;
 use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
+use sp_runtime::DispatchResult;
+use sp_runtime::TransactionOutcome;
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
-
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 #[test]
@@ -747,6 +763,438 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		assert!(user_dai_balance < initial_user_dai_balance);
 		let dai_diff = initial_user_dai_balance - user_dai_balance;
 		assert!(dai_diff > 1000 * 1_000_000_000_000);
+	})
+}
+
+#[test]
+fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
+	TestNet::reset();
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			init_omnipool_with_oracle_for_block_10();
+			pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+				hydradx_runtime::MinimumMultiplier::get(),
+			);
+			assert_ok!(hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
+
+			let name = b"INSUF1".to_vec();
+
+			let insufficient_asset = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(name.try_into().unwrap()),
+				AssetKind::External,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				0,
+				100_000_000_000_000_000_000i128,
+			));
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				insufficient_asset,
+				100_000_000_000_000_000_000i128,
+			));
+
+			let initial_user_weth_balance = user_acc.balance(WETH);
+
+			// just reset the weth balance to 0 - to make sure we dont have enough WETH
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				WETH,
+				-(initial_user_weth_balance as i128),
+			));
+			let initial_user_weth_balance = user_acc.balance(WETH);
+			assert_eq!(initial_user_weth_balance, 0);
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(1, 100000),
+			));
+
+			create_xyk_pool(insufficient_asset, 100000000000 * UNITS, DOT, 120000000000 * UNITS);
+			assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
+				RuntimeOrigin::root(),
+				primitives::constants::chain::XYK_SOURCE,
+				(DOT, insufficient_asset)
+			));
+			//Populate oracle
+			assert_ok!(Currencies::update_balance(
+				RawOrigin::Root.into(),
+				BOB.into(),
+				insufficient_asset,
+				2 * UNITS as i128,
+			));
+			assert_ok!(XYK::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				insufficient_asset,
+				DOT,
+				UNITS,
+				0,
+				false
+			));
+
+			let initial_user_insufficient_balance = user_acc.balance(insufficient_asset);
+			let initial_insuff_asset_issuance = Currencies::total_issuance(insufficient_asset);
+
+			let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
+				pallet_transaction_multi_payment::Call::set_currency {
+					currency: insufficient_asset,
+				},
+			);
+
+			let gas_limit = 1000000;
+			let deadline = U256::from(1000000000000u128);
+
+			let permit =
+				pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+					CALLPERMIT,
+					user_evm_address,
+					DISPATCH_ADDR,
+					U256::from(0),
+					set_currency_call.encode(),
+					gas_limit,
+					U256::zero(),
+					deadline,
+				);
+			let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+			let message = Message::parse(&permit);
+			let (rs, v) = sign(&message, &secret_key);
+
+			// Validate unsigned first
+			let call = pallet_transaction_multi_payment::Call::dispatch_permit {
+				from: user_evm_address,
+				to: DISPATCH_ADDR,
+				value: U256::from(0),
+				data: set_currency_call.encode(),
+				gas_limit,
+				deadline,
+				v: v.serialize(),
+				r: H256::from(rs.r.b32()),
+				s: H256::from(rs.s.b32()),
+			};
+
+			let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
+			assert_eq!(
+				MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
+				Ok(ValidTransaction {
+					priority: 0,
+					requires: vec![],
+					provides: vec![tag],
+					longevity: 64,
+					propagate: true,
+				})
+			);
+
+			// And Dispatch
+			assert_ok!(MultiTransactionPayment::dispatch_permit(
+				hydradx_runtime::RuntimeOrigin::none(),
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				set_currency_call.encode(),
+				gas_limit,
+				deadline,
+				v.serialize(),
+				H256::from(rs.r.b32()),
+				H256::from(rs.s.b32()),
+			));
+
+			let currency = pallet_transaction_multi_payment::Pallet::<hydradx_runtime::Runtime>::account_currency(
+				&user_acc.address(),
+			);
+			assert_eq!(currency, insufficient_asset);
+
+			let insuff_asset_issuance = Currencies::total_issuance(insufficient_asset);
+			assert_eq!(initial_insuff_asset_issuance, insuff_asset_issuance);
+
+			let user_insufficient_asset_balance = user_acc.balance(insufficient_asset);
+			assert!(user_insufficient_asset_balance < initial_user_insufficient_balance);
+			let payed_fee = initial_user_insufficient_balance - user_insufficient_asset_balance;
+			//assert_eq!(payed_fee, 107314200);
+			assert!(payed_fee > 100_000_000);
+			assert!(payed_fee < 120_000_000);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	})
+}
+
+#[test]
+fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset() {
+	TestNet::reset();
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			init_omnipool_with_oracle_for_block_10();
+			pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+				hydradx_runtime::MinimumMultiplier::get(),
+			);
+			assert_ok!(hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
+
+			let name = b"INSUF1".to_vec();
+
+			let insufficient_asset = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(name.try_into().unwrap()),
+				AssetKind::External,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				0,
+				100_000_000_000_000_000_000i128,
+			));
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				insufficient_asset,
+				100_000_000_000_000_000_000i128,
+			));
+
+			let initial_user_weth_balance = user_acc.balance(WETH);
+
+			// just reset the weth balance to 0 - to make sure we dont have enough WETH
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				WETH,
+				-(initial_user_weth_balance as i128),
+			));
+			let initial_user_weth_balance = user_acc.balance(WETH);
+			assert_eq!(initial_user_weth_balance, 0);
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(1, 100000),
+			));
+
+			create_xyk_pool(insufficient_asset, 100000000000 * UNITS, DOT, 120000000000 * UNITS);
+			assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
+				RuntimeOrigin::root(),
+				primitives::constants::chain::XYK_SOURCE,
+				(DOT, insufficient_asset)
+			));
+			//Populate oracle
+			assert_ok!(Currencies::update_balance(
+				RawOrigin::Root.into(),
+				BOB.into(),
+				insufficient_asset,
+				2 * UNITS as i128,
+			));
+			assert_ok!(XYK::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				insufficient_asset,
+				DOT,
+				UNITS,
+				0,
+				false
+			));
+
+			//
+			//Convert insufficient to sufficient (WETH)
+			type Convert = ConvertAmount<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>;
+
+			let insufficient_amount = 10 * UNITS;
+			let amount_in_weth = Convert::convert((insufficient_asset, WETH, insufficient_amount)).unwrap();
+			assert_eq!(
+				(4293122621256764998, Ratio::new(4293122621256764998, 10000000000000)),
+				amount_in_weth
+			);
+
+			//Assert if we get similar result when selling WETH for insufficient
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				BOB.into(),
+				WETH,
+				100000000 * UNITS as i128,
+			));
+			let bob_init_dot = Currencies::free_balance(DOT, &AccountId::from(BOB));
+			assert_ok!(hydradx_runtime::Omnipool::sell(
+				hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+				WETH,
+				DOT,
+				amount_in_weth.0, //weth needed for the transaction
+				0
+			));
+			let bob_new_dot = Currencies::free_balance(DOT, &AccountId::from(BOB));
+			let dot_diff = bob_new_dot - bob_init_dot;
+
+			let initial_user_insufficient_balance = Currencies::free_balance(insufficient_asset, &AccountId::from(BOB));
+
+			assert_ok!(XYK::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				DOT,
+				insufficient_asset,
+				dot_diff,
+				0,
+				false
+			));
+			let new_user_insufficient_balance = Currencies::free_balance(insufficient_asset, &AccountId::from(BOB));
+			let diff = new_user_insufficient_balance - initial_user_insufficient_balance;
+
+			let difference = insufficient_amount - diff;
+			let relative_difference = FixedU128::from_rational(difference, insufficient_amount);
+			let tolerated_difference = FixedU128::from_rational(2, 100); //2% due to fees, etc
+			assert!(relative_difference < tolerated_difference);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	})
+}
+
+#[test]
+fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset() {
+	TestNet::reset();
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			init_omnipool_with_oracle_for_block_10();
+			pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+				hydradx_runtime::MinimumMultiplier::get(),
+			);
+			assert_ok!(hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
+
+			let name = b"INSUF1".to_vec();
+
+			let insufficient_asset = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(name.try_into().unwrap()),
+				AssetKind::External,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				0,
+				100_000_000_000_000_000_000i128,
+			));
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				insufficient_asset,
+				100_000_000_000_000_000_000i128,
+			));
+
+			let initial_user_weth_balance = user_acc.balance(WETH);
+
+			// just reset the weth balance to 0 - to make sure we dont have enough WETH
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				WETH,
+				-(initial_user_weth_balance as i128),
+			));
+			let initial_user_weth_balance = user_acc.balance(WETH);
+			assert_eq!(initial_user_weth_balance, 0);
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(1, 100000),
+			));
+
+			create_xyk_pool(insufficient_asset, 100000000000 * UNITS, DOT, 120000000000 * UNITS);
+			assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
+				RuntimeOrigin::root(),
+				primitives::constants::chain::XYK_SOURCE,
+				(DOT, insufficient_asset)
+			));
+			//Populate oracle
+			assert_ok!(Currencies::update_balance(
+				RawOrigin::Root.into(),
+				BOB.into(),
+				insufficient_asset,
+				2 * UNITS as i128,
+			));
+			assert_ok!(XYK::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				insufficient_asset,
+				DOT,
+				UNITS,
+				0,
+				false
+			));
+
+			//Convert sufficient (WETH) to insufficient
+			type Convert = ConvertAmount<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>;
+
+			let weth_amount = 10 * UNITS;
+			let amount_in_insufficient_asset = Convert::convert((WETH, insufficient_asset, weth_amount)).unwrap();
+			assert_eq!(
+				(23293070, Ratio::new(23293070, 10000000000000)),
+				amount_in_insufficient_asset
+			);
+
+			let initial_user_dot_balance = Currencies::free_balance(DOT, &AccountId::from(BOB));
+
+			assert_ok!(XYK::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				insufficient_asset,
+				DOT,
+				amount_in_insufficient_asset.0,
+				0,
+				false
+			));
+			let new_user_dot_balance = Currencies::free_balance(DOT, &AccountId::from(BOB));
+			let dot_diff = new_user_dot_balance - initial_user_dot_balance;
+
+			//Assert if we get similar result when selling WETH for insufficient
+			let bob_init_weth = Currencies::free_balance(WETH, &AccountId::from(BOB));
+			assert_ok!(hydradx_runtime::Omnipool::sell(
+				hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+				DOT,
+				WETH,
+				dot_diff,
+				0
+			));
+			let bob_new_weth = Currencies::free_balance(WETH, &AccountId::from(BOB));
+			let weth_diff = bob_new_weth - bob_init_weth;
+
+			let difference = weth_amount - weth_diff;
+			let relative_difference = FixedU128::from_rational(difference, weth_amount);
+			let tolerated_difference = FixedU128::from_rational(1, 100); //1% due to fees, etc
+			assert!(relative_difference < tolerated_difference);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
 	})
 }
 

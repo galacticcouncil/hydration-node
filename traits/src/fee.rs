@@ -17,6 +17,12 @@ pub trait SwappablePaymentAssetTrader<AccountId, AssetId, Amount>: InspectTransa
 		asset_out_amount: Amount,
 	) -> Result<Amount, DispatchError>;
 
+	fn calculate_out_given_in(
+		asset_in: AssetId,
+		asset_in_amount: Amount,
+		asset_out: AssetId,
+	) -> Result<Amount, DispatchError>;
+
 	fn buy(
 		origin: &AccountId,
 		asset_in: AssetId,
