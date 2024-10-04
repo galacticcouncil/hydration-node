@@ -25,22 +25,15 @@ use cumulus_primitives_core::PersistedValidationData;
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use fc_db::kv::Backend as FrontierBackend;
-pub use fc_rpc::{
-	EthBlockDataCacheTask, OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
-	SchemaV3Override, StorageOverride,
-};
-use fc_rpc_core::types::CallRequest;
+pub use fc_rpc::{EthBlockDataCacheTask, StorageOverride, StorageOverrideHandler};
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
-use hydradx_runtime::{
-	opaque::{Block, Hash},
-	AccountId, Balance, Index,
-};
+use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
 	client::BlockchainEvents,
 };
-use sc_network::NetworkService;
+use sc_network::service::traits::NetworkService;
 use sc_network_sync::SyncingService;
 use sc_rpc::SubscriptionTaskExecutor;
 pub use sc_rpc_api::DenyUnsafe;
@@ -51,26 +44,6 @@ use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 
-pub struct HydraDxEGA;
-
-impl fc_rpc::EstimateGasAdapter for HydraDxEGA {
-	fn adapt_request(mut request: CallRequest) -> CallRequest {
-		// Redirect any call to batch precompile:
-		// force usage of batchAll method for estimation
-		use sp_core::H160;
-		const BATCH_PRECOMPILE_ADDRESS: H160 = H160(hex_literal::hex!("0000000000000000000000000000000000000808"));
-		const BATCH_PRECOMPILE_BATCH_ALL_SELECTOR: [u8; 4] = hex_literal::hex!("96e292b8");
-		if request.to == Some(BATCH_PRECOMPILE_ADDRESS) {
-			if let Some(ref mut data) = request.data {
-				if data.0.len() >= 4 {
-					data.0[..4].copy_from_slice(&BATCH_PRECOMPILE_BATCH_ALL_SELECTOR);
-				}
-			}
-		}
-		request
-	}
-}
-
 pub struct HydraDxEthConfig<C, BE>(std::marker::PhantomData<(C, BE)>);
 
 impl<C, BE> fc_rpc::EthConfig<Block, C> for HydraDxEthConfig<C, BE>
@@ -78,7 +51,7 @@ where
 	C: sc_client_api::StorageProvider<Block, BE> + Sync + Send + 'static,
 	BE: Backend<Block> + 'static,
 {
-	type EstimateGasAdapter = HydraDxEGA;
+	type EstimateGasAdapter = ();
 	type RuntimeStorageOverride = fc_rpc::frontier_backend_client::SystemAccountId20StorageOverride<Block, C, BE>;
 }
 
@@ -109,13 +82,13 @@ pub struct Deps<C, P, A: ChainApi, CT> {
 	/// Whether to enable dev signer
 	pub enable_dev_signer: bool,
 	/// Network service
-	pub network: Arc<NetworkService<Block, Hash>>,
+	pub network: Arc<dyn NetworkService>,
 	/// Chain syncing service
 	pub sync: Arc<SyncingService<Block>>,
 	/// Frontier Backend.
-	pub frontier_backend: Arc<FrontierBackend<Block>>,
+	pub frontier_backend: Arc<FrontierBackend<Block, C>>,
 	/// Ethereum data access overrides.
-	pub overrides: Arc<OverrideHandle<Block>>,
+	pub overrides: Arc<dyn StorageOverride<Block>>,
 	/// Cache for Ethereum block data.
 	pub block_data_cache: Arc<EthBlockDataCacheTask<Block>>,
 	/// EthFilterApi pool.

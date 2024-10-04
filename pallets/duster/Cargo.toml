@@ -1,6 +1,6 @@
 [package]
 name = "pallet-duster"
-version = "3.2.5"
+version = "3.2.6"
 description = "Account duster"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -15,9 +15,9 @@ targets = ["x86_64-unknown-linux-gnu"]
 substrate-wasm-builder = { workspace = true }
 
 [dependencies]
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
-serde = { features = ["derive"], optional = true, version = "1.0.136" }
+codec = { workspace = true }
+scale-info = { workspace = true }
+serde = { workspace = true, optional = true }
 log = { workspace = true }
 
 hydradx-traits = { workspace = true }
@@ -35,7 +35,7 @@ frame-system = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
-lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
+lazy_static = { workspace = true }
 sp-io = { workspace = true }
 sp-core = { workspace = true }
 pallet-balances = { workspace = true }

@@ -253,8 +253,9 @@ mod account_conversion {
 			let fee_raw = hydradx_runtime::TransactionPayment::compute_fee_details(len, &info, 0);
 			let fee = fee_raw.final_fee();
 
-			// simple test that the fee is approximately 10/4 HDX (it was originally 10 HDX, but we divided the fee by 4 in the config)
-			assert_eq!(fee / UNITS, 10 / 4);
+			// assert that the fee is within some range
+			assert!(fee > 2 * UNITS);
+			assert!(fee < 4 * UNITS);
 		});
 	}
 

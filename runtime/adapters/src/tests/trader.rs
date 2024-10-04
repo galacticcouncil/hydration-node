@@ -98,8 +98,8 @@ impl Convert<Asset, Option<AssetId>> for MockConvert {
 }
 
 thread_local! {
-	pub static TAKEN_REVENUE: RefCell<BTreeSet<Asset>> = RefCell::new(BTreeSet::new());
-	pub static EXPECTED_REVENUE: RefCell<BTreeSet<Asset>> = RefCell::new(BTreeSet::new());
+	pub static TAKEN_REVENUE: RefCell<BTreeSet<Asset>> = const { RefCell::new(BTreeSet::new()) };
+	pub static EXPECTED_REVENUE: RefCell<BTreeSet<Asset>> = const { RefCell::new(BTreeSet::new()) };
 }
 
 struct ExpectRevenue;
@@ -143,7 +143,7 @@ impl TakeRevenue for ExpectRevenue {
 }
 
 thread_local! {
-	pub static EXPECTED_DEPOSITS: RefCell<BTreeSet<(AccountId, AssetId, Balance)>> = RefCell::new(BTreeSet::new());
+	pub static EXPECTED_DEPOSITS: RefCell<BTreeSet<(AccountId, AssetId, Balance)>> = const { RefCell::new(BTreeSet::new()) };
 }
 
 struct ExpectDeposit;
