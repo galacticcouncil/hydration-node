@@ -218,8 +218,8 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for MockedInsuffic
 
 	fn calculate_out_given_in(
 		_asset_in: AssetId,
-		_asset_in_amount: Balance,
 		_asset_out: AssetId,
+		_asset_in_amount: Balance,
 	) -> Result<Balance, DispatchError> {
 		unimplemented!()
 	}

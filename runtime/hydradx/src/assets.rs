@@ -1783,8 +1783,8 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 
 	fn calculate_out_given_in(
 		asset_in: AssetId,
-		asset_in_amount: Balance,
 		asset_out: AssetId,
+		asset_in_amount: Balance,
 	) -> Result<Balance, DispatchError> {
 		let asset_pair_account = XYK::get_pair_id(AssetPair::new(asset_in, asset_out));
 		let in_reserve = Currencies::free_balance(asset_in, &asset_pair_account.clone());
