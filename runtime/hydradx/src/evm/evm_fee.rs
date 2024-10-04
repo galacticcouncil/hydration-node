@@ -121,7 +121,8 @@ where
 					return Err(Error::<T>::WithdrawFailed);
 				};
 
-				let Some(eth_dot_price_as_fixed) = FixedU128::checked_from_rational(eth_dot_price.n, eth_dot_price.d) else {
+				let Some(eth_dot_price_as_fixed) = FixedU128::checked_from_rational(eth_dot_price.n, eth_dot_price.d)
+				else {
 					return Err(Error::<T>::WithdrawFailed);
 				};
 

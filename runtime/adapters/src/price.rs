@@ -93,14 +93,13 @@ where
 		let from_currency_is_tx_fee_asset = SwappablePaymentAssetSupport::is_transaction_fee_currency(from_currency);
 		let to_currency_is_tx_fee_asset = SwappablePaymentAssetSupport::is_transaction_fee_currency(to_currency);
 
-		if from_currency_is_tx_fee_asset && to_currency_is_tx_fee_asset
-		{
+		if from_currency_is_tx_fee_asset && to_currency_is_tx_fee_asset {
 			let price = PriceProv::get_price(to_currency, from_currency)?;
 			let converted = multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Up)?;
 			return Some((converted, price));
-		} else if !from_currency_is_tx_fee_asset && to_currency_is_tx_fee_asset
-		{
-			let amount_in_dot = SwappablePaymentAssetSupport::calculate_out_given_in(from_currency, amount, dot).ok()?;
+		} else if !from_currency_is_tx_fee_asset && to_currency_is_tx_fee_asset {
+			let amount_in_dot =
+				SwappablePaymentAssetSupport::calculate_out_given_in(from_currency, amount, dot).ok()?;
 
 			let price_between_to_currency_and_dot = PriceProv::get_price(to_currency, dot)?;
 			let amount_in_to_currency = multiply_by_rational_with_rounding(
@@ -116,11 +115,14 @@ where
 			};
 
 			return Some((amount_in_to_currency, price));
-		} else if from_currency_is_tx_fee_asset && !to_currency_is_tx_fee_asset
-		{
+		} else if from_currency_is_tx_fee_asset && !to_currency_is_tx_fee_asset {
 			let price_dot_to_from_currency = PriceProv::get_price(dot, from_currency)?;
-			let amount_in_dot =
-				multiply_by_rational_with_rounding(amount, price_dot_to_from_currency.n, price_dot_to_from_currency.d, Rounding::Up)?;
+			let amount_in_dot = multiply_by_rational_with_rounding(
+				amount,
+				price_dot_to_from_currency.n,
+				price_dot_to_from_currency.d,
+				Rounding::Up,
+			)?;
 			let amount_in_to_currency =
 				SwappablePaymentAssetSupport::calculate_in_given_out(to_currency, dot, amount_in_dot).ok()?;
 			let price = EmaPrice {
