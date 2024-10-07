@@ -192,6 +192,9 @@ pub mod pallet {
 
 		/// Extrinsic is disasbled for now
 		Disabled,
+
+		/// No field farms specified to join
+		NoYieldFarmsSpecified,
 	}
 
 	#[pallet::event]
@@ -726,6 +729,149 @@ pub mod pallet {
 				lp_token: amm_share_token,
 				deposit_id,
 			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
+		pub fn join_farms(
+			origin: OriginFor<T>,
+			global_farm_id: GlobalFarmId,
+			farm_entries: BoundedVec<YieldFarmId, ConstU32<{ pallet_liquidity_mining::MAX_NUMBER_OF_FARMS_TO_JOIN }>>,
+			asset_pair: AssetPair,
+			shares_amount: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			ensure!(!farm_entries.is_empty(), Error::<T>::NoYieldFarmsSpecified);
+
+			//TODO: integration test join all the farms, run, iterate throuh all the yarms and withdraw
+
+			let amm_pool_id = Self::ensure_xyk(asset_pair)?;
+			let amm_share_token = T::AMM::get_share_token(asset_pair);
+
+			ensure!(
+				T::Currencies::ensure_can_withdraw(amm_share_token, &who, shares_amount).is_ok(),
+				Error::<T>::InsufficientXykSharesBalance
+			);
+
+			let yield_farm_id = farm_entries.first().ok_or(Error::<T>::NoYieldFarmsSpecified)?;
+			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
+				global_farm_id,
+				*yield_farm_id,
+				amm_pool_id.clone(),
+				shares_amount,
+				Self::get_token_value_of_lp_shares,
+			)?;
+
+			Self::lock_lp_tokens(amm_share_token, &who, shares_amount)?;
+			T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &deposit_id, &who)?;
+
+			Self::deposit_event(Event::SharesDeposited {
+				global_farm_id,
+				yield_farm_id: *yield_farm_id,
+				who: who.clone(),
+				amount: shares_amount,
+				lp_token: amm_share_token,
+				deposit_id,
+			});
+
+			// Redeposit for the remaining farm entries
+			for yield_farm_id in farm_entries.into_iter().skip(1) {
+				let (redeposited_amount, _) = T::LiquidityMiningHandler::redeposit_lp_shares(
+					global_farm_id,
+					yield_farm_id,
+					deposit_id,
+					Self::get_token_value_of_lp_shares,
+				)?;
+
+				Self::deposit_event(Event::SharesRedeposited {
+					global_farm_id,
+					yield_farm_id,
+					who: who.clone(),
+					amount: redeposited_amount,
+					lp_token: amm_share_token,
+					deposit_id,
+				});
+			}
+
+			Ok(())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
+		pub fn add_liquidity_and_join_farms(
+			origin: OriginFor<T>,
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount_a: Balance,
+			amount_b_max_limit: Balance,
+			global_farm_id: GlobalFarmId,
+			farm_entries: Vec<YieldFarmId>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+			//ensure!(!farm_ids.is_empty(), Error::<T>::NoFarmsSpecified);
+			//TODO: inregration, add liq and join farms, and withdraw
+			//TODO: write in channel if we need withdraw all?!
+			//todo: use bounded vec
+			let asset_pair = AssetPair {
+				asset_in: asset_a,
+				asset_out: asset_b,
+			};
+
+			//- add liqudity to the AMM pool - add new trait?! Or adding to AMM
+			//- get shares amount based on asset pair id. free balance of share token of user?
+			//- deposit lp shares to first farm
+			//- lock lp tokens and create NFT
+			//- redeposit lp shares to other farms
+
+			//- good integratio ntests for both?
+
+			//T::AMM::add_liquidity(&who, asset_pair, amount_a, amount_b_max_limit)?;
+			//ideally to call the extrnsics from the trait implementation
+
+			let amm_pool_id = T::AMM::get_pair_id(asset_pair);
+			let share_token = T::AMM::get_share_token(asset_pair);
+			let shares_amount = T::Currencies::free_balance(share_token, &who);
+
+			// Now join the farms
+			let yield_farm_id = farm_entries[0];
+			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
+				global_farm_id,
+				yield_farm_id,
+				amm_pool_id.clone(),
+				shares_amount,
+				Self::get_token_value_of_lp_shares,
+			)?;
+
+			T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &deposit_id, &who)?;
+
+			Self::deposit_event(Event::SharesDeposited {
+				global_farm_id,
+				yield_farm_id,
+				who: who.clone(),
+				amount: shares_amount,
+				lp_token: T::AMM::get_share_token(asset_pair),
+				deposit_id,
+			});
+
+			// Redeposit for the remaining farm entries
+			for yield_farm_id in farm_entries.into_iter().skip(1) {
+				let (redeposited_amount, _) = T::LiquidityMiningHandler::redeposit_lp_shares(
+					global_farm_id,
+					yield_farm_id,
+					deposit_id,
+					Self::get_token_value_of_lp_shares,
+				)?;
+
+				Self::deposit_event(Event::SharesRedeposited {
+					global_farm_id,
+					yield_farm_id,
+					who: who.clone(),
+					amount: redeposited_amount,
+					lp_token: T::AMM::get_share_token(asset_pair),
+					deposit_id,
+				});
+			}
 
 			Ok(())
 		}

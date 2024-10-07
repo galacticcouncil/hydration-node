@@ -41,6 +41,7 @@ sp-core = { workspace = true }
 orml-tokens = { workspace = true }
 pallet-balances = { workspace = true }
 pretty_assertions = { workspace = true }
+test-utils = { workspace = true }
 
 [features]
 default = ["std"]
