@@ -351,6 +351,7 @@ impl liq_mining::Config for Test {
 	type LiquidityMiningHandler = DummyLiquidityMining;
 	type NonDustableWhitelistHandler = Whitelist;
 	type AssetRegistry = DummyRegistry<Test>;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 }
 
 use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};

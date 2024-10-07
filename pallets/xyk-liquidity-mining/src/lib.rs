@@ -149,6 +149,8 @@ pub mod pallet {
 		/// AssetRegistry used to retrieve information about asset.
 		type AssetRegistry: RegistryInspect<AssetId = AssetId>;
 
+		type MaxFarmEntriesPerDeposit: Get<u32>;
+
 		/// Weight information for extrinsic in this module.
 		type WeightInfo: WeightInfo;
 	}
@@ -738,7 +740,7 @@ pub mod pallet {
 		pub fn join_farms(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
-			farm_entries: BoundedVec<YieldFarmId, ConstU32<{ pallet_liquidity_mining::MAX_NUMBER_OF_FARMS_TO_JOIN }>>,
+			farm_entries: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit>,
 			asset_pair: AssetPair,
 			shares_amount: Balance,
 		) -> DispatchResult {
