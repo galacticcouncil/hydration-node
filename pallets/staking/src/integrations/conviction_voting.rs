@@ -129,9 +129,7 @@ where
 	}
 
 	fn locked_if_unsuccessful_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
-		let Some(position_id) = Pallet::<T>::get_user_position_id(who).ok()? else {
-			return None;
-		};
+		let position_id = Pallet::<T>::get_user_position_id(who).ok()??;
 
 		if let Some(vote) = ProcessedVotes::<T>::get(who, ref_index) {
 			return Some(vote.amount);

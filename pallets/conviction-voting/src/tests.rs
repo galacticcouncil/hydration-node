@@ -1030,10 +1030,10 @@ fn errors_with_remove_vote_work() {
 	});
 }
 thread_local! {
-	static LAST_ON_VOTE_DATA: RefCell<Option<(u64, u8, AccountVote<u64>)>> = RefCell::new(None);
-	static LAST_ON_REMOVE_VOTE_DATA: RefCell<Option<(u64, u8, Option<bool>)>> = RefCell::new(None);
-	static LAST_LOCKED_IF_UNSUCCESSFUL_VOTE_DATA: RefCell<Option<(u64, u8)>> = RefCell::new(None);
-	static REMOVE_VOTE_LOCKED_AMOUNT: RefCell<Option<u64>> = RefCell::new(None);
+	static LAST_ON_VOTE_DATA: RefCell<Option<(u64, u8, AccountVote<u64>)>> = const { RefCell::new(None) };
+	static LAST_ON_REMOVE_VOTE_DATA: RefCell<Option<(u64, u8, Option<bool>)>> = const { RefCell::new(None) };
+	static LAST_LOCKED_IF_UNSUCCESSFUL_VOTE_DATA: RefCell<Option<(u64, u8)>> = const { RefCell::new(None) };
+	static REMOVE_VOTE_LOCKED_AMOUNT: RefCell<Option<u64>> = const { RefCell::new(None) };
 }
 
 pub struct HooksHandler;
