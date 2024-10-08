@@ -34,12 +34,13 @@ pub mod weights;
 pub mod apis;
 mod assets;
 pub mod evm;
-mod governance;
+pub mod governance;
 mod system;
 pub mod types;
 pub mod xcm;
 
 pub use assets::*;
+pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
 pub use system::*;
 pub use xcm::*;
@@ -108,7 +109,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 261,
+	spec_version: 262,
 	impl_version: 0,
 	apis: apis::RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -157,6 +158,12 @@ construct_runtime!(
 		Multisig: pallet_multisig = 31,
 		Uniques: pallet_uniques = 32,
 		StateTrieMigration: pallet_state_trie_migration = 35,
+
+		// OpenGov
+		ConvictionVoting: pallet_conviction_voting = 36,
+		Referenda: pallet_referenda = 37,
+		Origins: pallet_custom_origins = 38,
+		Whitelist: pallet_whitelist = 39,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry = 51,
@@ -318,6 +325,9 @@ mod benches {
 		[cumulus_pallet_parachain_system, ParachainSystem]
 		[pallet_collator_selection, CollatorSelection]
 		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		[pallet_conviction_voting, ConvictionVoting]
+		[pallet_referenda, Referenda]
+		[pallet_whitelist, Whitelist]
 	);
 }
 

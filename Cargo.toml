@@ -41,6 +41,7 @@ members = [
   'pallets/evm-accounts',
   'pallets/dynamic-evm-fee',
   'pallets/xyk-liquidity-mining',
+  'pallets/conviction-voting',
   'precompiles/call-permit',
   'runtime-mock'
 ]
@@ -137,6 +138,7 @@ warehouse-liquidity-mining = { package = "pallet-liquidity-mining", path = "pall
 pallet-bonds = { path = "pallets/bonds", default-features = false}
 pallet-lbp = { path = "pallets/lbp", default-features = false}
 pallet-xyk = { path = "pallets/xyk", default-features = false}
+pallet-conviction-voting = { path = "pallets/conviction-voting", default-features = false}
 pallet-xyk-liquidity-mining = { path = "pallets/xyk-liquidity-mining", default-features = false}
 pallet-referrals = { path = "pallets/referrals", default-features = false}
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false}
@@ -234,6 +236,7 @@ pallet-identity = { git = "https://github.com/galacticcouncil/polkadot-sdk", bra
 pallet-multisig = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
 pallet-preimage = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
 pallet-proxy = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
+pallet-referenda = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
 pallet-scheduler = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
 pallet-session = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
 pallet-sudo = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
@@ -248,6 +251,7 @@ pallet-utility = { git = "https://github.com/galacticcouncil/polkadot-sdk", bran
 pallet-im-online = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
 pallet-message-queue = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
 pallet-state-trie-migration = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
+pallet-whitelist = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
 
 substrate-build-script-utils = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
 substrate-frame-rpc-system = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch", default-features = false }
