@@ -73,6 +73,7 @@ type PeriodOf<T> = BlockNumberFor<T>;
 pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::BlockNumberFor;
+	use hydradx_traits::liquidity_mining::XykAddLiquidity;
 	use hydradx_traits::pools::DustRemovalAccountWhitelist;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -114,6 +115,8 @@ pub mod pallet {
 		/// AMM helper functions.
 		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance>
 			+ AMMPosition<AssetId, Balance, Error = DispatchError>;
+
+		type XykAddLiquidity: XykAddLiquidity<OriginFor<Self>, AssetId, Balance>;
 
 		/// The origin account that can create new liquidity mining program.
 		type CreateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -808,34 +811,24 @@ pub mod pallet {
 			amount_a: Balance,
 			amount_b_max_limit: Balance,
 			global_farm_id: GlobalFarmId,
-			farm_entries: Vec<YieldFarmId>,
+			farm_entries: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			//ensure!(!farm_ids.is_empty(), Error::<T>::NoFarmsSpecified);
+			ensure!(!farm_entries.is_empty(), Error::<T>::NoYieldFarmsSpecified);
 			//TODO: inregration, add liq and join farms, and withdraw
 			//TODO: write in channel if we need withdraw all?!
-			//todo: use bounded vec
+
 			let asset_pair = AssetPair {
 				asset_in: asset_a,
 				asset_out: asset_b,
 			};
 
-			//- add liqudity to the AMM pool - add new trait?! Or adding to AMM
-			//- get shares amount based on asset pair id. free balance of share token of user?
-			//- deposit lp shares to first farm
-			//- lock lp tokens and create NFT
-			//- redeposit lp shares to other farms
-
-			//- good integratio ntests for both?
-
-			//T::AMM::add_liquidity(&who, asset_pair, amount_a, amount_b_max_limit)?;
-			//ideally to call the extrnsics from the trait implementation
+			T::XykAddLiquidity::add_liquidity(origin, asset_a, asset_b, amount_a, amount_b_max_limit)?;
 
 			let amm_pool_id = T::AMM::get_pair_id(asset_pair);
 			let share_token = T::AMM::get_share_token(asset_pair);
 			let shares_amount = T::Currencies::free_balance(share_token, &who);
 
-			// Now join the farms
 			let yield_farm_id = farm_entries[0];
 			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
 				global_farm_id,
@@ -856,7 +849,6 @@ pub mod pallet {
 				deposit_id,
 			});
 
-			// Redeposit for the remaining farm entries
 			for yield_farm_id in farm_entries.into_iter().skip(1) {
 				let (redeposited_amount, _) = T::LiquidityMiningHandler::redeposit_lp_shares(
 					global_farm_id,

@@ -352,6 +352,30 @@ impl liq_mining::Config for Test {
 	type NonDustableWhitelistHandler = Whitelist;
 	type AssetRegistry = DummyRegistry<Test>;
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
+	type XykAddLiquidity = XykAddLiquidityMock;
+}
+
+pub const LOCKED_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
+use frame_support::traits::fungible::Balanced;
+pub struct XykAddLiquidityMock;
+
+impl XykAddLiquidity<OriginFor<Test>, AssetId, Balance> for XykAddLiquidityMock {
+	fn add_liquidity(
+		_origin: OriginFor<Test>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		_amount_a: Balance,
+		_amount_b_max_limit: Balance,
+	) -> DispatchResult {
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		let share_token = DummyAMM::get_share_token(asset_pair);
+
+		Tokens::deposit(share_token, &LiquidityMining::account_id(), LOCKED_XYK_SHARE_AMOUNT)?;
+		Ok(())
+	}
 }
 
 use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
@@ -399,6 +423,8 @@ where
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
+use hydradx_traits::liquidity_mining::XykAddLiquidity;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u128>> Inspect<AccountId> for DummyNFT {

@@ -31,7 +31,7 @@
 use frame_support::sp_runtime::{traits::Zero, DispatchError};
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
 use frame_system::ensure_signed;
-use frame_system::pallet_prelude::BlockNumberFor;
+use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
 	OnTradeHandler, AMM,
@@ -40,6 +40,7 @@ use sp_std::{vec, vec::Vec};
 
 use crate::types::{Amount, AssetId, AssetPair, Balance};
 use hydra_dx_math::ratio::Ratio;
+use hydradx_traits::liquidity_mining::XykAddLiquidity;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
 #[cfg(test)]
@@ -1119,5 +1120,17 @@ impl<T: Config> AMMPosition<AssetId, Balance> for Pallet<T> {
 
 		hydra_dx_math::xyk::calculate_liquidity_out(asset_a_reserve, asset_b_reserve, shares_amount, total_shares)
 			.map_err(|_| Error::<T>::RemoveAssetAmountInvalid.into())
+	}
+}
+
+impl<T: Config> XykAddLiquidity<OriginFor<T>, AssetId, Balance> for Pallet<T> {
+	fn add_liquidity(
+		origin: OriginFor<T>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		amount_a: Balance,
+		amount_b_max_limit: Balance,
+	) -> DispatchResult {
+		Self::add_liquidity(origin, asset_a, asset_b, amount_a, amount_b_max_limit)
 	}
 }

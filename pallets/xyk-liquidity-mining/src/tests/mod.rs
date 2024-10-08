@@ -44,6 +44,7 @@ pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
 
+pub mod add_liquidity_and_join_farms;
 pub mod claim_rewards;
 pub mod create_global_farm;
 pub mod create_yield_farm;
