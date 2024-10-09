@@ -37,6 +37,14 @@ where
         intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>,
     ) -> Result<Self::Solution, Self::Error> {
 
+        let tkns = vec![1, 0, 2, 5];
+        let omnipool_tkns = vec![(0, 1000000,100000000), (2, 10000000 ,10000000), (5,10000000,1333333)]; // HDX, USDT, DOT
+
+
+        let profit_value = vec![1,0,0,0];
+
+        let global_indices = vec![0,1,2,3];
+
         // QP Example
 
         // let P = CscMatrix::identity(2);    // For P = I
