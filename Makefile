@@ -67,6 +67,7 @@ clean:
 .PHONY: docker
 docker:
 	docker build -t hydra-dx .
+	docker tag hydra-dx galacticcouncil/hydra-dx:latest
 
 checksum:
 	$(sha256sum) target/release/hydradx > target/release/hydradx.sha256
