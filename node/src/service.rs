@@ -20,8 +20,8 @@
 #![allow(clippy::all)]
 
 use hydradx_runtime::{
-	apis::RuntimeApi,
 	opaque::{Block, Hash},
+	RuntimeApi,
 };
 use std::{sync::Arc, time::Duration};
 

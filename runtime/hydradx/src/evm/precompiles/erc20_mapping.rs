@@ -19,8 +19,10 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::evm::precompiles::EvmAddress;
+use crate::evm::EvmAddress;
+use crate::Runtime;
 use hex_literal::hex;
+use hydradx_traits::RegisterAssetHook;
 use primitive_types::H160;
 use primitives::AssetId;
 
@@ -68,4 +70,31 @@ pub fn is_asset_address(address: H160) -> bool {
 	let asset_address_prefix = &(H160::from(hex!("0000000000000000000000000000000100000000"))[0..16]);
 
 	&address.to_fixed_bytes()[0..16] == asset_address_prefix
+}
+
+pub struct SetCodeForErc20Precompile;
+
+impl RegisterAssetHook<AssetId> for SetCodeForErc20Precompile {
+	fn on_register_asset(asset_id: AssetId) {
+		if let Some(evm_address) = HydraErc20Mapping::encode_evm_address(asset_id) {
+			pallet_evm::AccountCodes::<Runtime>::insert(evm_address, &hex!["00"][..]);
+		}
+	}
+}
+
+impl frame_support::traits::OnRuntimeUpgrade for SetCodeForErc20Precompile {
+	fn on_runtime_upgrade() -> frame_support::weights::Weight {
+		let mut reads = 0;
+		let mut writes = 0;
+		pallet_asset_registry::Assets::<Runtime>::iter().for_each(|(asset_id, _)| {
+			reads += 1;
+			if let Some(evm_address) = HydraErc20Mapping::encode_evm_address(asset_id) {
+				if !pallet_evm::AccountCodes::<Runtime>::contains_key(evm_address) {
+					Self::on_register_asset(asset_id);
+					writes += 1;
+				}
+			}
+		});
+		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(reads, writes)
+	}
 }

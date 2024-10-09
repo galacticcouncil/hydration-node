@@ -32,10 +32,19 @@
 // --steps=50
 // --repeat=20
 // --wasm-execution=compiled
-// --pallet=pallet-currencies
-// --extrinsic=*
+// --pallet
+// pallet-currencies
+// --extrinsic
+// *
+// --heap-pages
+// 4096
+// --steps
+// 50
+// --repeat
+// 20
 // --template=scripts/pallet-weight-template.hbs
-// --output=./weights/pallet_currencies.rs
+// --output
+// curr.rs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -51,30 +60,32 @@ pub struct WeightInfo<T>(PhantomData<T>);
 /// Weights for `pallet_currencies` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_currencies::WeightInfo for HydraWeight<T> {
-	/// Storage: `Router::SkipEd` (r:1 w:0)
-	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: `Duster::AccountBlacklist` (r:1 w:0)
-	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::BannedAssets` (r:1 w:0)
-	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Accounts` (r:2 w:2)
-	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
 	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::AssetLocations` (r:1 w:0)
+	/// Proof: `AssetRegistry::AssetLocations` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// Storage: `EVMAccounts::AccountExtension` (r:2 w:0)
+	/// Proof: `EVMAccounts::AccountExtension` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
 	/// Storage: `System::Account` (r:1 w:1)
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:1)
-	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `System::Digest` (r:1 w:0)
+	/// Proof: `System::Digest` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `EVM::AccountCodes` (r:1 w:0)
+	/// Proof: `EVM::AccountCodes` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `AssetRegistry::NextAssetId` (r:1 w:0)
+	/// Proof: `AssetRegistry::NextAssetId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::LocationAssets` (r:1 w:0)
+	/// Proof: `AssetRegistry::LocationAssets` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
+	/// Storage: `EVM::AccountStorages` (r:2 w:2)
+	/// Proof: `EVM::AccountStorages` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	fn transfer_non_native_currency() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `2853`
-		//  Estimated: `6156`
-		// Minimum execution time: 97_519_000 picoseconds.
-		Weight::from_parts(98_652_000, 6156)
-			.saturating_add(T::DbWeight::get().reads(9_u64))
-			.saturating_add(T::DbWeight::get().writes(4_u64))
+		//  Measured:  `6356`
+		//  Estimated: `12296`
+		// Minimum execution time: 139_742_000 picoseconds.
+		Weight::from_parts(140_709_000, 12296)
+			.saturating_add(T::DbWeight::get().reads(11_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
 	/// Storage: `System::Account` (r:1 w:1)
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
@@ -82,17 +93,17 @@ impl<T: frame_system::Config> pallet_currencies::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1638`
 		//  Estimated: `3593`
-		// Minimum execution time: 72_480_000 picoseconds.
-		Weight::from_parts(73_383_000, 3593)
+		// Minimum execution time: 72_172_000 picoseconds.
+		Weight::from_parts(72_566_000, 3593)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `AssetRegistry::BannedAssets` (r:1 w:0)
 	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:1 w:1)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::TotalIssuance` (r:1 w:1)
 	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	/// Storage: `System::Account` (r:1 w:1)
@@ -105,8 +116,8 @@ impl<T: frame_system::Config> pallet_currencies::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `2209`
 		//  Estimated: `3593`
-		// Minimum execution time: 63_540_000 picoseconds.
-		Weight::from_parts(64_326_000, 3593)
+		// Minimum execution time: 64_369_000 picoseconds.
+		Weight::from_parts(64_924_000, 3593)
 			.saturating_add(T::DbWeight::get().reads(7_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
@@ -116,8 +127,8 @@ impl<T: frame_system::Config> pallet_currencies::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1498`
 		//  Estimated: `3593`
-		// Minimum execution time: 38_966_000 picoseconds.
-		Weight::from_parts(39_577_000, 3593)
+		// Minimum execution time: 38_812_000 picoseconds.
+		Weight::from_parts(39_466_000, 3593)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -127,8 +138,8 @@ impl<T: frame_system::Config> pallet_currencies::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1586`
 		//  Estimated: `3593`
-		// Minimum execution time: 41_091_000 picoseconds.
-		Weight::from_parts(41_812_000, 3593)
+		// Minimum execution time: 40_882_000 picoseconds.
+		Weight::from_parts(41_548_000, 3593)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}

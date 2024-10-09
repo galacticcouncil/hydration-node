@@ -74,5 +74,28 @@ benchmarks! {
 		assert!(!ContractDeployer::<T>::contains_key(evm_address));
 	}
 
+	approve_contract {
+		let contract: T::AccountId = account("contract", 0, 1);
+		let evm_address = Pallet::<T>::evm_address(&contract);
+		assert!(!ApprovedContract::<T>::contains_key(evm_address));
+
+	}: _(RawOrigin::Root, evm_address)
+	verify {
+		assert!(ApprovedContract::<T>::contains_key(evm_address));
+	}
+
+	disapprove_contract {
+		let contract: T::AccountId = account("contract", 0, 1);
+		let evm_address = Pallet::<T>::evm_address(&contract);
+
+		EVMAccounts::<T>::approve_contract(RawOrigin::Root.into(), evm_address)?;
+
+		assert!(ApprovedContract::<T>::contains_key(evm_address));
+
+	}: _(RawOrigin::Root, evm_address)
+	verify {
+		assert!(!ApprovedContract::<T>::contains_key(evm_address));
+	}
+
 	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
 }

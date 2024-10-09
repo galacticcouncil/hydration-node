@@ -59,6 +59,47 @@ fn eth_address_should_convert_to_full_address_when_bound() {
 }
 
 #[test]
+fn evm_address_is_reversible_from_account_id() {
+	ExtBuilder::default().build().execute_with(|| {
+		let evm_address = H160::from(hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"]);
+		assert_eq!(
+			EVMAccounts::evm_address(&EVMAccounts::account_id(evm_address)),
+			evm_address
+		);
+	});
+}
+
+#[test]
+fn account_id_is_reversible_from_evm_address() {
+	ExtBuilder::default().build().execute_with(|| {
+		let evm_address = H160::from(hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"]);
+		assert_eq!(
+			EVMAccounts::account_id(EVMAccounts::evm_address(&EVMAccounts::account_id(evm_address))),
+			EVMAccounts::account_id(evm_address)
+		);
+	});
+}
+
+#[test]
+fn account_id_is_reversible_from_bound_evm_address() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE)));
+		assert_eq!(EVMAccounts::account_id(EVMAccounts::evm_address(&ALICE)), ALICE);
+	});
+}
+
+#[test]
+fn bound_evm_address_is_reversible_from_account_id() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE)));
+		assert_eq!(
+			EVMAccounts::evm_address(&EVMAccounts::account_id(EVMAccounts::evm_address(&ALICE))),
+			EVMAccounts::evm_address(&ALICE)
+		);
+	});
+}
+
+#[test]
 fn bind_address_should_fail_when_nonce_is_not_zero() {
 	ExtBuilder::default()
 		.with_non_zero_nonce(ALICE)
@@ -69,6 +110,18 @@ fn bind_address_should_fail_when_nonce_is_not_zero() {
 				Error::<Test>::TruncatedAccountAlreadyUsed
 			);
 		});
+}
+
+#[test]
+fn bind_address_should_fail_when_binding_evm_truncated_account() {
+	ExtBuilder::default().build().execute_with(|| {
+		let evm_address = H160::from(hex!["222222ff7Be76052e023Ec1a306fCca8F9659D80"]);
+		let account_id = EVMAccounts::account_id(evm_address);
+		assert_noop!(
+			EVMAccounts::bind_evm_address(RuntimeOrigin::signed(account_id)),
+			Error::<Test>::TruncatedAccountAlreadyUsed
+		);
+	});
 }
 
 #[test]

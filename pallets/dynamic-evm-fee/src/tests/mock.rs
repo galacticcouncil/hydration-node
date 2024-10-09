@@ -29,7 +29,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_transaction_payment::Multiplier;
 use sp_core::H256;
 use sp_runtime::{
@@ -227,6 +227,8 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = HdxAssetId;
 	type WeightInfo = ();
 }
