@@ -3,6 +3,7 @@ use primitives::constants::{
 	currency::{CENTS, DOLLARS, MILLICENTS},
 	time::{DAYS, HOURS},
 };
+use std::io::Read;
 
 use codec::Encode;
 use frame_support::{
@@ -177,6 +178,81 @@ fn max_multiplier() {
 			multiplier = next;
 		});
 	}
+}
+
+#[test]
+fn test_me() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+
+	use pallet_transaction_payment_rpc_runtime_api::runtime_decl_for_transaction_payment_api::TransactionPaymentApiV4;
+	use sp_runtime::traits::Extrinsic;
+
+		// bad
+		let signed_extra = SignedExtra::decode(&mut &*hex!["0500000000"].to_vec()).unwrap();
+		let signature = Signature::decode(&mut &*hex!["01c4724c12424e4546404cc8e8c3b7d080691ae47ab29ce6edbedf9f640c2b295613da09342aec160ca459fd32529fd23bc98348e369e9b31f3f992cfc4aca3983"].to_vec()).unwrap();
+		let call = RuntimeCall::decode(&mut &*hex!["470101000000e8030000000000000000000000000000"].to_vec()).unwrap();
+		let acc = sp_core::crypto::AccountId32::from(hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"]);
+		let res = fp_self_contained::UncheckedExtrinsic::<Address, RuntimeCall, Signature, SignedExtra>::new_signed(call, acc, signature, signed_extra);
+		println!(" --- - - - -  - - - - - - - - -  {:X?}", res.encode());
+
+		// goood
+		let signed_extra = SignedExtra::decode(&mut &*hex!["0500000000"].to_vec()).unwrap();
+		let signature = Signature::decode(&mut &*hex!["01961c8c631034521e227a2161916e0e07cbbf90429bcc936ceb3b60e25d14f66794b02437f76f207965f0aa56bc56c7c45ecbadc851e4ce9fd6276a5cd9ccef8e"].to_vec()).unwrap();
+		let call = RuntimeCall::decode(&mut &*hex!["470101000000e8030000000000000000000000000000"].to_vec()).unwrap();
+		let acc = sp_core::crypto::AccountId32::from(hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"]);
+		let res = fp_self_contained::UncheckedExtrinsic::<Address, RuntimeCall, Signature, SignedExtra>::new_signed(call, acc, signature, signed_extra);
+		println!(" --- - - - -  - - - - - - - - -  {:X?}", res.encode());
+
+		let encoded: Vec<u8> = hex!("fd018400d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01a4f6592c25d04001f088e4c72bfb7c1e93aaac76add5c21c086a2181498e1f5ed89ba5401853d2b117c475589a5a7fc0a612e5f4e0f0a510d9ef3d72d9196382d503090e0000470101000000e8030000000000000000000000000000")
+			.to_vec();
+		let encoded: Vec<u8> = hex!("f90184d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01a4f6592c25d04001f088e4c72bfb7c1e93aaac76add5c21c086a2181498e1f5ed89ba5401853d2b117c475589a5a7fc0a612e5f4e0f0a510d9ef3d72d9196382d503090e0000470101000000e8030000000000000000000000000000")
+			.to_vec();
+		let xt: fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra> = Decode::decode(&mut &*encoded).unwrap();
+		let ext = xt.encode();
+		// let xt: sp_runtime::OpaqueExtrinsic = Decode::decode(&mut &*encoded).unwrap();
+		// let ext = xt.encode();
+		// print!("------ {:X?}", encoded);
+		print!("------ {:X?}", ext);
+		let len = ext.len() as u32;
+
+		println!(
+			"\n{:?}",
+			Runtime::query_info(xt.clone(), len),
+		);
+	});
+}
+
+#[test]
+fn hmm() {
+	use pallet_balances::Call as BalancesCall;
+	use pallet_bonds::Call as BondsCall;
+	use pallet_transaction_payment_rpc_runtime_api::runtime_decl_for_transaction_payment_api::TransactionPaymentApiV4;
+	use sp_runtime::traits::Extrinsic;
+
+	let acc =
+		sp_core::crypto::AccountId32::from(hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"]);
+
+	let call = pallet_bonds::Call::<Runtime>::redeem {
+		bond_id: 1,
+		amount: 1000,
+	};
+	let call = RuntimeCall::Bonds(call);
+
+	let xt = UncheckedExtrinsic::new_unsigned(call);
+	let ext = xt.encode();
+	println!("---- {:X?}", xt);
+	println!("---- {:X?}", ext.as_slice());
+
+	let o_xt = sp_runtime::OpaqueExtrinsic::decode(&mut &ext[..]);
+	println!("---- {:X?}", o_xt);
+	let len = ext.len() as u32;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		assert_eq!(
+			Runtime::query_info(xt.clone(), len),
+			pallet_transaction_payment::RuntimeDispatchInfo::default()
+		);
+	});
 }
 
 #[cfg(test)]
