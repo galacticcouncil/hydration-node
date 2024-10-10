@@ -9,7 +9,9 @@
     "/dns4/boot.helikon.io/tcp/15120/p2p/12D3KooWDcQY1L2ny3F7YPyP4snCZZYc4eKWgPLEzdBvWBUjH5Yt",
     "/dns4/boot.helikon.io/tcp/15125/wss/p2p/12D3KooWDcQY1L2ny3F7YPyP4snCZZYc4eKWgPLEzdBvWBUjH5Yt",
     "/dns/hydration.boot.stake.plus/tcp/30332/wss/p2p/12D3KooWGZaDfqPyzVxhA3k1qv72P7xqYTJS8W9U7GWUEdXYhtUU",
-    "/dns/hydration.boot.stake.plus/tcp/31332/wss/p2p/12D3KooWBJMG8LCh6pLYbGapA3SNzjhQWE87ieGux41jKQrrf5js"
+    "/dns/hydration.boot.stake.plus/tcp/31332/wss/p2p/12D3KooWBJMG8LCh6pLYbGapA3SNzjhQWE87ieGux41jKQrrf5js",
+    "/dns/hydration-bootnode.radiumblock.com/tcp/30333/p2p/12D3KooWCtrMH4H2p5XkGHkU7K4CcbSmErouNuN3j7Bysj4a8hJX",
+    "/dns/hydration-bootnode.radiumblock.com/tcp/30336/wss/p2p/12D3KooWCtrMH4H2p5XkGHkU7K4CcbSmErouNuN3j7Bysj4a8hJX"
   ],
   "telemetryEndpoints": [
     [
