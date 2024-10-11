@@ -37,7 +37,7 @@ where
         intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>,
     ) -> Result<Self::Solution, Self::Error> {
 
-        let tkns = vec![1, 0, 2, 5];
+        let tkns = vec![1, 0, 2, 5]; // LRNA, HDX, USDT, DOT
         let omnipool_tkns = vec![(0, 1000000,100000000), (2, 10000000 ,10000000), (5,10000000,1333333)]; // HDX, USDT, DOT
 
 
