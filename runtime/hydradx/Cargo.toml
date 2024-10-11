@@ -162,6 +162,7 @@ pallet-evm-precompile-call-permit = { workspace = true }
 precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = {  workspace = true }
+hex = { workspace = true }
 
 [features]
 default = ["std"]

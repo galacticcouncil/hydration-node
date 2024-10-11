@@ -5019,6 +5019,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
+ "hex",
  "hex-literal",
  "hydra-dx-math",
  "hydradx-adapters",

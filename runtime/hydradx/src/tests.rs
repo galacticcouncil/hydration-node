@@ -6,17 +6,14 @@ use primitives::constants::{
 use std::io::Read;
 
 use codec::Encode;
-use frame_support::{
-	assert_err,
-	dispatch::{DispatchClass, GetDispatchInfo},
-	sp_runtime::{traits::Convert, FixedPointNumber},
-	weights::WeightToFee,
-};
+use frame_support::{assert_err, assert_ok, dispatch::{DispatchClass, GetDispatchInfo}, sp_runtime::{traits::Convert, FixedPointNumber}, weights::WeightToFee};
 use pallet_transaction_payment::Multiplier;
 use polkadot_xcm::opaque::VersionedXcm;
 use polkadot_xcm::{VersionedAssets, VersionedLocation};
 use sp_runtime::{BuildStorage, FixedU128};
+use sp_runtime::transaction_validity::TransactionSource;
 use sp_std::sync::Arc;
+use sp_transaction_pool::runtime_api::runtime_decl_for_tagged_transaction_queue::TaggedTransactionQueue;
 
 #[test]
 #[ignore]
@@ -203,22 +200,24 @@ fn test_me() {
 		let res = fp_self_contained::UncheckedExtrinsic::<Address, RuntimeCall, Signature, SignedExtra>::new_signed(call, acc, signature, signed_extra);
 		println!(" --- - - - -  - - - - - - - - -  {:X?}", res.encode());
 
-		let encoded: Vec<u8> = hex!("fd018400d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01a4f6592c25d04001f088e4c72bfb7c1e93aaac76add5c21c086a2181498e1f5ed89ba5401853d2b117c475589a5a7fc0a612e5f4e0f0a510d9ef3d72d9196382d503090e0000470101000000e8030000000000000000000000000000")
-			.to_vec();
-		let encoded: Vec<u8> = hex!("f90184d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01a4f6592c25d04001f088e4c72bfb7c1e93aaac76add5c21c086a2181498e1f5ed89ba5401853d2b117c475589a5a7fc0a612e5f4e0f0a510d9ef3d72d9196382d503090e0000470101000000e8030000000000000000000000000000")
+
+		let encoded: Vec<u8> = hex!("59028400d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01f2c033c15c44bdaa1f90c7e5b8c5c43d720b554d2b932fdff8423e17e0f9372905cab00991393f496ae6f525098b1164e041c7016aca4ce1fe40a54b0cf0148a55030d0e00000700a05d59ba9fee5afd2533de784a79e88cec70809117d863a70a4982989716926f1b000080f64ae1c7022d15")
 			.to_vec();
 		let xt: fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra> = Decode::decode(&mut &*encoded).unwrap();
+
 		let ext = xt.encode();
-		// let xt: sp_runtime::OpaqueExtrinsic = Decode::decode(&mut &*encoded).unwrap();
-		// let ext = xt.encode();
-		// print!("------ {:X?}", encoded);
-		print!("------ {:X?}", ext);
+
+		println!("encoded: 0x{}", hex::encode(&ext));
+
 		let len = ext.len() as u32;
 
 		println!(
 			"\n{:?}",
 			Runtime::query_info(xt.clone(), len),
 		);
+
+		let last_blockhash = System::block_hash(System::block_number());
+		assert_ok!(Runtime::validate_transaction(TransactionSource::External, xt.clone(), last_blockhash));
 	});
 }
 
