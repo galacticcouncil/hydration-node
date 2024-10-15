@@ -34,7 +34,6 @@ where
 			.position(|&tkn| tkn == intent.1.swap.asset_out)
 			.unwrap();
 
-		dbg!(sell_i, buy_i, j);
 		if let Some(scaling) = scaling.get(&intent.1.swap.asset_in) {
 			tau.set_entry((sell_i, j), *scaling);
 			phi.set_entry((buy_i, j), *scaling);
@@ -44,6 +43,38 @@ where
 		}
 	}
 	(tau, phi)
+}
+
+fn round_solution<T: pallet_ice::Config>(
+	intents: &[Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>],
+	intent_deltas: Vec<f64>,
+	tolerance: f64,
+) -> Vec<f64> {
+	let mut deltas = Vec::new();
+	for i in 0..intents.len() {
+		// don't leave dust in intent due to rounding error
+		if intents[i].swap.amount_in as f64 + intent_deltas[i] < tolerance * intents[i].swap.amount_in as f64 {
+			deltas.push(-(intents[i].swap.amount_in as f64));
+		// don't trade dust amount due to rounding error
+		} else if -intent_deltas[i] <= tolerance * intents[i].swap.amount_in as f64 {
+			deltas.push(0.);
+		} else {
+			deltas.push(intent_deltas[i]);
+		}
+	}
+	deltas
+}
+
+fn add_buy_deltas<T: pallet_ice::Config>(
+	intents: &[Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>],
+	sell_deltas: Vec<f64>,
+) -> Vec<(f64, f64)> {
+	let mut deltas = Vec::new();
+	for i in 0..intents.len() {
+		let b = (-sell_deltas[i] * intents[i].swap.amount_out as f64 / intents[i].swap.amount_in as f64);
+		deltas.push((sell_deltas[i], b));
+	}
+	deltas
 }
 
 fn diags(n: usize, m: usize, data: Vec<f64>) -> CscMatrix {
@@ -95,7 +126,6 @@ where
 			.map(|&tkn| (tkn, **reserve_map.get(&tkn).unwrap()))
 			.collect();
 		scaling.insert(1u32.into(), hub_reserves.sum());
-		dbg!(&scaling);
 		let (tau, phi) = calculate_tau_phi::<T>(&intents, &tkns, &scaling);
 
 		// OBJECTIVE
@@ -113,15 +143,11 @@ where
 			let v = tau.get_entry((0, i)).unwrap_or(0.);
 			d_coefs.push(-v);
 		}
-		dbg!(&d_coefs);
-
 		let mut q = Vec::new();
 		q.extend(delta_lrna_coefs);
 		q.extend(lambda_lrna_coefs);
 		q.extend(zero_coefs);
 		q.extend(d_coefs);
-
-		dbg!(q.len());
 
 		let mut A1: CscMatrix<f64> = CscMatrix::identity(k);
 		A1.negate();
@@ -172,14 +198,12 @@ where
 			})
 			.collect::<Vec<_>>();
 		let d_coefs = CscMatrix::from(&d);
-		dbg!(&d_coefs);
 		//let A31 = CscMatrix::hvcat(&[&[&lrna_coefs, &delta_coefs, &lambda_coefs, &d_coefs]]).unwrap();
 		let A31 = CscMatrix::hcat(&lrna_coefs, &delta_coefs);
 		let A31 = CscMatrix::hcat(&A31, &lambda_coefs);
 		let A31 = CscMatrix::hcat(&A31, &d_coefs);
 		let b31 = vec![0.; n];
 		let A3 = CscMatrix::vcat(&A30, &A31);
-		dbg!(&A3);
 		let cone3 = NonnegativeConeT(n + 1);
 
 		// AMM invariants must not go down
@@ -212,28 +236,33 @@ where
 
 		solver.solve();
 
-		//println!("Solution(x)     = {:?}", solver.solution.x);
-		//println!("Multipliers (z) = {:?}", solver.solution.z);
-		//println!("Slacks (s)      = {:?}", solver.solution.s);
-
 		let x = solver.solution.x;
-		let z = solver.solution.z;
-		let s = solver.solution.s;
 
 		let mut new_amm_deltas = HashMap::new();
-		let mut exec_intent_deltas = vec![None; intents.len()];
+		let mut exec_intent_deltas = vec![0.; intents.len()];
 		for i in 0..n {
 			let tkn = asset_ids[i];
 			new_amm_deltas.insert(tkn, (x[2 * n + i] - x[3 * n + i]) * asset_reserves[i]);
 		}
 		for i in 0..intents.len() {
-			exec_intent_deltas[i] = Some(-x[4 * n + i] * scaling[&intents[i].1.swap.asset_in]);
+			exec_intent_deltas[i] = -x[4 * n + i] * scaling[&intents[i].1.swap.asset_in];
 		}
-		dbg!(new_amm_deltas, exec_intent_deltas);
 
-		let b_eht = 902_422_853_873_908_875_183u128;
-		let v = FixedU128::from_rational(b_eht, 1_000_000_000_000_000_000u128).to_float();
-		dbg!(v);
+		let sell_deltas = round_solution::<T>(
+			&intents.iter().map(|(_, intent)| intent.clone()).collect::<Vec<_>>(),
+			exec_intent_deltas,
+			0.0001,
+		);
+
+		let intent_deltas = add_buy_deltas::<T>(
+			&intents.iter().map(|(_, intent)| intent.clone()).collect::<Vec<_>>(),
+			sell_deltas,
+		);
+
+		assert_eq!(
+			intent_deltas,
+			vec![(-100., 700.), (-1500., 100000.), (-400., 50.), (0., -0.)]
+		);
 
 		Err(())
 	}
