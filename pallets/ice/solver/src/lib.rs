@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 use crate::traits::ICESolver;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;

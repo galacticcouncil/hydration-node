@@ -1,4 +1,6 @@
-use crate::traits::ICESolver;
+#![cfg_attr(not(feature = "std"), no_std)]
+
+use crate::traits::{ICESolver, OmnipoolAssetInfo, OmnipoolInfo};
 use crate::SolverSolution;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
@@ -82,10 +84,21 @@ fn diags(n: usize, m: usize, data: Vec<f64>) -> CscMatrix {
 	res
 }
 
-pub struct CVXSolver<T, R, RP, PP>(sp_std::marker::PhantomData<(T, R, RP, PP)>);
+fn prepare_omnipool_data<T: pallet_ice::Config>(
+	info: Vec<OmnipoolAssetInfo<T::AssetId>>,
+) -> (Vec<T::AssetId>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>) {
+	let asset_ids = info.iter().map(|i| i.asset_id).collect::<Vec<_>>();
+	let asset_reserves = info.iter().map(|i| i.reserve_as_f64()).collect::<Vec<_>>();
+	let hub_reserves = info.iter().map(|i| i.hub_reserve_as_f64()).collect::<Vec<_>>();
+	let fees = info.iter().map(|i| i.fee_as_f64()).collect::<Vec<_>>();
+	let hub_fees = info.iter().map(|i| i.hub_fee_as_f64()).collect::<Vec<_>>();
+	(asset_ids, asset_reserves, hub_reserves, fees, hub_fees)
+}
 
-impl<T: pallet_ice::Config, R, RP, PP> ICESolver<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>
-	for CVXSolver<T, R, RP, PP>
+pub struct CVXSolver<T, R, RP, PP, OI>(sp_std::marker::PhantomData<(T, R, RP, PP, OI)>);
+
+impl<T: pallet_ice::Config, R, RP, PP, OI>
+	ICESolver<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)> for CVXSolver<T, R, RP, PP, OI>
 where
 	<T as pallet_ice::Config>::AssetId: From<u32> + sp_std::hash::Hash,
 	R: RouterT<
@@ -97,6 +110,7 @@ where
 	>,
 	RP: RouteProvider<<T as pallet_ice::Config>::AssetId>,
 	PP: PriceProvider<<T as pallet_ice::Config>::AssetId, Price = Ratio>,
+	OI: OmnipoolInfo<T::AssetId>,
 {
 	type Solution = SolverSolution<T::AssetId>;
 	type Error = ();
@@ -104,14 +118,13 @@ where
 	fn solve(
 		intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>,
 	) -> Result<Self::Solution, Self::Error> {
-		let asset_ids: [T::AssetId; 3] = [0u32.into(), 20u32.into(), 2u32.into()];
-		let tkns: [T::AssetId; 4] = [1u32.into(), 0u32.into(), 20u32.into(), 2u32.into()];
-		let asset_reserves: [f64; 3] = [100000000., 10000000., 10000000. / 7.5];
-		let hub_reserves: [f64; 3] = [1000000., 10000000., 10000000.];
-		let reserve_map = asset_ids.iter().zip(asset_reserves.iter()).collect::<BTreeMap<_, _>>();
+		let omnipool_data = OI::assets();
+		let (asset_ids, asset_reserves, hub_reserves, fees, lrna_fees) = prepare_omnipool_data::<T>(omnipool_data);
 
-		let fees = [0.0025, 0.0025, 0.0025];
-		let lrna_fees = [0.0005, 0.0005, 0.0005];
+		let mut tkns: Vec<T::AssetId> = vec![1u32.into()];
+		tkns.extend(asset_ids.iter().cloned());
+
+		let reserve_map = asset_ids.iter().zip(asset_reserves.iter()).collect::<BTreeMap<_, _>>();
 
 		let n = asset_ids.len();
 		let m = intents.len();
