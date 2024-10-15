@@ -198,8 +198,8 @@ pub mod pallet {
 		/// Extrinsic is disasbled for now
 		Disabled,
 
-		/// No field farms specified to join
-		NoYieldFarmsSpecified,
+		/// No global farm - yield farm pairs specified to join
+		NoFarmsSpecified,
 	}
 
 	#[pallet::event]
@@ -747,7 +747,7 @@ pub mod pallet {
 			shares_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(!farm_entries.is_empty(), Error::<T>::NoYieldFarmsSpecified);
+			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmsSpecified);
 
 			//TODO: integration test join all the farms, run, iterate throuh all the yarms and withdraw
 
@@ -759,7 +759,7 @@ pub mod pallet {
 				Error::<T>::InsufficientXykSharesBalance
 			);
 
-			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoYieldFarmsSpecified)?;
+			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmsSpecified)?;
 			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
 				*global_farm_id,
 				*yield_farm_id,
@@ -812,7 +812,7 @@ pub mod pallet {
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			ensure!(!farm_entries.is_empty(), Error::<T>::NoYieldFarmsSpecified);
+			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmsSpecified);
 			//TODO: inregration, add liq and join farms, and withdraw
 			//TODO: write in channel if we need withdraw all?!
 
@@ -829,10 +829,10 @@ pub mod pallet {
 
 			//TODO: consider using join farms directly.
 
-			let (global_farm_id, yield_farm_id) = farm_entries[0]; //TODO: make it safe
+			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmsSpecified)?;
 			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
-				global_farm_id,
-				yield_farm_id,
+				*global_farm_id,
+				*yield_farm_id,
 				amm_pool_id.clone(),
 				shares_amount,
 				Self::get_token_value_of_lp_shares,
@@ -841,8 +841,8 @@ pub mod pallet {
 			T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &deposit_id, &who)?;
 
 			Self::deposit_event(Event::SharesDeposited {
-				global_farm_id,
-				yield_farm_id,
+				global_farm_id: *global_farm_id,
+				yield_farm_id: *yield_farm_id,
 				who: who.clone(),
 				amount: shares_amount,
 				lp_token: T::AMM::get_share_token(asset_pair),

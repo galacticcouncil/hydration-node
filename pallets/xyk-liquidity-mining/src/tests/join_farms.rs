@@ -177,7 +177,7 @@ fn join_farms_should_fail_when_no_yield_farm_specified() {
 					BSX_KSM_ASSET_PAIR,
 					deposited_amount,
 				),
-				Error::<Test>::NoYieldFarmsSpecified
+				Error::<Test>::NoFarmsSpecified
 			);
 		});
 }

@@ -158,7 +158,7 @@ fn add_liquidity_and_join_farms_should_fail_when_no_yield_farm_specified() {
 					Balance::MAX,
 					farm_entries.try_into().unwrap(),
 				),
-				Error::<Test>::NoYieldFarmsSpecified
+				Error::<Test>::NoFarmsSpecified
 			);
 		});
 }
