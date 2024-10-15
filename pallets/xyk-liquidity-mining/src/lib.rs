@@ -746,7 +746,6 @@ pub mod pallet {
 			asset_pair: AssetPair,
 			shares_amount: Balance,
 		) -> DispatchResult {
-			//TODO: multiple global and multiple farms
 			let who = ensure_signed(origin)?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoYieldFarmsSpecified);
 
