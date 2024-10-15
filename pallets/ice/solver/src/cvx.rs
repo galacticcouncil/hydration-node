@@ -9,9 +9,6 @@ use sp_runtime::{FixedU128, SaturatedConversion, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
 use std::collections::HashMap;
 
-//use totsu::prelude::*;
-//use totsu::*;
-
 use clarabel::algebra::*;
 use clarabel::solver::*;
 
@@ -128,7 +125,9 @@ where
 		scaling.insert(1u32.into(), hub_reserves.sum());
 		let (tau, phi) = calculate_tau_phi::<T>(&intents, &tkns, &scaling);
 
-		// OBJECTIVE
+		//#----------------------------#
+		//#          OBJECTIVE         #
+		//#----------------------------#
 		let P: CscMatrix<f64> = CscMatrix::zeros((k, k));
 
 		let delta_lrna_coefs = hub_reserves.clone();
@@ -148,6 +147,10 @@ where
 		q.extend(lambda_lrna_coefs);
 		q.extend(zero_coefs);
 		q.extend(d_coefs);
+
+		//#----------------------------#
+		//#        CONSTRAINTS         #
+		//#----------------------------#
 
 		let mut A1: CscMatrix<f64> = CscMatrix::identity(k);
 		A1.negate();
@@ -198,7 +201,6 @@ where
 			})
 			.collect::<Vec<_>>();
 		let d_coefs = CscMatrix::from(&d);
-		//let A31 = CscMatrix::hvcat(&[&[&lrna_coefs, &delta_coefs, &lambda_coefs, &d_coefs]]).unwrap();
 		let A31 = CscMatrix::hcat(&lrna_coefs, &delta_coefs);
 		let A31 = CscMatrix::hcat(&A31, &lambda_coefs);
 		let A31 = CscMatrix::hcat(&A31, &d_coefs);
@@ -230,10 +232,9 @@ where
 
 		let mut cones = vec![cone1, cone2, cone3];
 		cones.extend(cones4);
+
 		let settings = DefaultSettings::default();
-
 		let mut solver = DefaultSolver::new(&P, &q, &A, &b, &cones, settings);
-
 		solver.solve();
 
 		let x = solver.solution.x;
