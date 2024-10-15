@@ -747,6 +747,7 @@ pub mod pallet {
 			asset_pair: AssetPair,
 			shares_amount: Balance,
 		) -> DispatchResult {
+			//TODO: multiple global and multiple farms
 			let who = ensure_signed(origin)?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoYieldFarmsSpecified);
 
@@ -828,6 +829,8 @@ pub mod pallet {
 			let amm_pool_id = T::AMM::get_pair_id(asset_pair);
 			let share_token = T::AMM::get_share_token(asset_pair);
 			let shares_amount = T::Currencies::free_balance(share_token, &who);
+
+			//TODO: consider using join farms directly.
 
 			let yield_farm_id = farm_entries[0];
 			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(

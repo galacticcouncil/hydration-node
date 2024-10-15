@@ -155,6 +155,9 @@ pub mod pallet {
 		/// Oracle providing price of LRNA/{Asset} used to calculate `valued_shares`.
 		type PriceOracle: AggregatedPriceOracle<Self::AssetId, BlockNumberFor<Self>, Price, Error = OracleError>;
 
+		/// Maximum number of farm entries per deposit.
+		type MaxFarmEntriesPerDeposit: Get<u32>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -309,6 +312,9 @@ pub mod pallet {
 
 		/// The extrinsic is disabled for now.
 		Disabled,
+
+		/// No farms specified to join
+		NoFarmEntriesSpecified,
 	}
 
 	//NOTE: these errors should never happen.
@@ -914,6 +920,92 @@ pub mod pallet {
 				yield_per_period,
 				min_deposit,
 			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
+		pub fn join_farms(
+			origin: OriginFor<T>,
+			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
+			position_id: T::PositionItemId,
+			shares_amount: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
+
+			let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
+
+			//TODO: integration test join all the farms, run, iterate throuh all the yarms and withdraw
+
+			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmEntriesSpecified)?;
+			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
+				*global_farm_id,
+				*yield_farm_id,
+				lp_position.asset_id,
+				lp_position.shares,
+				|_, _, _| -> Result<Balance, DispatchError> { Self::get_position_value_in_hub_asset(&lp_position) },
+			)?;
+
+			Self::lock_lp_position(position_id, deposit_id)?;
+
+			<T as pallet::Config>::NFTHandler::mint_into(
+				&<T as pallet::Config>::NFTCollectionId::get(),
+				&deposit_id,
+				&who,
+			)?;
+
+			Self::deposit_event(Event::SharesDeposited {
+				global_farm_id: *global_farm_id,
+				yield_farm_id: *yield_farm_id,
+				deposit_id,
+				asset_id: lp_position.asset_id,
+				who: who.clone(),
+				shares_amount: lp_position.shares,
+				position_id,
+			});
+
+			// Redeposit for the remaining farm entries
+			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
+				T::LiquidityMiningHandler::redeposit_lp_shares(
+					global_farm_id,
+					yield_farm_id,
+					deposit_id,
+					|_, _, _| Self::get_position_value_in_hub_asset(&lp_position),
+				)?;
+
+				Self::deposit_event(Event::SharesRedeposited {
+					global_farm_id,
+					yield_farm_id,
+					deposit_id,
+					asset_id: lp_position.asset_id,
+					who: who.clone(),
+					shares_amount: lp_position.shares,
+					position_id,
+				});
+			}
+
+			Ok(())
+		}
+
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
+		pub fn add_liquidity_and_join_farms(
+			origin: OriginFor<T>,
+			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
+			asset: T::AssetId,
+			amount: Balance,
+		) -> DispatchResult {
+			//TODO: integration test join all the farms, run, iterate throuh all the yarms and withdraw
+			let who = ensure_signed(origin.clone())?;
+			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
+
+			let position_id =
+				OmnipoolPallet::<T>::do_add_liquidity_with_limit(origin.clone(), asset, amount, Balance::MIN)?;
+			let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
+
+			Self::join_farms(origin, farm_entries, position_id, lp_position.shares)?;
 
 			Ok(())
 		}

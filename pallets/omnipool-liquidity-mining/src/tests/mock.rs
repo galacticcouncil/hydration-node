@@ -180,6 +180,7 @@ impl omnipool_liquidity_mining::Config for Test {
 	type OracleSource = OracleSource;
 	type OraclePeriod = PeriodOracle;
 	type PriceOracle = DummyOracle;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type WeightInfo = ();
 }
 
@@ -582,6 +583,8 @@ impl ExtBuilder {
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
 use hydra_dx_math::ema::EmaPrice;
+
+pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
 
 pub struct DummyNFT;
 

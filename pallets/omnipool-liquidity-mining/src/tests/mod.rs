@@ -29,10 +29,12 @@ pub fn has_event(event: mock::RuntimeEvent) -> bool {
 	System::events().iter().any(|record| record.event == event)
 }
 
+pub mod add_liquidity_and_join_farms;
 pub mod claim_rewards;
 pub mod create_global_farm;
 pub mod create_yield_farm;
 pub mod deposit_shares;
+pub mod join_farms;
 pub mod mock;
 pub mod redeposit_shares;
 pub mod resume_yield_farm;
@@ -42,3 +44,7 @@ pub mod terminate_yield_farm;
 pub mod update_global_farm;
 pub mod update_yield_farm;
 pub mod withdraw_shares;
+
+pub fn expect_events(e: Vec<RuntimeEvent>) {
+	test_utils::expect_events::<RuntimeEvent, Test>(e);
+}
