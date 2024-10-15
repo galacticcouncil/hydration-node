@@ -1,6 +1,6 @@
+mod cvx;
 mod intents;
 mod solution;
-mod cvx;
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;

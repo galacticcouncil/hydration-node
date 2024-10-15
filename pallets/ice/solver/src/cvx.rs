@@ -1,12 +1,13 @@
 use crate::traits::ICESolver;
+use crate::SolverSolution;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
 use pallet_ice::types::{Balance, BoundedRoute, Intent, IntentId, ResolvedIntent, TradeInstruction};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::Saturating;
+use sp_runtime::{FixedU128, SaturatedConversion, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
-use crate::SolverSolution;
+use std::collections::HashMap;
 
 //use totsu::prelude::*;
 //use totsu::*;
@@ -14,124 +15,226 @@ use crate::SolverSolution;
 use clarabel::algebra::*;
 use clarabel::solver::*;
 
+fn calculate_tau_phi<T: pallet_ice::Config>(
+	intents: &[(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)],
+	asset_ids: &[T::AssetId],
+	scaling: &HashMap<T::AssetId, f64>,
+) -> (CscMatrix, CscMatrix)
+where
+	T::AssetId: From<u32> + sp_std::hash::Hash,
+{
+	let n = asset_ids.len();
+	let m = intents.len();
+	let mut tau = CscMatrix::zeros((n, m));
+	let mut phi = CscMatrix::zeros((n, m));
+	for (j, intent) in intents.iter().enumerate() {
+		let sell_i = asset_ids.iter().position(|&tkn| tkn == intent.1.swap.asset_in).unwrap();
+		let buy_i = asset_ids
+			.iter()
+			.position(|&tkn| tkn == intent.1.swap.asset_out)
+			.unwrap();
+
+		dbg!(sell_i, buy_i, j);
+		if let Some(scaling) = scaling.get(&intent.1.swap.asset_in) {
+			tau.set_entry((sell_i, j), *scaling);
+			phi.set_entry((buy_i, j), *scaling);
+		} else {
+			tau.set_entry((sell_i, j), 1.);
+			phi.set_entry((buy_i, j), 1.);
+		}
+	}
+	(tau, phi)
+}
+
+fn diags(n: usize, m: usize, data: Vec<f64>) -> CscMatrix {
+	let mut res = CscMatrix::zeros((n, m));
+	for i in 0..n {
+		res.set_entry((i, i), data[i]);
+	}
+	res
+}
+
 pub struct CVXSolver<T, R, RP, PP>(sp_std::marker::PhantomData<(T, R, RP, PP)>);
 
 impl<T: pallet_ice::Config, R, RP, PP> ICESolver<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>
-for CVXSolver<T, R, RP, PP>
+	for CVXSolver<T, R, RP, PP>
 where
-    <T as pallet_ice::Config>::AssetId: From<u32>,
-    R: RouterT<
-        T::RuntimeOrigin,
-        <T as pallet_ice::Config>::AssetId,
-        u128,
-        hydradx_traits::router::Trade<<T as pallet_ice::Config>::AssetId>,
-        hydradx_traits::router::AmountInAndOut<u128>,
-    >,
-    RP: RouteProvider<<T as pallet_ice::Config>::AssetId>,
-    PP: PriceProvider<<T as pallet_ice::Config>::AssetId, Price = Ratio>,
+	<T as pallet_ice::Config>::AssetId: From<u32> + sp_std::hash::Hash,
+	R: RouterT<
+		T::RuntimeOrigin,
+		<T as pallet_ice::Config>::AssetId,
+		u128,
+		hydradx_traits::router::Trade<<T as pallet_ice::Config>::AssetId>,
+		hydradx_traits::router::AmountInAndOut<u128>,
+	>,
+	RP: RouteProvider<<T as pallet_ice::Config>::AssetId>,
+	PP: PriceProvider<<T as pallet_ice::Config>::AssetId, Price = Ratio>,
 {
-    type Solution = SolverSolution<T::AssetId>;
-    type Error = ();
+	type Solution = SolverSolution<T::AssetId>;
+	type Error = ();
 
-    fn solve(
-        intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>,
-    ) -> Result<Self::Solution, Self::Error> {
+	fn solve(
+		intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>,
+	) -> Result<Self::Solution, Self::Error> {
+		let asset_ids: [T::AssetId; 3] = [0u32.into(), 20u32.into(), 2u32.into()];
+		let tkns: [T::AssetId; 4] = [1u32.into(), 0u32.into(), 20u32.into(), 2u32.into()];
+		let asset_reserves: [f64; 3] = [100000000., 10000000., 10000000. / 7.5];
+		let hub_reserves: [f64; 3] = [1000000., 10000000., 10000000.];
+		let reserve_map = asset_ids.iter().zip(asset_reserves.iter()).collect::<BTreeMap<_, _>>();
 
-        // QP Example
+		let fees = [0.0025, 0.0025, 0.0025];
+		let lrna_fees = [0.0005, 0.0005, 0.0005];
 
-        // let P = CscMatrix::identity(2);    // For P = I
-        // let P = CscMatrix::zeros((2,2));   // For P = 0
+		let n = asset_ids.len();
+		let m = intents.len();
+		let k = 4 * n + m;
 
-        // direct from sparse data
-        let _P = CscMatrix::new(
-            2,             // m
-            2,             // n
-            vec![0, 1, 2], // colptr
-            vec![0, 1],    // rowval
-            vec![6., 4.],  // nzval
-        );
+		//calculate tau, phi
+		let mut scaling: HashMap<T::AssetId, f64> = asset_ids
+			.iter()
+			.map(|&tkn| (tkn, **reserve_map.get(&tkn).unwrap()))
+			.collect();
+		scaling.insert(1u32.into(), hub_reserves.sum());
+		dbg!(&scaling);
+		let (tau, phi) = calculate_tau_phi::<T>(&intents, &tkns, &scaling);
 
-        // or an easier way for small problems...
-        let P = CscMatrix::from(&[
-            [6., 0.], //
-            [0., 4.], //
-        ]);
+		// OBJECTIVE
+		let P: CscMatrix<f64> = CscMatrix::zeros((k, k));
 
-        let q = vec![-1., -4.];
+		let delta_lrna_coefs = hub_reserves.clone();
+		let lambda_lrna_coefs = lrna_fees
+			.iter()
+			.enumerate()
+			.map(|(i, l)| hub_reserves[i] * (l - 1.))
+			.collect::<Vec<_>>();
+		let zero_coefs = vec![0.; 2 * n];
+		let mut d_coefs = Vec::new();
+		for i in 0..m {
+			let v = tau.get_entry((0, i)).unwrap_or(0.);
+			d_coefs.push(-v);
+		}
+		dbg!(&d_coefs);
 
-        //direct from sparse data
-        let _A = CscMatrix::new(
-            5,                               // m
-            2,                               // n
-            vec![0, 3, 6],                   // colptr
-            vec![0, 1, 3, 0, 2, 4],          // rowval
-            vec![1., 1., -1., -2., 1., -1.], // nzval
-        );
+		let mut q = Vec::new();
+		q.extend(delta_lrna_coefs);
+		q.extend(lambda_lrna_coefs);
+		q.extend(zero_coefs);
+		q.extend(d_coefs);
 
-        // or an easier way for small problems...
-        let A = CscMatrix::from(&[
-            [1., -2.], // <-- LHS of equality constraint (lower bound)
-            [1., 0.],  // <-- LHS of inequality constraint (upper bound)
-            [0., 1.],  // <-- LHS of inequality constraint (upper bound)
-            [-1., 0.], // <-- LHS of inequality constraint (lower bound)
-            [0., -1.], // <-- LHS of inequality constraint (lower bound)
-        ]);
+		dbg!(q.len());
 
-        let b = vec![0., 1., 1., 1., 1.];
+		let mut A1: CscMatrix<f64> = CscMatrix::identity(k);
+		A1.negate();
+		let b1: Vec<f64> = vec![0.; k];
+		let cone1 = NonnegativeConeT(k);
 
-        let cones = [ZeroConeT(1), NonnegativeConeT(4)];
+		// intents cannot sell more than they have
+		let amm_coefs = CscMatrix::zeros((m, 4 * n));
+		let d_coefs = CscMatrix::identity(m);
+		let A2 = CscMatrix::hcat(&amm_coefs, &d_coefs);
+		let b2 = intents
+			.iter()
+			.map(|intent| (intent.1.swap.amount_in as f64, intent.1.swap.asset_in)) //TODO: amohn tto f64 using amoutn and asset decimenals
+			.map(|(amount, asset_in)| amount / scaling[&asset_in])
+			.collect::<Vec<_>>();
+		let cone2 = NonnegativeConeT(m);
 
-        let settings = DefaultSettings::default();
+		//leftover must be higher than required fees
+		let A30 = CscMatrix::from(&[q.clone()]);
+		let b30 = vec![0.];
 
-        let mut solver = DefaultSolver::new(&P, &q, &A, &b, &cones, settings);
+		// other assets
+		let intent_prices = intents
+			.iter()
+			.map(|intent| FixedU128::from_rational(intent.1.swap.amount_out, intent.1.swap.amount_in).to_float())
+			.collect::<Vec<_>>();
+		let lrna_coefs = CscMatrix::zeros((n, 2 * n));
+		let delta_coefs = diags(n, n, asset_reserves.to_vec());
+		let lambda_coefs = diags(
+			n,
+			n,
+			asset_reserves
+				.iter()
+				.enumerate()
+				.map(|(i, f)| f * (fees[i] - 1.))
+				.collect(),
+		);
 
-        solver.solve();
+		// d_coefs = sparse.csc_matrix([[phi[i,j]*intent_prices[j] - tau[i, j] for j in range(m)] for i in range(1,n+1)])
 
-        println!("Solution(x)     = {:?}", solver.solution.x);
-        println!("Multipliers (z) = {:?}", solver.solution.z);
-        println!("Slacks (s)      = {:?}", solver.solution.s);
+		let d = (1..n + 1)
+			.map(|i| {
+				(0..m)
+					.map(|j| {
+						phi.get_entry((i, j)).unwrap_or(0.) * intent_prices[j] - tau.get_entry((i, j)).unwrap_or(0.)
+					})
+					.collect::<Vec<_>>()
+			})
+			.collect::<Vec<_>>();
+		let d_coefs = CscMatrix::from(&d);
+		dbg!(&d_coefs);
+		//let A31 = CscMatrix::hvcat(&[&[&lrna_coefs, &delta_coefs, &lambda_coefs, &d_coefs]]).unwrap();
+		let A31 = CscMatrix::hcat(&lrna_coefs, &delta_coefs);
+		let A31 = CscMatrix::hcat(&A31, &lambda_coefs);
+		let A31 = CscMatrix::hcat(&A31, &d_coefs);
+		let b31 = vec![0.; n];
+		let A3 = CscMatrix::vcat(&A30, &A31);
+		dbg!(&A3);
+		let cone3 = NonnegativeConeT(n + 1);
 
+		// AMM invariants must not go down
+		let mut A4 = CscMatrix::zeros((3 * n, k));
+		let b4 = vec![1.; 3 * n];
+		let mut cones4 = Vec::new();
+		for i in 0..n {
+			A4.set_entry((3 * i, i), -1.);
+			A4.set_entry((3 * i, n + i), 1.);
+			A4.set_entry((3 * i + 1, 2 * n + i), -1.);
+			A4.set_entry((3 * i + 1, 3 * n + i), 1.);
+			cones4.push(PowerConeT(0.5));
+		}
+		let A = CscMatrix::vcat(&A1, &A2);
+		let A = CscMatrix::vcat(&A, &A3);
+		let A = CscMatrix::vcat(&A, &A4);
 
-        /*
-        type La = FloatGeneric<f64>;
-        type AMatBuild = MatBuild<La>;
-        type AProbQP = ProbQP<La>;
-        type ASolver = Solver<La>;
+		let mut b = Vec::new();
+		b.extend(b1);
+		b.extend(b2);
+		b.extend(b30);
+		b.extend(b31);
+		b.extend(b4);
 
-        let n = 2; // x0, x1
-        let m = 1;
-        let p = 0;
+		let mut cones = vec![cone1, cone2, cone3];
+		cones.extend(cones4);
+		let settings = DefaultSettings::default();
 
-        // (1/2)(x - a)^2 + const
-        let mut sym_p = AMatBuild::new(MatType::SymPack(n));
-        sym_p[(0, 0)] = 1.;
-        sym_p[(1, 1)] = 1.;
+		let mut solver = DefaultSolver::new(&P, &q, &A, &b, &cones, settings);
 
-        let mut vec_q = AMatBuild::new(MatType::General(n, 1));
-        vec_q[(0, 0)] = -(-1.); // -a0
-        vec_q[(1, 0)] = -(-2.); // -a1
+		solver.solve();
 
-        // 1 - x0/b0 - x1/b1 <= 0
-        let mut mat_g = AMatBuild::new(MatType::General(m, n));
-        mat_g[(0, 0)] = -1. / 2.; // -1/b0
-        mat_g[(0, 1)] = -1. / 3.; // -1/b1
+		//println!("Solution(x)     = {:?}", solver.solution.x);
+		//println!("Multipliers (z) = {:?}", solver.solution.z);
+		//println!("Slacks (s)      = {:?}", solver.solution.s);
 
-        let mut vec_h = AMatBuild::new(MatType::General(m, 1));
-        vec_h[(0, 0)] = -1.;
+		let x = solver.solution.x;
+		let z = solver.solution.z;
+		let s = solver.solution.s;
 
-        let mat_a = AMatBuild::new(MatType::General(p, n));
+		let mut new_amm_deltas = HashMap::new();
+		let mut exec_intent_deltas = vec![None; intents.len()];
+		for i in 0..n {
+			let tkn = asset_ids[i];
+			new_amm_deltas.insert(tkn, (x[2 * n + i] - x[3 * n + i]) * asset_reserves[i]);
+		}
+		for i in 0..intents.len() {
+			exec_intent_deltas[i] = Some(-x[4 * n + i] * scaling[&intents[i].1.swap.asset_in]);
+		}
+		dbg!(new_amm_deltas, exec_intent_deltas);
 
-        let vec_b = AMatBuild::new(MatType::General(p, 1));
+		let b_eht = 902_422_853_873_908_875_183u128;
+		let v = FixedU128::from_rational(b_eht, 1_000_000_000_000_000_000u128).to_float();
+		dbg!(v);
 
-        let s = ASolver::new().par(|p| {
-            p.max_iter = Some(100_000);
-        });
-        let mut qp = AProbQP::new(sym_p, vec_q, mat_g, vec_h, mat_a, vec_b, s.par.eps_zero);
-        let rslt = s.solve(qp.problem()).unwrap();
-        
-         */
-
-
-        Err(())
-    }
+		Err(())
+	}
 }
