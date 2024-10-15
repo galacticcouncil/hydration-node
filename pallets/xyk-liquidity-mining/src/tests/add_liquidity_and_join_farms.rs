@@ -27,7 +27,7 @@ fn add_liquidity_and_join_farms_should_work() {
 		.build()
 		.execute_with(|| {
 			set_block_number(1_800);
-			let farm_entries = vec![2, 3, 4]; // Yield farm IDs
+			let farm_entries = vec![(BSX_FARM, 2), (BSX_FARM, 3), (BSX_FARM, 4)];
 
 			// Act
 			assert_ok!(LiquidityMining::add_liquidity_and_join_farms(
@@ -36,7 +36,6 @@ fn add_liquidity_and_join_farms_should_work() {
 				KSM,
 				10 * ONE,
 				Balance::MAX,
-				BSX_FARM,
 				farm_entries.try_into().unwrap(),
 			));
 
@@ -107,7 +106,7 @@ fn add_liquidity_and_join_farms_should_fail_when_origin_is_not_signed() {
 		.build()
 		.execute_with(|| {
 			set_block_number(1_800);
-			let farm_entries = vec![2, 3, 4]; // Yield farm IDs
+			let farm_entries = vec![(BSX_FARM, 2), (BSX_FARM, 3), (BSX_FARM, 4)];
 
 			// Act
 			assert_noop!(
@@ -117,7 +116,6 @@ fn add_liquidity_and_join_farms_should_fail_when_origin_is_not_signed() {
 					KSM,
 					10 * ONE,
 					Balance::MAX,
-					BSX_FARM,
 					farm_entries.try_into().unwrap(),
 				),
 				BadOrigin
@@ -158,7 +156,6 @@ fn add_liquidity_and_join_farms_should_fail_when_no_yield_farm_specified() {
 					KSM,
 					10 * ONE,
 					Balance::MAX,
-					BSX_FARM,
 					farm_entries.try_into().unwrap(),
 				),
 				Error::<Test>::NoYieldFarmsSpecified

@@ -742,8 +742,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
 		pub fn join_farms(
 			origin: OriginFor<T>,
-			global_farm_id: GlobalFarmId,
-			farm_entries: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit>,
+			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
 			asset_pair: AssetPair,
 			shares_amount: Balance,
 		) -> DispatchResult {
@@ -761,9 +760,9 @@ pub mod pallet {
 				Error::<T>::InsufficientXykSharesBalance
 			);
 
-			let yield_farm_id = farm_entries.first().ok_or(Error::<T>::NoYieldFarmsSpecified)?;
+			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoYieldFarmsSpecified)?;
 			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
-				global_farm_id,
+				*global_farm_id,
 				*yield_farm_id,
 				amm_pool_id.clone(),
 				shares_amount,
@@ -774,7 +773,7 @@ pub mod pallet {
 			T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &deposit_id, &who)?;
 
 			Self::deposit_event(Event::SharesDeposited {
-				global_farm_id,
+				global_farm_id: *global_farm_id,
 				yield_farm_id: *yield_farm_id,
 				who: who.clone(),
 				amount: shares_amount,
@@ -783,7 +782,7 @@ pub mod pallet {
 			});
 
 			// Redeposit for the remaining farm entries
-			for yield_farm_id in farm_entries.into_iter().skip(1) {
+			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
 				let (redeposited_amount, _) = T::LiquidityMiningHandler::redeposit_lp_shares(
 					global_farm_id,
 					yield_farm_id,
@@ -811,8 +810,7 @@ pub mod pallet {
 			asset_b: AssetId,
 			amount_a: Balance,
 			amount_b_max_limit: Balance,
-			global_farm_id: GlobalFarmId,
-			farm_entries: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit>,
+			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoYieldFarmsSpecified);
@@ -832,7 +830,7 @@ pub mod pallet {
 
 			//TODO: consider using join farms directly.
 
-			let yield_farm_id = farm_entries[0];
+			let (global_farm_id, yield_farm_id) = farm_entries[0]; //TODO: make it safe
 			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
 				global_farm_id,
 				yield_farm_id,
@@ -852,7 +850,7 @@ pub mod pallet {
 				deposit_id,
 			});
 
-			for yield_farm_id in farm_entries.into_iter().skip(1) {
+			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
 				let (redeposited_amount, _) = T::LiquidityMiningHandler::redeposit_lp_shares(
 					global_farm_id,
 					yield_farm_id,
