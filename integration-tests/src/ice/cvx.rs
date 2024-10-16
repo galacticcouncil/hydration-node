@@ -224,13 +224,13 @@ fn test_omnipool_snapshot() {
 		//let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 		let buy_asset = 27;
 		let initial_balance20 = Currencies::free_balance(buy_asset, &AccountId32::from(BOB));
-		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000);
+		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000_000);
 
 		assert_ok!(Router::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			0,
 			buy_asset,
-			100_000_000_000_000,
+			100_000_000_000_000_000,
 			0,
 			vec![]
 		));
@@ -253,8 +253,8 @@ fn solver_should_find_solution_with_matching_intents() {
 				swap: Swap {
 					asset_in: 0,
 					asset_out: 27,
-					amount_in: 100_000_000_000_000,
-					amount_out: 1149711278057,
+					amount_in: 100_000_000_000_000_000,
+					amount_out: 1244217394417859,
 					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
 				deadline,
@@ -270,8 +270,8 @@ fn solver_should_find_solution_with_matching_intents() {
 				swap: Swap {
 					asset_in: 27,
 					asset_out: 0,
-					amount_out: 100_000_000_000_000,
-					amount_in: 1149711278057,
+					amount_out: 100_000_000_000_000_000,
+					amount_in: 1244217394417859,
 					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
 				deadline,
@@ -290,7 +290,7 @@ fn solver_should_find_solution_with_matching_intents() {
 			solved.intents,
 			vec![pallet_ice::types::ResolvedIntent {
 				intent_id: 1,
-				amount_in: 100_000_000_000_000,
+				amount_in: 100_000_000_000_000_000,
 				amount_out: 1149711278057,
 			},]
 		);
@@ -310,7 +310,7 @@ fn solver_should_find_solution_with_one_intent() {
 				swap: Swap {
 					asset_in: 0,
 					asset_out: 27,
-					amount_in: 100_000_000_000_000,
+					amount_in: 100_000_000_000_000_000,
 					amount_out: 1149711278057,
 					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
@@ -336,3 +336,8 @@ fn solver_should_find_solution_with_one_intent() {
 		);
 	});
 }
+//TODO: add such test
+// Alice wants to buy 100 DOT for $800 total
+// Bob wants to sell 100 DOT for $700 total
+// Charlie wants to buy $100 with 0.0001 DOT
+// it should not resolve charlie's intent

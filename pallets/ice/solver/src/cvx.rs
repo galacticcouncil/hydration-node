@@ -294,6 +294,8 @@ where
 
 		let intent_deltas = add_buy_deltas::<T>(&intent_prices, sell_deltas);
 
+		dbg!(&intent_deltas);
+
 		// Construct the solution
 		let mut resolved_intents = Vec::new();
 
