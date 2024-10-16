@@ -821,7 +821,7 @@ pub mod pallet {
 				asset_out: asset_b,
 			};
 
-			T::XykAddLiquidity::add_liquidity(origin, asset_a, asset_b, amount_a, amount_b_max_limit)?;
+			T::XykAddLiquidity::add_liquidity(origin.clone(), asset_a, asset_b, amount_a, amount_b_max_limit)?;
 
 			let amm_pool_id = T::AMM::get_pair_id(asset_pair);
 			let share_token = T::AMM::get_share_token(asset_pair);
@@ -829,44 +829,7 @@ pub mod pallet {
 
 			//TODO: consider using join farms directly.
 
-			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmsSpecified)?;
-			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
-				*global_farm_id,
-				*yield_farm_id,
-				amm_pool_id.clone(),
-				shares_amount,
-				Self::get_token_value_of_lp_shares,
-			)?;
-
-			Self::lock_lp_tokens(share_token, &who, shares_amount)?;
-			T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &deposit_id, &who)?;
-
-			Self::deposit_event(Event::SharesDeposited {
-				global_farm_id: *global_farm_id,
-				yield_farm_id: *yield_farm_id,
-				who: who.clone(),
-				amount: shares_amount,
-				lp_token: T::AMM::get_share_token(asset_pair),
-				deposit_id,
-			});
-
-			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
-				let (redeposited_amount, _) = T::LiquidityMiningHandler::redeposit_lp_shares(
-					global_farm_id,
-					yield_farm_id,
-					deposit_id,
-					Self::get_token_value_of_lp_shares,
-				)?;
-
-				Self::deposit_event(Event::SharesRedeposited {
-					global_farm_id,
-					yield_farm_id,
-					who: who.clone(),
-					amount: redeposited_amount,
-					lp_token: T::AMM::get_share_token(asset_pair),
-					deposit_id,
-				});
-			}
+			Self::join_farms(origin, farm_entries, asset_pair, shares_amount)?;
 
 			Ok(())
 		}
