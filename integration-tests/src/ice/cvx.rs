@@ -296,3 +296,43 @@ fn solver_should_find_solution_with_matching_intents() {
 		);
 	});
 }
+
+#[test]
+fn solver_should_find_solution_with_one_intent() {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000);
+
+		let deadline: Moment = NOW + 43_200_000;
+		let intent1 = (
+			1u128,
+			Intent {
+				who: BOB.into(),
+				swap: Swap {
+					asset_in: 0,
+					asset_out: 27,
+					amount_in: 100_000_000_000_000,
+					amount_out: 1149711278057,
+					swap_type: pallet_ice::types::SwapType::ExactIn,
+				},
+				deadline,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			},
+		);
+
+		let intents = vec![intent1];
+		let solved =
+			ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, OmnipoolDataProvider>::solve(intents)
+				.unwrap();
+
+		assert_eq!(
+			solved.intents,
+			vec![pallet_ice::types::ResolvedIntent {
+				intent_id: 1,
+				amount_in: 100_000_000_000_000,
+				amount_out: 1149711278057,
+			},]
+		);
+	});
+}
