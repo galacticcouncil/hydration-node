@@ -660,6 +660,7 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type OracleSource = OmnipoolLMOracleSource;
 	type OraclePeriod = OmnipoolLMOraclePeriod;
 	type PriceOracle = EmaOracle;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type WeightInfo = weights::pallet_omnipool_liquidity_mining::HydraWeight<Runtime>;
 }
 
@@ -707,6 +708,8 @@ impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type NonDustableWhitelistHandler = Duster;
 	type AMM = XYK;
 	type AssetRegistry = AssetRegistry;
+	type XykAddLiquidity = XYK;
+	type MaxFarmEntriesPerDeposit = XYKLmMaxEntriesPerDeposit;
 	type WeightInfo = weights::pallet_xyk_liquidity_mining::HydraWeight<Runtime>;
 }
 

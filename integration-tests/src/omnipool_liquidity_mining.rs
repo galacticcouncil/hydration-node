@@ -298,6 +298,109 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 }
 
 #[test]
+fn join_farms_should_work_for_multiple_farms() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_1_id = 1;
+		let global_farm_2_id = 2;
+		let global_farm_3_id = 3;
+		let yield_farm_1_id = 4;
+		let yield_farm_2_id = 5;
+		let yield_farm_3_id = 6;
+
+		//Arrange
+		init_omnipool();
+		seed_lm_pot();
+
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
+		set_relaychain_block_number(100);
+		create_global_farm(None, None);
+		create_global_farm(None, None);
+		create_global_farm(None, None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, ETH);
+		create_yield_farm(global_farm_2_id, ETH);
+		create_yield_farm(global_farm_3_id, ETH);
+
+		set_relaychain_block_number(300);
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CHARLIE.into(),
+			ETH,
+			10_000 * UNITS as i128,
+		));
+
+		let position_id = omnipool_add_liquidity(CHARLIE.into(), ETH, 1_000 * UNITS);
+		assert_nft_owner!(
+			hydradx_runtime::OmnipoolCollectionId::get(),
+			position_id,
+			CHARLIE.into()
+		);
+
+		set_relaychain_block_number(400);
+		let deposit_id = 1;
+		let farms = vec![
+			(global_farm_1_id, yield_farm_1_id),
+			(global_farm_2_id, yield_farm_2_id),
+			(global_farm_3_id, yield_farm_3_id),
+		];
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::join_farms(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			farms.try_into().unwrap(),
+			position_id
+		));
+
+		set_relaychain_block_number(500);
+
+		let deposit = hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).unwrap();
+		let mut expected_deposit = DepositData::new(1_000_000_000_000_000, ETH);
+		//1-th deposit entry
+		expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_1_id,
+				yield_farm_1_id,
+				71_145_071_145_u128,
+				FixedU128::zero(),
+				40,
+				0,
+			))
+			.unwrap();
+
+		//2-nd redeposit entry
+		expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_2_id,
+				yield_farm_2_id,
+				71_145_071_145_u128, //NOTE: nothing changed in omnipool so shares are
+				//valued same as before
+				FixedU128::zero(),
+				40,
+				0,
+			))
+			.unwrap();
+
+		//3-nd redeposit entry
+		expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_3_id,
+				yield_farm_3_id,
+				71_145_071_145_u128, //NOTE: nothing changed in omnipool so shares are
+				//valued same as before
+				FixedU128::zero(),
+				40,
+				0,
+			))
+			.unwrap();
+
+		assert_eq!(deposit, expected_deposit);
+	});
+}
+
+#[test]
 fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 	TestNet::reset();
 
