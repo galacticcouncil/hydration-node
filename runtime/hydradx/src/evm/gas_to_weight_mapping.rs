@@ -3,6 +3,9 @@ use pallet_evm::GasWeightMapping;
 use sp_core::Get;
 
 pub struct FixedHydraGasWeightMapping<T>(core::marker::PhantomData<T>);
+
+/// This implementation is a copy from the `pallet_evm::FixedHydraGasWeightMapping`,
+/// with the only modification of substracting the constant ExtrinsicBaseWeight
 impl<T: pallet_evm::Config> GasWeightMapping for FixedHydraGasWeightMapping<T> {
 	fn gas_to_weight(gas: u64, without_base_weight: bool) -> Weight {
 		//We use this base weight as we don't wanna include the swap weights of normal substrate transactions
