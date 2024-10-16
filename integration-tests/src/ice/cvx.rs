@@ -27,9 +27,9 @@ impl OmnipoolInfo<AssetId> for MockOmniInfo {
 			},
 			OmnipoolAssetInfo {
 				asset_id: 2,
-				reserve: 1333333_333333333333,
+				reserve: 1333333_3333333333,
 				hub_reserve: 10000000_000_000_000_000,
-				decimals: 12,
+				decimals: 10,
 				fee: Permill::from_float(0.0025),
 				hub_fee: Permill::from_float(0.0005),
 			},
@@ -65,7 +65,7 @@ fn test_cvx() {
 			swap: Swap {
 				asset_in: 2,
 				asset_out: 20,
-				amount_in: 100_000_000_000_000,
+				amount_in: 100_000_000_000_0,
 				amount_out: 700_000_000_000_000,
 				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
@@ -100,7 +100,7 @@ fn test_cvx() {
 				asset_in: 20,
 				asset_out: 2,
 				amount_in: 400_000_000_000_000,
-				amount_out: 50_000_000_000_000,
+				amount_out: 50_000_000_000_0,
 				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
 			deadline,
@@ -137,7 +137,7 @@ fn test_cvx() {
 		vec![
 			pallet_ice::types::ResolvedIntent {
 				intent_id: 1,
-				amount_in: 100_000_000_000_000,
+				amount_in: 100_000_000_000_0,
 				amount_out: 700_000_000_000_000,
 			},
 			pallet_ice::types::ResolvedIntent {
@@ -148,7 +148,7 @@ fn test_cvx() {
 			pallet_ice::types::ResolvedIntent {
 				intent_id: 3,
 				amount_in: 400_000_000_000_000,
-				amount_out: 50_000_000_000_000,
+				amount_out: 50_000_000_000_0,
 			},
 		]
 	);

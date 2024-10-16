@@ -317,11 +317,6 @@ where
 			score: 0,
 		};
 
-		assert_eq!(
-			intent_deltas,
-			vec![(-100., 700.), (-1500., 100000.), (-400., 50.), (0., -0.)]
-		);
-
 		Ok(solution)
 	}
 }
