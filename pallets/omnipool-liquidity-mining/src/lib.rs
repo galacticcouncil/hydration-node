@@ -892,7 +892,15 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(13)]
+		/// This function allows user to join multiple farms with a single omnipool position.
+		///
+		/// Parameters:
+		/// - `origin`: owner of the omnipool position to deposit into the liquidity mining.
+		/// - `farm_entries`: list of farms to join.
+		/// - `position_id`: id of the omnipool position to be deposited into the liquidity mining.
+		///
+		/// Emits `SharesDeposited` event for the first farm entry
+		/// Emits `SharesRedeposited` event for each farm entry after the first one		#[pallet::call_index(13)]
 		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
 		pub fn join_farms(
 			origin: OriginFor<T>,
@@ -901,7 +909,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
-			//TODO: integration test join all the farms, run, iterate throuh all the yarms and withdraw
 
 			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmEntriesSpecified)?;
 			let (deposit_id, lp_position) =
@@ -929,7 +936,17 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(14)]
+		//Generate documentation similar we have for other extrinsics
+		/// This function allows user to add liquidity then use that shares to join multiple farms.
+		///
+		/// Parameters:
+		/// - `origin`: owner of the omnipool position to deposit into the liquidity mining.
+		/// - `farm_entries`: list of farms to join.
+		/// - `asset`: id of the asset to be deposited into the liquidity mining.
+		/// - `amount`: amount of the asset to be deposited into the liquidity mining.
+		///
+		/// Emits `SharesDeposited` event for the first farm entry
+		/// Emits `SharesRedeposited` event for each farm entry after the first one		#[pallet::call_index(14)]
 		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
 		pub fn add_liquidity_and_join_farms(
 			origin: OriginFor<T>,
@@ -937,7 +954,6 @@ pub mod pallet {
 			asset: T::AssetId,
 			amount: Balance,
 		) -> DispatchResult {
-			//TODO: integration test join all the farms, run, iterate throuh all the yarms and withdraw
 			ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
 

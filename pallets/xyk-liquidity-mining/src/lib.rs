@@ -710,7 +710,19 @@ pub mod pallet {
 			Ok(())
 		}
 
-		//TODO: add doc and for every new extruinsucs
+		/// Join multiple farms with a given share amount
+		///
+		/// The share is deposited to the first farm of the specified fams,
+		/// and then redeposit the shares to the remaining farms
+		///
+		/// Parameters:
+		/// - `origin`: account depositing LP shares. This account has to have at least
+		/// - `farm_entries`: list of global farm id and yield farm id pairs to join
+		/// - `asset_pair`: asset pair identifying LP shares user wants to deposit.
+		/// - `shares_amount`: amount of LP shares user wants to deposit.
+		///
+		/// Emits `SharesDeposited` event for the first farm entry
+		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		#[pallet::call_index(12)]
 		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
 		pub fn join_farms(
@@ -722,15 +734,11 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmsSpecified);
 
-			//TODO: integration test join all the farms, run, iterate throuh all the yarms and withdraw
-
-			let amm_share_token = T::AMM::get_share_token(asset_pair);
-
 			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmsSpecified)?;
 			let deposit_id =
 				Self::do_deposit_shares(origin, *global_farm_id, *yield_farm_id, asset_pair, shares_amount)?;
 
-			// Redeposit for the remaining farm entries
+			let amm_share_token = T::AMM::get_share_token(asset_pair);
 			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
 				let (redeposited_amount, _) = T::LiquidityMiningHandler::redeposit_lp_shares(
 					global_farm_id,
@@ -752,6 +760,21 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Add liquidity to XYK pool and join multiple farms with a given share amount
+		///
+		/// The share is deposited to the first farm of the specified entries,
+		/// and then redeposit the shares to the remaining farms
+		///
+		/// Parameters:
+		/// - `origin`: account depositing LP shares. This account has to have at least
+		/// - `asset_a`: asset id of the first asset in the pair
+		/// - `asset_b`: asset id of the second asset in the pair
+		/// - `amount_a`: amount of the first asset to deposit
+		/// - `amount_b_max_limit`: maximum amount of the second asset to deposit
+		/// - `farm_entries`: list of global farm id and yield farm id pairs to join
+		///
+		/// Emits `SharesDeposited` event for the first farm entry
+		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
 		pub fn add_liquidity_and_join_farms(
 			origin: OriginFor<T>,
@@ -763,7 +786,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmsSpecified);
-			//TODO: inregration, add liq and join farms, and withdraw
 			//TODO: write in channel if we need withdraw all?!
 
 			let asset_pair = AssetPair {
