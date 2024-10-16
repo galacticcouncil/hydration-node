@@ -73,13 +73,8 @@ fn join_farms_should_work_with_single_yield_farm() {
 		.execute_with(|| {
 			let gc_g_farm_id = 1;
 			let gc_y_farm_id = 4;
-			let charlie_g_farm_id = 2;
-			let charlie_y_farm_id = 5;
-			let bob_g_farm_id = 3;
-			let bob_y_farm_id = 6;
 			let omnipool_position_id = 2;
 			let deposit_id = 1;
-			let asset_in_position = KSM;
 			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
 
 			assert_ok!(OmnipoolMining::join_farms(

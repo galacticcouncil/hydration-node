@@ -73,7 +73,6 @@ use primitives::{Balance, ItemId as DepositId};
 use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
 use sp_std::vec;
 
-use hydra_dx_math::omnipool::types::Position;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -939,12 +938,11 @@ pub mod pallet {
 			amount: Balance,
 		) -> DispatchResult {
 			//TODO: integration test join all the farms, run, iterate throuh all the yarms and withdraw
-			let who = ensure_signed(origin.clone())?;
+			ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
 
 			let position_id =
 				OmnipoolPallet::<T>::do_add_liquidity_with_limit(origin.clone(), asset, amount, Balance::MIN)?;
-			let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
 
 			Self::join_farms(origin, farm_entries, position_id)?;
 

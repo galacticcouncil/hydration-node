@@ -87,10 +87,6 @@ fn add_liquidity_and_join_farms_should_work_with_single_yield_farm() {
 		.execute_with(|| {
 			let gc_g_farm_id = 1;
 			let gc_y_farm_id = 4;
-			let charlie_g_farm_id = 2;
-			let charlie_y_farm_id = 5;
-			let bob_g_farm_id = 3;
-			let bob_y_farm_id = 6;
 			let omnipool_position_id = 3;
 			let deposit_id = 1;
 			let asset_in_position = KSM;
@@ -111,7 +107,7 @@ fn add_liquidity_and_join_farms_should_work_with_single_yield_farm() {
 					reserve: token_amount + amount,
 					hub_reserve: 1313 * ONE,
 					shares: token_amount + amount,
-					protocol_shares: Balance::zero(),
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -249,7 +245,7 @@ fn join_farms_should_work_with_multiple_yield_farm() {
 					reserve: token_amount + amount,
 					hub_reserve: 1_306_500_000_000_000,
 					shares: token_amount + amount,
-					protocol_shares: Balance::zero(),
+					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -477,7 +473,6 @@ fn join_farms_should_fail_when_no_farms_specified() {
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None) //id: 4
 		.build()
 		.execute_with(|| {
-			let shares_amount = 10 * ONE;
 			let farms = vec![];
 
 			assert_noop!(
