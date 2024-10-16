@@ -177,6 +177,7 @@ where
 
 		let convert_to_f64 = |a: Balance, dec: u8| -> f64 {
 			let factor = 10u128.pow(dec as u32);
+			// FixedU128::from_rational(a, factor).to_float() -> this gives slightly different results but it should be more precise?!!
 			a as f64 / factor as f64
 		};
 
@@ -221,8 +222,6 @@ where
 				.map(|(i, f)| f * (fees[i] - 1.))
 				.collect(),
 		);
-
-		// d_coefs = sparse.csc_matrix([[phi[i,j]*intent_prices[j] - tau[i, j] for j in range(m)] for i in range(1,n+1)])
 
 		let d = (1..n + 1)
 			.map(|i| {
@@ -310,6 +309,8 @@ where
 				resolved_intents.push(resolved_intent);
 			}
 		}
+
+		//TODO: figure trades and score
 
 		let solution = SolverSolution {
 			intents: resolved_intents,
