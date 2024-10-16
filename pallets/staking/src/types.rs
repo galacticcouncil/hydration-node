@@ -1,6 +1,5 @@
 use crate::traits::ActionData;
 use codec::{Decode, Encode, MaxEncodedLen};
-use pallet_democracy::ReferendumIndex;
 use scale_info::TypeInfo;
 use sp_core::bounded::BoundedVec;
 use sp_core::Get;
@@ -10,6 +9,8 @@ use sp_runtime::{traits::Zero, ArithmeticError, FixedU128};
 pub type Balance = u128;
 pub type Point = u128;
 pub type Period = u128;
+
+pub type ReferendumIndex = u32;
 
 pub enum Action {
 	DemocracyVote,

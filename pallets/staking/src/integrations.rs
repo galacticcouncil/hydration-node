@@ -1,1 +1,1 @@
-pub mod democracy;
+pub mod conviction_voting;

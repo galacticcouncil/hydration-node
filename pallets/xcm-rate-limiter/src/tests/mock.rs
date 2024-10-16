@@ -250,7 +250,7 @@ impl pallet_omnipool::Config for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type UpdateTradabilityOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
