@@ -263,9 +263,18 @@ where
 		let mut cones = vec![cone1, cone2, cone3];
 		cones.extend(cones4);
 
-		let settings = DefaultSettings::default();
+		//let settings = DefaultSettings::default();
+		let settings = DefaultSettingsBuilder::default()
+			.verbose(false)
+			.time_limit(f64::INFINITY)
+			.max_iter(1000000)
+			.build()
+			.unwrap();
 		let mut solver = DefaultSolver::new(&P, &q, &A, &b, &cones, settings);
 		solver.solve();
+
+		let status = solver.solution.status;
+		dbg!(status);
 
 		let x = solver.solution.x;
 
@@ -278,6 +287,8 @@ where
 		for i in 0..intents.len() {
 			exec_intent_deltas[i] = -x[4 * n + i] * scaling[&intents[i].1.swap.asset_in];
 		}
+
+		dbg!(&exec_intent_deltas);
 
 		let sell_deltas = round_solution::<T>(&converted_intent_amounts, exec_intent_deltas, 0.0001);
 

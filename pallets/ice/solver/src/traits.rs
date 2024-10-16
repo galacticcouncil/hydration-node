@@ -9,7 +9,9 @@ pub trait ICESolver<Intent> {
 	fn solve(intents: Vec<Intent>) -> Result<Self::Solution, Self::Error>;
 }
 
+#[derive(Debug)]
 pub struct OmnipoolAssetInfo<AssetId> {
+	pub symbol: String,
 	pub asset_id: AssetId,
 	pub reserve: Balance,
 	pub hub_reserve: Balance,

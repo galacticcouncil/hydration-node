@@ -3,7 +3,9 @@ use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use hydradx_adapters::OraclePriceProvider;
-use hydradx_runtime::{Currencies, EmaOracle, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT};
+use hydradx_runtime::{
+	Currencies, EmaOracle, Omnipool, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT,
+};
 use ice_solver::traits::{ICESolver, OmnipoolAssetInfo, OmnipoolInfo};
 use orml_traits::MultiCurrency;
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
@@ -25,6 +27,58 @@ pub(crate) fn solve_intents(
 	Ok((resolved_intents, trades, solved.score))
 }
 
+use hydradx_traits::registry::Inspect;
+struct OmnipoolDataProvider;
+
+impl OmnipoolInfo<AssetId> for OmnipoolDataProvider {
+	fn assets() -> Vec<OmnipoolAssetInfo<AssetId>> {
+		let mut assets = vec![];
+		for (asset_id, state) in Omnipool::omnipool_state() {
+			if asset_id != 0 && asset_id != 27 {
+				//continue;
+			}
+			let decimals = hydradx_runtime::AssetRegistry::decimals(asset_id).unwrap();
+			let details = hydradx_runtime::AssetRegistry::assets(asset_id).unwrap();
+			let symbol = details.symbol.unwrap();
+			let s = String::from_utf8(symbol.to_vec()).unwrap();
+			let fees = hydradx_runtime::DynamicFees::current_fees(asset_id).unwrap();
+			assets.push(OmnipoolAssetInfo {
+				asset_id,
+				reserve: state.reserve,
+				hub_reserve: state.hub_reserve,
+				decimals,
+				fee: fees.asset_fee,
+				hub_fee: fees.protocol_fee,
+				symbol: s,
+			});
+		}
+		assets
+	}
+}
+
+/*
+fn print_python(assets: &[OmnipoolAssetInfo<AssetId>]) {
+	// print info in this format
+	// liquidity = {'HDX': mpf(100000000), 'USDT': mpf(10000000), 'DOT': mpf(10000000 / 7.5)}
+	// lrna = {'HDX': mpf(1000000), 'USDT': mpf(10000000), 'DOT': mpf(10000000)}
+	let convert_to_f64 = |a: Balance, dec: u8| -> f64 {
+		let factor = 10u128.pow(dec as u32);
+		// FixedU128::from_rational(a, factor).to_float() -> this gives slightly different results but it should be more precise?!!
+		a as f64 / factor as f64
+	};
+	let mut liquidity = String::from("liquidity = {");
+	let mut lrna = String::from("lrna = {");
+	for asset in assets {
+		liquidity.push_str(&format!("'{}': mpf({}), ", asset.symbol, convert_to_f64(asset.reserve, asset.decimals)));
+		lrna.push_str(&format!("'{}': mpf({}), ", asset.symbol, convert_to_f64(asset.hub_reserve, 12u8)));
+	}
+	liquidity.push_str("}");
+	lrna.push_str("}");
+	println!("{}", liquidity);
+	println!("{}", lrna);
+}
+*/
+
 // the following test has been used to compare results between python and rust implementation
 struct MockOmniInfo;
 
@@ -38,6 +92,7 @@ impl OmnipoolInfo<AssetId> for MockOmniInfo {
 				decimals: 12,
 				fee: Permill::from_float(0.0025),
 				hub_fee: Permill::from_float(0.0005),
+				symbol: String::from_utf8(b"HDX".to_vec()).unwrap(),
 			},
 			OmnipoolAssetInfo {
 				asset_id: 2,
@@ -46,6 +101,7 @@ impl OmnipoolInfo<AssetId> for MockOmniInfo {
 				decimals: 10,
 				fee: Permill::from_float(0.0025),
 				hub_fee: Permill::from_float(0.0005),
+				symbol: String::from_utf8(b"HDX".to_vec()).unwrap(),
 			},
 			OmnipoolAssetInfo {
 				asset_id: 20,
@@ -54,6 +110,7 @@ impl OmnipoolInfo<AssetId> for MockOmniInfo {
 				decimals: 12,
 				fee: Permill::from_float(0.0025),
 				hub_fee: Permill::from_float(0.0005),
+				symbol: String::from_utf8(b"HDX".to_vec()).unwrap(),
 			},
 		]
 	}
@@ -163,20 +220,79 @@ const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2024-10-18";
 #[test]
 fn test_omnipool_snapshot() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		OmnipoolDataProvider::assets();
 		//let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
-		let initial_balance20 = Currencies::free_balance(20, &AccountId32::from(BOB));
+		let buy_asset = 27;
+		let initial_balance20 = Currencies::free_balance(buy_asset, &AccountId32::from(BOB));
 		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000);
 
 		assert_ok!(Router::sell(
 			RuntimeOrigin::signed(BOB.into()),
 			0,
-			20,
+			buy_asset,
 			100_000_000_000_000,
 			0,
 			vec![]
 		));
-		let balance20 = Currencies::free_balance(20, &AccountId32::from(BOB));
+		let balance20 = Currencies::free_balance(buy_asset, &AccountId32::from(BOB));
 
-		assert_eq!(balance20 - initial_balance20, 189873789846076);
+		assert_eq!(balance20 - initial_balance20, 1249711278057);
+	});
+}
+
+#[test]
+fn solver_should_find_solution_with_matching_intents() {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000);
+
+		let deadline: Moment = NOW + 43_200_000;
+		let intent1 = (
+			1u128,
+			Intent {
+				who: BOB.into(),
+				swap: Swap {
+					asset_in: 0,
+					asset_out: 27,
+					amount_in: 100_000_000_000_000,
+					amount_out: 1149711278057,
+					swap_type: pallet_ice::types::SwapType::ExactIn,
+				},
+				deadline,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			},
+		);
+		let intent2 = (
+			2u128,
+			Intent {
+				who: BOB.into(),
+				swap: Swap {
+					asset_in: 27,
+					asset_out: 0,
+					amount_out: 100_000_000_000_000,
+					amount_in: 1149711278057,
+					swap_type: pallet_ice::types::SwapType::ExactIn,
+				},
+				deadline,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			},
+		);
+
+		let intents = vec![intent1, intent2];
+		let solved =
+			ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, OmnipoolDataProvider>::solve(intents)
+				.unwrap();
+
+		assert_eq!(
+			solved.intents,
+			vec![pallet_ice::types::ResolvedIntent {
+				intent_id: 1,
+				amount_in: 100_000_000_000_000,
+				amount_out: 1149711278057,
+			},]
+		);
 	});
 }
