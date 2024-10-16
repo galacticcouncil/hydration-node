@@ -20,6 +20,7 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
+use crate::evm::gas_to_weight_mapping::FixedHydraGasWeightMapping;
 use crate::evm::runner::WrapRunner;
 use crate::types::ShortOraclePrice;
 pub use crate::{
@@ -44,9 +45,9 @@ use pallet_evm::EnsureAddressTruncated;
 use pallet_transaction_payment::Multiplier;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
-
 mod accounts_conversion;
 mod evm_fee;
+mod gas_to_weight_mapping;
 pub mod permit;
 pub mod precompiles;
 mod runner;
@@ -136,7 +137,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type Currency = WethCurrency;
 	type FeeCalculator = crate::DynamicEvmFee;
 	type FindAuthor = FindAuthorTruncated<crate::Runtime, Aura>;
-	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
+	type GasWeightMapping = FixedHydraGasWeightMapping<Self>;
 	type OnChargeTransaction = evm_fee::TransferEvmFees<
 		evm_fee::DepositEvmFeeToTreasury,
 		FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset

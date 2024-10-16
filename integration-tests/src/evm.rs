@@ -37,6 +37,7 @@ pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 mod account_conversion {
 	use super::*;
+	use fp_evm::ExitSucceed;
 	use frame_support::{assert_noop, assert_ok};
 	use pretty_assertions::assert_eq;
 
@@ -282,6 +283,41 @@ mod account_conversion {
 				false,
 				None,
 			));
+		});
+	}
+
+	#[test]
+	fn evm_transaction_with_low_weight_should_work_having_no_out_of_gas_error() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			Balances::set_balance(&evm_account(), 1000 * UNITS);
+
+			let data =
+				hex!["4f003679d1d8e31d312a55f7ca994773b6a4fc7a92f07d898ae86bad4f3cab303c49000000000b00a0724e1809"]
+					.to_vec();
+
+			//Act & Assert
+			let res = hydradx_runtime::Runtime::call(
+				evm_address(), // from
+				DISPATCH_ADDR, // to
+				data,          // data
+				U256::from(0u64),
+				U256::from(52000u64),
+				None,
+				None,
+				None,
+				false,
+				None,
+			);
+
+			assert_eq!(
+				res.clone().unwrap().exit_reason,
+				ExitReason::Succeed(ExitSucceed::Stopped)
+			);
+
+			println!("{:?}", res);
 		});
 	}
 
