@@ -12,9 +12,9 @@ use xcm_emulator::TestExt;
 type PriceP =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
 
-struct OmniInfo;
+struct MockOmniInfo;
 
-impl OmnipoolInfo<AssetId> for OmniInfo {
+impl OmnipoolInfo<AssetId> for MockOmniInfo {
 	fn assets() -> Vec<OmnipoolAssetInfo<AssetId>> {
 		vec![
 			OmnipoolAssetInfo {
@@ -27,9 +27,9 @@ impl OmnipoolInfo<AssetId> for OmniInfo {
 			},
 			OmnipoolAssetInfo {
 				asset_id: 2,
-				reserve: 1333333_3333333333,
+				reserve: 1333333_333333333333,
 				hub_reserve: 10000000_000_000_000_000,
-				decimals: 10,
+				decimals: 12,
 				fee: Permill::from_float(0.0025),
 				hub_fee: Permill::from_float(0.0005),
 			},
@@ -49,7 +49,7 @@ pub(crate) fn solve_intents(
 	intents: Vec<(IntentId, pallet_ice::types::Intent<AccountId, AssetId>)>,
 ) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()> {
 	let solved =
-		ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, OmniInfo>::solve(intents)?;
+		ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, MockOmniInfo>::solve(intents)?;
 	let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
 	let trades = BoundedTrades::try_from(solved.trades).unwrap();
 	Ok((resolved_intents, trades, solved.score))
@@ -65,8 +65,8 @@ fn test_cvx() {
 			swap: Swap {
 				asset_in: 2,
 				asset_out: 20,
-				amount_in: 100,
-				amount_out: 700,
+				amount_in: 100_000_000_000_000,
+				amount_out: 700_000_000_000_000,
 				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
 			deadline,
@@ -82,8 +82,8 @@ fn test_cvx() {
 			swap: Swap {
 				asset_in: 20,
 				asset_out: 0,
-				amount_in: 1500,
-				amount_out: 100_000,
+				amount_in: 1500_000_000_000_000,
+				amount_out: 100_000_000_000_000_000,
 				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
 			deadline,
@@ -99,8 +99,8 @@ fn test_cvx() {
 			swap: Swap {
 				asset_in: 20,
 				asset_out: 2,
-				amount_in: 400,
-				amount_out: 50,
+				amount_in: 400_000_000_000_000,
+				amount_out: 50_000_000_000_000,
 				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
 			deadline,
@@ -116,8 +116,8 @@ fn test_cvx() {
 			swap: Swap {
 				asset_in: 0,
 				asset_out: 20,
-				amount_in: 100,
-				amount_out: 100,
+				amount_in: 100_000_000_000_000,
+				amount_out: 100_000_000_000_000,
 				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
 			deadline,
@@ -126,5 +126,30 @@ fn test_cvx() {
 			on_failure: None,
 		},
 	);
-	let result = solve_intents(vec![intent1, intent2, intent3, intent4]);
+
+	let intents = vec![intent1, intent2, intent3, intent4];
+	let solved =
+		ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, MockOmniInfo>::solve(intents)
+			.unwrap();
+
+	assert_eq!(
+		solved.intents,
+		vec![
+			pallet_ice::types::ResolvedIntent {
+				intent_id: 1,
+				amount_in: 100_000_000_000_000,
+				amount_out: 700_000_000_000_000,
+			},
+			pallet_ice::types::ResolvedIntent {
+				intent_id: 2,
+				amount_in: 1500_000_000_000_000,
+				amount_out: 100_000_000_000_000_000,
+			},
+			pallet_ice::types::ResolvedIntent {
+				intent_id: 3,
+				amount_in: 400_000_000_000_000,
+				amount_out: 50_000_000_000_000,
+			},
+		]
+	);
 }

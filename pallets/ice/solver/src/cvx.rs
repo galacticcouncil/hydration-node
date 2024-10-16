@@ -44,18 +44,14 @@ where
 	(tau, phi)
 }
 
-fn round_solution<T: pallet_ice::Config>(
-	intents: &[Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>],
-	intent_deltas: Vec<f64>,
-	tolerance: f64,
-) -> Vec<f64> {
+fn round_solution<T: pallet_ice::Config>(intents: &[(f64, f64)], intent_deltas: Vec<f64>, tolerance: f64) -> Vec<f64> {
 	let mut deltas = Vec::new();
 	for i in 0..intents.len() {
 		// don't leave dust in intent due to rounding error
-		if intents[i].swap.amount_in as f64 + intent_deltas[i] < tolerance * intents[i].swap.amount_in as f64 {
-			deltas.push(-(intents[i].swap.amount_in as f64));
+		if intents[i].0 + intent_deltas[i] < tolerance * intents[i].0 {
+			deltas.push(-(intents[i].0));
 		// don't trade dust amount due to rounding error
-		} else if -intent_deltas[i] <= tolerance * intents[i].swap.amount_in as f64 {
+		} else if -intent_deltas[i] <= tolerance * intents[i].0 {
 			deltas.push(0.);
 		} else {
 			deltas.push(intent_deltas[i]);
@@ -64,13 +60,10 @@ fn round_solution<T: pallet_ice::Config>(
 	deltas
 }
 
-fn add_buy_deltas<T: pallet_ice::Config>(
-	intents: &[Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>],
-	sell_deltas: Vec<f64>,
-) -> Vec<(f64, f64)> {
+fn add_buy_deltas<T: pallet_ice::Config>(intent_prices: &[f64], sell_deltas: Vec<f64>) -> Vec<(f64, f64)> {
 	let mut deltas = Vec::new();
-	for i in 0..intents.len() {
-		let b = (-sell_deltas[i] * intents[i].swap.amount_out as f64 / intents[i].swap.amount_in as f64);
+	for i in 0..intent_prices.len() {
+		let b = -sell_deltas[i] * intent_prices[i];
 		deltas.push((sell_deltas[i], b));
 	}
 	deltas
@@ -86,13 +79,24 @@ fn diags(n: usize, m: usize, data: Vec<f64>) -> CscMatrix {
 
 fn prepare_omnipool_data<T: pallet_ice::Config>(
 	info: Vec<OmnipoolAssetInfo<T::AssetId>>,
-) -> (Vec<T::AssetId>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>) {
+) -> (
+	Vec<T::AssetId>,
+	Vec<f64>,
+	Vec<f64>,
+	Vec<f64>,
+	Vec<f64>,
+	HashMap<T::AssetId, u8>,
+)
+where
+	T::AssetId: sp_std::hash::Hash,
+{
 	let asset_ids = info.iter().map(|i| i.asset_id).collect::<Vec<_>>();
 	let asset_reserves = info.iter().map(|i| i.reserve_as_f64()).collect::<Vec<_>>();
 	let hub_reserves = info.iter().map(|i| i.hub_reserve_as_f64()).collect::<Vec<_>>();
 	let fees = info.iter().map(|i| i.fee_as_f64()).collect::<Vec<_>>();
 	let hub_fees = info.iter().map(|i| i.hub_fee_as_f64()).collect::<Vec<_>>();
-	(asset_ids, asset_reserves, hub_reserves, fees, hub_fees)
+	let decimals = info.iter().map(|i| (i.asset_id, i.decimals)).collect::<HashMap<_, _>>();
+	(asset_ids, asset_reserves, hub_reserves, fees, hub_fees, decimals)
 }
 
 pub struct CVXSolver<T, R, RP, PP, OI>(sp_std::marker::PhantomData<(T, R, RP, PP, OI)>);
@@ -119,7 +123,8 @@ where
 		intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>,
 	) -> Result<Self::Solution, Self::Error> {
 		let omnipool_data = OI::assets();
-		let (asset_ids, asset_reserves, hub_reserves, fees, lrna_fees) = prepare_omnipool_data::<T>(omnipool_data);
+		let (asset_ids, asset_reserves, hub_reserves, fees, lrna_fees, decimals) =
+			prepare_omnipool_data::<T>(omnipool_data);
 
 		let mut tkns: Vec<T::AssetId> = vec![1u32.into()];
 		tkns.extend(asset_ids.iter().cloned());
@@ -170,13 +175,27 @@ where
 		let b1: Vec<f64> = vec![0.; k];
 		let cone1 = NonnegativeConeT(k);
 
+		let convert_to_f64 = |a: Balance, dec: u8| -> f64 {
+			let factor = 10u128.pow(dec as u32);
+			a as f64 / factor as f64
+		};
+
+		let mut converted_intent_amounts: Vec<(f64, f64)> = Vec::new();
+
+		for (_, intent) in intents.iter() {
+			let amount_in = convert_to_f64(intent.swap.amount_in, *decimals.get(&intent.swap.asset_in).unwrap());
+			let amount_out = convert_to_f64(intent.swap.amount_out, *decimals.get(&intent.swap.asset_out).unwrap());
+			converted_intent_amounts.push((amount_in, amount_out));
+		}
+
 		// intents cannot sell more than they have
 		let amm_coefs = CscMatrix::zeros((m, 4 * n));
 		let d_coefs = CscMatrix::identity(m);
 		let A2 = CscMatrix::hcat(&amm_coefs, &d_coefs);
 		let b2 = intents
 			.iter()
-			.map(|intent| (intent.1.swap.amount_in as f64, intent.1.swap.asset_in)) //TODO: amohn tto f64 using amoutn and asset decimenals
+			.enumerate()
+			.map(|(idx, intent)| (converted_intent_amounts[idx].0, intent.1.swap.asset_in))
 			.map(|(amount, asset_in)| amount / scaling[&asset_in])
 			.collect::<Vec<_>>();
 		let cone2 = NonnegativeConeT(m);
@@ -186,10 +205,11 @@ where
 		let b30 = vec![0.];
 
 		// other assets
-		let intent_prices = intents
+		let intent_prices = converted_intent_amounts
 			.iter()
-			.map(|intent| FixedU128::from_rational(intent.1.swap.amount_out, intent.1.swap.amount_in).to_float())
+			.map(|intent| intent.1 / intent.0)
 			.collect::<Vec<_>>();
+
 		let lrna_coefs = CscMatrix::zeros((n, 2 * n));
 		let delta_coefs = diags(n, n, asset_reserves.to_vec());
 		let lambda_coefs = diags(
@@ -262,22 +282,46 @@ where
 			exec_intent_deltas[i] = -x[4 * n + i] * scaling[&intents[i].1.swap.asset_in];
 		}
 
-		let sell_deltas = round_solution::<T>(
-			&intents.iter().map(|(_, intent)| intent.clone()).collect::<Vec<_>>(),
-			exec_intent_deltas,
-			0.0001,
-		);
+		let sell_deltas = round_solution::<T>(&converted_intent_amounts, exec_intent_deltas, 0.0001);
 
-		let intent_deltas = add_buy_deltas::<T>(
-			&intents.iter().map(|(_, intent)| intent.clone()).collect::<Vec<_>>(),
-			sell_deltas,
-		);
+		let intent_deltas = add_buy_deltas::<T>(&intent_prices, sell_deltas);
+
+		// Construct the solution
+		let mut resolved_intents = Vec::new();
+
+		let convert_to_balance = |a: f64, dec: u8| -> Balance {
+			let factor = 10u128.pow(dec as u32);
+			(a * factor as f64) as Balance
+		};
+
+		for (i, intent) in intents.iter().enumerate() {
+			if intent_deltas[i].0 != 0. && intent_deltas[i].1 != 0. {
+				let resolved_intent = ResolvedIntent {
+					intent_id: intent.0,
+					amount_in: convert_to_balance(
+						-intent_deltas[i].0,
+						decimals.get(&intent.1.swap.asset_in).unwrap().clone(),
+					),
+					amount_out: convert_to_balance(
+						intent_deltas[i].1,
+						decimals.get(&intent.1.swap.asset_out).unwrap().clone(),
+					),
+				};
+				resolved_intents.push(resolved_intent);
+			}
+		}
+
+		let solution = SolverSolution {
+			intents: resolved_intents,
+			trades: vec![],
+			score: 0,
+		};
 
 		assert_eq!(
 			intent_deltas,
 			vec![(-100., 700.), (-1500., 100000.), (-400., 50.), (0., -0.)]
 		);
 
-		Err(())
+		Ok(solution)
 	}
 }
