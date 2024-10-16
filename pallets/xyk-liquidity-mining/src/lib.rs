@@ -47,7 +47,7 @@ pub use crate::weights::WeightInfo;
 pub use pallet::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
-use frame_support::{ensure, sp_runtime::traits::Zero, PalletId};
+use frame_support::{ensure, require_transactional, sp_runtime::traits::Zero, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::liquidity_mining::{
 	GlobalFarmId, Inspect as LiquidityMiningInspect, Mutate as LiquidityMiningMutate, YieldFarmId,
@@ -705,35 +705,7 @@ pub mod pallet {
 			asset_pair: AssetPair,
 			shares_amount: Balance,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			let amm_pool_id = Self::ensure_xyk(asset_pair)?;
-
-			let amm_share_token = T::AMM::get_share_token(asset_pair);
-
-			ensure!(
-				T::Currencies::ensure_can_withdraw(amm_share_token, &who, shares_amount).is_ok(),
-				Error::<T>::InsufficientXykSharesBalance
-			);
-
-			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
-				global_farm_id,
-				yield_farm_id,
-				amm_pool_id,
-				shares_amount,
-				Self::get_token_value_of_lp_shares,
-			)?;
-
-			Self::lock_lp_tokens(amm_share_token, &who, shares_amount)?;
-			T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &deposit_id, &who)?;
-
-			Self::deposit_event(Event::SharesDeposited {
-				global_farm_id,
-				yield_farm_id,
-				who,
-				amount: shares_amount,
-				lp_token: amm_share_token,
-				deposit_id,
-			});
+			Self::do_deposit_shares(origin, global_farm_id, yield_farm_id, asset_pair, shares_amount)?;
 
 			Ok(())
 		}
@@ -746,39 +718,16 @@ pub mod pallet {
 			asset_pair: AssetPair,
 			shares_amount: Balance,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let who = ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmsSpecified);
 
 			//TODO: integration test join all the farms, run, iterate throuh all the yarms and withdraw
 
-			let amm_pool_id = Self::ensure_xyk(asset_pair)?;
 			let amm_share_token = T::AMM::get_share_token(asset_pair);
 
-			ensure!(
-				T::Currencies::ensure_can_withdraw(amm_share_token, &who, shares_amount).is_ok(),
-				Error::<T>::InsufficientXykSharesBalance
-			);
-
 			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmsSpecified)?;
-			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
-				*global_farm_id,
-				*yield_farm_id,
-				amm_pool_id.clone(),
-				shares_amount,
-				Self::get_token_value_of_lp_shares,
-			)?;
-
-			Self::lock_lp_tokens(amm_share_token, &who, shares_amount)?;
-			T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &deposit_id, &who)?;
-
-			Self::deposit_event(Event::SharesDeposited {
-				global_farm_id: *global_farm_id,
-				yield_farm_id: *yield_farm_id,
-				who: who.clone(),
-				amount: shares_amount,
-				lp_token: amm_share_token,
-				deposit_id,
-			});
+			let deposit_id =
+				Self::do_deposit_shares(origin, *global_farm_id, *yield_farm_id, asset_pair, shares_amount)?;
 
 			// Redeposit for the remaining farm entries
 			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
@@ -826,8 +775,6 @@ pub mod pallet {
 			let amm_pool_id = T::AMM::get_pair_id(asset_pair);
 			let share_token = T::AMM::get_share_token(asset_pair);
 			let shares_amount = T::Currencies::free_balance(share_token, &who);
-
-			//TODO: consider using join farms directly.
 
 			Self::join_farms(origin, farm_entries, asset_pair, shares_amount)?;
 
@@ -1051,5 +998,46 @@ impl<T: Config> Pallet<T> {
 		ensure!(nft_owner == who, Error::<T>::NotDepositOwner);
 
 		Ok(who)
+	}
+
+	#[require_transactional]
+	fn do_deposit_shares(
+		origin: OriginFor<T>,
+		global_farm_id: GlobalFarmId,
+		yield_farm_id: YieldFarmId,
+		asset_pair: AssetPair,
+		shares_amount: Balance,
+	) -> Result<DepositId, DispatchError> {
+		let who = ensure_signed(origin)?;
+		let amm_pool_id = Self::ensure_xyk(asset_pair)?;
+
+		let amm_share_token = T::AMM::get_share_token(asset_pair);
+
+		ensure!(
+			T::Currencies::ensure_can_withdraw(amm_share_token, &who, shares_amount).is_ok(),
+			Error::<T>::InsufficientXykSharesBalance
+		);
+
+		let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
+			global_farm_id,
+			yield_farm_id,
+			amm_pool_id,
+			shares_amount,
+			Self::get_token_value_of_lp_shares,
+		)?;
+
+		Self::lock_lp_tokens(amm_share_token, &who, shares_amount)?;
+		T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &deposit_id, &who)?;
+
+		Self::deposit_event(Event::SharesDeposited {
+			global_farm_id,
+			yield_farm_id,
+			who,
+			amount: shares_amount,
+			lp_token: amm_share_token,
+			deposit_id,
+		});
+
+		Ok(deposit_id)
 	}
 }
