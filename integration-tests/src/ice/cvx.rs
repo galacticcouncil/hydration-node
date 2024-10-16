@@ -12,6 +12,17 @@ use xcm_emulator::TestExt;
 type PriceP =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
 
+pub(crate) fn solve_intents(
+	intents: Vec<(IntentId, pallet_ice::types::Intent<AccountId, AssetId>)>,
+) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()> {
+	let solved =
+		ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, MockOmniInfo>::solve(intents)?;
+	let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
+	let trades = BoundedTrades::try_from(solved.trades).unwrap();
+	Ok((resolved_intents, trades, solved.score))
+}
+
+// the following test has been used to compare results between python and rust implementation
 struct MockOmniInfo;
 
 impl OmnipoolInfo<AssetId> for MockOmniInfo {
@@ -45,18 +56,8 @@ impl OmnipoolInfo<AssetId> for MockOmniInfo {
 	}
 }
 
-pub(crate) fn solve_intents(
-	intents: Vec<(IntentId, pallet_ice::types::Intent<AccountId, AssetId>)>,
-) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()> {
-	let solved =
-		ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, MockOmniInfo>::solve(intents)?;
-	let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-	let trades = BoundedTrades::try_from(solved.trades).unwrap();
-	Ok((resolved_intents, trades, solved.score))
-}
-
 #[test]
-fn test_cvx() {
+fn test_specific_mock_scenario() {
 	let deadline: Moment = NOW + 43_200_000;
 	let intent1 = (
 		1u128,
