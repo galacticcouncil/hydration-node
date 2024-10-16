@@ -899,7 +899,6 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
 			position_id: T::PositionItemId,
-			shares_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
@@ -947,7 +946,7 @@ pub mod pallet {
 				OmnipoolPallet::<T>::do_add_liquidity_with_limit(origin.clone(), asset, amount, Balance::MIN)?;
 			let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
 
-			Self::join_farms(origin, farm_entries, position_id, lp_position.shares)?;
+			Self::join_farms(origin, farm_entries, position_id)?;
 
 			Ok(())
 		}

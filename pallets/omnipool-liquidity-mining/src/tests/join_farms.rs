@@ -80,14 +80,12 @@ fn join_farms_should_work_with_single_yield_farm() {
 			let omnipool_position_id = 2;
 			let deposit_id = 1;
 			let asset_in_position = KSM;
-			let shares_amount = 10 * ONE;
 			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
 
 			assert_ok!(OmnipoolMining::join_farms(
 				RuntimeOrigin::signed(LP1),
 				yield_farms.try_into().unwrap(),
 				omnipool_position_id,
-				shares_amount,
 			));
 
 			//Assert
@@ -199,7 +197,6 @@ fn join_farms_should_work_with_multiple_yield_farm() {
 			let omnipool_position_id = 2;
 			let deposit_id = 1;
 			let asset_in_position = KSM;
-			let shares_amount = 10 * ONE;
 			let yield_farms = vec![
 				(gc_g_farm_id, gc_y_farm_id),
 				(charlie_g_farm_id, charlie_y_farm_id),
@@ -210,7 +207,6 @@ fn join_farms_should_work_with_multiple_yield_farm() {
 				RuntimeOrigin::signed(LP1),
 				yield_farms.try_into().unwrap(),
 				omnipool_position_id,
-				shares_amount,
 			));
 
 			//Assert
@@ -364,7 +360,6 @@ fn join_farms_should_fail_when_origin_is_none() {
 			let bob_g_farm_id = 3;
 			let bob_y_farm_id = 6;
 			let omnipool_position_id = 2;
-			let shares_amount = 10 * ONE;
 			let yield_farms = vec![
 				(gc_g_farm_id, gc_y_farm_id),
 				(charlie_g_farm_id, charlie_y_farm_id),
@@ -376,7 +371,6 @@ fn join_farms_should_fail_when_origin_is_none() {
 					RuntimeOrigin::none(),
 					yield_farms.try_into().unwrap(),
 					omnipool_position_id,
-					shares_amount,
 				),
 				BadOrigin
 			);
@@ -438,7 +432,6 @@ fn join_farms_should_fail_when_no_farms_specified() {
 		.build()
 		.execute_with(|| {
 			let omnipool_position_id = 2;
-			let shares_amount = 10 * ONE;
 			let farms = vec![];
 
 			assert_noop!(
@@ -446,7 +439,6 @@ fn join_farms_should_fail_when_no_farms_specified() {
 					RuntimeOrigin::signed(LP1),
 					farms.try_into().unwrap(),
 					omnipool_position_id,
-					shares_amount,
 				),
 				Error::<Test>::NoFarmEntriesSpecified
 			);
