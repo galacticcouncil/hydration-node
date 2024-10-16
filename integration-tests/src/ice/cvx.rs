@@ -1,11 +1,14 @@
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
+use frame_support::traits::fungible::Mutate;
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use hydradx_adapters::OraclePriceProvider;
-use hydradx_runtime::{EmaOracle, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT};
+use hydradx_runtime::{Currencies, EmaOracle, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT};
 use ice_solver::traits::{ICESolver, OmnipoolAssetInfo, OmnipoolInfo};
+use orml_traits::MultiCurrency;
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
 use primitives::{AccountId, AssetId, Moment};
+use sp_core::crypto::AccountId32;
 use sp_runtime::Permill;
 use xcm_emulator::TestExt;
 
@@ -153,4 +156,27 @@ fn test_specific_mock_scenario() {
 			},
 		]
 	);
+}
+
+const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2024-10-18";
+
+#[test]
+fn test_omnipool_snapshot() {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		//let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+		let initial_balance20 = Currencies::free_balance(20, &AccountId32::from(BOB));
+		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000);
+
+		assert_ok!(Router::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			0,
+			20,
+			100_000_000_000_000,
+			0,
+			vec![]
+		));
+		let balance20 = Currencies::free_balance(20, &AccountId32::from(BOB));
+
+		assert_eq!(balance20 - initial_balance20, 189873789846076);
+	});
 }
