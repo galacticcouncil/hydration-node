@@ -46,6 +46,7 @@ pub mod weights;
 use frame_support::{
 	ensure,
 	pallet_prelude::{DispatchError, DispatchResult},
+	require_transactional,
 	sp_runtime::traits::{AccountIdConversion, Zero},
 	traits::DefensiveOption,
 	traits::{
@@ -72,6 +73,7 @@ use primitives::{Balance, ItemId as DepositId};
 use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
 use sp_std::vec;
 
+use hydra_dx_math::omnipool::types::Position;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -686,40 +688,7 @@ pub mod pallet {
 			yield_farm_id: YieldFarmId,
 			position_id: T::PositionItemId,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
-
-			ensure!(
-				OmnipoolPallet::<T>::exists(lp_position.asset_id),
-				Error::<T>::AssetNotFound
-			);
-
-			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
-				global_farm_id,
-				yield_farm_id,
-				lp_position.asset_id,
-				lp_position.shares,
-				|_, _, _| -> Result<Balance, DispatchError> { Self::get_position_value_in_hub_asset(&lp_position) },
-			)?;
-
-			Self::lock_lp_position(position_id, deposit_id)?;
-
-			<T as pallet::Config>::NFTHandler::mint_into(
-				&<T as pallet::Config>::NFTCollectionId::get(),
-				&deposit_id,
-				&who,
-			)?;
-
-			Self::deposit_event(Event::SharesDeposited {
-				global_farm_id,
-				yield_farm_id,
-				deposit_id,
-				asset_id: lp_position.asset_id,
-				who,
-				shares_amount: lp_position.shares,
-				position_id,
-			});
+			Self::do_deposit_shares(origin, global_farm_id, yield_farm_id, position_id)?;
 
 			Ok(())
 		}
@@ -932,41 +901,14 @@ pub mod pallet {
 			position_id: T::PositionItemId,
 			shares_amount: Balance,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let who = ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
-
-			let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
-
 			//TODO: integration test join all the farms, run, iterate throuh all the yarms and withdraw
 
 			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmEntriesSpecified)?;
-			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
-				*global_farm_id,
-				*yield_farm_id,
-				lp_position.asset_id,
-				lp_position.shares,
-				|_, _, _| -> Result<Balance, DispatchError> { Self::get_position_value_in_hub_asset(&lp_position) },
-			)?;
+			let (deposit_id, lp_position) =
+				Self::do_deposit_shares(origin.clone(), *global_farm_id, *yield_farm_id, position_id)?;
 
-			Self::lock_lp_position(position_id, deposit_id)?;
-
-			<T as pallet::Config>::NFTHandler::mint_into(
-				&<T as pallet::Config>::NFTCollectionId::get(),
-				&deposit_id,
-				&who,
-			)?;
-
-			Self::deposit_event(Event::SharesDeposited {
-				global_farm_id: *global_farm_id,
-				yield_farm_id: *yield_farm_id,
-				deposit_id,
-				asset_id: lp_position.asset_id,
-				who: who.clone(),
-				shares_amount: lp_position.shares,
-				position_id,
-			});
-
-			// Redeposit for the remaining farm entries
 			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
 				T::LiquidityMiningHandler::redeposit_lp_shares(
 					global_farm_id,
@@ -1094,5 +1036,50 @@ impl<T: Config> Pallet<T> {
 		ensure!(nft_owner == who, Error::<T>::Forbidden);
 
 		Ok(who)
+	}
+
+	#[require_transactional]
+	fn do_deposit_shares(
+		origin: OriginFor<T>,
+		global_farm_id: GlobalFarmId,
+		yield_farm_id: YieldFarmId,
+		position_id: T::PositionItemId,
+	) -> Result<(DepositId, OmniPosition<Balance, T::AssetId>), DispatchError> {
+		let who = ensure_signed(origin)?;
+
+		let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
+
+		ensure!(
+			OmnipoolPallet::<T>::exists(lp_position.asset_id),
+			Error::<T>::AssetNotFound
+		);
+
+		let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
+			global_farm_id,
+			yield_farm_id,
+			lp_position.asset_id,
+			lp_position.shares,
+			|_, _, _| -> Result<Balance, DispatchError> { Self::get_position_value_in_hub_asset(&lp_position) },
+		)?;
+
+		Self::lock_lp_position(position_id, deposit_id)?;
+
+		<T as pallet::Config>::NFTHandler::mint_into(
+			&<T as pallet::Config>::NFTCollectionId::get(),
+			&deposit_id,
+			&who,
+		)?;
+
+		Self::deposit_event(Event::SharesDeposited {
+			global_farm_id,
+			yield_farm_id,
+			deposit_id,
+			asset_id: lp_position.asset_id,
+			who,
+			shares_amount: lp_position.shares,
+			position_id,
+		});
+
+		Ok((deposit_id, lp_position))
 	}
 }
