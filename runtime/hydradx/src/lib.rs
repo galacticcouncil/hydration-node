@@ -112,7 +112,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 262,
+	spec_version: 263,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -746,7 +746,7 @@ impl_runtime_apis! {
 						};
 
 			// don't allow calling EVM RPC or Runtime API from a bound address
-			if EVMAccounts::bound_account_id(from).is_some() {
+			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
 				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
 			};
 
@@ -827,9 +827,9 @@ impl_runtime_apis! {
 				};
 
 			// don't allow calling EVM RPC or Runtime API from a bound address
-			if EVMAccounts::bound_account_id(from).is_some() {
+			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
 				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
-				};
+			};
 
 			// the address needs to have a permission to deploy smart contract
 			if !EVMAccounts::can_deploy_contracts(from) {

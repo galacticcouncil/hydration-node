@@ -319,6 +319,38 @@ mod account_conversion {
 			);
 		});
 	}
+
+	#[test]
+	fn estimation_of_evm_call_should_be_accepted_even_from_bound_address() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)),);
+
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+
+			//Act & Assert
+			assert_ok!(hydradx_runtime::Runtime::call(
+				evm_address,   // from
+				DISPATCH_ADDR, // to
+				data,          // data
+				U256::from(1000u64),
+				U256::from(100000u64),
+				None,
+				None,
+				None,
+				true,
+				None,
+			));
+		});
+	}
 }
 
 mod standard_precompiles {
