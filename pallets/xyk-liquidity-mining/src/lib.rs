@@ -838,6 +838,7 @@ pub mod pallet {
 				Self::get_token_value_of_lp_shares,
 			)?;
 
+			Self::lock_lp_tokens(share_token, &who, shares_amount)?;
 			T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &deposit_id, &who)?;
 
 			Self::deposit_event(Event::SharesDeposited {

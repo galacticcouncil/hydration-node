@@ -355,7 +355,7 @@ impl liq_mining::Config for Test {
 	type XykAddLiquidity = XykAddLiquidityMock;
 }
 
-pub const LOCKED_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
+pub const LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
 use frame_support::traits::fungible::Balanced;
 pub struct XykAddLiquidityMock;
 
@@ -373,7 +373,11 @@ impl XykAddLiquidity<OriginFor<Test>, AssetId, Balance> for XykAddLiquidityMock 
 		};
 		let share_token = DummyAMM::get_share_token(asset_pair);
 
-		Tokens::deposit(share_token, &LiquidityMining::account_id(), LOCKED_XYK_SHARE_AMOUNT)?;
+		Tokens::deposit(
+			share_token,
+			&LiquidityMining::account_id(),
+			LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT,
+		)?;
 		Ok(())
 	}
 }

@@ -44,7 +44,7 @@ fn add_liquidity_and_join_farms_should_work() {
 			// Check if LP tokens are locked
 			assert_eq!(
 				Tokens::total_balance(BSX_KSM_SHARE_ID, &LiquidityMining::account_id()),
-				LOCKED_XYK_SHARE_AMOUNT
+				share_amount + LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT
 			);
 
 			// Check if NFT is minted
