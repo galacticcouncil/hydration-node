@@ -316,6 +316,235 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 }
 
 #[test]
+fn join_farms_should_work_with_multiple_farm_entries() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_1_id = 1;
+		let global_farm_2_id = 2;
+		let global_farm_3_id = 3;
+		let yield_farm_1_id = 4;
+		let yield_farm_2_id = 5;
+		let yield_farm_3_id = 6;
+
+		let asset_pair = AssetPair {
+			asset_in: PEPE,
+			asset_out: ACA,
+		};
+		let amm_pool_id = <Runtime as pallet_xyk_liquidity_mining::Config>::AMM::get_pair_id(asset_pair);
+
+		//Arrange
+		let xyk_share_id = create_xyk_pool(
+			asset_pair.asset_in,
+			10_000_000 * UNITS,
+			asset_pair.asset_out,
+			100_000_000 * UNITS,
+		);
+		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
+
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
+		set_relaychain_block_number(100);
+		create_global_farm(None, PEPE, None);
+		create_global_farm(None, ACA, None);
+		create_global_farm(None, PEPE, None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, asset_pair, None);
+		create_yield_farm(global_farm_2_id, asset_pair, None);
+		create_yield_farm(global_farm_3_id, asset_pair, None);
+
+		set_relaychain_block_number(400);
+		let farms = vec![
+			(global_farm_1_id, yield_farm_1_id),
+			(global_farm_2_id, yield_farm_2_id),
+			(global_farm_3_id, yield_farm_3_id),
+		];
+		let deposit_id = 1;
+		assert_ok!(XYKLiquidityMining::join_farms(
+			RuntimeOrigin::signed(DAVE.into()),
+			farms.try_into().unwrap(),
+			asset_pair,
+			dave_shares_balance,
+		));
+
+		//Act
+		set_relaychain_block_number(500);
+
+		let deposit = XYKWarehouseLM::deposit(deposit_id).unwrap();
+		let mut expected_deposit = DepositData::new(dave_shares_balance, amm_pool_id);
+		//1-th deposit entry
+		expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_1_id,
+				yield_farm_1_id,
+				10_000_000 * UNITS,
+				FixedU128::zero(),
+				40,
+				0,
+			))
+			.unwrap();
+
+		//2-nd redeposit entry
+		expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_2_id,
+				yield_farm_2_id,
+				100_000_000 * UNITS,
+				FixedU128::zero(),
+				40,
+				0,
+			))
+			.unwrap();
+
+		//3-nd redeposit entry
+		expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_3_id,
+				yield_farm_3_id,
+				10_000_000 * UNITS,
+				FixedU128::zero(),
+				40,
+				0,
+			))
+			.unwrap();
+
+		assert_eq!(deposit, expected_deposit);
+
+		//assert LM deposit
+		assert_nft_owner!(hydradx_runtime::XYKLmCollectionId::get(), 1, DAVE.into());
+		assert_eq!(Currencies::free_balance(xyk_share_id, &DAVE.into()), Balance::zero());
+		assert_eq!(
+			Currencies::free_balance(xyk_share_id, &XYKLiquidityMining::account_id()),
+			dave_shares_balance
+		);
+	});
+}
+
+#[test]
+fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_1_id = 1;
+		let global_farm_2_id = 2;
+		let global_farm_3_id = 3;
+		let yield_farm_1_id = 4;
+		let yield_farm_2_id = 5;
+		let yield_farm_3_id = 6;
+
+		let asset_pair = AssetPair {
+			asset_in: PEPE,
+			asset_out: ACA,
+		};
+		let amm_pool_id = <Runtime as pallet_xyk_liquidity_mining::Config>::AMM::get_pair_id(asset_pair);
+
+		//Arrange
+		let xyk_share_id = create_xyk_pool(
+			asset_pair.asset_in,
+			10_000_000 * UNITS,
+			asset_pair.asset_out,
+			100_000_000 * UNITS,
+		);
+
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
+		set_relaychain_block_number(100);
+		create_global_farm(None, PEPE, None);
+		create_global_farm(None, ACA, None);
+		create_global_farm(None, PEPE, None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, asset_pair, None);
+		create_yield_farm(global_farm_2_id, asset_pair, None);
+		create_yield_farm(global_farm_3_id, asset_pair, None);
+
+		set_relaychain_block_number(400);
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			BOB.into(),
+			PEPE,
+			10_000_0000 * UNITS as i128,
+		));
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			BOB.into(),
+			ACA,
+			10_000_0000 * UNITS as i128,
+		));
+
+		let farms = vec![
+			(global_farm_1_id, yield_farm_1_id),
+			(global_farm_2_id, yield_farm_2_id),
+			(global_farm_3_id, yield_farm_3_id),
+		];
+		let deposit_id = 1;
+		let liquidity_amount = 5_000_000 * UNITS;
+		assert_ok!(XYKLiquidityMining::add_liquidity_and_join_farms(
+			RuntimeOrigin::signed(BOB.into()),
+			PEPE,
+			ACA,
+			liquidity_amount,
+			6_000_0000 * UNITS,
+			farms.try_into().unwrap(),
+		));
+
+		//Act
+		set_relaychain_block_number(500);
+
+		let deposit = XYKWarehouseLM::deposit(deposit_id).unwrap();
+
+		let shares_amount = Currencies::free_balance(xyk_share_id, &XYKLiquidityMining::account_id());
+		let mut expected_deposit = DepositData::new(shares_amount, amm_pool_id);
+		//1-th deposit entry
+		expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_1_id,
+				yield_farm_1_id,
+				liquidity_amount,
+				FixedU128::zero(),
+				40,
+				0,
+			))
+			.unwrap();
+
+		//2-nd redeposit entry
+		expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_2_id,
+				yield_farm_2_id,
+				shares_amount,
+				FixedU128::zero(),
+				40,
+				0,
+			))
+			.unwrap();
+
+		//3-nd redeposit entry
+		expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_3_id,
+				yield_farm_3_id,
+				liquidity_amount,
+				FixedU128::zero(),
+				40,
+				0,
+			))
+			.unwrap();
+
+		assert_eq!(deposit, expected_deposit);
+
+		//assert LM deposit
+		assert_nft_owner!(hydradx_runtime::XYKLmCollectionId::get(), 1, BOB.into());
+		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), Balance::zero());
+		assert_eq!(
+			Currencies::free_balance(xyk_share_id, &XYKLiquidityMining::account_id()),
+			50000000000000000000
+		);
+	});
+}
+
+#[test]
 fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 	TestNet::reset();
 

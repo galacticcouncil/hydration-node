@@ -710,6 +710,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		//TODO: add doc and for every new extruinsucs
 		#[pallet::call_index(12)]
 		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
 		pub fn join_farms(
