@@ -164,12 +164,7 @@ mod tests {
 			unimplemented!()
 		}
 
-		fn log(
-			&mut self,
-			_: sp_core::H160,
-			_: Vec<sp_core::H256>,
-			_: Vec<u8>,
-		) -> Result<(), evm::ExitError> {
+		fn log(&mut self, _: sp_core::H160, _: Vec<sp_core::H256>, _: Vec<u8>) -> Result<(), evm::ExitError> {
 			unimplemented!()
 		}
 
@@ -237,7 +232,7 @@ mod tests {
 
 	impl pallet_evm::Config for Runtime {
 		type FeeCalculator = ();
-		type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
+		type GasWeightMapping = FixedHydraGasWeightMapping<Self>;
 		type WeightPerGas = WeightPerGas;
 		type CallOrigin = EnsureAddressRoot<AccountId>;
 		type WithdrawOrigin = EnsureAddressNever<AccountId>;
@@ -312,11 +307,7 @@ mod tests {
 	fn default_checks_revert_when_called_by_precompile() {
 		ExtBuilder::default().build().execute_with(|| {
 			precompiles()
-				.prepare_test(
-					H160::from_low_u64_be(1),
-					H160::from_low_u64_be(1),
-					PCall::success {},
-				)
+				.prepare_test(H160::from_low_u64_be(1), H160::from_low_u64_be(1), PCall::success {})
 				.with_subcall_handle(|Subcall { .. }| panic!("there should be no subcall"))
 				.execute_reverts(|r| r == b"Function not callable by precompiles")
 		})
@@ -325,10 +316,7 @@ mod tests {
 	#[test]
 	fn default_checks_revert_when_called_by_contract() {
 		ExtBuilder::default().build().execute_with(|| {
-			pallet_evm::Pallet::<Runtime>::create_account(
-				Alice.into(),
-				hex_literal::hex!("1460006000fd").to_vec(),
-			);
+			pallet_evm::Pallet::<Runtime>::create_account(Alice.into(), hex_literal::hex!("1460006000fd").to_vec());
 
 			precompiles()
 				.prepare_test(Alice, H160::from_low_u64_be(1), PCall::success {})
@@ -350,10 +338,7 @@ mod tests {
 	#[test]
 	fn callable_by_contract_works() {
 		ExtBuilder::default().build().execute_with(|| {
-			pallet_evm::Pallet::<Runtime>::create_account(
-				Alice.into(),
-				hex_literal::hex!("1460006000fd").to_vec(),
-			);
+			pallet_evm::Pallet::<Runtime>::create_account(Alice.into(), hex_literal::hex!("1460006000fd").to_vec());
 
 			precompiles()
 				.prepare_test(Alice, H160::from_low_u64_be(2), PCall::success {})
@@ -366,11 +351,7 @@ mod tests {
 	fn callable_by_precompile_works() {
 		ExtBuilder::default().build().execute_with(|| {
 			precompiles()
-				.prepare_test(
-					H160::from_low_u64_be(3),
-					H160::from_low_u64_be(3),
-					PCall::success {},
-				)
+				.prepare_test(H160::from_low_u64_be(3), H160::from_low_u64_be(3), PCall::success {})
 				.with_subcall_handle(|Subcall { .. }| panic!("there should be no subcall"))
 				.execute_returns(())
 		})
@@ -423,10 +404,7 @@ mod tests {
 			let addr = H160::repeat_byte(0x1d);
 
 			// length > 5
-			pallet_evm::AccountCodes::<Runtime>::insert(
-				addr,
-				vec![0x60, 0x00, 0x60, 0x00, 0xfd, 0xff, 0xff],
-			);
+			pallet_evm::AccountCodes::<Runtime>::insert(addr, vec![0x60, 0x00, 0x60, 0x00, 0xfd, 0xff, 0xff]);
 			assert_eq!(
 				AddressType::Contract,
 				get_address_type::<Runtime>(&mut MockPrecompileHandle, addr).expect("OOG")
