@@ -226,7 +226,6 @@ const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2024-10-18";
 #[test]
 fn test_omnipool_snapshot() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		OmnipoolDataProvider::assets();
 		//let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 		let buy_asset = 27;
 		let initial_balance20 = Currencies::free_balance(buy_asset, &AccountId32::from(BOB));
@@ -329,7 +328,7 @@ fn solver_should_find_solution_with_one_intent() {
 		let (resolved, trades, score) = solve_intents_with::<CvxSolverWithOmnipool>(intents).unwrap();
 
 		assert_eq!(
-			solved.intents,
+			resolved.to_vec(),
 			vec![pallet_ice::types::ResolvedIntent {
 				intent_id: 1,
 				amount_in: 100_000_000_000_000,

@@ -120,7 +120,7 @@ where
 	fn solve(
 		intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>,
 	) -> Result<Self::Solution, Self::Error> {
-		let omnipool_data = OI::assets();
+		let omnipool_data = OI::assets(None);
 		let (asset_ids, asset_reserves, hub_reserves, fees, lrna_fees, decimals) =
 			prepare_omnipool_data::<T>(omnipool_data);
 
