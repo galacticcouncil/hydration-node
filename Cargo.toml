@@ -12,6 +12,7 @@ members = [
   'integration-tests',
   'pallets/circuit-breaker',
   'pallets/omnipool-liquidity-mining',
+  'pallets/stableswap-liquidity-mining',
   'scraper',
   'traits',
   'pallets/relaychain-info',

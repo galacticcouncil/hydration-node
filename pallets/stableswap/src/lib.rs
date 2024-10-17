@@ -1181,6 +1181,23 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> Pallet<T> {
+	pub fn pool(pool_id: T::AssetId) -> Option<PoolInfo<T::AssetId, BlockNumberFor<T>>> {
+		Pools::<T>::get(pool_id)
+	}
+
+	//TODO: we can remove these two mofo if not needed
+	pub fn exists(pool_id: T::AssetId) -> bool {
+		Pools::<T>::get(pool_id).is_some()
+	}
+
+	pub fn pool_assets(pool_id: T::AssetId) -> Vec<T::AssetId> {
+		if let Some(pool) = Pools::<T>::get(pool_id) {
+			pool.assets.to_vec()
+		} else {
+			Vec::new() // Return an empty Vec if the pool doesn't exist
+		}
+	}
+
 	fn calculate_shares(pool_id: T::AssetId, assets: &[AssetAmount<T::AssetId>]) -> Result<Balance, DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		let pool_account = Self::pool_account(pool_id);

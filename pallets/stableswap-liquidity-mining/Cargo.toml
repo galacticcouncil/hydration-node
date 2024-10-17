@@ -1,0 +1,83 @@
+[package]
+name = "pallet-stableswap-liquidity-mining"
+version = "2.3.0"
+authors = ['GalacticCouncil']
+edition = "2021"
+license = "Apache-2.0"
+homepage = 'https://github.com/galacticcouncil/hydradx-node'
+repository = 'https://github.com/galacticcouncil/hydradx-node'
+description = "Liquidity mining for Omnipool."
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+# parity
+scale-info = { workspace = true }
+codec = {workspace = true }
+log = { workspace = true }
+
+# local
+primitives = { workspace = true }
+pallet-stableswap = { workspace = true }
+
+# primitives
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+
+# FRAME
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+# ORML
+orml-traits = { workspace = true }
+
+# Warehouse
+pallet-liquidity-mining = { workspace = true }
+pallet-ema-oracle = { workspace = true }
+hydradx-traits = { workspace = true }
+
+hydra-dx-math = { workspace = true }
+
+# third party
+primitive-types = { workspace = true }
+
+# Optional imports for benchmarking
+frame-benchmarking = { workspace = true, optional = true }
+pallet-balances = { workspace = true, optional = true }
+sp-core = { workspace = true, optional = true }
+sp-io = { workspace = true, optional = true }
+
+[dev-dependencies]
+sp-io = { workspace = true }
+sp-core = { workspace = true }
+orml-tokens = { workspace = true }
+pretty_assertions = { workspace = true }
+test-utils = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"scale-info/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"frame-support/std",
+	"frame-system/std",
+	"sp-core/std",
+	"sp-io/std",
+	"pallet-balances/std",
+	"orml-tokens/std",
+    "pallet-stableswap/std",
+	"pallet-ema-oracle/std",
+	"pallet-liquidity-mining/std",
+	"primitives/std",
+  "hydra-dx-math/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"sp-core",
+	"sp-io",
+	"pallet-balances",
+]
+try-runtime = [ "frame-support/try-runtime" ]

@@ -9185,6 +9185,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-stableswap-liquidity-mining"
+version = "2.3.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-ema-oracle",
+ "pallet-liquidity-mining",
+ "pallet-stableswap",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitive-types",
+ "primitives",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-staking"
 version = "3.1.2"
 dependencies = [
