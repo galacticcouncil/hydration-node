@@ -7,10 +7,11 @@ use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
 use pallet_ice::types::{Balance, BoundedRoute, Intent, IntentId, ResolvedIntent, TradeInstruction};
 use sp_std::collections::btree_map::BTreeMap;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
+use sp_runtime::FixedU128;
 
 fn calculate_tau_phi<T: pallet_ice::Config>(
 	intents: &[(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)],
@@ -97,6 +98,26 @@ where
 	(asset_ids, asset_reserves, hub_reserves, fees, hub_fees, decimals)
 }
 
+fn prepare_intent_data<T: pallet_ice::Config>(intents: &[Intent<T::AccountId, T::AssetId>]) -> (Vec<T::AssetId>, Vec<f64>) {
+	let mut asset_ids = BTreeSet::new();
+	let mut intent_prices = Vec::new();
+	for intent in intents {
+		if intent.swap.asset_in != 1u32.into() {
+			asset_ids.insert(intent.swap.asset_in);
+		}
+		if intent.swap.asset_out != 1u32.into() { //note: this should never happened, as it is not allowed to buy lrna!
+			asset_ids.insert(intent.swap.asset_out);
+		}else{
+			debug_assert!(false, "It is not allowed to buy lrna!");
+		}
+		let amount_in = intent.swap.amount_in;
+		let amount_out = intent.swap.amount_out;
+		let price = FixedU128::from_rational(amount_out , amount_in).to_float();
+		intent_prices.push(price);
+	}
+	(asset_ids.iter().collect(), intent_prices)
+}
+
 pub struct CVXSolver2<T, R, RP, PP, OI>(sp_std::marker::PhantomData<(T, R, RP, PP, OI)>);
 
 impl<T: pallet_ice::Config, R, RP, PP, OI>
@@ -121,8 +142,13 @@ where
 		intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>,
 	) -> Result<Self::Solution, Self::Error> {
 		let omnipool_data = OI::assets(None);
-		let (asset_ids, asset_reserves, hub_reserves, fees, lrna_fees, decimals) =
-			prepare_omnipool_data::<T>(omnipool_data);
+
+		let (asset_ids,
+			asset_reserves,
+			hub_reserves,
+			fees,
+			lrna_fees,
+			decimals) = prepare_omnipool_data::<T>(omnipool_data);
 
 		let mut tkns: Vec<T::AssetId> = vec![1u32.into()];
 		tkns.extend(asset_ids.iter().cloned());
